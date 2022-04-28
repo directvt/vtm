@@ -1728,68 +1728,56 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                //security_descriptor pipe_acl(security_descriptor_string);
-
-                auto sock_ptr = std::make_shared<ipc>(handle, true);
-
+                auto connector = std::make_shared<ipc>(handle, true);
                 auto to_server = RD_PIPE_PATH + scpath;
                 auto to_client = WR_PIPE_PATH + scpath;
-
-                auto r_fConnected = ::ConnectNamedPipe(handle.get_r(), NULL)
-                    ? true
-                    : (::GetLastError() == ERROR_PIPE_CONNECTED);
-
-                if (!active) return os::fail("not active");
-                // Recreate the waiting point for the next client.
-                handle.set_r(::CreateNamedPipe( to_server.c_str(),        // pipe name
-                                                PIPE_ACCESS_INBOUND,      // read/write access
-                                                PIPE_TYPE_BYTE |          // message type pipe
-                                                PIPE_READMODE_BYTE |      // message-read mode
-                                                PIPE_WAIT,                // blocking mode
-                                                PIPE_UNLIMITED_INSTANCES, // max. instances
-                                                PIPE_BUF,                 // output buffer size
-                                                PIPE_BUF,                 // input buffer size
-                                                0,                        // client time-out
-                                                NULL));  // DACL
-                                                // DACL: The ACLs in the default security descriptor
-                                                //       for a named pipe grant full control to the
-                                                //       LocalSystem account, administrators, and the
-                                                //       creator owner.They also grant read access to
-                                                //       members of the Everyone groupand the anonymous
-                                                //       account.
-                                                //       Without write access, the desktop will be inaccessible to non-owners.
-                                                //pipe_acl);                // DACL
-
-                if (handle.get_r() == INVALID_FD)
+                auto next_link = [&](auto& h, auto const& path, auto type)
                 {
-                    handle.set_r(sock_ptr->handle.get_r());
+                    auto connected = ::ConnectNamedPipe(h, NULL)
+                        ? true
+                        : (::GetLastError() == ERROR_PIPE_CONNECTED);
+
+                    if (active && connected) // Recreate the waiting point for the next client.
+                    {
+                        h = ::CreateNamedPipe( path.c_str(),             // pipe path
+                                               type,                     // read/write access
+                                               PIPE_TYPE_BYTE |          // message type pipe
+                                               PIPE_READMODE_BYTE |      // message-read mode
+                                               PIPE_WAIT,                // blocking mode
+                                               PIPE_UNLIMITED_INSTANCES, // max. instances
+                                               PIPE_BUF,                 // output buffer size
+                                               PIPE_BUF,                 // input buffer size
+                                               0,                        // client time-out
+                                               NULL);                    // DACL (pipe_acl)
+                        // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);
+                        //       The ACLs in the default security descriptor for a named pipe grant full control to the
+                        //       LocalSystem account, administrators, and the creator owner.They also grant read access to
+                        //       members of the Everyone groupand the anonymous account.
+                        //       Without write access, the desktop will be inaccessible to non-owners.
+                    }
+                    else
+                    {
+                        h = INVALID_FD;
+                        os::fail("not active");
+                    }
+                    return h != INVALID_FD;
+                };
+
+                if (!next_link(handle.get_r(), to_server, PIPE_ACCESS_INBOUND))
+                {
+                    handle.set_r(connector->handle.get_r());
                     return os::fail("CreateNamedPipe error (read)");
                 }
 
-                auto w_fConnected = ::ConnectNamedPipe(handle.get_w(), NULL)
-                    ? true
-                    : (::GetLastError() == ERROR_PIPE_CONNECTED);
-
-                handle.set_w(::CreateNamedPipe( to_client.c_str(),        // pipe name
-                                                PIPE_ACCESS_OUTBOUND,     // read/write access
-                                                PIPE_TYPE_BYTE |          // message type pipe
-                                                PIPE_READMODE_BYTE |      // message-read mode
-                                                PIPE_WAIT,                // blocking mode
-                                                PIPE_UNLIMITED_INSTANCES, // max. instances
-                                                PIPE_BUF,                 // output buffer size
-                                                PIPE_BUF,                 // input buffer size
-                                                0,                        // client time-out
-                                                NULL));
-
-                if (handle.get_w() == INVALID_FD)
+                if (!next_link(handle.get_w(), to_client, PIPE_ACCESS_OUTBOUND))
                 {
                     ::CloseHandle(handle.get_r());
-                    handle.set_r(sock_ptr->handle.get_r());
-                    handle.set_w(sock_ptr->handle.get_w());
+                    handle.set_r(connector->handle.get_r());
+                    handle.set_w(connector->handle.get_w());
                     return os::fail("CreateNamedPipe error (write)");
                 }
 
-                return sock_ptr;
+                return connector;
 
             #else
 
