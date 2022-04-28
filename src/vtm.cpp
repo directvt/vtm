@@ -99,8 +99,10 @@ int main(int argc, char* argv[])
 
     banner();
 
+    auto user = os::user();
     auto spot = utf::text{};
     auto conf = utf::text{};
+    auto path = prefix(user);
     {
         std::ifstream config;
         config.open(os::homepath() + "/.config/vtm/settings.ini");
@@ -128,11 +130,6 @@ int main(int argc, char* argv[])
     {
         os::start_log("vtm");
 
-        auto user = os::user();
-        auto host = os::get_env("SSH_CLIENT");
-        auto name = os::get_env("USER");
-        auto mode = os::legacy_mode();
-        auto path = prefix(user);
         auto link = os::ipc::open<os::client>(path, 10s, [&]()
                     {
                         log("main: new desktop environment for user ", user);
@@ -145,6 +142,10 @@ int main(int argc, char* argv[])
             log("main: error: no desktop server connection");
             return 1;
         }
+
+        auto host = os::get_env("SSH_CLIENT");
+        auto name = os::get_env("USER");
+        auto mode = os::legacy_mode();
 
         link->send(utf::concat(spot, ";",
                                host, ";",
@@ -171,12 +172,10 @@ int main(int argc, char* argv[])
     }
     else
     {
-        auto user = os::user();
-        auto path = prefix(user);
         auto link = os::ipc::open<os::server>(path);
         if (!link)
         {
-            log("main: error: can't start new desktop server (check if another instance of the server is running)");
+            log("main: error: can't start desktop server");
             return 1;
         }
 

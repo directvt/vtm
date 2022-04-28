@@ -871,14 +871,22 @@ namespace netxs::os
         #if defined(_WIN32)
 
             static constexpr auto INFO_BUFFER_SIZE = 32767UL;
-            //TCHAR  infoBuf[INFO_BUFFER_SIZE];
             char   infoBuf[INFO_BUFFER_SIZE];
             DWORD  bufCharCount = INFO_BUFFER_SIZE;
 
-            if (!::GetUserName(infoBuf, &bufCharCount))
-                log("error GetUserName");
-
-            return text(infoBuf, bufCharCount);
+            if (::GetUserNameA(infoBuf, &bufCharCount))
+            {
+                if (bufCharCount && infoBuf[bufCharCount - 1] == 0)
+                {
+                    bufCharCount--;
+                }
+                return text(infoBuf, bufCharCount);
+            }
+            else
+            {
+                os::fail("GetUserName error");
+                return text{};
+            }
 
         #else
 
@@ -1336,6 +1344,23 @@ namespace netxs::os
         }
 
         return result;
+    }
+    static auto check_pipe(text const& path, text prefix = "\\\\.\\pipe\\")
+    {
+        auto hits = faux;
+        auto next = WIN32_FIND_DATAA{};
+        auto name = path.substr(prefix.size());
+        auto what = prefix + '*';
+        auto hndl = ::FindFirstFileA(what.c_str(), &next);
+        if (hndl != INVALID_HANDLE_VALUE)
+        {
+            do hits = next.cFileName == name;
+            while (!hits && ::FindNextFileA(hndl, &next));
+
+            if (hits) log("name: ", path);
+            ::FindClose(hndl);
+        }
+        return hits;
     }
 
     #endif  // Windows specific
@@ -1830,20 +1855,31 @@ namespace netxs::os
         }
         void stop()
         {
-            signal.reset();
+            active = faux;
+            #if defined(_WIN32)
+
+                if (sealed) // Disconnection order does matter.
+                {
+                    auto to_client = WR_PIPE_PATH + scpath;
+                    auto to_server = RD_PIPE_PATH + scpath;
+                    if (handle.get_w() != INVALID_FD) ok(::DeleteFileA(to_client.c_str()));
+                    if (handle.get_r() != INVALID_FD) ok(::DeleteFileA(to_server.c_str()));
+                    handle.reset();
+                }
+
+            #else
+
+                signal.reset();
+
+            #endif
         }
         auto shut() -> bool
         {
             active = faux;
             #if defined(_WIN32)
 
-                if (sealed)
-                { // Disconnection order does matter.
-                    //auto to_client = WR_PIPE_PATH + scpath;
-                    //auto to_server = RD_PIPE_PATH + scpath;
-                    //if (handle.get_w() != INVALID_FD) ok(::DeleteFileA(to_client.c_str()));
-                    //if (handle.get_r() != INVALID_FD) ok(::DeleteFileA(to_server.c_str()));
-
+                if (sealed) // Disconnection order does matter.
+                {
                     if (handle.get_w() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_w()));
                     if (handle.get_r() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_r()));
                 }
@@ -1888,8 +1924,12 @@ namespace netxs::os
                 if (!done)
                 {
                     if constexpr (ROLE == role::client)
-                    if (!retry_proc())
-                        return os::fail("failed to start server");
+                    {
+                        if (!retry_proc())
+                        {
+                            return os::fail("failed to start server");
+                        }
+                    }
 
                     auto stop = datetime::tempus::now() + retry_timeout;
                     do
@@ -1916,33 +1956,32 @@ namespace netxs::os
 
                 if constexpr (ROLE == role::server)
                 {
-                    r_sock = ::CreateNamedPipe( to_server.c_str(),        // pipe path
-                                                PIPE_ACCESS_INBOUND,      // read/write access
-                                                PIPE_TYPE_BYTE |          // message type pipe
-                                                PIPE_READMODE_BYTE |      // message-read mode
-                                                PIPE_WAIT,                // blocking mode
-                                                PIPE_UNLIMITED_INSTANCES, // max instances
-                                                PIPE_BUF,                 // output buffer size
-                                                PIPE_BUF,                 // input buffer size
-                                                0,                        // client time-out
-                                                NULL);                    // DACL
-                                                //pipe_acl);                // DACL
+                    if (os::check_pipe(to_server))
+                    {
+                        return os::fail("server already running");
+                    }
+
+                    auto pipe = [](auto const& path, auto type)
+                    {
+                        return ::CreateNamedPipe( path.c_str(),             // pipe path
+                                                  type,                     // read/write access
+                                                  PIPE_TYPE_BYTE |          // message type pipe
+                                                  PIPE_READMODE_BYTE |      // message-read mode
+                                                  PIPE_WAIT,                // blocking mode
+                                                  PIPE_UNLIMITED_INSTANCES, // max instances
+                                                  PIPE_BUF,                 // output buffer size
+                                                  PIPE_BUF,                 // input buffer size
+                                                  0,                        // client time-out
+                                                  NULL);                    // DACL
+                    };
+
+                    r_sock = pipe(to_server, PIPE_ACCESS_INBOUND);
                     if (r_sock == INVALID_FD)
                     {
                         return os::fail("CreateNamedPipe error (read)");
                     }
 
-                    w_sock = ::CreateNamedPipe( to_client.c_str(),        // pipe path
-                                                PIPE_ACCESS_OUTBOUND,     // read/write access
-                                                PIPE_TYPE_BYTE |          // message type pipe
-                                                PIPE_READMODE_BYTE |      // message-read mode
-                                                PIPE_WAIT,                // blocking mode
-                                                PIPE_UNLIMITED_INSTANCES, // max instances
-                                                PIPE_BUF,                 // output buffer size
-                                                PIPE_BUF,                 // input buffer size
-                                                0,                        // client time-out
-                                                NULL);                    // DACL
-                                                //pipe_acl);                // DACL
+                    w_sock = pipe(to_client, PIPE_ACCESS_OUTBOUND);
                     if (w_sock == INVALID_FD)
                     {
                         ::CloseHandle(r_sock);
@@ -1951,29 +1990,25 @@ namespace netxs::os
                 }
                 else if constexpr (ROLE == role::client)
                 {
-                    auto play = [&]() -> bool
+                    auto pipe = [](auto const& path, auto type)
                     {
-                        w_sock = ::CreateFile( to_server.c_str(), // pipe path
-                                               GENERIC_WRITE,
-                                               0,                 // no sharing
-                                               NULL,              // default security attributes
-                                               OPEN_EXISTING,     // opens existing pipe
-                                               0,                 // default attributes
-                                               NULL);             // no template file
-
+                        return ::CreateFile( path.c_str(),  // pipe path
+                                             type,
+                                             0,             // no sharing
+                                             NULL,          // default security attributes
+                                             OPEN_EXISTING, // opens existing pipe
+                                             0,             // default attributes
+                                             NULL);         // no template file
+                    };
+                    auto play = [&]()
+                    {
+                        w_sock = pipe(to_server, GENERIC_WRITE);
                         if (w_sock == INVALID_FD)
                         {
                             return faux;
                         }
 
-                        r_sock = ::CreateFile( to_client.c_str(), // pipe path
-                                               GENERIC_READ,
-                                               0,                 // no sharing
-                                               NULL,              // default security attributes
-                                               OPEN_EXISTING,     // opens existing pipe
-                                               0,                 // default attributes
-                                               NULL);             // no template file
-
+                        r_sock = pipe(to_client, GENERIC_READ);
                         if (r_sock == INVALID_FD)
                         {
                             ::CloseHandle(w_sock);
