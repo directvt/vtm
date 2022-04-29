@@ -425,8 +425,8 @@ namespace netxs::utf
         }
     };
 
-    template<class VIEW>
-    inline std::optional<si32> to_int(VIEW&& ascii)
+    template<class VIEW, class = std::enable_if_t<std::is_base_of<view, VIEW>::value == true, VIEW>>
+    inline std::optional<si32> to_int(VIEW& ascii)
     {
         si32 num;
         auto top = ascii.data();
@@ -439,7 +439,18 @@ namespace netxs::utf
         }
         else return std::nullopt;
     }
-
+    template<class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
+    inline auto to_int(T&& utf8)
+    {
+        auto shadow = view{ std::forward<T>(utf8) };
+        return to_int(shadow);
+    }
+    template<class T, class A>
+    inline auto to_int(T&& utf8, A fallback)
+    {
+        auto result = to_int(std::forward<T>(utf8));
+        return result ? result.value() : fallback;
+    }
     enum codepage
     {
         cp866,
@@ -449,9 +460,9 @@ namespace netxs::utf
 
     struct letter_sync
     {
-        int		lb;
-        int		rb;
-        int		cp;
+        int lb;
+        int rb;
+        int cp;
     };
 
     static constexpr letter_sync utf8_cp866[] =
@@ -708,29 +719,33 @@ namespace netxs::utf
         }
         return code;
     }
-    static inline void _to_utf(text& utf8, utfx code)
+
+    namespace
     {
-        if (code <= 0x007f)
+        static inline void _to_utf(text& utf8, utfx code)
         {
-            utf8.push_back(static_cast<char>(code));
-        }
-        else if (code <= 0x07ff)
-        {
-            utf8.push_back(static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)));
-            utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
-        }
-        else if (code <= 0xffff)
-        {
-            utf8.push_back(static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)));
-            utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
-            utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
-        }
-        else
-        {
-            utf8.push_back(static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)));
-            utf8.push_back(static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)));
-            utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
-            utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+            if (code <= 0x007f)
+            {
+                utf8.push_back(static_cast<char>(code));
+            }
+            else if (code <= 0x07ff)
+            {
+                utf8.push_back(static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)));
+                utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+            }
+            else if (code <= 0xffff)
+            {
+                utf8.push_back(static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)));
+                utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
+                utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+            }
+            else
+            {
+                utf8.push_back(static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)));
+                utf8.push_back(static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)));
+                utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
+                utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+            }
         }
     }
     static auto to_utf_from_code(utfx code)
@@ -797,17 +812,20 @@ namespace netxs::utf
             auto is_first = [](auto c) { return (c & 0xc0) != 0x80; };
             bool first;
 
-            while (!(first = is_first(utf8[--size])) && size)
+            while (size && !(first = is_first(utf8[--size]))) // Find first byte.
             { }
 
-            // test cp
-            if (first)
+            if (first) // Check codepoint.
             {
                 auto l = utf::letter(utf8.substr(size));
                 if (!l.attr.correct)
                 {
                     utf8 = utf8.substr(0, size);
                 }
+            }
+            else // Bad UTF-8 encoding (size == 0).
+            {
+                //Recycle all bad bytes (log?).
             }
         }
     }
@@ -1167,22 +1185,6 @@ namespace netxs::utf
         return crop;
     }
 
-    template <class Container, class V1, class V2>
-    auto concat(Container const& set, V1 const& delimiter, V2 const& ender)
-    {
-        using elem_type = typename Container::value_type;
-        elem_type objects;
-        elem_type delim	(delimiter);
-        elem_type end	(ender);
-
-        for (auto itr = set.begin(); itr != set.end();)
-        {
-            auto& object = itr[0];
-            objects += object + (++itr != set.end() ? delim : end);
-        }
-        return objects;
-    }
-
     template <class Container>
     auto maxlen(Container const& set)
     {
@@ -1212,22 +1214,25 @@ namespace netxs::utf
         }
     };
 
-    template <class T>
-    void concat(flux& s, T&& item)
+    namespace
     {
-        s << item;
-    }
-    template<class T, class ...Args>
-    void concat(flux& s, T&& item, Args&&... args)
-    {
-        s << item;
-        concat(s, std::forward<Args>(args)...);
+        template <class T>
+        void _concat(flux& s, T&& item)
+        {
+            s << item;
+        }
+        template<class T, class ...Args>
+        void _concat(flux& s, T&& item, Args&&... args)
+        {
+            s << item;
+            _concat(s, std::forward<Args>(args)...);
+        }
     }
     template<class ...Args>
     auto concat(Args&&... args)
     {
         flux s;
-        concat(s, std::forward<Args>(args)...);
+        _concat(s, std::forward<Args>(args)...);
         return s.str();
     }
 

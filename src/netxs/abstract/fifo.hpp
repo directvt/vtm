@@ -48,7 +48,7 @@ namespace netxs::generics
               zero{      }
         { }
 
-        template<bool ISSUB = false>
+        template<bool ISSUB = !true>
         constexpr
         void push(ITEM value)
         {

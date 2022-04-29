@@ -283,6 +283,73 @@ namespace netxs::app::shared
         };
         return custom_menu(true, items);
     };
+    const auto base_window = [](auto header, auto footer, auto menu_item_id)
+    {
+        return ui::cake::ctor()
+            ->template plugin<pro::d_n_d>()
+            ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
+            ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+            ->template plugin<pro::sizer>()
+            ->template plugin<pro::frame>()
+            ->template plugin<pro::light>()
+            ->template plugin<pro::align>()
+            ->invoke([&](auto& boss)
+            {
+                boss.kind(base::reflow_root); //todo unify -- See base::reflow()
+                auto shadow = ptr::shadow(boss.This());
+                boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
+                {
+                    if (auto boss_ptr = shadow.lock())
+                    if (auto object = boss_ptr->pop_back())
+                    {
+                        auto& boss = *boss_ptr;
+                        auto target = what.object;
+                        what.menuid = menu_item_id;
+                        what.object = object;
+                        auto& title = boss.template plugins<pro::title>();
+                        what.header = title.header();
+                        what.footer = title.footer();
+                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
+                        boss.base::detach(); // The object kills itself.
+                    }
+                };
+                boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                {
+                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                    gear.dismiss();
+                };
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    auto& area = boss.base::area();
+                    if (!area.size.inside(gear.coord))
+                    {
+                        auto center = area.coor + (area.size / 2);
+                        bell::getref(gear.id)->SIGNAL(tier::release, e2::form::layout::shift, center);
+                    }
+                    boss.base::deface();
+                };
+                boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
+                {
+                    boss.base::detach(); // The object kills itself.
+                };
+                boss.SUBMIT(tier::release, e2::form::quit, nested_item)
+                {
+                    if (nested_item) boss.base::detach(); // The object kills itself.
+                };
+                boss.SUBMIT(tier::release, e2::dtor, p)
+                {
+                    auto start = tempus::now();
+                    auto counter = decltype(e2::cleanup)::type{};
+                    SIGNAL_GLOBAL(e2::cleanup, counter);
+                    auto stop = tempus::now() - start;
+                    log("host: garbage collection",
+                    "\n\ttime ", utf::format(stop.count()), "ns",
+                    "\n\tobjs ", counter.obj_count,
+                    "\n\trefs ", counter.ref_count,
+                    "\n\tdels ", counter.del_count);
+                };
+            });
+    };
 
     using builder_t = std::function<sptr<base>(view)>;
 
@@ -776,7 +843,7 @@ namespace netxs::app::shared
         app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
     }
 
-    auto init_menu = [](auto world) // Init registry/menu list.
+    auto init_app_registry = [](auto& world)
     {
         auto menu_list_ptr = decltype(e2::bindings::list::apps)::type{};
         world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
@@ -817,7 +884,7 @@ namespace netxs::app::shared
                 log("main: tiling profile", size > 1 ? "s":"", " found");
                 for (auto& p : tiling_profiles)
                 {
-                    log(" ", i++, ". profile: ", utf::debase(p));
+                    log("\t", i++, ". profile: ", utf::debase(p));
                     //todo rewrite
                     auto v = view{ p };
                     auto name = utf::get_quote(v, '\"');
@@ -834,6 +901,102 @@ namespace netxs::app::shared
             }
 
         #endif
+
+        world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
+        {
+            static si32 insts_count = 0;
+            if (auto gate_ptr = bell::getref(gear.id))
+            {
+                auto& gate = *gate_ptr;
+                auto location = gear.slot;
+                if (gear.meta(hids::ANYCTRL))
+                {
+                    log("host: area copied to clipboard ", location);
+                    sptr<core> canvas_ptr;
+                    gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
+                    if (canvas_ptr)
+                    {
+                        auto& canvas = *canvas_ptr;
+                        auto data = canvas.meta(location);
+                        if (data.length())
+                        {
+                            gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                            gate.SIGNAL(tier::release, e2::command::clipboard::set, data);
+                        }
+                    }
+                }
+                else
+                {
+                    auto what = decltype(e2::form::proceed::createat)::type{};
+                    what.square = gear.slot;
+                    auto data = decltype(e2::data::changed)::type{};
+                    gate.SIGNAL(tier::request, e2::data::changed, data);
+                    what.menuid = data;
+                    world->SIGNAL(tier::release, e2::form::proceed::createat, what);
+                    if (auto& frame = what.object)
+                    {
+                        insts_count++;
+                        #ifndef PROD
+                            if (insts_count > APPS_MAX_COUNT)
+                            {
+                                log("inst: max count reached");
+                                auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
+                                auto w_frame = ptr::shadow(frame);
+                                frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
+                                {
+                                    if (timestamp > timeout)
+                                    {
+                                        log("inst: timebomb");
+                                        if (auto frame = w_frame.lock())
+                                        {
+                                            frame->base::detach();
+                                            log("inst: frame detached: ", insts_count);
+                                        }
+                                    }
+                                };
+                            }
+                        #endif
+
+                        frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
+                        {
+                            insts_count--;
+                            log("inst: detached: ", insts_count);
+                        };
+
+                        gear.kb_focus_taken = faux;
+                        frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // The Tile should change the menu item.
+                    }
+                }
+            }
+        };
+        world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+        {
+            auto& config = app::shared::objs_config[what.menuid];
+            auto  window = app::shared::base_window(config.title, "", what.menuid);
+
+            window->extend(what.square);
+            auto& creator = app::shared::creator(config.group);
+            window->attach(creator(config.param));
+            log("host: app type: ", config.group, ", menu item id: ", what.menuid);
+            world->branch(what.menuid, window, config.fixed);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
+
+            what.object = window;
+        };
+        world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
+        {
+            auto& config = app::shared::objs_config[what.menuid];
+            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
+
+            window->extend(what.square);
+            window->attach(what.object);
+            log("host: attach type=", config.group, " menu_item_id=", what.menuid);
+            world->branch(what.menuid, window, config.fixed);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
+
+            what.object = window;
+        };
 
         #ifdef DEMO
             auto creator = [&](text const& menu_item_id, rect area)

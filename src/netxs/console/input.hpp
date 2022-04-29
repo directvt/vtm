@@ -829,7 +829,7 @@ namespace netxs::input
         }
         void mouse_leave()
         {
-            log("hids: mouse_leave, id ", id);
+            log("hids: mouse leave, id ", id);
             mouse_leave(mouse::hover, mouse::start);
         }
         void take_mouse_focus(bell& boss)

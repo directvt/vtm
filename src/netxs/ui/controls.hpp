@@ -474,7 +474,7 @@ namespace netxs::ui
                         //{
                         //	return;
                         //}
-                        //control_w32::mouse(false);
+                        //control_w32::mouse(faux);
                         break;
                     default:
                         return;

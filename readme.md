@@ -45,7 +45,10 @@ Text-based desktop environment inside your terminal*
 Build-time dependencies
  - `git`
  - `cmake`
- - [`gcc`](https://gcc.gnu.org/projects/cxx-status.html) or [`clang`](https://clang.llvm.org/cxx_status.html) with support for C++20
+ - Compiler support for C++20
+ - Minimal requirements to compile
+   - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `3GB` of RAM
+   - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `8GB` of RAM
 
 ```bash
 git clone https://github.com/netxs-group/vtm.git && cd ./vtm
@@ -159,7 +162,7 @@ No arguments | Run client (auto start server)
   <tr>
     <th>LeftDrag</th>
     <td colspan="3">Adjust sidebar width</td>
-    <td colspan="5">Move app window</td>
+    <td colspan="5">Move window or Select text</td>
     <td>Panoramic workspace scrolling</td>
   </tr>
   <tr>
@@ -176,6 +179,15 @@ No arguments | Run client (auto start server)
   <tr>
     <th>Left+RightDrag</th>
     <td colspan="9">Panoramic workspace scrolling</td>
+  </tr>
+  <tr>
+    <th>Ctrl+LeftDrag</th>
+    <td colspan="9">Modify selection</td>
+  </tr>
+  <tr>
+  <tr>
+    <th>Alt+LeftDrag</th>
+    <td colspan="9">Switch boxed/linear selection mode</td>
   </tr>
   <tr>
     <th>Ctrl+RightDrag or Ctrl+MiddleDrag</th>

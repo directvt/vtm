@@ -60,7 +60,7 @@ namespace netxs::datetime
         void worker()
         {
             auto mutex = std::mutex{};
-            auto guard = std::unique_lock{ mutex };
+            auto lock = std::unique_lock{ mutex };
 
             auto now = tempus::now();
             auto prior = now;
@@ -75,7 +75,7 @@ namespace netxs::datetime
 
                 if (letup)
                 {
-                    synch.wait_for(guard, delay);
+                    synch.wait_for(lock, delay);
 
                     delay = period::zero();
                     letup = faux;
@@ -83,7 +83,7 @@ namespace netxs::datetime
                 else
                 {
                     auto trail = pulse - now.time_since_epoch() % pulse;
-                    synch.wait_for(guard, trail);
+                    synch.wait_for(lock, trail);
                 }
             }
         }
@@ -136,7 +136,7 @@ namespace netxs::datetime
         }
         void cancel()
         {
-            alive = false;
+            alive = faux;
             synch.notify_all();
 
             if (fiber.joinable())

@@ -79,7 +79,7 @@ namespace netxs
         static std::mutex mutex;
         static wptr<T>    count;
 
-        std::lock_guard lock(mutex);
+        auto guard = std::lock_guard{ mutex };
 
         auto thing = count.lock();
         if  (thing) return thing;
