@@ -48,7 +48,7 @@ Build-time dependencies
  - Compiler support for C++20
  - Minimal requirements to compile
    - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `3GB` of RAM
-   - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `6GB` of RAM
+   - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `8GB` of RAM
 
 ```bash
 git clone https://github.com/netxs-group/vtm.git && cd ./vtm
