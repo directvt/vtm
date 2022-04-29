@@ -2040,7 +2040,13 @@ namespace netxs::os
                 auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
 
                 #if defined(__BSD__)
-                    path = "/tmp/" + path + ".sock";
+                    auto home = os::homepath() + MONOTTY_FOLDER;
+                    if (!std::filesystem::exists(home))
+                    {
+                        log("path: create home directory ", home);
+                        std::filesystem::create_directory(home);
+                    }
+                    path = home + path + ".sock";
                     sun_path--; // File system unix domain socket.
                     log("open: file system socket ", path);
                 #endif
@@ -2055,11 +2061,27 @@ namespace netxs::os
                 auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
                 std::copy(path.begin(), path.end(), sun_path);
 
+                auto play = [&]()
+                {
+                    return -1 != ::connect(sock, (struct sockaddr*)&addr, sock_addr_len);
+                };
+
                 if constexpr (ROLE == role::server)
                 {
                     #if defined(__BSD__)
-                        log("role server: cleanup file system socket ", path);
-                        ::unlink(path.c_str()); // Cleanup file system socket.
+                        if (std::filesystem::exists(path))
+                        {
+                            if (play())
+                            {
+                                ::close(sock);
+                                return os::fail("server already running");
+                            }
+                            else
+                            {
+                                log("path: cleanup file system socket file ", path);
+                                ::unlink(path.c_str()); // Cleanup file system socket.
+                            }
+                        }
                     #endif
 
                     sock_ptr->scpath = path; // For unlink on exit (file system socket).
@@ -2072,10 +2094,6 @@ namespace netxs::os
                 }
                 else if constexpr (ROLE == role::client)
                 {
-                    auto play = [&]()
-                    {
-                        return -1 != ::connect(sock, (struct sockaddr*)&addr, sock_addr_len);
-                    };
                     if (!try_start(play))
                         return os::fail("connection error");
                 }

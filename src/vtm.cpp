@@ -19,7 +19,8 @@
 #endif
 #define APPS_DEL_TIMEOUT  1s
 
-#define MONOTTY_PREFIX_ "monotty_"
+#define MONOTTY_PREFIX "monotty_"
+#define MONOTTY_FOLDER "/.config/vtm/"
 
 // Enable to show debug overlay.
 //#define DEBUG_OVERLAY
@@ -41,7 +42,7 @@ int main(int argc, char* argv[])
 {
     auto syslog = logger([](auto data) { os::syslog(data); });
     auto banner = [&]() { log(MONOTTY_VER); };
-    auto prefix = [](auto user) { return utf::concat(MONOTTY_PREFIX_, user); }; //todo unify, use vtm.conf
+    auto prefix = [](auto user) { return utf::concat(MONOTTY_PREFIX, user); }; //todo unify, use vtm.conf
     auto client = true;
     auto daemon = faux;
     {
@@ -105,7 +106,7 @@ int main(int argc, char* argv[])
     auto path = prefix(user);
     {
         std::ifstream config;
-        config.open(os::homepath() + "/.config/vtm/settings.ini");
+        config.open(os::homepath() + MONOTTY_FOLDER "settings.ini");
 
         if (config.is_open())
             std::getline(config, spot);
