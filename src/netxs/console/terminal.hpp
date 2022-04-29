@@ -196,7 +196,10 @@ namespace netxs::ui
                 {
                     owner.SUBMIT_T(tier::release, hids::events::mouse::scroll::any, token, gear)
                     {
-                        gear.dismiss();
+                        if (owner.selmod == xsgr::disabled)
+                        {
+                            gear.dismiss();
+                        }
                     };
                     owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                     {
@@ -5519,6 +5522,11 @@ namespace netxs::ui
             selmod = newmod;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selmod, selmod);
+            if (mtrack && selmod == xsgr::disabled)
+            {
+                follow[axis::Y] = true; // Reset viewport.
+                ondata("");             // Recalc trigger.
+            }
             log("term: selection mode ", selmod);
         }
         // term: Set the next selection mode.
