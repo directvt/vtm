@@ -5622,6 +5622,8 @@ again:
                     clip_rawtext = clipbrd_data;
                     page block{ clipbrd_data };
                     clip_preview.wipe();
+                    //todo revise
+                    //clip_preview.set_style(clip_preview.get_style().wrp(faux));
                     clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
                 };
                 SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)

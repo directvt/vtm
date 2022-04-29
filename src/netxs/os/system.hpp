@@ -1557,15 +1557,15 @@ namespace netxs::os
             }
             template<std::size_t N, class P, class IDX = std::make_index_sequence<N>, class ...Args>
             constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
-            {
-                if constexpr (sizeof...(args)) return _combine(_repack(h, a, IDX{}), std::forward<Args>(args)...);
-                else                           return _repack(h, a, IDX{});
+            {   // Clang 11.0.1 don't allow sizeof...(args) as bool
+                if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, IDX{}), std::forward<Args>(args)...);
+                else                             return _repack(h, a, IDX{});
             }
             template<class P, class ...Args>
             constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
             {
-                if constexpr (sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
-                else                           return std::array{ handle };
+                if constexpr (!!sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
+                else                             return std::array{ handle };
             }
             template<class R, class P, class ...Args>
             constexpr auto _handle(R& i, fd_t handle, P&& proc, Args&&... args)
@@ -1577,8 +1577,8 @@ namespace netxs::os
                 }
                 else
                 {
-                    if constexpr (sizeof...(args)) return _handle(i, std::forward<Args>(args)...);
-                    else                           return faux;
+                    if constexpr (!!sizeof...(args)) return _handle(i, std::forward<Args>(args)...);
+                    else                             return faux;
                 }
             }
 
@@ -1588,7 +1588,7 @@ namespace netxs::os
             auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
             {
                 FD_SET(handle, &socks);
-                if constexpr (sizeof...(args))
+                if constexpr (!!sizeof...(args))
                 {
                     return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
                 }
@@ -1606,7 +1606,7 @@ namespace netxs::os
                 }
                 else
                 {
-                    if constexpr (sizeof...(args)) _select(socks, std::forward<Args>(args)...);
+                    if constexpr (!!sizeof...(args)) _select(socks, std::forward<Args>(args)...);
                 }
             }
 
@@ -1721,7 +1721,7 @@ namespace netxs::os
                 uid_t euid;
                 gid_t egid;
 
-                if (!ok(::getpeereid(handle, &euid, &egid), "getpeereid error"))
+                if (!ok(::getpeereid(handle.get_r(), &euid, &egid), "getpeereid error"))
                     return faux;
 
                 if (euid && id != euid)
@@ -2677,9 +2677,16 @@ namespace netxs::os
                 auto create = [](HPCON& hPC, twod winsz,
                     HANDLE& m_pipe_r, HANDLE& m_pipe_w)
                 {
+                    //todo experimental feature
+                    //static constexpr auto PSEUDOCONSOLE_RESIZE_QUIRK     = 2u;
+                    //static constexpr auto PSEUDOCONSOLE_WIN32_INPUT_MODE = 4u;
+                    //static constexpr auto PSEUDOCONSOLE_PASSTHROUGH_MODE = 8u;
                     HRESULT err_code{ E_UNEXPECTED };
                     HANDLE  s_pipe_r{ INVALID_HANDLE_VALUE };
                     HANDLE  s_pipe_w{ INVALID_HANDLE_VALUE };
+                    DWORD    dwFlags = 0;
+                                    // | PSEUDOCONSOLE_WIN32_INPUT_MODE
+                                    // | PSEUDOCONSOLE_PASSTHROUGH_MODE;
 
                     if (::CreatePipe(&m_pipe_r, &s_pipe_w, nullptr, 0) &&
                         ::CreatePipe(&s_pipe_r, &m_pipe_w, nullptr, 0))
@@ -2687,7 +2694,7 @@ namespace netxs::os
                         COORD consz;
                         consz.X = winsz.x;
                         consz.Y = winsz.y;
-                        err_code = ::CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, 0, &hPC);
+                        err_code = ::CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, dwFlags, &hPC);
                     }
 
                     ::CloseHandle(s_pipe_w);
