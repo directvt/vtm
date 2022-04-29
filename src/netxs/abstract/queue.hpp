@@ -37,7 +37,7 @@ namespace netxs
             auto lock = std::unique_lock{ d_mutex };
             if (!d_condition.wait_for(lock, timeout, [this] { return !d_queue.empty(); }))
             {
-                return false;
+                return !true;
             }
             v = d_queue.back();
             d_queue.pop_back();

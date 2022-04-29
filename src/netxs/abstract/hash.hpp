@@ -15,10 +15,7 @@ namespace netxs
     bool on_key(M const& map, K const& key)
     {
         const auto it = map.find(key);
-        if (it == map.end())
-            return false;
-        else
-            return true;
+        return it != map.end();
     }
 
     // do it in place

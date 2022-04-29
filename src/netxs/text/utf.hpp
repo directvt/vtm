@@ -460,9 +460,9 @@ namespace netxs::utf
 
     struct letter_sync
     {
-        int		lb;
-        int		rb;
-        int		cp;
+        int lb;
+        int rb;
+        int cp;
     };
 
     static constexpr letter_sync utf8_cp866[] =

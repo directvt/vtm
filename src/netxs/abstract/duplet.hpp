@@ -98,10 +98,10 @@ namespace netxs
             }
             return faux;
         }
-        duplet less(duplet const& what, duplet const& iftrue, duplet const& iffalse) const
+        duplet less(duplet const& what, duplet const& if_yes, duplet const& if_no) const
         {
-            return { x < what.x ? iftrue.x : iffalse.x,
-                     y < what.y ? iftrue.y : iffalse.y };
+            return { x < what.x ? if_yes.x : if_no.x,
+                     y < what.y ? if_yes.y : if_no.y };
         }
         bool inside(duplet const& p) const
         {

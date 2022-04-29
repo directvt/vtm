@@ -828,7 +828,7 @@ namespace netxs::ui::atoms
             constexpr bool operator == (clrs const& c) const
             {
                 return bg == c.bg && fg == c.fg;
-                //sizeof(*this);
+                // sizeof(*this);
             }
             constexpr bool operator != (clrs const& c) const
             {

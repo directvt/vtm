@@ -25,7 +25,7 @@
 //      ...code...
 //      Z("log message: ", some_data);              // prompted output
 //      ...code...
-//      Z("log message: ", some_data, false);       // promptless output
+//      Z("log message: ", some_data, !true);       // promptless output
 //      ...code...
 // }
 
@@ -115,7 +115,7 @@ namespace netxs
                 all_writers[digest] = writers;
                 if (builder.tellg() > 0)
                 {
-                    flush(false);
+                    flush(!true);
                 }
                 return digest;
             }

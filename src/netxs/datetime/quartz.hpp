@@ -136,7 +136,7 @@ namespace netxs::datetime
         }
         void cancel()
         {
-            alive = false;
+            alive = faux;
             synch.notify_all();
 
             if (fiber.joinable())
