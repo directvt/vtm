@@ -81,7 +81,11 @@
 
     #if defined(__linux__)
         #include <sys/vt.h> // ::console_ioctl()
-        #include <sys/kd.h> // ::console_ioctl()
+	    #ifdef __ANDROID__
+	        #include <linux/kd.h>   // ::console_ioctl()
+        #else
+            #include <sys/kd.h>     // ::console_ioctl()
+	    #endif
         #include <linux/keyboard.h> // ::keyb_ioctl()
     #endif
 
@@ -98,7 +102,7 @@ namespace netxs::os
 
     enum role { client, server };
 
-    static constexpr iota STDIN_BUF = 1024;
+    static constexpr si32 STDIN_BUF = 1024;
     static bool is_daemon = faux;
 
     #if defined(_WIN32)
@@ -106,9 +110,11 @@ namespace netxs::os
         using fd_t = HANDLE;
         using conmode = DWORD[2];
         static const fd_t INVALID_FD = INVALID_HANDLE_VALUE;
-        static const fd_t STDIN_FD  = GetStdHandle(STD_INPUT_HANDLE);
-        static const fd_t STDOUT_FD = GetStdHandle(STD_OUTPUT_HANDLE);
-        static const iota PIPE_BUF = 65536;
+        static const fd_t STDIN_FD  = ::GetStdHandle(STD_INPUT_HANDLE);
+        static const fd_t STDOUT_FD = ::GetStdHandle(STD_OUTPUT_HANDLE);
+        static const si32 PIPE_BUF = 65536;
+        static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
+        static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
 
         //static constexpr char* security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -141,6 +147,27 @@ namespace netxs::os
 
     #endif
 
+    struct legacy
+    {
+        static constexpr auto clean  = 0;
+        static constexpr auto mouse  = 1 << 0;
+        static constexpr auto vga16  = 1 << 1;
+        static constexpr auto vga256 = 1 << 2;
+        template<class T>
+        static auto str(T mode)
+        {
+            auto result = text{};
+            if (mode)
+            {
+                if (mode & mouse ) result += "mouse ";
+                if (mode & vga16 ) result += "vga16 ";
+                if (mode & vga256) result += "vga256 ";
+                if (result.size()) result.pop_back();
+            }
+            else result = "fresh";
+            return result;
+        }
+    };
     struct args
     {
         int    argc;
@@ -170,12 +197,108 @@ namespace netxs::os
         template<class T>
         operator T () { return T{}; }
     };
+    class file
+    {
+        #if defined(_WIN32)
+
+            fd_t r; // file: Read descriptor.
+            fd_t w; // file: Send descriptor.
+
+        public:
+            auto& get_r()       { return r; }
+            auto& get_w()       { return w; }
+            auto& get_r() const { return r; }
+            auto& get_w() const { return w; }
+            void  set_r(fd_t f) { r = f;    }
+            void  set_w(fd_t f) { w = f;    }
+            operator bool ()    { return r != INVALID_FD
+                                      && w != INVALID_FD; }
+            void close()
+            {
+                if (r != INVALID_FD) ::CloseHandle(r);
+                if (w != INVALID_FD) ::CloseHandle(w);
+                r = INVALID_FD;
+                w = INVALID_FD;
+            }
+            friend auto& operator<< (std::ostream& s, file const& handle)
+            {
+                return s << handle.r << "," << handle.w;
+            }
+            auto& operator= (file&& f)
+            {
+                r = f.r;
+                w = f.w;
+                f.r = INVALID_FD;
+                f.w = INVALID_FD;
+                return *this;
+            }
+            file(file const&) = delete;
+            file(file&& f)
+                : r{ f.r },
+                  w{ f.w }
+            {
+                f.r = INVALID_FD;
+                f.w = INVALID_FD;
+            }
+            file(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
+                : r{ fd_r },
+                  w{ fd_w }
+            { }
+           ~file()
+            {
+                close();
+            }
+
+        #else
+
+            fd_t h; // file: RW descriptor.
+
+        public:    
+            auto& get_r()       { return h;               }
+            auto& get_w()       { return h;               }
+            auto& get_r() const { return h;               }
+            auto& get_w() const { return h;               }
+            void  set_r(fd_t f) { h = f;                  }
+            void  set_w(fd_t f) { h = f;                  }
+            operator fd_t ()    { return h;               }
+            operator bool ()    { return h != INVALID_FD; }
+            void close()
+            {
+                if (h != INVALID_FD) ::close(h);
+                h = INVALID_FD;
+            }
+            friend auto& operator<< (std::ostream& s, file const& handle)
+            {
+                return s << handle.h;
+            }
+            auto& operator= (file&& f)
+            {
+                h = f.h;
+                f.h = INVALID_FD;
+                return *this;
+            }
+            file(file const&) = delete;
+            file(file&& f)
+                : h{ f.h }
+            {
+                f.h = INVALID_FD;
+            }
+            file(fd_t fd = INVALID_FD)
+                : h{ fd }
+            { }
+           ~file()
+            {
+                close();
+            }
+
+        #endif
+    };
 
     inline auto error()
     {
         #if defined(_WIN32)
 
-            return GetLastError();
+            return ::GetLastError();
 
         #else
 
@@ -186,7 +309,7 @@ namespace netxs::os
     template<class ...Args>
     auto fail(Args&&... msg)
     {
-        log("  os: ", msg..., " (", error(), ") ");
+        log("  os: ", msg..., " (", os::error(), ") ");
         return nothing{};
     };
     template<class T>
@@ -200,7 +323,7 @@ namespace netxs::os
             #endif
         )
         {
-            fail(msg);
+            os::fail(msg);
             return faux;
         }
         else return true;
@@ -209,7 +332,7 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            ExitProcess(code);
+            ::ExitProcess(code);
 
         #else
 
@@ -222,7 +345,7 @@ namespace netxs::os
     void exit(int code, Args&&... args)
     {
         log(args...);
-        exit(code);
+        os::exit(code);
     }
     static auto get_env(text&& var)
     {
@@ -269,14 +392,6 @@ namespace netxs::os
         std::sort(yield.begin(), yield.end());
         return yield;
     }
-
-    struct legacy
-    {
-        static constexpr auto clean  = 0;
-        static constexpr auto mouse  = 1 << 0;
-        static constexpr auto vga16  = 1 << 1;
-        static constexpr auto vga256 = 1 << 2;
-    };
     static auto local_mode()
     {
         auto conmode = -1;
@@ -308,7 +423,7 @@ namespace netxs::os
         auto vga256colors = {
             "rxvt-unicode-256color",
         };
-        iota mode = legacy::clean;
+        si32 mode = legacy::clean;
         auto term = os::get_env("TERM");
         if (term.size())
         {
@@ -345,7 +460,7 @@ namespace netxs::os
                 if (!(mode & legacy::vga16)) mode |= legacy::vga256;
             }
 
-            if (local_mode()) mode |= legacy::mouse;
+            if (os::local_mode()) mode |= legacy::mouse;
             log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
                                     : mode & legacy::vga256 ? "256-color"
                                                             : "true-color");
@@ -353,7 +468,7 @@ namespace netxs::os
         }
         return mode;
     }
-    static auto vgafont_update(iota mode)
+    static auto vgafont_update(si32 mode)
     {
         #if defined (__linux__)
 
@@ -424,7 +539,7 @@ namespace netxs::os
     }
     static auto vtgafont_revert()
     {
-
+        //todo implement
     }
     static auto current_module_file()
     {
@@ -432,19 +547,18 @@ namespace netxs::os
 
         #if defined(_WIN32)
 
-            HANDLE h = GetCurrentProcess();
-            std::vector<char> buffer(MAX_PATH);
+            auto handle = ::GetCurrentProcess();
+            auto buffer = std::vector<char>(MAX_PATH);
 
             while (buffer.size() <= 32768)
             {
-                DWORD length = GetModuleFileNameEx(h, NULL,
+                auto length = ::GetModuleFileNameEx(handle, NULL,
                     buffer.data(), static_cast<DWORD>(buffer.size()));
 
                 if (!length) break;
 
                 if (buffer.size() > length + 1)
                 {
-                    //result = utf::to_utf(std::wstring(buffer.data(), length));
                     result = text(buffer.data(), length);
                     break;
                 }
@@ -454,11 +568,11 @@ namespace netxs::os
 
         #else
 
-            char* resolved = realpath("/proc/self/exe", NULL);
+            char* resolved = ::realpath("/proc/self/exe", NULL);
             if (resolved)
             {
-                result = std::string(resolved);
-                free(resolved);
+                result = text(resolved);
+                ::free(resolved);
             }
 
         #endif
@@ -467,12 +581,13 @@ namespace netxs::os
     }
     static auto split_cmdline(view cmdline)
     {
-        std::vector<text> args;
+        auto args = std::vector<text>{};
         auto mark = '\0';
         text temp;
         temp.reserve(cmdline.length());
 
-        auto push = [&]() {
+        auto push = [&]()
+        {
             args.push_back(temp);
             temp.clear();
         };
@@ -512,8 +627,8 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            SHELLEXECUTEINFO ShExecInfo = {};
-            ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+            auto ShExecInfo = ::SHELLEXECUTEINFO{};
+            ShExecInfo.cbSize = sizeof(::SHELLEXECUTEINFO);
             ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
             ShExecInfo.hwnd = NULL;
             ShExecInfo.lpVerb = NULL;
@@ -522,7 +637,7 @@ namespace netxs::os
             ShExecInfo.lpDirectory = NULL;
             ShExecInfo.nShow = window_state;
             ShExecInfo.hInstApp = NULL;
-            ShellExecuteEx(&ShExecInfo);
+            ::ShellExecuteEx(&ShExecInfo);
             return true;
 
         #else
@@ -566,7 +681,7 @@ namespace netxs::os
 
         #endif
     }
-    static void syslog(text const& data)
+    static void syslog(view data)
     {
         #if defined(_WIN32)
 
@@ -574,8 +689,12 @@ namespace netxs::os
 
         #else
 
-            if (os::is_daemon) ::syslog(LOG_NOTICE, "%s", data.c_str());
-            else               std::cout << data << std::flush;
+            if (os::is_daemon)
+            {
+                auto copy = text{ data };
+                ::syslog(LOG_NOTICE, "%s", copy.c_str());
+            }
+            else std::cout << data << std::flush;
 
         #endif
     }
@@ -605,8 +724,8 @@ namespace netxs::os
 
                 if (pid == 0)
                 { // GRANDCHILD
-                    umask(0);
-                    start_log(srv_name);
+                    ::umask(0);
+                    os::start_log(srv_name);
 
                     ::close(STDIN_FILENO);  // A daemon cannot use the terminal,
                     ::close(STDOUT_FILENO); // so close standard file descriptors
@@ -635,14 +754,14 @@ namespace netxs::os
         #if defined(_WIN32)
 
             DWORD dwSize = 0;
-            GetComputerNameEx(ComputerNamePhysicalDnsFullyQualified, NULL, &dwSize);
+            ::GetComputerNameEx(::ComputerNamePhysicalDnsFullyQualified, NULL, &dwSize);
 
             if (dwSize)
             {
-                std::vector<char> buffer(dwSize);
-                if (GetComputerNameEx(ComputerNamePhysicalDnsFullyQualified, buffer.data(), &dwSize))
+                auto buffer = std::vector<char>(dwSize);
+                if (::GetComputerNameEx(::ComputerNamePhysicalDnsFullyQualified, buffer.data(), &dwSize))
                 {
-                    //hostname = utf::to_utf(std::wstring(wc_buffer.data(), dwSize));
+                    if (dwSize && buffer[dwSize - 1] == 0) dwSize--;
                     hostname = text(buffer.data(), dwSize);
                 }
             }
@@ -676,13 +795,13 @@ namespace netxs::os
     }
     static auto is_mutex_exists(text&& mutex_name)
     {
-        bool result = false;
+        auto result = faux;
 
         #if defined(_WIN32)
 
-            HANDLE mutex = CreateMutex(0, 0, mutex_name.c_str());
-            result = GetLastError() == ERROR_ALREADY_EXISTS;
-            CloseHandle(mutex);
+            auto mutex = ::CreateMutex(0, 0, mutex_name.c_str());
+            result = ::GetLastError() == ERROR_ALREADY_EXISTS;
+            ::CloseHandle(mutex);
             return result;
 
         #else
@@ -694,15 +813,15 @@ namespace netxs::os
     }
     static auto process_id()
     {
-        uint32_t result;
+        ui32 result;
 
         #if defined(_WIN32)
 
-            result = GetCurrentProcessId();
+            result = ::GetCurrentProcessId();
 
         #else
 
-            result = getpid();
+            result = ::getpid();
 
         #endif
         return result;
@@ -713,9 +832,9 @@ namespace netxs::os
 
         #if defined(_WIN32)
 
-            PWTS_SESSION_INFO SessionInfo_pointer;
+            auto SessionInfo_pointer = PWTS_SESSION_INFO{};
             DWORD count;
-            if (WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, &SessionInfo_pointer, &count))
+            if (::WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, &SessionInfo_pointer, &count))
             {
                 for (DWORD i = 0; i < count; i++)
                 {
@@ -724,15 +843,15 @@ namespace netxs::os
                     LPTSTR	buffer_pointer = NULL;
                     DWORD	buffer_length;
 
-                    WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSUserName, &buffer_pointer, &buffer_length);
+                    ::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSUserName, &buffer_pointer, &buffer_length);
                     auto user = text(utf::to_view(buffer_pointer, buffer_length));
-                    WTSFreeMemory(buffer_pointer);
+                    ::WTSFreeMemory(buffer_pointer);
 
                     if (user.length())
                     {
                         WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSDomainName, &buffer_pointer, &buffer_length);
                         auto domain = text(utf::to_view(buffer_pointer, buffer_length / sizeof(wchar_t)));
-                        WTSFreeMemory(buffer_pointer);
+                        ::WTSFreeMemory(buffer_pointer);
 
                         active_users_array += domain;
                         active_users_array += domain_delimiter;
@@ -742,7 +861,7 @@ namespace netxs::os
                         active_users_array += record_delimiter;
                     }
                 }
-                WTSFreeMemory(SessionInfo_pointer);
+                ::WTSFreeMemory(SessionInfo_pointer);
                 if (active_users_array.size())
                 {
                     active_users_array = utf::remove(active_users_array, record_delimiter);
@@ -782,14 +901,22 @@ namespace netxs::os
         #if defined(_WIN32)
 
             static constexpr auto INFO_BUFFER_SIZE = 32767UL;
-            //TCHAR  infoBuf[INFO_BUFFER_SIZE];
             char   infoBuf[INFO_BUFFER_SIZE];
             DWORD  bufCharCount = INFO_BUFFER_SIZE;
 
-            if (!GetUserName(infoBuf, &bufCharCount))
-                log("error GetUserName");
-
-            return text(infoBuf, bufCharCount);
+            if (::GetUserNameA(infoBuf, &bufCharCount))
+            {
+                if (bufCharCount && infoBuf[bufCharCount - 1] == 0)
+                {
+                    bufCharCount--;
+                }
+                return text(infoBuf, bufCharCount);
+            }
+            else
+            {
+                os::fail("GetUserName error");
+                return text{};
+            }
 
         #else
 
@@ -885,13 +1012,13 @@ namespace netxs::os
     static auto take_partition(text&& file)
     {
         text result;
-        std::vector<char> volume(std::max<size_t>(MAX_PATH, file.size() + 1));
-        if (GetVolumePathName(file.c_str(), volume.data(), (DWORD)volume.size()) != 0)
+        auto volume = std::vector<char>(std::max<size_t>(MAX_PATH, file.size() + 1));
+        if (::GetVolumePathName(file.c_str(), volume.data(), (DWORD)volume.size()) != 0)
         {
-            std::vector<char> partition(50 + 1);
-            if (GetVolumeNameForVolumeMountPoint( volume.data(),
-                                                  partition.data(),
-                                                  (DWORD)partition.size()) != 0)
+            auto partition = std::vector<char>(50 + 1);
+            if (0 != ::GetVolumeNameForVolumeMountPoint( volume.data(),
+                                                         partition.data(),
+                                                  (DWORD)partition.size()))
                 result = text(partition.data());
             else
             {
@@ -907,9 +1034,8 @@ namespace netxs::os
     static auto take_temp(text&& file)
     {
         text tmp_dir;
-
         auto file_guid = take_partition(std::move(file));
-        uint8_t i = 0;
+        auto i = uint8_t{ 0 };
 
         while (i < 100 && netxs::os::test_path(tmp_dir = file_guid + "\\$temp_" + utf::adjust(std::to_string(i++), 3, "0", true)))
         { }
@@ -924,11 +1050,11 @@ namespace netxs::os
         text  domain_name;
         ULONG DomainCount;
 
-        bool result = DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &DomainCount);
+        bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &DomainCount);
         if (result == ERROR_SUCCESS)
         {
             domain_name = text(info->DnsDomainName);
-            NetApiBufferFree(info);
+            ::NetApiBufferFree(info);
         }
         return domain_name;
     }
@@ -938,7 +1064,7 @@ namespace netxs::os
         text  domain_guid;
         ULONG domain_count;
 
-        bool result = DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &domain_count);
+        bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &domain_count);
         if (result == ERROR_SUCCESS && domain_count > 0)
         {
             auto& guid = info->DomainGuid;
@@ -948,7 +1074,7 @@ namespace netxs::os
                 + '-' + utf::to_hex(std::string(guid.Data4, guid.Data4 + 2))
                 + '-' + utf::to_hex(std::string(guid.Data4 + 2, guid.Data4 + sizeof(guid.Data4)));
 
-            NetApiBufferFree(info);
+            ::NetApiBufferFree(info);
         }
         return domain_guid;
     }
@@ -956,13 +1082,12 @@ namespace netxs::os
     {
         HRESULT result;
         IShellLink* psl;
-        CoInitialize(0);
-        result = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
+        ::CoInitialize(0);
+        result = ::CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
 
         if (result == S_OK)
         {
             IPersistFile* ppf;
-            //auto path_to_object_w = utf::to_utf(path_to_object);
             auto path_to_link_w = utf::to_utf(path_to_link);
 
             psl->SetPath(path_to_object.c_str());
@@ -971,7 +1096,7 @@ namespace netxs::os
             {
                 result = ppf->Save(path_to_link_w.c_str(), TRUE);
                 ppf->Release();
-                CoUninitialize();
+                ::CoUninitialize();
                 return true;
             }
             else
@@ -986,18 +1111,17 @@ namespace netxs::os
             //todo
             //shell_error_handler(result);
         }
-        CoUninitialize();
+        ::CoUninitialize();
 
-        return false;
+        return faux;
     }
     static auto expand(text&& directory)
     {
         text result;
-        //auto directory_w = utf::to_utf(directory);
-        if (auto len = ExpandEnvironmentStrings(directory.c_str(), NULL, 0))
+        if (auto len = ::ExpandEnvironmentStrings(directory.c_str(), NULL, 0))
         {
-            std::vector<char> buffer(len);
-            if (ExpandEnvironmentStrings(directory.c_str(), buffer.data(), (DWORD)buffer.size()))
+            auto buffer = std::vector<char>(len);
+            if (::ExpandEnvironmentStrings(directory.c_str(), buffer.data(), (DWORD)buffer.size()))
             {
                 result = text(buffer.data());
             }
@@ -1006,31 +1130,28 @@ namespace netxs::os
     }
     static auto set_registry_key(text&& key_path, text&& parameter_name, text&& value)
     {
-        LONG status;
         HKEY hKey;
-        //status = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key_path, 0, KEY_ALL_ACCESS, &hKey);
-        status = RegCreateKeyEx(HKEY_LOCAL_MACHINE,
-            key_path.c_str(),
-            0,
-            0,
-            REG_OPTION_NON_VOLATILE,
-            KEY_ALL_ACCESS,
-            NULL,
-            &hKey,
-            0);
+        auto status = ::RegCreateKeyEx( HKEY_LOCAL_MACHINE,
+                                        key_path.c_str(),
+                                        0,
+                                        0,
+                                        REG_OPTION_NON_VOLATILE,
+                                        KEY_ALL_ACCESS,
+                                        NULL,
+                                        &hKey,
+                                        0);
 
         if (status == ERROR_SUCCESS && hKey != NULL)
         {
-            //auto value_w = utf::to_utf(value);
-            status = RegSetValueEx(hKey,
-                parameter_name.empty() ? nullptr : parameter_name.c_str(),
-                0,
-                REG_SZ,
-                (BYTE*)value.c_str(),
-                ((DWORD)value.size() + 1) * sizeof(wchar_t)
+            status = ::RegSetValueEx( hKey,
+                                      parameter_name.empty() ? nullptr : parameter_name.c_str(),
+                                      0,
+                                      REG_SZ,
+                                      (BYTE*)value.c_str(),
+                                      ((DWORD)value.size() + 1) * sizeof(wchar_t)
             );
 
-            RegCloseKey(hKey);
+            ::RegCloseKey(hKey);
         }
         else
         {
@@ -1043,42 +1164,39 @@ namespace netxs::os
     static auto get_registry_string_value(text&& key_path, text&& parameter_name)
     {
         text result;
-
         HKEY hKey;
         DWORD value_type;
         DWORD data_length = 0;
 
-        LONG status = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-            key_path.c_str(),
-            0,
-            KEY_ALL_ACCESS,
-            &hKey);
+        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
+                                      key_path.c_str(),
+                                      0,
+                                      KEY_ALL_ACCESS,
+                                      &hKey);
 
         if (status == ERROR_SUCCESS && hKey != NULL)
         {
-            //auto parameter_name_w = utf::to_utf(parameter_name);
             auto param = parameter_name.empty() ? nullptr : parameter_name.c_str();
 
-            status = RegQueryValueEx(hKey,
-                param,
-                NULL,
-                &value_type,
-                NULL,
-                &data_length);
+            status = ::RegQueryValueEx( hKey,
+                                        param,
+                                        NULL,
+                                        &value_type,
+                                        NULL,
+                                        &data_length);
 
             if (status == ERROR_SUCCESS && value_type == REG_SZ)
             {
-                std::vector<BYTE> data(data_length);
-                status = RegQueryValueEx(hKey,
-                    param,
-                    NULL,
-                    &value_type,
-                    data.data(),
-                    &data_length);
+                auto data = std::vector<BYTE>(data_length);
+                status = ::RegQueryValueEx( hKey,
+                                            param,
+                                            NULL,
+                                            &value_type,
+                                            data.data(),
+                                            &data_length);
 
                 if (status == ERROR_SUCCESS)
                 {
-                    //result = utf::to_utf(std::wstring(reinterpret_cast<wchar_t*>(data.data()), data.size()));
                     result = text(utf::to_view(reinterpret_cast<char*>(data.data()), data.size()));
                 }
             }
@@ -1094,40 +1212,37 @@ namespace netxs::os
     static auto get_registry_subkeys(text&& key_path)
     {
         list result;
-
         HKEY hKey;
-        LONG status = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-            key_path.c_str(),
-            0,
-            KEY_ALL_ACCESS,
-            &hKey);
+        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
+                                      key_path.c_str(),
+                                      0,
+                                      KEY_ALL_ACCESS,
+                                      &hKey);
 
         if (status == ERROR_SUCCESS && hKey != NULL)
         {
             DWORD lpcbMaxSubKeyLen;
-            if (ERROR_SUCCESS == RegQueryInfoKey(hKey, NULL, NULL, NULL, NULL, &lpcbMaxSubKeyLen, NULL, NULL, NULL, NULL, NULL, NULL))
+            if (ERROR_SUCCESS == ::RegQueryInfoKey(hKey, NULL, NULL, NULL, NULL, &lpcbMaxSubKeyLen, NULL, NULL, NULL, NULL, NULL, NULL))
             {
                 auto size = lpcbMaxSubKeyLen;
-                DWORD index = 0;
-                std::vector<char> szName(size);
+                auto index = DWORD{ 0 };
+                auto szName = std::vector<char>(size);
 
-                while (ERROR_SUCCESS == RegEnumKeyEx(hKey,
-                    index++,
-                    szName.data(),
-                    &lpcbMaxSubKeyLen,
-                    NULL,
-                    NULL,
-                    NULL,
-                    NULL))
+                while (ERROR_SUCCESS == ::RegEnumKeyEx( hKey,
+                                                        index++,
+                                                        szName.data(),
+                                                        &lpcbMaxSubKeyLen,
+                                                        NULL,
+                                                        NULL,
+                                                        NULL,
+                                                        NULL))
                 {
-                    //result.push_back(utf::to_utf(std::wstring(szName.data(), std::min(lpcbMaxSubKeyLen, size))));
-                    result.push_back(text(
-                        utf::to_view(szName.data(), std::min<size_t>(lpcbMaxSubKeyLen, size))));
+                    result.push_back(text(utf::to_view(szName.data(), std::min<size_t>(lpcbMaxSubKeyLen, size))));
                     lpcbMaxSubKeyLen = size;
                 }
             }
 
-            RegCloseKey(hKey);
+            ::RegCloseKey(hKey);
         }
 
         return result;
@@ -1136,14 +1251,12 @@ namespace netxs::os
     {
         list result;
         int  argc = 0;
-        //auto params = std::shared_ptr<void>(CommandLineToArgvW(GetCommandLine(), &argc), LocalFree);
         auto params = std::shared_ptr<void>(
-            CommandLineToArgvW(GetCommandLineW(), &argc), LocalFree);
+            ::CommandLineToArgvW(GetCommandLineW(), &argc), ::LocalFree);
 
         auto argv = (LPWSTR*)params.get();
         for (int i = 0; i < argc; i++)
         {
-            //result.push_back(utf::to_low(text(argv[i])));
             result.push_back(utf::to_utf(argv[i]));
         }
 
@@ -1153,18 +1266,16 @@ namespace netxs::os
     {
         bool result;
         HKEY hKey;
-        //auto path_w = utf::to_utf(path);
-
-        LONG status = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-            path.c_str(),
-            0,
-            KEY_ALL_ACCESS,
-            &hKey);
+        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
+                                      path.c_str(),
+                                      0,
+                                      KEY_ALL_ACCESS,
+                                      &hKey);
 
         if (status == ERROR_SUCCESS && hKey != NULL)
         {
-            status = SHDeleteKey(hKey, path.c_str());
-            RegCloseKey(hKey);
+            status = ::SHDeleteKey(hKey, path.c_str());
+            ::RegCloseKey(hKey);
         }
 
         result = status == ERROR_SUCCESS;
@@ -1179,30 +1290,30 @@ namespace netxs::os
     }
     static void update_process_privileges(void)
     {
-        HANDLE hToken;
+        HANDLE           hToken;
         TOKEN_PRIVILEGES tp;
-        LUID luid;
+        LUID             luid;
 
-        if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
+        if (::OpenProcessToken(::GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
         {
-            LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid);
+            ::LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid);
 
             tp.PrivilegeCount = 1;
             tp.Privileges[0].Luid = luid;
             tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
-            AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL);
+            ::AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL);
         }
     }
     static auto kill_process(unsigned long proc_id)
     {
-        bool result = false;
+        auto result = faux;
 
         update_process_privileges();
-        HANDLE process_handle = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, proc_id);
-        if (process_handle && TerminateProcess(process_handle, 0))
+        auto process_handle = ::OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, proc_id);
+        if (process_handle && ::TerminateProcess(process_handle, 0))
         {
-            result = WaitForSingleObject(process_handle, 10000) == WAIT_OBJECT_0;
+            result = ::WaitForSingleObject(process_handle, 10000) == WAIT_OBJECT_0;
         }
         else
         {
@@ -1210,7 +1321,7 @@ namespace netxs::os
             //error_handler();
         }
 
-        if (process_handle) CloseHandle(process_handle);
+        if (process_handle) ::CloseHandle(process_handle);
 
         return result;
     }
@@ -1233,14 +1344,14 @@ namespace netxs::os
         //}
 
         PIDLIST_ABSOLUTE pidl;
-        if (S_OK == SHGetFolderLocation(NULL, CSIDL_COMMON_STARTUP, NULL, 0, &pidl))
+        if (S_OK == ::SHGetFolderLocation(NULL, CSIDL_COMMON_STARTUP, NULL, 0, &pidl))
         {
             char path[MAX_PATH];
-            if (TRUE == SHGetPathFromIDList(pidl, path))
+            if (TRUE == ::SHGetPathFromIDList(pidl, path))
             {
                 result = text(path) + '\\';
             }
-            ILFree(pidl);
+            ::ILFree(pidl);
         }
         else
         {
@@ -1250,6 +1361,23 @@ namespace netxs::os
 
         return result;
     }
+    static auto check_pipe(text const& path, text prefix = "\\\\.\\pipe\\")
+    {
+        auto hits = faux;
+        auto next = WIN32_FIND_DATAA{};
+        auto name = path.substr(prefix.size());
+        auto what = prefix + '*';
+        auto hndl = ::FindFirstFileA(what.c_str(), &next);
+        if (hndl != INVALID_HANDLE_VALUE)
+        {
+            do hits = next.cFileName == name;
+            while (!hits && ::FindNextFileA(hndl, &next));
+
+            if (hits) log("path: ", path);
+            ::FindClose(hndl);
+        }
+        return hits;
+    }
 
     #endif  // Windows specific
 
@@ -1258,12 +1386,12 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            DWORD count;
-            auto fSuccess = ReadFile(fd,          // pipe handle
-                                     buff,        // buffer to receive reply
-                                     (DWORD)size, // size of buffer
-                                     &count,      // number of bytes read
-                                     nullptr);    // not overlapped
+            auto count = DWORD{};
+            auto fSuccess = ::ReadFile( fd,       // pipe handle
+                                        buff,     // buffer to receive reply
+                                (DWORD) size,     // size of buffer
+                                       &count,    // number of bytes read
+                                        nullptr); // not overlapped
             if (!fSuccess) count = 0;
 
         #else
@@ -1282,12 +1410,12 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                DWORD count;
-                auto fSuccess = WriteFile(fd,          // pipe handle
-                                          buff,        // message
-                                          (DWORD)size, // message length
-                                          &count,      // bytes written
-                                          nullptr);    // not overlapped
+                auto count = DWORD{};
+                auto fSuccess = ::WriteFile( fd,       // pipe handle
+                                             buff,     // message
+                                     (DWORD) size,     // message length
+                                            &count,    // bytes written
+                                             nullptr); // not overlapped
 
             #else
                 // Mac OS X does not support the flag MSG_NOSIGNAL
@@ -1317,7 +1445,7 @@ namespace netxs::os
                 }
                 else
                 {
-                    fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                    os::fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
                     return faux;
                 }
             }
@@ -1325,7 +1453,46 @@ namespace netxs::os
         }
         return faux;
     }
-    static auto set_palette(iota legacy)
+    template<class ...Args>
+    auto recv(file& handle, Args&&... args)
+    {
+        return recv(handle.get_r(), std::forward<Args>(args)...);
+    }
+    template<class ...Args>
+    auto send(file& handle, Args&&... args)
+    {
+        return send(handle.get_w(), std::forward<Args>(args)...);
+    }
+
+    class fire
+    {
+        #if defined(_WIN32)
+        
+            fd_t h; // fire: Descriptor for IO interrupt.
+
+        public:
+            operator auto () { return h; }
+            fire()           { ok(h = ::CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error"); }
+           ~fire()           { if (h != INVALID_FD) ::CloseHandle(h); }
+            void reset()     { ok(::SetEvent(h), "SetEvent error"); }
+            void flush()     { ok(::ResetEvent(h), "ResetEvent error"); }
+
+        #else
+
+            fd_t h[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
+            char x = 1;
+
+        public:
+            operator auto () { return h[0]; }
+            fire()           { ok(::pipe(h), "pipe(2) creation error"); }
+           ~fire()           { for (auto f : h) if (f != INVALID_FD) ::close(f); }
+            void reset()     { os::send(h[1], &x, sizeof(x)); }
+            void flush()     { os::recv(h[0], &x, sizeof(x)); }
+
+        #endif
+    };
+
+    static auto set_palette(si32 legacy)
     {
         ansi::esc yield;
         bool legacy_mouse = legacy & os::legacy::mouse;
@@ -1361,7 +1528,7 @@ namespace netxs::os
             yield.clear();
         }
     }
-    static auto rst_palette(iota legacy)
+    static auto rst_palette(si32 legacy)
     {
         ansi::esc yield;
         bool legacy_mouse = legacy & os::legacy::mouse;
@@ -1378,92 +1545,116 @@ namespace netxs::os
             log(" tty: palette restored");
         }
     }
+    
+    namespace
+    {
+        #if defined(_WIN32)
 
-    #if defined(_WIN32)
-
-        struct file
-        {
-            fd_t r; // file: Read descriptor.
-            fd_t w; // file: Write descriptor.
-            fd_t& get_r() { return r; };
-            fd_t& get_w() { return w; };
-            operator bool () { return r != INVALID_FD && w != INVALID_FD; }
-            void close()
+            template<class A, std::size_t... I>
+            constexpr auto _repack(fd_t h, A const& a, std::index_sequence<I...>)
             {
-                if (r != INVALID_FD) CloseHandle(r);
-                if (w != INVALID_FD) CloseHandle(w);
+                return std::array{ h, a[I]... };
             }
-            friend auto& operator<< (std::ostream& s, file const& handle)
+            template<std::size_t N, class P, class IDX = std::make_index_sequence<N>, class ...Args>
+            constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
+            {   // Clang 11.0.1 don't allow sizeof...(args) as bool
+                if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, IDX{}), std::forward<Args>(args)...);
+                else                             return _repack(h, a, IDX{});
+            }
+            template<class P, class ...Args>
+            constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
             {
-                return s << handle.r << "," << handle.w;
+                if constexpr (!!sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
+                else                             return std::array{ handle };
             }
-            file(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
-                : r{ fd_r }, w{ fd_w }
-            { }
-        };
-        
-        class flash_t
-        {
-            fd_t h; // flash_t: Descriptor for IO interrupt.
-
-        public:
-            operator fd_t () { return h; }
-            flash_t()        { ok(h = CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error"); }
-           ~flash_t()        { if (h != INVALID_FD) CloseHandle(h); }
-            void reset()     { ok(SetEvent(h), "SetEvent error"); }
-        };
-
-    #else
-
-        struct file
-        {
-            fd_t h; // file: RW descriptor.
-            fd_t& get_r() { return h; };
-            fd_t& get_w() { return h; };
-            operator fd_t () { return h; }
-            operator bool () { return h != INVALID_FD; }
-            void close()
+            template<class R, class P, class ...Args>
+            constexpr auto _handle(R& i, fd_t handle, P&& proc, Args&&... args)
             {
-                if (h != INVALID_FD) ::close(h);
+                if (i-- == 0)
+                {
+                    proc();
+                    return true;
+                }
+                else
+                {
+                    if constexpr (!!sizeof...(args)) return _handle(i, std::forward<Args>(args)...);
+                    else                             return faux;
+                }
             }
-            friend auto& operator<< (std::ostream& s, file const& handle)
+
+        #else
+            
+            template<class P, class ...Args>
+            auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
             {
-                return s << handle.h;
+                FD_SET(handle, &socks);
+                if constexpr (!!sizeof...(args))
+                {
+                    return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
+                }
+                else
+                {
+                    return handle;
+                }
             }
-            file(fd_t fd = INVALID_FD) : h{ fd } { }
-        };
+            template<class P, class ...Args>
+            auto _select(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+            {
+                if (FD_ISSET(handle, &socks))
+                {
+                    proc();
+                }
+                else
+                {
+                    if constexpr (!!sizeof...(args)) _select(socks, std::forward<Args>(args)...);
+                }
+            }
 
-        class flash_t
-        {
-            fd_t h[2] = { INVALID_FD, INVALID_FD }; // flash_t: Descriptors for IO interrupt.
-            char x = 1;
+        #endif
+    }
 
-        public:
-            operator fd_t () { return h[0]; }
-            flash_t()        { ok(::pipe(h), "pipe(2) error"); }
-           ~flash_t()        { for (auto f : h) if (f != INVALID_FD) ::close(f); }
-            void reset()     { send(h[1], &x, sizeof(x)); }
-            void flush()     { recv(h[0], &x, sizeof(x)); }
-        };
+    template<class ...Args>
+    void select(Args&&... args)
+    {
+        #if defined(_WIN32)
 
-    #endif
+            auto socks = _fd_set(std::forward<Args>(args)...);
+            auto yield = ::WaitForMultipleObjects(socks.size(), socks.data(), FALSE, INFINITE);
+                 yield -= WAIT_OBJECT_0;
+            _handle(yield, std::forward<Args>(args)...);
+
+        #else
+
+            auto socks = fd_set{};
+            FD_ZERO(&socks);
+
+            auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
+            if (::select(nfds, &socks, 0, 0, 0) > 0)
+            {
+                _select(socks, std::forward<Args>(args)...);
+            }
+
+        #endif
+    }
 
     class ipc
     {
         using vect = std::vector<char>;
+
         bool active; // ipc: Used by the os::tty.
         file handle; // ipc: Socket file descriptor.
         vect buffer; // ipc: Receive buffer.
         bool sealed; // ipc: Provide autoclosing.
         text scpath; // ipc: Socket path (in order to unlink).
+        fire signal; // ipc: Interruptor.
 
-        void init(iota buff_size = PIPE_BUF) { active = true; buffer.resize(buff_size); }
+        void init(si32 buff_size = PIPE_BUF) { active = true; buffer.resize(buff_size); }
 
     public:
-        ipc(file const& descriptor = {}, bool sealed = faux)
-            : handle{ descriptor },
-              sealed{ sealed },
-              active{ faux }
+        ipc(file descriptor = {}, bool sealed = faux)
+            : handle{ std::move(descriptor) },
+              sealed{ sealed                },
+              active{ faux                  }
         {
             if (handle) init();
         }
@@ -1477,19 +1668,17 @@ namespace netxs::os
                 }
 
             #endif
-
-            if (sealed) handle.close();
         }
 
         operator bool () { return active; }
 
-        void set(file const& h, bool s)
+        void set(file h, bool s)
         {
-            handle = h;
+            handle = std::move(h);
             sealed = s;
             if (handle) init();
         }
-        auto get()
+        auto& get()
         {
             return handle;
         }
@@ -1506,10 +1695,14 @@ namespace netxs::os
 
             #elif defined(__linux__)
 
-                ucred cred = {};
-                unsigned size = sizeof(cred);
+                auto cred = ucred{};
+                #ifndef __ANDROID__
+                    socklen_t size = sizeof(cred);
+                #else
+                    unsigned size = sizeof(cred);
+                #endif
 
-                if (!ok(::getsockopt(handle.h, SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt error"))
+                if (!ok(::getsockopt(handle.get_r(), SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt error"))
                     return faux;
 
                 if (cred.uid && id != cred.uid)
@@ -1518,17 +1711,17 @@ namespace netxs::os
                     return faux;
                 }
 
-                log("sock: creds from SO_PEERCRED",
-                    ":  pid=", cred.pid,
-                    ", euid=", cred.uid,
-                    ", egid=", cred.gid);
+                log("sock: creds from SO_PEERCRED:",
+                        "\n\t  pid: ", cred.pid,
+                        "\n\t euid: ", cred.uid,
+                        "\n\t egid: ", cred.gid);
 
             #elif defined(__BSD__)
 
                 uid_t euid;
                 gid_t egid;
 
-                if (!ok(::getpeereid(handle.h, &euid, &egid), "getpeereid error"))
+                if (!ok(::getpeereid(handle.get_r(), &euid, &egid), "getpeereid error"))
                     return faux;
 
                 if (euid && id != euid)
@@ -1537,10 +1730,10 @@ namespace netxs::os
                     return faux;
                 }
 
-                log("sock: creds from getpeereid",
-                    ":  pid=", id,
-                    ", euid=", euid,
-                    ", egid=", egid);
+                log("sock: creds from getpeereid:",
+                        "\n\t  pid: ", id,
+                        "\n\t euid: ", euid,
+                        "\n\t egid: ", egid);
 
             #endif
 
@@ -1550,81 +1743,87 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                //security_descriptor pipe_acl(security_descriptor_string);
-
-                auto sock_ptr = std::make_shared<ipc>(handle, true);
-
-                auto to_server = "\\\\.\\pipe\\r_" + scpath;
-                auto to_client = "\\\\.\\pipe\\w_" + scpath;
-
-                auto r_fConnected = ConnectNamedPipe(handle.r, NULL)
-                    ? true
-                    : (GetLastError() == ERROR_PIPE_CONNECTED);
-
-                // recreate the waiting point for the next client
-                handle.r = CreateNamedPipe(
-                    to_server.c_str(),        // pipe name
-                    PIPE_ACCESS_INBOUND,      // read/write access
-                    PIPE_TYPE_BYTE |          // message type pipe
-                    PIPE_READMODE_BYTE |      // message-read mode
-                    PIPE_WAIT,                // blocking mode
-                    PIPE_UNLIMITED_INSTANCES, // max. instances
-                    PIPE_BUF,                 // output buffer size
-                    PIPE_BUF,                 // input buffer size
-                    0,                        // client time-out
-                    NULL);  // DACL
-                    // DACL: The ACLs in the default security descriptor
-                    //       for a named pipe grant full control to the
-                    //       LocalSystem account, administrators, and the
-                    //       creator owner.They also grant read access to
-                    //       members of the Everyone groupand the anonymous
-                    //       account.
-                    //       Without write access, the desktop will be inaccessible to non-owners.
-                    //pipe_acl);                // DACL
-
-                if (handle.r == INVALID_FD)
+                auto to_server = RD_PIPE_PATH + scpath;
+                auto to_client = WR_PIPE_PATH + scpath;
+                auto next_link = [&](auto h, auto const& path, auto type)
                 {
-                    handle.r = sock_ptr->handle.r;
-                    return fail("CreateNamedPipe error (read)");
+                    auto next_waiting_point = INVALID_FD;
+                    auto connected = ::ConnectNamedPipe(h, NULL)
+                        ? true
+                        : (::GetLastError() == ERROR_PIPE_CONNECTED);
+
+                    if (active && connected) // Recreate the waiting point for the next client.
+                    {
+                        next_waiting_point =
+                            ::CreateNamedPipe( path.c_str(),             // pipe path
+                                               type,                     // read/write access
+                                               PIPE_TYPE_BYTE |          // message type pipe
+                                               PIPE_READMODE_BYTE |      // message-read mode
+                                               PIPE_WAIT,                // blocking mode
+                                               PIPE_UNLIMITED_INSTANCES, // max. instances
+                                               PIPE_BUF,                 // output buffer size
+                                               PIPE_BUF,                 // input buffer size
+                                               0,                        // client time-out
+                                               NULL);                    // DACL (pipe_acl)
+                        // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);
+                        //       The ACLs in the default security descriptor for a named pipe grant full control to the
+                        //       LocalSystem account, administrators, and the creator owner.They also grant read access to
+                        //       members of the Everyone groupand the anonymous account.
+                        //       Without write access, the desktop will be inaccessible to non-owners.
+                    }
+                    else os::fail("not active");
+
+                    return next_waiting_point;
+                };
+
+                auto r = next_link(handle.get_r(), to_server, PIPE_ACCESS_INBOUND);
+                if (r == INVALID_FD)
+                {
+                    return os::fail("CreateNamedPipe error (read)");
                 }
 
-                auto w_fConnected = ConnectNamedPipe(handle.w, NULL)
-                    ? true
-                    : (GetLastError() == ERROR_PIPE_CONNECTED);
-
-                handle.w = CreateNamedPipe(
-                    to_client.c_str(),        // pipe name
-                    PIPE_ACCESS_OUTBOUND,     // read/write access
-                    PIPE_TYPE_BYTE |          // message type pipe
-                    PIPE_READMODE_BYTE |      // message-read mode
-                    PIPE_WAIT,                // blocking mode
-                    PIPE_UNLIMITED_INSTANCES, // max. instances
-                    PIPE_BUF,                 // output buffer size
-                    PIPE_BUF,                 // input buffer size
-                    0,                        // client time-out
-                    NULL);
-
-                if (handle.w == INVALID_FD)
+                auto w = next_link(handle.get_w(), to_client, PIPE_ACCESS_OUTBOUND);
+                if (w == INVALID_FD)
                 {
-                    CloseHandle(handle.r);
-                    handle.r = sock_ptr->handle.r;
-                    handle.w = sock_ptr->handle.w;
-                    return fail("CreateNamedPipe error (write)");
+                    ::CloseHandle(r);
+                    return os::fail("CreateNamedPipe error (write)");
                 }
 
-                return sock_ptr;
+                auto connector = std::make_shared<ipc>(std::move(handle), true);
+                handle = { r, w };
+
+                return connector;
 
             #else
 
-                auto s = file{ ::accept(handle.h, 0, 0) };
-                return s ? std::make_shared<ipc>(s, true)
-                         : nullptr;
+                auto result = std::shared_ptr<ipc>{};
+                auto h_proc = [&]()
+                {
+                    auto s = file{ ::accept(handle, 0, 0) };
+                    if (s) result = std::make_shared<ipc>(std::move(s), true);
+                };
+                auto f_proc = [&]()
+                {
+                    log("xipc: signal fired");
+                    signal.flush();
+                };
+
+                os::select(handle, h_proc,
+                           signal, f_proc);
+
+                return result;
+
             #endif
         }
         template<class SIZE_T>
         auto recv(char* buff, SIZE_T size)
         {
-            return os::recv(handle.get_r(), buff, size);
+            //todo calling ::select() causes performance hit
+            //auto result = qiew{};
+            //os::select(handle.get_r(), [&]() { result = os::recv(handle, buff, size); },
+            //           signal,         [&]() { log("xipc: abort reading"); signal.flush(); });
+            //return result;
+            return os::recv(handle, buff, size);
         }
         auto recv() // It's not thread safe!
         {
@@ -1657,15 +1856,35 @@ namespace netxs::os
             }
             return crop;
         }
+        void stop()
+        {
+            active = faux;
+            #if defined(_WIN32)
+
+                if (sealed) // Disconnection order does matter.
+                {
+                    auto to_client = WR_PIPE_PATH + scpath;
+                    auto to_server = RD_PIPE_PATH + scpath;
+                    if (handle.get_w() != INVALID_FD) ok(::DeleteFileA(to_client.c_str()));
+                    if (handle.get_r() != INVALID_FD) ok(::DeleteFileA(to_server.c_str()));
+                    handle.close();
+                }
+
+            #else
+
+                signal.reset();
+
+            #endif
+        }
         auto shut() -> bool
         {
             active = faux;
             #if defined(_WIN32)
 
-                if (sealed)
-                { // Disconnection order does matter.
-                    if (handle.get_w() != INVALID_FD) ok(DisconnectNamedPipe(handle.get_w()));
-                    if (handle.get_r() != INVALID_FD) ok(DisconnectNamedPipe(handle.get_r()));
+                if (sealed) // Disconnection order does matter.
+                {
+                    if (handle.get_w() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_w()));
+                    if (handle.get_r() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_r()));
                 }
                 return true;
 
@@ -1680,21 +1899,20 @@ namespace netxs::os
                 //            — it just changes its usability.
                 //To free a socket descriptor, you need to use close()."
 
-                log(" ipc: shutdown descriptor ", handle.h);
-                if (!ok(::shutdown(handle.h, SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
+                log("xipc: shutdown: handle descriptor: ", handle.get_r());
+                if (!ok(::shutdown(handle, SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
                 {
                     switch (errno)
                     {
-                        case EBADF:    return fail("EBADF: The socket argument is not a valid file descriptor.");
-                        case EINVAL:   return fail("EINVAL: The how argument is invalid.");
-                        case ENOTCONN: return fail("ENOTCONN: The socket is not connected.");
-                        case ENOTSOCK: return fail("ENOTSOCK: The socket argument does not refer to a socket.");
-                        case ENOBUFS:  return fail("ENOBUFS: Insufficient resources were available in the system to perform the operation.");
-                        default:       return fail("unknown reason");
+                        case EBADF:    return os::fail("EBADF: The socket argument is not a valid file descriptor.");
+                        case EINVAL:   return os::fail("EINVAL: The how argument is invalid.");
+                        case ENOTCONN: return os::fail("ENOTCONN: The socket is not connected.");
+                        case ENOTSOCK: return os::fail("ENOTSOCK: The socket argument does not refer to a socket.");
+                        case ENOBUFS:  return os::fail("ENOBUFS: Insufficient resources were available in the system to perform the operation.");
+                        default:       return os::fail("unknown reason");
                     }
                 }
                 else return true;
-                return true;
 
             #endif
         }
@@ -1709,8 +1927,12 @@ namespace netxs::os
                 if (!done)
                 {
                     if constexpr (ROLE == role::client)
-                    if (!retry_proc())
-                        return fail("failed to start server");
+                    {
+                        if (!retry_proc())
+                        {
+                            return os::fail("failed to start server");
+                        }
+                    }
 
                     auto stop = datetime::tempus::now() + retry_timeout;
                     do
@@ -1732,78 +1954,81 @@ namespace netxs::os
                 auto& w_sock = sock_ptr->handle.get_w();
 
                 sock_ptr->scpath = path;
-                auto to_server = "\\\\.\\pipe\\r_" + path;
-                auto to_client = "\\\\.\\pipe\\w_" + path;
+                auto to_server = RD_PIPE_PATH + path;
+                auto to_client = WR_PIPE_PATH + path;
 
                 if constexpr (ROLE == role::server)
                 {
-                    r_sock = CreateNamedPipe(
-                        to_server.c_str(),        // pipe path
-                        PIPE_ACCESS_INBOUND,      // read/write access
-                        PIPE_TYPE_BYTE |          // message type pipe
-                        PIPE_READMODE_BYTE |      // message-read mode
-                        PIPE_WAIT,                // blocking mode
-                        PIPE_UNLIMITED_INSTANCES, // max instances
-                        PIPE_BUF,                 // output buffer size
-                        PIPE_BUF,                 // input buffer size
-                        0,                        // client time-out
-                        NULL);                    // DACL
-                        //pipe_acl);                // DACL
-                    if (r_sock == INVALID_FD)
-                        return fail("CreateNamedPipe error (read)");
-
-                    w_sock = CreateNamedPipe(
-                        to_client.c_str(),        // pipe path
-                        PIPE_ACCESS_OUTBOUND,     // read/write access
-                        PIPE_TYPE_BYTE |          // message type pipe
-                        PIPE_READMODE_BYTE |      // message-read mode
-                        PIPE_WAIT,                // blocking mode
-                        PIPE_UNLIMITED_INSTANCES, // max instances
-                        PIPE_BUF,                 // output buffer size
-                        PIPE_BUF,                 // input buffer size
-                        0,                        // client time-out
-                        NULL);                    // DACL
-                        //pipe_acl);                // DACL
-                    if (w_sock == INVALID_FD)
+                    if (os::check_pipe(to_server))
                     {
-                        CloseHandle(r_sock);
-                        return fail("CreateNamedPipe error (write)");
+                        return os::fail("server already running");
                     }
+
+                    auto pipe = [](auto const& path, auto type)
+                    {
+                        return ::CreateNamedPipe( path.c_str(),             // pipe path
+                                                  type,                     // read/write access
+                                                  PIPE_TYPE_BYTE |          // message type pipe
+                                                  PIPE_READMODE_BYTE |      // message-read mode
+                                                  PIPE_WAIT,                // blocking mode
+                                                  PIPE_UNLIMITED_INSTANCES, // max instances
+                                                  PIPE_BUF,                 // output buffer size
+                                                  PIPE_BUF,                 // input buffer size
+                                                  0,                        // client time-out
+                                                  NULL);                    // DACL
+                    };
+
+                    auto r = pipe(to_server, PIPE_ACCESS_INBOUND);
+                    if (r == INVALID_FD)
+                    {
+                        return os::fail("CreateNamedPipe error (read)");
+                    }
+
+                    auto w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
+                    if (w == INVALID_FD)
+                    {
+                        ::CloseHandle(r);
+                        return os::fail("CreateNamedPipe error (write)");
+                    }
+
+                    r_sock = r;
+                    w_sock = w;
                 }
                 else if constexpr (ROLE == role::client)
                 {
-                    auto play = [&]() -> bool
+                    auto pipe = [](auto const& path, auto type)
                     {
-                        w_sock = CreateFile(
-                            to_server.c_str(), // pipe path
-                            GENERIC_WRITE,
-                            0,                 // no sharing
-                            NULL,              // default security attributes
-                            OPEN_EXISTING,     // opens existing pipe
-                            0,                 // default attributes
-                            NULL);             // no template file
-
-                        if (w_sock == INVALID_FD)
-                            return faux;
-
-                        r_sock = CreateFile(
-                            to_client.c_str(), // pipe path
-                            GENERIC_READ,
-                            0,                 // no sharing
-                            NULL,              // default security attributes
-                            OPEN_EXISTING,     // opens existing pipe
-                            0,                 // default attributes
-                            NULL);             // no template file
-
-                        if (r_sock == INVALID_FD)
+                        return ::CreateFile( path.c_str(),  // pipe path
+                                             type,
+                                             0,             // no sharing
+                                             NULL,          // default security attributes
+                                             OPEN_EXISTING, // opens existing pipe
+                                             0,             // default attributes
+                                             NULL);         // no template file
+                    };
+                    auto play = [&]()
+                    {
+                        auto w = pipe(to_server, GENERIC_WRITE);
+                        if (w == INVALID_FD)
                         {
-                            CloseHandle(w_sock);
                             return faux;
                         }
-                        else return true;
+
+                        auto r = pipe(to_client, GENERIC_READ);
+                        if (r == INVALID_FD)
+                        {
+                            ::CloseHandle(w);
+                            return faux;
+                        }
+
+                        r_sock = r;
+                        w_sock = w;
+                        return true;
                     };
                     if (!try_start(play))
-                        return fail("connection error");
+                    {
+                        return os::fail("connection error");
+                    }
                 }
 
             #else
@@ -1815,45 +2040,62 @@ namespace netxs::os
                 auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
 
                 #if defined(__BSD__)
-                    //todo unify see vtmd.cpp:1564, file system socket
-                    path = "/tmp/" + path + ".sock";
+                    auto home = os::homepath() + MONOTTY_FOLDER;
+                    if (!std::filesystem::exists(home))
+                    {
+                        log("path: create home directory ", home);
+                        std::filesystem::create_directory(home);
+                    }
+                    path = home + path + ".sock";
                     sun_path--; // File system unix domain socket.
                     log("open: file system socket ", path);
                 #endif
 
                 if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
-                    return fail("socket path too long");
+                    return os::fail("socket path too long");
 
                 if ((sock = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
-                    return fail("open unix domain socket error");
+                    return os::fail("open unix domain socket error");
 
                 addr.sun_family = AF_UNIX;
                 auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
                 std::copy(path.begin(), path.end(), sun_path);
 
+                auto play = [&]()
+                {
+                    return -1 != ::connect(sock, (struct sockaddr*)&addr, sock_addr_len);
+                };
+
                 if constexpr (ROLE == role::server)
                 {
                     #if defined(__BSD__)
-                        log("role server: cleanup file system socket ", path);
-                        ::unlink(path.c_str()); // Cleanup file system socket.
+                        if (std::filesystem::exists(path))
+                        {
+                            if (play())
+                            {
+                                ::close(sock);
+                                return os::fail("server already running");
+                            }
+                            else
+                            {
+                                log("path: cleanup file system socket file ", path);
+                                ::unlink(path.c_str()); // Cleanup file system socket.
+                            }
+                        }
                     #endif
 
                     sock_ptr->scpath = path; // For unlink on exit (file system socket).
 
                     if (::bind(sock, (struct sockaddr*)&addr, sock_addr_len) == -1)
-                        return fail("error unix socket bind for ", path);
+                        return os::fail("error unix socket bind for ", path);
 
                     if (::listen(sock, 5) == -1)
-                        return fail("error listen socket for ", path);
+                        return os::fail("error listen socket for ", path);
                 }
                 else if constexpr (ROLE == role::client)
                 {
-                    auto play = [&]()
-                    {
-                        return -1 != ::connect(sock, (struct sockaddr*)&addr, sock_addr_len);
-                    };
                     if (!try_start(play))
-                        return fail("connection error");
+                        return os::fail("connection error");
                 }
 
             #endif
@@ -1874,28 +2116,28 @@ namespace netxs::os
 
     class tty
     {
-        flash_t flash;
+        fire signal;
 
         template<class V>
         struct _globals
         {
-            static xipc ipcio;
-            static conmode state;
+            static xipc        ipcio;
+            static conmode     state;
             static testy<twod> winsz;
             static void resize_handler()
             {
                 #if defined(_WIN32)
 
-                    CONSOLE_SCREEN_BUFFER_INFO cinfo;
-                    if (ok(GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo)))
+                    auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
+                    if (ok(::GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo)))
                     {
-                        winsz({ cinfo.srWindow.Right - cinfo.srWindow.Left + 1,
-                                cinfo.srWindow.Bottom - cinfo.srWindow.Top + 1 });
+                        winsz({ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
+                                cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 });
                     }
 
                 #else
 
-                    winsize size;
+                    auto size = winsize{};
                     if (ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size)))
                     {
                         winsz({ size.ws_col, size.ws_row });
@@ -1913,8 +2155,8 @@ namespace netxs::os
 
                 static void default_mode()
                 {
-                    ok(SetConsoleMode(STDOUT_FD, state[0]), "SetConsoleMode error (revert_o)");
-                    ok(SetConsoleMode(STDIN_FD , state[1]), "SetConsoleMode error (revert_i)");
+                    ok(::SetConsoleMode(STDOUT_FD, state[0]), "SetConsoleMode error (revert_o)");
+                    ok(::SetConsoleMode(STDIN_FD , state[1]), "SetConsoleMode error (revert_i)");
                 }
                 static BOOL signal_handler(DWORD signal)
                 {
@@ -1978,9 +2220,9 @@ namespace netxs::os
             #endif
         };
 
-        void reader(iota mode)
+        void reader(si32 mode)
         {
-            log(" tty: reader thread started");
+            log(" tty: id: ", std::this_thread::get_id(), " reading thread started");
             auto& ipcio =*_globals<void>::ipcio;
 
             #if defined(_WIN32)
@@ -1988,33 +2230,33 @@ namespace netxs::os
             // The input codepage to UTF-8 is severely broken in all Windows versions.
             // ReadFile and ReadConsoleA either replace non-ASCII characters with NUL
             // or return 0 bytes read.
-            std::vector<INPUT_RECORD> reply(1);
-            HANDLE                    waits[2] = { STDIN_FD, flash };
-            DWORD                     count;
-            ansi::esc                 yield;
+            auto   reply = std::vector<INPUT_RECORD>(1);
+            auto   yield = ansi::esc{};
+            auto   count = DWORD{};
+            HANDLE waits[] = { STDIN_FD, signal };
 
             #ifdef VTM_USE_CLASSICAL_WIN32_INPUT
 
-            while (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
+            while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
             {
-                if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
+                if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
                 {
                     // ERROR_PIPE_NOT_CONNECTED
                     // 233 (0xE9)
                     // No process is on the other end of the pipe.
                     //defeat("GetNumberOfConsoleInputEvents error");
-                    os::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", GetLastError());
+                    os::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", ::GetLastError());
                     break;
                 }
                 else if (count)
                 {
                     if (count > reply.size()) reply.resize(count);
 
-                    if (!ReadConsoleInputW(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
+                    if (!::ReadConsoleInputW(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
                     {
                         //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
                         //defeat("ReadConsoleInput error");
-                        os::exit(-1, " tty: ReadConsoleInput error ", GetLastError());
+                        os::exit(-1, " tty: ReadConsoleInput error ", ::GetLastError());
                         break;
                     }
                     else
@@ -2065,10 +2307,10 @@ namespace netxs::os
 
             #else
 
-            std::vector<wchar_t> buff(STDIN_BUF);
-            while (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
+            auto buff = std::vector<wchar_t>(STDIN_BUF);
+            while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
             {
-                if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
+                if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
                 {
                     defeat("GetNumberOfConsoleInputEvents error");
                 }
@@ -2076,7 +2318,7 @@ namespace netxs::os
                 {
                     if (count > reply.size()) reply.resize(count);
 
-                    if (!PeekConsoleInput(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
+                    if (!::PeekConsoleInput(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
                     {
                         //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
                         defeat("PeekConsoleInput error");
@@ -2114,19 +2356,18 @@ namespace netxs::os
 
                         if (vtcon)
                         {
-                            CONSOLE_READCONSOLE_CONTROL state = { sizeof(state) };
+                            auto state = CONSOLE_READCONSOLE_CONTROL{ sizeof(state) };
 
-                            ReadConsoleW( // Auto flushed after reading.
-                                input,
-                                buff.data(),
-                                (DWORD)buff.size(),
-                                &count,
-                                &state);
+                            ::ReadConsoleW( input, // Auto flushed after reading.
+                                            buff.data(),
+                                            (DWORD)buff.size(),
+                                            &count,
+                                            &state);
 
                             //todo forward key ctrl state too
                             yield += utf::to_utf(buff.data(), count);
                         }
-                        else FlushConsoleInputBuffer(STDIN_FD);
+                        else ::FlushConsoleInputBuffer(STDIN_FD);
 
                         ipcio.send(yield);
                     }
@@ -2142,21 +2383,21 @@ namespace netxs::os
                 file micefd;
                 twod mcoor;
                 auto buffer = text(STDIN_BUF, '\0');
-                iota ttynum = 0;
+                si32 ttynum = 0;
                 ansi::esc yield;
 
                 struct
                 {
                     testy<twod> coord;
-                    testy<iota> shift = 0;
-                    testy<iota> bttns = 0;
-                    iota        flags = 0;
+                    testy<si32> shift = 0;
+                    testy<si32> bttns = 0;
+                    si32        flags = 0;
                 } state;
                 auto get_kb_state = []()
                 {
-                    iota state = 0;
+                    si32 state = 0;
                     #if defined(__linux__)
-                        iota shift_state = 6;
+                        si32 shift_state = 6;
                         ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state));
                         state = 0
                             | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
@@ -2189,7 +2430,7 @@ namespace netxs::os
                     else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
                     {
                         char ack;
-                        recv(fd, &ack, sizeof(ack));
+                        os::recv(fd, &ack, sizeof(ack));
                         if (ack == '\xfa')
                         {
                             micefd = file{ fd };
@@ -2216,87 +2457,85 @@ namespace netxs::os
                     }
                 }
 
-                while (ipcio)
+                auto h_proc = [&]()
                 {
-                    fd_set socks;
-                    FD_ZERO(&socks);
-                    FD_SET(STDIN_FD,    &socks);
-                    FD_SET((fd_t)flash, &socks);
-                    auto nfds = std::max({ STDIN_FD, (fd_t)flash });
-                    if (micefd)
+                    if (micefd && state.shift(get_kb_state()))
                     {
-                        nfds = std::max(nfds, (fd_t)micefd);
-                        FD_SET((fd_t)micefd, &socks);
+                        yield.meta_state(state.shift.last);
+                        auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                        yield.add(data);
+                        ipcio.send<faux>(yield);
+                        yield.clear();
                     }
-                    nfds++;
-                    if (::select(nfds, &socks, 0, 0, 0) > 0)
+                    else
                     {
-                        if (FD_ISSET(STDIN_FD, &socks))
+                        auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                        ipcio.send<faux>(data);
+                    }
+                };
+                auto m_proc = [&]()
+                {
+                    auto data = os::recv(micefd, buffer.data(), buffer.size());
+                    if (data.size() == 4 /*ImPS only*/)
+                    {
+                    #if defined(__linux__)
+                        vt_stat vt_state;
+                        ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
+                        if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
-                            if (micefd && state.shift(get_kb_state()))
+                            auto scale = twod{ 6,12 }; //todo magic numbers
+                            auto bttns = data[0] & 7;
+                            mcoor.x   += data[1];
+                            mcoor.y   -= data[2];
+                            auto wheel =-data[3];
+                            auto limit = _globals<void>::winsz.last * scale;
+                            if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
+                            state.flags = wheel ? 4 : 0;
+                            if (state.coord(mcoor / scale)
+                             || state.bttns(bttns)
+                             || state.shift(get_kb_state())
+                             || state.flags)
                             {
-                                yield.meta_state(state.shift.last);
-                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                                yield.add(data);
-                                ipcio.send<faux>(yield);
+                                yield.w32begin()
+                                     .w32mouse(0,
+                                        state.bttns.last,
+                                        state.shift.last,
+                                        state.flags,
+                                        wheel,
+                                        state.coord.last.x,
+                                        state.coord.last.y)
+                                     .w32close();
+                                ipcio.send<faux>(view(yield));
                                 yield.clear();
                             }
-                            else
-                            {
-                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                                ipcio.send<faux>(data);
-                            }
                         }
-                        else if (FD_ISSET((fd_t)flash, &socks))
-                        {
-                            log("xipc: flash fired");
-                            flash.flush();
-                        }
-                        else if (micefd && FD_ISSET((fd_t)micefd, &socks))
-                        {
-                            auto data = os::recv(micefd, buffer.data(), buffer.size());
-                            if (data.size() == 4 /*ImPS only*/)
-                            {
-                                #if defined(__linux__)
-                                    vt_stat vt_state;
-                                    ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
-                                    if (vt_state.v_active == ttynum) // Proceed current active tty only.
-                                    {
-                                        auto scale = twod{6,12}; //todo magic numbers
-                                        auto bttns = data[0] & 7;
-                                        mcoor.x += data[1];
-                                        mcoor.y -= data[2];
-                                        auto wheel = -data[3];
-                                        auto limit = _globals<void>::winsz.last * scale;
-                                        if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
-                                        state.flags = wheel ? 4 : 0;
-                                        if (state.coord(mcoor / scale)
-                                        || state.bttns(bttns)
-                                        || state.shift(get_kb_state())
-                                        || state.flags)
-                                        {
-                                            yield.w32begin()
-                                            .w32mouse(0,
-                                                    state.bttns.last,
-                                                    state.shift.last,
-                                                    state.flags,
-                                                    wheel,
-                                                    state.coord.last.x,
-                                                    state.coord.last.y)
-                                            .w32close();
-                                            ipcio.send<faux>(view(yield));
-                                            yield.clear();
-                                        }
-                                    }
-                                #endif
-                            }
-                        }
+                    #endif
+                    }
+                };
+                auto f_proc = [&]()
+                {
+                    log(" tty: signal fired");
+                    signal.flush();
+                };
+
+                while (ipcio)
+                {
+                    if (micefd)
+                    {
+                        os::select(STDIN_FD, h_proc,
+                                   micefd,   m_proc,
+                                   signal,   f_proc);
+                    }
+                    else
+                    {
+                        os::select(STDIN_FD, h_proc,
+                                   signal,   f_proc);
                     }
                 }
 
             #endif
 
-            log(" tty: reader thread completed");
+            log(" tty: id: ", std::this_thread::get_id(), " reading thread ended");
         }
 
         tty()
@@ -2321,8 +2560,8 @@ namespace netxs::os
                 auto& omode = _globals<void>::state[0];
                 auto& imode = _globals<void>::state[1];
 
-                ok(GetConsoleMode(STDOUT_FD, &omode), "GetConsoleMode error (stdout)");
-                ok(GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode error (stdin)");
+                ok(::GetConsoleMode(STDOUT_FD, &omode), "GetConsoleMode error (stdout)");
+                ok(::GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode error (stdin)");
 
                 DWORD inpmode = 0
                               | ENABLE_EXTENDED_FLAGS
@@ -2333,15 +2572,15 @@ namespace netxs::os
                               | ENABLE_VIRTUAL_TERMINAL_INPUT
                             #endif
                               ;
-                ok(SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode error (stdin)");
+                ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode error (stdin)");
 
                 DWORD outmode = 0
                               | ENABLE_PROCESSED_OUTPUT
                               | ENABLE_VIRTUAL_TERMINAL_PROCESSING
                               | DISABLE_NEWLINE_AUTO_RETURN
                               ;
-                ok(SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode error (stdout)");
-                ok(SetConsoleCtrlHandler(sig_hndl, TRUE), "SetConsoleCtrlHandler error");
+                ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode error (stdout)");
+                ok(::SetConsoleCtrlHandler(sig_hndl, TRUE), "SetConsoleCtrlHandler error");
 
             #else
 
@@ -2362,7 +2601,7 @@ namespace netxs::os
             ::atexit(_globals<void>::default_mode);
             _globals<void>::resize_handler();
         }
-        void splice(iota mode)
+        void splice(si32 mode)
         {
             auto& ipcio = *_globals<void>::ipcio;
 
@@ -2376,7 +2615,7 @@ namespace netxs::os
             os::rst_palette(mode);
 
             ipcio.reset();
-            flash.reset();
+            signal.reset();
 
             if (input.joinable())
                 input.join();
@@ -2387,7 +2626,7 @@ namespace netxs::os
     template<class V> conmode     tty::_globals<V>::state;
     template<class V> testy<twod> tty::_globals<V>::winsz;
 
-    class ptydev // Note: STA.
+    class pty // Note: STA.
     {
         #if defined(_WIN32)
 
@@ -2406,39 +2645,49 @@ namespace netxs::os
         os::ipc                   termlink{};
         testy<twod>               termsize{};
         std::thread               stdinput{};
+        std::thread               stdwrite{};
         std::function<void(view)> receiver{};
-        std::function<void(iota)> shutdown{};
-        text                      tempbuff{};
+        std::function<void(si32)> shutdown{};
+        text                      writebuf{};
+        std::mutex                writemtx{};
+        std::condition_variable   writesyn{};
 
     public:
-        ~ptydev()
+        ~pty()
         {
-            log("ptydev: dtor started");
+            log("xpty: dtor started");
             if (termlink) wait_child();
+            if (stdwrite.joinable())
+            {
+                writesyn.notify_one();
+                log("xpty: id: ", stdwrite.get_id(), " writing thread joining");
+                stdwrite.join();
+            }
             if (stdinput.joinable())
             {
-                log("ptydev: input thread joining");
-                //todo deadlock on wsl with tiling ~50 terms
+                log("xpty: id: ", stdinput.get_id(), " reading thread joining");
                 stdinput.join();
             }
             #if defined(_WIN32)
+                auto id = client_exit_waiter.get_id();
                 if (client_exit_waiter.joinable())
                 {
-                    log("ptydev: client_exit_waiter thread joining");
+                    log("xpty: id: ", id, " child process waiter thread joining");
                     client_exit_waiter.join();
                 }
-                log("ptydev: client_exit_waiter thread joined");
+                log("xpty: id: ", id, " child process waiter thread joined");
             #endif
+            log("xpty: dtor complete");
         }
         
         operator bool () { return termlink; }
 
         void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
-                                           , std::function<void(iota)> shutdown_hndl)
+                                           , std::function<void(si32)> shutdown_hndl)
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
-            log("ptydev: new process: ", cmdline);
+            log("xpty: new child process: ", cmdline);
 
             #if defined(_WIN32)
 
@@ -2446,39 +2695,46 @@ namespace netxs::os
                 auto create = [](HPCON& hPC, twod winsz,
                     HANDLE& m_pipe_r, HANDLE& m_pipe_w)
                 {
+                    //todo experimental feature
+                    //static constexpr auto PSEUDOCONSOLE_RESIZE_QUIRK     = 2u;
+                    //static constexpr auto PSEUDOCONSOLE_WIN32_INPUT_MODE = 4u;
+                    //static constexpr auto PSEUDOCONSOLE_PASSTHROUGH_MODE = 8u;
                     HRESULT err_code{ E_UNEXPECTED };
                     HANDLE  s_pipe_r{ INVALID_HANDLE_VALUE };
                     HANDLE  s_pipe_w{ INVALID_HANDLE_VALUE };
+                    DWORD    dwFlags = 0;
+                                    // | PSEUDOCONSOLE_WIN32_INPUT_MODE
+                                    // | PSEUDOCONSOLE_PASSTHROUGH_MODE;
 
-                    if (CreatePipe(&m_pipe_r, &s_pipe_w, nullptr, 0) &&
-                        CreatePipe(&s_pipe_r, &m_pipe_w, nullptr, 0))
+                    if (::CreatePipe(&m_pipe_r, &s_pipe_w, nullptr, 0) &&
+                        ::CreatePipe(&s_pipe_r, &m_pipe_w, nullptr, 0))
                     {
                         COORD consz;
                         consz.X = winsz.x;
                         consz.Y = winsz.y;
-                        err_code = CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, 0, &hPC);
+                        err_code = ::CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, dwFlags, &hPC);
                     }
 
-                    CloseHandle(s_pipe_w);
-                    CloseHandle(s_pipe_r);
+                    ::CloseHandle(s_pipe_w);
+                    ::CloseHandle(s_pipe_r);
 
                     return err_code ? faux : true;
                 };
                 auto fillup = [](HPCON hPC, auto& attrs_buff, auto& lpAttributeList)
                 {
                     SIZE_T attr_size = 0;
-                    InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
+                    ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
                     attrs_buff.resize(attr_size);
                     lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrs_buff.data());
 
-                    if (InitializeProcThreadAttributeList(lpAttributeList, 1, 0, &attr_size)
-                        &&  UpdateProcThreadAttribute(lpAttributeList,
-                                                      0,
-                                                      PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                                                      hPC,
-                                                      sizeof(hPC),
-                                                      nullptr,
-                                                      nullptr))
+                    if (::InitializeProcThreadAttributeList(lpAttributeList, 1, 0, &attr_size)
+                        &&  ::UpdateProcThreadAttribute( lpAttributeList,
+                                                         0,
+                                                         PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                                                         hPC,
+                                                         sizeof(hPC),
+                                                         nullptr,
+                                                         nullptr))
                     {
                         return true;
                     }
@@ -2493,45 +2749,43 @@ namespace netxs::os
 
                 if (   create(hPC, winsz, m_pipe_r, m_pipe_w)
                     && fillup(hPC, attrs_buff, start_info.lpAttributeList)
-                    && CreateProcessA(
-                        nullptr,                      // lpApplicationName
-                        cmdline.data(),               // lpCommandLine
-                        nullptr,                      // lpProcessAttributes
-                        nullptr,                      // lpThreadAttributes
-                        FALSE,                        // bInheritHandles
-                        EXTENDED_STARTUPINFO_PRESENT, // dwCreationFlags (override startupInfo type)
-                        nullptr,                      // lpCurrentDirectory
-                        nullptr,                      // lpEnvironment
-                        &start_info.StartupInfo,      // lpStartupInfo (ptr to STARTUPINFOEX)
-                        &procs_info))                 // lpProcessInformation
+                    && ::CreateProcessA( nullptr,                      // lpApplicationName
+                                         cmdline.data(),               // lpCommandLine
+                                         nullptr,                      // lpProcessAttributes
+                                         nullptr,                      // lpThreadAttributes
+                                         FALSE,                        // bInheritHandles
+                                         EXTENDED_STARTUPINFO_PRESENT, // dwCreationFlags (override startupInfo type)
+                                         nullptr,                      // lpCurrentDirectory
+                                         nullptr,                      // lpEnvironment
+                                         &start_info.StartupInfo,      // lpStartupInfo (ptr to STARTUPINFOEX)
+                                         &procs_info))                 // lpProcessInformation
                 {
                     hProcess = procs_info.hProcess;
                     hThread  = procs_info.hThread;
-                    gameover = CreateEvent(
-                        NULL,   // security attributes
-                        FALSE,  // auto-reset
-                        FALSE,  // initial state
-                        NULL);
+                    gameover = ::CreateEvent( NULL,   // security attributes
+                                              FALSE,  // auto-reset
+                                              FALSE,  // initial state
+                                              NULL);
                     client_exit_waiter = std::thread([&]
                     {
                         HANDLE signals[] = { hProcess, gameover };
-                        if (WAIT_OBJECT_0 != WaitForMultipleObjects(2, signals, FALSE, INFINITE))
+                        if (WAIT_OBJECT_0 != ::WaitForMultipleObjects(2, signals, FALSE, INFINITE))
                         {
-                            log("ptydev: client_exit_waiter error");
+                            log("xpty: child process waiter aborted");
                         }
-                        log("ptydev: client_exit_waiter finished");
-                        CloseHandle(gameover);
+                        else log("xpty: child process terminated");
+                        ::CloseHandle(gameover);
                         if (termlink)
                         {
                             auto exit_code = wait_child();
                             shutdown(exit_code);
                         }
-                        log("ptydev: client_exit_waiter exit");
+                        log("xpty: child process waiter ended");
                     });
                     termlink.set({ m_pipe_r, m_pipe_w }, true);
-                    log("ptydev: conpty created: ", winsz);
+                    log("xpty: conpty created: ", winsz);
                 }
-                else log("ptydev: process creation error ", GetLastError());
+                else log("xpty: child process creation error ", ::GetLastError());
 
                 //todo workaround for GH#10400 (resolved) https://github.com/microsoft/terminal/issues/10400
                 std::this_thread::sleep_for(250ms);
@@ -2557,7 +2811,7 @@ namespace netxs::os
                     // Current process must be a session leader (::setsid()) and not have
                     // a controlling terminal already.
                     // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-                    ok(::ioctl(fds, TIOCSCTTY, 0), "ptydev: assign controlling terminal error");
+                    ok(::ioctl(fds, TIOCSCTTY, 0), "xpty: assign controlling terminal error");
 
                     ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                     ::signal(SIGQUIT, SIG_DFL); //
@@ -2572,7 +2826,7 @@ namespace netxs::os
                     ::close(fds);
 
                     auto args = os::split_cmdline(cmdline);
-                    std::vector<char*> argv;
+                    auto argv = std::vector<char*>{};
                     for (auto& c : args)
                     {
                         argv.push_back(c.data());
@@ -2581,7 +2835,7 @@ namespace netxs::os
 
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                     ok(::execvp(argv.front(), argv.data()), "execvp error");
-                    os::exit(1, "ptydev: exec error ", errno);
+                    os::exit(1, "xpty: exec error ", errno);
                 }
 
                 // Parent branch.
@@ -2590,28 +2844,29 @@ namespace netxs::os
             #endif
 
             stdinput = std::thread([&] { read_socket_thread(); });
+            stdwrite = std::thread([&] { send_socket_thread(); });
 
-            if (tempbuff.size()) write(decltype(tempbuff){ std::move(tempbuff) });
+            writesyn.notify_one();
         }
 
-        iota wait_child()
+        si32 wait_child()
         {
-            iota exit_code = {};
-            log("ptydev: wait child process, tty=", termlink);
+            si32 exit_code = {};
+            log("xpty: wait child process, tty=", termlink);
             termlink.reset();
 
             #if defined(_WIN32)
 
-                ClosePseudoConsole(hPC);
+                ::ClosePseudoConsole(hPC);
                 termlink.shut();
                 DWORD code = 0;
-                if (GetExitCodeProcess(hProcess, &code) == FALSE) log("ptydev: child GetExitCodeProcess() error: ", GetLastError());
-                else if (code == STILL_ACTIVE)                    log("ptydev: child process still running");
-                else                                              log("ptydev: child process exit code ", code);
+                if (::GetExitCodeProcess(hProcess, &code) == FALSE) log("xpty: GetExitCodeProcess() return code: ", ::GetLastError());
+                else if (code == STILL_ACTIVE)                      log("xpty: child process still running");
+                else                                                log("xpty: child process exit code ", code);
                 exit_code = code;
-                SetEvent(gameover);
-                CloseHandle(hProcess);
-                CloseHandle(hThread);
+                ::SetEvent(gameover);
+                ::CloseHandle(hProcess);
+                ::CloseHandle(hThread);
 
             #else
 
@@ -2623,25 +2878,27 @@ namespace netxs::os
                 if (WIFEXITED(status))
                 {
                     exit_code = WEXITSTATUS(status);
-                    log("ptydev: child process exit code ", exit_code);
+                    log("xpty: child process exit code ", exit_code);
                 }
                 else
                 {
                     exit_code = 0;
-                    log("ptydev: error: child process exit code not detected");
+                    log("xpty: warning: child process exit code not detected");
                 }
             }
 
             #endif
-            log("ptydev: wait_child() exit");
+            log("xpty: child waiting complete");
             return exit_code;
         }
         void read_socket_thread()
         {
+            log("xpty: id: ", stdinput.get_id(), " reading thread started");
             text flow;
             while (termlink)
             {
-                if (auto shot = termlink.recv())
+                auto shot = termlink.recv();
+                if (shot && termlink)
                 {
                     flow += shot;
                     auto crop = ansi::purify(flow);
@@ -2652,10 +2909,27 @@ namespace netxs::os
             }
             if (termlink)
             {
-                log("ptydev: read_socket_thread ended");
                 auto exit_code = wait_child();
                 shutdown(exit_code);
             }
+            log("xpty: id: ", stdinput.get_id(), " reading thread ended");
+        }
+        void send_socket_thread()
+        {
+            log("xpty: id: ", stdwrite.get_id(), " writing thread started");
+            auto guard = std::unique_lock{ writemtx };
+            text cache;
+            while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
+            {
+                std::swap(cache, writebuf);
+                guard.unlock();
+
+                if (termlink.send<true>(cache)) cache.clear();
+                else                            break;
+
+                guard.lock();
+            }
+            log("xpty: id: ", stdwrite.get_id(), " writing thread ended");
         }
         void resize(twod const& newsize)
         {
@@ -2666,8 +2940,8 @@ namespace netxs::os
                     COORD winsz;
                     winsz.X = newsize.x;
                     winsz.Y = newsize.y;
-                    auto hr = ResizePseudoConsole(hPC, winsz);
-                    if (hr != S_OK) log("ptydev: ResizePseudoConsole error, ", hr);
+                    auto hr = ::ResizePseudoConsole(hPC, winsz);
+                    if (hr != S_OK) log("xpty: ResizePseudoConsole error, ", hr);
 
                 #else
 
@@ -2681,8 +2955,104 @@ namespace netxs::os
         }
         void write(view data)
         {
-            if (termlink) termlink.send<true>(data);
-            else          tempbuff += data;
+            auto guard = std::lock_guard{ writemtx };
+            writebuf += data;
+            if (termlink) writesyn.notify_one();
+        }
+    };
+
+    class pool
+    {
+        struct item
+        {
+            bool        state;
+            std::thread guest;
+        };
+
+        std::recursive_mutex            mutex;
+        std::condition_variable_any     synch;
+        std::map<std::thread::id, item> index;
+        si32                            count;
+        bool                            alive;
+        std::thread                     agent;
+
+        void worker()
+        {
+            auto guard = std::unique_lock{ mutex };
+            log("pool: session control started");
+
+            while (alive)
+            {
+                synch.wait(guard);
+                for (auto it = index.begin(); it != index.end();)
+                {
+                    auto& [sid, session] = *it;
+                    auto& [state, guest] = session;
+                    if (state == faux || !alive)
+                    {
+                        if (guest.joinable())
+                        {
+                            guard.unlock();
+                            guest.join();
+                            guard.lock();
+                            log("pool: id: ", sid, " session joined");
+                        }
+                        it = index.erase(it);
+                    }
+                    else ++it;
+                }
+            }
+        }
+        void checkout()
+        {
+            auto guard = std::lock_guard{ mutex };
+            auto session_id = std::this_thread::get_id();
+            index[session_id].state = faux;
+            synch.notify_one();
+            log("pool: id: ", session_id, " session deleted");
+        }
+
+    public:
+        auto lock()
+        {
+            return std::lock_guard{ mutex };
+        }
+        template<class PROC>
+        void run(PROC process)
+        {
+            auto guard = std::lock_guard{ mutex };
+            auto session = std::thread([&, process]() { process(); checkout(); });
+            auto session_id = session.get_id();
+            index[session_id] = { true, std::move(session) };
+            log("pool: id: ", session_id, " session created");
+        }
+        auto size()
+        {
+            return index.size();
+        }
+        auto next()
+        {
+            return count++;
+        }
+
+        pool()
+            : count{ 0    },
+              alive{ true },
+              agent{ [&]() { worker(); }}
+        { }
+        ~pool()
+        {
+            mutex.lock();
+            alive = faux;
+            synch.notify_one();
+            mutex.unlock();
+
+            if (agent.joinable())
+            {
+                log("pool: joining agent");
+                agent.join();
+            }
+            log("pool: session control ended");
         }
     };
 }

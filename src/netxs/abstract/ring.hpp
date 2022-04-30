@@ -13,33 +13,33 @@ namespace netxs::generics
     {
         using type = typename vect::value_type;
 
-        iota step; // ring: Unlimited buffer increment step (zero for fixed size buffer).
-        iota head; // ring: Front index.
-        iota tail; // ring: Back index.
-        iota peak; // ring: Limit of the ring buffer.
+        si32 step; // ring: Unlimited buffer increment step (zero for fixed size buffer).
+        si32 head; // ring: Front index.
+        si32 tail; // ring: Back index.
+        si32 peak; // ring: Limit of the ring buffer.
         vect buff; // ring: Inner container.
-        iota size; // ring: Elements count.
-        iota cart; // ring: Active item position.
-        iota mxsz; // ring: Max unlimited buffer size.
+        si32 size; // ring: Elements count.
+        si32 cart; // ring: Active item position.
+        si32 mxsz; // ring: Max unlimited buffer size.
 
-        void inc(iota& a) const { if  (++a == peak) a = 0;        }
-        void dec(iota& a) const { if  (--a < 0    ) a = peak - 1; }
-        auto mod(iota  a) const { return a < 0  ? ++a % peak - 1 + peak
+        void inc(si32& a) const { if  (++a == peak) a = 0;        }
+        void dec(si32& a) const { if  (--a < 0    ) a = peak - 1; }
+        auto mod(si32  a) const { return a < 0  ? ++a % peak - 1 + peak
                                                 :   a % peak;     }
-        auto dst(iota  a, iota b) const
+        auto dst(si32  a, si32 b) const
                                 { return b < a ? b - a + peak
                                                : b - a;           }
         template<class RING>
         struct iter
         {
             RING& buff;
-            iota  addr;
-            iter(RING& buff, iota addr)
+            si32  addr;
+            iter(RING& buff, si32 addr)
               : buff{ buff },
                 addr{ addr }
             { }
-            auto  operator -  (iota n)        const {      return iter<RING>{ buff, buff.mod(addr - n) };                 }
-            auto  operator +  (iota n)        const {      return iter<RING>{ buff, buff.mod(addr + n) };                 }
+            auto  operator -  (si32 n)        const {      return iter<RING>{ buff, buff.mod(addr - n) };                 }
+            auto  operator +  (si32 n)        const {      return iter<RING>{ buff, buff.mod(addr + n) };                 }
             auto  operator ++ (int)                 { auto temp = iter<RING>{ buff, addr }; buff.inc(addr); return temp;  }
             auto  operator -- (int)                 { auto temp = iter<RING>{ buff, addr }; buff.dec(addr); return temp;  }
             auto& operator ++ ()                    {                                       buff.inc(addr); return *this; }
@@ -50,7 +50,7 @@ namespace netxs::generics
             auto  operator == (iter const& m) const { return addr == m.addr;                                              }
         };
 
-        ring(iota ring_size, iota grow_by = 0)
+        ring(si32 ring_size, si32 grow_by = 0)
             : step{ grow_by                      },
               head{ 0                            },
               tail{ ring_size ? ring_size : step },
@@ -58,7 +58,7 @@ namespace netxs::generics
               buff( peak                         ), // Rounded brackets! Not curly! In oreder to call T::ctor().
               size{ 0                            },
               cart{ 0                            },
-              mxsz{ maxiota - step               }
+              mxsz{ maxsi32 - step               }
         { }
 
         virtual void undock_base_front(type&) { };
@@ -71,14 +71,16 @@ namespace netxs::generics
         auto    end() const       { return iter<const ring>{ *this, mod(tail + 1) }; }
         auto& length() const      { return size;                }
         auto&  back()             { return buff[tail];          }
+        auto&  back() const       { return buff[tail];          }
         auto& front()             { return buff[head];          }
+        auto& front() const       { return buff[head];          }
         auto& current     ()      { return buff[cart];          }
         auto& operator  * ()      { return buff[cart];          }
         auto  operator -> ()      { return buff.begin() + cart; }
-        auto&         at (iota i) { assert(i >= 0 && i < size); return buff[mod(head + i)]; }
-        auto& operator[] (iota i) { return at(i);               }
+        auto&         at (si32 i) { assert(i >= 0 && i < size); return buff[mod(head + i)]; }
+        auto& operator[] (si32 i) { return at(i);               }
         auto  index() const       { return dst(head, cart);     }
-        void  index(iota i)       { assert(i >= 0 && i < size); cart = mod(head + i); }
+        void  index(si32 i)       { assert(i >= 0 && i < size); cart = mod(head + i); }
         void  prev()              { dec(cart); test();          }
         void  next()              { inc(cart); test();          }
 
@@ -122,7 +124,7 @@ namespace netxs::generics
         }
         // ring: Insert an item before the specified position. Pop front when full. Return an iterator pointing to the new item.
         template<class ...Args>
-        auto insert_impl(iota at, Args&&... args) // Pop front always if ring is full.
+        auto insert_impl(si32 at, Args&&... args) // Pop front always if ring is full.
         {
             if (at == 0)
             {
@@ -208,7 +210,7 @@ namespace netxs::generics
         void pop_back () { undock_back();            --size; }
         // ring: Insert an item before the specified position. Pop front when full. Return an iterator pointing to the new item.
         template<class ...Args>
-        auto insert(iota at, Args&&... args) // Pop front always if ring is full.
+        auto insert(si32 at, Args&&... args) // Pop front always if ring is full.
         {
             assert(at >= 0 && at <= size);
             auto temp = index();
@@ -224,7 +226,7 @@ namespace netxs::generics
             index(temp);
             return iter;
         }
-        auto remove(iota at, iota n)
+        auto remove(si32 at, si32 n)
         {
             assert(at >= 0 && at < size);
 
@@ -265,7 +267,7 @@ namespace netxs::generics
             tail = peak - 1;
         }
         template<bool BOTTOM_ANCHORED = true>
-        void resize(iota new_size, iota grow_by = 0)
+        void resize(si32 new_size, si32 grow_by = 0)
         {
             if (new_size > 0)
             {
@@ -315,7 +317,7 @@ namespace netxs::generics
             else step = grow_by;
         }
         template<class P>
-        void for_each(iota from, iota upto, P proc)
+        void for_each(si32 from, si32 upto, P proc)
         {
             auto head = begin() + from;
             auto tail = begin() + upto;

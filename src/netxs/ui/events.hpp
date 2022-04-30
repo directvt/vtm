@@ -48,6 +48,10 @@ namespace netxs::events
         sync() : lock(_globals<void>::mutex) { }
        ~sync() { }
     };
+    static auto unique_lock()
+    {
+        return std::unique_lock{ _globals<void>::mutex };
+    }
     struct try_sync
     {
         std::unique_lock<std::recursive_mutex> lock;
@@ -137,11 +141,17 @@ namespace netxs::events
                 : proc{ proc }
             { }
         };
+        enum branch
+        {
+            fullstop,
+            nothandled,
+            proceed,
+        };
 
         std::map<type, list> stock; // reactor: Handlers repository.
         std::vector<type>    queue; // reactor: Event queue.
         vect                 qcopy; // reactor: Copy of the current pretenders to exec on current event.
-        bool                 alive; // reactor: Current exec branch interruptor.
+        branch               alive; // reactor: Current exec branch interruptor.
 
         void cleanup(ui64& ref_count, ui64& del_count)
         {
@@ -186,7 +196,7 @@ namespace netxs::events
         {
             sync lock;
 
-            alive = true;
+            alive = branch::proceed;
             queue.push_back(event);
             auto head = qcopy.size();
 
@@ -231,17 +241,22 @@ namespace netxs::events
                         }
                     }
                 }
-                while (alive && ++iter != tail);
+                while (alive == branch::proceed && ++iter != tail);
                 qcopy.resize(head);
             }
 
             queue.pop_back();
-            return size;
+            return alive != branch::nothandled && size;
         }
         // reactor: Interrupt current invocation branch.
         void stop()
         {
-            alive = faux;
+            alive = branch::fullstop;
+        }
+        // reactor: Skip current invocation branch.
+        void skip()
+        {
+            alive = branch::nothandled;
         }
     };
 

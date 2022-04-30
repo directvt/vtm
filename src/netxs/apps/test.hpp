@@ -70,10 +70,10 @@ namespace netxs::app::test
                     .jet(bias::right).rtl(rtol::ltr)
                     .add(msg_ltr, "\n\n", msg_rtl);
 
-                iota mrgin = 4;
-                auto l1 = ansi::mgl(mrgin * 1).mgr(1).fgc(whitelt).und(true);
-                auto l2 = ansi::mgl(mrgin * 2).mgr(1);
-                auto l3 = ansi::mgl(mrgin * 3).mgr(1);
+                si32 margin = 4;
+                auto l1 = ansi::mgl(margin * 1).mgr(1).fgc(whitelt).und(true);
+                auto l2 = ansi::mgl(margin * 2).mgr(1);
+                auto l3 = ansi::mgl(margin * 3).mgr(1);
                 auto c1 = bluelt;// 0xffff00;
                 auto c2 = whitedk;//0xffffff;
                 text intro = ansi::mgl(0).mgr(0)

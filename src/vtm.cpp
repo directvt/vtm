@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.6.0"
+#define MONOTTY_VER "Monotty Desktopio v0.7.3"
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -18,6 +18,9 @@
     #define INHERITANCE_LIMIT 30
 #endif
 #define APPS_DEL_TIMEOUT  1s
+
+#define MONOTTY_PREFIX "monotty_"
+#define MONOTTY_FOLDER "/.config/vtm/"
 
 // Enable to show debug overlay.
 //#define DEBUG_OVERLAY
@@ -37,9 +40,9 @@ using namespace netxs;
 
 int main(int argc, char* argv[])
 {
-    netxs::logger logger([&](auto&& data) { os::syslog(data); });
-
+    auto syslog = logger([](auto data) { os::syslog(data); });
     auto banner = [&]() { log(MONOTTY_VER); };
+    auto prefix = [](auto user) { return utf::concat(MONOTTY_PREFIX, user); }; //todo unify, use vtm.conf
     auto client = true;
     auto daemon = faux;
     {
@@ -68,7 +71,8 @@ int main(int argc, char* argv[])
                                 }
                             }
                             os::start_log("vtm");
-                            os::exit(1, error);
+                            log(error);
+                            return 1;
                         }
 
                     #endif
@@ -78,7 +82,7 @@ int main(int argc, char* argv[])
                                     + " No arguments\tRun client, auto start server if is not started.\n"s
                                              + "\t-d\tRun server in background.\n"s
                                              + "\t-s\tRun server in interactive mode.\n"s);
-                    os::exit(1);
+                    return 0;;
             }
         }
 
@@ -87,7 +91,8 @@ int main(int argc, char* argv[])
             if (!os::daemonize(argv[0]))
             {
                 banner();
-                os::exit(1, "main: failed to daemonize");
+                log("main: failed to daemonize");
+                return 1;
             }
             else client = faux;
         }
@@ -95,28 +100,37 @@ int main(int argc, char* argv[])
 
     banner();
 
+    auto user = os::user();
+    auto spot = utf::text{};
+    auto conf = utf::text{};
+    auto path = prefix(user);
+    {
+        std::ifstream config;
+        config.open(os::homepath() + MONOTTY_FOLDER "settings.ini");
+
+        if (config.is_open())
+            std::getline(config, spot);
+
+        if (spot.empty())
+            spot = "unknown region";
+
+        //todo unify
+        //fps
+        //skin::setup(tone::lucidity, 192);
+        //skin::setup(tone::shadower, 0);
+        skin::setup(tone::kb_focus, 60);
+        skin::setup(tone::brighter, 60);//120);
+        skin::setup(tone::shadower, 180);//60);//40);// 20);
+        skin::setup(tone::shadow  , 180);//5);
+        skin::setup(tone::lucidity, 255);
+        skin::setup(tone::selector, 48);
+        skin::setup(tone::bordersz, dot_11);
+    }
+
     if (client)
     {
         os::start_log("vtm");
 
-        auto host = os::get_env("SSH_CLIENT");
-        auto name = os::get_env("USER");
-
-        // Demo: Get current region from "~/.config/vtm/settings.ini".
-        utf::text spot;
-        {
-            std::ifstream config;
-            config.open(os::homepath() + "/.config/vtm/settings.ini");
-
-            if (config.is_open())
-                std::getline(config, spot);
-
-            if (spot.empty())
-                spot = "unknown region";
-        }
-
-        auto user = os::user();
-        auto path = utf::concat("monotty_", user); //todo unify, use vtm.conf
         auto link = os::ipc::open<os::client>(path, 10s, [&]()
                     {
                         log("main: new desktop environment for user ", user);
@@ -124,9 +138,16 @@ int main(int argc, char* argv[])
                         utf::trim_front(binary, "-"); // Sometimes "-" appears before executable.
                         return os::exec(text{ binary }, "-d");
                     });
-        if (!link) os::exit(-1, "main: desktop server connection error");
+        if (!link)
+        {
+            log("main: error: no desktop server connection");
+            return 1;
+        }
 
+        auto host = os::get_env("SSH_CLIENT");
+        auto name = os::get_env("USER");
         auto mode = os::legacy_mode();
+
         link->send(utf::concat(spot, ";",
                                host, ";",
                                name, ";",
@@ -149,290 +170,57 @@ int main(int argc, char* argv[])
                                .load_title());
 
         std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
-        os::exit(0);
     }
-    
-    netxs::logger srv_logger( [=](auto const& utf8)
+    else
     {
-        static text buff;
-        if (auto sync = events::try_sync{})
+        auto link = os::ipc::open<os::server>(path);
+        if (!link)
         {
-            if (buff.size())
-            {
-                SIGNAL_GLOBAL(e2::debug::logs, view{ buff });
-                buff.clear();
-            }
-            SIGNAL_GLOBAL(e2::debug::logs, view{ utf8 });
+            log("main: error: can't start desktop server");
+            return 1;
         }
-        else buff += utf8;
-    });
 
-    //todo Get current config from "~/.config/vtm/settings.ini".
-    utf::text config_data;
-    {
-        std::ifstream config;
-        config.open(os::homepath() + "/.config/vtm/settings.ini");
-        if (config.is_open()) std::getline(config, config_data);
-        if (config_data.empty()) config_data = "empty config";
+        syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
 
-        //todo unify
-        //skin::setup(tone::lucidity, 192);
-        //skin::setup(tone::shadower, 0);
-        skin::setup(tone::kb_focus, 60);
-        skin::setup(tone::brighter, 60);//120);
-        skin::setup(tone::shadower, 180);//60);//40);// 20);
-        skin::setup(tone::shadow  , 180);//5);
-        skin::setup(tone::lucidity, 255);
-        skin::setup(tone::selector, 48);
-        skin::setup(tone::bordersz, dot_11);
-    }
+        log("main: listening socket ", link,
+                         "\n\tuser: ", user,
+                         "\n\tpipe: ", path);
 
-    auto world = base::create<host>([&](auto reason) { os::exit(0, reason); });
+        auto world = base::create<host>(link);
+        app::shared::init_app_registry(world);
 
-    log("host: created");
+        world->SIGNAL(tier::general, e2::config::fps, 60);
 
-    world->SUBMIT(tier::general, e2::cleanup, counter)
-    {
-        world->router<tier::general>().cleanup(counter.ref_count, counter.del_count);
-    };
-
-    auto base_window = [](auto header, auto footer, auto menu_item_id)
-    {
-        return ui::cake::ctor()
-            ->template plugin<pro::d_n_d>()
-            ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
-            ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-            ->template plugin<pro::sizer>()
-            ->template plugin<pro::frame>()
-            ->template plugin<pro::light>()
-            ->template plugin<pro::align>()
-            ->invoke([&](auto& boss)
-            {
-                boss.kind(base::reflow_root); //todo unify -- See base::reflow()
-                auto shadow = ptr::shadow(boss.This());
-                boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
-                {
-                    if (auto boss_ptr = shadow.lock())
-                    if (auto object = boss_ptr->pop_back())
-                    {
-                        auto& boss = *boss_ptr;
-                        auto target = what.object;
-                        what.menuid = menu_item_id;
-                        what.object = object;
-                        auto& title = boss.template plugins<pro::title>();
-                        what.header = title.header();
-                        what.footer = title.footer();
-                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
-                        boss.base::detach(); // The object kills itself.
-                    }
-                };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                {
-                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
-                    gear.dismiss();
-                };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto& area = boss.base::area();
-                    if (!area.size.inside(gear.coord))
-                    {
-                        auto center = area.coor + (area.size / 2);
-                        bell::getref(gear.id)->SIGNAL(tier::release, e2::form::layout::shift, center);
-                    }
-                    boss.base::deface();
-                };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-                {
-                    auto backup = boss.This();
-                    boss.base::detach();
-                    gear.dismiss();
-                };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-                {
-                    auto backup = boss.This();
-                    boss.base::detach();
-                    gear.dismiss();
-                };
-                boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
-                {
-                    boss.base::detach(); // The object kills itself.
-                };
-                boss.SUBMIT(tier::release, e2::form::quit, nested_item)
-                {
-                    if (nested_item) boss.base::detach(); // The object kills itself.
-                };
-                boss.SUBMIT(tier::release, e2::dtor, p)
-                {
-                    auto start = tempus::now();
-                    auto counter = decltype(e2::cleanup)::type{};
-                    SIGNAL_GLOBAL(e2::cleanup, counter);
-                    auto stop = tempus::now() - start;
-                    log("world: Garbage collection",
-                    "\n\ttime ", utf::format(stop.count()), "ns",
-                    "\n\tobjs ", counter.obj_count,
-                    "\n\trefs ", counter.ref_count,
-                    "\n\tdels ", counter.del_count);
-                };
-            });
-    };
-
-    world->SUBMIT(tier::release, e2::form::proceed::createat, what)
-    {
-        auto& config = app::shared::objs_config[what.menuid];
-        auto window = base_window(config.title, "", what.menuid);
-
-        window->extend(what.square);
-        auto& creator = app::shared::creator(config.group);
-        window->attach(creator(config.param));
-        log("world: create type=", config.group, " menu_item_id=", what.menuid);
-        world->branch(what.menuid, window, config.fixed);
-        window->SIGNAL(tier::anycast, e2::form::upon::started, world);
-
-        what.object = window;
-    };
-    world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
-    {
-        auto& config = app::shared::objs_config[what.menuid];
-        auto window = base_window(what.header, what.footer, what.menuid);
-
-        window->extend(what.square);
-        window->attach(what.object);
-        log("world: attach type=", config.group, " menu_item_id=", what.menuid);
-        world->branch(what.menuid, window, config.fixed);
-        window->SIGNAL(tier::anycast, e2::form::upon::started, world);
-
-        what.object = window;
-    };
-    world->SUBMIT(tier::general, e2::form::global::lucidity, alpha)
-    {
-        if (alpha == -1)
-        {
-            alpha = skin::shady();
-        }
-        else
-        {
-            alpha = std::clamp(alpha, 0, 255);
-            skin::setup(tone::lucidity, alpha);
-            world->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
-        }
-    };
-
-    app::shared::init_menu(world);
-
-    world->SIGNAL(tier::general, e2::config::fps, 60);
-
-    iota usr_count = 0;
-    auto user = os::user();
-    auto path = utf::concat("monotty_", user);
-    log("user: ", user);
-    log("pipe: ", path);
-
-    if (auto link = os::ipc::open<os::server>(path))
-    {
-        log("sock: listening socket ", link);
-
+        auto session = os::pool{};
         while (auto peer = link->meet())
         {
             if (!peer->cred(user))
             {
-                log("sock: other users are not allowed to the session, abort");
+                log("main: abort: foreign users are not allowed to the session");
                 continue;
             }
 
-            auto _region = peer->line(';');
-            auto _ip     = peer->line(';');
-            auto _user   = peer->line(';');
-            auto _name   = peer->line(';');
-            auto _mode   = peer->line(';');
-            log("peer: region= ", _region,
-                    ", ip= "    , _ip,
-                    ", user= "  , _user,
-                    ", name= "  , _name,
-                    ", mode= "  , _mode);
-            text c_ip;
-            text c_port;
-            auto c_info = utf::divide(_ip, " ");
-            if (c_info.size() > 0) c_ip   = c_info[0];
-            if (c_info.size() > 1) c_port = c_info[1];
+            auto lock = session.lock();
+            auto conf = console::conf(peer, session.next());
+            log("main: incoming connection:", conf);
 
-            utf::change(_ip, " ", ":");
+            conf.background_color = app::shared::background_color; //todo unify
 
-            //todo Move user's viewport to the last saved position
-            auto user_coor = twod{};
-
-            //todo distinguish users by config, enumerate if no config
-            _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
-            log("main: creating a new thread for user ", _name);
-
-            std::thread{ [=]    // _name
-                                // _mode
-                                // _region
-                                // peer
-                                // c_ip
-                                // c_port
-                                // world
-                                // user_coor
-                                // 
+            session.run([&, peer, conf]()
             {
-                log("user: session name ", peer);
+                if (auto client = world->invite<ui::gate>())
+                {
+                    log("user: new gate for ", peer);
+                    auto deskmenu = app::shared::creator("Desk")(utf::concat(client->id, ";", conf.os_user_id));
+                    auto bkground = app::shared::creator("Fone")("Shop;Demo;");
+                    client->run(deskmenu, bkground, peer, conf);
 
-                #ifndef PROD
-                    auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
-                #else
-                    auto username = _name;
-                #endif
-
-                auto lock = std::make_unique<events::sync>();
-                    auto legacy_mode = os::legacy::clean;
-                    if (auto mode = utf::to_int(view(_mode)))
-                    {
-                        legacy_mode = mode.value();
-                    }
-                    auto client = world->invite<ui::gate>(username, legacy_mode);
-
-                    auto& menu_builder = app::shared::creator("Desk");
-                    auto deskmenu = menu_builder(utf::concat(client->id, ";", user, ";", path));
-                    auto& fone_builder = app::shared::creator("Fone");
-                    auto bkground = fone_builder(
-                    #ifndef PROD
-                        "Shop;Demo;"
-                    #else
-                        "HeadlessTerm;Info;ssh info@netxs.online"
-                    #endif
-                    );
-            
-                    client->attach(deskmenu);
-                    client->ground(bkground);
-                    client->color(app::shared::background_color.fgc(), app::shared::background_color.bgc());
-                    text header = username;
-                    client->SIGNAL(tier::release, e2::form::prop::name, header);
-                    client->SIGNAL(tier::preview, e2::form::prop::header, header);
-                    client->base::moveby(user_coor);
-                lock.reset();
-                log("user: new gate for ", peer);
-
-                client->proceed(peer,
-                    #ifndef PROD
-                        _region
-                    #else
-                        username
-                    #endif
-                );
-
-                lock = std::make_unique<events::sync>();
-                    log("user: ", peer, " has logged out");
-                    client->detach();
-                    log("user: ", peer, " is diconnected");
-                    log("user: client.use_count() ", client.use_count());
-                    client.reset();
-                lock.reset();
-            } }.detach();
-
-            log("main: new thread constructed for ", peer);
+                    world->resign(client);
+                    log("user: ", peer, " logged out");
+                }
+            });
         }
 
-        world->SIGNAL(tier::general, e2::config::fps, 0);
+        SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
     }
-
-    os::exit(0, "bye!");
 }

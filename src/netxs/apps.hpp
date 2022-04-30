@@ -31,9 +31,7 @@ namespace netxs::app::shared
     X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"Term\" ,\"\"), a(\"Term\" ,\"Term\" ,\"\"))" ) \
     X(Settings     , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
     X(PowerShell   , "PowerShell"            , ("Term \nPowerShell")                                           , "" ) \
-    X(CommandPrompt, "Command Prompt"        , ("Term \nCommand Prompt")                                       , "" ) \
     X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
-    X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
     X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
     X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
     X(Truecolor    , "Truecolor image"       , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
@@ -60,10 +58,10 @@ namespace netxs::app::shared
     #undef X
     #undef TYPE_LIST
 
-    //static iota    max_count = 20;// 50;
-    static iota    max_vtm = 3;
-    static iota    vtm_count = 0;
-    static iota    tile_count = 0;
+    //static si32 max_count = 20;// 50;
+    static si32 max_vtm = 3;
+    static si32 vtm_count = 0;
+    static si32 tile_count = 0;
     //constexpr auto del_timeout = 1s;
 
     //auto const highlight_color2 = tint::blackdk ;
@@ -285,6 +283,73 @@ namespace netxs::app::shared
         };
         return custom_menu(true, items);
     };
+    const auto base_window = [](auto header, auto footer, auto menu_item_id)
+    {
+        return ui::cake::ctor()
+            ->template plugin<pro::d_n_d>()
+            ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
+            ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+            ->template plugin<pro::sizer>()
+            ->template plugin<pro::frame>()
+            ->template plugin<pro::light>()
+            ->template plugin<pro::align>()
+            ->invoke([&](auto& boss)
+            {
+                boss.kind(base::reflow_root); //todo unify -- See base::reflow()
+                auto shadow = ptr::shadow(boss.This());
+                boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
+                {
+                    if (auto boss_ptr = shadow.lock())
+                    if (auto object = boss_ptr->pop_back())
+                    {
+                        auto& boss = *boss_ptr;
+                        auto target = what.object;
+                        what.menuid = menu_item_id;
+                        what.object = object;
+                        auto& title = boss.template plugins<pro::title>();
+                        what.header = title.header();
+                        what.footer = title.footer();
+                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
+                        boss.base::detach(); // The object kills itself.
+                    }
+                };
+                boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                {
+                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                    gear.dismiss();
+                };
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    auto& area = boss.base::area();
+                    if (!area.size.inside(gear.coord))
+                    {
+                        auto center = area.coor + (area.size / 2);
+                        bell::getref(gear.id)->SIGNAL(tier::release, e2::form::layout::shift, center);
+                    }
+                    boss.base::deface();
+                };
+                boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
+                {
+                    boss.base::detach(); // The object kills itself.
+                };
+                boss.SUBMIT(tier::release, e2::form::quit, nested_item)
+                {
+                    if (nested_item) boss.base::detach(); // The object kills itself.
+                };
+                boss.SUBMIT(tier::release, e2::dtor, p)
+                {
+                    auto start = tempus::now();
+                    auto counter = decltype(e2::cleanup)::type{};
+                    SIGNAL_GLOBAL(e2::cleanup, counter);
+                    auto stop = tempus::now() - start;
+                    log("host: garbage collection",
+                    "\n\ttime ", utf::format(stop.count()), "ns",
+                    "\n\tobjs ", counter.obj_count,
+                    "\n\trefs ", counter.ref_count,
+                    "\n\tdels ", counter.del_count);
+                };
+            });
+    };
 
     using builder_t = std::function<sptr<base>(view)>;
 
@@ -332,6 +397,22 @@ namespace netxs::app::shared
 {
     namespace
     {
+        auto closing_by_gesture = [](auto& boss)
+        {
+            boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+            {
+                auto backup = boss.This();
+                boss.base::template riseup<tier::release>(e2::form::quit, backup);
+                gear.dismiss();
+            };
+            boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+            {
+                auto backup = boss.This();
+                boss.base::template riseup<tier::release>(e2::form::quit, backup);
+                gear.dismiss();
+            };
+        };
+
         auto build_Strobe        = [](view v)
         {
             auto window = ui::cake::ctor();
@@ -339,6 +420,7 @@ namespace netxs::app::shared
                                ->invoke([](auto& boss)
                                 {
                                     boss.keybd.accept(true);
+                                    closing_by_gesture(boss);
                                 })
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
@@ -364,6 +446,7 @@ namespace netxs::app::shared
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
+                      closing_by_gesture(boss);
                   });
             return window;
         };
@@ -376,9 +459,9 @@ namespace netxs::app::shared
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
+                      closing_by_gesture(boss);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
-                          static iota i = 0; i++;
                           auto title = ansi::add("Empty Instance \nid: ", parent->id);
                           boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                       };
@@ -420,7 +503,8 @@ namespace netxs::app::shared
                         };
                         boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                         {
-                            static iota i = 0; i++;
+                            if (parent) closing_by_gesture(*parent);
+                            static auto i = 0; i++;
                             auto title = ansi::jet(bias::center).add("View \n Region ", i);
                             boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                             
@@ -607,31 +691,6 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Far           = [](view v)
-        {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
-                auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                    auto scroll = layers->attach(ui::rail::ctor());
-                    scroll->attach(ui::term::ctor("far"))
-                          ->colors(whitelt, blackdk)
-                          ->invoke([&](auto& boss)
-                          {
-                            boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                            {
-                                boss.start();
-                            };
-                          });
-                layers->attach(app::shared::scroll_bars_term(scroll));
-            return window;
-        };
         auto build_MC            = [](view v)
         {
             auto window = ui::cake::ctor();
@@ -675,111 +734,10 @@ namespace netxs::app::shared
         };
         auto build_PowerShell    = [](view v)
         {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
-                    std::list{
-                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
-                                    gear.dismiss(true);
-                                };
-                            }},
-                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
-                                    gear.dismiss(true);
-                                };
-                            }},
-                        }));
-                auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                    auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                        auto scroll = layers->attach(ui::rail::ctor())
-                                            ->colors(whitelt, 0xFF560000);
-                            scroll->attach(ui::term::ctor("powershell"))
-                                  ->colors(whitelt, 0xFF562401)
-                                  ->invoke([&](auto& boss)
-                                  {
-                                    boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                                    {
-                                        boss.start();
-                                    };
-                                  });
-
-                    auto scroll_bars = layers->attach(ui::fork::ctor());
-                        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                        auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
-            return window;
-        };
-        auto build_CommandPrompt = [](view v)
-        {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
-                    std::list{
-                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
-                                    gear.dismiss(true);
-                                };
-                            }},
-                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
-                                    gear.dismiss(true);
-                                };
-                            }},
-                        }));
-                auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                    auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                        auto scroll = layers->attach(ui::rail::ctor());
-                #ifdef DEMO
-                    scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
-                #endif
-
-                    #if defined(_WIN32)
-                        auto inst = scroll->attach(ui::term::ctor("cmd"));
-                    #else
-                        auto shell = os::get_shell();
-                        auto inst = scroll->attach(ui::term::ctor(shell + " -i"));
-                    #endif
-
-                        inst->colors(whitelt, blackdk)
-                            ->invoke([&](auto& boss)
-                            {
-                                boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                                {
-                                    boss.start();
-                                };
-                            });
-
-                auto scroll_bars = layers->attach(ui::fork::ctor());
-                    auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                    auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+            auto window = app::term::build("powershell");
+            //todo unify
+            auto colors = cell{ whitespace }.fgc(whitelt).bgc(0xFF562401);
+            window->SIGNAL(tier::anycast, app::term::events::colors, colors);
             return window;
         };
         auto build_HeadlessTerm  = [](view v)
@@ -830,7 +788,7 @@ namespace netxs::app::shared
                         if (auto boss = shadow.lock())
                         if (world_ptr)
                         {
-                            static iota random = 0;
+                            static auto random = 0;
                             random = (random + 2) % 10;
                             auto offset = twod{ random * 2, random };
                             auto viewport = gear.area();
@@ -878,16 +836,14 @@ namespace netxs::app::shared
         app::shared::initialize builder_View         { "View"         , build_View          };
         app::shared::initialize builder_Truecolor    { "Truecolor"    , build_Truecolor     };
         app::shared::initialize builder_VTM          { "VTM"          , build_VTM           };
-        app::shared::initialize builder_Far          { "Far"          , build_Far           };
         app::shared::initialize builder_MC           { "MC"           , build_MC            };
         app::shared::initialize builder_PowerShell   { "PowerShell"   , build_PowerShell    };
-        app::shared::initialize builder_CommandPrompt{ "CommandPrompt", build_CommandPrompt };
         app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
         app::shared::initialize builder_HeadlessTerm { "HeadlessTerm" , build_HeadlessTerm  };
         app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
     }
 
-    auto init_menu = [](auto world) // Init registry/menu list.
+    auto init_app_registry = [](auto& world)
     {
         auto menu_list_ptr = decltype(e2::bindings::list::apps)::type{};
         world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
@@ -906,7 +862,6 @@ namespace netxs::app::shared
         #else
             #ifdef _WIN32
                 menu_list[objs_lookup["Term"]];
-                menu_list[objs_lookup["CommandPrompt"]];
                 menu_list[objs_lookup["PowerShell"]];
                 menu_list[objs_lookup["Tile"]];
                 menu_list[objs_lookup["Logs"]];
@@ -925,11 +880,11 @@ namespace netxs::app::shared
             auto tiling_profiles = os::get_envars("VTM_PROFILE");
             if (auto size = tiling_profiles.size())
             {
-                iota i = 0;
+                auto i = 0;
                 log("main: tiling profile", size > 1 ? "s":"", " found");
                 for (auto& p : tiling_profiles)
                 {
-                    log(" ", i++, ". profile: ", utf::debase(p));
+                    log("\t", i++, ". profile: ", utf::debase(p));
                     //todo rewrite
                     auto v = view{ p };
                     auto name = utf::get_quote(v, '\"');
@@ -947,6 +902,102 @@ namespace netxs::app::shared
 
         #endif
 
+        world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
+        {
+            static si32 insts_count = 0;
+            if (auto gate_ptr = bell::getref(gear.id))
+            {
+                auto& gate = *gate_ptr;
+                auto location = gear.slot;
+                if (gear.meta(hids::ANYCTRL))
+                {
+                    log("host: area copied to clipboard ", location);
+                    sptr<core> canvas_ptr;
+                    gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
+                    if (canvas_ptr)
+                    {
+                        auto& canvas = *canvas_ptr;
+                        auto data = canvas.meta(location);
+                        if (data.length())
+                        {
+                            gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                            gate.SIGNAL(tier::release, e2::command::clipboard::set, data);
+                        }
+                    }
+                }
+                else
+                {
+                    auto what = decltype(e2::form::proceed::createat)::type{};
+                    what.square = gear.slot;
+                    auto data = decltype(e2::data::changed)::type{};
+                    gate.SIGNAL(tier::request, e2::data::changed, data);
+                    what.menuid = data;
+                    world->SIGNAL(tier::release, e2::form::proceed::createat, what);
+                    if (auto& frame = what.object)
+                    {
+                        insts_count++;
+                        #ifndef PROD
+                            if (insts_count > APPS_MAX_COUNT)
+                            {
+                                log("inst: max count reached");
+                                auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
+                                auto w_frame = ptr::shadow(frame);
+                                frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
+                                {
+                                    if (timestamp > timeout)
+                                    {
+                                        log("inst: timebomb");
+                                        if (auto frame = w_frame.lock())
+                                        {
+                                            frame->base::detach();
+                                            log("inst: frame detached: ", insts_count);
+                                        }
+                                    }
+                                };
+                            }
+                        #endif
+
+                        frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
+                        {
+                            insts_count--;
+                            log("inst: detached: ", insts_count);
+                        };
+
+                        gear.kb_focus_taken = faux;
+                        frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // The Tile should change the menu item.
+                    }
+                }
+            }
+        };
+        world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+        {
+            auto& config = app::shared::objs_config[what.menuid];
+            auto  window = app::shared::base_window(config.title, "", what.menuid);
+
+            window->extend(what.square);
+            auto& creator = app::shared::creator(config.group);
+            window->attach(creator(config.param));
+            log("host: app type: ", config.group, ", menu item id: ", what.menuid);
+            world->branch(what.menuid, window, config.fixed);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
+
+            what.object = window;
+        };
+        world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
+        {
+            auto& config = app::shared::objs_config[what.menuid];
+            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
+
+            window->extend(what.square);
+            window->attach(what.object);
+            log("host: attach type=", config.group, " menu_item_id=", what.menuid);
+            world->branch(what.menuid, window, config.fixed);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
+
+            what.object = window;
+        };
+
         #ifdef DEMO
             auto creator = [&](text const& menu_item_id, rect area)
             {
@@ -961,7 +1012,7 @@ namespace netxs::app::shared
             creator(objs_lookup["Shop"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
             creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
             creator(objs_lookup["Text"], { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
+            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 68, 22 } });
             creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
             creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
             creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });

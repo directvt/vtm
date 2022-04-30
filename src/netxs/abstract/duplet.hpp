@@ -13,7 +13,7 @@
 
 namespace netxs
 {
-    using fifo = netxs::generics::fifo<iota>;
+    using fifo = netxs::generics::fifo<si32>;
 
     template<class T = int>
     struct duplet
@@ -98,10 +98,10 @@ namespace netxs
             }
             return faux;
         }
-        duplet less(duplet const& what, duplet const& iftrue, duplet const& iffalse) const
+        duplet less(duplet const& what, duplet const& if_yes, duplet const& if_no) const
         {
-            return { x < what.x ? iftrue.x : iffalse.x,
-                     y < what.y ? iftrue.y : iffalse.y };
+            return { x < what.x ? if_yes.x : if_no.x,
+                     y < what.y ? if_yes.y : if_no.y };
         }
         bool inside(duplet const& p) const
         {
@@ -129,7 +129,7 @@ namespace netxs
         }
     };
 
-    using twod = duplet<iota>;
+    using twod = duplet<si32>;
 
     static constexpr const twod dot_00{ 0,0 };
     static constexpr const twod dot_01{ 0,1 };
@@ -138,22 +138,22 @@ namespace netxs
     static constexpr const twod dot_22{ 2,2 };
     static constexpr const twod dot_21{ 2,1 };
     static constexpr const twod dot_33{ 3,3 };
-    static constexpr const twod dot_mx{ std::numeric_limits<iota>::max() / 2,
-                                        std::numeric_limits<iota>::max() / 2 };
+    static constexpr const twod dot_mx{ std::numeric_limits<si32>::max() / 2,
+                                        std::numeric_limits<si32>::max() / 2 };
 
-    static twod divround(twod const& p, iota n       ) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
-    static twod divround(iota n       , twod const& p) { return { divround(n  , p.x), divround(n  , p.y) }; }
+    static twod divround(twod const& p, si32 n       ) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
+    static twod divround(si32 n       , twod const& p) { return { divround(n  , p.x), divround(n  , p.y) }; }
     static twod divround(twod const& n, twod const& p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
     static twod divupper(twod const& n, twod const& p) { return { divupper(n.x, p.x), divupper(n.y, p.y) }; }
 } // namespace netxs
 
 namespace std
 {
-    template<class T = netxs::iota> static netxs::duplet<T> min  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
-    template<class T = netxs::iota> static netxs::duplet<T> max  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
-    template<class T = netxs::iota> static netxs::duplet<T> round(netxs::duplet<T> const& p) { return { std::round(p.x), std::round(p.y) }; }
-    template<class T = netxs::iota> static netxs::duplet<T> abs  (netxs::duplet<T> const& p) { return { std::  abs(p.x), std::  abs(p.y) }; }
-    template<class T = netxs::iota> static netxs::duplet<T> clamp(netxs::duplet<T> const& p, netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
+    template<class T = netxs::si32> static netxs::duplet<T> min  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
+    template<class T = netxs::si32> static netxs::duplet<T> max  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
+    template<class T = netxs::si32> static netxs::duplet<T> round(netxs::duplet<T> const& p) { return { std::round(p.x), std::round(p.y) }; }
+    template<class T = netxs::si32> static netxs::duplet<T> abs  (netxs::duplet<T> const& p) { return { std::  abs(p.x), std::  abs(p.y) }; }
+    template<class T = netxs::si32> static netxs::duplet<T> clamp(netxs::duplet<T> const& p, netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
 } // namespace std
 
 #endif // NETXS_DUPLET_HPP

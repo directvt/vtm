@@ -18,7 +18,7 @@ namespace netxs::console
     using ansi::qiew;
     using ansi::writ;
     using ansi::deco;
-    using irgb = netxs::ui::atoms::irgb<uint32_t>;
+    using irgb = netxs::ui::atoms::irgb<ui32>;
 
     class poly
     {
@@ -68,14 +68,14 @@ namespace netxs::console
         { }
 
     protected:
-        iota digest = 0;
+        si32 digest = 0;
         cell marker;
         rect region;
         grid canvas;
         rect client;
 
     public:
-        using span = std::span<cell>;
+        using span = std::span<cell const>;
 
         core()                         = default;
         core(core&&)                   = default;
@@ -89,7 +89,7 @@ namespace netxs::console
         {
             assert(size.x * size.y == std::distance(body.begin(), body.end()));
         }
-        core(cell const& fill, iota length)
+        core(cell const& fill, si32 length)
             : region{ dot_00, twod{ length, 1 } },
               client{ dot_00, twod{ length, 1 } },
               canvas( length, fill )
@@ -136,7 +136,7 @@ namespace netxs::console
                 canvas.assign(region.size.x * region.size.y, marker);
             }
         }
-        void crop(iota newsizex, cell const& c = {}) // core: Resize while saving the textline.
+        void crop(si32 newsizex, cell const& c = {}) // core: Resize while saving the textline.
         {
             region.size.x = newsizex;
             region.size.y = 1;
@@ -249,7 +249,7 @@ namespace netxs::console
             auto db = (c2.chan.b - c1.chan.b) / len;
             auto da = (c2.chan.a - c1.chan.a) / len;
 
-            iota x = 0, y = 0, yy = 0;
+            si32 x = 0, y = 0, yy = 0;
             auto allfx = [&](cell& c) {
                 auto dt = std::sqrt(x * x + yy);
                 auto& chan = c.bgc().chan;
@@ -276,21 +276,30 @@ namespace netxs::console
             }
             return region.size;
         }
-        auto meta(rect region) // core: Ansify/textify content of specified region.
+        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        auto meta(rect region, cell& state) // core: Ansify/textify content of specified region.
         {
             ansi::esc yield;
-            cell      state;
-            auto badfx = [&](auto& state, auto& frame) {
-                state.set_gc();
+            auto badfx = [&](auto& state, auto& frame)
+            {
                 frame.add(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                state.set_gc();
+                state.wdt(1);
             };
-            auto allfx = [&](cell& c) {
+            auto side_badfx = [&](auto& state, auto& frame) // Restoring the halves on the side
+            {
+                frame.add(state.txt());
+                state.set_gc();
+                state.wdt(1);
+            };
+            auto allfx = [&](cell& c)
+            {
                 auto width = c.wdt();
                 if (width < 2) // Narrow character
                 {
                     if (state.wdt() == 2) badfx(state, yield); // Left part alone
 
-                    c.scan(state, yield);
+                    c.scan<svga::truecolor, USESGR>(state, yield);
                 }
                 else
                 {
@@ -298,39 +307,153 @@ namespace netxs::console
                     {
                         if (state.wdt() == 2) badfx(state, yield);  // Left part alone
 
-                        c.scan_attr(state, yield);
+                        c.scan_attr<svga::truecolor, USESGR>(state, yield);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
-                    else // width == 3 // Right part
+                    else if (width == 3) // Right part
                     {
                         if (state.wdt() == 2)
                         {
-                            if (state.scan(c, state, yield)) state.set_gc(); // Cleanup used t
+                            if (state.scan<svga::truecolor, USESGR>(c, state, yield)) state.set_gc(); // Cleanup used t
                             else
                             {
                                 badfx(state, yield); // Left part alone
-                                c.scan_attr(state, yield);
+                                c.scan_attr<svga::truecolor, USESGR>(state, yield);
                                 badfx(state, yield); // Right part alone
                             }
                         }
                         else
                         {
-                            c.scan_attr(state, yield);
-                            badfx(state, yield); // Right part alone
+                            c.scan_attr<svga::truecolor, USESGR>(state, yield);
+                            if (state.wdt() == 0)
+                            {
+                                side_badfx(state, yield); // Right part alone at the left side
+                            }
+                            else
+                            {
+                                badfx(state, yield); // Right part alone
+                            }
                         }
                     }
                 }
             };
-            auto eolfx = [&]() {
-                if (state.wdt() == 2) badfx(state, yield);  // Left part alone
+            auto eolfx = [&]()
+            {
+                if (state.wdt() == 2) side_badfx(state, yield);  // Left part alone at the right side
+                state.set_gc();
                 yield.eol();
             };
 
-            yield.nil();
-            netxs::onrect(*this, region, allfx, eolfx);
-            yield.nil();
-
+            if (region)
+            {
+                if constexpr (USESGR && INITIAL) yield.nil();
+                netxs::onrect(*this, region, allfx, eolfx);
+                if constexpr (FINALISE)
+                {
+                    yield.pop_back(); // Pop last eol (lf).
+                    if constexpr (USESGR) yield.nil();
+                }
+            }
             return static_cast<utf::text>(yield);
+        }
+        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        auto meta(rect region) // core: Ansify/textify content of specified region.
+        {
+            cell state;
+            return meta<USESGR, INITIAL, FINALISE>(region, state);
+        }
+        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        auto meta(cell& state) // core: Ansify/textify all content.
+        {
+            auto region = rect{-dot_mx / 2, dot_mx };
+            return meta<USESGR, INITIAL, FINALISE>(region, state);
+        }
+        template<feed DIRECTION>
+        auto word(twod coord) // core: Detect a word bound.
+        {
+            if (!region) return 0;
+            static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
+
+            //todo unify
+            auto is_empty = [&](auto txt)
+            {
+                return txt.empty() || txt.front() == whitespace;
+            };
+            auto empty = [&](auto txt)
+            {
+                return is_empty(txt);
+            };
+            auto alpha = [&](auto txt)
+            {
+                //todo revise (https://unicode.org/reports/tr29/#Word_Boundaries)
+                auto c = utf::letter(txt).attr.cdpoint;
+                return  c >= '0' && c <= '9' //30-39: '0'-'9'
+                     || c >= '@' && c <= 'Z' //40-5A: '@','A'-'Z'
+                     || c >= 'a' && c <= 'z' //5F,61-7A: '_','a'-'z'
+                     || c == '_'             //60:    '`'
+                     || c == 0xA0            //A0  NO-BREAK SPACE (NBSP)
+                     || c >= 0xC0                // C0-10FFFF: "À" - ...
+                     && c < 0x2000 || c > 0x206F // General Punctuation
+                     && c < 0x2200 || c > 0x23FF // Mathematical Operators
+                     && c < 0x2500 || c > 0x25FF // Box Drawing
+                     && c < 0x2E00 || c > 0x2E7F // Supplemental Punctuation
+                     && c < 0x3000 || c > 0x303F // CJK Symbols and Punctuation
+                     && c != 0x30FB              // U+30FB ( ・ ) KATAKANA MIDDLE DOT
+                     && c < 0xFE50 || c > 0xFE6F // FE50  FE6F Small Form Variants
+                     && c < 0xFF00 || c > 0xFF0F // Halfwidth and Fullwidth Forms
+                     && c < 0xFF1A || c > 0xFF1F // 
+                     && c < 0xFF3B || c > 0xFF40 // 
+                     && c < 0xFF5B || c > 0xFF65 // 
+            ;};
+            auto is_email = [&](auto txt)
+            {
+                return !txt.empty() && txt.front() == '@';
+            };
+            auto email = [&](auto txt)
+            {
+                return !txt.empty() && (alpha(txt) || txt.front() == '.');
+            };
+            auto is_digit = [&](auto txt)
+            {
+                auto c = utf::letter(txt).attr.cdpoint;
+                return c >= '0' && c <= '9'
+                    || c >= 0xFF10 && c <= 0xFF19 // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
+                    || c == '.';
+            };
+            auto digit = [&](auto txt)
+            {
+                auto c = utf::letter(txt).attr.cdpoint;
+                return c == '.'
+                    || c >= 'a' && c <= 'f'
+                    || c >= 'A' && c <= 'F'
+                    || c >= '0' && c <= '9'
+                    || c >= 0xFF10 && c <= 0xFF19; // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
+            };
+            auto func = [&](auto check)
+            {
+                coord.x += rev ? 1 : 0;
+                auto count = decltype(coord.x){};
+                auto width = (rev ? 0 : region.size.x) - coord.x;
+                auto field = rect{ coord + region.coor, { width, 1 }}.normalize();
+                auto allfx = [&](auto& c)
+                {
+                    auto txt = c.txt();
+                    if (!check(txt)) return true;
+                    count++;
+                    return faux;
+                };
+                netxs::onrect<rev>(*this, field, allfx);
+                if (count) count--;
+                coord.x -= rev ? count + 1 : -count;
+            };
+
+            coord = std::clamp(coord, dot_00, region.size - dot_11);
+            auto test = data(coord)->txt();
+            is_digit(test) ? func(digit) :
+            is_email(test) ? func(email) :
+            is_empty(test) ? func(empty) :
+                             func(alpha);
+            return coord.x;
         }
         template<class P>
         void cage(ui::rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.
@@ -395,10 +518,10 @@ namespace netxs::console
         : protected ansi::runtime
     {
         rect textline{ }; // flow: Textline placeholder.
-        iota textsize{ }; // flow: Full textline length (1D).
+        si32 textsize{ }; // flow: Full textline length (1D).
         side boundary{ }; // flow: Affected area by the text output.
-        iota curpoint{ }; // flow: Current substring start position.
-        iota caret_mx{ }; // flow: Maximum x-coor value on the visible area.
+        si32 curpoint{ }; // flow: Current substring start position.
+        si32 caret_mx{ }; // flow: Maximum x-coor value on the visible area.
         twod caretpos{ }; // flow: Current virtual (w/o style applied) caret position.
         twod caretsav{ }; // flow: Caret pos saver.
         rect viewrect{ }; // flow: Client area inside page margins.
@@ -406,37 +529,37 @@ namespace netxs::console
         rect pagecopy{ }; // flow: Client full area saver.
         deco selfcopy{ }; // flow: Flow state storage.
         deco runstyle{ }; // flow: Flow state.
-        iota highness{1}; // flow: Last processed line height.
+        si32 highness{1}; // flow: Last processed line height.
 
-        iota const& size_x;
-        iota const& size_y;
+        si32 const& size_x;
+        si32 const& size_y;
 
-        using hndl = void (*)(flow&, iota);
+        using hndl = void (*)(flow&, si32);
 
         // flow: Command list.
-        static void exec_dx(flow& f, iota a) { f.dx(a); }
-        static void exec_dy(flow& f, iota a) { f.dy(a); }
-        static void exec_ax(flow& f, iota a) { f.ax(a); }
-        static void exec_ay(flow& f, iota a) { f.ay(a); }
-        static void exec_ox(flow& f, iota a) { f.ox(a); }
-        static void exec_oy(flow& f, iota a) { f.oy(a); }
-        static void exec_px(flow& f, iota a) { f.px(a); }
-        static void exec_py(flow& f, iota a) { f.py(a); }
-        static void exec_tb(flow& f, iota a) { f.tb(a); }
-        static void exec_nl(flow& f, iota a) { f.nl(a); }
-        static void exec_sc(flow& f, iota a) { f.sc( ); }
-        static void exec_rc(flow& f, iota a) { f.rc( ); }
-        static void exec_zz(flow& f, iota a) { f.zz( ); }
+        static void exec_dx(flow& f, si32 a) { f.dx(a); }
+        static void exec_dy(flow& f, si32 a) { f.dy(a); }
+        static void exec_ax(flow& f, si32 a) { f.ax(a); }
+        static void exec_ay(flow& f, si32 a) { f.ay(a); }
+        static void exec_ox(flow& f, si32 a) { f.ox(a); }
+        static void exec_oy(flow& f, si32 a) { f.oy(a); }
+        static void exec_px(flow& f, si32 a) { f.px(a); }
+        static void exec_py(flow& f, si32 a) { f.py(a); }
+        static void exec_tb(flow& f, si32 a) { f.tb(a); }
+        static void exec_nl(flow& f, si32 a) { f.nl(a); }
+        static void exec_sc(flow& f, si32 a) { f.sc( ); }
+        static void exec_rc(flow& f, si32 a) { f.rc( ); }
+        static void exec_zz(flow& f, si32 a) { f.zz( ); }
 
         // flow: Draw commands (customizable).
         template<ansi::fn CMD>
-        static void exec_dc(flow& f, iota a) { if (f.custom) f.custom(CMD, a); }
-        //static void exec_dc(flow& f, iota a) { f.custom(CMD, a); }
+        static void exec_dc(flow& f, si32 a) { if (f.custom) f.custom(CMD, a); }
+        //static void exec_dc(flow& f, si32 a) { f.custom(CMD, a); }
 
         // flow: Abstract handler
         //       ansi::fn::ed
         //       ansi::fn::el
-        //virtual void custom(ansi::fn cmd, iota arg) = 0;
+        //virtual void custom(ansi::fn cmd, si32 arg) = 0;
 
         constexpr static std::array<hndl, ansi::fn_count> exec =
         {   // Order does matter, see definition of ansi::fn.
@@ -466,7 +589,7 @@ namespace netxs::console
             textline.coor = caretpos;
 
             rect printout;
-            iota outwidth;
+            si32 outwidth;
             if constexpr (WRAP)
             {
                 printout = textline.trunc(viewrect.size);
@@ -515,7 +638,7 @@ namespace netxs::console
                     auto& width = printout.size.x;
                     auto& start = straight ? startpos
                                            : textline.size.x;
-                    print(coord, block.substr(start, width));
+                    print(coord, block.substr(start, width), runtime::isr_to_l);
                 }
             }
             highness = textline.size.y;
@@ -562,10 +685,10 @@ namespace netxs::console
             else                        trimmed<SPLIT, RtoL, ReLF>(block, print);
         }
 
-        std::function<void(ansi::fn cmd, iota arg)> custom; // flow: Draw commands (customizable).
+        std::function<void(ansi::fn cmd, si32 arg)> custom; // flow: Draw commands (customizable).
 
     public:
-        flow(iota const& size_x, iota const& size_y)
+        flow(si32 const& size_x, si32 const& size_y)
             : size_x { size_x },
               size_y { size_y }
         { }
@@ -576,7 +699,7 @@ namespace netxs::console
             : flow { pagerect.size }
         { }
 
-        void vsize(iota height) { pagerect.size.y = height;  } // flow: Set client full height.
+        void vsize(si32 height) { pagerect.size.y = height;  } // flow: Set client full height.
         void  size(twod const& size) { pagerect.size = size; } // flow: Set client full size.
         void  full(rect const& area) { pagerect = area;      } // flow: Set client full rect.
         auto& full() const           { return pagerect;      } // flow: Get client full rect reference.
@@ -610,11 +733,15 @@ namespace netxs::console
                 }
 
                 if (arighted)
+                {
                     if (isrlfeed) proceed<SPLIT, true, true>(block, print);
                     else          proceed<SPLIT, true, faux>(block, print);
+                }
                 else
+                {
                     if (isrlfeed) proceed<SPLIT, faux, true>(block, print);
                     else          proceed<SPLIT, faux, faux>(block, print);
+                }
             }
         }
         // flow: Execute specified locus instruction list.
@@ -636,7 +763,7 @@ namespace netxs::console
         template<bool SPLIT = true, class T, class P = noop>
         void go(T const& block, core& canvas, P printfx = P())
         {
-            compose<SPLIT>(block, [&](auto const& coord, auto const& subblock)
+            compose<SPLIT>(block, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                                   {
                                       canvas.text(coord, subblock, isr_to_l, printfx);
                                   });
@@ -666,19 +793,19 @@ namespace netxs::console
             return coor;
         }
 
-        void ax	(iota x)        { caretpos.x  = x;                 }
-        void ay	(iota y)        { caretpos.y  = y;                 }
+        void ax	(si32 x)        { caretpos.x  = x;                 }
+        void ay	(si32 y)        { caretpos.y  = y;                 }
         void ac	(twod const& c) { ax(c.x); ay(c.y);                }
-        void ox	(iota x)        { caretpos.x  = x - 1;             }
-        void oy	(iota y)        { caretpos.y  = y - 1;             }
+        void ox	(si32 x)        { caretpos.x  = x - 1;             }
+        void oy	(si32 y)        { caretpos.y  = y - 1;             }
         void oc	(twod const& c) { ox(c.x); oy(c.y);                }
-        void dx	(iota n)        { caretpos.x += n;                 }
-        void dy	(iota n)        { caretpos.y += n;                 }
-        void nl	(iota n)        { ax(0); dy(n);                    }
-        void px	(iota x)        { ax(textpads.h_ratio(x, size_x)); }
-        void py	(iota y)        { ay(textpads.v_ratio(y, size_y)); }
+        void dx	(si32 n)        { caretpos.x += n;                 }
+        void dy	(si32 n)        { caretpos.y += n;                 }
+        void nl	(si32 n)        { ax(0); dy(n);                    }
+        void px	(si32 x)        { ax(textpads.h_ratio(x, size_x)); }
+        void py	(si32 y)        { ay(textpads.v_ratio(y, size_y)); }
         void pc	(twod const& c) { px(c.x); py(c.y);                }
-        void tb	(iota n)
+        void tb	(si32 n)
         {
             if (n)
             {
@@ -753,15 +880,15 @@ namespace netxs::console
     class shot
     {
         core const& basis;
-        iota        start;
-        iota        width;
+        si32        start;
+        si32        width;
 
     public:
         constexpr
         shot(shot const&) = default;
 
         constexpr
-        shot(core const& basis, iota begin, iota piece)
+        shot(core const& basis, si32 begin, si32 piece)
             : basis{ basis },
               start{ std::max(0, begin) },
               width{ std::min(std::max(0, piece), basis.size().x - start) }
@@ -781,7 +908,7 @@ namespace netxs::console
         { }
 
         constexpr
-        auto substr(iota begin, iota piece = maxiota) const
+        auto substr(si32 begin, si32 piece = netxs::maxsi32) const
         {
             auto w = basis.size().x;
             auto a = start + std::max(begin, 0);
@@ -807,7 +934,6 @@ namespace netxs::console
 
             if (joint)
             {
-
                 if constexpr (RtoL)
                 {
                     place.coor.x += place.size.x - joint.coor.x - joint.size.x;
@@ -819,12 +945,8 @@ namespace netxs::console
                 }
                 place.coor.x += start;
 
-                if constexpr (std::is_same_v<P, noop>)
-                {
-                    auto fuse = [&](auto& dst, auto& src) { dst.fusefull(src); };
-                    netxs::inbody<RtoL>(canvas, basis, joint, place.coor, fuse);
-                }
-                else netxs::inbody<RtoL>(canvas, basis, joint, place.coor, print);
+                if constexpr (std::is_same_v<P, noop>) netxs::inbody<RtoL>(canvas, basis, joint, place.coor, cell::shaders::fusefull);
+                else                                   netxs::inbody<RtoL>(canvas, basis, joint, place.coor, print);
             }
 
             return width;
@@ -838,24 +960,24 @@ namespace netxs::console
     public:
         using core::core;
 
-        auto length() const                              { return size().x;                         }
-        auto shadow() const                              { return shot{ *this };                    }
-        auto substr(iota at, iota width = maxiota) const { return shadow().substr(at, width);       }
-        void trimto(iota max_size)                       { if (length() > max_size) crop(max_size); }
-        void reserv(iota oversize)                       { if (oversize > length()) crop(oversize); }
-        void shrink(cell const& blank, iota max_size = 0, iota min_size = 0)
+        auto length() const                                     { return size().x;                         }
+        auto shadow() const                                     { return shot{ *this };                    }
+        auto substr(si32 at, si32 width = netxs::maxsi32) const { return shadow().substr(at, width);       }
+        void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
+        void reserv(si32 oversize)                              { if (oversize > length()) crop(oversize); }
+        void shrink(cell const& blank, si32 max_size = 0, si32 min_size = 0)
         {
             assert(min_size <= length());
             auto head = iter();
             auto tail = iend();
             auto stop = head + min_size;
             while (stop != tail-- && *tail == blank) { }
-            auto new_size = static_cast<iota>(tail - head + 1);
+            auto new_size = static_cast<si32>(tail - head + 1);
             if (max_size && max_size < new_size) new_size = max_size;
             if (new_size != length()) crop(new_size);
         }
         template<bool AUTOGROW = faux>
-        void splice(iota at, iota count, cell const& blank)
+        void splice(si32 at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = length();
@@ -870,7 +992,7 @@ namespace netxs::console
             auto end = dst + count;
             while (dst != end) *dst++ = blank;
         }
-        void splice(iota at, shot const& fragment)
+        void splice(si32 at, shot const& fragment)
         {
             auto len = fragment.length();
             reserv(len + at);
@@ -931,7 +1053,7 @@ namespace netxs::console
             }
         }
         template<class SRC_IT, class DST_IT>
-        static void unlimit_fill_proc(SRC_IT data, iota size, DST_IT dest, DST_IT tail, iota back)
+        static void unlimit_fill_proc(SRC_IT data, si32 size, DST_IT dest, DST_IT tail, si32 back)
         {
             //  + evaluate TAB etc
             //  + bidi
@@ -1027,7 +1149,7 @@ namespace netxs::console
                 else if (w >  2) *--dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
             }
         }
-        void splice(iota at, iota count, grid const& proto)
+        void splice(si32 at, si32 count, grid const& proto)
         {
             if (count <= 0) return;
             reserv(at + count);
@@ -1036,7 +1158,7 @@ namespace netxs::console
             auto src = proto.end();
             reverse_fill_proc(src, dst, end);
         }
-        void splice(twod at, iota count, grid const& proto)
+        void splice(twod at, si32 count, grid const& proto)
         {
             if (count <= 0) return;
             auto end = iter() + at.x + at.y * size().x;
@@ -1045,7 +1167,7 @@ namespace netxs::console
             reverse_fill_proc(src, dst, end);
         }
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
-        void scroll(iota top, iota end, iota gap, cell const& clr)
+        void scroll(si32 top, si32 end, si32 gap, cell const& clr)
         {
             auto data = core::data();
             auto size = core::size();
@@ -1088,7 +1210,7 @@ namespace netxs::console
             }
         }
         // rich: (current segment) Insert n blanks at the specified position. Autogrow within segment only.
-        void insert(iota at, iota count, cell const& blank, iota margin)
+        void insert(si32 at, si32 count, cell const& blank, si32 margin)
         {
             if (count <= 0) return;
             auto len = length();
@@ -1104,7 +1226,7 @@ namespace netxs::console
             while (dst != end) *--dst = blank;
         }
         // rich: (whole line) Insert n blanks at the specified position. Autogrow.
-        void insert_full(iota at, iota count, cell const& blank)
+        void insert_full(si32 at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = length();
@@ -1122,7 +1244,7 @@ namespace netxs::console
             while (src != end) *src++ = blank;
         }
         // rich: (current segment) Delete n chars and add blanks at the right margin.
-        void cutoff(iota at, iota count, cell const& blank, iota margin)
+        void cutoff(si32 at, si32 count, cell const& blank, si32 margin)
         {
             if (count <= 0) return;
             auto len = length();
@@ -1139,7 +1261,7 @@ namespace netxs::console
             }
         }
         // rich: (whole line) Delete n chars and add blanks at the right margin.
-        void cutoff_full(iota at, iota count, cell const& blank, iota margin)
+        void cutoff_full(si32 at, si32 count, cell const& blank, si32 margin)
         {
             if (count <= 0) return;
             auto len = length();
@@ -1168,7 +1290,7 @@ namespace netxs::console
             }
         }
         // rich: Put n blanks on top of the chars and cut them off with the right edge.
-        void splice(twod const& at, iota count, cell const& blank)
+        void splice(twod const& at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -1180,7 +1302,7 @@ namespace netxs::console
             while (dst != end) *dst++ = blank;
         }
         // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
-        void insert(twod const& at, iota count, cell const& blank)
+        void insert(twod const& at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -1195,7 +1317,7 @@ namespace netxs::console
             while (dst != end) *--dst = blank;
         }
         // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
-        void cutoff(twod const& at, iota count, cell const& blank)
+        void cutoff(twod const& at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -1214,7 +1336,7 @@ namespace netxs::console
         {
             auto len = size();
             auto ptr = iter();
-            auto dst = ptr + std::min<iota>(pos.x + pos.y * len.x,
+            auto dst = ptr + std::min<si32>(pos.x + pos.y * len.x,
                                                     len.y * len.x);
             auto end = iend();
             while (dst != end) *dst++ = blank;
@@ -1224,13 +1346,13 @@ namespace netxs::console
         {
             auto len = size();
             auto dst = iter();
-            auto end = dst + std::min<iota>(pos.x + pos.y * len.x,
+            auto end = dst + std::min<si32>(pos.x + pos.y * len.x,
                                                     len.y * len.x);
             while (dst != end) *dst++ = blank;
         }
 
         //todo unify
-        auto& at(iota p) const
+        auto& at(si32 p) const
         {
             assert(p >= 0);
             return *(core::data() + p);
@@ -1244,7 +1366,7 @@ namespace netxs::console
         using corx = sptr<rich>;
 
     public:
-        iota caret = 0; // para: Cursor position inside lyric.
+        si32 caret = 0; // para: Cursor position inside lyric.
         ui32 index = 0;
         writ locus;
         corx lyric = std::make_shared<rich>();
@@ -1268,7 +1390,7 @@ namespace netxs::console
 
         void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
-        shot   substr(iota start, iota width) const // para: Return paragraph substring shadow.
+        shot   substr(si32 start, si32 width) const // para: Return paragraph substring shadow.
         {
             return shadow().substr(start, width);
         }
@@ -1293,7 +1415,7 @@ namespace netxs::console
         }
         void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void data(iota count, grid const& proto) override
+        void data(si32 count, grid const& proto) override
         {
             lyric->splice(caret, count, proto);
             caret += count;
@@ -1304,7 +1426,7 @@ namespace netxs::console
         auto& set(cell const& c) { brush.set(c); return *this; }
 
         //todo unify
-        auto& at(iota p) const { return lyric->data(p); } // para: .
+        auto& at(si32 p) const { return lyric->data(p); } // para: .
     };
 
     // richtext: Cascade of the identical paragraphs.
@@ -1313,11 +1435,11 @@ namespace netxs::console
         using iter = std::list<sptr<para>>::const_iterator;
         iter source;
         iter finish;
-        iota prefix;
-        iota suffix;
+        si32 prefix;
+        si32 suffix;
         twod volume; // Rope must consist of text lines of the same height.
 
-        rope(iter& source, iota prefix, iter& finish, iota suffix, twod const& volume)
+        rope(iter& source, si32 prefix, iter& finish, si32 suffix, twod const& volume)
             : source{ source },
               prefix{ prefix },
               finish{ finish },
@@ -1342,7 +1464,7 @@ namespace netxs::console
 
         // rope: Return a substring rope the source content.
         //       ! No checking of boundaries !
-        rope substr(iota start, iota width) const
+        rope substr(si32 start, si32 width) const
         {
             auto first = source;
             auto piece = (**first).size().x;
@@ -1398,7 +1520,7 @@ namespace netxs::console
                 auto& item = **refer;
                 auto piece = item.size().x - suffix;
 
-                iota start, width, yield;
+                si32 start, width, yield;
                 crop(piece, total, start, width);
                 yield = draw(item, start, width);
 
@@ -1431,7 +1553,7 @@ namespace netxs::console
         auto& front () const { return (**source).at(prefix); } // rope: Return first cell.
 
         //todo unify
-        auto& at(iota p) const // rope: .
+        auto& at(si32 p) const // rope: .
         {
             auto shadow = substr(p, 1);
             return shadow.front();
@@ -1444,7 +1566,7 @@ namespace netxs::console
     {
         using list = std::list<sptr<para>>;
         using iter = list::iterator;
-        using pmap = std::map<iota, wptr<para>>;
+        using pmap = std::map<si32, wptr<para>>;
 
     public:
         ui32 index = {};              // page: Current paragraph id.
@@ -1453,13 +1575,13 @@ namespace netxs::console
         pmap parts;                   // page: Paragraph index.
 
         //todo use ring
-        iota limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit.
+        si32 limit = std::numeric_limits<si32>::max(); // page: Paragraphs number limit.
         void shrink() // page: Remove over limit paragraphs.
         {
             auto size = batch.size();
             if (size > limit)
             {
-                auto item = static_cast<iota>(std::distance(batch.begin(), layer));
+                auto item = static_cast<si32>(std::distance(batch.begin(), layer));
                 while (batch.size() > limit)
                 {
                     batch.pop_front();
@@ -1469,7 +1591,7 @@ namespace netxs::console
                 if (item < size - limit) layer = batch.begin();
             }
         }
-        void maxlen(iota m) { limit = std::max(1, m); shrink(); } // page: Set the limit of paragraphs.
+        void maxlen(si32 m) { limit = std::max(1, m); shrink(); } // page: Set the limit of paragraphs.
         auto maxlen() { return limit; } // page: Get the limit of paragraphs.
 
         using ring = generics::ring<std::vector<para>>;
@@ -1515,7 +1637,7 @@ namespace netxs::console
             return *this;
         }
         // page: Acquire para by id.
-        auto& operator[] (iota id)
+        auto& operator[] (si32 id)
         {
             if (netxs::on_key(parts, id))
             {
@@ -1571,7 +1693,7 @@ namespace netxs::console
             shrink();
         }
         // page: Split the text run and associate the next paragraph with id.
-        void fork(iota id)
+        void fork(si32 id)
         {
             fork();
             parts[id] = *layer;
@@ -1582,7 +1704,7 @@ namespace netxs::console
             if ((**layer).busy()) fork<faux>();
         }
         // page: Make a shared copy of lyric of existing paragraph.
-        void bind(iota id)
+        void bind(si32 id)
         {
             test();
             auto it = parts.find(id);
@@ -1608,7 +1730,7 @@ namespace netxs::console
             auto& item = **layer;
             item.style = parser::style;
         }
-        void data(iota count, grid const& proto) override
+        void data(si32 count, grid const& proto) override
         {
             auto& item = **layer;
             item.lyric->splice(item.caret, count, proto);
@@ -1616,7 +1738,7 @@ namespace netxs::console
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.
-        auto  size()    const { return static_cast<iota>(batch.size()); }
+        auto  size()    const { return static_cast<si32>(batch.size()); }
     };
 
     // Derivative vt-parser example.
@@ -1637,7 +1759,7 @@ namespace netxs::console
         auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
         auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
 
-        void tabs(iota) { log("Tabs are not supported"); }
+        void tabs(si32) { log("Tabs are not supported"); }
     };
 
     class tone

@@ -37,9 +37,10 @@ namespace netxs::generics
             bulk::resize(newsize);
             return *this;
         }
+        template<bool NOMULTIARG = faux>
         void enable_multi_arg()
         {
-            for (auto& rec : *this) rec.stop = faux;
+            for (auto& rec : *this) rec.stop = NOMULTIARG;
         }
         operator bool () const
         {

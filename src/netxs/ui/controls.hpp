@@ -17,8 +17,8 @@ namespace netxs::ui
 
     enum sort
     {
-         forward,
-         reverse,
+        forward,
+        reverse,
     };
     enum slot { _1, _2, _I };
     enum axis { X, Y };
@@ -103,7 +103,7 @@ namespace netxs::ui
             return This();
         }
         // form: Set control as root.
-        auto isroot(bool state, iota kind = 0)
+        auto isroot(bool state, si32 kind = 0)
         {
             base::root(state);
             base::kind(kind);
@@ -171,9 +171,10 @@ namespace netxs::ui
         template<class PROPERTY, class SPTR, class P>
         auto attach_element(PROPERTY, SPTR data_src_sptr, P item_template)
         {
-            using prop_t = typename PROPERTY::type;
+            using type = typename PROPERTY::type;
+            type arg_value = {};
+
             auto backup = This();
-            prop_t arg_value;
             data_src_sptr->SIGNAL(tier::request, PROPERTY{}, arg_value);
             auto new_item = item_template(data_src_sptr, arg_value)
                                  ->depend(data_src_sptr);
@@ -206,6 +207,30 @@ namespace netxs::ui
             }
             return backup;
         }
+        template<class BACKEND_PROP, class P>
+        void publish_property(BACKEND_PROP, P setter)
+        {
+            SUBMIT_BYVAL(tier::request, BACKEND_PROP{}, property_value)
+            {
+                setter(property_value);
+            };
+        }
+        template<class BACKEND_PROP, class FRONTEND_PROP>
+        auto attach_property(BACKEND_PROP, FRONTEND_PROP)
+        {
+            using type = typename BACKEND_PROP::type;
+            type property_value = {};
+
+            auto backup = This();
+            SIGNAL(tier::request, BACKEND_PROP{},  property_value);
+            SIGNAL(tier::anycast, FRONTEND_PROP{}, property_value);
+
+            SUBMIT(tier::release, BACKEND_PROP{}, property_value)
+            {
+                this->SIGNAL(tier::anycast, FRONTEND_PROP{}, property_value);
+            };
+            return backup;
+        }
     };
 
     // controls: Splitter.
@@ -214,8 +239,8 @@ namespace netxs::ui
     {
         enum action { seize, drag, release };
 
-        static constexpr iota MAX_RATIO = 0xFFFF;
-        static constexpr iota HALF_RATIO = 0xFFFF >> 1;
+        static constexpr si32 MAX_RATIO = 0xFFFF;
+        static constexpr si32 HALF_RATIO = 0xFFFF >> 1;
 
         sptr client_1; // fork: 1st object.
         sptr client_2; // fork: 2nd object.
@@ -226,24 +251,24 @@ namespace netxs::ui
         twod coor2;
         twod size3;
         twod coor3;
-        iota split = 0;
+        si32 split = 0;
 
         tint clr;
         //twod size;
         rect stem;
-        iota start;
-        iota width;
-        iota ratio;
-        iota maxpos;
+        si32 start;
+        si32 width;
+        si32 ratio;
+        si32 maxpos;
         bool updown;
         bool movable;
         bool fixed;
 
         twod xpose(twod const& pt) { return updown ? twod{ pt.y, pt.x } : pt; }
-        iota get_x(twod const& pt) { return updown ? pt.y : pt.x; }
-        iota get_y(twod const& pt) { return updown ? pt.x : pt.y; }
+        si32 get_x(twod const& pt) { return updown ? pt.y : pt.x; }
+        si32 get_y(twod const& pt) { return updown ? pt.x : pt.y; }
 
-        void _config(axis alignment, iota thickness, iota s1 = 1, iota s2 = 1)
+        void _config(axis alignment, si32 thickness, si32 s1 = 1, si32 s2 = 1)
         {
             switch (alignment)
             {
@@ -254,7 +279,7 @@ namespace netxs::ui
             width = std::max(thickness, 0);
             config(s1, s2);
         }
-        void _config_ratio(iota s1, iota s2)
+        void _config_ratio(si32 s1, si32 s2)
         {
             if (s1 < 0) s1 = 0;
             if (s2 < 0) s2 = 0;
@@ -268,12 +293,12 @@ namespace netxs::ui
         {
             return ratio;
         }
-        void config(iota s1, iota s2 = 1)
+        void config(si32 s1, si32 s2 = 1)
         {
             _config_ratio(s1, s2);
             base::reflow();
         }
-        auto config(axis alignment, iota thickness, iota s1, iota s2)
+        auto config(axis alignment, si32 thickness, si32 s1, si32 s2)
         {
             _config(alignment, thickness, s1, s2);
             return This();
@@ -302,7 +327,7 @@ namespace netxs::ui
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
-        fork(axis alignment = axis::X, iota thickness = 0, iota s1 = 1, iota s2 = 1)
+        fork(axis alignment = axis::X, si32 thickness = 0, si32 s1 = 1, si32 s2 = 1)
             : maxpos{ 0 },
               start{ 0 },
               width{ 0 },
@@ -449,7 +474,7 @@ namespace netxs::ui
                         //{
                         //	return;
                         //}
-                        //control_w32::mouse(false);
+                        //control_w32::mouse(faux);
                         break;
                     default:
                         return;
@@ -458,7 +483,7 @@ namespace netxs::ui
                 //todo move slider
 
                 //fork::deploy(start + xpose(delta).x, true);
-                //iota newpos = start + xpose(delta).x;
+                //si32 newpos = start + xpose(delta).x;
                 //
                 //auto c1 = base::limit(ctrl::_1);
                 //auto c2 = base::limit(ctrl::_2);
@@ -559,7 +584,7 @@ namespace netxs::ui
         {
             SUBMIT(tier::preview, e2::size::set, new_sz)
             {
-                iota  height;
+                si32  height;
                 auto& y_size = updown ? new_sz.y : new_sz.x;
                 auto& x_size = updown ? new_sz.x : new_sz.y;
                 auto  x_temp = x_size;
@@ -774,7 +799,7 @@ namespace netxs::ui
         };
         std::list<type> subset;
 
-        void xform(snap align, iota& coor, iota& size, iota width)
+        void xform(snap align, si32& coor, si32& size, si32 width)
         {
             switch (align)
             {
@@ -997,7 +1022,7 @@ namespace netxs::ui
 
         size_t len = 0;
 
-        static const iota init_layout_len = 10000;
+        static const si32 init_layout_len = 10000;
         std::vector<item> layout;
         page_layout()
         {
@@ -1007,9 +1032,9 @@ namespace netxs::ui
         auto get_entry(twod const& anchor)
         {
             auto& anker = anchor.y;
-            item pred = { 0, twod{ 0, std::numeric_limits<iota>::max() } };
-            item minp = { 0, twod{ 0, std::numeric_limits<iota>::max() } };
-            iota mindist = std::numeric_limits<iota>::max();
+            item pred = { 0, twod{ 0, std::numeric_limits<si32>::max() } };
+            item minp = { 0, twod{ 0, std::numeric_limits<si32>::max() } };
+            si32 mindist = std::numeric_limits<si32>::max();
 
             //todo optimize, use binary search
             //start from the end
@@ -1061,7 +1086,7 @@ namespace netxs::ui
 
         // post: Set content.
         template<class TEXT>
-        auto upload(TEXT utf8, iota initial_width = 0)
+        auto upload(TEXT utf8, si32 initial_width = 0)
         {
             source = utf8;
             topic = utf8;
@@ -1176,7 +1201,7 @@ namespace netxs::ui
 
         // post: Set content.
         template<class TEXT>
-        auto upload(TEXT utf8, iota initial_width = 0)
+        auto upload(TEXT utf8, si32 initial_width = 0)
         {
             source = utf8;
             topic = utf8;
@@ -1287,9 +1312,9 @@ namespace netxs::ui
         rack scinfo; // rail: Scroll info.
         sptr client; // rail: Client instance.
 
-        iota speed{ SPD  }; // rail: Text auto-scroll initial speed component ΔR.
-        iota pulse{ PLS  }; // rail: Text auto-scroll initial speed component ΔT.
-        iota cycle{ CCL  }; // rail: Text auto-scroll duration in ms.
+        si32 speed{ SPD  }; // rail: Text auto-scroll initial speed component ΔR.
+        si32 pulse{ PLS  }; // rail: Text auto-scroll initial speed component ΔT.
+        si32 cycle{ CCL  }; // rail: Text auto-scroll duration in ms.
         bool steer{ faux }; // rail: Text scroll vertical direction.
 
         static constexpr auto xy(axes AXES)
@@ -1415,9 +1440,9 @@ namespace netxs::ui
                 {
                     auto  v0 = gear.delta.avg();
                     auto& speed = v0.dS;
-                    auto  start = datetime::round<iota>(v0.t0);
-                    auto  cycle = datetime::round<iota>(v0.dT);
-                    auto  limit = datetime::round<iota>(STOPPING_TIME);
+                    auto  cycle = datetime::round<si32>(v0.dT);
+                    auto  limit = datetime::round<si32>(STOPPING_TIME);
+                    auto  start = 0;
 
                     if (permit[X]) actify<X>(quadratic{ speed.x, cycle, limit, start });
                     if (permit[Y]) actify<Y>(quadratic{ speed.y, cycle, limit, start });
@@ -1491,7 +1516,8 @@ namespace netxs::ui
                 //todo at least one line should be
                 //move<AXIS>(dir ? 1 : -1);
             }
-            keepon<AXIS>(quadratic<iota>(dir ? speed : -speed, pulse, cycle, now<iota>()));
+            auto start = 0;
+            keepon<AXIS>(quadratic<si32>(dir ? speed : -speed, pulse, cycle, start));
         }
         template<axis AXIS, class FX>
         void keepon(FX&& func)
@@ -1539,8 +1565,9 @@ namespace netxs::ui
                 auto bound = std::min(base::size()[AXIS] - block.size[AXIS], 0);
                 auto newxy = std::clamp(coord, bound, 0);
                 auto route = newxy - coord;
-                iota tempo = SWITCHING_TIME;
-                auto fader = constlinearAtoB<iota>(route, tempo, now<iota>());
+                auto tempo = SWITCHING_TIME;
+                auto start = 0;
+                auto fader = constlinearAtoB<si32>(route, tempo, start);
                 keepon<AXIS>(fader);
             }
         }
@@ -1587,7 +1614,7 @@ namespace netxs::ui
                 client->base::moveby(delta);
         }
         template<axis AXIS>
-        void move(iota p)
+        void move(si32 p)
         {
             if (p)
             {
@@ -1676,18 +1703,18 @@ namespace netxs::ui
         struct math
         {
             rack  master_inf = {};                           // math: Master scroll info.
-            iota& master_len = master_inf.region     [AXIS]; // math: Master len.
-            iota& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
-            iota& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
-            iota& master_dir = master_inf.vector;            // math: Master scroll direction.
-            iota  scroll_len = 0; // math: Scrollbar len.
-            iota  scroll_pos = 0; // math: Scrollbar grip pos.
-            iota  scroll_box = 0; // math: Scrollbar grip len.
-            iota   m         = 0; // math: Master max pos.
-            iota   s         = 0; // math: Scroll max pos.
+            si32& master_len = master_inf.region     [AXIS]; // math: Master len.
+            si32& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
+            si32& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            si32& master_dir = master_inf.vector;            // math: Master scroll direction.
+            si32  scroll_len = 0; // math: Scrollbar len.
+            si32  scroll_pos = 0; // math: Scrollbar grip pos.
+            si32  scroll_box = 0; // math: Scrollbar grip len.
+            si32   m         = 0; // math: Master max pos.
+            si32   s         = 0; // math: Scroll max pos.
             double r         = 1; // math: Scroll/master len ratio.
 
-            iota  cursor_pos = 0; // math: Mouse cursor position.
+            si32  cursor_pos = 0; // math: Mouse cursor position.
 
             // math: Calc scroll to master metrics.
             void s_to_m()
@@ -1695,7 +1722,7 @@ namespace netxs::ui
                 auto scroll_center = scroll_pos + scroll_box / 2.0;
                 auto master_center = scroll_len ? scroll_center / r
                                                 : 0;
-                master_pos = (iota)std::round(master_center - master_box / 2.0);
+                master_pos = (si32)std::round(master_center - master_box / 2.0);
 
                 // Reset to extreme positions.
                 if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
@@ -1707,8 +1734,8 @@ namespace netxs::ui
                 r = (double)scroll_len / master_len;
                 auto master_middle = master_pos + master_box / 2.0;
                 auto scroll_middle = master_middle * r;
-                scroll_box = std::max(1, (iota)(master_box * r));
-                scroll_pos = (iota)std::round(scroll_middle - scroll_box / 2.0);
+                scroll_box = std::max(1, (si32)(master_box * r));
+                scroll_pos = (si32)std::round(scroll_middle - scroll_box / 2.0);
 
                 // Don't place the grip behind the scrollbar.
                 if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
@@ -1733,7 +1760,7 @@ namespace netxs::ui
                 scroll_len = new_size[AXIS];
                 m_to_s();
             }
-            void stepby(iota delta)
+            void stepby(si32 delta)
             {
                 scroll_pos = std::clamp(scroll_pos + delta, 0, s);
                 s_to_m();
@@ -1743,7 +1770,7 @@ namespace netxs::ui
                 handle.coor[AXIS]+= scroll_pos;
                 handle.size[AXIS] = scroll_box;
             }
-            auto inside(iota coor)
+            auto inside(si32 coor)
             {
                 if (coor >= scroll_pos + scroll_box) return 1; // Below the grip.
                 if (coor >= scroll_pos)              return 0; // Inside the grip.
@@ -1756,7 +1783,7 @@ namespace netxs::ui
                                                            :-1;//    box on small scrollbar.
                 return dir;
             }
-            void setdir(iota dir)
+            void setdir(si32 dir)
             {
                 master_dir = -dir;
             }
@@ -1764,11 +1791,11 @@ namespace netxs::ui
 
         wptr boss;
         hook memo;
-        iota thin; // grip: Scrollbar thickness.
-        iota init; // grip: Handle base width.
+        si32 thin; // grip: Scrollbar thickness.
+        si32 init; // grip: Handle base width.
         math calc; // grip: Scrollbar calculator.
         bool wide; // grip: Is the scrollbar active.
-        iota mult; // grip: Vertical bar width multiplier.
+        si32 mult; // grip: Vertical bar width multiplier.
 
         bool on_pager = faux;
 
@@ -1780,7 +1807,7 @@ namespace netxs::ui
                 master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
             }
         }
-        void config(iota width)
+        void config(si32 width)
         {
             thin = width;
             auto lims = AXIS == axis::X ? twod{ -1,width }
@@ -1804,7 +1831,7 @@ namespace netxs::ui
                 }
             }
         }
-        void pager(iota dir)
+        void pager(si32 dir)
         {
             calc.setdir(dir);
             send<upon::scroll::bypage>();
@@ -1820,7 +1847,7 @@ namespace netxs::ui
         }
 
     public:
-        grip(sptr boss, iota thickness = 1, iota multiplier = 2)
+        grip(sptr boss, si32 thickness = 1, si32 multiplier = 2)
             : boss{ boss       },
               thin{ thickness  },
               wide{ faux       },
@@ -2050,18 +2077,18 @@ namespace netxs::ui
         struct math
         {
             rack  master_inf = {};                           // math: Master scroll info.
-            iota& master_len = master_inf.region     [AXIS]; // math: Master len.
-            iota& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
-            iota& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
-            iota& master_dir = master_inf.vector;            // math: Master scroll direction.
-            iota  scroll_len = 0; // math: Scrollbar len.
-            iota  scroll_pos = 0; // math: Scrollbar grip pos.
-            iota  scroll_box = 0; // math: Scrollbar grip len.
-            iota   m         = 0; // math: Master max pos.
-            iota   s         = 0; // math: Scroll max pos.
+            si32& master_len = master_inf.region     [AXIS]; // math: Master len.
+            si32& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
+            si32& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            si32& master_dir = master_inf.vector;            // math: Master scroll direction.
+            si32  scroll_len = 0; // math: Scrollbar len.
+            si32  scroll_pos = 0; // math: Scrollbar grip pos.
+            si32  scroll_box = 0; // math: Scrollbar grip len.
+            si32   m         = 0; // math: Master max pos.
+            si32   s         = 0; // math: Scroll max pos.
             double r         = 1; // math: Scroll/master len ratio.
 
-            iota  cursor_pos = 0; // math: Mouse cursor position.
+            si32  cursor_pos = 0; // math: Mouse cursor position.
 
             // math: Calc scroll to master metrics.
             void s_to_m()
@@ -2069,7 +2096,7 @@ namespace netxs::ui
                 auto scroll_center = scroll_pos + scroll_box / 2.0;
                 auto master_center = scroll_len ? scroll_center / r
                                                 : 0;
-                master_pos = (iota)std::round(master_center - master_box / 2.0);
+                master_pos = (si32)std::round(master_center - master_box / 2.0);
 
                 // Reset to extreme positions.
                 if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
@@ -2081,8 +2108,8 @@ namespace netxs::ui
                 r = (double)scroll_len / master_len;
                 auto master_middle = master_pos + master_box / 2.0;
                 auto scroll_middle = master_middle * r;
-                scroll_box = std::max(1, (iota)(master_box * r));
-                scroll_pos = (iota)std::round(scroll_middle - scroll_box / 2.0);
+                scroll_box = std::max(1, (si32)(master_box * r));
+                scroll_pos = (si32)std::round(scroll_middle - scroll_box / 2.0);
 
                 // Don't place the grip behind the scrollbar.
                 if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
@@ -2107,7 +2134,7 @@ namespace netxs::ui
                 scroll_len = new_size[AXIS];
                 m_to_s();
             }
-            void stepby(iota delta)
+            void stepby(si32 delta)
             {
                 scroll_pos = std::clamp(scroll_pos + delta, 0, s);
                 s_to_m();
@@ -2117,7 +2144,7 @@ namespace netxs::ui
                 handle.coor[AXIS]+= scroll_pos;
                 handle.size[AXIS] = scroll_box;
             }
-            auto inside(iota coor)
+            auto inside(si32 coor)
             {
                 if (coor >= scroll_pos + scroll_box) return 1; // Below the grip.
                 if (coor >= scroll_pos)              return 0; // Inside the grip.
@@ -2130,7 +2157,7 @@ namespace netxs::ui
                                                            :-1;//    box on small scrollbar.
                 return dir;
             }
-            void setdir(iota dir)
+            void setdir(si32 dir)
             {
                 master_dir = -dir;
             }
@@ -2138,11 +2165,11 @@ namespace netxs::ui
 
         wptr boss;
         hook memo;
-        iota thin; // grip: Scrollbar thickness.
-        iota init; // grip: Handle base width.
+        si32 thin; // grip: Scrollbar thickness.
+        si32 init; // grip: Handle base width.
         math calc; // grip: Scrollbar calculator.
         bool wide; // grip: Is the scrollbar active.
-        iota mult; // grip: Vertical bar width multiplier.
+        si32 mult; // grip: Vertical bar width multiplier.
 
         bool on_pager = faux;
 
@@ -2154,7 +2181,7 @@ namespace netxs::ui
                 master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
             }
         }
-        void config(iota width)
+        void config(si32 width)
         {
             thin = width;
             auto lims = AXIS == axis::X ? twod{ -1,width }
@@ -2178,7 +2205,7 @@ namespace netxs::ui
                 }
             }
         }
-        void pager(iota dir)
+        void pager(si32 dir)
         {
             calc.setdir(dir);
             send<upon::scroll::bypage>();
@@ -2194,7 +2221,7 @@ namespace netxs::ui
         }
 
     public:
-        grip_fx(sptr boss, iota thickness = 1, iota multiplier = 2)
+        grip_fx(sptr boss, si32 thickness = 1, si32 multiplier = 2)
             : boss{ boss       },
               thin{ thickness  },
               wide{ faux       },
@@ -2396,9 +2423,9 @@ namespace netxs::ui
     {
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
-        sptr client;
 
     public:
+        sptr client;
 
         ~pads()
         {
@@ -2499,6 +2526,7 @@ namespace netxs::ui
             limit.set(lims, lims);
             base::resize(size);
         }
+
     public:
         item(para const& label_para, bool flexible = faux, bool check_size = faux)
             : name{ label_para },
@@ -2506,6 +2534,10 @@ namespace netxs::ui
               test{ check_size }
         {
             recalc();
+            SUBMIT(tier::release, e2::data::text, label_text)
+            {
+                set(label_text);
+            };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 parent_canvas.cup(dot_00);
@@ -2569,9 +2601,9 @@ namespace netxs::ui
 
         bool enabled;
         text sfx_str;
-        iota sfx_len;
+        si32 sfx_len;
         text pin_str;
-        iota cur_val;
+        si32 cur_val;
         twod box_len;
 
         enum
@@ -2600,7 +2632,7 @@ namespace netxs::ui
             base::resize(box_len);
             deface();
         }
-        auto set_val(iota new_val, view pin_chr)
+        auto set_val(si32 new_val, view pin_chr)
         {
             cur_val = new_val;
             pin_str = pin_chr;
@@ -2658,7 +2690,7 @@ namespace netxs::ui
         sptr<face> coreface;
         face& canvas;
 
-        using tail = netxs::datetime::tail<iota>;
+        using tail = netxs::datetime::tail<si32>;
 
     public:
         page topic; // stem_rate: Text content.
@@ -2677,13 +2709,13 @@ namespace netxs::ui
         };
 
         twod pin_len;
-        iota pin_pos = 0;
-        iota bar_len = 0;
-        iota cur_val = 0;
-        iota min_val = 0;
-        iota max_val = 0;
-        iota origin = 0;
-        iota deltas = 0;
+        si32 pin_pos = 0;
+        si32 bar_len = 0;
+        si32 cur_val = 0;
+        si32 min_val = 0;
+        si32 max_val = 0;
+        si32 origin = 0;
+        si32 deltas = 0;
 
         //todo unify mint = 1/fps60 = 16ms
         //seems that the 4ms is enough, no need to bind with fps (opened question)
@@ -2691,8 +2723,8 @@ namespace netxs::ui
 
         text grip_suffix;
         text label_text;
-        iota pad = 5;
-        iota bgclr = 4;
+        si32 pad = 5;
+        si32 bgclr = 4;
 
         void recalc()
         {
@@ -2710,7 +2742,7 @@ namespace netxs::ui
             topic[bar_id].locus.kill().chx(pad);
         }
 
-        iota next_val(iota delta)
+        si32 next_val(si32 delta)
         {
             auto dm = max_val - min_val;
             auto p = divround((bar_len + 1) * (origin - min_val), dm);
@@ -2719,7 +2751,7 @@ namespace netxs::ui
             return c;
         }
 
-        bool _move_grip(iota new_val)
+        bool _move_grip(si32 new_val)
         {
             new_val = std::clamp(new_val, min_val, max_val);
             if (new_val != cur_val)
@@ -2732,7 +2764,7 @@ namespace netxs::ui
             }
             return faux;
         }
-        void move_grip(iota new_val)
+        void move_grip(si32 new_val)
         {
             if (_move_grip(new_val))
             {
@@ -2750,7 +2782,7 @@ namespace netxs::ui
             }
         }
 
-        stem_rate(text const& caption, iota min_value, iota max_value, view suffix)
+        stem_rate(text const& caption, si32 min_value, si32 max_value, view suffix)
             : min_val{ min_value },
               max_val{ max_value },
               grip_suffix{ suffix },
@@ -2831,7 +2863,7 @@ namespace netxs::ui
                         deltas = 0;
                         gear.release();
                         base::deface();
-                        robot.actify(bygone.fader<quadratic<iota>>(750ms), [&](auto& delta)
+                        robot.actify(bygone.fader<quadratic<si32>>(750ms), [&](auto& delta)
                             {
                                 move_grip(cur_val + delta);
                             });

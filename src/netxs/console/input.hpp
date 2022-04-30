@@ -115,6 +115,7 @@ namespace netxs::events::userland
                     GROUP_XS( down    , input::hids ),
                     GROUP_XS( click   , input::hids ),
                     GROUP_XS( dblclick, input::hids ),
+                    GROUP_XS( tplclick, input::hids ),
                     GROUP_XS( drag    , input::hids ),
 
                     SUBSET_XS( up )
@@ -143,8 +144,19 @@ namespace netxs::events::userland
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+
+                        INDEX_XS( left, right, leftright, middle, wheel, win ),
                     };
                     SUBSET_XS( dblclick )
+                    {
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
+                    };
+                    SUBSET_XS( tplclick )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
@@ -240,19 +252,19 @@ namespace netxs::input
             total     = numofbutton,
         };
 
-        twod  coor = dot_mx;            // sysmouse: Cursor coordinates.
-        bool  button[numofbutton] = {}; // sysmouse: Button states.
+        twod coor = dot_mx;            // sysmouse: Cursor coordinates.
+        bool button[numofbutton] = {}; // sysmouse: Button states.
 
-        bool  ismoved = faux;           // sysmouse: Movement through the cells.
-        bool  shuffle = faux;           // sysmouse: Movement inside the cell.
-        bool  doubled = faux;           // sysmouse: Double click.
-        bool  wheeled = faux;           // sysmouse: Vertical scroll wheel.
-        bool  hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
-        iota  wheeldt = 0;              // sysmouse: Scroll delta.
+        bool ismoved = faux;           // sysmouse: Movement through the cells.
+        bool shuffle = faux;           // sysmouse: Movement inside the cell.
+        bool doubled = faux;           // sysmouse: Double click.
+        bool wheeled = faux;           // sysmouse: Vertical scroll wheel.
+        bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
+        si32 wheeldt = 0;              // sysmouse: Scroll delta.
 
-        uint32_t ctlstate = 0;
+        ui32 ctlstate = 0;
 
-            bool operator !=(sysmouse const& m) const
+        bool operator !=(sysmouse const& m) const
         {
             bool result;
             if ((result = coor == m.coor))
@@ -310,21 +322,20 @@ namespace netxs::input
             F12       = 0x7B,
         };
 
-        bool     down = faux;
-        uint16_t repeatcount = 0;
-        uint16_t virtcode = 0;
-        uint16_t scancode = 0;
-        wchar_t  character = 0;
-        //char    ascii = 0;
-        uint32_t ctlstate = 0;
-        text     textline;
+        bool down = faux;
+        ui16 repeatcount = 0;
+        ui16 virtcode = 0;
+        ui16 scancode = 0;
+        wchar_t character = 0;
+        ui32 ctlstate = 0;
+        text textline;
     };
 
     // console: Mouse tracking.
     class mouse
     {
         using tail = netxs::datetime::tail<twod>;
-        using idxs = std::vector<iota>;
+        using idxs = std::vector<si32>;
         using mouse_event = netxs::events::userland::hids::mouse;
         enum bttns
         {
@@ -344,13 +355,14 @@ namespace netxs::input
         constexpr static auto pushdown = mouse_event::button::down::        any.group<total>();
         constexpr static auto sglclick = mouse_event::button::click::       any.group<total>();
         constexpr static auto dblclick = mouse_event::button::dblclick::    any.group<total>();
+        constexpr static auto tplclick = mouse_event::button::tplclick::    any.group<total>();
         constexpr static auto movement = mouse_event::move.id;
         constexpr static auto idleness = mouse_event::shuffle.id;
         constexpr static auto scrollup = mouse_event::scroll::up.id;
         constexpr static auto scrolldn = mouse_event::scroll::down.id;
 
     public:
-        static constexpr iota none = -1; // mouse: No active buttons.
+        static constexpr si32 none = -1; // mouse: No active buttons.
 
         struct knob
         {
@@ -373,11 +385,11 @@ namespace netxs::input
         tail   delta = { 75ms, 4ms }; // mouse: History of mouse movements for a specified period of time.
         bool   scrll = faux; // mouse: Vertical scrolling.
         bool   hzwhl = faux; // mouse: Horizontal scrolling.
-        iota   whldt = 0;
+        si32   whldt = 0;
         bool   reach = faux;    // mouse: Has the event tree relay reached the mouse event target.
-        iota   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed.
+        si32   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed.
         bool   nodbl = faux;    // mouse: Whether single click event processed (to prevent double clicks).
-        iota   locks = 0;       // mouse: State of the captured buttons (bit field).
+        si32   locks = 0;       // mouse: State of the captured buttons (bit field).
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner.
         id_t   hover = 0;       // mouse: Hover control ID.
         id_t   start = 0;       // mouse: Initiator control ID.
@@ -388,6 +400,7 @@ namespace netxs::input
         {
             moment fired;
             twod   coord;
+            si32   count; // To control successive double-clicks, e.g. triple-clicks.
         }
         stamp[sysmouse::total] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
         static constexpr period delay = 500ms;   // mouse: Double-click threshold.
@@ -539,20 +552,33 @@ namespace netxs::input
                                 if (b.succeed) action(sglclick, i);
                                 if (!nodbl)
                                 {
-                                    // Fire double-click if delay is not expired
-                                    // and the same mouseposition.
+                                    // Fire double/triple-click if delay is not expired
+                                    // and the mouse at the same position.
                                     auto& s = stamp[i];
                                     auto fired = tempus::now();
-                                    if (fired - s.fired < delay
-                                        && s.coord == coord)
+                                    if (fired - s.fired < delay && s.coord == coord)
                                     {
-                                        s.fired = {}; // To avoid successive double-clicks if triple-click.
-                                        if (b.succeed) action(dblclick, i);
+                                        if (b.succeed)
+                                        {
+                                            if (s.count == 1)
+                                            {
+                                                action(dblclick, i);
+                                                s.fired = fired;
+                                                s.count = 2;
+                                            }
+                                            else if (s.count == 2)
+                                            {
+                                                action(tplclick, i);
+                                                s.fired = {};
+                                                s.count = {};
+                                            }
+                                        }
                                     }
                                     else
                                     {
                                         s.fired = fired;
                                         s.coord = coord;
+                                        s.count = 1;
                                     }
                                 }
                             }
@@ -565,7 +591,7 @@ namespace netxs::input
             }
         }
         template<class TT>
-        void action(TT const& event_subset, iota _index)
+        void action(TT const& event_subset, si32 _index)
         {
             index = _index;
             action(event_subset[index]);
@@ -602,12 +628,12 @@ namespace netxs::input
             }
         }
         // mouse: Is the mouse seized/captured?
-        bool captured (id_t asker) const
+        bool captured(id_t asker) const
         {
             return swift == asker;
         }
         // mouse: Seize specified mouse control.
-        bool capture (id_t asker)
+        bool capture(id_t asker)
         {
             if (!swift || swift == asker)
             {
@@ -618,7 +644,7 @@ namespace netxs::input
             return faux;
         }
         // mouse: Release specified mouse control.
-        void release (bool force = true)
+        void release(bool force = true)
         {
             force = force || index == mouse::none;
             locks = force ? 0
@@ -626,9 +652,9 @@ namespace netxs::input
             if (!locks) swift = {};
         }
         // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
-        iota buttons ()
+        si32 buttons()
         {
-            iota bitfield = 0;
+            si32 bitfield = 0;
             for (auto i = 0; i < sysmouse::numofbutton; i++)
             {
                 if (mouse::button[i].pressed) bitfield |= 1 << i;
@@ -682,7 +708,7 @@ namespace netxs::input
         list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
         //todo revise
-        uint32_t ctlstate = 0;
+        ui32 ctlstate = 0;
 
         static constexpr auto enter_event   = events::notify::mouse::enter.id;
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
@@ -701,7 +727,7 @@ namespace netxs::input
         bool kb_focus_taken = faux;
         bool force_group_focus = faux;
         bool combine_focus = faux;
-        iota countdown = 0;
+        si32 countdown = 0;
 
         auto state()
         {
@@ -719,7 +745,7 @@ namespace netxs::input
             countdown         = std::get<3>(s);
         }
 
-        enum modifiers : uint32_t
+        enum modifiers : ui32
         {
             SHIFT = 1 << 2,
             ALT   = 1 << 3,
@@ -728,7 +754,7 @@ namespace netxs::input
             ANYCTRL = CTRL | RCTRL,
         };
 
-        auto meta(uint32_t ctl_key = -1) { return hids::ctlstate & ctl_key; }
+        auto meta(ui32 ctl_key = -1) { return hids::ctlstate & ctl_key; }
 
         template<class T>
         hids(T& owner, xmap const& idmap)
@@ -747,7 +773,7 @@ namespace netxs::input
         }
 
         // hids: Stop handeling this event.
-        void dismiss (bool set_nodbl = faux)
+        void dismiss(bool set_nodbl = faux)
         {
             alive = faux;
             if (set_nodbl) nodbl = true;
@@ -803,7 +829,7 @@ namespace netxs::input
         }
         void mouse_leave()
         {
-            log("hids: mouse_leave, id ", id);
+            log("hids: mouse leave, id ", id);
             mouse_leave(mouse::hover, mouse::start);
         }
         void take_mouse_focus(bell& boss)

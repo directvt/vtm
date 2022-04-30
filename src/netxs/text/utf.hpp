@@ -30,9 +30,6 @@ namespace netxs::utf
     using utfx = uint32_t;
     using ctrl = unidata::cntrls::type;
 
-    //todo unify
-    using iota = int32_t;
-
     static constexpr utfx        REPLACEMENT_CHARACTER = 0x0000FFFD;
     static constexpr char const* REPLACEMENT_CHARACTER_UTF8 = "\uFFFD";	// 0xEF 0xBF 0xBD (efbfbd) "�"
     static constexpr size_t	     REPLACEMENT_CHARACTER_UTF8_LEN = 3;
@@ -372,7 +369,7 @@ namespace netxs::utf
     struct qiew : public view
     {
         void     pop_front () { view::remove_prefix(1); }
-        iota     front     () const { return static_cast<unsigned char>(view::front()); }
+        si32     front     () const { return static_cast<unsigned char>(view::front()); }
         operator bool      () const { return view::length(); }
 
         constexpr qiew() noexcept : view() { }
@@ -384,7 +381,7 @@ namespace netxs::utf
         // Pop front a sequence of the same control points and return their count + 1.
         auto pop_all(ctrl cmd)
         {
-            iota n = 1;
+            si32 n = 1;
             auto next = utf::letter(*this);
             while (next.attr.control == cmd)
             {
@@ -397,7 +394,7 @@ namespace netxs::utf
         // Pop front a sequence of the same control points and return their count + 1.
         auto pop_all(char c)
         {
-            iota n = 1;
+            si32 n = 1;
             while (length() && view::front() == c)
             {
                 view::remove_prefix(1);
@@ -428,10 +425,10 @@ namespace netxs::utf
         }
     };
 
-    template<class VIEW>
-    inline std::optional<iota> to_int(VIEW&& ascii)
+    template<class VIEW, class = std::enable_if_t<std::is_base_of<view, VIEW>::value == true, VIEW>>
+    inline std::optional<si32> to_int(VIEW& ascii)
     {
-        iota num;
+        si32 num;
         auto top = ascii.data();
         auto end = ascii.length() + top;
 
@@ -442,7 +439,18 @@ namespace netxs::utf
         }
         else return std::nullopt;
     }
-
+    template<class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
+    inline auto to_int(T&& utf8)
+    {
+        auto shadow = view{ std::forward<T>(utf8) };
+        return to_int(shadow);
+    }
+    template<class T, class A>
+    inline auto to_int(T&& utf8, A fallback)
+    {
+        auto result = to_int(std::forward<T>(utf8));
+        return result ? result.value() : fallback;
+    }
     enum codepage
     {
         cp866,
@@ -452,9 +460,9 @@ namespace netxs::utf
 
     struct letter_sync
     {
-        int		lb;
-        int		rb;
-        int		cp;
+        int lb;
+        int rb;
+        int cp;
     };
 
     static constexpr letter_sync utf8_cp866[] =
@@ -711,29 +719,33 @@ namespace netxs::utf
         }
         return code;
     }
-    static inline void _to_utf(text& utf8, utfx code)
+
+    namespace
     {
-        if (code <= 0x007f)
+        static inline void _to_utf(text& utf8, utfx code)
         {
-            utf8.push_back(static_cast<char>(code));
-        }
-        else if (code <= 0x07ff)
-        {
-            utf8.push_back(static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)));
-            utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
-        }
-        else if (code <= 0xffff)
-        {
-            utf8.push_back(static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)));
-            utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
-            utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
-        }
-        else
-        {
-            utf8.push_back(static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)));
-            utf8.push_back(static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)));
-            utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
-            utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+            if (code <= 0x007f)
+            {
+                utf8.push_back(static_cast<char>(code));
+            }
+            else if (code <= 0x07ff)
+            {
+                utf8.push_back(static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)));
+                utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+            }
+            else if (code <= 0xffff)
+            {
+                utf8.push_back(static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)));
+                utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
+                utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+            }
+            else
+            {
+                utf8.push_back(static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)));
+                utf8.push_back(static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)));
+                utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
+                utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+            }
         }
     }
     static auto to_utf_from_code(utfx code)
@@ -784,7 +796,7 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW>
     auto length(TEXT_OR_VIEW&& utf8)
     {
-        iota length = 0;
+        si32 length = 0;
         for (auto c : utf8)
         {
             length += (c & 0xc0) != 0x80;
@@ -800,11 +812,10 @@ namespace netxs::utf
             auto is_first = [](auto c) { return (c & 0xc0) != 0x80; };
             bool first;
 
-            while (!(first = is_first(utf8[--size])) && size)
+            while (size && !(first = is_first(utf8[--size]))) // Find first byte.
             { }
 
-            // test cp
-            if (first)
+            if (first) // Check codepoint.
             {
                 auto l = utf::letter(utf8.substr(size));
                 if (!l.attr.correct)
@@ -812,12 +823,16 @@ namespace netxs::utf
                     utf8 = utf8.substr(0, size);
                 }
             }
+            else // Bad UTF-8 encoding (size == 0).
+            {
+                //Recycle all bad bytes (log?).
+            }
         }
     }
     //todo deprecate cus too specific
-    static iota shrink(view& utf8)
+    static si32 shrink(view& utf8)
     {
-        iota length = 0;
+        si32 length = 0;
         auto size = utf8.size();
         auto i = 0_sz;
 
@@ -974,8 +989,10 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW, class T>
     auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter)
     {
+        using type = std::remove_cvref_t<TEXT_OR_VIEW>;
+
         view what{ delimiter };
-        text crop;
+        type crop;
         auto coor = utf8.find(what);
         if (coor != text::npos)
         {
@@ -1168,22 +1185,6 @@ namespace netxs::utf
         return crop;
     }
 
-    template <class Container, class V1, class V2>
-    auto concat(Container const& set, V1 const& delimiter, V2 const& ender)
-    {
-        using elem_type = typename Container::value_type;
-        elem_type objects;
-        elem_type delim	(delimiter);
-        elem_type end	(ender);
-
-        for (auto itr = set.begin(); itr != set.end();)
-        {
-            auto& object = itr[0];
-            objects += object + (++itr != set.end() ? delim : end);
-        }
-        return objects;
-    }
-
     template <class Container>
     auto maxlen(Container const& set)
     {
@@ -1213,22 +1214,25 @@ namespace netxs::utf
         }
     };
 
-    template <class T>
-    void concat(flux& s, T&& item)
+    namespace
     {
-        s << item;
-    }
-    template<class T, class ...Args>
-    void concat(flux& s, T&& item, Args&&... args)
-    {
-        s << item;
-        concat(s, std::forward<Args>(args)...);
+        template <class T>
+        void _concat(flux& s, T&& item)
+        {
+            s << item;
+        }
+        template<class T, class ...Args>
+        void _concat(flux& s, T&& item, Args&&... args)
+        {
+            s << item;
+            _concat(s, std::forward<Args>(args)...);
+        }
     }
     template<class ...Args>
     auto concat(Args&&... args)
     {
         flux s;
-        concat(s, std::forward<Args>(args)...);
+        _concat(s, std::forward<Args>(args)...);
         return s.str();
     }
 

@@ -12,9 +12,11 @@ namespace netxs::events::userland
     {
         EVENTPACK( term, netxs::events::userland::root::custom )
         {
-            EVENT_XS( cmd   , iota ),
-            GROUP_XS( layout, iota ),
-            GROUP_XS( data  , iota ),
+            EVENT_XS( cmd   , si32 ),
+            EVENT_XS( selmod, si32 ),
+            EVENT_XS( colors, cell ),
+            GROUP_XS( layout, si32 ),
+            GROUP_XS( data  , si32 ),
 
             SUBSET_XS( layout )
             {
@@ -150,6 +152,40 @@ namespace netxs::app::term
                     boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
+            //todo unify
+            std::pair<text, std::function<void(ui::pads&)>>{ "Selection",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::togglesel);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::selmod, selmod)
+                {
+                    //todo unify, get boss base colors, don't use x3, make it configurable
+                    switch (selmod)
+                    {
+                        default:
+                        case ui::term::xsgr::disabled:
+                            //boss.attach(ui::item::ctor("Selection", faux, true));
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Selection");
+                            boss.color(x3.fgc(), x3.bgc());
+                            break;
+                        case ui::term::xsgr::textonly:
+                            //boss.attach(ui::item::ctor("Text only", faux, true));
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Plaintext");
+                            boss.color(0xFF00ff00, x3.bgc());
+                            break;
+                        case ui::term::xsgr::ansitext:
+                            //boss.attach(ui::item::ctor("Rich-Text", faux, true));
+                            //boss.attach(ui::item::ctor("+ANSI/SGR", faux, true));
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "ANSI-text");
+                            boss.color(0xFF00ffff, x3.bgc());
+                            break;
+                    }
+                };
+            }},
         };
         return app::shared::custom_menu(full_size, items);
     };
@@ -208,17 +244,13 @@ namespace netxs::app::term
                             auto shell = os::get_shell();
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
                                                                                 : text{ v }));
-                            inst->colors(whitelt, blackdk)
+
+                            inst->attach_property(ui::term::events::colors,         app::term::events::colors)
+                                ->attach_property(ui::term::events::selmod,         app::term::events::selmod)
+                                ->attach_property(ui::term::events::layout::wrapln, app::term::events::layout::wrapln)
+                                ->attach_property(ui::term::events::layout::align,  app::term::events::layout::align)
                                 ->invoke([](auto& boss)
                                 {
-                                    boss.SUBMIT(tier::release, ui::term::events::layout::wrapln, status)
-                                    {
-                                        boss.SIGNAL(tier::anycast, app::term::events::layout::wrapln, status);
-                                    };
-                                    boss.SUBMIT(tier::release, ui::term::events::layout::align, status)
-                                    {
-                                        boss.SIGNAL(tier::anycast, app::term::events::layout::align, status);
-                                    };
                                     boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
                                     {
                                         boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
@@ -231,6 +263,12 @@ namespace netxs::app::term
                                     {
                                         boss.data_out(data);
                                     };
+                                    //todo add color picker to the menu
+                                    boss.SUBMIT(tier::anycast, app::term::events::colors, brush)
+                                    {
+                                        boss.set_color(brush);
+                                    };
+
                                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                                     {
                                         boss.start();

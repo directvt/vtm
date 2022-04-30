@@ -60,7 +60,7 @@ namespace netxs::datetime
         void worker()
         {
             auto mutex = std::mutex{};
-            auto guard = std::unique_lock{ mutex };
+            auto lock = std::unique_lock{ mutex };
 
             auto now = tempus::now();
             auto prior = now;
@@ -75,7 +75,7 @@ namespace netxs::datetime
 
                 if (letup)
                 {
-                    synch.wait_for(guard, delay);
+                    synch.wait_for(lock, delay);
 
                     delay = period::zero();
                     letup = faux;
@@ -83,7 +83,7 @@ namespace netxs::datetime
                 else
                 {
                     auto trail = pulse - now.time_since_epoch() % pulse;
-                    synch.wait_for(guard, trail);
+                    synch.wait_for(lock, trail);
                 }
             }
         }
@@ -136,7 +136,7 @@ namespace netxs::datetime
         }
         void cancel()
         {
-            alive = false;
+            alive = faux;
             synch.notify_all();
 
             if (fiber.joinable())
@@ -232,13 +232,12 @@ namespace netxs::datetime
         {
             struct velocity_factors
             {
-                moment t0 = tempus::now();
                 period dT = period::zero();
                 ITEM_T dS = ITEM_T{};// ITEM_T::zero;
             } v;
 
             auto count = 0_sz;
-            auto until = v.t0 - span;
+            auto until = tempus::now() - span;
 
             for (auto i = 0_sz; i + 1 < size; i++)
             {
@@ -248,7 +247,6 @@ namespace netxs::datetime
                 if (rec2.time > until)
                 {
                     v.dS += rec1.item;
-                    //v.dT += rec1.time - rec2.time;
                     v.dT += std::max(rec1.time - rec2.time, mint);
                     count++;
                 }
@@ -260,7 +258,7 @@ namespace netxs::datetime
 
             if (count < 2)
             {
-                v.dS = ITEM_T{};// ITEM_T::zero;
+                v.dS = ITEM_T{};
             }
 
             return v;
@@ -271,9 +269,9 @@ namespace netxs::datetime
             auto v0 = avg();
 
             auto speed = v0.dS;
-            auto start = datetime::round<iota>(v0.t0);
-            auto cycle = datetime::round<iota>(v0.dT);
-            auto limit = datetime::round<iota>(spell);
+            auto cycle = datetime::round<si32>(v0.dT);
+            auto limit = datetime::round<si32>(spell);
+            auto start = 0;
 
             return speed
                 //todo use current item's type: LAW<ITEM_T>

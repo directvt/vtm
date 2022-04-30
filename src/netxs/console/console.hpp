@@ -41,7 +41,7 @@ namespace netxs::console
     using namespace netxs::input;
     using drawfx = std::pair<bool, std::function<void(face&, sptr<base>)>>;
     using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
-    using focus_test_t = std::pair<id_t, iota>;
+    using focus_test_t = std::pair<id_t, si32>;
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
     struct create_t
@@ -72,17 +72,18 @@ namespace netxs::events::userland
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
             EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering.
-            EVENT_XS( depth     , iota                ), // request: Determine the depth of the hierarchy.
+            EVENT_XS( depth     , si32                ), // request: Determine the depth of the hierarchy.
+            EVENT_XS( shutdown  , const view          ), // general: Server shutdown.
             GROUP_XS( timer     , moment              ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , console::face       ), // release: UI-tree rendering.
-            GROUP_XS( conio     , iota                ),
+            GROUP_XS( conio     , si32                ),
             GROUP_XS( size      , twod                ), // release: Object size.
             GROUP_XS( coor      , twod                ), // release: Object coor.
             GROUP_XS( form      , bool                ),
-            GROUP_XS( data      , iota                ),
+            GROUP_XS( data      , si32                ),
             GROUP_XS( debug     , const view          ), // return info struct with telemtry data.
-            GROUP_XS( config    , iota                ), // set/notify/get/global_set configuration data.
-            GROUP_XS( command   , iota                ), // exec UI command.
+            GROUP_XS( config    , si32                ), // set/notify/get/global_set configuration data.
+            GROUP_XS( command   , si32                ), // exec UI command.
             GROUP_XS( bindings  , sptr<console::base> ), // Dynamic Data Bindings.
 
             SUBSET_XS( timer )
@@ -103,7 +104,7 @@ namespace netxs::events::userland
             };
             SUBSET_XS( bindings )
             {
-                GROUP_XS( list, iota ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
+                GROUP_XS( list, si32 ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
 
                 SUBSET_XS( list )
                 {
@@ -116,24 +117,24 @@ namespace netxs::events::userland
                 EVENT_XS( logs  , const view          ), // logs output.
                 EVENT_XS( output, const view          ), // logs has to be parsed.
                 EVENT_XS( parsed, const console::page ), // output parced logs.
-                GROUP_XS( count , iota                ), // global: log listeners.
+                GROUP_XS( count , si32                ), // global: log listeners.
 
                 SUBSET_XS( count )
                 {
-                    EVENT_XS( set, iota ), // global: log listeners.
+                    EVENT_XS( set, si32 ), // global: log listeners.
                 };
             };
             SUBSET_XS( config )
             {
                 EVENT_XS( whereami , sptr<console::base> ), // request: pointer to world object.
-                EVENT_XS( fps      , iota                ), // request to set new fps, arg: new fps (iota); the value == -1 is used to request current fps.
+                EVENT_XS( fps      , si32                ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
                 GROUP_XS( caret    , period              ), // any kind of intervals property.
-                GROUP_XS( plugins  , iota                ),
+                GROUP_XS( plugins  , si32                ),
 
                 SUBSET_XS( caret )
                 {
                     EVENT_XS( blink, period ), // caret blinking interval.
-                    EVENT_XS( style, iota   ), // caret style: 0 - underline, 1 - box.
+                    EVENT_XS( style, si32   ), // caret style: 0 - underline, 1 - box.
                 };
                 SUBSET_XS( plugins )
                 {
@@ -149,8 +150,8 @@ namespace netxs::events::userland
             };
             SUBSET_XS( conio )
             {
-                EVENT_XS( unknown , iota              ), // return platform unknown event code.
-                EVENT_XS( error   , iota              ), // return error code.
+                EVENT_XS( unknown , si32              ), // return platform unknown event code.
+                EVENT_XS( error   , si32              ), // return error code.
                 EVENT_XS( focus   , bool              ), // order to change focus.
                 EVENT_XS( mouse   , console::sysmouse ), // mouse activity.
                 EVENT_XS( key     , console::syskeybd ), // keybd activity.
@@ -160,22 +161,29 @@ namespace netxs::events::userland
                 EVENT_XS( preclose, const bool        ), // signal to quit after idle timeout, arg: bool - ready to shutdown.
                 EVENT_XS( quit    , const view        ), // quit, arg: text - bye msg.
                 EVENT_XS( pointer , const bool        ), // mouse pointer visibility.
-                //EVENT_XS( menu  , iota ), 
+                //EVENT_XS( menu  , si32 ), 
             };
             SUBSET_XS( data )
             {
                 //todo revise (see app::desk)
                 EVENT_XS( changed, utf::text       ), // release/preview/request: current menu item id(text).
-                EVENT_XS( request, iota            ),
-                EVENT_XS( disable, iota            ),
-                EVENT_XS( flush  , iota            ),
+                EVENT_XS( request, si32            ),
+                EVENT_XS( disable, si32            ),
+                EVENT_XS( flush  , si32            ),
                 EVENT_XS( text   , const utf::text ), // signaling with a text string, release only.
             };
             SUBSET_XS( command )
             {
-                EVENT_XS( quit  , const view ), // return bye msg, arg: errcode.
-                EVENT_XS( cout  , const text ), // Append extra data to output.
-                EVENT_XS( custom, iota       ), // Custom command, arg: cmd_id.
+                EVENT_XS( quit     , const view ), // return bye msg, arg: errcode.
+                EVENT_XS( cout     , const text ), // Append extra data to output.
+                EVENT_XS( custom   , si32       ), // Custom command, arg: cmd_id.
+                GROUP_XS( clipboard, const view ),
+
+                SUBSET_XS( clipboard )
+                {
+                    EVENT_XS( set, const view ), // Set data to clipboard.
+                    EVENT_XS( get,       view ), // Get data from clipboard.
+                };
             };
             SUBSET_XS( form )
             {
@@ -213,7 +221,7 @@ namespace netxs::events::userland
                     EVENT_XS( bubble, console::base ), // order to popup the requested item through the visual tree.
                     EVENT_XS( expose, console::base ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
                     EVENT_XS( appear, twod          ), // fly to the specified coords.
-                    //EVENT_XS( order     , iota       ), // return
+                    //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
                     //EVENT_XS( size      , twod       ), // return client rect size, only preview.
@@ -318,7 +326,7 @@ namespace netxs::events::userland
                     EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf, console::proc       ), // exec functor on behalf (see gate).
                     GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
-                    //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
+                    //EVENT_XS( commit     , si32                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face                     ), // ????  order to render itself to the canvas.
                     //EVENT_XS( checkin    , face_sptr                ), // order to register an output client canvas.
@@ -397,12 +405,12 @@ namespace netxs::events::userland
                     EVENT_XS( header    , text        ), // set form caption header.
                     EVENT_XS( footer    , text        ), // set form caption footer.
                     EVENT_XS( name      , text        ), // user name.
-                    EVENT_XS( zorder    , iota        ), // set form z-order, iota: -1 backmost, 0 plain, 1 topmost.
+                    EVENT_XS( zorder    , si32        ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
                     EVENT_XS( brush     , const cell  ), // set form brush/color.
                     EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
-                    EVENT_XS( menusize  , iota        ), // release: set menu height.
-                    EVENT_XS( lucidity  , iota        ), // set or request window transparency, iota: 0-255, -1 to request.
+                    EVENT_XS( menusize  , si32        ), // release: set menu height.
+                    EVENT_XS( lucidity  , si32        ), // set or request window transparency, si32: 0-255, -1 to request.
                     EVENT_XS( fixedsize , bool        ), // set ui::fork ratio.
                     GROUP_XS( window    , twod        ), // set or request window properties.
 
@@ -415,7 +423,7 @@ namespace netxs::events::userland
                 {
                     //EVENT_XS( ctxmenu , twod ), // request context menu at specified coords.
                     //deprecated - use tier::anycast
-                    EVENT_XS( lucidity, iota ), // set or request global window transparency, iota: 0-255, -1 to request.
+                    EVENT_XS( lucidity, si32 ), // set or request global window transparency, si32: 0-255, -1 to request.
                     //GROUP_XS( object,      ), // global scene objects events
                     //GROUP_XS( user  ,      ), // global scene users events
 
@@ -432,7 +440,7 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse , iota          ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, iota - number of clients.
+                    EVENT_XS( mouse , si32          ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
                     EVENT_XS( header, console::para ), // notify the client has changed title.
                     EVENT_XS( footer, console::para ), // notify the client has changed footer.
                     EVENT_XS( params, console::para ), // notify the client has changed title params.
@@ -495,7 +503,7 @@ namespace netxs::console
         poly sl_grades;
 
         twod border = dot_11;
-        iota opaque = 0xFF;
+        si32 opaque = 0xFF;
 
         template<class V>
         struct _globals
@@ -552,7 +560,7 @@ namespace netxs::console
         }
 
         // skin:: Return global brighter/shadower color (cell).
-        static cell const& color(iota property)
+        static cell const& color(si32 property)
         {
             auto& global = _globals<void>::global;
             switch (property)
@@ -577,7 +585,7 @@ namespace netxs::console
             }
         }
         // skin:: Return global gradient for brighter/shadower.
-        static poly const& grade(iota property)
+        static poly const& grade(si32 property)
         {
             auto& global = _globals<void>::global;
             switch (property)
@@ -608,7 +616,7 @@ namespace netxs::console
             return global.border;
         }
         // skin:: Return global transparency.
-        static iota const& shady()
+        static si32 const& shady()
         {
             auto& global = _globals<void>::global;
             return global.opaque;
@@ -642,6 +650,13 @@ namespace netxs::console
         bool moved = faux; // face: Is reflow required.
         bool decoy = true; // face: Is the cursor inside the viewport.
 
+        // face: Print proxy something else at the specified coor.
+        template<class T, class P>
+        void output_proxy(T const& block, twod const& coord, P proxy)
+        {
+            flow::ac(coord);
+            flow::compose<true>(block, proxy);
+        }
         // face: Print something else at the specified coor.
         template<class T, class P = noop>
         void output(T const& block, twod const& coord, P printfx = P())
@@ -712,7 +727,7 @@ namespace netxs::console
 
             if (reset)
             {
-                anker.y = std::numeric_limits<iota>::max();
+                anker.y = std::numeric_limits<si32>::max();
                 textpage.stream(gain);
 
                 decoy = caret && inside(flow::cp());
@@ -795,28 +810,28 @@ namespace netxs::console
 
         // Use a two letter function if we don't need to return *this
         face& cup (twod const& p) { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
-        face& chx (iota x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
-        face& chy (iota y)        { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
+        face& chx (si32 x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
+        face& chy (si32 y)        { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
         face& cpp (twod const& p) { flow::pc( p); return *this; } // face: Cursor percent position.
-        face& cpx (iota x)        { flow::px( x); return *this; } // face: Cursor H percent position.
-        face& cpy (iota y)        { flow::py( y); return *this; } // face: Cursor V percent position.
-        face& cuu (iota n = 1)    { flow::dy(-n); return *this; } // face: cursor up.
-        face& cud (iota n = 1)    { flow::dy( n); return *this; } // face: Cursor down.
-        face& cuf (iota n = 1)    { flow::dx( n); return *this; } // face: Cursor forward.
-        face& cub (iota n = 1)    { flow::dx(-n); return *this; } // face: Cursor backward.
-        face& cnl (iota n = 1)    { flow::dy( n); return *this; } // face: Cursor next line.
-        face& cpl (iota n = 1)    { flow::dy(-n); return *this; } // face: Cursor previous line.
+        face& cpx (si32 x)        { flow::px( x); return *this; } // face: Cursor H percent position.
+        face& cpy (si32 y)        { flow::py( y); return *this; } // face: Cursor V percent position.
+        face& cuu (si32 n = 1)    { flow::dy(-n); return *this; } // face: cursor up.
+        face& cud (si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor down.
+        face& cuf (si32 n = 1)    { flow::dx( n); return *this; } // face: Cursor forward.
+        face& cub (si32 n = 1)    { flow::dx(-n); return *this; } // face: Cursor backward.
+        face& cnl (si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor next line.
+        face& cpl (si32 n = 1)    { flow::dy(-n); return *this; } // face: Cursor previous line.
 
         face& ocp (twod const& p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
-        face& ocx (iota x)        { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
-        face& ocy (iota y)        { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
+        face& ocx (si32 x)        { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
+        face& ocy (si32 y)        { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
 
         face& scp ()              { flow::sc(  ); return *this; } // face: Save cursor position.
         face& rcp ()              { flow::rc(  ); return *this; } // face: Restore cursor position.
         face& rst ()  { flow::zz(); flow::sc(  ); return *this; } // face: Reset to zero all cursor params.
 
-        face& tab (iota n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t .
-        face& eol (iota n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n .
+        face& tab (si32 n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t .
+        face& eol (si32 n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n .
 
         void size (twod const& newsize) // face: Change the size of the face/core.
         {
@@ -840,7 +855,7 @@ namespace netxs::console
             flow::size(newsize);
         }
         template<class P = noop>
-        void blur(iota r, P shade = P())
+        void blur(si32 r, P shade = P())
         {
             auto view = core::view();
             auto size = core::size();
@@ -938,11 +953,12 @@ namespace netxs::console
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
         hook kb_token;
         hook cascade_token;
-        iota object_kind = {};
+        si32 object_kind = {};
 
     public:
-        static constexpr iota reflow_root = -1; //todo unify
+        static constexpr si32 reflow_root = -1; //todo unify
 
+        //todo replace "side" with "dent<si32>"
         side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
@@ -953,11 +969,18 @@ namespace netxs::console
         auto& area() const { return square; }
         void  root(bool b) { assert(!kb_token); visual_root = b; }
         bool  root()       { return visual_root; }
-        iota  kind()       { return object_kind; }
-        void  kind(iota k) { object_kind = k; }
+        si32  kind()       { return object_kind; }
+        void  kind(si32 k) { object_kind = k; }
         auto parent()      { return parent_shadow.lock(); }
         void ruined(bool state) { invalid = state; }
         auto ruined() const { return invalid; }
+        template<bool ABSOLUTE_POS = true>
+        auto actual_area() const
+        {
+            auto area = rect{ -oversz.topleft(), square.size + oversz.summ() };
+            if constexpr (ABSOLUTE_POS) area.coor += square.coor;
+            return area;
+        }
         auto color() const { return brush; }
         void color(rgba const& fg_color, rgba const& bg_color)
         {
@@ -1004,7 +1027,7 @@ namespace netxs::console
             return square.size - old_size;
         }
         // base: Resize the form, and return the new size.
-        auto& resize(iota x, iota y)
+        auto& resize(si32 x, si32 y)
         {
             auto new_size = twod{ x,y };
             SIGNAL(tier::preview, e2::size::set, new_size);
@@ -1253,7 +1276,7 @@ namespace netxs::console
                 struct sock : public T
                 {
                     id_t    id; // sock: Hids ID.
-                    iota count; // sock: Clients count.
+                    si32 count; // sock: Clients count.
                     sock(id_t ctrl)
                         :    id{ ctrl },
                           count{ 0    }
@@ -1275,11 +1298,15 @@ namespace netxs::console
                 auto& take(hids& gear)
                 {
                     for (auto& item : items) // Linear search, because a few items.
-                        if (item.id == gear.id)
-                            return item;
+                    {
+                        if (item.id == gear.id) return item;
+                    }
 
                     if constexpr (CONST_WARN)
-                        log("sock: error: access to unregistered input device, id:", gear.id);
+                    {
+                        log("sock: error: access to unregistered input device, id: ", gear.id);
+                    }
+
                     return items.emplace_back(gear.id);
                 }
                 template<class P>
@@ -1792,9 +1819,10 @@ namespace netxs::console
             template<class P, class S>
             void actify(id_t ID, S flow, P proc)
             {
-                auto handler = [&, ID, proc, flow](auto p)
+                auto init = tempus::now();
+                auto handler = [&, ID, proc, flow, init](auto p)
                 {
-                    auto now = datetime::round<iota>(p);
+                    auto now = datetime::round<si32>(p - init);
                     if (auto data = flow(now))
                     {
                         proc(data.value());
@@ -1866,10 +1894,11 @@ namespace netxs::console
             void actify(id_t ID, period timeout, P lambda)
             {
                 auto alarm = tempus::now() + timeout;
-                auto handler = [&, ID, timeout, lambda, alarm](auto now)
+                auto handler = [&, ID, timeout, lambda, alarm](auto now) mutable
                 {
                     if (now > alarm)
                     {
+                        alarm = now + timeout;
                         if (!lambda(ID)) pacify(ID);
                     }
                 };
@@ -1908,11 +1937,11 @@ namespace netxs::console
                   skill::memo;
             subs  link;
             robot robo;
-            iota  seat;
+            si32  seat;
 
         public:
             frame(base&&) = delete;
-            frame(base& boss, iota z_order = Z_order::plain) : skill{ boss },
+            frame(base& boss, si32 z_order = Z_order::plain) : skill{ boss },
                 robo{ boss    },
                 seat{ z_order }
             {
@@ -2020,8 +2049,9 @@ namespace netxs::console
                 auto  newpos = target - screen.size / 2;;
 
                 auto path = newpos - oldpos;
-                iota time = SWITCHING_TIME;
-                auto func = constlinearAtoB<twod>(path, time, now<iota>());
+                auto time = SWITCHING_TIME;
+                auto init = 0;
+                auto func = constlinearAtoB<twod>(path, time, init);
 
                 robo.pacify();
                 robo.actify(func, [&](twod& x) { boss.base::moveby(x); boss.strike(); });
@@ -2372,7 +2402,7 @@ namespace netxs::console
                     show();
                 }
             }
-            void style(iota mode)
+            void style(si32 mode)
             {
                 switch (mode)
                 {
@@ -2544,12 +2574,12 @@ namespace netxs::console
 
             struct
             {
-                period    render = period::zero();
-                period    output = period::zero();
-                iota      frsize = 0;
-                long long totals = 0;
-                //bool      onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
-                iota      number = 0;    // info: Current frame number
+                period render = period::zero();
+                period output = period::zero();
+                si32   frsize = 0;
+                si64   totals = 0;
+                si32   number = 0;    // info: Current frame number
+                //bool   onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
             }
             track; // debug: Textify the telemetry data for debugging purpose.
 
@@ -2578,7 +2608,7 @@ namespace netxs::console
                     std::to_string(new_size.x) + " x " +
                     std::to_string(new_size.y);
             }
-            void update(period const& watch, iota delta)
+            void update(period const& watch, si32 delta)
             {
                 track.output = watch;
                 track.frsize = delta;
@@ -2604,7 +2634,7 @@ namespace netxs::console
                 {
                     maxlen = std::max(maxlen, desc.size());
                 }
-                iota attr = 0;
+                si32 attr = 0;
                 for (auto& desc : description)
                 {
                     status += coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
@@ -2899,7 +2929,7 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
             constexpr static auto QUIT_MSG = e2::conio::quit;
-            constexpr static iota ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
+            constexpr static si32 ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
 
             bool   wait; // guard: Ready to close.
             moment stop; // guard: Timeout for single Esc.
@@ -2940,7 +2970,7 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
             constexpr static auto EXCUSE_MSG = hids::events::mouse::any;
-            constexpr static auto QUIT_MSG   = e2::command::quit;
+            constexpr static auto QUIT_MSG   = e2::shutdown;
             //todo unify
             constexpr static int LIMIT = 60 * 10; // watch: Idle timeout in seconds.
 
@@ -2959,17 +2989,13 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::preview, EXCUSE_MSG, pong, something)
                 {
                     stop = tempus::now() + std::chrono::seconds(LIMIT);
-
-                    //doubt.reset();
-                    //alibi.reset();
                 };
-
                 boss.SUBMIT_T(tier::general, e2::timer::any, ping, something)
                 {
                     if (tempus::now() > stop)
                     {
                         auto shadow = boss.This();
-                        boss.SIGNAL(tier::release, QUIT_MSG, desc);
+                        boss.SIGNAL(tier::general, QUIT_MSG, desc);
                         ping.reset();
                         memo.clear();
                     }
@@ -2984,7 +3010,7 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
             subs kb_subs;
-            iota clients = 0;
+            si32 clients = 0;
 
         public:
             bool focusable = true;
@@ -2992,23 +3018,17 @@ namespace netxs::console
             keybd(base&&) = delete;
             keybd(base& boss) : skill{ boss }
             {
-                using bttn = hids::events::mouse::button;
-
-                boss.SUBMIT_T(tier::release, bttn::click::left, memo, gear)
+                //todo unify
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, memo, gear)
                 {
-                    // Propagate throughout nested objects by base::
-                    gear.kb_focus_taken = faux;
-                    boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-
-                    //gear.set_kb_focus(boss.This());
-                    if (gear.focus_taken()) gear.dismiss();
-
-                    //if (!square.size.inside(gear.coord))
-                    //{
-                    //	auto center = square.coor + (square.size / 2);
-                    //	bell::getref(gear.id)->
-                    //		SIGNAL(tier::release, e2::form::layout::shift, center);
-                    //}
+                    auto deed = boss.bell::protos<tier::release>();
+                    if (deed == hids::events::mouse::button::click::left.id)
+                    {
+                        // Propagate throughout nested objects by base::
+                        gear.kb_focus_taken = faux;
+                        boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        if (gear.focus_taken()) gear.dismiss();
+                    }
                 };
 
                 // pro::keybd: Notify form::state::kbfocus when the number of clients is positive.
@@ -3090,10 +3110,12 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
             sptr<base> soul; // mouse: Boss cannot be removed while it has active gears.
-            iota       rent; // mouse: Active gears count.
-            iota       full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
+            si32       rent; // mouse: Active gears count.
+            si32       full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
             bool       omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
-            iota       drag; // mouse: Bitfield of buttons subscribed to mouse drag.
+            si32       drag; // mouse: Bitfield of buttons subscribed to mouse drag.
+            std::map<si32, subs> dragmemo; // mouse: Draggable subs.
+
         public:
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true) : skill{ boss },
@@ -3155,12 +3177,12 @@ namespace netxs::console
                     switch (auto deed = boss.bell::protos<tier::release>())
                     {
                         default:
-                        case e2::form::draggable::left     .id: draggable<sysmouse::left     >(); break;
-                        case e2::form::draggable::right    .id: draggable<sysmouse::right    >(); break;
-                        case e2::form::draggable::leftright.id: draggable<sysmouse::leftright>(); break;
-                        case e2::form::draggable::middle   .id: draggable<sysmouse::middle   >(); break;
-                        case e2::form::draggable::wheel    .id: draggable<sysmouse::wheel    >(); break;
-                        case e2::form::draggable::win      .id: draggable<sysmouse::win      >(); break;
+                        case e2::form::draggable::left     .id: draggable<sysmouse::left     >(enabled); break;
+                        case e2::form::draggable::right    .id: draggable<sysmouse::right    >(enabled); break;
+                        case e2::form::draggable::leftright.id: draggable<sysmouse::leftright>(enabled); break;
+                        case e2::form::draggable::middle   .id: draggable<sysmouse::middle   >(enabled); break;
+                        case e2::form::draggable::wheel    .id: draggable<sysmouse::wheel    >(enabled); break;
+                        case e2::form::draggable::win      .id: draggable<sysmouse::win      >(enabled); break;
                     }
                 };
             }
@@ -3178,13 +3200,18 @@ namespace netxs::console
                 omni = b;
             }
             template<sysmouse::bttns BUTTON>
-            void draggable()
+            void draggable(bool enabled)
             {
-                if (!(drag & 1 << BUTTON))
+                if (!enabled)
+                {
+                    dragmemo[BUTTON].clear();
+                    drag &= ~(1 << BUTTON);
+                }
+                else if (!(drag & 1 << BUTTON))
                 {
                     drag |= 1 << BUTTON;
                     //using bttn = hids::events::mouse::button; //MSVC 16.9.4 don't get it
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::start::_<BUTTON>, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
                         if (gear.capture(boss.bell::id))
                         {
@@ -3192,7 +3219,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::pull::_<BUTTON>, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3200,7 +3227,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::_<BUTTON>, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3209,7 +3236,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::general, hids::events::die, gear)
+                    boss.SUBMIT_T(tier::general, hids::events::die, dragmemo[BUTTON], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3218,7 +3245,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::stop::_<BUTTON>, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3241,7 +3268,7 @@ namespace netxs::console
         public:
             core xmap;
             lock sync;
-            iota push = 0; // input: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
+            si32 push = 0; // input: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
             input(base&&) = delete;
             input(base& boss)
@@ -3251,7 +3278,7 @@ namespace netxs::console
                 xmap.size(boss.base::size());
                 boss.SUBMIT_T(tier::release, e2::size::set, memo, newsize)
                 {
-                    std::unique_lock guard(sync); // Syncing with diff::render thread.
+                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.size(newsize);
                 };
                 boss.SUBMIT_T(tier::release, e2::coor::set, memo, newcoor)
@@ -3283,8 +3310,8 @@ namespace netxs::console
             {
                 boss.SUBMIT_T(tier::release, e2::postrender, memo, parent_canvas)
                 {
-                    iota size = 5; // grade: Vertical gradient size.
-                    iota step = 2; // grade: Vertical gradient step.
+                    si32 size = 5; // grade: Vertical gradient size.
+                    si32 step = 2; // grade: Vertical gradient step.
                     //cell shadow{ cell{}.vis(cell::highlighter) };
                     //cell bright{ cell{}.vis(cell::darklighter) };
                     auto shadow = rgba{0xFF000000};
@@ -3324,14 +3351,14 @@ namespace netxs::console
                   skill::memo;
             robot  robo;   // fader: .
             period fade;
-            iota transit;
+            si32 transit;
             cell c1;
             cell c2;
             cell c2_orig;
             bool fake = faux;
 
             //todo use lambda
-            void work(iota transit)
+            void work(si32 transit)
             {
                 auto brush = boss.base::color();
                 brush.avg(c1, c2, transit);
@@ -3381,9 +3408,9 @@ namespace netxs::console
                         if (fade != fade.zero())
                         {
                             auto range = transit;
-                            auto limit = datetime::round<iota>(fade);
-                            auto start = datetime::now<iota>();
-                            robo.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
+                            auto limit = datetime::round<si32>(fade);
+                            auto start = 0;
+                            robo.actify(constlinearAtoB<si32>(range, limit, start), [&](auto step)
                             {
                                 transit -= step;
                                 work(transit);
@@ -3526,12 +3553,12 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            iota width; // acryl: Blur radius.
+            si32 width; // acryl: Blur radius.
             bool alive; // acryl: Is active.
 
         public:
             acryl(base&&) = delete;
-            acryl(base& boss, iota size = 5)
+            acryl(base& boss, si32 size = 5)
                 : skill{ boss },
                   width{ size },
                   alive{ true }
@@ -3627,7 +3654,8 @@ namespace netxs::console
 
             list pool; // focus: List of active input devices.
 
-            bool find(auto test_id)
+            template<class T>
+            bool find(T test_id)
             {
                 for (auto id : pool) if (test_id == id) return true;
                 return faux;
@@ -3898,7 +3926,7 @@ namespace netxs::console
                     para basis;
                     bool usable = faux;
                     bool highlighted = faux;
-                    iota active = 0;
+                    si32 active = 0;
                     tone color;
 
                     operator bool ()
@@ -3947,7 +3975,7 @@ namespace netxs::console
                 rect region;
                 sptr object;
                 id_t obj_id;
-                iota z_order = Z_order::plain;
+                si32 z_order = Z_order::plain;
 
                 node(sptr item)
                     : object{ item }
@@ -3992,13 +4020,13 @@ namespace netxs::console
 
                     header.recalc();
                 }
-                // node: Check equality.
+                // hall::node: Check equality.
                 bool equals(id_t id)
                 {
                     return obj_id == id;
                 }
-                // node: Draw the anchor line func and return true
-                //       if the mold is outside the canvas area.
+                // hall::node: Draw the anchor line func and return true
+                //             if the mold is outside the canvas area.
                 void fasten(face& canvas)
                 {
                     auto window = canvas.area();
@@ -4019,7 +4047,7 @@ namespace netxs::console
                     window.coor = dot_00;
                     netxs::online(window, origin, center, pset);
                 }
-                // node: Output the title to the canvas.
+                // hall::node: Output the title to the canvas.
                 //void enlist(face& canvas)
                 //{
                 //    if (header)
@@ -4029,7 +4057,7 @@ namespace netxs::console
                 //        canvas.eol();
                 //    }
                 //}
-                // node: Visualize the underlying object.
+                // hall::node: Visualize the underlying object.
                 void render(face& canvas)
                 {
                     canvas.render(*object);
@@ -4063,13 +4091,13 @@ namespace netxs::console
                 {
                     items.push_back(std::make_shared<node>(item));
                 }
-                // Draw backpane for spectators.
+                //hall::list: Draw backpane for spectators.
                 void prerender(face& canvas)
                 {
                     for (auto& item : items) item->fasten(canvas); // Draw strings.
                     for (auto& item : items) item->render(canvas); // Draw shadows.
                 }
-                // Draw windows.
+                //hall::list: Draw windows.
                 void render(face& canvas)
                 {
                     for (auto& item : items) item->fasten(canvas);
@@ -4078,12 +4106,16 @@ namespace netxs::console
                     for (auto& item : items) if (item->z_order == Z_order::plain   ) item->render(canvas);
                     for (auto& item : items) if (item->z_order == Z_order::topmost ) item->render(canvas);
                 }
-                // Draw spectator's mouse pointers.
+                //hall::list: Draw spectator's mouse pointers.
                 void postrender(face& canvas)
                 {
                     for (auto& item : items) item->postrender(canvas);
                 }
-
+                //hall::list: Delete all items.
+                void reset()
+                {
+                    items.clear();
+                }
                 rect remove(id_t id)
                 {
                     rect area;
@@ -4272,7 +4304,12 @@ namespace netxs::console
                     edges.push_back(updateregion);
                 }
             }
-
+            // hall: Shutdown.
+            void shutdown()
+            {
+                app_registry.reset();
+                items.reset();
+            }
             // hall: Attach a new item to the scene.
             template<class S>
             auto branch(text const& class_id, sptr<S> item, bool fixed = true)
@@ -4306,11 +4343,9 @@ namespace netxs::console
         };
 
         using tick = quartz<events::reactor<>, e2::type>;
-        using hndl = std::function<void(view)>;
 
         tick synch; // host: Frame rate synchronizator.
-        iota frate; // host: Frame rate value.
-        hndl close; // host: Quit procedure.
+        si32 frate; // host: Frame rate value.
         hall scene; // host: Scene controller.
 
         void deface(rect const& region) override
@@ -4331,15 +4366,23 @@ namespace netxs::console
         template<class T, class ...Args>
         auto invite(Args&&... args)
         {
+            auto lock = events::sync{};
             return scene.invite<T>(std::forward<Args>(args)...);
+        }
+        // host: Detach user.
+        template<class T>
+        auto resign(sptr<T>& client)
+        {
+            auto lock = events::sync{};
+            client->detach();
+            client.reset();
         }
 
     protected:
-        host(hndl exit_proc)
+        host(os::xipc& server)
             : synch(router<tier::general>(), e2::timer::tick.id),
               scene{ *this },
-              frate{ 0 },
-              close{ exit_proc }
+              frate{ 0 }
         {
             using bttn = hids::events::mouse::button;
 
@@ -4383,84 +4426,39 @@ namespace netxs::console
                     synch.cancel();
                 }
             };
-            SUBMIT(tier::release, e2::command::quit, reason)
+            SUBMIT(tier::general, e2::cleanup, counter)
             {
-                if (close)
+                router<tier::general>().cleanup(counter.ref_count, counter.del_count);
+            };
+            SUBMIT(tier::general, e2::form::global::lucidity, alpha)
+            {
+                if (alpha == -1)
                 {
-                    close(reason);
+                    alpha = skin::shady();
+                }
+                else
+                {
+                    alpha = std::clamp(alpha, 0, 255);
+                    skin::setup(tone::lucidity, alpha);
+                    this->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
                 }
             };
-            //todo move it to the gate
-            SUBMIT(tier::release, e2::form::proceed::createby, gear)
+            SUBMIT(tier::general, e2::shutdown, msg)
             {
-                static iota insts_count = 0;
-                if (auto gate_ptr = bell::getref(gear.id))
-                {
-                    auto& gate = *gate_ptr;
-                    auto location = gear.slot;
-                    if (gear.meta(hids::ANYCTRL))
-                    {
-                        log("gate: area copied to clipboard ", location);
-                        sptr<core> canvas_ptr;
-                        gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
-                        if (canvas_ptr)
-                        {
-                            auto& canvas = *canvas_ptr;
-                            auto data = canvas.meta(location);
-                            if (data.length())
-                            {
-                                gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                            }
-                        }
-                    }
-                    else
-                    {
-                        auto what = decltype(e2::form::proceed::createat)::type{};
-                        what.square = gear.slot;
-                        auto data = decltype(e2::data::changed)::type{};
-                        gate.SIGNAL(tier::request, e2::data::changed, data);
-                        what.menuid = data;
-                        this->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                        if (auto& frame = what.object)
-                        {
-                            insts_count++;
-                            #ifndef PROD
-                                if (insts_count > APPS_MAX_COUNT)
-                                {
-                                    log("inst: max count reached");
-                                    auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
-                                    auto w_frame = ptr::shadow(frame);
-                                    frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
-                                    {
-                                        if (timestamp > timeout)
-                                        {
-                                            log("inst: timebomb");
-                                            if (auto frame = w_frame.lock())
-                                            {
-                                                frame->base::detach();
-                                                log("inst: frame detached: ", insts_count);
-                                            }
-                                        }
-                                    };
-                                }
-                            #endif
-
-                            frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
-                            {
-                                insts_count--;
-                                log("inst: detached: ", insts_count);
-                            };
-
-                            gear.kb_focus_taken = faux;
-                            frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                            frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // The Tile should change the menu item.
-                        }
-                    }
-                }
+                log("host: shutdown: ", msg);
+                server->stop();
             };
+            log("host: started");
         }
+
+    public:
         ~host()
         {
+            {
+                events::sync lock;
+                scene.shutdown();
+                mouse.reset();
+            }
             synch.cancel();
         }
     };
@@ -4480,22 +4478,20 @@ namespace netxs::console
         bool      alive; // link: Working loop state.
         bool      ready; // link: To avoid spuritous wakeup (cv).
         bool      focus; // link: Terminal window focus state.
-        iota      iface; // link: Platform specific UI code.
+        si32      iface; // link: Platform specific UI code.
         sysmouse  mouse; // link: Mouse state.
         syskeybd  keybd; // link: Keyboard state.
         bool      close; // link: Pre closing condition.
-        text      total; // link: Accumulated unparsed input.
+        text      accum; // link: Accumulated unparsed input.
 
         void reader()
         {
-            log("link: std_input thread started");
+            log("link: id: ", std::this_thread::get_id(), " reading thread started");
             while (auto yield = canal->recv())
             {
-                {
-                    std::lock_guard guard{ mutex };
-                    total += yield;
-                    ready = true;
-                }
+                auto guard = std::lock_guard{ mutex };
+                accum += yield;
+                ready = true;
                 synch.notify_one();
             }
 
@@ -4503,9 +4499,9 @@ namespace netxs::console
             {
                 log("link: signaling to close read channel ", canal);
                 owner.SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
-                log("link: sig to close read channel complete", canal);
+                log("link: signaling to close read channel complete ", canal);
             }
-            log("link: std_input thread is going to close");
+            log("link: id: ", std::this_thread::get_id(), " reading thread ended");
         }
 
     public:
@@ -4521,11 +4517,12 @@ namespace netxs::console
         ~link()
         {
             canal->shut(); // Terminate all blocking calls.
+            auto id = input.get_id();
             if (input.joinable())
             {
                 input.join();
             }
-            log("link: std_input thread joined");
+            log("link: id: ", id, " reading thread joined");
         }
 
         void output (view buffer)
@@ -4534,8 +4531,10 @@ namespace netxs::console
         }
         void session(text title)
         {
-            auto is_digit = [](auto c) { return c >= '0' && c <= '9'; };
-            std::unique_lock guard{ mutex };
+            log("link: id: ", std::this_thread::get_id(), " conio session started");
+            text total;
+            auto digit = [](auto c) { return c >= '0' && c <= '9'; };
+            auto guard = std::unique_lock{ mutex };
 
             input = std::thread([&] { reader(); });
 
@@ -4545,6 +4544,9 @@ namespace netxs::console
             while ((void)synch.wait(guard, [&] { return ready; }), alive)
             {
                 ready = faux;
+                total += accum;
+                accum.clear();
+                guard.unlock();
 
                 //todo why?
                 //todo separate commands and keypress
@@ -4612,7 +4614,6 @@ namespace netxs::console
                             keybd.textline = strv.substr(0, 1);
                             owner.SIGNAL(tier::release, e2::conio::key, keybd);
                             total.clear();
-                            //strv = total;
                             break;
                         }
                         else if (strv.at(pos) == '\x1b') // two consecutive escapes
@@ -4621,7 +4622,6 @@ namespace netxs::console
                             keybd.textline = strv.substr(0, 1);
                             owner.SIGNAL(tier::release, e2::conio::key, keybd);
                             total = strv.substr(1);
-                            //strv = total;
                             break;
                         }
                         #endif
@@ -4675,8 +4675,8 @@ namespace netxs::console
                                                         ++pos;
 
                                                         auto clamp = [](auto a) { return std::clamp(a,
-                                                            std::numeric_limits<iota>::min() / 2,
-                                                            std::numeric_limits<iota>::max() / 2); };
+                                                            std::numeric_limits<si32>::min() / 2,
+                                                            std::numeric_limits<si32>::max() / 2); };
 
                                                         auto x = clamp(pos_x.value() - 1);
                                                         auto y = clamp(pos_y.value() - 1);
@@ -4776,7 +4776,7 @@ namespace netxs::console
                                     }
                                 }
                             }
-                            else if (is_digit(strv.at(pos)))
+                            else if (digit(strv.at(pos)))
                             {
 again:
                                 view tmp = strv.substr(pos);
@@ -4812,13 +4812,13 @@ again:
                                         {
                                             case ansi::W32_MOUSE_EVENT:
                                             {
-                                                iota id    = take();
-                                                iota bttns = take();
-                                                iota ctrls = take();
-                                                iota flags = take();
-                                                iota wheel = take();
-                                                iota xcoor = take();
-                                                iota ycoor = take();
+                                                si32 id    = take();
+                                                si32 bttns = take();
+                                                si32 ctrls = take();
+                                                si32 flags = take();
+                                                si32 wheel = take();
+                                                si32 xcoor = take();
+                                                si32 ycoor = take();
 
                                                 auto coord = twod{ xcoor, ycoor };
 
@@ -4853,13 +4853,13 @@ again:
                                             }
                                             case ansi::W32_KEYBD_EVENT:
                                             {
-                                                iota id = take();
-                                                iota kc = take();
-                                                iota sc = take();
-                                                iota kd = take();
-                                                iota ks = take();
-                                                iota rc = take();
-                                                iota uc = take();
+                                                si32 id = take();
+                                                si32 kc = take();
+                                                si32 sc = take();
+                                                si32 kd = take();
+                                                si32 ks = take();
+                                                si32 rc = take();
+                                                si32 uc = take();
                                                 keybd.virtcode    = kc;
                                                 keybd.ctlstate    = ks & 0x1f; // only modifiers
                                                 keybd.down        = kd;
@@ -4923,8 +4923,8 @@ again:
                                             }
                                             case ansi::W32_WINSZ_EVENT:
                                             {
-                                                iota xsize = take();
-                                                iota ysize = take();
+                                                si32 xsize = take();
+                                                si32 ysize = take();
                                                 twod winsz{ xsize,ysize };
                                                 owner.SIGNAL(tier::release, e2::conio::size, winsz);
                                                 break;
@@ -4932,7 +4932,7 @@ again:
                                             case ansi::W32_FOCUS_EVENT:
                                             {
                                                 //todo clear pressed keys on lost focus
-                                                iota id    = take();
+                                                si32 id    = take();
                                                 bool focus = take();
                                                 owner.SIGNAL(tier::release, e2::conio::focus, focus);
                                                 break;
@@ -5066,20 +5066,19 @@ again:
                         }
                     }
                 }
+                guard.lock();
             }
 
-            log("link: std_input thread ended");
+            log("link: id: ", std::this_thread::get_id(), " conio session ended");
         }
         // link: Interrupt the run only.
         void shutdown ()
         {
-            mutex.lock();
+            auto guard = std::lock_guard{ mutex };
             canal->shut(); // Terminate all blocking calls.
-
             alive = faux;
             ready = true;
             synch.notify_one(); // Interrupt reading session.
-            mutex.unlock();
         }
     };
 
@@ -5091,7 +5090,7 @@ again:
         using cond = std::condition_variable_any;
         using ansi = ansi::esc;
         using span = period;
-        using pair = std::optional<std::pair<span, iota>>;
+        using pair = std::optional<std::pair<span, si32>>;
 
         link& conio;
         lock& mutex; // diff: Mutex between renderer and committer threads.
@@ -5100,11 +5099,11 @@ again:
         grid& cache; // diff: The current content buffer which going to be checked and processed.
         grid  front; // diff: The Shadow copy of the terminal/screen.
 
-        iota  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
-        iota  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
+        si32  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
+        si32  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
         twod  field; // diff: Current terminal/screen window size.
         span  watch; // diff: Duration of the STDOUT rendering.
-        iota  delta; // diff: Last ansi-rendered frame size.
+        si32  delta; // diff: Last ansi-rendered frame size.
         ansi  frame; // diff: Text screen representation.
         bool  alive; // diff: Working loop state.
         bool  ready; // diff: Conditional variable to avoid spurious wakeup.
@@ -5121,8 +5120,6 @@ again:
         {
             using time = moment;
 
-            log("rend: thread started");
-
             auto fallback = [&](auto& c, auto& state, auto& frame)
             {
                 auto dumb = c;
@@ -5130,8 +5127,7 @@ again:
                 dumb.template scan<VGAMODE>(state, frame);
             };
 
-            std::unique_lock guard{ mutex };
-
+            auto guard = std::unique_lock{ mutex };
             cell state;
             time start;
 
@@ -5206,7 +5202,7 @@ again:
                     auto dst = front.data();
                     auto beg = src;
                     auto end = src;
-                    iota row = 0;
+                    si32 row = 0;
 
                     while (row++ < field.y)
                     {
@@ -5222,7 +5218,7 @@ again:
                             {
                                 if (back != fore)
                                 {
-                                    auto col = static_cast<iota>(src - beg);
+                                    auto col = static_cast<si32>(src - beg);
                                     frame.locate(col, row);
 
                                     back = fore;
@@ -5318,7 +5314,7 @@ again:
                                     {
                                         back = fore;
 
-                                        auto col = static_cast<iota>(src - beg);
+                                        auto col = static_cast<si32>(src - beg);
                                         frame.locate(col, row);
 
                                         if (src != end)
@@ -5355,7 +5351,7 @@ again:
                                             auto& g = *(dst++);
                                             if (d.wdt() < 3)
                                             {
-                                                auto col = static_cast<iota>(src - beg - 1);
+                                                auto col = static_cast<si32>(src - beg - 1);
                                                 frame.locate(col, row);
                                                 fallback(fore, state, frame); // Left part alone.
                                                 src--; // Repeat all for d again.
@@ -5366,7 +5362,7 @@ again:
                                                 if (g != d)
                                                 {
                                                     g = d;
-                                                    auto col = static_cast<iota>(src - beg - 1);
+                                                    auto col = static_cast<si32>(src - beg - 1);
                                                     frame.locate(col, row);
 
                                                     if (!fore.scan<VGAMODE>(d, state, frame))
@@ -5379,7 +5375,7 @@ again:
                                         }
                                         else
                                         {
-                                            auto col = static_cast<iota>(src - beg);
+                                            auto col = static_cast<si32>(src - beg);
                                             frame.locate(col, row);
                                             fallback(fore, state, frame); // Left part alone.
                                         }
@@ -5387,7 +5383,7 @@ again:
                                 }
                                 else // w == 3 // Right part has changed.
                                 {
-                                    auto col = static_cast<iota>(src - beg);
+                                    auto col = static_cast<si32>(src - beg);
                                     frame.locate(col, row);
                                     back = fore;
                                     fallback(fore, state, frame); // Right part alone.
@@ -5398,7 +5394,7 @@ again:
                     }
                 }
 
-                auto size = static_cast<iota>(frame.size());
+                auto size = static_cast<si32>(frame.size());
                 if (size)
                 {
                     guard.unlock();
@@ -5415,8 +5411,8 @@ again:
         // diff: Obtain new content to render.
         pair commit(core& canvas) // Run inside the e2::sync.
         {
-            std::unique_lock guard(mutex, std::try_to_lock);
-            if (guard.owns_lock())
+            auto lock = std::unique_lock{ mutex, std::try_to_lock };
+            if (lock.owns_lock())
             {
                 dhash = canvas.hash();
                 field = canvas.swap(cache); // Use one surface for reading (cache), one for writing (canvas).
@@ -5449,9 +5445,9 @@ again:
               mutex{ input.sync },
               cache{ input.xmap.pick() }
         {
-            log("diff: ctor start");
             paint = work([&]
                 { 
+                    log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
                     switch (video)
                     {
                         case svga::truecolor: render<svga::truecolor>(); break;
@@ -5459,21 +5455,21 @@ again:
                         case svga::vga256:    render<svga::vga256   >(); break;
                         default: break;
                     }
+                    log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
                 });
-            log("diff: ctor complete");
         }
         ~diff()
         {
-            log("diff: dtor");
             if (paint.joinable())
             {
+                auto id = paint.get_id();
                 mutex.lock();
                 alive = faux;
                 ready = true;
                 synch.notify_all();
                 mutex.unlock();
                 paint.join();
-                log("diff: render thread joined");
+                log("diff: id: ", id, " rendering thread joined");
             }
         }
 
@@ -5499,23 +5495,61 @@ again:
         pro::debug debug{*this }; // gate: Debug telemetry controller.
         #endif
 
-        using pair = std::optional<std::pair<period, iota>>;
+        using pair = std::optional<std::pair<period, si32>>;
+        using sptr = netxs::sptr<base>;
         pair yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para uname; // gate: Client name.
         text uname_txt; // gate: Client name (original).
         bool native = faux; //gate: Extended functionality support.
         bool fullscreen = faux; //gate: Fullscreen mode.
-        iota legacy = os::legacy::clean;
+        si32 legacy = os::legacy::clean;
+        text clip_rawtext; // gate: Clipboard data.
+        face clip_preview; // gate: Clipboard render.
 
     public:
-        sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
-        sptr<base> background; // gate: Local UI background.
+        sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
+        sptr background; // gate: Local UI background.
 
-        // Main loop.
-        void proceed(os::xipc media /*session socket*/, text title)
+        // gate: Attach a new item.
+        template<class T>
+        auto attach(netxs::sptr<T> item)
         {
-            if (auto world = base::parent())
-            {
+            uibar = item;
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // gate: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(base::create<T>(std::forward<Args>(args)...));
+        }
+        // gate: Attach background object.
+        template<class T>
+        auto ground(netxs::sptr<T> item)
+        {
+            background = item;
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // Main loop.
+        template<class PROPS>
+        void run(sptr deskmenu, sptr bkground, os::xipc media /*session socket*/, PROPS const& conf)
+        {
+            auto lock = events::unique_lock();
+
+                attach(deskmenu);
+                ground(bkground);
+                color(conf.background_color.fgc(), conf.background_color.bgc());
+                auto conf_usr_name = conf.name;
+                SIGNAL(tier::release, e2::form::prop::name, conf_usr_name);
+                SIGNAL(tier::preview, e2::form::prop::header, conf_usr_name);
+                base::moveby(conf.coor);
+
+                clip_preview.size(conf.clip_preview_size); //todo unify/make it configurable
+                legacy |= conf.legacy_mode;
+
+                auto world = base::parent();
                 auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
                               : legacy & os::legacy::vga256 ? svga::vga256
                                                             : svga::truecolor;
@@ -5545,12 +5579,17 @@ again:
                 SUBMIT_T(tier::release, e2::conio::error, token, errcode)
                 {
                     text msg = "\n\rgate: Term error: " + std::to_string(errcode) + "\r\n";
-                    log("gate: stop byemsg: ", msg);
+                    log("gate: error byemsg: ", msg);
                     conio.shutdown();
                 };
                 SUBMIT_T(tier::release, e2::conio::quit, token, msg)
                 {
-                    log("gate: stop byemsg: ", msg);
+                    log("gate: quit byemsg: ", msg);
+                    conio.shutdown();
+                };
+                SUBMIT_T(tier::general, e2::conio::quit, token, msg)
+                {
+                    log("gate: global shutdown byemsg: ", msg);
                     conio.shutdown();
                 };
                 //SUBMIT_T(tier::release, e2::form::state::header, token, newheader)
@@ -5561,22 +5600,35 @@ again:
                 //};
                 SUBMIT_T(tier::release, e2::form::prop::header, token, newheader)
                 {
-                    text title;
-                    title.reserve(newheader.length());
+                    text temp;
+                    temp.reserve(newheader.length());
                     if (native)
                     {
-                        title = newheader;
+                        temp = newheader;
                     }
                     else
                     {
-                        para{ newheader }.lyric->each([&](auto c) { title += c.txt(); });
+                        para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
                     }
-                    log("gate: title changed to '", title, ansi::nil().add("'"));
-                    conio.output(ansi::tag(title));
+                    log("gate: title changed to '", temp, ansi::nil().add("'"));
+                    conio.output(ansi::tag(temp));
                 };
                 SUBMIT_T(tier::release, e2::command::cout, token, extra_data)
                 {
                     paint.append(extra_data);
+                };
+                SUBMIT_T(tier::release, e2::command::clipboard::set, token, clipbrd_data)
+                {
+                    clip_rawtext = clipbrd_data;
+                    page block{ clipbrd_data };
+                    clip_preview.wipe();
+                    //todo revise
+                    //clip_preview.set_style(clip_preview.get_style().wrp(faux));
+                    clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                };
+                SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
+                {
+                    clipbrd_data = clip_rawtext;
                 };
 
                 world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
@@ -5611,21 +5663,19 @@ again:
                         yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
                     #endif
                 };
+            lock.unlock();
 
-                conio.session(title);
-                mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-            }
+            conio.session(conf.title);
+            mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
         }
 
     protected:
-        gate(view user_name, iota legacy_mode)
+        gate()
         {
             //todo unify
-            uname = uname_txt = user_name;
             title.live = faux;
-            legacy = legacy_mode;
-            mouse.draggable<sysmouse::leftright>();
-            mouse.draggable<sysmouse::left>();
+            mouse.draggable<sysmouse::leftright>(true);
+            mouse.draggable<sysmouse::left>(true);
             SUBMIT(tier::release, e2::form::drag::start::any, gear)
             {
                 robot.pacify();
@@ -5638,7 +5688,7 @@ again:
             SUBMIT(tier::release, e2::form::drag::stop::any, gear)
             {
                 robot.pacify();
-                robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&](auto& x)
+                robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto& x)
                              {
                                 base::moveby(-x);
                                 base::deface();
@@ -5647,6 +5697,10 @@ again:
             SUBMIT(tier::release, e2::form::prop::fullscreen, state)
             {
                 fullscreen = state;
+            };
+            SUBMIT(tier::release, e2::form::prop::name, user_name)
+            {
+                uname = uname_txt = user_name;
             };
             SUBMIT(tier::request, e2::form::prop::name, user_name)
             {
@@ -5715,7 +5769,7 @@ again:
                     {
                         if (auto world = base::parent())
                         {
-                            sptr<base> item_ptr;
+                            sptr item_ptr;
                             if (pgdn) world->SIGNAL(tier::request, e2::form::proceed::detach, item_ptr); // Take prev item
                             else      world->SIGNAL(tier::request, e2::form::proceed::attach, item_ptr); // Take next item
 
@@ -5739,8 +5793,9 @@ again:
                 auto oldpos = viewport.coor + (viewport.size / 2);
 
                 auto path = oldpos - newpos;
-                iota time = SWITCHING_TIME;
-                auto func = constlinearAtoB<twod>(path, time, now<iota>());
+                auto time = SWITCHING_TIME;
+                auto init = 0;
+                auto func = constlinearAtoB<twod>(path, time, init);
 
                 robot.pacify();
                 robot.actify(func, [&](auto& x) {
@@ -5756,6 +5811,11 @@ again:
             {
                 if (uibar) uibar->base::resize(newsz);
                 if (background) background->base::resize(newsz);
+            };
+            SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
+            {
+                this->SIGNAL(tier::release, e2::command::clipboard::set, "");
+                gear.dismiss();
             };
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
@@ -5789,7 +5849,7 @@ again:
                         area.coor += input.coord;
                         area.size = dot_11;
                         area.coor.y--;
-                        area.coor.x -= (iota)header.size().x / 2;
+                        area.coor.x -= (si32)header.size().x / 2;
                         //todo unify header coords
                         header.move(area.coor);
                         parent_canvas.fill(header, cell::shaders::fuse);
@@ -5818,6 +5878,14 @@ again:
                     }
                     parent_canvas.fill(area, cell::shaders::fuse(brush));
                 }
+
+                if (&parent_canvas == &cache.canvas && clip_rawtext.size())
+                {
+                    auto coor = input.coord + dot_21 * 2;
+                    clip_preview.move(coor);
+                    parent_canvas.plot(clip_preview, cell::shaders::fuse);
+                }
+
                 #ifdef REGIONS
                 parent_canvas.each([](cell& c){
                     auto mark = rgba{ rgba::color256[c.link() % 256] };
@@ -5829,29 +5897,60 @@ again:
                 #endif
             };
         }
+    };
 
+    class conf
+    {
     public:
-        // gate: Attach a new item.
-        template<class T>
-        auto attach(sptr<T> item)
+        text ip;
+        text port;
+        text fullname;
+        text region;
+        text name;
+        text os_user_id;
+        text title;
+        twod coor;
+        twod clip_preview_size;
+        si32 legacy_mode;
+        cell background_color;
+        si32 session_id;
+
+        conf(os::xipc peer, si32 session_id)
+            : session_id{ session_id }
         {
-            uibar = item;
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            auto _region = peer->line(';');
+            auto _ip     = peer->line(';');
+            auto _name   = peer->line(';');
+            auto _user   = peer->line(';');
+            auto _mode   = peer->line(';');
+
+            _user = "[" + _user + ":" + std::to_string(session_id) + "]";
+            auto c_info = utf::divide(_ip, " ");
+            ip   = c_info.size() > 0 ? c_info[0] : text{};
+            port = c_info.size() > 1 ? c_info[1] : text{};
+            legacy_mode       = utf::to_int(_mode, os::legacy::clean);
+            os_user_id        = _user;
+            clip_preview_size = twod{ 80,25 };
+            //background_color  = app::shared::background_color;
+            coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
+            region            = _region;
+            fullname          = _name;
+            #ifndef PROD
+            name              = "[User." + utf::remain(ip) + ":" + port + "]";
+            title             = _region;
+            #else
+            name              = _user;
+            title             = _user;
+            #endif
         }
-        // gate: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
+
+        friend auto& operator<< (std::ostream& s, conf const& c)
         {
-            return attach(base::create<T>(std::forward<Args>(args)...));
-        }
-        // gate: Attach background object.
-        template<class T>
-        auto ground(sptr<T> item)
-        {
-            background = item;
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
+                     << "\n\tregion: " << c.region
+                     << "\n\t  name: " << c.fullname
+                     << "\n\t  user: " << c.os_user_id
+                     << "\n\t  mode: " << os::legacy::str(c.legacy_mode);
         }
     };
 }

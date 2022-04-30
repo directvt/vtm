@@ -195,7 +195,7 @@ utility like ctags is used to locate the definitions.
                       boss.keybd.accept(true);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
-                          static iota i = 0; i++;
+                          static auto i = 0; i++;
                           auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");
                           boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                       };

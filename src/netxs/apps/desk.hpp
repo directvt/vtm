@@ -141,7 +141,7 @@ namespace netxs::app::desk
                                              SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                                              if (world_ptr)
                                              {
-                                                 static iota random = 0;
+                                                 static si32 random = 0;
                                                  random = (random + 2) % 10;
                                                  auto offset = twod{ random * 2, random };
                                                  auto viewport = gear.area();
@@ -211,23 +211,24 @@ namespace netxs::app::desk
 
         auto build = [](view v)
         {
-            iota uibar_min_size = 4;
-            iota uibar_full_size = 31;
+            auto lock = netxs::events::sync{}; // Protect access to the world.
+
+            si32 uibar_min_size = 4;
+            si32 uibar_full_size = 31;
 
             auto window = ui::cake::ctor();
 
             auto my_id = id_t{};
 
             auto user_info = utf::divide(v, ";");
-            if (user_info.size() < 3) return window;
+            if (user_info.size() < 2)
+            {
+                log("desk: bad window arguments: args=", utf::debase(v));
+                return window;
+            }
             auto& user_id___view = user_info[0];
             auto& user_name_view = user_info[1];
-            auto& user_path_view = user_info[2];
-
-            log("desk: user_id=", user_id___view, " user_name=", user_name_view, " user_path=", user_path_view);
-
-            auto user = text{ user_name_view };
-            auto path = text{ user_path_view };
+            log("desk: id: ", user_id___view, ", user name: ", user_name_view);
 
             if (auto value = utf::to_int(user_id___view)) my_id = value.value();
             else return window;
@@ -256,12 +257,12 @@ namespace netxs::app::desk
 
                 window->invoke([uibar_full_size, uibar_min_size](auto& boss) mutable
                     {
-                        #ifdef _WIN32
-                            auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["CommandPrompt"]);
-                            //auto current_default = app::shared::objs_lookup["PowerShell"];
-                        #else
+                        //#ifdef _WIN32
+                        //    auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["CommandPrompt"]);
+                        //    //auto current_default = app::shared::objs_lookup["PowerShell"];
+                        //#else
                             auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["Term"]);
-                        #endif
+                        //#endif
                         auto previous_default_sptr = std::make_shared<text>(*current_default_sptr);
                         auto subs_sptr = std::make_shared<subs>();
                         auto shadow = ptr::shadow(boss.This());
@@ -321,9 +322,9 @@ namespace netxs::app::desk
                                         ->plugin<pro::cache>()
                                         ->invoke([&](auto& boss)
                                         {
-                                            boss.mouse.template draggable<sysmouse::left>();
+                                            boss.mouse.template draggable<sysmouse::left>(true);
                                             auto boss_shadow = ptr::shadow(boss.This());
-                                            auto size_config = std::make_shared<std::pair<iota, iota>>(uibar_full_size, uibar_min_size);
+                                            auto size_config = std::make_shared<std::pair<si32, si32>>(uibar_full_size, uibar_min_size);
                                             boss.SUBMIT_BYVAL(tier::release, e2::form::drag::pull::_<sysmouse::left>, gear)
                                             {
                                                 if (auto boss_ptr = boss_shadow.lock())
@@ -461,12 +462,7 @@ namespace netxs::app::desk
                                                           {
                                                               boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                                               {
-                                                                  //todo unify, see system.h:1614
-                                                                  #if defined(__APPLE__) || defined(__FreeBSD__)
-                                                                  auto path2 = "/tmp/" + path + ".sock";
-                                                                  ::unlink(path2.c_str());
-                                                                  #endif
-                                                                  os::exit(0, "taskbar: shutdown by button");
+                                                                  SIGNAL_GLOBAL(e2::shutdown, "desk: server shutdown");
                                                               };
                                                           });
                                 auto shutdown_area = shutdown_park->attach(snap::tail, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));
