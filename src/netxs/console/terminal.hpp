@@ -2117,7 +2117,7 @@ namespace netxs::ui
                             while (init != stop && (init++)->txt() == (++dest)->txt())
                             { }
 
-                            if (init == stop) return head - data - 1;
+                            if (init == stop) return static_cast<si32>(head - data - 1);
                             else              dest = base;
                         }
                     }
