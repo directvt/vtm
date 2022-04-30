@@ -75,7 +75,7 @@ namespace netxs::console
         rect client;
 
     public:
-        using span = std::span<cell>;
+        using span = std::span<cell const>;
 
         core()                         = default;
         core(core&&)                   = default;
@@ -387,23 +387,23 @@ namespace netxs::console
             {
                 //todo revise (https://unicode.org/reports/tr29/#Word_Boundaries)
                 auto c = utf::letter(txt).attr.cdpoint;
-                return (c >= '0' && c <= '9' //30-39: '0'-'9'
+                return  c >= '0' && c <= '9' //30-39: '0'-'9'
                      || c >= '@' && c <= 'Z' //40-5A: '@','A'-'Z'
                      || c >= 'a' && c <= 'z' //5F,61-7A: '_','a'-'z'
                      || c == '_'             //60:    '`'
-                     || c == 0xA0    //A0  NO-BREAK SPACE (NBSP)
-                     || c >= 0xC0)   //C0-10FFFF: "À" - ...
-                     && (c < 0x2000 || c > 0x206F) // General Punctuation
-                     && (c < 0x2200 || c > 0x23FF) // Mathematical Operators
-                     && (c < 0x2500 || c > 0x25FF) // Box Drawing
-                     && (c < 0x2E00 || c > 0x2E7F) // Supplemental Punctuation
-                     && (c < 0x3000 || c > 0x303F) // CJK Symbols and Punctuation
-                     && c != 0x30FB                // U+30FB ( ・ ) KATAKANA MIDDLE DOT
-                     && (c < 0xFE50 || c > 0xFE6F) // FE50  FE6F Small Form Variants
-                     && (c < 0xFF00 || c > 0xFF0F) // Halfwidth and Fullwidth Forms
-                     && (c < 0xFF1A || c > 0xFF1F) // 
-                     && (c < 0xFF3B || c > 0xFF40) // 
-                     && (c < 0xFF5B || c > 0xFF65) // 
+                     || c == 0xA0            //A0  NO-BREAK SPACE (NBSP)
+                     || c >= 0xC0                // C0-10FFFF: "À" - ...
+                     && c < 0x2000 || c > 0x206F // General Punctuation
+                     && c < 0x2200 || c > 0x23FF // Mathematical Operators
+                     && c < 0x2500 || c > 0x25FF // Box Drawing
+                     && c < 0x2E00 || c > 0x2E7F // Supplemental Punctuation
+                     && c < 0x3000 || c > 0x303F // CJK Symbols and Punctuation
+                     && c != 0x30FB              // U+30FB ( ・ ) KATAKANA MIDDLE DOT
+                     && c < 0xFE50 || c > 0xFE6F // FE50  FE6F Small Form Variants
+                     && c < 0xFF00 || c > 0xFF0F // Halfwidth and Fullwidth Forms
+                     && c < 0xFF1A || c > 0xFF1F // 
+                     && c < 0xFF3B || c > 0xFF40 // 
+                     && c < 0xFF5B || c > 0xFF65 // 
             ;};
             auto is_email = [&](auto txt)
             {
@@ -417,7 +417,8 @@ namespace netxs::console
             {
                 auto c = utf::letter(txt).attr.cdpoint;
                 return c >= '0' && c <= '9'
-                    || c >= 0xFF10 && c <= 0xFF19; // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
+                    || c >= 0xFF10 && c <= 0xFF19 // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
+                    || c == '.';
             };
             auto digit = [&](auto txt)
             {
