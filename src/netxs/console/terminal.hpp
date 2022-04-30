@@ -111,6 +111,7 @@ namespace netxs::ui
         static constexpr auto def_cursor = commands::cursor::blinking_underline; // term: Default cursor style.
         static constexpr auto def_selclr = { bluelt,  whitelt }; // term: Default selection colors.
         static constexpr auto def_offclr = { blacklt, whitedk }; // term: Default inactive selection colors.
+        static constexpr auto def_dupclr = { rgba{ 0x5000FF00 }, rgba{ whitelt } }; // term: Default colors of selected text occurrences.
 
         // term: VT-buffer status.
         struct term_state
@@ -869,10 +870,14 @@ namespace netxs::ui
                 return !grant;
             }
             // bufferbase: Ping selection state.
-            template<bool FORCED = true>
-            void selection_update()
+            virtual void selection_update()
             {
-                if (FORCED || alive) ++alive;
+                ++alive;
+            }
+            // bufferbase: Ping selection state if is available.
+            void selection_review()
+            {
+                if (alive) ++alive;
             }
             // bufferbase: Return true if selection is active.
             auto selection_active() const
@@ -954,7 +959,7 @@ namespace netxs::ui
                 panel = std::max(new_sz, dot_11);
                 resize_tabstops(panel.x);
                 update_region();
-                selection_update<faux>();
+                selection_review();
             }
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(si32 top, si32 bottom)
@@ -2078,6 +2083,10 @@ namespace netxs::ui
                       index{ newid },
                       style{ style }
                 { }
+                line(shot const& s)
+                    : rich{ span{ s.data(), static_cast<size_t>(s.length()) },  // Apple Clang doesn't accept an iterator as an arg in the span ctor.
+                          { s.length(), s.size().y }}
+                { }
 
                 line& operator = (line&&)      = default;
                 line& operator = (line const&) = default;
@@ -2087,6 +2096,33 @@ namespace netxs::ui
                 si32 _size{};
                 type _kind{};
 
+                auto find(line const& what, si32 from) -> std::optional<si32>
+                {
+                    auto size = what.length();
+                    auto rest = length() - from;
+                    if (!size || size > rest) return std::nullopt;
+
+                    auto data =      core::data();
+                    auto base = what.core::data();
+                    auto dest = base;
+                    auto head = data + from;
+                    auto tail = head + rest + 1;
+                    auto test = dest->txt();
+                    while (head != tail)
+                    {
+                        if (test == (head++)->txt())
+                        {
+                            auto init = head;
+                            auto stop = head + size;
+                            while (init != stop && (init++)->txt() == (++dest)->txt())
+                            { }
+
+                            if (init == stop) return static_cast<si32>(head - data - 1);
+                            else              dest = base;
+                        }
+                    }
+                    return std::nullopt;
+                }
                 friend void swap(line& lhs, line& rhs)
                 {
                     std::swap<rich>(lhs, rhs);
@@ -2380,6 +2416,7 @@ namespace netxs::ui
             grip dnend; // scroll_buf: Selection second grip inside the bottom margin.
             part place; // scroll_buf: Selection last active region.
             si32 shore; // scroll_buf: Left and right scrollbuffer additional indents.
+            line match; // scroll_buf: Search pattern for highlighting.
 
             static constexpr si32 approx_threshold = 10000; //todo make it configurable
 
@@ -3786,6 +3823,62 @@ namespace netxs::ui
                 batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
                 index_rebuild();
             }
+            // scroll_buf: 
+            template<feed DIR>
+            auto xconv(si32 x, bias align, si32 remain)
+            {
+                // forward: screen -> offset
+                // reverse: offset -> screen
+                auto map = [](auto& a, auto b)
+                {
+                    DIR == feed::fwd ? a -= b
+                                     : a += b;
+                };
+                switch (align)
+                {
+                    case bias::none:
+                    case bias::left:   break;
+                    case bias::right:  map(x, panel.x     - remain    ); break;
+                    case bias::center: map(x, panel.x / 2 - remain / 2); break;                                
+                };
+                return x;
+            }
+            // scroll_buf: 
+            auto screen_to_offset(line& curln, twod coor)
+            {
+                auto length = curln.length();
+                auto adjust = curln.style.jet();
+                if (curln.wrapped() && length > panel.x)
+                {
+                    auto endpos = length - 1;
+                    auto height = endpos / panel.x;
+                    auto remain = endpos % panel.x + 1;
+                    coor.x = coor.y < height ? std::clamp(coor.x, 0, panel.x - 1)
+                                             : std::clamp(xconv<feed::fwd>(coor.x, adjust, remain), 0, remain - 1);
+                    coor.x+= coor.y * panel.x;
+                }
+                else
+                {
+                    coor.x = std::clamp(xconv<feed::fwd>(coor.x, adjust, length), 0, length - 1);
+                }
+                return coor.x;
+            }
+            // scroll_buf: 
+            auto offset_to_screen(line& curln, si32 offset)
+            {
+                auto size = curln.length();
+                auto last = size ? size - 1 : 0;
+                auto coor = twod{ std::clamp(offset, 0, last), 0 };
+                if (size > 1 && curln.wrapped())
+                {
+                    coor.y = coor.x / panel.x;
+                    coor.x = coor.x % panel.x;
+                    if (coor.y < last / panel.x) return coor;
+                    size = last % panel.x + 1;
+                }
+                coor.x = xconv<feed::rev>(coor.x, curln.style.jet(), size);
+                return coor;
+            }
             // scroll_buf: Render to the canvas.
             void output(face& target) override
             {
@@ -3796,6 +3889,7 @@ namespace netxs::ui
                 auto stop = view.coor.y + view.size.y;
                 auto head = batch.iter_by_id(batch.ancid);
                 auto tail = batch.end();
+                auto find = selection_active() && match.length() && owner.selmod == xsgr::textonly;
                 auto fill = [&](auto& area, auto chr)
                 {
                     if (auto r = view.clip(area))
@@ -3819,6 +3913,17 @@ namespace netxs::ui
                     //{
                     //    target.text(coord, subblock, isr_to_l, cell::shaders::fusefull);
                     //});
+                    if (find)
+                    {
+                        auto offset = si32{ 0 };
+                        while (auto crop = curln.find(match, offset))
+                        {
+                            offset = crop.value();
+                            auto c = coor + offset_to_screen(curln, offset);
+                            target.output(match, c, cell::shaders::selection(def_dupclr));
+                            offset += match.length();
+                        }
+                    }
 
                     if (length > 0) // Highlight the lines that are not shown in full.
                     {
@@ -4598,62 +4703,6 @@ namespace netxs::ui
                     }
                 }
             }
-            // scroll_buf: 
-            template<feed DIR>
-            auto xconv(si32 x, bias align, si32 remain)
-            {
-                // forward: screen -> offset
-                // reverse: offset -> screen
-                auto map = [](auto& a, auto b)
-                {
-                    DIR == feed::fwd ? a -= b
-                                     : a += b;
-                };
-                switch (align)
-                {
-                    case bias::none:
-                    case bias::left:   break;
-                    case bias::right:  map(x, panel.x     - remain    ); break;
-                    case bias::center: map(x, panel.x / 2 - remain / 2); break;                                
-                };
-                return x;
-            }
-            // scroll_buf: 
-            auto screen_to_offset(line& curln, twod coor)
-            {
-                auto length = curln.length();
-                auto adjust = curln.style.jet();
-                if (curln.wrapped() && length > panel.x)
-                {
-                    auto endpos = length - 1;
-                    auto height = endpos / panel.x;
-                    auto remain = endpos % panel.x + 1;
-                    coor.x = coor.y < height ? std::clamp(coor.x, 0, panel.x - 1)
-                                             : std::clamp(xconv<feed::fwd>(coor.x, adjust, remain), 0, remain - 1);
-                    coor.x+= coor.y * panel.x;
-                }
-                else
-                {
-                    coor.x = std::clamp(xconv<feed::fwd>(coor.x, adjust, length), 0, length - 1);
-                }
-                return coor.x;
-            }
-            // scroll_buf: 
-            auto offset_to_screen(line& curln, si32 offset)
-            {
-                auto size = curln.length();
-                auto last = size ? size - 1 : 0;
-                auto coor = twod{ std::clamp(offset, 0, last), 0 };
-                if (size > 1 && curln.wrapped())
-                {
-                    coor.y = coor.x / panel.x;
-                    coor.x = coor.x % panel.x;
-                    if (coor.y < last / panel.x) return coor;
-                    size = last % panel.x + 1;
-                }
-                coor.x = xconv<feed::rev>(coor.x, curln.style.jet(), size);
-                return coor;
-            }
             // scroll_buf: Select one word.
             void selection_byword(twod coor) override
             {
@@ -4805,6 +4854,35 @@ namespace netxs::ui
                 vpos += 1 + dncur.coor.y;
                 return std::pair{ vpos, summ };
             }
+            // scroll_buf: Calc selection offset in cells.
+            auto selection_offset(auto& curln, auto coor, auto close)
+            {
+                auto align = curln.style.jet();
+                auto wraps = curln.style.wrp();
+                auto width = curln.length();
+                if (wraps == wrap::on)
+                {
+                    coor.x = std::clamp(coor.x, -close, panel.x - close);
+                    if (align != bias::left && coor.y == width / panel.x)
+                    {
+                        if (auto remain = width % panel.x)
+                        {
+                            if (align == bias::right)    coor.x = std::max(0,      coor.x - panel.x     + remain);
+                            else      /* bias::center */ coor.x = std::max(-close, coor.x - panel.x / 2 + remain / 2);
+                        }
+                    }
+                }
+                else
+                {
+                    coor.y = 0;
+                    if (align != bias::left)
+                    {
+                        if (align == bias::right)    coor.x -= panel.x     - width;
+                        else      /* bias::center */ coor.x -= panel.x / 2 - width / 2;
+                    }
+                }
+                return coor.x + coor.y * panel.x + close;
+            }
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(ansi::esc& yield, si32 selmod)
             {
@@ -4849,54 +4927,26 @@ namespace netxs::ui
                     auto field = rect{ dot_00, dot_01 };
                     auto state = cell{};
                     auto style = deco{};
-                    auto coord = [&](auto& curln, auto coor, auto close)
-                    {
-                        auto align = curln.style.jet();
-                        auto wraps = curln.style.wrp();
-                        auto width = curln.length();
-                        if (wraps == wrap::on)
-                        {
-                            coor.x = std::clamp(coor.x, -close, panel.x - close);
-                            if (align != bias::left && coor.y == width / panel.x)
-                            {
-                                if (auto remain = width % panel.x)
-                                {
-                                    if (align == bias::right)    coor.x = std::max(0,      coor.x - panel.x     + remain);
-                                    else      /* bias::center */ coor.x = std::max(-close, coor.x - panel.x / 2 + remain / 2);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            coor.y = 0;
-                            if (align != bias::left)
-                            {
-                                if (align == bias::right)    coor.x -= panel.x     - width;
-                                else      /* bias::center */ coor.x -= panel.x / 2 - width / 2;
-                            }
-                        }
-                        return coor.x + coor.y * panel.x + close;
-                    };
                     auto build = [&](auto print)
                     {
                         if (i_top == i_end)
                         {
                             auto& headln = *head++;
-                            field.coor.x = coord(headln, upcur.coor, 0);
-                            field.size.x = coord(headln, dncur.coor, 1);
+                            field.coor.x = selection_offset(headln, upcur.coor, 0);
+                            field.size.x = selection_offset(headln, dncur.coor, 1);
                             field.size.x = field.size.x - field.coor.x;
                             print(headln);
                         }
                         else
                         {
                             auto& headln = *head++;
-                            field.coor.x = coord(headln, upcur.coor, 0);
+                            field.coor.x = selection_offset(headln, upcur.coor, 0);
                             field.size.x = dot_mx.x;
                             print(headln);
                             field.coor.x = 0;
                             while (head != tail) print(*head++);
                             auto& lastln = *head++;
-                            field.size.x = coord(lastln, dncur.coor, 1);
+                            field.size.x = selection_offset(lastln, dncur.coor, 1);
                             print(lastln);
                         }
                         if (yield.length()) yield.pop_back(); // Pop last eol.
@@ -5160,6 +5210,23 @@ namespace netxs::ui
                     batch.recalc(curln);
                 });
                 resize_viewport(panel, true); // Recalc batch.basis.
+            }
+            // scroll_buf: Update selection internals.
+            void selection_update() override
+            {
+                bufferbase::selection_update();
+                if (upmid.link == dnmid.link)
+                {
+                    auto& curln = batch.item_by_id(upmid.link);
+                    auto p1 = upmid.coor;
+                    auto p2 = dnmid.coor;
+                    if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+                    auto head = selection_offset(curln, p1, 0);
+                    auto tail = selection_offset(curln, p2, 1);
+                    auto shot = curln.substr(head, tail - head);
+                    match = line{ shot };
+                }
+                else match = {};
             }
         };
 

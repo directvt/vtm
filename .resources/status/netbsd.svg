@@ -18,8 +18,8 @@
     <text x="1000" y="140" transform="scale(.1)" text-anchor="end"
     >NetBSD amd64</text>
     <text x="1230" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" text-anchor="start"
-    >v0.7.2</text>
+    >v0.7.3</text>
     <text x="1230" y="140" transform="scale(.1)" text-anchor="start"
-    >v0.7.2</text>
+    >v0.7.3</text>
   </g>
 </svg>

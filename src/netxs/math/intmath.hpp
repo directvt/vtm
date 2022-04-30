@@ -409,6 +409,7 @@ namespace netxs
                         else             if (handle(*frame++)) return;
                     }
                 }
+                if constexpr (RtoL) frame += joint.size.x;
                 frame += notch;
                 online();
             }

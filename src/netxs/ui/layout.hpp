@@ -1251,6 +1251,12 @@ namespace netxs::ui::atoms
                     //if (b == colors.bg) dst.xlight();
                     if (b == colors.bg) dst.uv.bg.shadow();
                 }
+                template<class D, class S>
+                inline void operator() (D& dst, S& src) const
+                {
+                    dst.fuse(src);
+                    operator() (dst);
+                }
             };
 
         public:
