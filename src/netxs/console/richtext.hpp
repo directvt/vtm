@@ -506,8 +506,9 @@ namespace netxs::console
             auto rest =      canvas.size() - from;
             if (!size || size > rest) return faux;
 
+            size--;
             auto head = core::iter();
-            auto tail = core::iend() - (size - 1);
+            auto tail = core::iend() - size;
             auto iter = head + from;
             auto base = what.core::iter();
             auto dest = base;
@@ -518,8 +519,10 @@ namespace netxs::console
                 {
                     auto init = iter;
                     auto stop = iter + size;
-                    while (init != stop && init++->same_txt(*++dest))
-                    { }
+                    while (init != stop && init->same_txt(*++dest))
+                    {
+                        ++init;
+                    }
 
                     if (init == stop)
                     {
