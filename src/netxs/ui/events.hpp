@@ -42,8 +42,8 @@ namespace netxs::events
     {
         std::lock_guard<std::recursive_mutex> lock;
 
-        sync            (sync const&) = delete; // deleted copy constructor.
-        sync& operator= (sync const&) = delete; // deleted copy assignment operator.
+        sync             (sync const&) = delete; // deleted copy constructor.
+        sync& operator = (sync const&) = delete; // deleted copy assignment operator.
 
         sync() : lock(_globals<void>::mutex) { }
        ~sync() { }
@@ -56,10 +56,10 @@ namespace netxs::events
     {
         std::unique_lock<std::recursive_mutex> lock;
 
-        operator bool() { return lock.owns_lock(); }
+        operator bool () { return lock.owns_lock(); }
 
-        try_sync            (try_sync const&) = delete; // deleted copy constructor.
-        try_sync& operator= (try_sync const&) = delete; // deleted copy assignment operator.
+        try_sync             (try_sync const&) = delete; // deleted copy constructor.
+        try_sync& operator = (try_sync const&) = delete; // deleted copy assignment operator.
 
         try_sync() : lock(_globals<void>::mutex, std::try_to_lock) { }
        ~try_sync() { }
@@ -415,8 +415,16 @@ namespace netxs::events
             using type = typename EVENT::type;
             bell& owner;
             type& p;
-            submit_helper2(bell& owner, type& p) : owner{ owner }, p{p} { }
-            template<class F> void operator=(F h) { owner.submit<TIER, EVENT>(h); h(static_cast<type&&>(p));  }
+            submit_helper2(bell& owner, type& p)
+                : owner{ owner },
+                  p{p}
+            { }
+            template<class F>
+            void operator = (F h)
+            {
+                owner.submit<TIER, EVENT>(h);
+                h(static_cast<type&&>(p));
+            }
         };
         //todo deprecated?
         template<tier TIER, class EVENT>
@@ -431,29 +439,53 @@ namespace netxs::events
                   p{p},
                   token{ token }
             { }
-            template<class F> void operator=(F h) { owner.submit<TIER, EVENT>(token, h); h(static_cast<type&&>(p));  }
+            template<class F>
+            void operator = (F h)
+            {
+                owner.submit<TIER, EVENT>(token, h);
+                h(static_cast<type&&>(p));
+            }
         };
         template<tier TIER, class EVENT>
         struct submit_helper
         {
             bell& owner;
-            submit_helper(bell& owner) : owner{ owner } { }
-            template<class F> void operator=(F h) { owner.submit<TIER, EVENT>(h); }
+            submit_helper(bell& owner)
+                : owner{ owner }
+            { }
+            template<class F>
+            void operator = (F h)
+            {
+                owner.submit<TIER, EVENT>(h);
+            }
         };
         template<tier TIER, class EVENT>
         struct submit_helper_token
         {
             bell& owner;
             hook& token;
-            submit_helper_token(bell& owner, hook& token) : owner{ owner }, token{ token } { }
-            template<class F> void operator=(F h) { owner.submit<TIER, EVENT>(token, h); }
+            submit_helper_token(bell& owner, hook& token)
+                : owner{ owner },
+                  token{ token }
+            { }
+            template<class F>
+            void operator = (F h)
+            {
+                owner.submit<TIER, EVENT>(token, h);
+            }
         };
         template<class EVENT>
         struct submit_helper_token_global
         {
             hook& token;
-            submit_helper_token_global(hook& token) : token{ token } { }
-            template<class F> void operator=(F h) { token = _globals<void>::general.subscribe(EVENT::id, std::function<void(typename EVENT::type &&)>{ h }); }
+            submit_helper_token_global(hook& token)
+                : token{ token }
+            { }
+            template<class F>
+            void operator = (F h)
+            {
+                token = _globals<void>::general.subscribe(EVENT::id, std::function<void(typename EVENT::type &&)>{ h });
+            }
         };
 
     public:

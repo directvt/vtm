@@ -99,7 +99,7 @@ namespace netxs::datetime
               pulse { period::max()  }
         { }
 
-        operator bool()
+        operator bool ()
         {
             return alive;
         }

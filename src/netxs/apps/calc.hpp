@@ -47,7 +47,7 @@ namespace netxs::console
                     : inside{ faux },
                       seized{ faux }
                 { }
-                operator bool(){ return inside || seized || region.size; }
+                operator bool () { return inside || seized || region.size; }
                 auto grab(twod const& coord, bool resume)
                 {
                     if (inside)

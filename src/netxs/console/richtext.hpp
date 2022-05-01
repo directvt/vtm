@@ -44,7 +44,7 @@ namespace netxs::console
             }
         }
 
-        cell const& operator[](uint8_t k) const
+        cell const& operator [] (uint8_t k) const
         {
             return grade[k];
         }
@@ -116,7 +116,7 @@ namespace netxs::console
         auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates.
         auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell.
         auto& data(size_t offset)           { return*(data() + offset);  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
-        auto& operator[] (twod const& coord){ return*(data(coord));      } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
+        auto& operator [] (twod const& c)   { return*(data(c));          } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
         auto& mark()                        { return marker;             } // core: Return a reference to the default cell value.
         auto& mark() const                  { return marker;             } // core: Return a reference to the default cell value.
         auto& mark(cell const& c)           { marker = c; return marker; } // core: Set the default cell value.
@@ -1619,11 +1619,11 @@ namespace netxs::console
         auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
         auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
 
-        page ()                        = default;
-        page (page&&)                  = default;
-        page (page const&)             = default;
-        page& operator = (page const&) = default;
-        auto& operator+= (page const& p)
+        page ()                         = default;
+        page (page&&)                   = default;
+        page (page const&)              = default;
+        page& operator =  (page const&) = default;
+        auto& operator += (page const& p)
         {
             parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
             //batch.splice(std::next(layer), p.batch);
@@ -1637,7 +1637,7 @@ namespace netxs::console
             return *this;
         }
         // page: Acquire para by id.
-        auto& operator[] (si32 id)
+        auto& operator [] (si32 id)
         {
             if (netxs::on_key(parts, id))
             {

@@ -1281,7 +1281,7 @@ namespace netxs::console
                         :    id{ ctrl },
                           count{ 0    }
                     { }
-                    operator bool(){ return T::operator bool(); }
+                    operator bool () { return T::operator bool(); }
                 };
 
                 std::vector<sock> items; // sock: Registered hids.
@@ -1362,7 +1362,7 @@ namespace netxs::console
                     : inside{ faux },
                       seized{ faux }
                 { }
-                operator bool(){ return inside || seized; }
+                operator bool () { return inside || seized; }
                 auto corner(twod const& length)
                 {
                     return dtcoor.less(dot_11, length, dot_00);
@@ -1629,7 +1629,7 @@ namespace netxs::console
             {
                 twod cursor;        // sock: Coordinates of the active cursor.
                 bool inside = faux; // sock: Is active.
-                operator bool(){ return inside; }
+                operator bool () { return inside; }
                 auto calc(base const& master, twod curpos)
                 {
                     auto area = rect{ dot_00, master.base::size() };
@@ -2379,7 +2379,7 @@ namespace netxs::console
                 if (visible) show();
             }
 
-            operator bool() const { return memo.count(); }
+            operator bool () const { return memo.count(); }
 
             // pro::caret: Set caret style.
             void style(bool new_form)
@@ -5944,7 +5944,7 @@ again:
             #endif
         }
 
-        friend auto& operator<< (std::ostream& s, conf const& c)
+        friend auto& operator << (std::ostream& s, conf const& c)
         {
             return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
                      << "\n\tregion: " << c.region

@@ -127,7 +127,7 @@ namespace netxs
             return iter->second;
         }
         template<class K>
-        auto& operator[] (K&& key) { return at(std::forward<K>(key)); }
+        auto& operator [] (K&& key) { return at(std::forward<K>(key)); }
 
         imap()
         { }

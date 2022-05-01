@@ -2107,17 +2107,17 @@ namespace netxs::ui
                     auto dest = base;
                     auto head = data + from;
                     auto tail = head + rest + 1;
-                    auto test = dest->txt();
+                    auto test = *dest;
                     while (head != tail)
                     {
-                        if (test == (head++)->txt())
+                        if (test.same_txt(*head++))
                         {
                             auto init = head;
                             auto stop = head + size;
-                            while (init != stop && (init++)->txt() == (++dest)->txt())
+                            while (init != stop && init++->same_txt(*++dest))
                             { }
 
-                            if (init == stop) return static_cast<si32>(head - data - 1);
+                            if (init == stop) return static_cast<si32>(std::distance(data, head)) - 1;
                             else              dest = base;
                         }
                     }
@@ -2393,7 +2393,7 @@ namespace netxs::ui
                 }
             };
 
-            friend auto& operator<< (std::ostream& s, scroll_buf& c) // For debug.
+            friend auto& operator << (std::ostream& s, scroll_buf& c) // For debug.
             {
                 return s << "{ " << c.batch.max<line::type::leftside>() << ","
                                  << c.batch.max<line::type::rghtside>() << ","

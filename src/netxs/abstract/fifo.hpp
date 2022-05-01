@@ -79,7 +79,7 @@ namespace netxs::generics
         constexpr operator bool   ()    const             { return size;                }
         constexpr ITEM     front  (ITEM const& dflt = {}) { return size ? *item : dflt; }
         constexpr
-        ITEM operator() (ITEM const& dflt = {})
+        ITEM operator () (ITEM const& dflt = {})
         {
             if (size)
             {

@@ -148,7 +148,7 @@ namespace netxs
                 total{ twod{}        }
         { }
 
-        auto operator ()(type timer) const
+        auto operator () (type timer) const
         {
             std::optional<twod> delta;
 
@@ -204,7 +204,7 @@ namespace netxs
                 total{ twod{}        }
         { }
 
-        auto operator ()(type timer) const
+        auto operator () (type timer) const
         {
             std::optional<twod> delta;
 
@@ -249,7 +249,7 @@ namespace netxs
                 total{ twod{}}
         { }
 
-        auto operator ()(type timer) const
+        auto operator () (type timer) const
         {
             std::optional<twod> delta;
 

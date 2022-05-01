@@ -88,12 +88,12 @@ namespace netxs
 
             it(iterator<T> * source) : source(source) { next(); }
 
-            reference operator* () const { return *source->current; };
-            pointer   operator->() const { return  source->current; };
+            reference operator *  () const { return *source->current; };
+            pointer   operator -> () const { return  source->current; };
 
-            it&	operator++() { next(); return *this; }
-            friend bool operator==(it const& lhs, it const& rhs) { return lhs.source == rhs.source; }
-            friend bool operator!=(it const& lhs, it const& rhs) { return !(lhs == rhs); }
+            it&	operator ++ () { next(); return *this; }
+            friend bool operator == (it const& lhs, it const& rhs) { return lhs.source == rhs.source; }
+            friend bool operator != (it const& lhs, it const& rhs) { return !(lhs == rhs); }
         };
 
     public:
@@ -107,7 +107,7 @@ namespace netxs
             instance = this;
             x.instance = nullptr;
         }
-        iterator<T>& operator=(iterator<T>&& x)
+        iterator<T>& operator = (iterator<T>&& x)
         {
             current = std::move(x.current);
             return *(instance = this);
