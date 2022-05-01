@@ -112,6 +112,8 @@ namespace netxs::console
         auto& pick()                        { return canvas;             }
         auto  iter()                        { return canvas.begin();     }
         auto  iend()                        { return canvas.end();       }
+        auto  iter() const                  { return canvas.begin();     }
+        auto  iend() const                  { return canvas.end();       }
         auto  test(twod const& coord) const { return region.size.inside(coord); } // core: Check the coor inside the canvas.
         auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates.
         auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell.
@@ -186,12 +188,17 @@ namespace netxs::console
             marker.link(my);
         }
         template<class P>
-        void each(P proc) // core: Exec a proc for each cell.
+        auto each(P proc) // core: Exec a proc for each cell.
         {
+            using ret_t = std::invoke_result_t<P, cell&>;
+            static constexpr auto plain = std::is_same_v<void, ret_t>;
+
             for (auto& c : canvas)
             {
-                proc(c);
+                if constexpr (plain) proc(c);
+                else             if (proc(c)) return faux;
             }
+            if constexpr (!plain) return true;
         }
         template<class P>
         void each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
@@ -492,6 +499,61 @@ namespace netxs::console
         {
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);
+        }
+        auto find(core const& what, si32& from) const // core: Find the substring and place its offset in &from.
+        {
+            auto size = what.canvas.size();
+            auto rest =      canvas.size() - from;
+            if (!size || size > rest) return faux;
+
+            auto head = core::iter();
+            auto tail = core::iend() - (size - 1);
+            auto iter = head + from;
+            auto base = what.core::iter();
+            auto dest = base;
+            auto&test =*base;
+            while (iter != tail)
+            {
+                if (test.same_txt(*iter++))
+                {
+                    auto init = iter;
+                    auto stop = iter + size;
+                    while (init != stop && init++->same_txt(*++dest))
+                    { }
+
+                    if (init == stop)
+                    {
+                        from = static_cast<si32>(std::distance(head, iter)) - 1;
+                        return true;
+                    }
+                    else dest = base;
+                }
+            }
+            return faux;
+        }
+        auto toxy(si32 offset) const // core: Convert offset to coor.
+        {
+            auto length = canvas.size();
+            if (!length) return dot_00;
+            offset = std::clamp<si32>(offset, 0, length - 1);
+            return twod{ offset % region.size.x,
+                         offset / region.size.x };
+        }
+        auto line(si32 from, si32 upto) const // core: Get stripe.
+        {
+            if (from > upto) std::swap(from, upto);
+            auto maxs = canvas.size();
+            from = std::clamp<si32>(from, 0, maxs - 1);
+            upto = std::clamp<si32>(upto, 0, maxs);
+            auto size = upto - from;
+            return core{ span{ canvas.data() + from, static_cast<size_t>(size) }, { size, 1 }};
+        }
+        auto line(twod p1, twod p2) const // core: Get stripe.
+        {
+            if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+            auto from = p1.x + p1.y * region.size.x;
+            auto upto = p2.x + p2.y * region.size.x + 1;
+            return line(from, upto);
         }
         void operator += (core const& src) // core: Append specified canvas.
         {
@@ -959,6 +1021,10 @@ namespace netxs::console
     {
     public:
         using core::core;
+
+        rich(core&& s)
+            : core{ std::forward<core>(s) }
+        { }
 
         auto length() const                                     { return size().x;                         }
         auto shadow() const                                     { return shot{ *this };                    }

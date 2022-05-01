@@ -802,6 +802,89 @@ namespace netxs::ui
             }
 
             using tabs = std::vector<std::pair<si32, si32>>; // Pairs of forward and reverse tabstops index.
+
+            struct line
+                : public rich
+            {
+                using rich::rich;
+                using type = deco::type;
+                using id_t = ui32;
+
+                line(line&& l)
+                    : rich { std::forward<rich>(l) },
+                      index{ l.index }
+                {
+                    style = l.style;
+                    _size = l._size;
+                    _kind = l._kind;
+                    l._size = {};
+                    l._kind = {};
+                }
+                line(line const& l)
+                    : rich { l       },
+                      index{ l.index },
+                      style{ l.style }
+                { }
+                line(id_t newid, deco const& style = {})
+                    : index{ newid },
+                      style{ style }
+                { }
+                line(id_t newid, deco const& style, span const& dt, twod const& sz)
+                    : rich { dt,sz },
+                      index{ newid },
+                      style{ style }
+                { }
+                line(id_t newid, deco const& style, cell const& blank, si32 length)
+                    : rich { blank, length },
+                      index{ newid },
+                      style{ style }
+                { }
+                line(core&& s)
+                    : rich{ std::forward<core>(s) }
+                { }
+
+                line& operator = (line&&)      = default;
+                line& operator = (line const&) = default;
+
+                id_t index{};
+                deco style{};
+                si32 _size{};
+                type _kind{};
+
+                friend void swap(line& lhs, line& rhs)
+                {
+                    std::swap<rich>(lhs, rhs);
+                    std::swap(lhs.index, rhs.index);
+                    std::swap(lhs.style, rhs.style);
+                    std::swap(lhs._size, rhs._size);
+                    std::swap(lhs._kind, rhs._kind);
+                }
+                void wipe()
+                {
+                    rich::kill();
+                    _size = {};
+                    _kind = {};
+                }
+                auto wrapped() const
+                {
+                    assert(_kind == style.get_kind());
+                    return _kind == type::autowrap;
+                }
+                si32 height(si32 width) const
+                {
+                    auto len = length();
+                    assert(_kind == style.get_kind());
+                    return len > width
+                        && wrapped() ? (len + width - 1) / width
+                                     : 1;
+                }
+                auto to_txt() // For debug.
+                {
+                    utf::text utf8;
+                    each([&](cell& c){ utf8 += c.txt(); });
+                    return utf8;
+                }
+            };
             struct redo
             {
                 using mark = ansi::mark;
@@ -828,6 +911,7 @@ namespace netxs::ui
             bool  boxed; // bufferbase: Box selection mode.
             bool  grant; // bufferbase: Is it allowed to change box selection mode.
             ui64  alive; // bufferbase: Selection is active (digest).
+            line  match; // bufferbase: Search pattern for highlighting.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -870,8 +954,13 @@ namespace netxs::ui
                 return !grant;
             }
             // bufferbase: Ping selection state.
-            virtual void selection_update()
+            virtual void selection_update(bool despace = true)
             {
+                if (despace) // Exclude whitespce.
+                {
+                    auto empty = match.each([](auto& c) { return !c.isspc(); });
+                    if (empty) match = {};
+                }
                 ++alive;
             }
             // bufferbase: Ping selection state if is available.
@@ -1800,7 +1889,7 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                _el(n, canvas, coord, panel, brush.spc());
+                _el(n, canvas, coord, panel, brush.nul());
             }
             // alt_screen: CSI n @  ICH. Insert n blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(si32 n) override
@@ -1808,18 +1897,16 @@ namespace netxs::ui
                 bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
-                auto blank = brush.spc();
-                canvas.insert(coord, n, blank);
+                canvas.insert(coord, n, brush.nul());
             }
             // alt_screen: CSI n P  Delete (not Erase) letters under the cursor.
             void dch(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc();
-                canvas.cutoff(coord, n, blank);
+                canvas.cutoff(coord, n, brush.nul());
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-            void ech(si32 n, char c = whitespace) override
+            void ech(si32 n, char c = '\0') override
             {
                 parser::flush();
                 auto blank = brush;
@@ -1903,27 +1990,44 @@ namespace netxs::ui
             {
                 auto full = target.full();
                 auto view = target.view();
+                auto find = selection_active() && owner.selmod == xsgr::textonly;
                 canvas.move(full.coor);
                 target.plot(canvas, cell::shaders::fuse);
+                if (find)
+                {
+                    if (auto area = canvas.area())
+                    {
+                        target.full(area);
+                        auto offset = si32{};
+                        while (canvas.find(match, offset))
+                        {
+                            auto c = canvas.toxy(offset);
+                            target.output(match, c, cell::shaders::selection(def_dupclr));
+                            offset += match.length();
+                        }
+                        target.full(full);
+                    }
+                }
+
                 selection_render(target);
             }
             // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                canvas.del_below(coord, brush.spare);
+                canvas.del_below(coord, brush.spare.nul());
             }
             // alt_screen: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
                 auto coorx = coord.x;
                 if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
-                canvas.del_above(coord, brush.spare);
+                canvas.del_above(coord, brush.spare.nul());
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
             void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback = faux) override
             {
-                canvas.scroll(top, end + 1, n, brush.spare);
+                canvas.scroll(top, end + 1, n, brush.spare.nul());
             }
             // alt_screen: Horizontal tab.
             void tab(si32 n) override
@@ -2002,7 +2106,7 @@ namespace netxs::ui
                 selend.x = canvas.word<feed::fwd>(coor);
                 selection_locked(faux);
                 selection_selbox(faux);
-                selection_update();
+                selection_update(faux);
             }
             // alt_screen: Select one line.
             void selection_byline(twod coor) override
@@ -2012,7 +2116,7 @@ namespace netxs::ui
                 selend.x = panel.x - 1;
                 selection_locked(faux);
                 selection_selbox(faux);
-                selection_update();
+                selection_update(faux);
             }
             // alt_screen: Take selected data.
             text selection_pickup(si32 selmod) override
@@ -2041,122 +2145,18 @@ namespace netxs::ui
                 status.body = status.coor.y * panel.x + status.coor.x + 1;
                 status.coor+= dot_11;
             }
+            // alt_screen: Update selection internals.
+            void selection_update(bool despace = true) override
+            {
+                match = { canvas.core::line(seltop, selend) };
+                bufferbase::selection_update(despace);
+            }
         };
 
         // term: Scrollback buffer implementation.
         struct scroll_buf
             : public bufferbase
         {
-            struct line
-                : public rich
-            {
-                using rich::rich;
-                using type = deco::type;
-                using id_t = ui32;
-
-                line(line&& l)
-                    : rich { std::forward<rich>(l) },
-                      index{ l.index }
-                {
-                    style = l.style;
-                    _size = l._size;
-                    _kind = l._kind;
-                    l._size = {};
-                    l._kind = {};
-                }
-                line(line const& l)
-                    : rich { l       },
-                      index{ l.index },
-                      style{ l.style }
-                { }
-                line(id_t newid, deco const& style = {})
-                    : index{ newid },
-                      style{ style }
-                { }
-                line(id_t newid, deco const& style, span const& dt, twod const& sz)
-                    : rich { dt,sz },
-                      index{ newid },
-                      style{ style }
-                { }
-                line(id_t newid, deco const& style, cell const& blank, si32 length)
-                    : rich { blank, length },
-                      index{ newid },
-                      style{ style }
-                { }
-                line(shot const& s)
-                    : rich{ span{ s.data(), static_cast<size_t>(s.length()) },  // Apple Clang doesn't accept an iterator as an arg in the span ctor.
-                          { s.length(), s.size().y }}
-                { }
-
-                line& operator = (line&&)      = default;
-                line& operator = (line const&) = default;
-
-                id_t index{};
-                deco style{};
-                si32 _size{};
-                type _kind{};
-
-                auto find(line const& what, si32 from) -> std::optional<si32>
-                {
-                    auto size = what.length();
-                    auto rest = length() - from;
-                    if (!size || size > rest) return std::nullopt;
-
-                    auto data =      core::data();
-                    auto base = what.core::data();
-                    auto dest = base;
-                    auto head = data + from;
-                    auto tail = head + rest + 1;
-                    auto test = *dest;
-                    while (head != tail)
-                    {
-                        if (test.same_txt(*head++))
-                        {
-                            auto init = head;
-                            auto stop = head + size;
-                            while (init != stop && init++->same_txt(*++dest))
-                            { }
-
-                            if (init == stop) return static_cast<si32>(std::distance(data, head)) - 1;
-                            else              dest = base;
-                        }
-                    }
-                    return std::nullopt;
-                }
-                friend void swap(line& lhs, line& rhs)
-                {
-                    std::swap<rich>(lhs, rhs);
-                    std::swap(lhs.index, rhs.index);
-                    std::swap(lhs.style, rhs.style);
-                    std::swap(lhs._size, rhs._size);
-                    std::swap(lhs._kind, rhs._kind);
-                }
-                void wipe()
-                {
-                    rich::kill();
-                    _size = {};
-                    _kind = {};
-                }
-                auto wrapped() const
-                {
-                    assert(_kind == style.get_kind());
-                    return _kind == type::autowrap;
-                }
-                si32 height(si32 width) const
-                {
-                    auto len = length();
-                    assert(_kind == style.get_kind());
-                    return len > width
-                        && wrapped() ? (len + width - 1) / width
-                                     : 1;
-                }
-                auto to_txt() // For debug.
-                {
-                    utf::text utf8;
-                    each([&](cell& c){ utf8 += c.txt(); });
-                    return utf8;
-                }
-            };
             struct index_item
             {
                 using id_t = line::id_t;
@@ -2416,7 +2416,6 @@ namespace netxs::ui
             grip dnend; // scroll_buf: Selection second grip inside the bottom margin.
             part place; // scroll_buf: Selection last active region.
             si32 shore; // scroll_buf: Left and right scrollbuffer additional indents.
-            line match; // scroll_buf: Search pattern for highlighting.
 
             static constexpr si32 approx_threshold = 10000; //todo make it configurable
 
@@ -2878,8 +2877,7 @@ namespace netxs::ui
                 auto& curln = batch.current();
                 if (curln.wrapped() && batch.caret > curln.length()) // Dangling cursor.
                 {
-                    auto blank = brush.spc();
-                    curln.crop(batch.caret, blank);
+                    curln.crop(batch.caret, brush.nul());
                     batch.recalc(curln);
                 }
 
@@ -3388,9 +3386,8 @@ namespace netxs::ui
 
                 if (batch.caret > width) // Dangling cursor.
                 {
-                    auto blank = brush.spc();
-                         width = batch.caret;
-                    curln.crop(width, blank);
+                    width = batch.caret;
+                    curln.crop(width, brush.nul());
                 }
 
                 batch.recalc(curln);
@@ -3488,7 +3485,7 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc();
+                auto blank = brush.nul();
                 if (auto ctx = get_context(coord))
                 {
                     si32  start;
@@ -3539,7 +3536,7 @@ namespace netxs::ui
             void ins(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc();
+                auto blank = brush.nul();
                 if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);
@@ -3558,7 +3555,7 @@ namespace netxs::ui
             void dch(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc();
+                auto blank = brush.nul();
                 if (auto ctx = get_context(coord))
                 {
                     auto& curln = batch.current();
@@ -3916,9 +3913,8 @@ namespace netxs::ui
                     if (find)
                     {
                         auto offset = si32{ 0 };
-                        while (auto crop = curln.find(match, offset))
+                        while (curln.find(match, offset))
                         {
-                            offset = crop.value();
                             auto c = coor + offset_to_screen(curln, offset);
                             target.output(match, c, cell::shaders::selection(def_dupclr));
                             offset += match.length();
@@ -3974,6 +3970,26 @@ namespace netxs::ui
                 dnbox.move(end_coor);
                 target.plot(upbox, cell::shaders::xlucent(def_lucent));
                 target.plot(dnbox, cell::shaders::xlucent(def_lucent));
+                if (find && panel.y != arena)
+                {
+                    auto draw = [&](auto const& block)
+                    {
+                        if (auto area = block.area())
+                        {
+                            target.full(area);
+                            auto offset = si32{};
+                            while (block.find(match, offset))
+                            {
+                                auto c = block.toxy(offset);
+                                target.output(match, c, cell::shaders::selection(def_dupclr));
+                                offset += match.length();
+                            }
+                        }
+                    };
+                    draw(upbox);
+                    draw(dnbox);
+                    target.full(full);
+                }
 
                 selection_render(target);
             }
@@ -3982,7 +3998,7 @@ namespace netxs::ui
             {
                 assert(test_futures());
 
-                auto blank = brush.spc();
+                auto blank = brush.nul();
                 auto clear = [&](twod const& coor)
                 {
                     auto& from = index[coor.y];
@@ -4055,7 +4071,7 @@ namespace netxs::ui
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
-                auto blank = brush.spc();
+                auto blank = brush.nul();
                 auto clear = [&](twod const& from)
                 {
                     auto head = index.begin();
@@ -4747,7 +4763,7 @@ namespace netxs::ui
                 }
                 selection_locked(faux);
                 selection_selbox(faux);
-                selection_update();
+                selection_update(faux);
             }
             // scroll_buf: Select one line.
             void selection_byline(twod coor) override
@@ -4792,7 +4808,7 @@ namespace netxs::ui
                 }
                 selection_locked(faux);
                 selection_selbox(faux);
-                selection_update();
+                selection_update(faux);
             }
             // scroll_buf: Return the indexes and a grips copy.
             auto selection_get_it() const
@@ -5212,10 +5228,11 @@ namespace netxs::ui
                 resize_viewport(panel, true); // Recalc batch.basis.
             }
             // scroll_buf: Update selection internals.
-            void selection_update() override
+            void selection_update(bool despace = true) override
             {
-                bufferbase::selection_update();
-                if (upmid.link == dnmid.link)
+                if (upmid.role == grip::base
+                 && dnmid.role == grip::base
+                 && upmid.link == dnmid.link)
                 {
                     auto& curln = batch.item_by_id(upmid.link);
                     auto p1 = upmid.coor;
@@ -5223,10 +5240,21 @@ namespace netxs::ui
                     if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
                     auto head = selection_offset(curln, p1, 0);
                     auto tail = selection_offset(curln, p2, 1);
-                    auto shot = curln.substr(head, tail - head);
-                    match = line{ shot };
+                    match = { curln.core::line(head, tail) };
+                }
+                else if (uptop.role == grip::base
+                      && dntop.role == grip::base)
+                {
+                    match = { upbox.core::line(uptop.coor, dntop.coor) };
+                }
+                else if (upend.role == grip::base
+                      && dnend.role == grip::base)
+                {
+                    match = { dnbox.core::line(upend.coor, dnend.coor) };
                 }
                 else match = {};
+
+                bufferbase::selection_update(despace);
             }
         };
 

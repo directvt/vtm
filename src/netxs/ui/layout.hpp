@@ -646,6 +646,10 @@ namespace netxs::ui::atoms
                     return view{ glyph + 1, state.count };
                 }
             }
+            auto is_space() const
+            {
+                return static_cast<byte>(glyph[1]) <= whitespace;
+            }
             void rst()
             {
                 set(whitespace);
@@ -1007,8 +1011,8 @@ namespace netxs::ui::atoms
                 st.get<VGAMODE, USESGR>(base.st, dest);
             }
 
-            if (wdt()) dest += gc.get();
-            else       dest += whitespace;
+            if (wdt() && !gc.is_space()) dest += gc.get();
+            else                         dest += whitespace;
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
@@ -1133,6 +1137,7 @@ namespace netxs::ui::atoms
         auto  blk () const { return st.blk();      } // cell: Return Blink attribute.
         auto link () const { return id;            } // cell: Return link object ID.
         auto iswide()const { return wdt() > 1;     } // cell: Return true if char is wide.
+        auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
         auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
         {
             if (gc == c.gc)
@@ -1155,6 +1160,11 @@ namespace netxs::ui::atoms
         cell spc() const
         {
             return cell{ *this }.txt(whitespace);
+        }
+        // cell: Return empty cell.
+        cell nul() const
+        {
+            return cell{ *this }.txt('\0');
         }
 
         class shaders

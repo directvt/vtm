@@ -80,7 +80,7 @@ namespace netxs::generics
         auto&          at (si32 i) { assert(i >= 0 && i < size); return buff[mod(head + i)]; }
         auto& operator [] (si32 i) { return at(i);               }
         auto  index() const        { return dst(head, cart);     }
-        void  index(si32 i)        { assert(i >= 0 && i < size); cart = mod(head + i); }
+        void  index(si32 i)        { assert(i >= 0 && i <= size); cart = mod(head + i); }
         void  prev()               { dec(cart); test();          }
         void  next()               { inc(cart); test();          }
 
