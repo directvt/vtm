@@ -154,20 +154,22 @@ int main(int argc, char* argv[])
                                user, ";",
                                mode, ";"));
         auto gate = os::tty::proxy(link);
-        gate.ignite();
-        gate.output(ansi::esc{}.save_title()
-                               .altbuf(true)
-                               .vmouse(true)
-                               .cursor(faux)
-                               .bpmode(true)
-                               .setutf(true));
-        gate.splice(mode);
-        gate.output(ansi::esc{}.scrn_reset()
-                               .vmouse(faux)
-                               .cursor(true)
-                               .altbuf(faux)
-                               .bpmode(faux)
-                               .load_title());
+        if (gate.ignite())
+        {
+            gate.output(ansi::esc{}.save_title()
+                                   .altbuf(true)
+                                   .vmouse(true)
+                                   .cursor(faux)
+                                   .bpmode(true)
+                                   .setutf(true));
+            gate.splice(mode);
+            gate.output(ansi::esc{}.scrn_reset()
+                                   .vmouse(faux)
+                                   .cursor(true)
+                                   .altbuf(faux)
+                                   .bpmode(faux)
+                                   .load_title());
+        }
 
         std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
     }

@@ -4498,9 +4498,9 @@ namespace netxs::console
 
             if (alive)
             {
-                log("link: signaling to close read channel ", canal);
+                log("link: signaling to close the read channel ", canal);
                 owner.SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
-                log("link: signaling to close read channel complete ", canal);
+                log("link: read channel close signaling completed ", canal);
             }
             log("link: id: ", std::this_thread::get_id(), " reading thread ended");
         }
