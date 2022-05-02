@@ -17,6 +17,7 @@ namespace netxs::events::userland
             EVENT_XS( colors, cell ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( data  , si32 ),
+            GROUP_XS( search, bool ),
 
             SUBSET_XS( layout )
             {
@@ -27,6 +28,11 @@ namespace netxs::events::userland
             {
                 EVENT_XS( in , view ),
                 EVENT_XS( out, view ),
+            };
+            SUBSET_XS( search )
+            {
+                EVENT_XS( forward, bool ),
+                EVENT_XS( reverse, bool ),
             };
         };
     };
@@ -186,6 +192,34 @@ namespace netxs::app::term
                     }
                 };
             }},
+            std::pair<text, std::function<void(ui::pads&)>>{ "<",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::look_rev);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::search::reverse, mode)
+                {
+                    //todo unify, get boss base colors, don't use x3
+                    boss.color(mode ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                };
+            }},
+            std::pair<text, std::function<void(ui::pads&)>>{ ">",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::look_fwd);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::search::forward, mode)
+                {
+                    //todo unify, get boss base colors, don't use x3
+                    boss.color(mode ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                };
+            }},
         };
         return app::shared::custom_menu(full_size, items);
     };
@@ -245,10 +279,12 @@ namespace netxs::app::term
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
                                                                                 : text{ v }));
 
-                            inst->attach_property(ui::term::events::colors,         app::term::events::colors)
-                                ->attach_property(ui::term::events::selmod,         app::term::events::selmod)
-                                ->attach_property(ui::term::events::layout::wrapln, app::term::events::layout::wrapln)
-                                ->attach_property(ui::term::events::layout::align,  app::term::events::layout::align)
+                            inst->attach_property(ui::term::events::colors,          app::term::events::colors)
+                                ->attach_property(ui::term::events::selmod,          app::term::events::selmod)
+                                ->attach_property(ui::term::events::layout::wrapln,  app::term::events::layout::wrapln)
+                                ->attach_property(ui::term::events::layout::align,   app::term::events::layout::align)
+                                ->attach_property(ui::term::events::search::forward, app::term::events::search::forward)
+                                ->attach_property(ui::term::events::search::reverse, app::term::events::search::reverse)
                                 ->invoke([](auto& boss)
                                 {
                                     boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)

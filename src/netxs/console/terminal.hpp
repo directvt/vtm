@@ -15,11 +15,17 @@ namespace netxs::events::userland
             EVENT_XS( colors, cell ),
             EVENT_XS( selmod, si32 ),
             GROUP_XS( layout, si32 ),
+            GROUP_XS( search, bool ),
 
             SUBSET_XS( layout )
             {
                 EVENT_XS( align , bias ),
                 EVENT_XS( wrapln, wrap ),
+            };
+            SUBSET_XS( search )
+            {
+                EVENT_XS( forward, bool ),
+                EVENT_XS( reverse, bool ),
             };
         };
     };
@@ -80,6 +86,8 @@ namespace netxs::ui
                     togglesel,
                     reset,
                     clear,
+                    look_fwd,
+                    look_rev,
                 };
             };
             struct cursor // See pro::caret.
@@ -933,6 +941,7 @@ namespace netxs::ui
                 parser::style = ansi::def_style;
             }
 
+            virtual void selection_search(bool direction)           = 0;
             virtual void selection_create(twod coor, bool mode)     = 0;
             virtual bool selection_extend(twod coor, bool mode)     = 0;
             virtual void selection_follow(twod coor, bool lock)     = 0;
@@ -2156,6 +2165,11 @@ namespace netxs::ui
                  && seltop.y != selend.y)  match = {};
                 else                       match = { canvas.core::line(seltop, selend) };
                 bufferbase::selection_update(despace);
+            }
+            // alt_screen: Prev/Next selection occurance.
+            void selection_search(bool direction) override
+            {
+                log(" search: ", direction ? "fwd" : "rev");
             }
         };
 
@@ -5267,6 +5281,11 @@ namespace netxs::ui
 
                 bufferbase::selection_update(despace);
             }
+            // scroll_buf: Prev/Next selection occurance.
+            void selection_search(bool direction) override
+            {
+                log(" search: ", direction ? "fwd" : "rev");
+            }
         };
 
         using buffer_ptr = bufferbase*;
@@ -5833,6 +5852,8 @@ namespace netxs::ui
                     case commands::ui::togglesel: selection_selmod(); break;
                     case commands::ui::reset:     decstr(); break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
+                    case commands::ui::look_fwd:  console.selection_search(true); break;
+                    case commands::ui::look_rev:  console.selection_search(faux); break;
                     default: break;
                 }
             }
@@ -5847,6 +5868,8 @@ namespace netxs::ui
                     case commands::ui::togglesel: selection_selmod(); return; // Without resetting the viewport.
                     case commands::ui::reset:     decstr(); break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
+                    case commands::ui::look_fwd:  console.selection_search(true); break;
+                    case commands::ui::look_rev:  console.selection_search(faux); break;
                     default: break;
                 }
                 follow[axis::Y] = true; // Reset viewport.
