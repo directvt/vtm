@@ -960,6 +960,11 @@ namespace netxs::ui::atoms
             st = c.st;
             if (c.wdt()) gc = c.gc;
         }
+        // cell: Merge the two cells if text part != '\0'.
+        inline void lite(cell const& c)
+        {
+            if (c.gc.glyph[1] != 0) fuse(c);
+        }
         // cell: Mix colors using alpha.
         void mix(cell const& c, byte alpha)
         {
@@ -1208,6 +1213,11 @@ namespace netxs::ui::atoms
                     else                    dst.fusefull(src);
                 }
             };
+            struct lite_t : public brush_t<lite_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.lite(src); }
+            };
             struct flat_t : public brush_t<flat_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -1292,6 +1302,7 @@ namespace netxs::ui::atoms
             static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
+            static constexpr auto     lite =     lite_t{};
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};

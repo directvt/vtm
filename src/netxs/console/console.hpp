@@ -181,8 +181,9 @@ namespace netxs::events::userland
 
                 SUBSET_XS( clipboard )
                 {
-                    EVENT_XS( set, const view ), // Set data to clipboard.
-                    EVENT_XS( get,       view ), // Get data from clipboard.
+                    EVENT_XS( set   , const view ), // Set data to clipboard.
+                    EVENT_XS( get   ,       view ), // Get data from clipboard.
+                    EVENT_XS( layout,       twod ), // Clipboard preview size.
                 };
             };
             SUBSET_XS( form )
@@ -5621,14 +5622,25 @@ again:
                 {
                     clip_rawtext = clipbrd_data;
                     page block{ clipbrd_data };
+                    clip_preview.mark(cell{});
                     clip_preview.wipe();
-                    //todo revise
-                    //clip_preview.set_style(clip_preview.get_style().wrp(faux));
                     clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
                 };
                 SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
                 {
                     clipbrd_data = clip_rawtext;
+                };
+                SUBMIT_T(tier::release, e2::command::clipboard::layout, token, clipbrd_size)
+                {
+                    clip_preview.size(clipbrd_size);
+                    clip_preview.mark(cell{});
+                    clip_preview.wipe();
+                    page block{ clip_rawtext };
+                    clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                };
+                SUBMIT_T(tier::request, e2::command::clipboard::layout, token, clipbrd_size)
+                {
+                    clipbrd_size = clip_preview.size();
                 };
 
                 world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
@@ -5883,7 +5895,7 @@ again:
                 {
                     auto coor = input.coord + dot_21 * 2;
                     clip_preview.move(coor);
-                    parent_canvas.plot(clip_preview, cell::shaders::fuse);
+                    parent_canvas.plot(clip_preview, cell::shaders::lite);
                 }
 
                 #ifdef REGIONS

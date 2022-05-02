@@ -536,18 +536,20 @@ namespace netxs::console
         }
         auto toxy(si32 offset) const // core: Convert offset to coor.
         {
-            auto length = canvas.size();
-            if (!length) return dot_00;
-            offset = std::clamp<si32>(offset, 0, length - 1);
+            assert(canvas.size() <= std::numeric_limits<si32>::max());
+            auto maxs = static_cast<si32>(canvas.size());
+            if (!maxs) return dot_00;
+            offset = std::clamp(offset, 0, maxs - 1);
             return twod{ offset % region.size.x,
                          offset / region.size.x };
         }
         auto line(si32 from, si32 upto) const // core: Get stripe.
         {
             if (from > upto) std::swap(from, upto);
-            auto maxs = canvas.size();
-            from = std::clamp<si32>(from, 0, maxs - 1);
-            upto = std::clamp<si32>(upto, 0, maxs);
+            assert(canvas.size() <= std::numeric_limits<si32>::max());
+            auto maxs = static_cast<si32>(canvas.size());
+            from = std::clamp(from, 0, maxs - 1);
+            upto = std::clamp(upto, 0, maxs);
             auto size = upto - from;
             return core{ span{ canvas.data() + from, static_cast<size_t>(size) }, { size, 1 }};
         }

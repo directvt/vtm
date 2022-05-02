@@ -1584,7 +1584,7 @@ namespace netxs::ui
                 log("bufferbase: SHL(n=", n, ") is not implemented.");
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-    virtual void ech(si32 n, char c = whitespace) = 0;
+    virtual void ech(si32 n, char c = '\0') = 0;
             // bufferbase: CSI n P  Delete (not Erase) letters under the cursor.
     virtual void dch(si32 n) = 0;
             // bufferbase: '\x7F'  Delete characters backwards.
@@ -1990,7 +1990,9 @@ namespace netxs::ui
             {
                 auto full = target.full();
                 auto view = target.view();
-                auto find = selection_active() && owner.selmod == xsgr::textonly;
+                auto find = selection_active() 
+                         && match.length()
+                         && owner.selmod == xsgr::textonly;
                 canvas.move(full.coor);
                 target.plot(canvas, cell::shaders::fuse);
                 if (find)
@@ -2027,6 +2029,8 @@ namespace netxs::ui
             // alt_screen: Shift by n the scroll region.
             void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback = faux) override
             {
+                seltop.y += n;
+                selend.y += n;
                 canvas.scroll(top, end + 1, n, brush.spare.nul());
             }
             // alt_screen: Horizontal tab.
@@ -2148,7 +2152,9 @@ namespace netxs::ui
             // alt_screen: Update selection internals.
             void selection_update(bool despace = true) override
             {
-                match = { canvas.core::line(seltop, selend) };
+                if (selection_selbox()
+                 && seltop.y != selend.y)  match = {};
+                else                       match = { canvas.core::line(seltop, selend) };
                 bufferbase::selection_update(despace);
             }
         };
@@ -3057,10 +3063,11 @@ namespace netxs::ui
             // scroll_buf: Recalc left and right oversize.
             bool recalc_pads(side& oversz) override
             {
-                auto rght = std::max(0, batch.max<line::type::leftside>() - panel.x);
-                auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
-                auto cntr = std::max(0, batch.max<line::type::centered>() - panel.x);
-                auto bttm = std::max(0, batch.vsize - batch.basis - arena          );
+                auto coor = get_coord();
+                auto rght = std::max({0, batch.max<line::type::leftside>() - panel.x, coor.x - panel.x + 1 }); // Take into account the cursor position.
+                auto left = std::max( 0, batch.max<line::type::rghtside>() - panel.x);
+                auto cntr = std::max( 0, batch.max<line::type::centered>() - panel.x);
+                auto bttm = std::max( 0, batch.vsize - batch.basis - arena          );
                 auto both = cntr >> 1;
                 left = shore + std::max(left, both + (cntr & 1));
                 rght = shore + std::max(rght, both);
@@ -3565,7 +3572,7 @@ namespace netxs::ui
                 else ctx.block.cutoff(coord, n, blank);
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-            void ech(si32 n, char c = whitespace) override
+            void ech(si32 n, char c = '\0') override
             {
                 parser::flush();
                 auto blank = brush;
@@ -5232,7 +5239,9 @@ namespace netxs::ui
             {
                 if (upmid.role == grip::base
                  && dnmid.role == grip::base
-                 && upmid.link == dnmid.link)
+                 && upmid.link == dnmid.link
+                 && (!selection_selbox() || (upmid.link   == dnmid.link
+                                          && upmid.coor.y == dnmid.coor.y)))
                 {
                     auto& curln = batch.item_by_id(upmid.link);
                     auto p1 = upmid.coor;
@@ -5243,12 +5252,14 @@ namespace netxs::ui
                     match = { curln.core::line(head, tail) };
                 }
                 else if (uptop.role == grip::base
-                      && dntop.role == grip::base)
+                      && dntop.role == grip::base
+                      && (!selection_selbox() || uptop.coor.y == dntop.coor.y))
                 {
                     match = { upbox.core::line(uptop.coor, dntop.coor) };
                 }
                 else if (upend.role == grip::base
-                      && dnend.role == grip::base)
+                      && dnend.role == grip::base
+                      && (!selection_selbox() || upend.coor.y == dnend.coor.y))
                 {
                     match = { dnbox.core::line(upend.coor, dnend.coor) };
                 }
@@ -5579,7 +5590,7 @@ namespace netxs::ui
             console.setpad(def_margin);
             selection_selmod(def_selmod);
             auto brush = base::color();
-            brush = cell{ whitespace }.fgc(def_fcolor).bgc(def_bcolor).link(brush.link());
+            brush = cell{ '\0' }.fgc(def_fcolor).bgc(def_bcolor).link(brush.link());
             base::color(brush);
             cursor.style(def_cursor);
         }
@@ -5603,7 +5614,7 @@ namespace netxs::ui
                 queue.settop(queue.desub(param));
                 parser.table[ansi::CSI_SGR].execute(queue, ptr);
             }
-            else mark.brush = cell{ whitespace }.fgc(def_fcolor).bgc(def_bcolor); //todo unify (config with defaults)
+            else mark.brush = cell{ '\0' }.fgc(def_fcolor).bgc(def_bcolor); //todo unify (config with defaults)
             set_color(mark.brush);
         }
         // term: Is the selection allowed.
@@ -5668,6 +5679,7 @@ namespace netxs::ui
                         gear.combine_focus = true;
                         gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
                         gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                        gate_ptr->SIGNAL(tier::release, e2::command::clipboard::layout, target->panel);
                         gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, data);
                         gear.state(state);
                     }
@@ -5690,6 +5702,7 @@ namespace netxs::ui
                     gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
                     if (data.size())
                     {
+                        follow[axis::X] = true;
                         data_out(data);
                         gear.dismiss();
                     }
@@ -5899,7 +5912,7 @@ namespace netxs::ui
             cursor.style(def_cursor); //todo make it via props like selmod
             cursor.show(); //todo revise (possible bug)
             form::keybd.accept(true); // Subscribe on keybd offers.
-            set_color(cell{ whitespace }.fgc(def_fcolor).bgc(def_bcolor).link(this->id)); //todo unify (config with defaults)
+            set_color(cell{ '\0' }.fgc(def_fcolor).bgc(def_bcolor).link(this->id)); //todo unify (config with defaults)
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
             publish_property(ui::term::events::colors,         [&](auto& v){ v = target->brush; });
