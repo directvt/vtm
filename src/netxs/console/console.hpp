@@ -181,8 +181,9 @@ namespace netxs::events::userland
 
                 SUBSET_XS( clipboard )
                 {
-                    EVENT_XS( set, const view ), // Set data to clipboard.
-                    EVENT_XS( get,       view ), // Get data from clipboard.
+                    EVENT_XS( set   , const view ), // Set data to clipboard.
+                    EVENT_XS( get   ,       view ), // Get data from clipboard.
+                    EVENT_XS( layout,       twod ), // Clipboard preview size.
                 };
             };
             SUBSET_XS( form )
@@ -1281,7 +1282,7 @@ namespace netxs::console
                         :    id{ ctrl },
                           count{ 0    }
                     { }
-                    operator bool(){ return T::operator bool(); }
+                    operator bool () { return T::operator bool(); }
                 };
 
                 std::vector<sock> items; // sock: Registered hids.
@@ -1362,7 +1363,7 @@ namespace netxs::console
                     : inside{ faux },
                       seized{ faux }
                 { }
-                operator bool(){ return inside || seized; }
+                operator bool () { return inside || seized; }
                 auto corner(twod const& length)
                 {
                     return dtcoor.less(dot_11, length, dot_00);
@@ -1629,7 +1630,7 @@ namespace netxs::console
             {
                 twod cursor;        // sock: Coordinates of the active cursor.
                 bool inside = faux; // sock: Is active.
-                operator bool(){ return inside; }
+                operator bool () { return inside; }
                 auto calc(base const& master, twod curpos)
                 {
                     auto area = rect{ dot_00, master.base::size() };
@@ -2379,7 +2380,7 @@ namespace netxs::console
                 if (visible) show();
             }
 
-            operator bool() const { return memo.count(); }
+            operator bool () const { return memo.count(); }
 
             // pro::caret: Set caret style.
             void style(bool new_form)
@@ -5621,14 +5622,25 @@ again:
                 {
                     clip_rawtext = clipbrd_data;
                     page block{ clipbrd_data };
+                    clip_preview.mark(cell{});
                     clip_preview.wipe();
-                    //todo revise
-                    //clip_preview.set_style(clip_preview.get_style().wrp(faux));
                     clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
                 };
                 SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
                 {
                     clipbrd_data = clip_rawtext;
+                };
+                SUBMIT_T(tier::release, e2::command::clipboard::layout, token, clipbrd_size)
+                {
+                    clip_preview.size(clipbrd_size);
+                    clip_preview.mark(cell{});
+                    clip_preview.wipe();
+                    page block{ clip_rawtext };
+                    clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                };
+                SUBMIT_T(tier::request, e2::command::clipboard::layout, token, clipbrd_size)
+                {
+                    clipbrd_size = clip_preview.size();
                 };
 
                 world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
@@ -5883,7 +5895,7 @@ again:
                 {
                     auto coor = input.coord + dot_21 * 2;
                     clip_preview.move(coor);
-                    parent_canvas.plot(clip_preview, cell::shaders::fuse);
+                    parent_canvas.plot(clip_preview, cell::shaders::lite);
                 }
 
                 #ifdef REGIONS
@@ -5944,7 +5956,7 @@ again:
             #endif
         }
 
-        friend auto& operator<< (std::ostream& s, conf const& c)
+        friend auto& operator << (std::ostream& s, conf const& c)
         {
             return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
                      << "\n\tregion: " << c.region

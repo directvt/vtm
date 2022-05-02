@@ -264,7 +264,7 @@ namespace netxs::input
 
         ui32 ctlstate = 0;
 
-        bool operator !=(sysmouse const& m) const
+        bool operator != (sysmouse const& m) const
         {
             bool result;
             if ((result = coor == m.coor))
@@ -780,7 +780,7 @@ namespace netxs::input
         }
 
         // hids: Whether event processing is complete.
-        operator bool() const
+        operator bool () const
         {
             return alive;
         }

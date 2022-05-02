@@ -64,25 +64,25 @@ namespace netxs::generics
         virtual void undock_base_front(type&) { };
         virtual void undock_base_back (type&) { };
 
-        auto  current_it()        { return iter<      ring>{ *this, cart };          }
-        auto  begin()             { return iter<      ring>{ *this, head };          }
-        auto    end()             { return iter<      ring>{ *this, mod(tail + 1) }; }
-        auto  begin() const       { return iter<const ring>{ *this, head };          }
-        auto    end() const       { return iter<const ring>{ *this, mod(tail + 1) }; }
-        auto& length() const      { return size;                }
-        auto&  back()             { return buff[tail];          }
-        auto&  back() const       { return buff[tail];          }
-        auto& front()             { return buff[head];          }
-        auto& front() const       { return buff[head];          }
-        auto& current     ()      { return buff[cart];          }
-        auto& operator  * ()      { return buff[cart];          }
-        auto  operator -> ()      { return buff.begin() + cart; }
-        auto&         at (si32 i) { assert(i >= 0 && i < size); return buff[mod(head + i)]; }
-        auto& operator[] (si32 i) { return at(i);               }
-        auto  index() const       { return dst(head, cart);     }
-        void  index(si32 i)       { assert(i >= 0 && i < size); cart = mod(head + i); }
-        void  prev()              { dec(cart); test();          }
-        void  next()              { inc(cart); test();          }
+        auto  current_it()         { return iter<      ring>{ *this, cart };          }
+        auto  begin()              { return iter<      ring>{ *this, head };          }
+        auto    end()              { return iter<      ring>{ *this, mod(tail + 1) }; }
+        auto  begin() const        { return iter<const ring>{ *this, head };          }
+        auto    end() const        { return iter<const ring>{ *this, mod(tail + 1) }; }
+        auto& length() const       { return size;                }
+        auto&  back()              { return buff[tail];          }
+        auto&  back() const        { return buff[tail];          }
+        auto& front()              { return buff[head];          }
+        auto& front() const        { return buff[head];          }
+        auto& current     ()       { return buff[cart];          }
+        auto& operator  * ()       { return buff[cart];          }
+        auto  operator -> ()       { return buff.begin() + cart; }
+        auto&          at (si32 i) { assert(i >= 0 && i < size); return buff[mod(head + i)]; }
+        auto& operator [] (si32 i) { return at(i);               }
+        auto  index() const        { return dst(head, cart);     }
+        void  index(si32 i)        { assert((i > 0 && i < size) || i == 0); cart = mod(head + i); }
+        void  prev()               { dec(cart); test();          }
+        void  next()               { inc(cart); test();          }
 
     private:
         void  test()

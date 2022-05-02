@@ -16,7 +16,7 @@ namespace netxs
         T    last;
         bool test = faux;
 
-        bool operator()(T newvalue)
+        bool operator () (T newvalue)
         {
             prev = last;
             test = last != newvalue;
@@ -34,7 +34,7 @@ namespace netxs
 
     struct	null_deleter
     {
-        void operator()(void const*) const
+        void operator () (void const*) const
         { }
     };
 

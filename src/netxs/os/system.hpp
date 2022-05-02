@@ -178,7 +178,7 @@ namespace netxs::os
             : argc{ argc }, argv{ argv }, iter{ 1 }
         { }
 
-        operator bool() const { return iter < argc; }
+        operator bool () const { return iter < argc; }
         auto next()
         {
             if (iter < argc)
@@ -220,11 +220,11 @@ namespace netxs::os
                 r = INVALID_FD;
                 w = INVALID_FD;
             }
-            friend auto& operator<< (std::ostream& s, file const& handle)
+            friend auto& operator << (std::ostream& s, file const& handle)
             {
                 return s << handle.r << "," << handle.w;
             }
-            auto& operator= (file&& f)
+            auto& operator = (file&& f)
             {
                 r = f.r;
                 w = f.w;
@@ -267,11 +267,11 @@ namespace netxs::os
                 if (h != INVALID_FD) ::close(h);
                 h = INVALID_FD;
             }
-            friend auto& operator<< (std::ostream& s, file const& handle)
+            friend auto& operator << (std::ostream& s, file const& handle)
             {
                 return s << handle.h;
             }
-            auto& operator= (file&& f)
+            auto& operator = (file&& f)
             {
                 h = f.h;
                 f.h = INVALID_FD;
@@ -2104,11 +2104,11 @@ namespace netxs::os
             return sock_ptr;
         }
 
-        friend auto& operator<< (std::ostream& s, netxs::os::ipc const& sock)
+        friend auto& operator << (std::ostream& s, netxs::os::ipc const& sock)
         {
             return s << "{ xipc: " << sock.handle << " }";
         }
-        friend auto& operator<< (std::ostream& s, netxs::os::xipc const& sock)
+        friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
         {
             return s << *sock;
         }
