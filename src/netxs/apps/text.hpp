@@ -197,7 +197,7 @@ utility like ctags is used to locate the definitions.
                       {
                           static auto i = 0; i++;
                           auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");
-                          boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
+                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))

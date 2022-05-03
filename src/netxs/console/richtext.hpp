@@ -500,17 +500,20 @@ namespace netxs::console
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);
         }
+        template<feed DIRECTION = feed::fwd>
         auto find(core const& what, si32& from) const // core: Find the substring and place its offset in &from.
         {
+            static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
+
             auto size = what.canvas.size();
             auto rest =      canvas.size() - from;
             if (!size || size > rest) return faux;
 
             size--;
-            auto head = core::iter();
-            auto tail = core::iend() - size;
+            auto head = canvas.begin();
+            auto tail = canvas.end() - size;
             auto iter = head + from;
-            auto base = what.core::iter();
+            auto base = what.canvas.begin();
             auto dest = base;
             auto&test =*base;
             while (iter != tail)

@@ -48,10 +48,10 @@ namespace netxs::app::term
         const static auto c3 = app::shared::c3;
         const static auto x3 = app::shared::x3;
 
-        auto items = std::list
+        auto items = app::shared::menu_list_type
         {
         #ifdef DEMO
-            std::pair<text, std::function<void(ui::pads&)>>{ "T1",
+            { "T1", " Exec `ls /bin` ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -61,7 +61,7 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "T2",
+            { "T2", " Exec `ping -c 3 127.0.0.1 | ccze -A` ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -71,7 +71,7 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "T3",
+            { "T3", " Exec `curl wttr.in` ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -83,7 +83,7 @@ namespace netxs::app::term
             }},
         #endif
         #ifdef PROD
-            std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
+            { "Clear", " Clear viewport ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -93,7 +93,7 @@ namespace netxs::app::term
                 };
             }},
         #endif
-            std::pair<text, std::function<void(ui::pads&)>>{ "Reset",
+            { "Reset", " Clear scroolback and reset attributes ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -102,7 +102,7 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "=─",
+            { "=─", " Align text lines on left side ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -116,7 +116,7 @@ namespace netxs::app::term
                     boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "─=─",
+            { "─=─", " Center text lines ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -130,7 +130,7 @@ namespace netxs::app::term
                     boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "─=",
+            { "─=", " Align text lines on right side ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -144,7 +144,7 @@ namespace netxs::app::term
                     boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
+            { "Wrap", " Wrapping text lines on/off ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -159,7 +159,7 @@ namespace netxs::app::term
                 };
             }},
             //todo unify
-            std::pair<text, std::function<void(ui::pads&)>>{ "Selection",
+            { "Selection", " Text selection mode ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -192,7 +192,7 @@ namespace netxs::app::term
                     }
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "<",
+            { "<", " Previuos match ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -206,7 +206,7 @@ namespace netxs::app::term
                     boss.color(mode ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ ">",
+            { ">", " Next match ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)

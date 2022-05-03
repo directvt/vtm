@@ -632,6 +632,11 @@ namespace netxs::input
         {
             return swift == asker;
         }
+        // mouse: Is the mouse seized/captured?
+        bool captured() const
+        {
+            return locks != 0;
+        }
         // mouse: Seize specified mouse control.
         bool capture(id_t asker)
         {

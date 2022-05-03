@@ -398,7 +398,7 @@ namespace netxs::ui
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
                     utf8 = jet_left + utf8;
-                    owner.base::riseup<tier::preview>(e2::form::prop::header, utf8);
+                    owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
                 }
                 else
                 {
@@ -406,7 +406,7 @@ namespace netxs::ui
                     if (property == ansi::OSC_TITLE)
                     {
                         utf8 = jet_left + utf8;
-                        owner.base::riseup<tier::preview>(e2::form::prop::header, utf8);
+                        owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
                     }
                 }
             }
@@ -5949,7 +5949,7 @@ namespace netxs::ui
             SIGNAL_GLOBAL(e2::debug::count::set, 0);
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
+                this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
             };
             SUBMIT(tier::preview, e2::coor::set, new_coor)
             {
@@ -6058,7 +6058,7 @@ namespace netxs::ui
                 auto& console = *target;
                 if (status.update(console))
                 {
-                    this->base::riseup<tier::preview>(e2::form::prop::footer, status.data);
+                    this->base::riseup<tier::preview>(e2::form::prop::ui::footer, status.data);
                 }
 
                 auto view = parent_canvas.view();

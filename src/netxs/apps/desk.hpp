@@ -204,7 +204,7 @@ namespace netxs::app::desk
                             });
                     auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
                     auto insts = list_pads->attach(ui::list::ctor())
-                                          ->attach_collection(e2::form::prop::header, inst_ptr_list, app_template);
+                                          ->attach_collection(e2::form::prop::ui::header, inst_ptr_list, app_template);
             }
             return apps;
         };
