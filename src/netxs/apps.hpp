@@ -501,11 +501,12 @@ namespace netxs::app::shared
                             auto fill = [&](cell& c) { c.fusefull(mark); };
                             parent_canvas.cage(area, dot_21, fill);
                         };
-                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent_ptr)
                         {
-                            if (parent) closing_by_gesture(*parent);
+                            auto& parent = *parent_ptr;
+                            closing_by_gesture(parent);
                             static auto i = 0; i++;
-                            auto title = ansi::jet(bias::center).add("View \n Region ", i);
+                            auto title = ansi::add("View\nRegion ", i);
                             boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                             
                             auto outer = dent{ 2,2,1,1 };
@@ -514,6 +515,32 @@ namespace netxs::app::shared
                             boss.base::template riseup<tier::release>(e2::config::plugins::sizer::inner, inner);
                             boss.base::template riseup<tier::release>(e2::config::plugins::align, faux);
                             boss.base::template riseup<tier::preview>(e2::form::prop::zorder, Z_order::backmost);
+                            parent.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+                            {
+                                if (auto gate_ptr = bell::getref(gear.id))
+                                {
+                                    auto old_title = decltype(e2::form::prop::header)::type{};
+                                    boss.base::template riseup<tier::request>(e2::form::prop::header, old_title);
+
+                                    auto data = decltype(e2::command::clipboard::get)::type{};
+                                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
+
+                                    if (utf::is_plain(data)) // Reset aligning to the center if text is plain.
+                                    {
+                                        auto align = ansi::jet(bias::center);
+                                        boss.base::template riseup<tier::preview>(e2::form::prop::header, align);
+                                    }
+                                    // Copy clipboard data to title.
+                                    auto title = decltype(e2::form::prop::header)::type{ data };
+                                    boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
+                                    gear.dismiss();
+
+                                    if (old_title.size()) // Copy old title to clipboard.
+                                    {
+                                        gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, old_title);
+                                    }
+                                }
+                            };
                         };
                     });
             return window;

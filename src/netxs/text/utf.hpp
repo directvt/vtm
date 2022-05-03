@@ -1430,6 +1430,13 @@ namespace netxs::utf
         if (!skip.empty()) trim_front(utf8, skip);
         return str;
     };
+
+    template<class TEXT_or_VIEW>
+    auto is_plain(TEXT_or_VIEW&& utf8)
+    {
+        auto test = utf8.find('\033');
+        return test == text::npos;
+    }
 }
 
 #endif // NETXS_UTF_HPP

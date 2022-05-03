@@ -5826,8 +5826,11 @@ again:
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
             {
-                this->SIGNAL(tier::release, e2::command::clipboard::set, "");
-                gear.dismiss();
+                if (!clip_rawtext.empty())
+                {
+                    this->SIGNAL(tier::release, e2::command::clipboard::set, "");
+                    gear.dismiss();
+                }
             };
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
