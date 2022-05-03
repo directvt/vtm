@@ -182,7 +182,7 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
+        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
 
         log("main: listening socket ", link,
                          "\n\tuser: ", user,
