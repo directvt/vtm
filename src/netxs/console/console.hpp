@@ -5567,7 +5567,7 @@ again:
                 title         = _user;
             #endif
             tooltip_timeout   = 500ms;
-            tooltip_enabled   = faux;
+            tooltip_enabled   = true;
         }
 
         friend auto& operator << (std::ostream& s, conf const& c)
