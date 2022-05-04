@@ -505,37 +505,76 @@ namespace netxs::console
         {
             static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
 
-            auto size = what.canvas.size();
-            auto rest =      canvas.size() - from;
-            if (!size || size > rest) return faux;
-
-            size--;
-            auto head = canvas.begin();
-            auto tail = canvas.end() - size;
-            auto iter = head + from;
-            auto base = what.canvas.begin();
-            auto dest = base;
-            auto&test =*base;
-            while (iter != tail)
+            if constexpr (rev)
             {
-                if (test.same_txt(*iter++))
-                {
-                    auto init = iter;
-                    auto stop = iter + size;
-                    while (init != stop && init->same_txt(*++dest))
-                    {
-                        ++init;
-                    }
+                //todo implement
+                //...
+                auto size = what.canvas.size();
+                auto rest =      canvas.size() - from;
+                if (!size || size > rest) return faux;
 
-                    if (init == stop)
+                size--;
+                auto head = canvas.begin();
+                auto tail = canvas.end() - size;
+                auto iter = head + from;
+                auto base = what.canvas.begin();
+                auto dest = base;
+                auto&test =*base;
+                while (iter != tail)
+                {
+                    if (test.same_txt(*iter++))
                     {
-                        from = static_cast<si32>(std::distance(head, iter)) - 1;
-                        return true;
+                        auto init = iter;
+                        auto stop = iter + size;
+                        while (init != stop && init->same_txt(*++dest))
+                        {
+                            ++init;
+                        }
+
+                        if (init == stop)
+                        {
+                            from = static_cast<si32>(std::distance(head, iter)) - 1;
+                            return true;
+                        }
+                        else dest = base;
                     }
-                    else dest = base;
                 }
+                return faux;
             }
-            return faux;
+            else
+            {
+                auto size = what.canvas.size();
+                auto rest =      canvas.size() - from;
+                if (!size || size > rest) return faux;
+
+                size--;
+                auto head = canvas.begin();
+                auto tail = canvas.end() - size;
+                auto iter = head + from;
+                auto base = what.canvas.begin();
+                auto dest = base;
+                auto&test =*base;
+                while (iter != tail)
+                {
+                    if (test.same_txt(*iter++))
+                    {
+                        auto init = iter;
+                        auto stop = iter + size;
+                        while (init != stop && init->same_txt(*++dest))
+                        {
+                            ++init;
+                        }
+
+                        if (init == stop)
+                        {
+                            from = static_cast<si32>(std::distance(head, iter)) - 1;
+                            return true;
+                        }
+                        else dest = base;
+                    }
+                }
+                return faux;
+            }
         }
         auto toxy(si32 offset) const // core: Convert offset to coor.
         {

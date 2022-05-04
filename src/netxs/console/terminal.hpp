@@ -15,7 +15,7 @@ namespace netxs::events::userland
             EVENT_XS( colors, cell ),
             EVENT_XS( selmod, si32 ),
             GROUP_XS( layout, si32 ),
-            GROUP_XS( search, bool ),
+            GROUP_XS( search, input::hids ),
 
             SUBSET_XS( layout )
             {
@@ -24,8 +24,9 @@ namespace netxs::events::userland
             };
             SUBSET_XS( search )
             {
-                EVENT_XS( forward, bool ),
-                EVENT_XS( reverse, bool ),
+                EVENT_XS( forward, input::hids ),
+                EVENT_XS( reverse, input::hids ),
+                EVENT_XS( status , si32        ),
             };
         };
     };
@@ -941,7 +942,6 @@ namespace netxs::ui
                 parser::style = ansi::def_style;
             }
 
-            virtual void selection_search(bool direction)           = 0;
             virtual void selection_create(twod coor, bool mode)     = 0;
             virtual bool selection_extend(twod coor, bool mode)     = 0;
             virtual void selection_follow(twod coor, bool lock)     = 0;
@@ -952,6 +952,28 @@ namespace netxs::ui
             virtual void selection_status(term_state& status) const = 0;
             virtual void selection_setjet(bias align) { }
             virtual void selection_setwrp() { }
+            virtual twod selection_gonext(bool direction) = 0;
+            virtual twod selection_gofind(bool direction, view data = {}) = 0;
+            virtual twod selection_search(bool direction, view data = {})
+            {
+                log(" search: ", direction ? "fwd" : "rev");
+                auto delta = dot_00;
+                if (data.empty()) // Find next selection match.
+                {
+                    if (match.length())
+                    {
+                        log(" search match: ", match.to_txt());
+                        delta = selection_gonext(direction);
+                    }
+                }
+                else
+                {
+                    log(" search data: ", data);
+                    delta = selection_gofind(direction, data);
+                }
+                return delta;
+            }
+
             // bufferbase: Set selection mode lock state.
             void selection_locked(bool lock)
             {
@@ -2166,10 +2188,19 @@ namespace netxs::ui
                 else                       match = { canvas.core::line(seltop, selend) };
                 bufferbase::selection_update(despace);
             }
-            // alt_screen: Prev/Next selection occurance.
-            void selection_search(bool direction) override
+            // alt_screen: Search data and return distance to it.
+            twod selection_gofind(bool direction, view data = {}) override
             {
-                log(" search: ", direction ? "fwd" : "rev");
+                auto delta = dot_00;
+                //...
+                return delta;
+            }
+            // alt_screen: Search prev/next selection match and return distance to it.
+            twod selection_gonext(bool direction) override
+            {
+                auto delta = dot_00;
+                //...
+                return delta;
             }
         };
 
@@ -5281,10 +5312,19 @@ namespace netxs::ui
 
                 bufferbase::selection_update(despace);
             }
-            // scroll_buf: Prev/Next selection occurance.
-            void selection_search(bool direction) override
+            // scroll_buf: Search data and return distance to it.
+            twod selection_gofind(bool direction, view data = {}) override
             {
-                log(" search: ", direction ? "fwd" : "rev");
+                auto delta = dot_00;
+                //...
+                return delta;
+            }
+            // scroll_buf: Search prev/next selection match and return distance to it.
+            twod selection_gonext(bool direction) override
+            {
+                auto delta = dot_00;
+                //...
+                return delta;
             }
         };
 
@@ -5687,9 +5727,10 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            if (target->selection_active())
+            auto& console = *target;
+            if (console.selection_active())
             {
-                auto data = target->selection_pickup(selmod);
+                auto data = console.selection_pickup(selmod);
                 if (data.size())
                 {
                     if (auto gate_ptr = bell::getref(gear.id))
@@ -5730,10 +5771,11 @@ namespace netxs::ui
         }
         void selection_lclick(hids& gear)
         {
+            auto& console = *target;
             auto go_on = gear.meta(hids::ANYCTRL);
-            if (go_on && target->selection_active())
+            if (go_on && console.selection_active())
             {
-                target->selection_follow(gear.coord, go_on);
+                console.selection_follow(gear.coord, go_on);
                 selection_extend(gear);
                 gear.dismiss();
                 base::expire<tier::release>();
@@ -5756,16 +5798,22 @@ namespace netxs::ui
         }
         void selection_create(hids& gear)
         {
+            auto& console = *target;
             auto boxed = gear.meta(hids::ALT);
             auto go_on = gear.meta(hids::ANYCTRL);
-            target->selection_follow(gear.coord, go_on);
-            if (go_on) target->selection_extend(gear.coord, boxed);
-            else       target->selection_create(gear.coord, boxed);
+            console.selection_follow(gear.coord, go_on);
+            if (go_on) console.selection_extend(gear.coord, boxed);
+            else       console.selection_create(gear.coord, boxed);
             base::deface();
+        }
+        void selection_moveto(twod delta)
+        {
+            //...
         }
         void selection_extend(hids& gear)
         {
             // Check bounds and scroll if needed.
+            auto& console = *target;
             auto boxed = gear.meta(hids::ALT);
             auto coord = gear.coord;
             auto vport = rect{ -origin, target->panel };
@@ -5784,7 +5832,7 @@ namespace netxs::ui
                                     {
                                         auto shift = base::moveby(delta);
                                         coord -= shift;
-                                        if (target->selection_extend(coord, boxed))
+                                        if (console.selection_extend(coord, boxed))
                                         {
                                             base::deface();
                                             return !!shift;
@@ -5794,7 +5842,7 @@ namespace netxs::ui
             }
             else worker.pacify();
 
-            if (target->selection_extend(coord, boxed))
+            if (console.selection_extend(coord, boxed))
             {
                 base::deface();
             }
@@ -5827,8 +5875,37 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
             SUBMIT(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
         }
+        void selection_search(hids& gear, feed dir)
+        {
+            auto& console = *target;
+            auto delta = dot_00;
+            if (console.selection_active())
+            {
+                delta = console.selection_search(dir == feed::fwd);
+            }
+            else
+            {
+                if (auto gate_ptr = bell::getref(gear.id))
+                {
+                    auto data = decltype(e2::command::clipboard::get)::type{};
+                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
+                    if (data.size())
+                    {
+                        delta = console.selection_search(dir == feed::fwd, data);
+                    }
+                }
+            }
+            if (target == &normal && delta)
+            {
+                selection_moveto(delta);
+            }
+        }
 
     public:
+        void search(hids& gear, feed dir)
+        {
+            selection_search(gear, dir);
+        }
         void set_color(cell brush)
         {
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)

@@ -17,7 +17,7 @@ namespace netxs::events::userland
             EVENT_XS( colors, cell ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( data  , si32 ),
-            GROUP_XS( search, bool ),
+            GROUP_XS( search, input::hids ),
 
             SUBSET_XS( layout )
             {
@@ -31,8 +31,9 @@ namespace netxs::events::userland
             };
             SUBSET_XS( search )
             {
-                EVENT_XS( forward, bool ),
-                EVENT_XS( reverse, bool ),
+                EVENT_XS( forward, input::hids ),
+                EVENT_XS( reverse, input::hids ),
+                EVENT_XS( status , si32        ),
             };
         };
     };
@@ -197,13 +198,13 @@ namespace netxs::app::term
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::look_rev);
+                    boss.SIGNAL(tier::anycast, app::term::events::search::reverse, gear);
                     gear.dismiss(true);
                 };
-                boss.SUBMIT(tier::anycast, app::term::events::search::reverse, mode)
+                boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
                 {
                     //todo unify, get boss base colors, don't use x3
-                    boss.color(mode ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    boss.color(mode & 2 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
             { ">", " Next match ",
@@ -211,13 +212,13 @@ namespace netxs::app::term
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::look_fwd);
+                    boss.SIGNAL(tier::anycast, app::term::events::search::forward, gear);
                     gear.dismiss(true);
                 };
-                boss.SUBMIT(tier::anycast, app::term::events::search::forward, mode)
+                boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
                 {
                     //todo unify, get boss base colors, don't use x3
-                    boss.color(mode ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    boss.color(mode & 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
         };
@@ -283,8 +284,7 @@ namespace netxs::app::term
                                 ->attach_property(ui::term::events::selmod,          app::term::events::selmod)
                                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::layout::wrapln)
                                 ->attach_property(ui::term::events::layout::align,   app::term::events::layout::align)
-                                ->attach_property(ui::term::events::search::forward, app::term::events::search::forward)
-                                ->attach_property(ui::term::events::search::reverse, app::term::events::search::reverse)
+                                ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
                                 ->invoke([](auto& boss)
                                 {
                                     boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
@@ -308,6 +308,14 @@ namespace netxs::app::term
                                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                                     {
                                         boss.start();
+                                    };
+                                    boss.SUBMIT(tier::anycast, app::term::events::search::forward, gear)
+                                    {
+                                        boss.search(gear, feed::fwd);
+                                    };
+                                    boss.SUBMIT(tier::anycast, app::term::events::search::reverse, gear)
+                                    {
+                                        boss.search(gear, feed::rev);
                                     };
                                 });
                         }
