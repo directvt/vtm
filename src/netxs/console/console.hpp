@@ -5610,6 +5610,7 @@ again:
         testy<twod> tooltip_coor = {}; // gate: Show tooltip or not.
         moment tooltip_time = {}; // gate: The moment to show tooltip.
         bool   tooltip_show = faux; // gate: Show tooltip or not.
+        bool   tooltip_stop = faux; // gate: Disable tooltip.
         text   tooltip_text; // gate: Tooltip data.
         page   tooltip_page; // gate: Tooltip render.
         id_t   tooltip_boss; // gate: Tooltip hover object.
@@ -5939,18 +5940,43 @@ again:
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::preview, hids::events::mouse::move, gear)
+            SUBMIT(tier::preview, hids::events::mouse::any, gear)
             {
-                if (tooltip_coor(gear.coord))
+                if (tooltip_boss != input.hover) // Welcome new object.
                 {
-                    tooltip_time = tempus::now() + props.tooltip_timeout;
-                    tooltip_show = faux;
+                    tooltip_stop = faux;
+                }
+
+                if (!tooltip_stop)
+                {
+                    auto deed = this->bell::template protos<tier::preview>();
+                    if (deed == hids::events::mouse::move.id)
+                    {
+                        if (tooltip_coor(gear.coord)) // Do nothing on shuffle.
+                        {
+                            if (tooltip_show && tooltip_boss == input.hover) // Drop tooltip if moved.
+                            {
+                                tooltip_stop = true;
+                            }
+                            else
+                            {
+                                tooltip_time = tempus::now() + props.tooltip_timeout;
+                                tooltip_show = faux;
+                            }
+                        }
+                    }
+                    else // Drop tooltip on any other event.
+                    {
+                        tooltip_stop = true;
+                        tooltip_boss = input.hover;
+                    }
                 }
             };
             SUBMIT(tier::general, e2::timer::any, something)
             {
-                if (tooltip_show == faux
-                 && tooltip_time < tempus::now()
+                if (!tooltip_stop
+                 && !tooltip_show
+                 &&  tooltip_time < tempus::now()
                  && !input.captured())
                 {
                     tooltip_show = true;
@@ -5972,6 +5998,7 @@ again:
                 else if (tooltip_show == true && input.captured())
                 {
                     tooltip_show = faux;
+                    tooltip_stop = faux;
                 }
             };
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
@@ -6044,7 +6071,7 @@ again:
                         clip_preview.move(coor);
                         parent_canvas.plot(clip_preview, cell::shaders::lite);
                     }
-                    if (tooltip_show && tooltip_text.size() && !input.captured())
+                    if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.captured())
                     {
                         static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
                         auto coor = input.coord - twod{ 4,2 };
