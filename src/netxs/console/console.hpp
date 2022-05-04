@@ -5797,10 +5797,16 @@ again:
                             if (tooltip_boss != input.hover)
                             {
                                 tooltip_boss = input.hover;
-                                if (auto boss_ptr = std::dynamic_pointer_cast<base>(bell::getref(input.hover)))
+                                tooltip_text = {};
+                                if (auto boss_ptr = bell::getref(input.hover))
                                 {
-                                    tooltip_text = {};
-                                    boss_ptr->base::template riseup<tier::request>(e2::form::prop::ui::tooltip, tooltip_text);
+                                    if (!boss_ptr->SIGNAL(tier::request, e2::form::prop::ui::tooltip, tooltip_text))
+                                    {
+                                        if (auto base_ptr = std::dynamic_pointer_cast<base>(boss_ptr))
+                                        {
+                                            base_ptr->base::template riseup<tier::request>(e2::form::prop::ui::tooltip, tooltip_text);
+                                        }
+                                    }
                                     if (tooltip_text.size())
                                     {
                                         tooltip_page.style.rst().wrp(wrap::off);
