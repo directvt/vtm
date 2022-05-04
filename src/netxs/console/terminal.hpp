@@ -974,7 +974,16 @@ namespace netxs::ui
                 }
                 return delta;
             }
-
+            // bufferbase: Cancel text selection.
+            virtual bool selection_cancel()
+            {
+                auto active = alive;
+                if (alive)
+                {
+                    alive = {};
+                }
+                return active;
+            }
             // bufferbase: Set selection mode lock state.
             void selection_locked(bool lock)
             {
@@ -1015,16 +1024,6 @@ namespace netxs::ui
             bool selection_selbox() const
             {
                 return boxed;
-            }
-            // bufferbase: Cancel text selection.
-            bool selection_cancel()
-            {
-                auto active = alive;
-                if (alive)
-                {
-                    alive = {};
-                }
-                return active;
             }
 
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
@@ -2185,8 +2184,25 @@ namespace netxs::ui
             void selection_update(bool despace = true) override
             {
                 if (selection_selbox()
-                 && seltop.y != selend.y)  match = {};
-                else                       match = { canvas.core::line(seltop, selend) };
+                 && seltop.y != selend.y)
+                {
+                    match = {};
+                    prev_avail = faux;
+                    next_avail = faux;
+                }
+                else
+                {
+                    match = { canvas.core::line(seltop, selend) };
+                    auto p1 = seltop;
+                    auto p2 = selend;
+                    if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+                    auto offset = p1.x + p1.y * panel.x;
+
+                    auto start = offset + match.length();
+                    next_avail = canvas.find<feed::fwd>(match, start); // Try to find next next.
+                    start = offset - 1;
+                    prev_avail = canvas.find<feed::rev>(match, start); // Try to find next prev.
+                }
                 bufferbase::selection_update(despace);
             }
             // alt_screen: Search data and return distance to it.
@@ -2195,19 +2211,66 @@ namespace netxs::ui
                 //...
                 return dot_00;
             }
+            bool prev_avail = faux; // For buttons highlighting.
+            bool next_avail = faux;
             // alt_screen: Search prev/next selection match and return distance to it.
             twod selection_gonext(bool direction) override
             {
-                //...
+                auto p1 = seltop;
+                auto p2 = selend;
+                if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+                auto from = p1.x + p1.y * panel.x;
+
+                if (direction)
+                {
+                    auto offset = from + match.length();
+                    if (canvas.find<feed::fwd>(match, offset))
+                    {
+                        seltop = { offset % panel.x,
+                                   offset / panel.x };
+                        offset += match.length() - 1;
+                        selend = { offset % panel.x,
+                                   offset / panel.x };
+                        prev_avail = true;
+
+                        offset += match.length();
+                        next_avail = canvas.find<feed::fwd>(match, offset); // Try to find next next.
+                    }
+                    else next_avail = faux;
+                }
+                else
+                {
+                    auto offset = from - 1;
+                    if (canvas.find<feed::rev>(match, offset))
+                    {
+                        seltop = { offset % panel.x,
+                                   offset / panel.x };
+                        offset -= match.length() - 1;
+                        selend = { offset % panel.x,
+                                   offset / panel.x };
+                        next_avail = true;
+
+                        offset -= 1;
+                        prev_avail = canvas.find<feed::rev>(match, offset); // Try to find next prev.
+                    }
+                    else prev_avail = faux;
+                }
+
+                bufferbase::selection_update(faux);
                 return dot_00;
             }
             // alt_screen: Return match navigation state.
             si32 selection_button(twod const& delta = {}) override
             {
-                auto forward_is_available = 0;
-                auto reverse_is_available = 0;
-                //...
+                auto forward_is_available = next_avail ? 1 << 0 : 0;
+                auto reverse_is_available = prev_avail ? 1 << 1 : 0;
                 return forward_is_available | reverse_is_available;
+            }
+            bool selection_cancel() override
+            {
+                prev_avail = faux;
+                next_avail = faux;
+                return bufferbase::selection_cancel();
             }
         };
 
@@ -5330,6 +5393,31 @@ namespace netxs::ui
             twod selection_gonext(bool direction) override
             {
                 auto delta = twod{ 10,10 } * (direction ? -1 : 1);
+                if (upmid.role == grip::base)
+                {
+                    auto& curln = batch.item_by_id(upmid.link);
+                    auto p1 = upmid.coor;
+                    auto p2 = dnmid.coor;
+                    if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+                    auto head = selection_offset(curln, p1, 0);
+                    auto tail = selection_offset(curln, p2, 1);
+                    //if top reached goto the top scrolling margin
+                    //if the bottom reached goto the end scrolling margin
+                    //...
+                    //match = { curln.core::line(head, tail) };
+                }
+                else if (uptop.role == grip::base)
+                {
+                    //if not found and direction=fwd goto the scrollback
+                    //...
+                    //match = { upbox.core::line(uptop.coor, dntop.coor) };
+                }
+                else if (upend.role == grip::base)
+                {
+                    //if not found and direction=rev goto the scrollback
+                    //...
+                    //match = { dnbox.core::line(upend.coor, dnend.coor) };
+                }
                 //...
                 return delta;
             }

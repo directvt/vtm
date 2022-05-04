@@ -503,21 +503,18 @@ namespace netxs::console
         template<feed DIRECTION = feed::fwd>
         auto find(core const& what, si32& from) const // core: Find the substring and place its offset in &from.
         {
-            static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
-
-            if constexpr (rev)
+            auto full =      canvas.size();
+            auto size = what.canvas.size();
+            auto look = [&](auto canvas_begin, auto canvas_end, auto what_begin)
             {
-                //todo implement
-                //...
-                auto size = what.canvas.size();
-                auto rest =      canvas.size() - from;
+                auto rest = full - from;
                 if (!size || size > rest) return faux;
 
                 size--;
-                auto head = canvas.begin();
-                auto tail = canvas.end() - size;
+                auto head = canvas_begin;
+                auto tail = canvas_end - size;
                 auto iter = head + from;
-                auto base = what.canvas.begin();
+                auto base = what_begin;
                 auto dest = base;
                 auto&test =*base;
                 while (iter != tail)
@@ -540,41 +537,25 @@ namespace netxs::console
                     }
                 }
                 return faux;
+            };
+
+            if constexpr (DIRECTION == feed::fwd)
+            {
+                if (look(canvas.begin(), canvas.end(), what.canvas.begin()))
+                {
+                    return true;
+                }
             }
             else
             {
-                auto size = what.canvas.size();
-                auto rest =      canvas.size() - from;
-                if (!size || size > rest) return faux;
-
-                size--;
-                auto head = canvas.begin();
-                auto tail = canvas.end() - size;
-                auto iter = head + from;
-                auto base = what.canvas.begin();
-                auto dest = base;
-                auto&test =*base;
-                while (iter != tail)
+                from = full - from - 1;
+                if (look(canvas.rbegin(), canvas.rend(), what.canvas.rbegin()))
                 {
-                    if (test.same_txt(*iter++))
-                    {
-                        auto init = iter;
-                        auto stop = iter + size;
-                        while (init != stop && init->same_txt(*++dest))
-                        {
-                            ++init;
-                        }
-
-                        if (init == stop)
-                        {
-                            from = static_cast<si32>(std::distance(head, iter)) - 1;
-                            return true;
-                        }
-                        else dest = base;
-                    }
+                    from = full - from - 1;
+                    return true;
                 }
-                return faux;
             }
+            return faux;
         }
         auto toxy(si32 offset) const // core: Convert offset to coor.
         {
