@@ -954,6 +954,7 @@ namespace netxs::ui
             virtual void selection_setwrp() { }
             virtual twod selection_gonext(bool direction) = 0;
             virtual twod selection_gofind(bool direction, view data = {}) = 0;
+            virtual si32 selection_button(twod const& delta = {}) = 0;
             virtual twod selection_search(bool direction, view data = {})
             {
                 log(" search: ", direction ? "fwd" : "rev");
@@ -1472,7 +1473,7 @@ namespace netxs::ui
             {
                 if constexpr (FWD)
                 {
-                    auto x = std::clamp(coord.x, 0, size - 1);
+                    auto x = std::clamp(coord.x, 0, size ? size - 1 : 0);
                     if (coord.x == x) coord.x = std::abs(stops[x].first);
                     else
                     {
@@ -2191,16 +2192,22 @@ namespace netxs::ui
             // alt_screen: Search data and return distance to it.
             twod selection_gofind(bool direction, view data = {}) override
             {
-                auto delta = dot_00;
                 //...
-                return delta;
+                return dot_00;
             }
             // alt_screen: Search prev/next selection match and return distance to it.
             twod selection_gonext(bool direction) override
             {
-                auto delta = dot_00;
                 //...
-                return delta;
+                return dot_00;
+            }
+            // alt_screen: Return match navigation state.
+            si32 selection_button(twod const& delta = {}) override
+            {
+                auto forward_is_available = 0;
+                auto reverse_is_available = 0;
+                //...
+                return forward_is_available | reverse_is_available;
             }
         };
 
@@ -3908,7 +3915,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    coor.x = std::clamp(xconv<feed::fwd>(coor.x, adjust, length), 0, length - 1);
+                    coor.x = std::clamp(xconv<feed::fwd>(coor.x, adjust, length), 0, length ? length - 1 : 0);
                 }
                 return coor.x;
             }
@@ -4423,7 +4430,7 @@ namespace netxs::ui
 
                 auto square = owner.actual_area<faux>();
                 auto minlim = square.coor;
-                auto maxlim = square.coor + square.size - dot_11;
+                auto maxlim = square.coor + std::max(dot_00, square.size - dot_11);
                 coor1 = std::clamp(coor1, minlim, maxlim);
                 coor2 = std::clamp(coor2, minlim, maxlim);
                 return std::pair{ coor1, coor2 };
@@ -4930,7 +4937,7 @@ namespace netxs::ui
                 auto width = curln.length();
                 if (wraps == wrap::on)
                 {
-                    coor.x = std::clamp(coor.x, -close, panel.x - close);
+                    coor.x = std::clamp(coor.x, -close, -close + panel.x);
                     if (align != bias::left && coor.y == width / panel.x)
                     {
                         if (auto remain = width % panel.x)
@@ -5315,22 +5322,31 @@ namespace netxs::ui
             // scroll_buf: Search data and return distance to it.
             twod selection_gofind(bool direction, view data = {}) override
             {
-                auto delta = dot_00;
+                auto delta = twod{ 10,10 } * (direction ? -1 : 1);
                 //...
                 return delta;
             }
             // scroll_buf: Search prev/next selection match and return distance to it.
             twod selection_gonext(bool direction) override
             {
-                auto delta = dot_00;
+                auto delta = twod{ 10,10 } * (direction ? -1 : 1);
                 //...
                 return delta;
+            }
+            // scroll_buf: Return match navigation state.
+            si32 selection_button(twod const& delta = {}) override
+            {
+                auto forward_is_available = batch.slide - delta.y >= batch.vsize - arena ? 0 : 1 << 0;
+                auto reverse_is_available = batch.slide - delta.y <= 0 ?                   0 : 1 << 1;
+                //...
+                return forward_is_available | reverse_is_available;
             }
         };
 
         using buffer_ptr = bufferbase*;
 
         pro::timer worker; // term: Linear animation controller.
+        pro::robot dynamo; // term: Linear animation controller.
         pro::caret cursor; // term: Text cursor controller.
         term_state status; // term: Screen buffer status info.
         w_tracking wtrack; // term: Terminal title tracking object.
@@ -5808,7 +5824,20 @@ namespace netxs::ui
         }
         void selection_moveto(twod delta)
         {
-            //...
+            if (delta)
+            {
+                auto path = delta;
+                auto time = SWITCHING_TIME;
+                auto init = 0;
+                auto func = constlinearAtoB<twod>(path, time, init);
+                dynamo.actify(func, [&](twod& step)
+                {
+                    base::moveby(step);
+                    base::deface();
+                });
+            }
+            else worker.pacify();
+
         }
         void selection_extend(hids& gear)
         {
@@ -5893,8 +5922,14 @@ namespace netxs::ui
                     {
                         delta = console.selection_search(dir == feed::fwd, data);
                     }
+                    else // Page by page scrolling if nothing to search.
+                    {
+                        delta.y = dir == feed::fwd ? -console.panel.y
+                                                   :  console.panel.y;
+                    }
                 }
             }
+            SIGNAL(tier::release, ui::term::events::search::status, console.selection_button(delta));
             if (target == &normal && delta)
             {
                 selection_moveto(delta);
@@ -5993,6 +6028,7 @@ namespace netxs::ui
               altbuf{ *this },
               cursor{ *this },
               worker{ *this },
+              dynamo{ *this },
               mtrack{ *this },
               ftrack{ *this },
               wtrack{ *this },
@@ -6018,6 +6054,7 @@ namespace netxs::ui
             publish_property(ui::term::events::colors,         [&](auto& v){ v = target->brush; });
             publish_property(ui::term::events::layout::wrapln, [&](auto& v){ v = target->style.wrp(); });
             publish_property(ui::term::events::layout::align,  [&](auto& v){ v = target->style.jet(); });
+            publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
 
             SUBMIT(tier::general, e2::debug::count::any, count)
             {

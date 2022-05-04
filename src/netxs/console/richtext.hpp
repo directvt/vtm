@@ -590,7 +590,7 @@ namespace netxs::console
             if (from > upto) std::swap(from, upto);
             assert(canvas.size() <= std::numeric_limits<si32>::max());
             auto maxs = static_cast<si32>(canvas.size());
-            from = std::clamp(from, 0, maxs - 1);
+            from = std::clamp(from, 0, maxs ? maxs - 1 : 0);
             upto = std::clamp(upto, 0, maxs);
             auto size = upto - from;
             return core{ span{ canvas.data() + from, static_cast<size_t>(size) }, { size, 1 }};
