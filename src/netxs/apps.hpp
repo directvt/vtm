@@ -58,7 +58,7 @@ namespace netxs::app::shared
     #undef X
     #undef TYPE_LIST
 
-    using menu_item_type = std::tuple<text, text, std::function<void(ui::pads&)>>;
+    using menu_item_type = std::tuple<bool, text, text, std::function<void(ui::pads&)>>;
     using menu_list_type = std::list<menu_item_type>;
 
     //static si32 max_count = 20;// 50;
@@ -158,7 +158,7 @@ namespace netxs::app::shared
     };
 
     // Menu bar (shrinkable on right-click).
-    const auto custom_menu = [](bool full_size, std::list<std::tuple<text, text, std::function<void(ui::pads&)>>> menu_items)
+    const auto custom_menu = [](bool full_size, app::shared::menu_list_type menu_items)
     {
         auto menu_area = ui::fork::ctor()
                         ->active();
@@ -187,11 +187,29 @@ namespace netxs::app::shared
 
                 auto scrl_grip = scrl_area->attach(scroll_hint);
 
-            for (auto& body : menu_items) scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
-                                                   ->plugin<pro::fader>(x3, c3, 150ms)
-                                                   ->plugin<pro::notes>(std::get<1>(body))
-                                                   ->invoke(std::get<2>(body))
-                                                   ->attach(ui::item::ctor(std::get<0>(body), faux, true));
+            for (auto& body : menu_items)
+            {
+                auto& hover = std::get<0>(body);
+                auto& label = std::get<1>(body);
+                auto& notes = std::get<2>(body);
+                auto& setup = std::get<3>(body);
+                if (hover)
+                {
+                    scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
+                             ->plugin<pro::fader>(x3, c3, 150ms)
+                             ->plugin<pro::notes>(notes)
+                             ->invoke(setup)
+                             ->attach(ui::item::ctor(label, faux, true));
+                }
+                else
+                {
+                    scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
+                             ->colors(0,0) //todo for mouse tracking
+                             ->plugin<pro::notes>(notes)
+                             ->invoke(setup)
+                             ->attach(ui::item::ctor(label, faux, true));
+                }
+            }
             menu_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
                      ->plugin<pro::fader>(x1, c1, 150ms)
                      ->plugin<pro::notes>(" Close window ")
@@ -282,11 +300,11 @@ namespace netxs::app::shared
     {
         auto items = app::shared::menu_list_type
         {
-            { ansi::und(true).add("F").nil().add("ile"), " File menu item ", [&](auto& boss){ } },
-            { ansi::und(true).add("E").nil().add("dit"), " Edit menu item ", [&](auto& boss){ } },
-            { ansi::und(true).add("V").nil().add("iew"), " View menu item ", [&](auto& boss){ } },
-            { ansi::und(true).add("D").nil().add("ata"), " Data menu item ", [&](auto& boss){ } },
-            { ansi::und(true).add("H").nil().add("elp"), " Help menu item ", [&](auto& boss){ } },
+            { true, ansi::und(true).add("F").nil().add("ile"), " File menu item ", [&](auto& boss){ } },
+            { true, ansi::und(true).add("E").nil().add("dit"), " Edit menu item ", [&](auto& boss){ } },
+            { true, ansi::und(true).add("V").nil().add("iew"), " View menu item ", [&](auto& boss){ } },
+            { true, ansi::und(true).add("D").nil().add("ata"), " Data menu item ", [&](auto& boss){ } },
+            { true, ansi::und(true).add("H").nil().add("elp"), " Help menu item ", [&](auto& boss){ } },
         };
         return custom_menu(true, items);
     };

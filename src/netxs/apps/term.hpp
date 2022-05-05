@@ -52,7 +52,7 @@ namespace netxs::app::term
         auto items = app::shared::menu_list_type
         {
         #ifdef DEMO
-            { "T1", " Exec `ls /bin` ",
+            { true, "T1", " Exec `ls /bin` ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -62,7 +62,7 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-            { "T2", " Exec `ping -c 3 127.0.0.1 | ccze -A` ",
+            { true, "T2", " Exec `ping -c 3 127.0.0.1 | ccze -A` ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -72,7 +72,7 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-            { "T3", " Exec `curl wttr.in` ",
+            { true, "T3", " Exec `curl wttr.in` ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -83,27 +83,8 @@ namespace netxs::app::term
                 };
             }},
         #endif
-        #ifdef PROD
-            { "Clear", " Clear viewport ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
-                    gear.dismiss(true);
-                };
-            }},
-        #endif
-            { "Reset", " Clear scroolback and reset attributes ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
-                    gear.dismiss(true);
-                };
-            }},
-            { "=─", " Align text lines on left side ",
+            { true, "=─", " Align text lines on left side   \n"
+                          " - applied to selection if it is ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -117,7 +98,8 @@ namespace netxs::app::term
                     boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            { "─=─", " Center text lines ",
+            { true, "─=─", " Center text lines               \n"
+                           " - applied to selection if it is ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -131,7 +113,8 @@ namespace netxs::app::term
                     boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            { "─=", " Align text lines on right side ",
+            { true, "─=", " Align text lines on right side  \n"
+                          " - applied to selection if it is ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -145,7 +128,8 @@ namespace netxs::app::term
                     boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            { "Wrap", " Wrapping text lines on/off ",
+            { true, "Wrap", " Wrapping text lines on/off      \n"
+                            " - applied to selection if it is ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -159,8 +143,7 @@ namespace netxs::app::term
                     boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            //todo unify
-            { "Selection", " Text selection mode ",
+            { true, "Selection", " Text selection mode ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -175,25 +158,27 @@ namespace netxs::app::term
                     {
                         default:
                         case ui::term::xsgr::disabled:
-                            //boss.attach(ui::item::ctor("Selection", faux, true));
+                            //"Selection"
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Selection");
                             boss.color(x3.fgc(), x3.bgc());
                             break;
                         case ui::term::xsgr::textonly:
-                            //boss.attach(ui::item::ctor("Text only", faux, true));
+                            //"Text only"
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Plaintext");
                             boss.color(0xFF00ff00, x3.bgc());
                             break;
                         case ui::term::xsgr::ansitext:
-                            //boss.attach(ui::item::ctor("Rich-Text", faux, true));
-                            //boss.attach(ui::item::ctor("+ANSI/SGR", faux, true));
+                            //"Rich-Text"
+                            //"+ANSI/SGR"
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "ANSI-text");
                             boss.color(0xFF00ffff, x3.bgc());
                             break;
                     }
                 };
             }},
-            { "<", " Previuos match ",
+            { true, "<", " Previuos match                    \n"
+                         " - using clipboard if no selection \n"
+                         " - page up if no clipboard data    ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -207,7 +192,9 @@ namespace netxs::app::term
                     boss.color(mode & 2 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            { ">", " Next match ",
+            { true, ">", " Next match                        \n"
+                         " - using clipboard if no selection \n"
+                         " - page down if no clipboard data  ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -219,6 +206,30 @@ namespace netxs::app::term
                 {
                     //todo unify, get boss base colors, don't use x3
                     boss.color(mode & 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                };
+            }},
+        #ifdef PROD
+            { faux, "  ", " ...empty menu block for safety ",
+            [](ui::pads& boss)
+            {
+            }},
+            { true, "Clear", " Clear viewport ",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
+                    gear.dismiss(true);
+                };
+            }},
+        #endif
+            { true, "Reset", " Clear scrollback and reset attributes ",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
+                    gear.dismiss(true);
                 };
             }},
         };

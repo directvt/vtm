@@ -894,12 +894,13 @@ namespace netxs::app::tile
                 });
 
             object->attach(slot::_1, app::shared::custom_menu(true,
-                app::shared::menu_list_type{
+                    app::shared::menu_list_type
+                    {
                         //  Green                                  ?Even    Red
                         // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
                         // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
                         // └────┘  └─┴──┘  └─┴──┘  └────┘  └─┴──┘  └─┴──┘  └────┘  // └─┘                       
-                        {"  ┐└  ", " Maximize/restore active pane ",//  ─┐  ", //"  ▀█  ",
+                        { true,"  ┐└  ", " Maximize/restore active pane ", //  ─┐  ", //"  ▀█  ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -909,7 +910,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { "  +  ", " Create and run a new app in active panes ",
+                        { true, "  +  ", " Create and run a new app in active panes ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -918,7 +919,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { " ::: ", " Select all panes ",
+                        { true, " ::: ", " Select all panes ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -927,7 +928,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { "  │  ", " Split active panes horizontally ", // "  ║  ", - VGA Linux console doesn't support unicode glyphs
+                        { true, "  │  ", " Split active panes horizontally ", // "  ║  ", - VGA Linux console doesn't support unicode glyphs
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -936,7 +937,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        {  " ── ", " Split active panes vertically ", // " ══ ", - VGA Linux console doesn't support unicode glyphs
+                        { true, " ── ", " Split active panes vertically ", // " ══ ", - VGA Linux console doesn't support unicode glyphs
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -945,7 +946,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { "  ┌┘  ", " Change split orientation ",
+                        { true, "  ┌┘  ", " Change split orientation ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -954,7 +955,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { " <-> ", " Swap two or more panes ",
+                        { true, " <-> ", " Swap two or more panes ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -963,7 +964,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { " >|< ", " Equalize split ratio ",
+                        { true, " >|< ", " Equalize split ratio ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -972,7 +973,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { "  ×  ", " Close active app or remove pane if there is no running app ",
+                        { true, "  ×  ", " Close active app or remove pane if there is no running app ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)

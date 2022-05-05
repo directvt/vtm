@@ -500,8 +500,7 @@ namespace netxs::console
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);
         }
-        template<feed DIRECTION = feed::fwd>
-        auto find(core const& what, si32& from) const // core: Find the substring and place its offset in &from.
+        auto find(core const& what, si32& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
         {
             auto full =      canvas.size();
             auto size = what.canvas.size();
@@ -539,7 +538,7 @@ namespace netxs::console
                 return faux;
             };
 
-            if constexpr (DIRECTION == feed::fwd)
+            if (dir == feed::fwd)
             {
                 if (look(canvas.begin(), canvas.end(), what.canvas.begin()))
                 {
@@ -1054,11 +1053,15 @@ namespace netxs::console
             : core{ std::forward<core>(s) }
         { }
 
-        auto length() const                                     { return size().x;                         }
         auto shadow() const                                     { return shot{ *this };                    }
         auto substr(si32 at, si32 width = netxs::maxsi32) const { return shadow().substr(at, width);       }
         void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
         void reserv(si32 oversize)                              { if (oversize > length()) crop(oversize); }
+        si32 length() const
+        {
+            assert(canvas.size() <= std::numeric_limits<si32>::max());
+            return static_cast<si32>(canvas.size());
+        }
         void shrink(cell const& blank, si32 max_size = 0, si32 min_size = 0)
         {
             assert(min_size <= length());
@@ -1483,6 +1486,7 @@ namespace netxs::console
         operator writ const& () const { return locus; }
 
         void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
+        auto& content() const { return *lyric; } // para: Return paragraph content.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
         shot   substr(si32 start, si32 width) const // para: Return paragraph substring shadow.
         {

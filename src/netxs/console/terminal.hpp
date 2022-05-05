@@ -851,6 +851,9 @@ namespace netxs::ui
                 line(core&& s)
                     : rich{ std::forward<core>(s) }
                 { }
+                line(utf::view utf8)
+                    : rich{ para{ utf8 }.content() }
+                { }
 
                 line& operator = (line&&)      = default;
                 line& operator = (line const&) = default;
@@ -942,22 +945,20 @@ namespace netxs::ui
                 parser::style = ansi::def_style;
             }
 
-            virtual void selection_create(twod coor, bool mode)     = 0;
-            virtual bool selection_extend(twod coor, bool mode)     = 0;
-            virtual void selection_follow(twod coor, bool lock)     = 0;
-            virtual void selection_byword(twod coor)                = 0;
-            virtual void selection_byline(twod coor)                = 0;
-            virtual text selection_pickup(si32  selmod)             = 0;
-            virtual void selection_render(face& target)             = 0;
-            virtual void selection_status(term_state& status) const = 0;
-            virtual void selection_setjet(bias align) { }
-            virtual void selection_setwrp() { }
-            virtual twod selection_gonext(bool direction) = 0;
-            virtual twod selection_gofind(bool direction, view data = {}) = 0;
-            virtual si32 selection_button(twod const& delta = {}) = 0;
-            virtual twod selection_search(bool direction, view data = {})
+            virtual void selection_create(twod coor, bool mode)           = 0;
+            virtual bool selection_extend(twod coor, bool mode)           = 0;
+            virtual void selection_follow(twod coor, bool lock)           = 0;
+            virtual void selection_byword(twod coor)                      = 0;
+            virtual void selection_byline(twod coor)                      = 0;
+            virtual text selection_pickup(si32  selmod)                   = 0;
+            virtual void selection_render(face& target)                   = 0;
+            virtual void selection_status(term_state& status) const       = 0;
+            virtual si32 selection_button(twod const& delta = {})         = 0;
+            virtual twod selection_gonext(feed direction)                 = 0;
+            virtual twod selection_gofind(feed direction, view data = {}) = 0;
+            virtual twod selection_search(feed direction, view data = {})
             {
-                log(" search: ", direction ? "fwd" : "rev");
+                log(" search: ", direction == feed::fwd ? "fwd" : "rev");
                 auto delta = dot_00;
                 if (data.empty()) // Find next selection match.
                 {
@@ -973,6 +974,14 @@ namespace netxs::ui
                     delta = selection_gofind(direction, data);
                 }
                 return delta;
+            }
+            virtual void selection_setjet(bias align)
+            {
+                // Do nothing by default.
+            }
+            virtual void selection_setwrp()
+            {
+                // Do nothing by default.
             }
             // bufferbase: Cancel text selection.
             virtual bool selection_cancel()
@@ -1858,9 +1867,13 @@ namespace netxs::ui
             rich canvas; // alt_screen: Terminal screen.
             twod seltop; // alt_screen: Selected area head.
             twod selend; // alt_screen: Selected area tail.
+            bool uiprev; // alt_screen: Prev button highlighted.
+            bool uinext; // alt_screen: Next button highlighted.
 
             alt_screen(term& boss)
-                : bufferbase{ boss }
+                : bufferbase{ boss },
+                      uiprev{ faux },
+                      uinext{ faux }
             { }
 
             si32 get_size() const override { return panel.y; }
@@ -2187,8 +2200,8 @@ namespace netxs::ui
                  && seltop.y != selend.y)
                 {
                     match = {};
-                    prev_avail = faux;
-                    next_avail = faux;
+                    uiprev = faux;
+                    uinext = faux;
                 }
                 else
                 {
@@ -2197,64 +2210,54 @@ namespace netxs::ui
                     auto p2 = selend;
                     if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
                     auto offset = p1.x + p1.y * panel.x;
-
-                    auto start = offset + match.length();
-                    next_avail = canvas.find<feed::fwd>(match, start); // Try to find next next.
-                    start = offset - 1;
-                    prev_avail = canvas.find<feed::rev>(match, start); // Try to find next prev.
+                    auto n = offset + match.length();
+                    uinext = canvas.find(match, n, feed::fwd); // Try to find next next.
+                    auto p = offset - 1;
+                    uiprev = canvas.find(match, p, feed::rev); // Try to find next prev.
                 }
                 bufferbase::selection_update(despace);
             }
             // alt_screen: Search data and return distance to it.
-            twod selection_gofind(bool direction, view data = {}) override
+            twod selection_gofind(feed direction, view data = {}) override
             {
-                //...
+                if (data.empty()) return dot_00;
+                match = line{ data };
+                seltop = direction == feed::fwd ? twod{-match.length(), 0 }
+                                                : twod{ panel.x, panel.y - 1 };
+                selend = seltop;
+                uiprev = faux;
+                uinext = faux;
+                selection_gonext(direction);
+                if (direction == feed::fwd && uiprev == faux
+                 || direction == feed::rev && uinext == faux) selection_cancel();
                 return dot_00;
             }
-            bool prev_avail = faux; // For buttons highlighting.
-            bool next_avail = faux;
             // alt_screen: Search prev/next selection match and return distance to it.
-            twod selection_gonext(bool direction) override
+            twod selection_gonext(feed direction) override
             {
                 auto p1 = seltop;
                 auto p2 = selend;
                 if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
                 auto from = p1.x + p1.y * panel.x;
-
-                if (direction)
+                auto find = [&](auto a, auto b, auto& uinext, auto& uiprev)
                 {
-                    auto offset = from + match.length();
-                    if (canvas.find<feed::fwd>(match, offset))
+                    auto offset = from + a;
+                    if (canvas.find(match, offset, direction))
                     {
                         seltop = { offset % panel.x,
                                    offset / panel.x };
-                        offset += match.length() - 1;
+                        offset += a - (b - 2);
                         selend = { offset % panel.x,
                                    offset / panel.x };
-                        prev_avail = true;
-
-                        offset += match.length();
-                        next_avail = canvas.find<feed::fwd>(match, offset); // Try to find next next.
+                        offset += a;
+                        uinext = canvas.find(match, offset, direction); // Try to find next next.
+                        uiprev = true;
                     }
-                    else next_avail = faux;
-                }
-                else
-                {
-                    auto offset = from - 1;
-                    if (canvas.find<feed::rev>(match, offset))
-                    {
-                        seltop = { offset % panel.x,
-                                   offset / panel.x };
-                        offset -= match.length() - 1;
-                        selend = { offset % panel.x,
-                                   offset / panel.x };
-                        next_avail = true;
+                    else uinext = faux;
+                };
 
-                        offset -= 1;
-                        prev_avail = canvas.find<feed::rev>(match, offset); // Try to find next prev.
-                    }
-                    else prev_avail = faux;
-                }
+                if (direction == feed::fwd) find(match.length(),  3, uinext, uiprev);
+                else                        find(-1, match.length(), uiprev, uinext);
 
                 bufferbase::selection_update(faux);
                 return dot_00;
@@ -2262,14 +2265,15 @@ namespace netxs::ui
             // alt_screen: Return match navigation state.
             si32 selection_button(twod const& delta = {}) override
             {
-                auto forward_is_available = next_avail ? 1 << 0 : 0;
-                auto reverse_is_available = prev_avail ? 1 << 1 : 0;
+                auto forward_is_available = uinext ? 1 << 0 : 0;
+                auto reverse_is_available = uiprev ? 1 << 1 : 0;
                 return forward_is_available | reverse_is_available;
             }
+            // alt_screen: Cancel text selection.
             bool selection_cancel() override
             {
-                prev_avail = faux;
-                next_avail = faux;
+                uiprev = faux;
+                uinext = faux;
                 return bufferbase::selection_cancel();
             }
         };
@@ -5383,16 +5387,16 @@ namespace netxs::ui
                 bufferbase::selection_update(despace);
             }
             // scroll_buf: Search data and return distance to it.
-            twod selection_gofind(bool direction, view data = {}) override
+            twod selection_gofind(feed direction, view data = {}) override
             {
-                auto delta = twod{ 10,10 } * (direction ? -1 : 1);
+                auto delta = twod{ 10,10 } * (direction == feed::fwd ? -1 : 1);
                 //...
                 return delta;
             }
             // scroll_buf: Search prev/next selection match and return distance to it.
-            twod selection_gonext(bool direction) override
+            twod selection_gonext(feed direction) override
             {
-                auto delta = twod{ 10,10 } * (direction ? -1 : 1);
+                auto delta = twod{ 10,10 } * (direction == feed::fwd ? -1 : 1);
                 if (upmid.role == grip::base)
                 {
                     auto& curln = batch.item_by_id(upmid.link);
@@ -5998,7 +6002,7 @@ namespace netxs::ui
             auto delta = dot_00;
             if (console.selection_active())
             {
-                delta = console.selection_search(dir == feed::fwd);
+                delta = console.selection_search(dir);
             }
             else
             {
@@ -6008,7 +6012,7 @@ namespace netxs::ui
                     gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
                     if (data.size())
                     {
-                        delta = console.selection_search(dir == feed::fwd, data);
+                        delta = console.selection_search(dir, data);
                     }
                     else // Page by page scrolling if nothing to search.
                     {
@@ -6052,8 +6056,8 @@ namespace netxs::ui
                     case commands::ui::togglesel: selection_selmod(); break;
                     case commands::ui::reset:     decstr(); break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
-                    case commands::ui::look_fwd:  console.selection_search(true); break;
-                    case commands::ui::look_rev:  console.selection_search(faux); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;
                 }
             }
@@ -6068,8 +6072,8 @@ namespace netxs::ui
                     case commands::ui::togglesel: selection_selmod(); return; // Without resetting the viewport.
                     case commands::ui::reset:     decstr(); break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
-                    case commands::ui::look_fwd:  console.selection_search(true); break;
-                    case commands::ui::look_rev:  console.selection_search(faux); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;
                 }
                 follow[axis::Y] = true; // Reset viewport.

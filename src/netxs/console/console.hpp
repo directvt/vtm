@@ -5766,7 +5766,7 @@ again:
                             auto deed = this->bell::template protos<tier::preview>();
                             if (deed == hids::events::mouse::move.id)
                             {
-                                if (tooltip_coor(gear.coord)) // Do nothing on shuffle.
+                                if (tooltip_coor(gear.coord) || (tooltip_show && tooltip_boss != input.hover)) // Do nothing on shuffle.
                                 {
                                     if (tooltip_show && tooltip_boss == input.hover) // Drop tooltip if moved.
                                     {
@@ -5858,7 +5858,11 @@ again:
             lock.unlock();
 
             conio.session(props.title);
-            mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
+
+            lock.lock();
+                token.clear();
+                mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
+            lock.unlock();
         }
 
     protected:
@@ -6086,9 +6090,13 @@ again:
                     if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.captured())
                     {
                         static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
-                        auto coor = input.coord - twod{ 4,2 };
-                        parent_canvas.cup(coor);
+                        auto full = parent_canvas.full();
+                        auto area = full;
+                        area.coor = input.coord - twod{ 4, tooltip_page.size() + 1 };
+                        parent_canvas.full(area);
+                        parent_canvas.cup(dot_00);
                         parent_canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
+                        parent_canvas.full(full);
                     }
                 }
 
