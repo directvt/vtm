@@ -500,10 +500,13 @@ namespace netxs::console
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);
         }
-        auto find(core const& what, si32& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
+        template<class SI32>
+        auto find(core const& what, SI32&& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
         {
-            auto full =      canvas.size();
-            auto size = what.canvas.size();
+            assert(     canvas.size() <= std::numeric_limits<si32>::max());
+            assert(what.canvas.size() <= std::numeric_limits<si32>::max());
+            auto full = static_cast<si32>(     canvas.size());
+            auto size = static_cast<si32>(what.canvas.size());
             auto look = [&](auto canvas_begin, auto canvas_end, auto what_begin)
             {
                 auto rest = full - from;
@@ -1061,6 +1064,10 @@ namespace netxs::console
         {
             assert(canvas.size() <= std::numeric_limits<si32>::max());
             return static_cast<si32>(canvas.size());
+        }
+        auto empty()
+        {
+            return canvas.empty();
         }
         void shrink(cell const& blank, si32 max_size = 0, si32 min_size = 0)
         {
