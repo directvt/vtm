@@ -13,7 +13,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")    # WIN32 and similar checks are soft
     #         mt.exe: general error c101008d: Failed to write the updated manifest to the resource of file...
     #set (CMAKE_EXE_LINKER_FLAGS "/MANIFEST:NO")
     set (CMAKE_CXX_FLAGS "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj")
-elseif (NOT CMAKE_HOST_SYSTEM_NAME MATCHES "Android")
+elseif (NOT CMAKE_SYSTEM_NAME MATCHES "Android")
     set (CMAKE_CXX_FLAGS "-pthread")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         #static linkage
