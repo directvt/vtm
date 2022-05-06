@@ -4044,6 +4044,7 @@ namespace netxs::ui
                     //});
                     if (find)
                     {
+                        match.style = style;
                         auto offset = si32{ 0 };
                         while (curln.find(match, offset))
                         {
@@ -5489,8 +5490,9 @@ namespace netxs::ui
                         else
                         {
                             uifwd = faux;
+                            //todo use reverse iterators
                             auto head = batch.iter_by_id(upmid.link);
-                            auto tail = batch.begin();
+                            auto tail = batch.begin() - 1;
                             init.coor.y += curln.height(panel.x);
                             while (--head != tail)
                             {

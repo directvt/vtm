@@ -507,9 +507,9 @@ namespace netxs::console
             assert(what.canvas.size() <= std::numeric_limits<si32>::max());
             auto full = static_cast<si32>(     canvas.size());
             auto size = static_cast<si32>(what.canvas.size());
+            auto rest = full - from;
             auto look = [&](auto canvas_begin, auto canvas_end, auto what_begin)
             {
-                auto rest = full - from;
                 if (!size || size > rest) return faux;
 
                 size--;
@@ -550,10 +550,10 @@ namespace netxs::console
             }
             else
             {
-                from = full - from - 1;
+                std::swap(rest, from); // Reverse.
                 if (look(canvas.rbegin(), canvas.rend(), what.canvas.rbegin()))
                 {
-                    from = full - from - 1;
+                    from = full - from - 1; // Restore forward representation.
                     return true;
                 }
             }
@@ -1056,15 +1056,11 @@ namespace netxs::console
             : core{ std::forward<core>(s) }
         { }
 
+        auto length() const                                     { return size().x;                         }
         auto shadow() const                                     { return shot{ *this };                    }
         auto substr(si32 at, si32 width = netxs::maxsi32) const { return shadow().substr(at, width);       }
         void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
         void reserv(si32 oversize)                              { if (oversize > length()) crop(oversize); }
-        si32 length() const
-        {
-            assert(canvas.size() <= std::numeric_limits<si32>::max());
-            return static_cast<si32>(canvas.size());
-        }
         auto empty()
         {
             return canvas.empty();
