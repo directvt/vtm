@@ -5402,20 +5402,84 @@ namespace netxs::ui
             // scroll_buf: Search prev/next selection match and return distance to it.
             twod selection_gonext(feed direction) override
             {
-                auto delta = twod{ 10,10 } * (direction == feed::fwd ? -1 : 1);
+                auto fwd = direction == feed::fwd;
+                auto delta = dot_00;
                 if (upmid.role == grip::base)
                 {
                     auto& curln = batch.item_by_id(upmid.link);
-                    auto p1 = upmid.coor;
-                    auto p2 = dnmid.coor;
-                    if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
-                    auto head = selection_offset(curln, p1, 0);
-                    auto tail = selection_offset(curln, p2, 1);
+                    auto init = upmid.coor;
+                    auto stop = dnmid.coor;
+                    if (init.y > stop.y || (init.y == stop.y && init.x > stop.x)) std::swap(init, stop);
+                    //todo move current selection to the center of viewport
+                    //if it outside (p1 && p2)
+                    auto from = selection_offset(curln, init, 0);
+                    auto mlen = match.length();
+                    auto step = fwd ? mlen : -1;
+                    auto back = fwd ? 3 : mlen;
+                    from += step;
+                    if (curln.find(match, from, direction))
+                    {
+                        upmid.coor = offset_to_screen(curln, from);
+                        from += step - (back - 2);
+                        dnmid.coor = offset_to_screen(curln, from);
+                        delta += init - upmid.coor;
+                    }
+                    else
+                    {
+                        if (fwd)
+                        {
+                            uirev = faux;
+                            auto head = batch.iter_by_id(upmid.link);
+                            auto tail = batch.end();
+                            init.y -= curln.height(panel.x);
+                            from = {};
+                            while (++head != tail)
+                            {
+                                auto& curln = *head;
+                                if (curln.find(match, from, direction))
+                                {
+                                    upmid.link = curln.index;
+                                    dnmid.link = curln.index;
+                                    upmid.coor = offset_to_screen(curln, from);
+                                    from += step - (back - 2);
+                                    dnmid.coor = offset_to_screen(curln, from);
+                                    delta += init - upmid.coor;
+                                    uirev = true;
+                                    break;
+                                }
+                                init.y -= curln.height(panel.x);
+                            }
+                            //if the bottom reached goto the end scrolling margin
+                        }
+                        else
+                        {
+                            uifwd = faux;
+                            auto head = batch.iter_by_id(upmid.link);
+                            auto tail = batch.begin();
+                            init.y += curln.height(panel.x);
+                            while (--head != tail)
+                            {
+                                auto& curln = *head;
+                                from = curln.length();
+                                if (curln.find(match, from, direction))
+                                {
+                                    upmid.link = curln.index;
+                                    dnmid.link = curln.index;
+                                    upmid.coor = offset_to_screen(curln, from);
+                                    from += step - (back - 2);
+                                    dnmid.coor = offset_to_screen(curln, from);
+                                    delta += init - upmid.coor;
+                                    uifwd = true;
+                                    break;
+                                }
+                                init.y += curln.height(panel.x);
+                            }
+                            //if top reached goto the top scrolling margin
+                        }
+                    }
+
                     log("mid: looking in scrollbuff");
-                    //if top reached goto the top scrolling margin
-                    //if the bottom reached goto the end scrolling margin
                     //...
-                    //match = { curln.core::line(head, tail) };
                 }
                 else
                 {
@@ -5427,7 +5491,7 @@ namespace netxs::ui
 
                         auto from = p1.x + p1.y * upbox.size().x;
                         auto done = bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor);
-                        if (!done && direction == feed::fwd)
+                        if (!done && fwd)
                         {
                             log("top: looking in scrollbuff");
                             //if not found and direction=fwd goto the scrollback
@@ -5453,6 +5517,8 @@ namespace netxs::ui
                     }
                 }
                 bufferbase::selection_update(faux);
+
+                log("delta: ", delta);
                 return delta;
             }
             // scroll_buf: Return match navigation state.
