@@ -5399,6 +5399,34 @@ namespace netxs::ui
                 //...
                 return delta;
             }
+            // scroll_buf: Retrun distance between lines.
+            auto selection_outrun(id_t id1, twod coor1, id_t id2, twod coor2)
+            {
+                auto dir = static_cast<si32>(id2 - id1);
+                if (dir < 0)
+                {
+                    std::swap(id1, id2);
+                    std::swap(coor1, coor2);
+                }
+                auto dist = coor2;
+                auto head = batch.iter_by_id(id1);
+                auto tail = batch.iter_by_id(id2);
+                while (head != tail)
+                {
+                    dist.y += head->height(panel.x);
+                    ++head;
+                }
+                dist -= coor1;
+                return dir < 0 ? -dist
+                               :  dist;
+            }
+            // scroll_buf: Retrun distance to the center of viewport.
+            twod selection_center(id_t id, twod coor)
+            {
+                auto base = twod{ panel.x / 2 - owner.origin.x, arena / 2 - batch.ancdy + y_top };
+                auto dist = selection_outrun(id, coor, batch.ancid, base);
+                return dist;
+            }
             // scroll_buf: Search prev/next selection match and return distance to it.
             twod selection_gonext(feed direction) override
             {
@@ -5407,12 +5435,19 @@ namespace netxs::ui
                 if (upmid.role == grip::base)
                 {
                     auto& curln = batch.item_by_id(upmid.link);
-                    auto init = upmid.coor;
-                    auto stop = dnmid.coor;
-                    if (init.y > stop.y || (init.y == stop.y && init.x > stop.x)) std::swap(init, stop);
-                    //todo move current selection to the center of viewport
-                    //if it outside (p1 && p2)
-                    auto from = selection_offset(curln, init, 0);
+                    auto init = upmid;
+                    auto stop = dnmid;
+                    if (init.coor.y > stop.coor.y
+                    || (init.coor.y == stop.coor.y && init.coor.x > stop.coor.x)) std::swap(init, stop);
+
+                    auto center = selection_center(init.link, init.coor);
+                    if (std::abs(center.x) >= panel.x / 2
+                     || std::abs(center.y) >= arena   / 2) // Move current selection to the center of viewport.
+                    {
+                        delta += center;
+                    }
+
+                    auto from = selection_offset(curln, init.coor, 0);
                     auto mlen = match.length();
                     auto step = fwd ? mlen : -1;
                     auto back = fwd ? 3 : mlen;
@@ -5422,7 +5457,7 @@ namespace netxs::ui
                         upmid.coor = offset_to_screen(curln, from);
                         from += step - (back - 2);
                         dnmid.coor = offset_to_screen(curln, from);
-                        delta += init - upmid.coor;
+                        delta += init.coor - upmid.coor;
                     }
                     else
                     {
@@ -5431,7 +5466,7 @@ namespace netxs::ui
                             uirev = faux;
                             auto head = batch.iter_by_id(upmid.link);
                             auto tail = batch.end();
-                            init.y -= curln.height(panel.x);
+                            init.coor.y -= curln.height(panel.x);
                             from = {};
                             while (++head != tail)
                             {
@@ -5443,11 +5478,11 @@ namespace netxs::ui
                                     upmid.coor = offset_to_screen(curln, from);
                                     from += step - (back - 2);
                                     dnmid.coor = offset_to_screen(curln, from);
-                                    delta += init - upmid.coor;
+                                    delta += init.coor - upmid.coor;
                                     uirev = true;
                                     break;
                                 }
-                                init.y -= curln.height(panel.x);
+                                init.coor.y -= curln.height(panel.x);
                             }
                             //if the bottom reached goto the end scrolling margin
                         }
@@ -5456,7 +5491,7 @@ namespace netxs::ui
                             uifwd = faux;
                             auto head = batch.iter_by_id(upmid.link);
                             auto tail = batch.begin();
-                            init.y += curln.height(panel.x);
+                            init.coor.y += curln.height(panel.x);
                             while (--head != tail)
                             {
                                 auto& curln = *head;
@@ -5468,18 +5503,30 @@ namespace netxs::ui
                                     upmid.coor = offset_to_screen(curln, from);
                                     from += step - (back - 2);
                                     dnmid.coor = offset_to_screen(curln, from);
-                                    delta += init - upmid.coor;
+                                    delta += init.coor - upmid.coor;
                                     uifwd = true;
                                     break;
                                 }
-                                init.y += curln.height(panel.x);
+                                init.coor.y += curln.height(panel.x);
                             }
                             //if top reached goto the top scrolling margin
                         }
                     }
 
+                    auto new_origin_x = owner.origin.x + delta.x;
+                    auto reset_viewport = [&](auto origin_x, auto c_x)
+                    {
+                        if (origin_x != 0 || c_x != panel.x)
+                        {
+                                 if (c_x >= 0  && c_x < panel.x) origin_x = 0;
+                            else if (c_x >= -origin_x + panel.x) origin_x = -c_x + panel.x - 1;
+                            else if (c_x <  -origin_x          ) origin_x = -c_x;
+                        }
+                        return origin_x;
+                    };
+                    delta.x -= new_origin_x - reset_viewport(new_origin_x, upmid.coor.x);
+
                     log("mid: looking in scrollbuff");
-                    //...
                 }
                 else
                 {
