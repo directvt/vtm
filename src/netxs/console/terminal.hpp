@@ -1757,7 +1757,17 @@ namespace netxs::ui
             }
             // bufferbase: CSI n K  Erase line (don't move cursor).
     virtual void el(si32 n) = 0;
-
+            // bufferbase: Helper to reset viewport horizontal position.
+            static auto reset_viewport(si32 origin_x, si32 x, si32 panel_x)
+            {
+                if (origin_x != 0 || x != panel_x)
+                {
+                         if (x >= 0  &&   x < panel_x) origin_x = 0;
+                    else if (x >= -origin_x + panel_x) origin_x = 0 - x + panel_x - 1;
+                    else if (x <  -origin_x          ) origin_x = 0 - x;
+                }
+                return origin_x;
+            };
             // bufferbase: Rasterize selection with grips.
             void selection_raster(face& target, auto curtop, auto curend, bool ontop = true, bool onend = true)
             {
@@ -5431,14 +5441,14 @@ namespace netxs::ui
             // scroll_buf: Search prev/next selection match and return distance to it.
             twod selection_gonext(feed direction) override
             {
-                auto fwd = direction == feed::fwd;
+                auto ahead = direction == feed::fwd;
                 auto delta = dot_00;
                 if (upmid.role == grip::base)
                 {
                     auto& curln = batch.item_by_id(upmid.link);
                     auto init = upmid;
                     auto stop = dnmid;
-                    if (init.coor.y > stop.coor.y
+                    if (init.coor.y >  stop.coor.y
                     || (init.coor.y == stop.coor.y && init.coor.x > stop.coor.x)) std::swap(init, stop);
 
                     auto center = selection_center(init.link, init.coor);
@@ -5450,8 +5460,8 @@ namespace netxs::ui
 
                     auto from = selection_offset(curln, init.coor, 0);
                     auto mlen = match.length();
-                    auto step = fwd ? mlen : -1;
-                    auto back = fwd ? 3 : mlen;
+                    auto step = ahead ? mlen : -1;
+                    auto back = ahead ? 3 : mlen;
                     from += step;
                     if (curln.find(match, from, direction))
                     {
@@ -5462,71 +5472,63 @@ namespace netxs::ui
                     }
                     else
                     {
-                        if (fwd)
+                        auto head = batch.iter_by_id(upmid.link);
+                        auto find = [&](auto tail, auto proc)
                         {
-                            uirev = faux;
-                            auto head = batch.iter_by_id(upmid.link);
-                            auto tail = batch.end();
-                            init.coor.y -= curln.height(panel.x);
-                            from = {};
-                            while (++head != tail)
+                            auto value = faux;
+                            auto accum = init.coor;
+                            accum.y -= curln.height(panel.x);
+                            while (head != tail)
                             {
-                                auto& curln = *head;
-                                if (curln.find(match, from, direction))
+                                auto& curln = proc(head);
+                                auto  start = ahead ? 0 : curln.length();
+                                if (curln.find(match, start, direction))
                                 {
                                     upmid.link = curln.index;
                                     dnmid.link = curln.index;
-                                    upmid.coor = offset_to_screen(curln, from);
-                                    from += step - (back - 2);
-                                    dnmid.coor = offset_to_screen(curln, from);
-                                    delta += init.coor - upmid.coor;
-                                    uirev = true;
+                                    upmid.coor = offset_to_screen(curln, start);
+                                    start += step - (back - 2);
+                                    dnmid.coor = offset_to_screen(curln, start);
+                                    delta -= upmid.coor;
+                                    value = true;
                                     break;
                                 }
-                                init.coor.y -= curln.height(panel.x);
+                                accum.y -= curln.height(panel.x);
                             }
-                            //if the bottom reached goto the end scrolling margin
+                            if (value) delta += ahead ? accum
+                                                      :-accum;
+                            return value;
+                        };
+                        if (ahead)
+                        {
+                            if (find(batch.end() - 1, [](auto& head) -> auto& { return *++head; }))
+                            {
+                                uirev = true;
+                            }
+                            else
+                            {
+                                //uirev = faux;
+                                //if the bottom reached goto the end scrolling margin
+                                //...
+                            }
                         }
                         else
                         {
-                            uifwd = faux;
-                            //todo use reverse iterators
-                            auto head = batch.iter_by_id(upmid.link);
-                            auto tail = batch.begin() - 1;
-                            init.coor.y += curln.height(panel.x);
-                            while (--head != tail)
+                            if (find(batch.begin(),   [](auto& head) -> auto& { return *--head; }))
                             {
-                                auto& curln = *head;
-                                from = curln.length();
-                                if (curln.find(match, from, direction))
-                                {
-                                    upmid.link = curln.index;
-                                    dnmid.link = curln.index;
-                                    upmid.coor = offset_to_screen(curln, from);
-                                    from += step - (back - 2);
-                                    dnmid.coor = offset_to_screen(curln, from);
-                                    delta += init.coor - upmid.coor;
-                                    uifwd = true;
-                                    break;
-                                }
-                                init.coor.y += curln.height(panel.x);
+                                uifwd = true;
                             }
-                            //if top reached goto the top scrolling margin
+                            else
+                            {
+                                //uifwd = faux;
+                                //if top reached goto the top scrolling margin
+                                //...
+                            }
                         }
                     }
 
                     auto new_origin_x = owner.origin.x + delta.x;
-                    auto reset_viewport = [&](auto origin_x, auto c_x)
-                    {
-                        if (origin_x != 0 || c_x != panel.x)
-                        {
-                                 if (c_x >= 0  && c_x < panel.x) origin_x = 0;
-                            else if (c_x >= -origin_x + panel.x) origin_x = -c_x + panel.x - 1;
-                            else if (c_x <  -origin_x          ) origin_x = -c_x;
-                        }
-                        return origin_x;
-                    };
-                    delta.x -= new_origin_x - reset_viewport(new_origin_x, upmid.coor.x);
+                    delta.x -= new_origin_x - reset_viewport(new_origin_x, upmid.coor.x, panel.x);
 
                     log("mid: looking in scrollbuff");
                 }
@@ -5540,7 +5542,7 @@ namespace netxs::ui
 
                         auto from = p1.x + p1.y * upbox.size().x;
                         auto done = bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor);
-                        if (!done && fwd)
+                        if (!done && ahead)
                         {
                             log("top: looking in scrollbuff");
                             //if not found and direction=fwd goto the scrollback
@@ -5556,7 +5558,7 @@ namespace netxs::ui
 
                         auto from = p1.x + p1.y * dnbox.size().x;
                         auto done = bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor);
-                        if (!done && direction == feed::rev)
+                        if (!done && !ahead)
                         {
                             log("end: looking in scrollbuff");
                             //if not found and direction=rev goto the scrollback
@@ -5840,13 +5842,8 @@ namespace netxs::ui
                 if (follow[axis::X])
                 {
                     follow[axis::X] = faux;
-                    auto c = console.get_coord(dot_00);
-                    if (origin.x != 0 || c.x != console.panel.x)
-                    {
-                             if (c.x >= 0  && c.x < console.panel.x) origin.x = 0;
-                        else if (c.x >= -origin.x + console.panel.x) origin.x = -c.x + console.panel.x - 1;
-                        else if (c.x <  -origin.x                  ) origin.x = -c.x;
-                    }
+                    auto pos = console.get_coord(dot_00).x;
+                    origin.x = bufferbase::reset_viewport(origin.x, pos, console.panel.x);
                 }
                 origin.y = -console.get_basis();
             }
