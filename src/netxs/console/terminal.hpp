@@ -1855,14 +1855,15 @@ namespace netxs::ui
             {
                 auto find = [&](auto a, auto b, auto& uinext, auto& uiprev)
                 {
+                    auto length = canvas.size().x;
                     auto offset = from + a;
                     if (canvas.find(match, offset, direction))
                     {
-                        seltop = { offset % panel.x,
-                                   offset / panel.x };
+                        seltop = { offset % length,
+                                   offset / length };
                         offset += a - (b - 2);
-                        selend = { offset % panel.x,
-                                   offset / panel.x };
+                        selend = { offset % length,
+                                   offset / length };
                         offset += a;
                         uinext = canvas.find(match, offset, direction); // Try to find next next.
                         uiprev = true;
@@ -5431,34 +5432,30 @@ namespace netxs::ui
                 return dir < 0 ? -dist
                                :  dist;
             }
+            // scroll_buf: Retrun viewport center.
+            auto selection_viewport_center()
+            {
+                return twod{ panel.x / 2 - owner.origin.x, arena / 2 - batch.ancdy };
+            }
             // scroll_buf: Retrun distance to the center of viewport.
             twod selection_center(id_t id, twod coor)
             {
-                auto base = twod{ panel.x / 2 - owner.origin.x, arena / 2 - batch.ancdy + y_top };
+                //auto base = twod{ panel.x / 2 - owner.origin.x, arena / 2 - batch.ancdy };
+                auto base = selection_viewport_center();
                 auto dist = selection_outrun(id, coor, batch.ancid, base);
                 return dist;
             }
             // scroll_buf: Search prev/next selection match and return distance to it.
             twod selection_gonext(feed direction) override
             {
+                if (match.empty()) return dot_00;
+
                 auto ahead = direction == feed::fwd;
                 auto delta = dot_00;
-                if (upmid.role == grip::base)
+                auto probe = [&](auto startid, auto accum)
                 {
-                    auto& curln = batch.item_by_id(upmid.link);
-                    auto init = upmid;
-                    auto stop = dnmid;
-                    if (init.coor.y >  stop.coor.y
-                    || (init.coor.y == stop.coor.y && init.coor.x > stop.coor.x)) std::swap(init, stop);
-
-                    auto center = selection_center(init.link, init.coor);
-                    if (std::abs(center.x) >= panel.x / 2
-                     || std::abs(center.y) >= arena   / 2) // Move current selection to the center of viewport.
-                    {
-                        delta += center;
-                    }
-
-                    auto from = selection_offset(curln, init.coor, 0);
+                    auto& curln = batch.item_by_id(startid);
+                    auto from = selection_offset(curln, accum, 0);
                     auto mlen = match.length();
                     auto step = ahead ? mlen : -1;
                     auto back = ahead ? 3 : mlen;
@@ -5468,15 +5465,17 @@ namespace netxs::ui
                         upmid.coor = offset_to_screen(curln, from);
                         from += step - (back - 2);
                         dnmid.coor = offset_to_screen(curln, from);
-                        delta += init.coor - upmid.coor;
+                        delta += accum - upmid.coor;
+                        uptop.role = dntop.role = grip::idle;
+                        upmid.role = dnmid.role = grip::base;
+                        upend.role = dnend.role = grip::idle;
                     }
                     else
                     {
-                        auto head = batch.iter_by_id(upmid.link);
+                        auto head = batch.iter_by_id(startid);
                         auto find = [&](auto tail, auto proc)
                         {
                             auto value = faux;
-                            auto accum = init.coor;
                             accum.y -= curln.height(panel.x);
                             while (head != tail)
                             {
@@ -5486,6 +5485,9 @@ namespace netxs::ui
                                 {
                                     upmid.link = curln.index;
                                     dnmid.link = curln.index;
+                                    uptop.role = dntop.role = grip::idle;
+                                    upmid.role = dnmid.role = grip::base;
+                                    upend.role = dnend.role = grip::idle;
                                     upmid.coor = offset_to_screen(curln, start);
                                     start += step - (back - 2);
                                     dnmid.coor = offset_to_screen(curln, start);
@@ -5501,36 +5503,61 @@ namespace netxs::ui
                         };
                         if (ahead)
                         {
+                            uirev = faux;
                             if (find(batch.end() - 1, [](auto& head) -> auto& { return *++head; }))
                             {
                                 uirev = true;
                             }
-                            else
+                            else if (sctop)
                             {
-                                //uirev = faux;
-                                //if the bottom reached goto the end scrolling margin
-                                //...
+                                auto from = si32{ 0 };
+                                if (bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor))
+                                {
+                                    uptop.role = dntop.role = grip::idle;
+                                    upmid.role = dnmid.role = grip::idle;
+                                    upend.role = dnend.role = grip::base;
+                                }
                             }
                         }
                         else
                         {
+                            uifwd = faux;
                             if (find(batch.begin(),   [](auto& head) -> auto& { return *--head; }))
                             {
                                 uifwd = true;
                             }
-                            else
+                            else if (scend)
                             {
-                                //uifwd = faux;
-                                //if top reached goto the top scrolling margin
-                                //...
+                                auto from = upbox.size().x * upbox.size().y;
+                                if (bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor))
+                                {
+                                    uptop.role = dntop.role = grip::base;
+                                    upmid.role = dnmid.role = grip::idle;
+                                    upend.role = dnend.role = grip::idle;
+                                }
                             }
                         }
                     }
+                };
+
+                if (upmid.role == grip::base)
+                {
+                    auto init = upmid;
+                    auto stop = dnmid;
+                    if (init.coor.y >  stop.coor.y
+                    || (init.coor.y == stop.coor.y && init.coor.x > stop.coor.x)) std::swap(init, stop);
+
+                    auto center = selection_center(init.link, init.coor);
+                    if (std::abs(center.x) >= panel.x / 2
+                     || std::abs(center.y) >= arena   / 2) // Move current selection to the center of viewport.
+                    {
+                        delta += center;
+                    }
+
+                    probe(upmid.link, init.coor);
 
                     auto new_origin_x = owner.origin.x + delta.x;
                     delta.x -= new_origin_x - reset_viewport(new_origin_x, upmid.coor.x, panel.x);
-
-                    log("mid: looking in scrollbuff");
                 }
                 else
                 {
@@ -5544,9 +5571,8 @@ namespace netxs::ui
                         auto done = bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor);
                         if (!done && ahead)
                         {
-                            log("top: looking in scrollbuff");
-                            //if not found and direction=fwd goto the scrollback
-                            //...
+                            upmid.coor = dnmid.coor = selection_viewport_center();
+                            probe(batch.ancid, twod{ 0, batch.ancdy });
                         }
                         else delta = dot_00;
                     }
@@ -5560,16 +5586,17 @@ namespace netxs::ui
                         auto done = bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor);
                         if (!done && !ahead)
                         {
-                            log("end: looking in scrollbuff");
-                            //if not found and direction=rev goto the scrollback
-                            //...
+                            upmid.coor  = dnmid.coor = selection_viewport_center();
+                            auto& mapln = index.back();
+                            auto& curln = batch.item_by_id(mapln.index);
+                            auto offset = mapln.start + mapln.width;
+                            auto fromxy = offset_to_screen(curln, offset);
+                            probe(mapln.index, fromxy);
                         }
                         else delta = dot_00;
                     }
                 }
                 bufferbase::selection_update(faux);
-
-                log("delta: ", delta);
                 return delta;
             }
             // scroll_buf: Return match navigation state.

@@ -1691,7 +1691,8 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                //todo implement for win32
+                //Note: Named Pipes - default ACL used for a named pipe grant full control to the LocalSystem, admins, and the creator owner
+                //https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights
 
             #elif defined(__linux__)
 
