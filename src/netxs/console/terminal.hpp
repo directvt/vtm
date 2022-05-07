@@ -5479,10 +5479,10 @@ namespace netxs::ui
 
                 auto delta = dot_00;
                 auto ahead = direction == feed::fwd;
-                auto probe = [&](auto startid, auto accum)
+                auto probe = [&](auto startid, auto coord)
                 {
                     auto& curln = batch.item_by_id(startid);
-                    auto from = selection_offset(curln, accum, 0);
+                    auto from = selection_offset(curln, coord, 0);
                     auto mlen = match.length();
                     auto step = ahead ? mlen : -1;
                     auto back = ahead ? 3 : mlen;
@@ -5495,9 +5495,7 @@ namespace netxs::ui
                             upmid.coor = offset_to_screen(curln, from);
                             from += step - (back - 2);
                             dnmid.coor = offset_to_screen(curln, from);
-                            delta -= upmid.coor;
-                            delta += ahead ? accum
-                                           :-accum;
+                            delta += coord - upmid.coor;
                             uptop.role = dntop.role = grip::idle;
                             upmid.role = dnmid.role = grip::base;
                             upend.role = dnend.role = grip::idle;
@@ -5512,13 +5510,19 @@ namespace netxs::ui
                         auto head = batch.iter_by_id(startid);
                         auto find = [&](auto tail, auto proc)
                         {
-                            accum.y -= curln.height(panel.x);
+                            auto accum = ahead ? curln.height(panel.x)
+                                               : si32{0};
                             while (head != tail)
                             {
                                 auto& curln = proc(head);
                                 from = ahead ? 0 : curln.length();
-                                if (resx(curln)) return true;
-                                accum.y -= curln.height(panel.x);
+                                if (resx(curln))
+                                {
+                                    delta.y += ahead ?-accum
+                                                     : accum + curln.height(panel.x);
+                                    return true;
+                                }
+                                accum += curln.height(panel.x);
                             }
                             return faux;
                         };
@@ -5574,10 +5578,15 @@ namespace netxs::ui
                     || (init.coor.y == stop.coor.y && init.coor.x > stop.coor.x)) std::swap(init, stop);
 
                     auto center = selection_center(init.link, init.coor);
+                    static auto j = 0;
+                    log("0. centered: ", j++, " center: ", center, " batch.ancid: ", batch.ancid, " batch.ancdy: ", batch.ancdy);
                     if (std::abs(center.x) >= panel.x / 2
                      || std::abs(center.y) >= arena   / 2) // Move current selection to the center of viewport.
                     {
-                        delta += center;
+                        static auto i = 0;
+                        //delta += center;
+                        log("- centered ", i++, " center: ", center);
+                        log("- init.link: ", init.link, " init.coor: ", init.coor);
                     }
                     probe(upmid.link, init.coor);
                 }
