@@ -993,6 +993,7 @@ namespace netxs::ui
                 if (alive)
                 {
                     alive = {};
+                    match = {};
                 }
                 return active;
             }
@@ -5407,8 +5408,34 @@ namespace netxs::ui
             // scroll_buf: Search data and return distance to it.
             twod selection_gofind(feed direction, view data = {}) override
             {
-                auto delta = twod{ 10,10 } * (direction == feed::fwd ? -1 : 1);
-                //...
+                if (data.empty()) return dot_00;
+                match = line{ data };
+
+                auto ahead = direction == feed::fwd;
+                if (ahead)
+                {
+                    uirev = faux;
+                    uptop.coor = dntop.coor = {};
+                    uptop.role = dntop.role = grip::base;
+                    upmid.role = dnmid.role = grip::idle;
+                    upend.role = dnend.role = grip::idle;
+                }
+                else
+                {
+                    uifwd = faux;
+                    uptop.role = dntop.role = grip::idle;
+                    upmid.role = dnmid.role = grip::idle;
+                    upend.role = dnend.role = grip::base;
+                    upend.coor = dnend.coor = dnbox.size() - dot_01;
+                }
+                auto delta = selection_gonext(direction);
+
+                if (ahead && uirev == faux
+                 ||!ahead && uifwd == faux)
+                {
+                    selection_cancel();
+                    delta = {};
+                }
                 return delta;
             }
             // scroll_buf: Retrun distance between lines.
@@ -5450,8 +5477,8 @@ namespace netxs::ui
             {
                 if (match.empty()) return dot_00;
 
-                auto ahead = direction == feed::fwd;
                 auto delta = dot_00;
+                auto ahead = direction == feed::fwd;
                 auto probe = [&](auto startid, auto accum)
                 {
                     auto& curln = batch.item_by_id(startid);
@@ -5459,59 +5486,55 @@ namespace netxs::ui
                     auto mlen = match.length();
                     auto step = ahead ? mlen : -1;
                     auto back = ahead ? 3 : mlen;
-                    from += step;
-                    if (curln.find(match, from, direction))
+                    auto resx = [&](auto& curln)
                     {
-                        upmid.coor = offset_to_screen(curln, from);
-                        from += step - (back - 2);
-                        dnmid.coor = offset_to_screen(curln, from);
-                        delta += accum - upmid.coor;
-                        uptop.role = dntop.role = grip::idle;
-                        upmid.role = dnmid.role = grip::base;
-                        upend.role = dnend.role = grip::idle;
-                    }
-                    else
+                        if (curln.find(match, from, direction))
+                        {
+                            upmid.link = curln.index;
+                            dnmid.link = curln.index;
+                            upmid.coor = offset_to_screen(curln, from);
+                            from += step - (back - 2);
+                            dnmid.coor = offset_to_screen(curln, from);
+                            delta -= upmid.coor;
+                            delta += ahead ? accum
+                                           :-accum;
+                            uptop.role = dntop.role = grip::idle;
+                            upmid.role = dnmid.role = grip::base;
+                            upend.role = dnend.role = grip::idle;
+                            return true;
+                        }
+                        else return faux;
+                    };
+                    from += step;
+                    auto done = resx(curln);
+                    if (!done)
                     {
                         auto head = batch.iter_by_id(startid);
                         auto find = [&](auto tail, auto proc)
                         {
-                            auto value = faux;
                             accum.y -= curln.height(panel.x);
                             while (head != tail)
                             {
                                 auto& curln = proc(head);
-                                auto  start = ahead ? 0 : curln.length();
-                                if (curln.find(match, start, direction))
-                                {
-                                    upmid.link = curln.index;
-                                    dnmid.link = curln.index;
-                                    uptop.role = dntop.role = grip::idle;
-                                    upmid.role = dnmid.role = grip::base;
-                                    upend.role = dnend.role = grip::idle;
-                                    upmid.coor = offset_to_screen(curln, start);
-                                    start += step - (back - 2);
-                                    dnmid.coor = offset_to_screen(curln, start);
-                                    delta -= upmid.coor;
-                                    value = true;
-                                    break;
-                                }
+                                from = ahead ? 0 : curln.length();
+                                if (resx(curln)) return true;
                                 accum.y -= curln.height(panel.x);
                             }
-                            if (value) delta += ahead ? accum
-                                                      :-accum;
-                            return value;
+                            return faux;
                         };
                         if (ahead)
                         {
                             uirev = faux;
-                            if (find(batch.end() - 1, [](auto& head) -> auto& { return *++head; }))
+                            done = find(batch.end() - 1, [](auto& head) -> auto& { return *++head; });
+                            if (done)
                             {
                                 uirev = true;
                             }
                             else if (sctop)
                             {
                                 auto from = si32{ 0 };
-                                if (bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor))
+                                done = bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor);
+                                if (done)
                                 {
                                     uptop.role = dntop.role = grip::idle;
                                     upmid.role = dnmid.role = grip::idle;
@@ -5522,14 +5545,16 @@ namespace netxs::ui
                         else
                         {
                             uifwd = faux;
-                            if (find(batch.begin(),   [](auto& head) -> auto& { return *--head; }))
+                            done = find(batch.begin(),   [](auto& head) -> auto& { return *--head; });
+                            if (done)
                             {
                                 uifwd = true;
                             }
                             else if (scend)
                             {
                                 auto from = upbox.size().x * upbox.size().y;
-                                if (bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor))
+                                done = bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor);
+                                if (done)
                                 {
                                     uptop.role = dntop.role = grip::base;
                                     upmid.role = dnmid.role = grip::idle;
@@ -5538,6 +5563,7 @@ namespace netxs::ui
                             }
                         }
                     }
+                    return done;
                 };
 
                 if (upmid.role == grip::base)
@@ -5553,11 +5579,7 @@ namespace netxs::ui
                     {
                         delta += center;
                     }
-
                     probe(upmid.link, init.coor);
-
-                    auto new_origin_x = owner.origin.x + delta.x;
-                    delta.x -= new_origin_x - reset_viewport(new_origin_x, upmid.coor.x, panel.x);
                 }
                 else
                 {
@@ -5571,8 +5593,13 @@ namespace netxs::ui
                         auto done = bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor);
                         if (!done && ahead)
                         {
-                            upmid.coor = dnmid.coor = selection_viewport_center();
-                            probe(batch.ancid, twod{ 0, batch.ancdy });
+                            // Get first visible line.
+                            auto fromxy = twod{ 0, batch.ancdy };
+                            if (probe(batch.ancid, fromxy))
+                            {
+                                auto center = fromxy - selection_viewport_center();
+                                delta -= center;
+                            }
                         }
                         else delta = dot_00;
                     }
@@ -5586,16 +5613,39 @@ namespace netxs::ui
                         auto done = bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor);
                         if (!done && !ahead)
                         {
-                            upmid.coor  = dnmid.coor = selection_viewport_center();
-                            auto& mapln = index.back();
-                            auto& curln = batch.item_by_id(mapln.index);
-                            auto offset = mapln.start + mapln.width;
+                            // Get last visible line.
+                            auto vpos =-batch.ancdy;
+                            auto head = batch.iter_by_id(batch.ancid);
+                            auto tail = batch.end();
+                            while (head != tail)
+                            {
+                                auto& curln = *head++;
+                                auto newpos = vpos + curln.height(panel.x);
+                                if (newpos >= arena) break;
+                                vpos = newpos;
+                            }
+                            auto& curln = *--head;
+                            auto coorxy = twod{ panel.x - owner.origin.x, arena - vpos };
+                            auto offset = screen_to_offset(curln, coorxy);
                             auto fromxy = offset_to_screen(curln, offset);
-                            probe(mapln.index, fromxy);
+                            if (probe(curln.index, fromxy))
+                            {
+                                auto center = selection_viewport_center();
+                                delta.x -= panel.x / 2 - coorxy.x - fromxy.x;
+                                delta.y -= vpos - center.y;
+                            }
                         }
                         else delta = dot_00;
                     }
                 }
+
+                if (upmid.role == grip::base)
+                {
+                    auto new_origin_x = owner.origin.x + delta.x;
+                    delta.x -= new_origin_x - reset_viewport(new_origin_x, upmid.coor.x, panel.x);
+                }
+                else delta = dot_00;
+
                 bufferbase::selection_update(faux);
                 return delta;
             }
