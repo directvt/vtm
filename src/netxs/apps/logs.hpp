@@ -262,8 +262,8 @@ namespace netxs::app::logs
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
-                    std::list{
-                            std::pair<text, std::function<void(ui::pads&)>>{ "Codepoints",
+                    app::shared::menu_list_type{
+                            { true, "Codepoints", " Toggle button: Show or not codepoints ",
                             [](ui::pads& boss)
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -279,7 +279,7 @@ namespace netxs::app::logs
                                     boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                 };
                             }},
-                            std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
+                            { true, "Clear", " Clear scrollback ",
                             [](ui::pads& boss)
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)

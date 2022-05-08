@@ -17,6 +17,7 @@ namespace netxs::events::userland
             EVENT_XS( colors, cell ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( data  , si32 ),
+            GROUP_XS( search, input::hids ),
 
             SUBSET_XS( layout )
             {
@@ -27,6 +28,12 @@ namespace netxs::events::userland
             {
                 EVENT_XS( in , view ),
                 EVENT_XS( out, view ),
+            };
+            SUBSET_XS( search )
+            {
+                EVENT_XS( forward, input::hids ),
+                EVENT_XS( reverse, input::hids ),
+                EVENT_XS( status , si32        ),
             };
         };
     };
@@ -42,10 +49,10 @@ namespace netxs::app::term
         const static auto c3 = app::shared::c3;
         const static auto x3 = app::shared::x3;
 
-        auto items = std::list
+        auto items = app::shared::menu_list_type
         {
         #ifdef DEMO
-            std::pair<text, std::function<void(ui::pads&)>>{ "T1",
+            { true, "T1", " Exec `ls /bin` ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -55,7 +62,7 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "T2",
+            { true, "T2", " Exec `ping -c 3 127.0.0.1 | ccze -A` ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -65,7 +72,7 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "T3",
+            { true, "T3", " Exec `curl wttr.in` ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -76,27 +83,8 @@ namespace netxs::app::term
                 };
             }},
         #endif
-        #ifdef PROD
-            std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
-                    gear.dismiss(true);
-                };
-            }},
-        #endif
-            std::pair<text, std::function<void(ui::pads&)>>{ "Reset",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
-                    gear.dismiss(true);
-                };
-            }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "=─",
+            { true, "=─", " Align text lines on left side   \n"
+                          " - applied to selection if it is ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -110,7 +98,8 @@ namespace netxs::app::term
                     boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "─=─",
+            { true, "─=─", " Center text lines               \n"
+                           " - applied to selection if it is ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -124,7 +113,8 @@ namespace netxs::app::term
                     boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "─=",
+            { true, "─=", " Align text lines on right side  \n"
+                          " - applied to selection if it is ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -138,7 +128,8 @@ namespace netxs::app::term
                     boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
+            { true, "Wrap", " Wrapping text lines on/off      \n"
+                            " - applied to selection if it is ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -152,8 +143,7 @@ namespace netxs::app::term
                     boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            //todo unify
-            std::pair<text, std::function<void(ui::pads&)>>{ "Selection",
+            { true, "Selection", " Text selection mode ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -168,22 +158,78 @@ namespace netxs::app::term
                     {
                         default:
                         case ui::term::xsgr::disabled:
-                            //boss.attach(ui::item::ctor("Selection", faux, true));
+                            //"Selection"
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Selection");
                             boss.color(x3.fgc(), x3.bgc());
                             break;
                         case ui::term::xsgr::textonly:
-                            //boss.attach(ui::item::ctor("Text only", faux, true));
+                            //"Text only"
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Plaintext");
                             boss.color(0xFF00ff00, x3.bgc());
                             break;
                         case ui::term::xsgr::ansitext:
-                            //boss.attach(ui::item::ctor("Rich-Text", faux, true));
-                            //boss.attach(ui::item::ctor("+ANSI/SGR", faux, true));
+                            //"Rich-Text"
+                            //"+ANSI/SGR"
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "ANSI-text");
                             boss.color(0xFF00ffff, x3.bgc());
                             break;
                     }
+                };
+            }},
+            { true, "<", " Previuos match                    \n"
+                         " - using clipboard if no selection \n"
+                         " - page up if no clipboard data    ",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::search::reverse, gear);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
+                {
+                    //todo unify, get boss base colors, don't use x3
+                    boss.color(mode & 2 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                };
+            }},
+            { true, ">", " Next match                        \n"
+                         " - using clipboard if no selection \n"
+                         " - page down if no clipboard data  ",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::search::forward, gear);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
+                {
+                    //todo unify, get boss base colors, don't use x3
+                    boss.color(mode & 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                };
+            }},
+        #ifdef PROD
+            { faux, "  ", " ...empty menu block for safety ",
+            [](ui::pads& boss)
+            {
+            }},
+            { true, "Clear", " Clear TTY viewport ",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
+                    gear.dismiss(true);
+                };
+            }},
+        #endif
+            { true, "Reset", " Clear scrollback and SGR-attributes ",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
+                    gear.dismiss(true);
                 };
             }},
         };
@@ -245,10 +291,11 @@ namespace netxs::app::term
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
                                                                                 : text{ v }));
 
-                            inst->attach_property(ui::term::events::colors,         app::term::events::colors)
-                                ->attach_property(ui::term::events::selmod,         app::term::events::selmod)
-                                ->attach_property(ui::term::events::layout::wrapln, app::term::events::layout::wrapln)
-                                ->attach_property(ui::term::events::layout::align,  app::term::events::layout::align)
+                            inst->attach_property(ui::term::events::colors,          app::term::events::colors)
+                                ->attach_property(ui::term::events::selmod,          app::term::events::selmod)
+                                ->attach_property(ui::term::events::layout::wrapln,  app::term::events::layout::wrapln)
+                                ->attach_property(ui::term::events::layout::align,   app::term::events::layout::align)
+                                ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
                                 ->invoke([](auto& boss)
                                 {
                                     boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
@@ -272,6 +319,14 @@ namespace netxs::app::term
                                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                                     {
                                         boss.start();
+                                    };
+                                    boss.SUBMIT(tier::anycast, app::term::events::search::forward, gear)
+                                    {
+                                        boss.search(gear, feed::fwd);
+                                    };
+                                    boss.SUBMIT(tier::anycast, app::term::events::search::reverse, gear)
+                                    {
+                                        boss.search(gear, feed::rev);
                                     };
                                 });
                         }

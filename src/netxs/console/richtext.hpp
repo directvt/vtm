@@ -500,36 +500,61 @@ namespace netxs::console
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);
         }
-        auto find(core const& what, si32& from) const // core: Find the substring and place its offset in &from.
+        template<class SI32>
+        auto find(core const& what, SI32&& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
         {
-            auto size = what.canvas.size();
-            auto rest =      canvas.size() - from;
-            if (!size || size > rest) return faux;
-
-            size--;
-            auto head = core::iter();
-            auto tail = core::iend() - size;
-            auto iter = head + from;
-            auto base = what.core::iter();
-            auto dest = base;
-            auto&test =*base;
-            while (iter != tail)
+            assert(     canvas.size() <= std::numeric_limits<si32>::max());
+            assert(what.canvas.size() <= std::numeric_limits<si32>::max());
+            auto full = static_cast<si32>(     canvas.size());
+            auto size = static_cast<si32>(what.canvas.size());
+            auto rest = full - from;
+            auto look = [&](auto canvas_begin, auto canvas_end, auto what_begin)
             {
-                if (test.same_txt(*iter++))
-                {
-                    auto init = iter;
-                    auto stop = iter + size;
-                    while (init != stop && init->same_txt(*++dest))
-                    {
-                        ++init;
-                    }
+                if (!size || size > rest) return faux;
 
-                    if (init == stop)
+                size--;
+                auto head = canvas_begin;
+                auto tail = canvas_end - size;
+                auto iter = head + from;
+                auto base = what_begin;
+                auto dest = base;
+                auto&test =*base;
+                while (iter != tail)
+                {
+                    if (test.same_txt(*iter++))
                     {
-                        from = static_cast<si32>(std::distance(head, iter)) - 1;
-                        return true;
+                        auto init = iter;
+                        auto stop = iter + size;
+                        while (init != stop && init->same_txt(*++dest))
+                        {
+                            ++init;
+                        }
+
+                        if (init == stop)
+                        {
+                            from = static_cast<si32>(std::distance(head, iter)) - 1;
+                            return true;
+                        }
+                        else dest = base;
                     }
-                    else dest = base;
+                }
+                return faux;
+            };
+
+            if (dir == feed::fwd)
+            {
+                if (look(canvas.begin(), canvas.end(), what.canvas.begin()))
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                std::swap(rest, from); // Reverse.
+                if (look(canvas.rbegin(), canvas.rend(), what.canvas.rbegin()))
+                {
+                    from = full - from - 1; // Restore forward representation.
+                    return true;
                 }
             }
             return faux;
@@ -548,7 +573,7 @@ namespace netxs::console
             if (from > upto) std::swap(from, upto);
             assert(canvas.size() <= std::numeric_limits<si32>::max());
             auto maxs = static_cast<si32>(canvas.size());
-            from = std::clamp(from, 0, maxs - 1);
+            from = std::clamp(from, 0, maxs ? maxs - 1 : 0);
             upto = std::clamp(upto, 0, maxs);
             auto size = upto - from;
             return core{ span{ canvas.data() + from, static_cast<size_t>(size) }, { size, 1 }};
@@ -1036,6 +1061,10 @@ namespace netxs::console
         auto substr(si32 at, si32 width = netxs::maxsi32) const { return shadow().substr(at, width);       }
         void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
         void reserv(si32 oversize)                              { if (oversize > length()) crop(oversize); }
+        auto empty()
+        {
+            return canvas.empty();
+        }
         void shrink(cell const& blank, si32 max_size = 0, si32 min_size = 0)
         {
             assert(min_size <= length());
@@ -1460,6 +1489,7 @@ namespace netxs::console
         operator writ const& () const { return locus; }
 
         void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
+        auto& content() const { return *lyric; } // para: Return paragraph content.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
         shot   substr(si32 start, si32 width) const // para: Return paragraph substring shadow.
         {

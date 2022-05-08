@@ -36,6 +36,9 @@ namespace netxs::app::desk
 
             auto item_area = ui::pads::ctor(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
                     ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
+                    ->plugin<pro::notes>(" Running instance:                          \n"
+                                         "   Left click to go to running instance     \n"
+                                         "   Right click to pull the running instance ")
                     ->invoke([&](auto& boss)
                     {
                         auto data_src_shadow = ptr::shadow(data_src);
@@ -119,6 +122,9 @@ namespace netxs::app::desk
                 auto obj_desc = app::shared::objs_config[class_id].label;
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
                                      ->template plugin<pro::fader>(x3, c3, 0ms)
+                                     ->template plugin<pro::notes>(" Menu item:                           \n"
+                                                                   "   Left click to start a new instance \n"
+                                                                   "   Right click to set default app     ")
                                      ->invoke([&](auto& boss)
                                      {
                                          boss.mouse.take_all_events(faux);
@@ -204,7 +210,7 @@ namespace netxs::app::desk
                             });
                     auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
                     auto insts = list_pads->attach(ui::list::ctor())
-                                          ->attach_collection(e2::form::prop::header, inst_ptr_list, app_template);
+                                          ->attach_collection(e2::form::prop::ui::header, inst_ptr_list, app_template);
             }
             return apps;
         };
@@ -316,6 +322,8 @@ namespace netxs::app::desk
                                             });
                     auto taskbar = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::Y))
                                         ->colors(whitedk, 0x60202020)
+                                        ->plugin<pro::notes>(" LeftDrag to adjust menu width                   \n"
+                                                             " RightDrag or scroll wheel to slide menu up/down ")
                                         ->plugin<pro::limit>(twod{ uibar_min_size,-1 }, twod{ uibar_min_size,-1 })
                                         ->plugin<pro::timer>()
                                         ->plugin<pro::acryl>()
@@ -392,13 +400,15 @@ namespace netxs::app::desk
                             {
                                 auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y));
                                 auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0,0,0,0 }))
-                                                            ->plugin<pro::fader>(x3, c3, 150ms);
+                                                            ->plugin<pro::fader>(x3, c3, 150ms)
+                                                            ->plugin<pro::notes>(" List of connected users ");
                                     auto label_bttn = label_pads->attach(ui::fork::ctor());
                                         auto label = label_bttn->attach(slot::_1,
                                             ui::item::ctor(ansi::fgc(whitelt).add("Users"), faux, faux));
                                         auto bttn_area = label_bttn->attach(slot::_2, ui::fork::ctor());
                                             auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,1,1 }))
-                                                                      ->plugin<pro::fader>(x6, c6, 150ms);
+                                                                      ->plugin<pro::fader>(x6, c6, 150ms)
+                                                                      ->plugin<pro::notes>(" Show/hide users list ");
                                                 auto bttn = bttn_pads->attach(ui::item::ctor("<", faux));
                                 auto userlist_area = users_area->attach(slot::_2, ui::pads::ctor())
                                                                ->plugin<pro::limit>();
@@ -443,6 +453,7 @@ namespace netxs::app::desk
                                                    ->plugin<pro::limit>(twod{ uibar_full_size, 3 }, twod{ -1, 3 });
                                 auto disconnect_park = bttns->attach(slot::_1, ui::park::ctor())
                                                             ->plugin<pro::fader>(x2, c2, 150ms)
+                                                            ->plugin<pro::notes>(" Leave current session ")
                                                             ->invoke([&](auto& boss)
                                                             {
                                                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -458,6 +469,7 @@ namespace netxs::app::desk
                                 auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
                                 auto shutdown_park = bttns->attach(slot::_2, ui::park::ctor())
                                                           ->plugin<pro::fader>(x1, c1, 150ms)
+                                                          ->plugin<pro::notes>(" Disconnect all users and shutdown the server ")
                                                           ->invoke([&](auto& boss)
                                                           {
                                                               boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)

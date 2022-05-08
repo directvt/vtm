@@ -15,11 +15,18 @@ namespace netxs::events::userland
             EVENT_XS( colors, cell ),
             EVENT_XS( selmod, si32 ),
             GROUP_XS( layout, si32 ),
+            GROUP_XS( search, input::hids ),
 
             SUBSET_XS( layout )
             {
                 EVENT_XS( align , bias ),
                 EVENT_XS( wrapln, wrap ),
+            };
+            SUBSET_XS( search )
+            {
+                EVENT_XS( forward, input::hids ),
+                EVENT_XS( reverse, input::hids ),
+                EVENT_XS( status , si32        ),
             };
         };
     };
@@ -80,6 +87,8 @@ namespace netxs::ui
                     togglesel,
                     reset,
                     clear,
+                    look_fwd,
+                    look_rev,
                 };
             };
             struct cursor // See pro::caret.
@@ -390,7 +399,7 @@ namespace netxs::ui
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
                     utf8 = jet_left + utf8;
-                    owner.base::riseup<tier::preview>(e2::form::prop::header, utf8);
+                    owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
                 }
                 else
                 {
@@ -398,7 +407,7 @@ namespace netxs::ui
                     if (property == ansi::OSC_TITLE)
                     {
                         utf8 = jet_left + utf8;
-                        owner.base::riseup<tier::preview>(e2::form::prop::header, utf8);
+                        owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
                     }
                 }
             }
@@ -842,6 +851,9 @@ namespace netxs::ui
                 line(core&& s)
                     : rich{ std::forward<core>(s) }
                 { }
+                line(utf::view utf8)
+                    : rich{ para{ utf8 }.content() }
+                { }
 
                 line& operator = (line&&)      = default;
                 line& operator = (line const&) = default;
@@ -898,6 +910,7 @@ namespace netxs::ui
             twod  panel; // bufferbase: Viewport size.
             twod  coord; // bufferbase: Viewport cursor position; 0-based.
             redo  saved; // bufferbase: Saved cursor position and rendition state.
+            si32  arena; // bufferbase: Scrollable region height.
             si32  sctop; // bufferbase: Precalculated scrolling region top    height.
             si32  scend; // bufferbase: Precalculated scrolling region bottom height.
             si32  y_top; // bufferbase: Precalculated 0-based scrolling region top    vertical pos.
@@ -912,11 +925,14 @@ namespace netxs::ui
             bool  grant; // bufferbase: Is it allowed to change box selection mode.
             ui64  alive; // bufferbase: Selection is active (digest).
             line  match; // bufferbase: Search pattern for highlighting.
+            bool  uirev; // bufferbase: Prev button highlighted.
+            bool  uifwd; // bufferbase: Next button highlighted.
 
             bufferbase(term& master)
                 : owner{ master },
                   panel{ dot_11 },
                   coord{ dot_00 },
+                  arena{ 1      },
                   sctop{ 0      },
                   scend{ 0      },
                   y_top{ 0      },
@@ -928,21 +944,58 @@ namespace netxs::ui
                   decom{ faux   },
                   boxed{ faux   },
                   grant{ faux   },
+                  uirev{ faux   },
+                  uifwd{ faux   },
                   alive{ 0      }
             {
                 parser::style = ansi::def_style;
             }
 
-            virtual void selection_create(twod coor, bool mode)     = 0;
-            virtual bool selection_extend(twod coor, bool mode)     = 0;
-            virtual void selection_follow(twod coor, bool lock)     = 0;
-            virtual void selection_byword(twod coor)                = 0;
-            virtual void selection_byline(twod coor)                = 0;
-            virtual text selection_pickup(si32  selmod)             = 0;
-            virtual void selection_render(face& target)             = 0;
-            virtual void selection_status(term_state& status) const = 0;
-            virtual void selection_setjet(bias align) { }
-            virtual void selection_setwrp() { }
+            virtual void selection_create(twod coor, bool mode)           = 0;
+            virtual bool selection_extend(twod coor, bool mode)           = 0;
+            virtual void selection_follow(twod coor, bool lock)           = 0;
+            virtual void selection_byword(twod coor)                      = 0;
+            virtual void selection_byline(twod coor)                      = 0;
+            virtual text selection_pickup(si32  selmod)                   = 0;
+            virtual void selection_render(face& target)                   = 0;
+            virtual void selection_status(term_state& status) const       = 0;
+            virtual twod selection_gonext(feed direction)                 = 0;
+            virtual twod selection_gofind(feed direction, view data = {}) = 0;
+            virtual twod selection_search(feed direction, view data = {})
+            {
+                auto delta = dot_00;
+                if (data.empty()) // Find next selection match.
+                {
+                    if (match.length())
+                    {
+                        delta = selection_gonext(direction);
+                    }
+                }
+                else
+                {
+                    delta = selection_gofind(direction, data);
+                }
+                return delta;
+            }
+            virtual void selection_setjet(bias align)
+            {
+                // Do nothing by default.
+            }
+            virtual void selection_setwrp()
+            {
+                // Do nothing by default.
+            }
+            // bufferbase: Cancel text selection.
+            virtual bool selection_cancel()
+            {
+                auto active = alive;
+                if (alive)
+                {
+                    alive = {};
+                    match = {};
+                }
+                return active;
+            }
             // bufferbase: Set selection mode lock state.
             void selection_locked(bool lock)
             {
@@ -983,16 +1036,6 @@ namespace netxs::ui
             bool selection_selbox() const
             {
                 return boxed;
-            }
-            // bufferbase: Cancel text selection.
-            bool selection_cancel()
-            {
-                auto active = alive;
-                if (alive)
-                {
-                    alive = {};
-                }
-                return active;
             }
 
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
@@ -1049,6 +1092,7 @@ namespace netxs::ui
                 resize_tabstops(panel.x);
                 update_region();
                 selection_review();
+                arena = y_end - y_top + 1; // Can be changed at the scrollbuff::set_scroll_region(si32 top, si32 bottom).
             }
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(si32 top, si32 bottom)
@@ -1441,7 +1485,7 @@ namespace netxs::ui
             {
                 if constexpr (FWD)
                 {
-                    auto x = std::clamp(coord.x, 0, size - 1);
+                    auto x = std::clamp(coord.x, 0, size ? size - 1 : 0);
                     if (coord.x == x) coord.x = std::abs(stops[x].first);
                     else
                     {
@@ -1714,7 +1758,17 @@ namespace netxs::ui
             }
             // bufferbase: CSI n K  Erase line (don't move cursor).
     virtual void el(si32 n) = 0;
-
+            // bufferbase: Helper to reset viewport horizontal position.
+            static auto reset_viewport(si32 origin_x, si32 x, si32 panel_x)
+            {
+                if (origin_x != 0 || x != panel_x)
+                {
+                         if (x >= 0  &&   x < panel_x) origin_x = 0;
+                    else if (x >= -origin_x + panel_x) origin_x = 0 - x + panel_x - 1;
+                    else if (x <  -origin_x          ) origin_x = 0 - x;
+                }
+                return origin_x;
+            };
             // bufferbase: Rasterize selection with grips.
             void selection_raster(face& target, auto curtop, auto curend, bool ontop = true, bool onend = true)
             {
@@ -1796,6 +1850,41 @@ namespace netxs::ui
                         buffer += canvas.meta<faux, faux, true>(part_3);
                     }
                 }
+            }
+            // bufferbase: Find the next match in the specified canvas and return true if found.
+            auto selection_search(rich const& canvas, si32 from, feed direction, twod& seltop, twod& selend)
+            {
+                auto find = [&](auto a, auto b, auto& uinext, auto& uiprev)
+                {
+                    auto length = canvas.size().x;
+                    auto offset = from + a;
+                    if (canvas.find(match, offset, direction))
+                    {
+                        seltop = { offset % length,
+                                   offset / length };
+                        offset += a - b + 1;
+                        selend = { offset % length,
+                                   offset / length };
+                        offset += a;
+                        uinext = canvas.find(match, offset, direction); // Try to find next next.
+                        uiprev = true;
+                        return true;
+                    }
+                    else
+                    {
+                        uinext = faux;
+                        return faux;
+                    }
+                };
+                return direction == feed::fwd ? find(match.length(), 2, uifwd, uirev)
+                                              : find(0, match.length(), uirev, uifwd);
+            }
+            // bufferbase: Return match navigation state.
+    virtual si32 selection_button(twod const& delta = {})
+            {
+                auto forward_is_available = uifwd ? 1 << 0 : 0;
+                auto reverse_is_available = uirev ? 1 << 1 : 0;
+                return forward_is_available | reverse_is_available;
             }
 
             // bufferbase: Update terminal status.
@@ -2153,9 +2242,57 @@ namespace netxs::ui
             void selection_update(bool despace = true) override
             {
                 if (selection_selbox()
-                 && seltop.y != selend.y)  match = {};
-                else                       match = { canvas.core::line(seltop, selend) };
+                 && seltop.y != selend.y)
+                {
+                    match = {};
+                    uirev = faux;
+                    uifwd = faux;
+                }
+                else
+                {
+                    match = { canvas.core::line(seltop, selend) };
+                    auto p1 = seltop;
+                    auto p2 = selend;
+                    if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+                    auto offset = p1.x + p1.y * panel.x;
+                    uifwd = canvas.find(match, offset + match.length(), feed::fwd); // Try to find next next.
+                    uirev = canvas.find(match, offset - 1,              feed::rev); // Try to find next prev.
+                }
                 bufferbase::selection_update(despace);
+            }
+            // alt_screen: Search data and return distance to it.
+            twod selection_gofind(feed direction, view data = {}) override
+            {
+                if (data.empty()) return dot_00;
+                match = line{ data };
+                seltop = direction == feed::fwd ? twod{-match.length(), 0 }
+                                                : twod{ panel.x, panel.y - 1 };
+                selend = seltop;
+                uirev = faux;
+                uifwd = faux;
+                selection_gonext(direction);
+                if (direction == feed::fwd && uirev == faux
+                 || direction == feed::rev && uifwd == faux) selection_cancel();
+                return dot_00;
+            }
+            // alt_screen: Search prev/next selection match and return distance to it.
+            twod selection_gonext(feed direction) override
+            {
+                auto p1 = seltop;
+                auto p2 = selend;
+                if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+
+                auto from = p1.x + p1.y * panel.x;
+                bufferbase::selection_search(canvas, from, direction, seltop, selend);
+                bufferbase::selection_update(faux);
+                return dot_00;
+            }
+            // alt_screen: Cancel text selection.
+            bool selection_cancel() override
+            {
+                bufferbase::uirev = faux;
+                bufferbase::uifwd = faux;
+                return bufferbase::selection_cancel();
             }
         };
 
@@ -2409,7 +2546,6 @@ namespace netxs::ui
 
             buff batch; // scroll_buf: Scrollback container.
             indx index; // scroll_buf: Viewport line index.
-            si32 arena; // scroll_buf: Scrollable region height.
             face upbox; // scroll_buf:    Top margin canvas.
             face dnbox; // scroll_buf: Bottom margin canvas.
             twod upmin; // scroll_buf:    Top margin minimal size.
@@ -2429,7 +2565,6 @@ namespace netxs::ui
                 : bufferbase{ boss                   },
                        batch{ buffer_size, grow_step },
                        index{ 0                      },
-                       arena{ 1                      },
                        place{                        },
                        shore{ def_margin             }
             {
@@ -2876,7 +3011,6 @@ namespace netxs::ui
                 upbox.crop(upnew);
                 dnbox.crop(dnnew);
 
-                arena = y_end - y_top + 1;
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
                 auto away = batch.basis != batch.slide;
 
@@ -3863,7 +3997,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    coor.x = std::clamp(xconv<feed::fwd>(coor.x, adjust, length), 0, length - 1);
+                    coor.x = std::clamp(xconv<feed::fwd>(coor.x, adjust, length), 0, length ? length - 1 : 0);
                 }
                 return coor.x;
             }
@@ -3919,6 +4053,7 @@ namespace netxs::ui
                     //});
                     if (find)
                     {
+                        match.style.wrp(curln.style.wrp());
                         auto offset = si32{ 0 };
                         while (curln.find(match, offset))
                         {
@@ -4378,7 +4513,7 @@ namespace netxs::ui
 
                 auto square = owner.actual_area<faux>();
                 auto minlim = square.coor;
-                auto maxlim = square.coor + square.size - dot_11;
+                auto maxlim = square.coor + std::max(dot_00, square.size - dot_11);
                 coor1 = std::clamp(coor1, minlim, maxlim);
                 coor2 = std::clamp(coor2, minlim, maxlim);
                 return std::pair{ coor1, coor2 };
@@ -4885,7 +5020,7 @@ namespace netxs::ui
                 auto width = curln.length();
                 if (wraps == wrap::on)
                 {
-                    coor.x = std::clamp(coor.x, -close, panel.x - close);
+                    coor.x = std::clamp(coor.x, -close, -close + panel.x);
                     if (align != bias::left && coor.y == width / panel.x)
                     {
                         if (auto remain = width % panel.x)
@@ -5267,11 +5402,272 @@ namespace netxs::ui
 
                 bufferbase::selection_update(despace);
             }
+            // scroll_buf: Search data and return distance to it.
+            twod selection_gofind(feed direction, view data = {}) override
+            {
+                if (data.empty()) return dot_00;
+                match = line{ data };
+
+                auto ahead = direction == feed::fwd;
+                if (ahead)
+                {
+                    uirev = faux;
+                    uptop.coor = dntop.coor = {};
+                    uptop.role = dntop.role = grip::base;
+                    upmid.role = dnmid.role = grip::idle;
+                    upend.role = dnend.role = grip::idle;
+                }
+                else
+                {
+                    uifwd = faux;
+                    uptop.role = dntop.role = grip::idle;
+                    upmid.role = dnmid.role = grip::idle;
+                    upend.role = dnend.role = grip::base;
+                    upend.coor = dnend.coor = dnbox.size() - dot_01;
+                }
+                auto delta = selection_gonext(direction);
+
+                if (ahead && uirev == faux
+                 ||!ahead && uifwd == faux)
+                {
+                    selection_cancel();
+                    delta = {};
+                }
+                return delta;
+            }
+            // scroll_buf: Retrun distance between lines.
+            auto selection_outrun(id_t id1, twod coor1, id_t id2, twod coor2)
+            {
+                auto dir = static_cast<si32>(id2 - id1);
+                if (dir < 0)
+                {
+                    std::swap(id1, id2);
+                    std::swap(coor1, coor2);
+                }
+                auto dist = coor2;
+                auto head = batch.iter_by_id(id1);
+                auto tail = batch.iter_by_id(id2);
+                while (head != tail)
+                {
+                    dist.y += head->height(panel.x);
+                    ++head;
+                }
+                dist -= coor1;
+                return dir < 0 ? -dist
+                               :  dist;
+            }
+            // scroll_buf: Retrun viewport center.
+            auto selection_viewport_center()
+            {
+                return twod{ panel.x / 2 - owner.origin.x, arena / 2 + batch.ancdy };
+            }
+            // scroll_buf: Retrun distance to the center of viewport.
+            twod selection_center(id_t id, twod coor)
+            {
+                auto base = selection_viewport_center();
+                auto dist = selection_outrun(id, coor, batch.ancid, base);
+                return dist;
+            }
+            // scroll_buf: Search prev/next selection match and return distance to it.
+            twod selection_gonext(feed direction) override
+            {
+                if (match.empty()) return dot_00;
+
+                auto delta = dot_00;
+                auto ahead = direction == feed::fwd;
+                auto probe = [&](auto startid, auto coord)
+                {
+                    auto& curln = batch.item_by_id(startid);
+                    auto from = selection_offset(curln, coord, 0);
+                    auto mlen = match.length();
+                    auto step = ahead ? mlen : 0;
+                    auto back = ahead ? 2 : mlen;
+                    auto resx = [&](auto& curln)
+                    {
+                        if (curln.find(match, from, direction))
+                        {
+                            upmid.link = curln.index;
+                            dnmid.link = curln.index;
+                            upmid.coor = offset_to_screen(curln, from);
+                            from += step - back + 1;
+                            dnmid.coor = offset_to_screen(curln, from);
+                            delta += coord - upmid.coor;
+                            uptop.role = dntop.role = grip::idle;
+                            upmid.role = dnmid.role = grip::base;
+                            upend.role = dnend.role = grip::idle;
+                            return true;
+                        }
+                        else return faux;
+                    };
+                    from += step;
+                    auto done = resx(curln);
+                    if (!done)
+                    {
+                        auto head = batch.iter_by_id(startid);
+                        auto find = [&](auto tail, auto proc)
+                        {
+                            auto accum = ahead ? curln.height(panel.x)
+                                               : si32{0};
+                            while (head != tail)
+                            {
+                                auto& curln = proc(head);
+                                from = ahead ? 0 : curln.length();
+                                if (resx(curln))
+                                {
+                                    delta.y += ahead ?-accum
+                                                     : accum + curln.height(panel.x);
+                                    return true;
+                                }
+                                accum += curln.height(panel.x);
+                            }
+                            return faux;
+                        };
+                        if (ahead)
+                        {
+                            uirev = faux;
+                            done = find(batch.end() - 1, [](auto& head) -> auto& { return *++head; });
+                            if (done)
+                            {
+                                uirev = true;
+                            }
+                            else if (sctop)
+                            {
+                                auto from = si32{ 0 };
+                                done = bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor);
+                                if (done)
+                                {
+                                    uptop.role = dntop.role = grip::idle;
+                                    upmid.role = dnmid.role = grip::idle;
+                                    upend.role = dnend.role = grip::base;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            uifwd = faux;
+                            done = find(batch.begin(),   [](auto& head) -> auto& { return *--head; });
+                            if (done)
+                            {
+                                uifwd = true;
+                            }
+                            else if (scend)
+                            {
+                                auto from = upbox.size().x * upbox.size().y;
+                                done = bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor);
+                                if (done)
+                                {
+                                    uptop.role = dntop.role = grip::base;
+                                    upmid.role = dnmid.role = grip::idle;
+                                    upend.role = dnend.role = grip::idle;
+                                }
+                            }
+                        }
+                    }
+                    return done;
+                };
+
+                if (upmid.role == grip::base)
+                {
+                    auto init = upmid;
+                    auto stop = dnmid;
+                    if (init.coor.y >  stop.coor.y
+                    || (init.coor.y == stop.coor.y && init.coor.x > stop.coor.x)) std::swap(init, stop);
+
+                    auto center = selection_center(init.link, init.coor);
+                    delta += center; // Always centered.
+                    probe(upmid.link, init.coor);
+                }
+                else
+                {
+                    if (uptop.role == grip::base)
+                    {
+                        auto p1 = uptop.coor;
+                        auto p2 = dntop.coor;
+                        if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+
+                        auto from = p1.x + p1.y * upbox.size().x;
+                        auto done = bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor);
+                        if (!done && ahead)
+                        {
+                            // Get first visible line.
+                            auto fromxy = twod{ 0, batch.ancdy };
+                            if (probe(batch.ancid, fromxy))
+                            {
+                                auto center = fromxy - selection_viewport_center();
+                                delta -= center;
+                            }
+                        }
+                        else delta = dot_00;
+                    }
+                    else if (upend.role == grip::base)
+                    {
+                        auto p1 = upend.coor;
+                        auto p2 = dnend.coor;
+                        if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+
+                        auto from = p1.x + p1.y * dnbox.size().x;
+                        auto done = bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor);
+                        if (!done && !ahead)
+                        {
+                            // Get last visible line.
+                            auto vpos =-batch.ancdy;
+                            auto head = batch.iter_by_id(batch.ancid);
+                            auto tail = batch.end();
+                            while (head != tail)
+                            {
+                                auto& curln = *head++;
+                                auto newpos = vpos + curln.height(panel.x);
+                                if (newpos >= arena) break;
+                                vpos = newpos;
+                            }
+                            auto& curln = *--head;
+                            auto coorxy = twod{ panel.x - owner.origin.x, arena - vpos };
+                            auto offset = screen_to_offset(curln, coorxy);
+                            auto fromxy = offset_to_screen(curln, offset);
+                            if (probe(curln.index, fromxy))
+                            {
+                                auto center = selection_viewport_center();
+                                delta.x -= panel.x / 2 - coorxy.x - fromxy.x;
+                                delta.y -= vpos - center.y;
+                            }
+                        }
+                        else delta = dot_00;
+                    }
+                }
+
+                if (upmid.role == grip::base)
+                {
+                    auto new_origin_x = owner.origin.x + delta.x;
+                    delta.x -= new_origin_x - reset_viewport(new_origin_x, upmid.coor.x, panel.x);
+                }
+                else delta = dot_00;
+
+                bufferbase::selection_update(faux);
+                return delta;
+            }
+            // scroll_buf: Return match navigation state.
+            si32 selection_button(twod const& delta = {}) override
+            {
+                auto forward_is_available = si32{};
+                auto reverse_is_available = si32{};
+                if (match.empty())
+                {
+                    forward_is_available = batch.slide - delta.y >= batch.vsize - arena ? 0 : 1 << 0;
+                    reverse_is_available = batch.slide - delta.y <= 0                   ? 0 : 1 << 1;
+                }
+                else
+                {
+                    forward_is_available = uifwd ? 1 << 0 : 0;
+                    reverse_is_available = uirev ? 1 << 1 : 0;
+                }
+                return forward_is_available | reverse_is_available;
+            }
         };
 
         using buffer_ptr = bufferbase*;
 
         pro::timer worker; // term: Linear animation controller.
+        pro::robot dynamo; // term: Linear animation controller.
         pro::caret cursor; // term: Text cursor controller.
         term_state status; // term: Screen buffer status info.
         w_tracking wtrack; // term: Terminal title tracking object.
@@ -5321,6 +5717,7 @@ namespace netxs::ui
             invert = faux;
             decckm = faux;
             bpmode = faux;
+            normal.brush.reset();
         }
         // term: Set termnail parameters. (DECSET).
         void decset(fifo& queue)
@@ -5519,13 +5916,8 @@ namespace netxs::ui
                 if (follow[axis::X])
                 {
                     follow[axis::X] = faux;
-                    auto c = console.get_coord(dot_00);
-                    if (origin.x != 0 || c.x != console.panel.x)
-                    {
-                             if (c.x >= 0  && c.x < console.panel.x) origin.x = 0;
-                        else if (c.x >= -origin.x + console.panel.x) origin.x = -c.x + console.panel.x - 1;
-                        else if (c.x <  -origin.x                  ) origin.x = -c.x;
-                    }
+                    auto pos = console.get_coord(dot_00).x;
+                    origin.x = bufferbase::reset_viewport(origin.x, pos, console.panel.x);
                 }
                 origin.y = -console.get_basis();
             }
@@ -5633,7 +6025,6 @@ namespace netxs::ui
                 follow[axis::Y] = true; // Reset viewport.
                 ondata("");             // Recalc trigger.
             }
-            log("term: selection mode ", selmod);
         }
         // term: Set the next selection mode.
         void selection_selmod()
@@ -5668,9 +6059,10 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            if (target->selection_active())
+            auto& console = *target;
+            if (console.selection_active())
             {
-                auto data = target->selection_pickup(selmod);
+                auto data = console.selection_pickup(selmod);
                 if (data.size())
                 {
                     if (auto gate_ptr = bell::getref(gear.id))
@@ -5711,10 +6103,11 @@ namespace netxs::ui
         }
         void selection_lclick(hids& gear)
         {
+            auto& console = *target;
             auto go_on = gear.meta(hids::ANYCTRL);
-            if (go_on && target->selection_active())
+            if (go_on && console.selection_active())
             {
-                target->selection_follow(gear.coord, go_on);
+                console.selection_follow(gear.coord, go_on);
                 selection_extend(gear);
                 gear.dismiss();
                 base::expire<tier::release>();
@@ -5737,16 +6130,35 @@ namespace netxs::ui
         }
         void selection_create(hids& gear)
         {
+            auto& console = *target;
             auto boxed = gear.meta(hids::ALT);
             auto go_on = gear.meta(hids::ANYCTRL);
-            target->selection_follow(gear.coord, go_on);
-            if (go_on) target->selection_extend(gear.coord, boxed);
-            else       target->selection_create(gear.coord, boxed);
+            console.selection_follow(gear.coord, go_on);
+            if (go_on) console.selection_extend(gear.coord, boxed);
+            else       console.selection_create(gear.coord, boxed);
             base::deface();
+        }
+        void selection_moveto(twod delta)
+        {
+            if (delta)
+            {
+                auto path = delta;
+                auto time = SWITCHING_TIME;
+                auto init = 0;
+                auto func = constlinearAtoB<twod>(path, time, init);
+                dynamo.actify(func, [&](twod& step)
+                {
+                    base::moveby(step);
+                    base::deface();
+                });
+            }
+            else worker.pacify();
+
         }
         void selection_extend(hids& gear)
         {
             // Check bounds and scroll if needed.
+            auto& console = *target;
             auto boxed = gear.meta(hids::ALT);
             auto coord = gear.coord;
             auto vport = rect{ -origin, target->panel };
@@ -5765,7 +6177,7 @@ namespace netxs::ui
                                     {
                                         auto shift = base::moveby(delta);
                                         coord -= shift;
-                                        if (target->selection_extend(coord, boxed))
+                                        if (console.selection_extend(coord, boxed))
                                         {
                                             base::deface();
                                             return !!shift;
@@ -5775,7 +6187,7 @@ namespace netxs::ui
             }
             else worker.pacify();
 
-            if (target->selection_extend(coord, boxed))
+            if (console.selection_extend(coord, boxed))
             {
                 base::deface();
             }
@@ -5808,8 +6220,46 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
             SUBMIT(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
         }
+        void selection_search(hids& gear, feed dir)
+        {
+            auto& console = *target;
+            auto delta = dot_00;
+            auto fwd = dir == feed::fwd;
+            if (console.selection_active())
+            {
+                if (console.match.empty()) delta.y = fwd ? -console.arena // Page by page scrolling if nothing to search.
+                                                         :  console.arena;
+                else delta = console.selection_search(dir);
+            }
+            else
+            {
+                if (auto gate_ptr = bell::getref(gear.id))
+                {
+                    auto data = decltype(e2::command::clipboard::get)::type{};
+                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
+                    if (data.size())
+                    {
+                        delta = console.selection_search(dir, data);
+                    }
+                    else // Page by page scrolling if nothing to search.
+                    {
+                        delta.y = fwd ? -console.arena
+                                      :  console.arena;
+                    }
+                }
+            }
+            SIGNAL(tier::release, ui::term::events::search::status, console.selection_button(delta));
+            if (target == &normal && delta)
+            {
+                selection_moveto(delta);
+            }
+        }
 
     public:
+        void search(hids& gear, feed dir)
+        {
+            selection_search(gear, dir);
+        }
         void set_color(cell brush)
         {
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
@@ -5833,6 +6283,8 @@ namespace netxs::ui
                     case commands::ui::togglesel: selection_selmod(); break;
                     case commands::ui::reset:     decstr(); break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;
                 }
             }
@@ -5847,6 +6299,8 @@ namespace netxs::ui
                     case commands::ui::togglesel: selection_selmod(); return; // Without resetting the viewport.
                     case commands::ui::reset:     decstr(); break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;
                 }
                 follow[axis::Y] = true; // Reset viewport.
@@ -5893,6 +6347,7 @@ namespace netxs::ui
               altbuf{ *this },
               cursor{ *this },
               worker{ *this },
+              dynamo{ *this },
               mtrack{ *this },
               ftrack{ *this },
               wtrack{ *this },
@@ -5918,6 +6373,7 @@ namespace netxs::ui
             publish_property(ui::term::events::colors,         [&](auto& v){ v = target->brush; });
             publish_property(ui::term::events::layout::wrapln, [&](auto& v){ v = target->style.wrp(); });
             publish_property(ui::term::events::layout::align,  [&](auto& v){ v = target->style.jet(); });
+            publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
 
             SUBMIT(tier::general, e2::debug::count::any, count)
             {
@@ -5926,7 +6382,7 @@ namespace netxs::ui
             SIGNAL_GLOBAL(e2::debug::count::set, 0);
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
+                this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
             };
             SUBMIT(tier::preview, e2::coor::set, new_coor)
             {
@@ -5975,6 +6431,15 @@ namespace netxs::ui
                     utf::change(data, "\033[1B", "\033OB");
                     utf::change(data, "\033[1C", "\033OC");
                     utf::change(data, "\033[1D", "\033OD");
+                }
+                else // Issue with arrow keys in WSL under cmd.exe.
+                {
+                    #if defined(_WIN32)
+                    utf::change(data, "\033[1A", "\033[A");
+                    utf::change(data, "\033[1B", "\033[B");
+                    utf::change(data, "\033[1C", "\033[C");
+                    utf::change(data, "\033[1D", "\033[D");
+                    #endif
                 }
                 // Linux console specific.
                 utf::change(data, "\033[[A", "\033OP");      // F1
@@ -6035,7 +6500,7 @@ namespace netxs::ui
                 auto& console = *target;
                 if (status.update(console))
                 {
-                    this->base::riseup<tier::preview>(e2::form::prop::footer, status.data);
+                    this->base::riseup<tier::preview>(e2::form::prop::ui::footer, status.data);
                 }
 
                 auto view = parent_canvas.view();

@@ -58,6 +58,9 @@ namespace netxs::app::shared
     #undef X
     #undef TYPE_LIST
 
+    using menu_item_type = std::tuple<bool, text, text, std::function<void(ui::pads&)>>;
+    using menu_list_type = std::list<menu_item_type>;
+
     //static si32 max_count = 20;// 50;
     static si32 max_vtm = 3;
     static si32 vtm_count = 0;
@@ -72,6 +75,7 @@ namespace netxs::app::shared
     auto const action_color      = tint::greenlt ;
     auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
 
+    const static auto c9 = cell{}.bgc(0xFFffffff).fgc(0xFF000000);
     const static auto c8 = cell{}.bgc(0x00).fgc(highlight_color);
     const static auto x8 = cell{ c8 }.bga(0x00).fga(0x00);
     const static auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
@@ -108,7 +112,7 @@ namespace netxs::app::shared
         };
         boss->SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
         {
-            parent->base::riseup<tier::preview>(e2::form::prop::header, title);
+            parent->base::riseup<tier::preview>(e2::form::prop::ui::header, title);
         };
     };
     const auto scroll_bars = [](auto master)
@@ -154,7 +158,7 @@ namespace netxs::app::shared
     };
 
     // Menu bar (shrinkable on right-click).
-    const auto custom_menu = [](bool full_size, std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
+    const auto custom_menu = [](bool full_size, app::shared::menu_list_type menu_items)
     {
         auto menu_area = ui::fork::ctor()
                         ->active();
@@ -163,6 +167,7 @@ namespace netxs::app::shared
                                         
                 menu_list->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
                          ->plugin<pro::fader>(x3, c3, 150ms)
+                         ->plugin<pro::notes>(" Maximize/restore window ")
                          ->invoke([&](ui::pads& boss)
                          {
                              boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -182,12 +187,32 @@ namespace netxs::app::shared
 
                 auto scrl_grip = scrl_area->attach(scroll_hint);
 
-            for (auto& body : menu_items) scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
-                                                   ->plugin<pro::fader>(x3, c3, 150ms)
-                                                   ->invoke(body.second)
-                                                   ->attach(ui::item::ctor(body.first, faux, true));
+            for (auto& body : menu_items)
+            {
+                auto& hover = std::get<0>(body);
+                auto& label = std::get<1>(body);
+                auto& notes = std::get<2>(body);
+                auto& setup = std::get<3>(body);
+                if (hover)
+                {
+                    scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
+                             ->plugin<pro::fader>(x3, c3, 150ms)
+                             ->plugin<pro::notes>(notes)
+                             ->invoke(setup)
+                             ->attach(ui::item::ctor(label, faux, true));
+                }
+                else
+                {
+                    scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
+                             ->colors(0,0) //todo for mouse tracking
+                             ->plugin<pro::notes>(notes)
+                             ->invoke(setup)
+                             ->attach(ui::item::ctor(label, faux, true));
+                }
+            }
             menu_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
                      ->plugin<pro::fader>(x1, c1, 150ms)
+                     ->plugin<pro::notes>(" Close window ")
                      ->invoke([&](auto& boss)
                      {
                          boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -273,13 +298,13 @@ namespace netxs::app::shared
 
     const auto main_menu = []()
     {
-        auto items = std::list
+        auto items = app::shared::menu_list_type
         {
-            std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("F").nil().add("ile"), [&](auto& boss){ } },
-            std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("E").nil().add("dit"), [&](auto& boss){ } },
-            std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("V").nil().add("iew"), [&](auto& boss){ } },
-            std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("D").nil().add("ata"), [&](auto& boss){ } },
-            std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("H").nil().add("elp"), [&](auto& boss){ } },
+            { true, ansi::und(true).add("F").nil().add("ile"), " File menu item ", [&](auto& boss){ } },
+            { true, ansi::und(true).add("E").nil().add("dit"), " Edit menu item ", [&](auto& boss){ } },
+            { true, ansi::und(true).add("V").nil().add("iew"), " View menu item ", [&](auto& boss){ } },
+            { true, ansi::und(true).add("D").nil().add("ata"), " Data menu item ", [&](auto& boss){ } },
+            { true, ansi::und(true).add("H").nil().add("elp"), " Help menu item ", [&](auto& boss){ } },
         };
         return custom_menu(true, items);
     };
@@ -417,6 +442,7 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
+                               ->plugin<pro::notes>(" Left+Right click to close ")
                                ->invoke([](auto& boss)
                                 {
                                     boss.keybd.accept(true);
@@ -441,6 +467,7 @@ namespace netxs::app::shared
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
                   ->plugin<pro::cache>()
+                  ->plugin<pro::notes>(" Left+Right click to close ")
                   ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)
@@ -456,6 +483,7 @@ namespace netxs::app::shared
             window->plugin<pro::focus>()
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
+                  ->plugin<pro::notes>(" Left+Right click to close ")
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
@@ -463,7 +491,7 @@ namespace netxs::app::shared
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           auto title = ansi::add("Empty Instance \nid: ", parent->id);
-                          boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
+                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::mock::ctor())
@@ -501,12 +529,20 @@ namespace netxs::app::shared
                             auto fill = [&](cell& c) { c.fusefull(mark); };
                             parent_canvas.cage(area, dot_21, fill);
                         };
-                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent_ptr)
                         {
-                            if (parent) closing_by_gesture(*parent);
+                            auto& parent = *parent_ptr;
+                            closing_by_gesture(parent);
+
+                            //todo too hacky
+                            if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
+                            {
+                                form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
+                            }
+
                             static auto i = 0; i++;
-                            auto title = ansi::jet(bias::center).add("View \n Region ", i);
-                            boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
+                            auto title = ansi::add("View\nRegion ", i);
+                            boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                             
                             auto outer = dent{ 2,2,1,1 };
                             auto inner = dent{ -4,-4,-2,-2 };
@@ -514,6 +550,32 @@ namespace netxs::app::shared
                             boss.base::template riseup<tier::release>(e2::config::plugins::sizer::inner, inner);
                             boss.base::template riseup<tier::release>(e2::config::plugins::align, faux);
                             boss.base::template riseup<tier::preview>(e2::form::prop::zorder, Z_order::backmost);
+                            parent.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+                            {
+                                if (auto gate_ptr = bell::getref(gear.id))
+                                {
+                                    auto old_title = decltype(e2::form::prop::ui::header)::type{};
+                                    boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
+
+                                    auto data = decltype(e2::command::clipboard::get)::type{};
+                                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
+
+                                    if (utf::is_plain(data)) // Reset aligning to the center if text is plain.
+                                    {
+                                        auto align = ansi::jet(bias::center);
+                                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, align);
+                                    }
+                                    // Copy clipboard data to title.
+                                    auto title = decltype(e2::form::prop::ui::header)::type{ data };
+                                    boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                                    gear.dismiss();
+
+                                    if (old_title.size()) // Copy old title to clipboard.
+                                    {
+                                        gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, old_title);
+                                    }
+                                }
+                            };
                         };
                     });
             return window;
@@ -773,6 +835,7 @@ namespace netxs::app::shared
             return ui::park::ctor()
                 ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(MONOTTY_VER)
                 ->template plugin<pro::fader>(x8, c8, 0ms))
+                ->template plugin<pro::notes>(" About Environment ")
                 ->invoke([&](auto& boss)
                 {
                     auto shadow = ptr::shadow(boss.This());
