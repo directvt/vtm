@@ -213,7 +213,7 @@ namespace netxs::app::term
             [](ui::pads& boss)
             {
             }},
-            { true, "Clear", " Clear viewport ",
+            { true, "Clear", " Clear TTY viewport ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
