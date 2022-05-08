@@ -122,9 +122,9 @@ namespace netxs::app::desk
                 auto obj_desc = app::shared::objs_config[class_id].label;
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
                                      ->template plugin<pro::fader>(x3, c3, 0ms)
-                                     ->plugin<pro::notes>(" Menu item:                           \n"
-                                                          "   Left click to start a new instance \n"
-                                                          "   Right click to set default app     ")
+                                     ->template plugin<pro::notes>(" Menu item:                           \n"
+                                                                   "   Left click to start a new instance \n"
+                                                                   "   Right click to set default app     ")
                                      ->invoke([&](auto& boss)
                                      {
                                          boss.mouse.take_all_events(faux);
