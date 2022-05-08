@@ -6431,6 +6431,15 @@ namespace netxs::ui
                     utf::change(data, "\033[1C", "\033OC");
                     utf::change(data, "\033[1D", "\033OD");
                 }
+                else // Issue with arrow keys in WSL under cmd.exe.
+                {
+                    #if defined(_WIN32)
+                    utf::change(data, "\033[1A", "\033[A");
+                    utf::change(data, "\033[1B", "\033[B");
+                    utf::change(data, "\033[1C", "\033[C");
+                    utf::change(data, "\033[1D", "\033[D");
+                    #endif
+                }
                 // Linux console specific.
                 utf::change(data, "\033[[A", "\033OP");      // F1
                 utf::change(data, "\033[[B", "\033OQ");      // F2
