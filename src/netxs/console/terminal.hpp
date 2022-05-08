@@ -5717,6 +5717,7 @@ namespace netxs::ui
             invert = faux;
             decckm = faux;
             bpmode = faux;
+            normal.brush.reset();
         }
         // term: Set termnail parameters. (DECSET).
         void decset(fifo& queue)

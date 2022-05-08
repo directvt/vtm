@@ -223,7 +223,7 @@ namespace netxs::app::term
                 };
             }},
         #endif
-            { true, "Reset", " Clear scrollback and reset attributes ",
+            { true, "Reset", " Clear scrollback and SGR-attributes ",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
