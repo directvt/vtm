@@ -178,7 +178,7 @@ namespace netxs::os
             : argc{ argc }, argv{ argv }, iter{ 1 }
         { }
 
-        operator bool() const { return iter < argc; }
+        operator bool () const { return iter < argc; }
         auto next()
         {
             if (iter < argc)
@@ -220,11 +220,11 @@ namespace netxs::os
                 r = INVALID_FD;
                 w = INVALID_FD;
             }
-            friend auto& operator<< (std::ostream& s, file const& handle)
+            friend auto& operator << (std::ostream& s, file const& handle)
             {
                 return s << handle.r << "," << handle.w;
             }
-            auto& operator= (file&& f)
+            auto& operator = (file&& f)
             {
                 r = f.r;
                 w = f.w;
@@ -267,11 +267,11 @@ namespace netxs::os
                 if (h != INVALID_FD) ::close(h);
                 h = INVALID_FD;
             }
-            friend auto& operator<< (std::ostream& s, file const& handle)
+            friend auto& operator << (std::ostream& s, file const& handle)
             {
                 return s << handle.h;
             }
-            auto& operator= (file&& f)
+            auto& operator = (file&& f)
             {
                 h = f.h;
                 f.h = INVALID_FD;
@@ -397,7 +397,7 @@ namespace netxs::os
         auto conmode = -1;
         #if defined (__linux__)
             
-            if (ok(::ioctl(STDOUT_FD, KDGETMODE, &conmode), "KDGETMODE failed"))
+            if (ok(::ioctl(STDOUT_FD, KDGETMODE, &conmode), "ioctl(STDOUT_FD, KDGETMODE) failed"))
             {
                 switch (conmode)
                 {
@@ -481,7 +481,7 @@ namespace netxs::os
                                               .height    = 32,
                                               .charcount = 512,
                                               .data      = chars.data() };
-                if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "KDFONTOP + KD_FONT_OP_GET failed")) return;
+                if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "first KDFONTOP + KD_FONT_OP_GET failed")) return;
 
                 auto slice_bytes = (fdata.width + 7) / 8;
                 auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
@@ -498,7 +498,7 @@ namespace netxs::os
                     lowhalf_ptr+= slice_bytes;
                 }
                 fdata.op = KD_FONT_OP_SET;
-                if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "KDFONTOP + KD_FONT_OP_SET failed")) return;
+                if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "second KDFONTOP + KD_FONT_OP_SET failed")) return;
 
                 auto max_sz = std::numeric_limits<unsigned short>::max();
                 auto spairs = std::vector<unipair>(max_sz);
@@ -507,7 +507,7 @@ namespace netxs::os
                 auto dstmap = unimapdesc{ max_sz, dpairs.data() };
                 auto dstptr = dstmap.entries;
                 auto srcptr = srcmap.entries;
-                if (!ok(::ioctl(STDOUT_FD, GIO_UNIMAP, &srcmap), "GIO_UNIMAP failed")) return;
+                if (!ok(::ioctl(STDOUT_FD, GIO_UNIMAP, &srcmap), "ioctl(STDOUT_FD, GIO_UNIMAP) failed")) return;
                 auto srcend = srcmap.entries + srcmap.entry_ct;
                 while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
                 {
@@ -530,7 +530,7 @@ namespace netxs::os
                 {
                     for (auto& p : new_recs) *dstptr++ = p;
                     dstmap.entry_ct += std::size(new_recs);
-                    if (!ok(::ioctl(STDOUT_FD, PIO_UNIMAP, &dstmap), "PIO_UNIMAP failed")) return;
+                    if (!ok(::ioctl(STDOUT_FD, PIO_UNIMAP, &dstmap), "ioctl(STDOUT_FD, PIO_UNIMAP) failed")) return;
                 }
                 else log("  os: vgafont_update failed - UNIMAP is full");
             }
@@ -1484,7 +1484,7 @@ namespace netxs::os
 
         public:
             operator auto () { return h[0]; }
-            fire()           { ok(::pipe(h), "pipe(2) creation error"); }
+            fire()           { ok(::pipe(h), "pipe[2] creation failed"); }
            ~fire()           { for (auto f : h) if (f != INVALID_FD) ::close(f); }
             void reset()     { os::send(h[1], &x, sizeof(x)); }
             void flush()     { os::recv(h[0], &x, sizeof(x)); }
@@ -1691,7 +1691,8 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                //todo implement for win32
+                //Note: Named Pipes - default ACL used for a named pipe grant full control to the LocalSystem, admins, and the creator owner
+                //https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights
 
             #elif defined(__linux__)
 
@@ -1702,8 +1703,10 @@ namespace netxs::os
                     unsigned size = sizeof(cred);
                 #endif
 
-                if (!ok(::getsockopt(handle.get_r(), SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt error"))
+                if (!ok(::getsockopt(handle.get_r(), SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt(SOL_SOCKET) failed"))
+                {
                     return faux;
+                }
 
                 if (cred.uid && id != cred.uid)
                 {
@@ -1721,8 +1724,10 @@ namespace netxs::os
                 uid_t euid;
                 gid_t egid;
 
-                if (!ok(::getpeereid(handle.get_r(), &euid, &egid), "getpeereid error"))
+                if (!ok(::getpeereid(handle.get_r(), &euid, &egid), "getpeereid failed"))
+                {
                     return faux;
+                }
 
                 if (euid && id != euid)
                 {
@@ -2104,11 +2109,11 @@ namespace netxs::os
             return sock_ptr;
         }
 
-        friend auto& operator<< (std::ostream& s, netxs::os::ipc const& sock)
+        friend auto& operator << (std::ostream& s, netxs::os::ipc const& sock)
         {
             return s << "{ xipc: " << sock.handle << " }";
         }
-        friend auto& operator<< (std::ostream& s, netxs::os::xipc const& sock)
+        friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
         {
             return s << *sock;
         }
@@ -2126,10 +2131,12 @@ namespace netxs::os
             static testy<twod> winsz;
             static void resize_handler()
             {
+                static constexpr auto winsz_fallback = twod{ 132, 60 };
+
                 #if defined(_WIN32)
 
                     auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
-                    if (ok(::GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo)))
+                    if (ok(::GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo), "GetConsoleScreenBufferInfo failed"))
                     {
                         winsz({ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
                                 cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 });
@@ -2138,12 +2145,18 @@ namespace netxs::os
                 #else
 
                     auto size = winsize{};
-                    if (ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size)))
+                    if (ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size), "ioctl(STDOUT_FD, TIOCGWINSZ) failed"))
                     {
                         winsz({ size.ws_col, size.ws_row });
                     }
 
                 #endif
+
+                    else
+                    {
+                        log("xtty: fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
+                        winsz(winsz_fallback);
+                    }
 
                 if (winsz.test)
                 {
@@ -2155,8 +2168,8 @@ namespace netxs::os
 
                 static void default_mode()
                 {
-                    ok(::SetConsoleMode(STDOUT_FD, state[0]), "SetConsoleMode error (revert_o)");
-                    ok(::SetConsoleMode(STDIN_FD , state[1]), "SetConsoleMode error (revert_i)");
+                    ok(::SetConsoleMode(STDOUT_FD, state[0]), "SetConsoleMode failed (revert_o)");
+                    ok(::SetConsoleMode(STDIN_FD , state[1]), "SetConsoleMode failed (revert_i)");
                 }
                 static BOOL signal_handler(DWORD signal)
                 {
@@ -2398,7 +2411,7 @@ namespace netxs::os
                     si32 state = 0;
                     #if defined(__linux__)
                         si32 shift_state = 6;
-                        ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state));
+                        ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state), "ioctl(STDIN_FD, TIOCLINUX) failed");
                         state = 0
                             | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
                             | (shift_state & (1 << KG_ALT  )) >> 2 // 0x2
@@ -2409,7 +2422,7 @@ namespace netxs::os
                     #endif
                     return state;
                 };
-                ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r error");
+                ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r(STDOUT_FD) failed");
                 auto tty_name = view(buffer.data());
                 log(" tty: pseudoterminal ", tty_name);
                 if (legacy_mouse)
@@ -2480,7 +2493,7 @@ namespace netxs::os
                     {
                     #if defined(__linux__)
                         vt_stat vt_state;
-                        ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
+                        ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state), "ioctl(VT_GETSTATE) failed");
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
                             auto scale = twod{ 6,12 }; //todo magic numbers
@@ -2551,7 +2564,7 @@ namespace netxs::os
         {
             return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
-        void ignite()
+        bool ignite()
         {
             auto& sig_hndl = _globals<void>::signal_handler;
 
@@ -2560,8 +2573,8 @@ namespace netxs::os
                 auto& omode = _globals<void>::state[0];
                 auto& imode = _globals<void>::state[1];
 
-                ok(::GetConsoleMode(STDOUT_FD, &omode), "GetConsoleMode error (stdout)");
-                ok(::GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode error (stdin)");
+                ok(::GetConsoleMode(STDOUT_FD, &omode), "GetConsoleMode(STDOUT_FD) failed");
+                ok(::GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode(STDIN_FD) failed");
 
                 DWORD inpmode = 0
                               | ENABLE_EXTENDED_FLAGS
@@ -2572,34 +2585,45 @@ namespace netxs::os
                               | ENABLE_VIRTUAL_TERMINAL_INPUT
                             #endif
                               ;
-                ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode error (stdin)");
+                ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
 
                 DWORD outmode = 0
                               | ENABLE_PROCESSED_OUTPUT
                               | ENABLE_VIRTUAL_TERMINAL_PROCESSING
                               | DISABLE_NEWLINE_AUTO_RETURN
                               ;
-                ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode error (stdout)");
-                ok(::SetConsoleCtrlHandler(sig_hndl, TRUE), "SetConsoleCtrlHandler error");
+                ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
+                ok(::SetConsoleCtrlHandler(sig_hndl, TRUE), "SetConsoleCtrlHandler failed");
 
             #else
 
                 auto& state = _globals<void>::state;
-                if (ok(::tcgetattr(STDIN_FD, &state))) // Set stdin raw mode.
+                if (ok(::tcgetattr(STDIN_FD, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
                 {
                     auto raw_mode = state;
                     ::cfmakeraw(&raw_mode);
-                    ok(::tcsetattr(STDIN_FD, TCSANOW, &raw_mode));
+                    ok(::tcsetattr(STDIN_FD, TCSANOW, &raw_mode), "tcsetattr(STDIN_FD, TCSANOW) failed");
                 }
-                ok(::signal(SIGPIPE , SIG_IGN ));
-                ok(::signal(SIGWINCH, sig_hndl));
-                ok(::signal(SIGTERM , sig_hndl));
-                ok(::signal(SIGHUP  , sig_hndl));
+                else
+                {
+                    if (_globals<void>::ipcio)
+                    {
+                        _globals<void>::ipcio->shut();
+                    }
+                    return os::fail("abort: check you are using the proper tty device, try `ssh -tt ...` option");
+                }
+
+                ok(::signal(SIGPIPE , SIG_IGN ), "set signal(SIGPIPE ) failed");
+                ok(::signal(SIGWINCH, sig_hndl), "set signal(SIGWINCH) failed");
+                ok(::signal(SIGTERM , sig_hndl), "set signal(SIGTERM ) failed");
+                ok(::signal(SIGHUP  , sig_hndl), "set signal(SIGHUP  ) failed");
 
             #endif
 
             ::atexit(_globals<void>::default_mode);
             _globals<void>::resize_handler();
+
+            return true;
         }
         void splice(si32 mode)
         {
@@ -2834,7 +2858,7 @@ namespace netxs::os
                     argv.push_back(nullptr);
 
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
-                    ok(::execvp(argv.front(), argv.data()), "execvp error");
+                    ok(::execvp(argv.front(), argv.data()), "execvp failed");
                     os::exit(1, "xpty: exec error ", errno);
                 }
 
@@ -2873,8 +2897,8 @@ namespace netxs::os
             if (pid != 0)
             {
                 int status;
-                ok(::kill(pid, SIGKILL));
-                ok(::waitpid(pid, &status, 0)); // Wait for the child to avoid zombies.
+                ok(::kill(pid, SIGKILL), "kill(pid, SIGKILL) failed");
+                ok(::waitpid(pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                 if (WIFEXITED(status))
                 {
                     exit_code = WEXITSTATUS(status);
@@ -2948,7 +2972,7 @@ namespace netxs::os
                     winsize winsz;
                     winsz.ws_col = newsize.x;
                     winsz.ws_row = newsize.y;
-                    ok(::ioctl(termlink.get(), TIOCSWINSZ, &winsz));
+                    ok(::ioctl(termlink.get(), TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
 
                 #endif
             }

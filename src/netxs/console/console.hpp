@@ -181,8 +181,9 @@ namespace netxs::events::userland
 
                 SUBSET_XS( clipboard )
                 {
-                    EVENT_XS( set, const view ), // Set data to clipboard.
-                    EVENT_XS( get,       view ), // Get data from clipboard.
+                    EVENT_XS( set   , const view ), // Set data to clipboard.
+                    EVENT_XS( get   ,       view ), // Get data from clipboard.
+                    EVENT_XS( layout,       twod ), // Clipboard preview size.
                 };
             };
             SUBSET_XS( form )
@@ -402,8 +403,6 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( prop )
                 {
-                    EVENT_XS( header    , text        ), // set form caption header.
-                    EVENT_XS( footer    , text        ), // set form caption footer.
                     EVENT_XS( name      , text        ), // user name.
                     EVENT_XS( zorder    , si32        ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
                     EVENT_XS( brush     , const cell  ), // set form brush/color.
@@ -413,10 +412,17 @@ namespace netxs::events::userland
                     EVENT_XS( lucidity  , si32        ), // set or request window transparency, si32: 0-255, -1 to request.
                     EVENT_XS( fixedsize , bool        ), // set ui::fork ratio.
                     GROUP_XS( window    , twod        ), // set or request window properties.
+                    GROUP_XS( ui        , text        ), // set or request textual properties.
 
                     SUBSET_XS( window )
                     {
-                        EVENT_XS( size  , twod        ), // set window size.
+                        EVENT_XS( size  , twod ), // set window size.
+                    };
+                    SUBSET_XS( ui )
+                    {
+                        EVENT_XS( header , text ), // set/get form caption header.
+                        EVENT_XS( footer , text ), // set/get form caption footer.
+                        EVENT_XS( tooltip, text ), // set/get tooltip text.
                     };
                 };
                 SUBSET_XS( global )
@@ -1154,7 +1160,7 @@ namespace netxs::console
         }
         // base: Fire an event on yourself and pass it parent if not handled.
         // Usage example:
-        //          base::riseup<tier::preview, e2::form::prop::header>(txt);
+        //          base::riseup<tier::preview, e2::form::prop::ui::header>(txt);
         template<tier TIER, class EVENT, class T>
         void riseup(EVENT, T&& data, bool forced = faux)
         {
@@ -1281,7 +1287,7 @@ namespace netxs::console
                         :    id{ ctrl },
                           count{ 0    }
                     { }
-                    operator bool(){ return T::operator bool(); }
+                    operator bool () { return T::operator bool(); }
                 };
 
                 std::vector<sock> items; // sock: Registered hids.
@@ -1362,7 +1368,7 @@ namespace netxs::console
                     : inside{ faux },
                       seized{ faux }
                 { }
-                operator bool(){ return inside || seized; }
+                operator bool () { return inside || seized; }
                 auto corner(twod const& length)
                 {
                     return dtcoor.less(dot_11, length, dot_00);
@@ -1629,7 +1635,7 @@ namespace netxs::console
             {
                 twod cursor;        // sock: Coordinates of the active cursor.
                 bool inside = faux; // sock: Is active.
-                operator bool(){ return inside; }
+                operator bool () { return inside; }
                 auto calc(base const& master, twod curpos)
                 {
                     auto area = rect{ dot_00, master.base::size() };
@@ -1747,9 +1753,9 @@ namespace netxs::console
                     body = area;
 
                     text newhead;
-                    gate.SIGNAL(tier::request, e2::form::prop::header, head);
-                    boss.SIGNAL(tier::request, e2::form::prop::header, newhead);
-                    gate.SIGNAL(tier::preview, e2::form::prop::header, newhead);
+                    gate.SIGNAL(tier::request, e2::form::prop::ui::header, head);
+                    boss.SIGNAL(tier::request, e2::form::prop::ui::header, newhead);
+                    gate.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
                     gate.SIGNAL(tier::release, e2::form::prop::fullscreen, true);
 
                     gate.SUBMIT_T(tier::release, e2::size::set, memo, size)
@@ -1776,11 +1782,11 @@ namespace netxs::console
                     };
 
                     weak = master;
-                    boss.SUBMIT_T(tier::release, e2::form::prop::header, memo, newhead)
+                    boss.SUBMIT_T(tier::release, e2::form::prop::ui::header, memo, newhead)
                     {
                         if (auto gate_ptr = bell::getref(weak))
                         {
-                            gate_ptr->SIGNAL(tier::preview, e2::form::prop::header, newhead);
+                            gate_ptr->SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
                         }
                         else unbind();
                     };
@@ -1793,7 +1799,7 @@ namespace netxs::console
                     memo.clear();
                     if (auto gate_ptr = bell::getref(weak))
                     {
-                        gate_ptr->SIGNAL(tier::preview, e2::form::prop::header, head);
+                        gate_ptr->SIGNAL(tier::preview, e2::form::prop::ui::header, head);
                         gate_ptr->SIGNAL(tier::release, e2::form::prop::fullscreen, faux);
                     }
                 }
@@ -2379,7 +2385,7 @@ namespace netxs::console
                 if (visible) show();
             }
 
-            operator bool() const { return memo.count(); }
+            operator bool () const { return memo.count(); }
 
             // pro::caret: Set caret style.
             void style(bool new_form)
@@ -2822,10 +2828,10 @@ namespace netxs::console
                 head_page = newtext;
                 head_text = newtext;
                 recalc(head_page, head_size);
-                boss.SIGNAL(tier::release, e2::form::prop::header, head_text);
+                boss.SIGNAL(tier::release, e2::form::prop::ui::header, head_text);
                 /*
                 textline.link(boss.id);
-                boss.SIGNAL(tier::release, e2::form::prop::header, head_text);
+                boss.SIGNAL(tier::release, e2::form::prop::ui::header, head_text);
                 boss.SIGNAL(tier::release, e2::form::state::header, textline);
                 */
             }
@@ -2834,10 +2840,10 @@ namespace netxs::console
                 foot_page = newtext;
                 foot_text = newtext;
                 recalc(foot_page, foot_size);
-                boss.SIGNAL(tier::release, e2::form::prop::footer, foot_text);
+                boss.SIGNAL(tier::release, e2::form::prop::ui::footer, foot_text);
                 /*
                 textline.link(boss.id);
-                boss.SIGNAL(tier::release, e2::form::prop::footer, foot_text);
+                boss.SIGNAL(tier::release, e2::form::prop::ui::footer, foot_text);
                 boss.SIGNAL(tier::release, e2::form::state::footer, textline);
                 */
             }
@@ -2867,22 +2873,22 @@ namespace netxs::console
                 };
                 if (head_live)
                 {
-                    boss.SUBMIT_T(tier::preview, e2::form::prop::header, memo, newtext)
+                    boss.SUBMIT_T(tier::preview, e2::form::prop::ui::header, memo, newtext)
                     {
                         header(newtext);
                     };
-                    boss.SUBMIT_T(tier::request, e2::form::prop::header, memo, curtext)
+                    boss.SUBMIT_T(tier::request, e2::form::prop::ui::header, memo, curtext)
                     {
                         curtext = head_text;
                     };
                 }
                 if (foot_live)
                 {
-                    boss.SUBMIT_T(tier::preview, e2::form::prop::footer, memo, newtext)
+                    boss.SUBMIT_T(tier::preview, e2::form::prop::ui::footer, memo, newtext)
                     {
                         footer(newtext);
                     };
-                    boss.SUBMIT_T(tier::request, e2::form::prop::footer, memo, curtext)
+                    boss.SUBMIT_T(tier::request, e2::form::prop::ui::footer, memo, curtext)
                     {
                         curtext = foot_text;
                     };
@@ -3892,6 +3898,36 @@ namespace netxs::console
 
             }
         };
+
+        // pro: Tooltip.
+        class notes
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            text note;
+
+        public:
+            notes(base&&) = delete;
+            notes(base& boss, view data)
+                : skill{ boss },
+                  note { data }
+            {
+                boss.SUBMIT_T(tier::preview, e2::form::prop::ui::tooltip, memo, new_note)
+                {
+                    note = new_note;
+                };
+                boss.SUBMIT_T(tier::request, e2::form::prop::ui::tooltip, memo, cur_note)
+                {
+                    cur_note = note;
+                };
+            }
+            void update(view new_note)
+            {
+                note = new_note;
+            }
+        };
     }
 
     // console: World internals.
@@ -4497,9 +4533,9 @@ namespace netxs::console
 
             if (alive)
             {
-                log("link: signaling to close read channel ", canal);
+                log("link: signaling to close the read channel ", canal);
                 owner.SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
-                log("link: signaling to close read channel complete ", canal);
+                log("link: read channel close signaling completed ", canal);
             }
             log("link: id: ", std::this_thread::get_id(), " reading thread ended");
         }
@@ -5479,6 +5515,71 @@ again:
         }
     };
 
+    // console: Client properties.
+    class conf
+    {
+    public:
+        text ip;
+        text port;
+        text fullname;
+        text region;
+        text name;
+        text os_user_id;
+        text title;
+        twod coor;
+        twod clip_preview_size;
+        si32 legacy_mode;
+        cell background_color;
+        si32 session_id;
+        period tooltip_timeout; // conf: Timeout for tooltip.
+        bool tooltip_enabled; // conf: Enable tooltips.
+
+        conf()            = default;
+        conf(conf const&) = default;
+        conf(conf&&)      = default;
+        conf& operator = (conf const&) = default;
+
+        conf(os::xipc peer, si32 session_id)
+            : session_id{ session_id }
+        {
+            auto _region = peer->line(';');
+            auto _ip     = peer->line(';');
+            auto _name   = peer->line(';');
+            auto _user   = peer->line(';');
+            auto _mode   = peer->line(';');
+
+            _user = "[" + _user + ":" + std::to_string(session_id) + "]";
+            auto c_info = utf::divide(_ip, " ");
+            ip   = c_info.size() > 0 ? c_info[0] : text{};
+            port = c_info.size() > 1 ? c_info[1] : text{};
+            legacy_mode       = utf::to_int(_mode, os::legacy::clean);
+            os_user_id        = _user;
+            clip_preview_size = twod{ 80,25 };
+            //background_color  = app::shared::background_color;
+            coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
+            region            = _region;
+            fullname          = _name;
+            #ifndef PROD
+                name          = "[User." + utf::remain(ip) + ":" + port + "]";
+                title         = _region;
+            #else
+                name          = _user;
+                title         = _user;
+            #endif
+            tooltip_timeout   = 500ms;
+            tooltip_enabled   = true;
+        }
+
+        friend auto& operator << (std::ostream& s, conf const& c)
+        {
+            return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
+                     << "\n\tregion: " << c.region
+                     << "\n\t  name: " << c.fullname
+                     << "\n\t  user: " << c.os_user_id
+                     << "\n\t  mode: " << os::legacy::str(c.legacy_mode);
+        }
+    };
+
     // console: Client's gate.
     class gate
         : public base
@@ -5505,6 +5606,16 @@ again:
         si32 legacy = os::legacy::clean;
         text clip_rawtext; // gate: Clipboard data.
         face clip_preview; // gate: Clipboard render.
+
+        conf props; // gate: Client properties.
+
+        testy<twod> tooltip_coor = {}; // gate: Show tooltip or not.
+        moment tooltip_time = {}; // gate: The moment to show tooltip.
+        bool   tooltip_show = faux; // gate: Show tooltip or not.
+        bool   tooltip_stop = faux; // gate: Disable tooltip.
+        text   tooltip_text; // gate: Tooltip data.
+        page   tooltip_page; // gate: Tooltip render.
+        id_t   tooltip_boss; // gate: Tooltip hover object.
 
     public:
         sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
@@ -5533,21 +5644,21 @@ again:
             return item;
         }
         // Main loop.
-        template<class PROPS>
-        void run(sptr deskmenu, sptr bkground, os::xipc media /*session socket*/, PROPS const& conf)
+        void run(sptr deskmenu, sptr bkground, os::xipc media /*session socket*/, conf const& client_props)
         {
             auto lock = events::unique_lock();
 
+                props = client_props;
                 attach(deskmenu);
                 ground(bkground);
-                color(conf.background_color.fgc(), conf.background_color.bgc());
-                auto conf_usr_name = conf.name;
+                color(props.background_color.fgc(), props.background_color.bgc());
+                auto conf_usr_name = props.name;
                 SIGNAL(tier::release, e2::form::prop::name, conf_usr_name);
-                SIGNAL(tier::preview, e2::form::prop::header, conf_usr_name);
-                base::moveby(conf.coor);
+                SIGNAL(tier::preview, e2::form::prop::ui::header, conf_usr_name);
+                base::moveby(props.coor);
 
-                clip_preview.size(conf.clip_preview_size); //todo unify/make it configurable
-                legacy |= conf.legacy_mode;
+                clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
+                legacy |= props.legacy_mode;
 
                 auto world = base::parent();
                 auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
@@ -5598,7 +5709,7 @@ again:
                 //    newheader.lyric->each([&](auto c) { title += c.txt(); });
                 //    conio.output(ansi::tag(title));
                 //};
-                SUBMIT_T(tier::release, e2::form::prop::header, token, newheader)
+                SUBMIT_T(tier::release, e2::form::prop::ui::header, token, newheader)
                 {
                     text temp;
                     temp.reserve(newheader.length());
@@ -5621,15 +5732,97 @@ again:
                 {
                     clip_rawtext = clipbrd_data;
                     page block{ clipbrd_data };
+                    clip_preview.mark(cell{});
                     clip_preview.wipe();
-                    //todo revise
-                    //clip_preview.set_style(clip_preview.get_style().wrp(faux));
                     clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
                 };
                 SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
                 {
                     clipbrd_data = clip_rawtext;
                 };
+                SUBMIT_T(tier::release, e2::command::clipboard::layout, token, clipbrd_size)
+                {
+                    clip_preview.size(clipbrd_size);
+                    clip_preview.mark(cell{});
+                    clip_preview.wipe();
+                    page block{ clip_rawtext };
+                    clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                };
+                SUBMIT_T(tier::request, e2::command::clipboard::layout, token, clipbrd_size)
+                {
+                    clipbrd_size = clip_preview.size();
+                };
+                if (props.tooltip_enabled)
+                {
+                    SUBMIT_T(tier::preview, hids::events::mouse::any, token, gear)
+                    {
+                        if (tooltip_boss != input.hover) // Welcome new object.
+                        {
+                            tooltip_stop = faux;
+                        }
+
+                        if (!tooltip_stop)
+                        {
+                            auto deed = this->bell::template protos<tier::preview>();
+                            if (deed == hids::events::mouse::move.id)
+                            {
+                                if (tooltip_coor(gear.coord) || (tooltip_show && tooltip_boss != input.hover)) // Do nothing on shuffle.
+                                {
+                                    if (tooltip_show && tooltip_boss == input.hover) // Drop tooltip if moved.
+                                    {
+                                        tooltip_stop = true;
+                                    }
+                                    else
+                                    {
+                                        tooltip_time = tempus::now() + props.tooltip_timeout;
+                                        tooltip_show = faux;
+                                    }
+                                }
+                            }
+                            else // Drop tooltip on any other event.
+                            {
+                                tooltip_stop = true;
+                                tooltip_boss = input.hover;
+                            }
+                        }
+                    };
+                    SUBMIT_T(tier::general, e2::timer::any, token, something)
+                    {
+                        if (!tooltip_stop
+                         && !tooltip_show
+                         &&  tooltip_time < tempus::now()
+                         && !input.captured())
+                        {
+                            tooltip_show = true;
+                            if (tooltip_boss != input.hover)
+                            {
+                                tooltip_boss = input.hover;
+                                tooltip_text = {};
+                                if (auto boss_ptr = bell::getref(input.hover))
+                                {
+                                    if (!boss_ptr->SIGNAL(tier::request, e2::form::prop::ui::tooltip, tooltip_text))
+                                    {
+                                        if (auto base_ptr = std::dynamic_pointer_cast<base>(boss_ptr))
+                                        {
+                                            base_ptr->base::template riseup<tier::request>(e2::form::prop::ui::tooltip, tooltip_text);
+                                        }
+                                    }
+                                    if (tooltip_text.size())
+                                    {
+                                        tooltip_page.style.rst().wrp(wrap::off);
+                                        tooltip_page = tooltip_text;
+                                        base::strike();
+                                    }
+                                }
+                            }
+                        }
+                        else if (tooltip_show == true && input.captured())
+                        {
+                            tooltip_show = faux;
+                            tooltip_stop = faux;
+                        }
+                    };
+                }
 
                 world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
                 {
@@ -5665,8 +5858,12 @@ again:
                 };
             lock.unlock();
 
-            conio.session(conf.title);
-            mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
+            conio.session(props.title);
+
+            lock.lock();
+                token.clear();
+                mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
+            lock.unlock();
         }
 
     protected:
@@ -5814,9 +6011,13 @@ again:
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
             {
-                this->SIGNAL(tier::release, e2::command::clipboard::set, "");
-                gear.dismiss();
+                if (!clip_rawtext.empty())
+                {
+                    this->SIGNAL(tier::release, e2::command::clipboard::set, "");
+                    gear.dismiss();
+                }
             };
+
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
                 // Draw a shadow of user's terminal window for other users (spectators).
@@ -5879,11 +6080,25 @@ again:
                     parent_canvas.fill(area, cell::shaders::fuse(brush));
                 }
 
-                if (&parent_canvas == &cache.canvas && clip_rawtext.size())
+                if (&parent_canvas == &cache.canvas)
                 {
-                    auto coor = input.coord + dot_21 * 2;
-                    clip_preview.move(coor);
-                    parent_canvas.plot(clip_preview, cell::shaders::fuse);
+                    if (clip_rawtext.size())
+                    {
+                        auto coor = input.coord + dot_21 * 2;
+                        clip_preview.move(coor);
+                        parent_canvas.plot(clip_preview, cell::shaders::lite);
+                    }
+                    if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.captured())
+                    {
+                        static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
+                        auto full = parent_canvas.full();
+                        auto area = full;
+                        area.coor = std::max(dot_00, input.coord - twod{ 4, tooltip_page.size() + 1 });
+                        parent_canvas.full(area);
+                        parent_canvas.cup(dot_00);
+                        parent_canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
+                        parent_canvas.full(full);
+                    }
                 }
 
                 #ifdef REGIONS
@@ -5896,61 +6111,6 @@ again:
                 });
                 #endif
             };
-        }
-    };
-
-    class conf
-    {
-    public:
-        text ip;
-        text port;
-        text fullname;
-        text region;
-        text name;
-        text os_user_id;
-        text title;
-        twod coor;
-        twod clip_preview_size;
-        si32 legacy_mode;
-        cell background_color;
-        si32 session_id;
-
-        conf(os::xipc peer, si32 session_id)
-            : session_id{ session_id }
-        {
-            auto _region = peer->line(';');
-            auto _ip     = peer->line(';');
-            auto _name   = peer->line(';');
-            auto _user   = peer->line(';');
-            auto _mode   = peer->line(';');
-
-            _user = "[" + _user + ":" + std::to_string(session_id) + "]";
-            auto c_info = utf::divide(_ip, " ");
-            ip   = c_info.size() > 0 ? c_info[0] : text{};
-            port = c_info.size() > 1 ? c_info[1] : text{};
-            legacy_mode       = utf::to_int(_mode, os::legacy::clean);
-            os_user_id        = _user;
-            clip_preview_size = twod{ 80,25 };
-            //background_color  = app::shared::background_color;
-            coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
-            region            = _region;
-            fullname          = _name;
-            #ifndef PROD
-            name              = "[User." + utf::remain(ip) + ":" + port + "]";
-            title             = _region;
-            #else
-            name              = _user;
-            title             = _user;
-            #endif
-        }
-
-        friend auto& operator<< (std::ostream& s, conf const& c)
-        {
-            return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
-                     << "\n\tregion: " << c.region
-                     << "\n\t  name: " << c.fullname
-                     << "\n\t  user: " << c.os_user_id
-                     << "\n\t  mode: " << os::legacy::str(c.legacy_mode);
         }
     };
 }

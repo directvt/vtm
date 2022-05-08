@@ -47,7 +47,7 @@ namespace netxs::console
                     : inside{ faux },
                       seized{ faux }
                 { }
-                operator bool(){ return inside || seized || region.size; }
+                operator bool () { return inside || seized || region.size; }
                 auto grab(twod const& coord, bool resume)
                 {
                     if (inside)
@@ -331,7 +331,7 @@ namespace netxs::app::calc
                       {
                           static auto i = 0; i++;
                           auto title = ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods");
-                          boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
+                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))

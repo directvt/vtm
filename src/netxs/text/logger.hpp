@@ -165,8 +165,10 @@ namespace netxs
             }
         };
 
-        logger(logger const&) = default;
-        logger(logger&&)      = default;
+        logger(logger&& l)
+            : writers{ std::    move(l.writers)   },
+              token  { std::exchange(l.token, {}) }
+        { }
         template<class ...Args>
         logger(Args&&... writers)
         {
@@ -176,7 +178,7 @@ namespace netxs
         ~logger()
         {
             auto sync = guard();
-            g::checkout(token);
+            if (token) g::checkout(token);
             writers.clear();
         }
 

@@ -83,12 +83,12 @@ namespace netxs
         //duplet operator << (T i) const { return { x << i, y << i }; }
         //duplet operator >> (T i) const { return { x >> i, y >> i }; }
 
-        template<class D> duplet<D> operator /(D i) const { return { x / i, y / i }; }
-        template<class D> duplet<D> operator +(D i) const { return { x + i, y + i }; }
-        template<class D> duplet<D> operator -(D i) const { return { x - i, y - i }; }
-        template<class D> duplet<D> operator *(D i) const { return { x * i, y * i }; }
+        template<class D> duplet<D> operator / (D i) const { return { x / i, y / i }; }
+        template<class D> duplet<D> operator + (D i) const { return { x + i, y + i }; }
+        template<class D> duplet<D> operator - (D i) const { return { x - i, y - i }; }
+        template<class D> duplet<D> operator * (D i) const { return { x * i, y * i }; }
 
-        bool operator ()(duplet const& p)
+        bool operator () (duplet const& p)
         {
             if (*this != p)
             {
@@ -123,7 +123,7 @@ namespace netxs
         {
             return "{ " + std::to_string(x) + ", " + std::to_string(y) + " }";
         }
-        friend auto& operator<< (std::ostream& s, duplet const& p)
+        friend auto& operator << (std::ostream& s, duplet const& p)
         {
             return s << "{ " << p.x << ", " << p.y << " }";
         }

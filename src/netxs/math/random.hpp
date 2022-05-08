@@ -21,7 +21,7 @@ namespace netxs
             return uni(rng);
         }
         template<class T>
-        T operator ()(T start, T end)
+        T operator () (T start, T end)
         {
             std::uniform_int_distribution<T> uni(start, end);
             return uni(rng);

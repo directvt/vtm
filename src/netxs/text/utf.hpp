@@ -234,7 +234,7 @@ namespace netxs::utf
             return prop{ cp, utf8len };
         }
 
-        operator bool()
+        operator bool ()
         {
             return balance > 0;
         }
@@ -376,7 +376,7 @@ namespace netxs::utf
         constexpr qiew(view const& v) noexcept : view(v) { }
         template<class INT>
         constexpr qiew(char const* ptr, INT len) noexcept: view(ptr, len) { }
-        constexpr qiew& operator=(qiew const&) noexcept = default;
+        constexpr qiew& operator = (qiew const&) noexcept = default;
 
         // Pop front a sequence of the same control points and return their count + 1.
         auto pop_all(ctrl cmd)
@@ -1202,11 +1202,11 @@ namespace netxs::utf
         std::map<text, text> dict;
 
     public:
-        auto& operator[] (text const& s)
+        auto& operator [] (text const& s)
         {
             return dict[s];
         }
-        auto operator() (text s)
+        auto operator () (text s)
         {
             for (auto& var : dict) utf::change(s, var.first, var.second);
             for (auto& var : dict) utf::change(s, var.first, var.second);
@@ -1430,6 +1430,13 @@ namespace netxs::utf
         if (!skip.empty()) trim_front(utf8, skip);
         return str;
     };
+
+    template<class TEXT_or_VIEW>
+    auto is_plain(TEXT_or_VIEW&& utf8)
+    {
+        auto test = utf8.find('\033');
+        return test == text::npos;
+    }
 }
 
 #endif // NETXS_UTF_HPP

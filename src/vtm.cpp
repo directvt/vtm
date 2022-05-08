@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.7.3"
+#define MONOTTY_VER "Monotty Desktopio v0.7.5"
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -154,20 +154,22 @@ int main(int argc, char* argv[])
                                user, ";",
                                mode, ";"));
         auto gate = os::tty::proxy(link);
-        gate.ignite();
-        gate.output(ansi::esc{}.save_title()
-                               .altbuf(true)
-                               .vmouse(true)
-                               .cursor(faux)
-                               .bpmode(true)
-                               .setutf(true));
-        gate.splice(mode);
-        gate.output(ansi::esc{}.scrn_reset()
-                               .vmouse(faux)
-                               .cursor(true)
-                               .altbuf(faux)
-                               .bpmode(faux)
-                               .load_title());
+        if (gate.ignite())
+        {
+            gate.output(ansi::esc{}.save_title()
+                                   .altbuf(true)
+                                   .vmouse(true)
+                                   .cursor(faux)
+                                   .bpmode(true)
+                                   .setutf(true));
+            gate.splice(mode);
+            gate.output(ansi::esc{}.scrn_reset()
+                                   .vmouse(faux)
+                                   .cursor(true)
+                                   .altbuf(faux)
+                                   .bpmode(faux)
+                                   .load_title());
+        }
 
         std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
     }
@@ -180,7 +182,7 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
+        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
 
         log("main: listening socket ", link,
                          "\n\tuser: ", user,

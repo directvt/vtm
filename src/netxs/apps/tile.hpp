@@ -124,7 +124,7 @@ namespace netxs::app::tile
                             };
                         });
                 };
-                client->attach_element(e2::form::prop::header, object, label);
+                client->attach_element(e2::form::prop::ui::header, object, label);
             };
             boss.SUBMIT_T(tier::release, e2::render::any, memo, parent_canvas)
             {
@@ -277,8 +277,8 @@ namespace netxs::app::tile
                                 // Take current title.
                                 auto what = decltype(e2::form::proceed::createfrom)::type{};
                                 what.menuid = menu_item_id;
-                                master.SIGNAL(tier::request, e2::form::prop::header, what.header);
-                                master.SIGNAL(tier::request, e2::form::prop::footer, what.footer);
+                                master.SIGNAL(tier::request, e2::form::prop::ui::header, what.header);
+                                master.SIGNAL(tier::request, e2::form::prop::ui::footer, what.footer);
                                 if (what.header.empty()) what.header = menu_item_id;
                                  
                                 // Take coor and detach from the tiling wm.
@@ -327,15 +327,15 @@ namespace netxs::app::tile
                             auto shadow = ptr::shadow(boss.This());
                             boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
                             {
-                                parent->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
+                                parent->SUBMIT_BYVAL(tier::preview, e2::form::prop::ui::header, newtext)
                                 {
                                     if (auto boss_ptr = shadow.lock())
                                     {
                                         boss_ptr->upload(newtext);
-                                        boss_ptr->parent()->SIGNAL(tier::release, e2::form::prop::header, newtext);
+                                        boss_ptr->parent()->SIGNAL(tier::release, e2::form::prop::ui::header, newtext);
                                     }
                                 };
-                                parent->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
+                                parent->SUBMIT_BYVAL(tier::request, e2::form::prop::ui::header, curtext)
                                 {
                                     if (auto ptr = shadow.lock()) curtext = ptr->get_source();
                                 };
@@ -889,17 +889,18 @@ namespace netxs::app::tile
                     {
                         auto title = ansi::add(window_title);// + utf::debase(data));
                         log(" attached title=", window_title);
-                        parent->base::riseup<tier::preview>(e2::form::prop::header, title);
+                        parent->base::riseup<tier::preview>(e2::form::prop::ui::header, title);
                     };
                 });
 
             object->attach(slot::_1, app::shared::custom_menu(true,
-                std::list{
+                    app::shared::menu_list_type
+                    {
                         //  Green                                  ?Even    Red
                         // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
                         // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
                         // └────┘  └─┴──┘  └─┴──┘  └────┘  └─┴──┘  └─┴──┘  └────┘  // └─┘                       
-                        std::pair<text, std::function<void(ui::pads&)>>{"  ┐└  ",//  ─┐  ", //"  ▀█  ",
+                        { true,"  ┐└  ", " Maximize/restore active pane ", //  ─┐  ", //"  ▀█  ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -909,7 +910,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ "  +  ",
+                        { true, "  +  ", " Create and run a new app in active panes ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -918,7 +919,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ " ::: ",
+                        { true, " ::: ", " Select all panes ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -927,7 +928,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ "  │  ", // "  ║  ", - VGA Linux console doesn't support unicode glyphs
+                        { true, "  │  ", " Split active panes horizontally ", // "  ║  ", - VGA Linux console doesn't support unicode glyphs
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -936,7 +937,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        std::pair<text, std::function<void(ui::pads&)>>{  " ── ", // " ══ ", - VGA Linux console doesn't support unicode glyphs
+                        { true, " ── ", " Split active panes vertically ", // " ══ ", - VGA Linux console doesn't support unicode glyphs
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -945,7 +946,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ "  ┌┘  ",
+                        { true, "  ┌┘  ", " Change split orientation ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -954,7 +955,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ " <-> ",
+                        { true, " <-> ", " Swap two or more panes ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -963,7 +964,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ " >|< ",
+                        { true, " >|< ", " Equalize split ratio ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -972,7 +973,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ "  ×  ",
+                        { true, "  ×  ", " Close active app or remove pane if there is no running app ",
                         [](ui::pads& boss)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)

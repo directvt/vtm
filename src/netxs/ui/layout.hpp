@@ -69,31 +69,31 @@ namespace netxs::ui::atoms
         struct rgba_t { byte r, g, b, a; } chan;
         ui32                               token;
 
-        constexpr rgba ()
+        constexpr rgba()
             : token(0)
         { }
 
         template<class T, class A = byte>
-        constexpr rgba (T r, T g, T b, A a = 0xff)
+        constexpr rgba(T r, T g, T b, A a = 0xff)
             : chan{ static_cast<byte>(r),
                     static_cast<byte>(g),
                     static_cast<byte>(b),
                     static_cast<byte>(a) }
         { }
 
-        constexpr rgba (rgba const& c)
+        constexpr rgba(rgba const& c)
             : token(c.token)
         { }
 
-        constexpr rgba (tint c)
+        constexpr rgba(tint c)
             : rgba{ color256[c] }
         { }
 
-        constexpr rgba (ui32 c)
+        constexpr rgba(ui32 c)
             : token(c)
         { }
 
-        rgba (fifo& queue)
+        rgba(fifo& queue)
         {
             static constexpr auto mode_RGB = 2;
             static constexpr auto mode_256 = 5;
@@ -140,7 +140,7 @@ namespace netxs::ui::atoms
         }
         constexpr auto operator != (rgba const& c) const
         {
-            return !operator == (c);
+            return !operator==(c);
         }
         // rgba: Set all channels to zero.
         void wipe()
@@ -213,7 +213,7 @@ namespace netxs::ui::atoms
             }
             else if (c.chan.a)
             {
-                auto blend = [](auto const& c1, auto const& c2, auto const& alpha)
+                auto blend = [](auto c1, auto c2, auto alpha)
                 {
                     return ((c1 << 8) + (c2 - c1) * alpha) >> 8;
                 };
@@ -443,7 +443,7 @@ namespace netxs::ui::atoms
             0xFF808080, 0xFF8A8A8A, 0xFF949494, 0xFF9E9E9E, 0xFFA8A8A8, 0xFFB2B2B2,
             0xFFBCBCBC, 0xFFC6C6C6, 0xFFD0D0D0, 0xFFDADADA, 0xFFE4E4E4, 0xFFEEEEEE,
         };
-        friend auto& operator<< (std::ostream& s, rgba const& c)
+        friend auto& operator << (std::ostream& s, rgba const& c)
         {
             return s << "{" << (int)c.chan.r
                      << "," << (int)c.chan.g
@@ -471,10 +471,10 @@ namespace netxs::ui::atoms
               b { c.chan.b }
         { }
 
-        operator rgba() const  { return rgba{ r, g, b }; }
+        operator rgba() const { return rgba{ r, g, b }; }
 
-        template<class V>
-        auto operator / (V v) const
+        template<class N>
+        auto operator / (N v) const
         {
             return irgb<T>{ r / v, g / v, b / v }; // 10% faster than divround.
 
@@ -483,36 +483,36 @@ namespace netxs::ui::atoms
             //                utils::divround(b, v) };
         }
 
-        template<class V>
-        void operator *=(V v)
+        template<class N>
+        void operator *= (N v)
         {
             r *= v; g *= v; b *= v;
         }
-        void operator =(irgb const& c)
+        void operator = (irgb const& c)
         {
             r = c.r;
             g = c.g;
             b = c.b;
         }
-        void operator +=(irgb const& c)
+        void operator += (irgb const& c)
         {
             r += c.r;
             g += c.g;
             b += c.b;
         }
-        void operator -=(irgb const& c)
+        void operator -= (irgb const& c)
         {
             r -= c.r;
             g -= c.g;
             b -= c.b;
         }
-        void operator +=(rgba const& c)
+        void operator += (rgba const& c)
         {
             r += c.chan.r;
             g += c.chan.g;
             b += c.chan.b;
         }
-        void operator -=(rgba const& c)
+        void operator -= (rgba const& c)
         {
             r -= c.chan.r;
             g -= c.chan.g;
@@ -553,19 +553,19 @@ namespace netxs::ui::atoms
                 : token(c.token)
             { }
 
-            constexpr glyf (char c)
+            constexpr glyf(char c)
                 : token(0)
             {
                 set(c);
             }
 
-            glyf (glyf const& c, view const& utf8, size_t width)
+            glyf(glyf const& c, view const& utf8, size_t width)
                 : token(c.token)
             {
                 set(utf8, width);
             }
 
-            bool operator == (glyf const& c) const
+            auto operator == (glyf const& c) const
             {
                 return token == c.token;
             }
@@ -646,6 +646,10 @@ namespace netxs::ui::atoms
                     return view{ glyph + 1, state.count };
                 }
             }
+            auto is_space() const
+            {
+                return static_cast<byte>(glyph[1]) <= whitespace;
+            }
             void rst()
             {
                 set(whitespace);
@@ -706,11 +710,11 @@ namespace netxs::ui::atoms
             }
             param;
 
-            constexpr body ()
+            constexpr body()
                 : token(0)
             { }
 
-            constexpr body (body const& b)
+            constexpr body(body const& b)
                 : token(b.token)
             { }
 
@@ -723,7 +727,7 @@ namespace netxs::ui::atoms
             }
             bool operator != (body const& b) const
             {
-                return !operator == (b);
+                return !operator==(b);
             }
             bool like(body const& b) const
             {
@@ -812,16 +816,16 @@ namespace netxs::ui::atoms
             rgba bg;
             rgba fg;
 
-            constexpr clrs ()
+            constexpr clrs()
                 : bg{}, fg{}
             { }
 
             template<class T>
-            constexpr clrs (T colors)
+            constexpr clrs(T colors)
                 : bg{ *(colors.begin() + 0) }, fg{ *(colors.begin() + 1) }
             { }
 
-            constexpr clrs (clrs const& c)
+            constexpr clrs(clrs const& c)
                 : bg{ c.bg }, fg{ c.fg }
             { }
 
@@ -832,7 +836,7 @@ namespace netxs::ui::atoms
             }
             constexpr bool operator != (clrs const& c) const
             {
-                return !operator == (c);
+                return !operator==(c);
             }
 
             template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
@@ -903,15 +907,15 @@ namespace netxs::ui::atoms
               gc{ c }
         { }
 
-        bool operator == (cell const& c) const
+        auto operator == (cell const& c) const
         {
             return uv == c.uv
                 && st == c.st
                 && gc == c.gc;
         }
-        bool operator != (cell const& c) const
+        auto operator != (cell const& c) const
         {
-            return !operator == (c);
+            return !operator==(c);
         }
         auto& operator = (cell const& c)
         {
@@ -922,8 +926,12 @@ namespace netxs::ui::atoms
             return *this;
         }
 
-        operator bool() const { return wdt(); } // cell: Is the cell not transparent?
+        operator bool () const { return wdt(); } // cell: Is the cell not transparent?
 
+        auto same_txt(cell const& c) const // cell: Compare text parts.
+        {
+            return gc.same(c.gc);
+        }
         bool like(cell const& c) const // cell: Precise comparisons of the two cells.
         {
             return uv == c.uv
@@ -935,7 +943,7 @@ namespace netxs::ui::atoms
             gc.wipe();
             st.wipe();
         }
-        cell const&	data() const{ return *this;} // cell: Return the const reference of the base cell.
+        auto& data() const{ return *this;} // cell: Return the const reference of the base cell.
 
         // cell: Merge the two cells according to visibility and other attributes.
         inline void fuse(cell const& c)
@@ -952,11 +960,16 @@ namespace netxs::ui::atoms
             st = c.st;
             if (c.wdt()) gc = c.gc;
         }
+        // cell: Merge the two cells if text part != '\0'.
+        inline void lite(cell const& c)
+        {
+            if (c.gc.glyph[1] != 0) fuse(c);
+        }
         // cell: Mix colors using alpha.
         void mix(cell const& c, byte alpha)
         {
-        	uv.fg.mix(c.fgc(), alpha);
-        	uv.bg.mix(c.bgc(), alpha);
+        	uv.fg.mix(c.uv.fg, alpha);
+        	uv.bg.mix(c.uv.bg, alpha);
             st = c.st;
         	if (c.wdt()) gc = c.gc;
         }
@@ -1003,8 +1016,8 @@ namespace netxs::ui::atoms
                 st.get<VGAMODE, USESGR>(base.st, dest);
             }
 
-            if (wdt()) dest += gc.get();
-            else       dest += whitespace;
+            if (wdt() && !gc.is_space()) dest += gc.get();
+            else                         dest += whitespace;
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
@@ -1064,41 +1077,37 @@ namespace netxs::ui::atoms
             uv.fg = rgba::transit(c1.uv.fg, c2.uv.fg, level);
             uv.bg = rgba::transit(c1.uv.bg, c2.uv.bg, level);
         }
-        // cell: Return whitespace.
-        cell spc () const
-        {
-            return cell{ *this }.txt(whitespace);
-        }
         // cell: Set Grapheme cluster and its width.
-        void set_gc (view c, size_t w) { gc.set(c, w); }
+        void set_gc(view c, size_t w) { gc.set(c, w); }
         // cell: Set Grapheme cluster.
-        void set_gc (cell const& c) { gc = c.gc; }
+        void set_gc(cell const& c) { gc = c.gc; }
         // cell: Reset Grapheme cluster.
-        void set_gc () { gc.wipe(); }
+        void set_gc() { gc.wipe(); }
         // cell: Copy view of the cell (Preserve ID).
-        cell& set (cell const& c) { uv = c.uv;
+        auto& set(cell const& c)  { uv = c.uv;
                                     st = c.st;
                                     gc = c.gc;          return *this; }
-        cell& alpha (byte k)      { bga(k); fga(k);     return *this; } // cell: Set alpha/transparency (background and foreground).
-        cell& bgc (rgba const& c) { uv.bg = c;          return *this; } // cell: Set Background color.
-        cell& fgc (rgba const& c) { uv.fg = c;          return *this; } // cell: Set Foreground color.
-        cell& bga (byte k)        { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
-        cell& fga (byte k)        { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
-        cell& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
-        cell& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
-        cell& und (bool b)        { st.und(b ? 1 : 0);  return *this; } // cell: Set Underline attribute.
-        cell& dnl (bool b)        { st.und(b ? 2 : 0);  return *this; } // cell: Set Double underline attribute.
-        cell& ovr (bool b)        { st.ovr(b);          return *this; } // cell: Set Overline attribute.
-        cell& inv (bool b)        { st.inv(b);          return *this; } // cell: Set Invert attribute.
-        cell& stk (bool b)        { st.stk(b);          return *this; } // cell: Set Strikethrough attribute.
-        cell& blk (bool b)        { st.blk(b);          return *this; } // cell: Set Blink attribute.
-        cell& rtl (bool b)        { st.rtl(b);          return *this; } // cell: Set Right-To-Left attribute.
-        cell& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
-        cell& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
-        cell& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
-        cell& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
-        cell& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
-        cell& rst () // cell: Reset view attributes of the cell to zero.
+        auto& bgc (rgba const& c) { uv.bg = c;          return *this; } // cell: Set Background color.
+        auto& fgc (rgba const& c) { uv.fg = c;          return *this; } // cell: Set Foreground color.
+        auto& bga (byte k)        { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
+        auto& fga (byte k)        { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
+        auto& alpha(byte k)       { uv.bg.chan.a = k; 
+                                    uv.fg.chan.a = k;   return *this; } // cell: Set alpha/transparency (background and foreground).
+        auto& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
+        auto& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
+        auto& und (bool b)        { st.und(b ? 1 : 0);  return *this; } // cell: Set Underline attribute.
+        auto& dnl (bool b)        { st.und(b ? 2 : 0);  return *this; } // cell: Set Double underline attribute.
+        auto& ovr (bool b)        { st.ovr(b);          return *this; } // cell: Set Overline attribute.
+        auto& inv (bool b)        { st.inv(b);          return *this; } // cell: Set Invert attribute.
+        auto& stk (bool b)        { st.stk(b);          return *this; } // cell: Set Strikethrough attribute.
+        auto& blk (bool b)        { st.blk(b);          return *this; } // cell: Set Blink attribute.
+        auto& rtl (bool b)        { st.rtl(b);          return *this; } // cell: Set Right-To-Left attribute.
+        auto& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
+        auto& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
+        auto& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
+        auto& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
+        auto& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
+        auto& rst () // cell: Reset view attributes of the cell to zero.
         {
             static cell empty{ whitespace };
             uv = empty.uv;
@@ -1114,28 +1123,27 @@ namespace netxs::ui::atoms
         void inplus (bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
         void zwnbsp (bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
 
-        byte        bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
-        byte        fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
-        rgba&       bgc ()       { return uv.bg;         } // cell: Return Background color.
-        rgba&       fgc ()       { return uv.fg;         } // cell: Return Foreground color.
-        rgba const& bgc () const { return uv.bg;         } // cell: Return Background color.
-        rgba const& fgc () const { return uv.fg;         } // cell: Return Foreground color.
-        bool        bld () const { return st.bld();      } // cell: Return Bold attribute.
-        bool        itc () const { return st.itc();      } // cell: Return Italic attribute.
-        bool        und () const { return st.und() == 1 ? true : faux; } // cell: Return Underline/Underscore attribute.
-        bool        dnl () const { return st.und() == 2 ? true : faux; } // cell: Return Underline/Underscore attribute.
-        bool        ovr () const { return st.ovr();      } // cell: Return Underline/Underscore attribute.
-        bool        inv () const { return st.inv();      } // cell: Return Negative attribute.
-        bool        stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
-        bool        blk () const { return st.blk();      } // cell: Return Blink attribute.
-        id_t       link () const { return id;            } // cell: Return link object ID.
-
-        //id_t       para () const { return pg;            } // cell: Return paragraph ID.
-        view        txt () const { return gc.get();      } // cell: Return Grapheme cluster.
-        size_t      len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
-        size_t      wdt () const { return gc.state.width;} // cell: Return Grapheme cluster screen width.
-        bool     iswide () const { return wdt() > 1;     } // cell: Return true if char is wide.
-        bool     issame_visual (cell const& c) const // cell: Is the cell visually identical.
+        si32  len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
+        si32  wdt () const { return gc.state.width;} // cell: Return Grapheme cluster screen width.
+        auto  txt () const { return gc.get();      } // cell: Return Grapheme cluster.
+        auto  bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
+        auto  fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
+        auto& bgc ()       { return uv.bg;         } // cell: Return Background color.
+        auto& fgc ()       { return uv.fg;         } // cell: Return Foreground color.
+        auto& bgc () const { return uv.bg;         } // cell: Return Background color.
+        auto& fgc () const { return uv.fg;         } // cell: Return Foreground color.
+        auto  bld () const { return st.bld();      } // cell: Return Bold attribute.
+        auto  itc () const { return st.itc();      } // cell: Return Italic attribute.
+        auto  und () const { return st.und() == 1; } // cell: Return Underline/Underscore attribute.
+        auto  dnl () const { return st.und() == 2; } // cell: Return Underline/Underscore attribute.
+        auto  ovr () const { return st.ovr();      } // cell: Return Underline/Underscore attribute.
+        auto  inv () const { return st.inv();      } // cell: Return Negative attribute.
+        auto  stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
+        auto  blk () const { return st.blk();      } // cell: Return Blink attribute.
+        auto link () const { return id;            } // cell: Return link object ID.
+        auto iswide()const { return wdt() > 1;     } // cell: Return true if char is wide.
+        auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
+        auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
         {
             if (gc == c.gc)
             {
@@ -1153,6 +1161,16 @@ namespace netxs::ui::atoms
             }
             return faux;
         }
+        // cell: Return whitespace cell.
+        cell spc() const
+        {
+            return cell{ *this }.txt(whitespace);
+        }
+        // cell: Return empty cell.
+        cell nul() const
+        {
+            return cell{ *this }.txt('\0');
+        }
 
         class shaders
         {
@@ -1164,87 +1182,105 @@ namespace netxs::ui::atoms
                 {
                     CELL brush;
                     static constexpr auto f = FUNC{};
-                    constexpr func(CELL const& c) : brush{ c } { }
-                    template<class D> inline void operator() (D& dst) const { f(dst, brush); }
+                    constexpr func(CELL const& c)
+                        : brush{ c }
+                    { }
+                    template<class D>
+                    inline void operator () (D& dst) const
+                    {
+                        f(dst, brush);
+                    }
                 };
             };
             struct contrast_t : public brush_t<contrast_t>
             {
                 static constexpr auto threshold = rgba{ tint::whitedk }.luma() - 0xF;
-                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class C>
+                constexpr inline auto operator () (C brush) const
+                {
+                    return func<C>(brush);
+                }
                 static inline auto invert(rgba const& color)
                 {
                     return color.luma() >= threshold ? 0xFF000000
                                                      : 0xFFffffff;
                 }
                 template<class D, class S>
-                inline void operator() (D& dst, S& src) const
+                inline void operator () (D& dst, S& src) const
                 {
                     auto& fgc = src.fgc();
                     if (fgc.chan.a == 0x00) dst.fgc(invert(dst.bgc())).fusefull(src);
                     else                    dst.fusefull(src);
                 }
             };
+            struct lite_t : public brush_t<lite_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.lite(src); }
+            };
             struct flat_t : public brush_t<flat_t>
             {
-                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.set(src); }
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.set(src); }
             };
             struct full_t : public brush_t<full_t>
             {
-                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst = src; }
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst = src; }
             };
             struct fuse_t : public brush_t<fuse_t>
             {
-                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fuse(src); }
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); }
             };
             struct fusefull_t : public brush_t<fusefull_t>
             {
-                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fusefull(src); }
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fusefull(src); }
             };
             struct xlight_t
             {
-                template<class D> inline void operator() (D& dst) const { dst.xlight(); }
+                template<class D> inline void operator () (D& dst) const { dst.xlight(); }
             };
             struct invert_t
             {
-                template<class D> inline void operator() (D& dst) const { dst.invert(); }
+                template<class D> inline void operator () (D& dst) const { dst.invert(); }
             };
             struct reverse_t
             {
-                template<class D> inline void operator() (D& dst) const { dst.reverse(); }
+                template<class D> inline void operator () (D& dst) const { dst.reverse(); }
             };
             struct invbit_t
             {
-                template<class D> inline void operator() (D& dst) const { dst.invbit(); }
+                template<class D> inline void operator () (D& dst) const { dst.invbit(); }
             };
             struct transparent_t : public brush_t<transparent_t>
             {
                 byte alpha;
-                constexpr transparent_t(byte alpha) : alpha{ alpha }
+                constexpr transparent_t(byte alpha)
+                    : alpha{ alpha }
                 { }
-                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.mix(src, alpha); }
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mix(src, alpha); }
             };
             struct xlucent_t
             {
                 byte alpha;
-                constexpr xlucent_t(byte alpha) : alpha{ alpha }
+                constexpr xlucent_t(byte alpha)
+                    : alpha{ alpha }
                 { }
-                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
-                template<class D>           inline void operator() (D& dst)         const { dst.bga(alpha); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
+                template<class D>           inline void operator () (D& dst)         const { dst.bga(alpha); }
             };
             struct selection_t
             {
                 clrs colors;
                 template<class T>
-                constexpr selection_t(T colors) : colors{ colors }
+                constexpr selection_t(T colors)
+                    : colors{ colors }
                 { }
                 template<class D>
-                inline void operator() (D& dst) const
+                inline void operator () (D& dst) const
                 {
                     auto b = dst.inv() ? dst.fgc() : dst.bgc();
                     dst.uv = colors;
@@ -1252,10 +1288,10 @@ namespace netxs::ui::atoms
                     if (b == colors.bg) dst.uv.bg.shadow();
                 }
                 template<class D, class S>
-                inline void operator() (D& dst, S& src) const
+                inline void operator () (D& dst, S& src) const
                 {
                     dst.fuse(src);
-                    operator() (dst);
+                    operator()(dst);
                 }
             };
 
@@ -1266,6 +1302,7 @@ namespace netxs::ui::atoms
             static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
+            static constexpr auto     lite =     lite_t{};
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};
@@ -1312,19 +1349,19 @@ namespace netxs::ui::atoms
         {
             return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
         }
-        explicit operator bool()              const { return size.x != 0 && size.y != 0;       }
-        auto   area           ()              const { return size.x * size.y;                  }
-        twod   map            (twod const& p) const { return p - coor;                         }
-        rect   shift          (twod const& p) const { return { coor + p, size };               }
-        auto&  shift_itself   (twod const& p)       { coor += p; return *this;                 }
-        rect   operator &     (rect const& r) const { return clip(r);                          }
-        rect   operator +     (rect const& r) const { return { coor + r.coor, size + r.size }; }
-        rect   operator -     (rect const& r) const { return { coor - r.coor, size - r.size }; }
-        rect   operator |     (rect const& r) const { return unite(r);                         }
-        bool   operator !=    (rect const& r) const { return coor != r.coor || size != r.size; }
-        bool   operator ==    (rect const& r) const { return coor == r.coor && size == r.size; }
-        void   operator +=    (rect const& r)       { coor += r.coor; size += r.size;          }
-        void   operator -=    (rect const& r)       { coor -= r.coor; size -= r.size;          }
+        explicit operator bool ()              const { return size.x != 0 && size.y != 0;       }
+        auto   area            ()              const { return size.x * size.y;                  }
+        twod   map             (twod const& p) const { return p - coor;                         }
+        rect   shift           (twod const& p) const { return { coor + p, size };               }
+        auto&  shift_itself    (twod const& p)       { coor += p; return *this;                 }
+        rect   operator &      (rect const& r) const { return clip(r);                          }
+        rect   operator +      (rect const& r) const { return { coor + r.coor, size + r.size }; }
+        rect   operator -      (rect const& r) const { return { coor - r.coor, size - r.size }; }
+        rect   operator |      (rect const& r) const { return unite(r);                         }
+        bool   operator !=     (rect const& r) const { return coor != r.coor || size != r.size; }
+        bool   operator ==     (rect const& r) const { return coor == r.coor && size == r.size; }
+        void   operator +=     (rect const& r)       { coor += r.coor; size += r.size;          }
+        void   operator -=     (rect const& r)       { coor -= r.coor; size -= r.size;          }
 
         // rect: Is the point inside the rect.
         bool hittest(twod const& p) const
@@ -1464,7 +1501,7 @@ namespace netxs::ui::atoms
         {
             return "{" + coor.str() + ", " + size.str() + "}";
         }
-        friend auto& operator<< (std::ostream& s, rect const& r)
+        friend auto& operator << (std::ostream& s, rect const& r)
         {
             return s << '{' << r.coor << ", " << r.size << '}';
         }
@@ -1576,7 +1613,7 @@ namespace netxs::ui::atoms
             return "{ l:" + std::to_string(l) + " r: " + std::to_string(r) +
                     " t:" + std::to_string(t) + " b: " + std::to_string(b) + " }";
         }
-        friend auto& operator<< (std::ostream& s, side const& p)
+        friend auto& operator << (std::ostream& s, side const& p)
         {
             return s << p.str();
         }
@@ -1776,7 +1813,7 @@ namespace netxs::ui::atoms
             return "{ reg:" + region.str() + " win:" + window.str() +
                     " ovr:" + beyond.str() + " }";
         }
-        friend auto& operator<< (std::ostream& s, rack const& p)
+        friend auto& operator << (std::ostream& s, rack const& p)
         {
             return s << p.str();
         }

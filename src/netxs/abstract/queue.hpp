@@ -60,7 +60,7 @@ namespace netxs
             auto guard = std::lock_guard{ d_mutex };
             d_queue = std::move(x.d_queue);
         }
-        mt_queue<T>& operator=(mt_queue<T>&& x)
+        mt_queue<T>& operator = (mt_queue<T>&& x)
         {
             //todo *this is not a MT safe (only x.d_mutex is locked)
             auto guard = std::lock_guard{ d_mutex };

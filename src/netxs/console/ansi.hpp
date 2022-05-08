@@ -856,11 +856,11 @@ namespace netxs::ansi
         } v;
         ui64 token;
 
-        friend    auto operator!= (deco const& a, deco const& b)
-                                                  { return a.token != b.token; }
-        constexpr deco()                          : token { 0 }              { }
-        constexpr deco            (deco const& d) : token { d.token }        { }
-        constexpr void operator = (deco const& d) { token = d.token;           }
+        friend    auto operator != (deco const& a, deco const& b)
+                                                   { return a.token != b.token; }
+        constexpr deco()                           : token { 0 }              { }
+        constexpr deco             (deco const& d) : token { d.token }        { }
+        constexpr void operator =  (deco const& d) { token = d.token;           }
         constexpr deco(si32)
             : v{ .wrapln = deco::defwrp,
                  .adjust = bias::left,
