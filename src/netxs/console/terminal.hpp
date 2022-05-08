@@ -1862,7 +1862,7 @@ namespace netxs::ui
                     {
                         seltop = { offset % length,
                                    offset / length };
-                        offset += a - (b - 2);
+                        offset += a - b + 1;
                         selend = { offset % length,
                                    offset / length };
                         offset += a;
@@ -1876,8 +1876,8 @@ namespace netxs::ui
                         return faux;
                     }
                 };
-                return direction == feed::fwd ? find(match.length(),  3, uifwd, uirev)
-                                              : find(-1, match.length(), uirev, uifwd);
+                return direction == feed::fwd ? find(match.length(), 2, uifwd, uirev)
+                                              : find(0, match.length(), uirev, uifwd);
             }
             // bufferbase: Return match navigation state.
     virtual si32 selection_button(twod const& delta = {})
@@ -5480,8 +5480,8 @@ namespace netxs::ui
                     auto& curln = batch.item_by_id(startid);
                     auto from = selection_offset(curln, coord, 0);
                     auto mlen = match.length();
-                    auto step = ahead ? mlen : -1;
-                    auto back = ahead ? 3 : mlen;
+                    auto step = ahead ? mlen : 0;
+                    auto back = ahead ? 2 : mlen;
                     auto resx = [&](auto& curln)
                     {
                         if (curln.find(match, from, direction))
@@ -5489,7 +5489,7 @@ namespace netxs::ui
                             upmid.link = curln.index;
                             dnmid.link = curln.index;
                             upmid.coor = offset_to_screen(curln, from);
-                            from += step - (back - 2);
+                            from += step - back + 1;
                             dnmid.coor = offset_to_screen(curln, from);
                             delta += coord - upmid.coor;
                             uptop.role = dntop.role = grip::idle;
