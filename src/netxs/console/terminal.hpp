@@ -910,6 +910,7 @@ namespace netxs::ui
             twod  panel; // bufferbase: Viewport size.
             twod  coord; // bufferbase: Viewport cursor position; 0-based.
             redo  saved; // bufferbase: Saved cursor position and rendition state.
+            si32  arena; // bufferbase: Scrollable region height.
             si32  sctop; // bufferbase: Precalculated scrolling region top    height.
             si32  scend; // bufferbase: Precalculated scrolling region bottom height.
             si32  y_top; // bufferbase: Precalculated 0-based scrolling region top    vertical pos.
@@ -931,6 +932,7 @@ namespace netxs::ui
                 : owner{ master },
                   panel{ dot_11 },
                   coord{ dot_00 },
+                  arena{ 1      },
                   sctop{ 0      },
                   scend{ 0      },
                   y_top{ 0      },
@@ -961,19 +963,16 @@ namespace netxs::ui
             virtual twod selection_gofind(feed direction, view data = {}) = 0;
             virtual twod selection_search(feed direction, view data = {})
             {
-                log(" search: ", direction == feed::fwd ? "fwd" : "rev");
                 auto delta = dot_00;
                 if (data.empty()) // Find next selection match.
                 {
                     if (match.length())
                     {
-                        log(" search match: ", match.to_txt());
                         delta = selection_gonext(direction);
                     }
                 }
                 else
                 {
-                    log(" search data: ", data);
                     delta = selection_gofind(direction, data);
                 }
                 return delta;
@@ -1093,6 +1092,7 @@ namespace netxs::ui
                 resize_tabstops(panel.x);
                 update_region();
                 selection_review();
+                arena = y_end - y_top + 1; // Can be changed at the scrollbuff::set_scroll_region(si32 top, si32 bottom).
             }
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(si32 top, si32 bottom)
@@ -2546,7 +2546,6 @@ namespace netxs::ui
 
             buff batch; // scroll_buf: Scrollback container.
             indx index; // scroll_buf: Viewport line index.
-            si32 arena; // scroll_buf: Scrollable region height.
             face upbox; // scroll_buf:    Top margin canvas.
             face dnbox; // scroll_buf: Bottom margin canvas.
             twod upmin; // scroll_buf:    Top margin minimal size.
@@ -2566,7 +2565,6 @@ namespace netxs::ui
                 : bufferbase{ boss                   },
                        batch{ buffer_size, grow_step },
                        index{ 0                      },
-                       arena{ 1                      },
                        place{                        },
                        shore{ def_margin             }
             {
@@ -3013,7 +3011,6 @@ namespace netxs::ui
                 upbox.crop(upnew);
                 dnbox.crop(dnnew);
 
-                arena = y_end - y_top + 1;
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
                 auto away = batch.basis != batch.slide;
 
@@ -4056,7 +4053,7 @@ namespace netxs::ui
                     //});
                     if (find)
                     {
-                        match.style = style;
+                        match.style.wrp(curln.style.wrp());
                         auto offset = si32{ 0 };
                         while (curln.find(match, offset))
                         {
@@ -5462,12 +5459,11 @@ namespace netxs::ui
             // scroll_buf: Retrun viewport center.
             auto selection_viewport_center()
             {
-                return twod{ panel.x / 2 - owner.origin.x, arena / 2 - batch.ancdy };
+                return twod{ panel.x / 2 - owner.origin.x, arena / 2 + batch.ancdy };
             }
             // scroll_buf: Retrun distance to the center of viewport.
             twod selection_center(id_t id, twod coor)
             {
-                //auto base = twod{ panel.x / 2 - owner.origin.x, arena / 2 - batch.ancdy };
                 auto base = selection_viewport_center();
                 auto dist = selection_outrun(id, coor, batch.ancid, base);
                 return dist;
@@ -5578,16 +5574,7 @@ namespace netxs::ui
                     || (init.coor.y == stop.coor.y && init.coor.x > stop.coor.x)) std::swap(init, stop);
 
                     auto center = selection_center(init.link, init.coor);
-                    static auto j = 0;
-                    log("0. centered: ", j++, " center: ", center, " batch.ancid: ", batch.ancid, " batch.ancdy: ", batch.ancdy);
-                    if (std::abs(center.x) >= panel.x / 2
-                     || std::abs(center.y) >= arena   / 2) // Move current selection to the center of viewport.
-                    {
-                        static auto i = 0;
-                        //delta += center;
-                        log("- centered ", i++, " center: ", center);
-                        log("- init.link: ", init.link, " init.coor: ", init.coor);
-                    }
+                    delta += center; // Always centered.
                     probe(upmid.link, init.coor);
                 }
                 else
@@ -6037,7 +6024,6 @@ namespace netxs::ui
                 follow[axis::Y] = true; // Reset viewport.
                 ondata("");             // Recalc trigger.
             }
-            log("term: selection mode ", selmod);
         }
         // term: Set the next selection mode.
         void selection_selmod()
@@ -6237,9 +6223,12 @@ namespace netxs::ui
         {
             auto& console = *target;
             auto delta = dot_00;
+            auto fwd = dir == feed::fwd;
             if (console.selection_active())
             {
-                delta = console.selection_search(dir);
+                if (console.match.empty()) delta.y = fwd ? -console.arena // Page by page scrolling if nothing to search.
+                                                         :  console.arena;
+                else delta = console.selection_search(dir);
             }
             else
             {
@@ -6253,8 +6242,8 @@ namespace netxs::ui
                     }
                     else // Page by page scrolling if nothing to search.
                     {
-                        delta.y = dir == feed::fwd ? -console.panel.y
-                                                   :  console.panel.y;
+                        delta.y = fwd ? -console.arena
+                                      :  console.arena;
                     }
                 }
             }
