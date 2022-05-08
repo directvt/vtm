@@ -5811,6 +5811,7 @@ again:
                                     {
                                         tooltip_page.style.rst().wrp(wrap::off);
                                         tooltip_page = tooltip_text;
+                                        base::strike();
                                     }
                                 }
                             }
@@ -6092,7 +6093,7 @@ again:
                         static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
                         auto full = parent_canvas.full();
                         auto area = full;
-                        area.coor = input.coord - twod{ 4, tooltip_page.size() + 1 };
+                        area.coor = std::max(dot_00, input.coord - twod{ 4, tooltip_page.size() + 1 });
                         parent_canvas.full(area);
                         parent_canvas.cup(dot_00);
                         parent_canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));

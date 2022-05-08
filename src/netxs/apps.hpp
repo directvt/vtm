@@ -835,6 +835,7 @@ namespace netxs::app::shared
             return ui::park::ctor()
                 ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(MONOTTY_VER)
                 ->template plugin<pro::fader>(x8, c8, 0ms))
+                ->template plugin<pro::notes>(" About Environment ")
                 ->invoke([&](auto& boss)
                 {
                     auto shadow = ptr::shadow(boss.This());
