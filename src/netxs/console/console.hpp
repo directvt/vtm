@@ -35,7 +35,6 @@ namespace netxs::console
     class base;
     class form;
     class link;
-    class host;
     class site;
 
     using namespace netxs::input;
@@ -1183,6 +1182,9 @@ namespace netxs::console
                 }
             }
         }
+        // base: Initiate object redrawing.
+        virtual void redraw()
+        { }
 
     protected:
         virtual ~base() = default;
@@ -3930,542 +3932,335 @@ namespace netxs::console
         };
     }
 
-    // console: World internals.
-    class host
+    // console: Standalone application host.
+    class room
         : public base
     {
-        #ifndef PROD
-        pro::watch zombi{*this }; // host: Zombie protection.
-        #endif
-        pro::robot robot{*this }; // host: Amination controller.
-        pro::keybd keybd{*this }; // host: Keyboard controller.
-        pro::mouse mouse{*this }; // host: Mouse controller.
+        pro::robot robot{*this }; // hall: Amination controller.
+        pro::keybd keybd{*this }; // hall: Keyboard controller.
+        pro::mouse mouse{*this }; // hall: Mouse controller.
 
-        // host: Provides functionality for the scene objects manipulations.
-        class hall
+    protected:
+        room()
+        { }
+    };
+
+    // console: Desktop Virtual Environment.
+    class hall
+        : public base
+    {
+        class node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
         {
-            class node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
+            struct ward
             {
-                struct ward
+                enum states
                 {
-                    enum states
-                    {
-                        unused_hidden, // 00
-                        unused_usable, // 01
-                        active_hidden, // 10
-                        active_usable, // 11
-                        count
-                    };
-
-                    para title[states::count];
-                    cell brush[states::count];
-                    para basis;
-                    bool usable = faux;
-                    bool highlighted = faux;
-                    si32 active = 0;
-                    tone color;
-
-                    operator bool ()
-                    {
-                        return basis.size() != dot_00;
-                    }
-                    void set(para const& caption)
-                    {
-                        basis = caption;
-                        basis.decouple();
-                        recalc();
-                    }
-                    auto& get()
-                    {
-                        return title[(active || highlighted ? 2 : 0) + usable];
-                    }
-                    void recalc()
-                    {
-                        brush[active_hidden] = skin::color(color.active);
-                        brush[active_usable] = skin::color(color.active);
-                        brush[unused_hidden] = skin::color(color.passive);
-                        brush[unused_usable] = skin::color(color.passive);
-
-                        brush[unused_usable].bga(brush[unused_usable].bga() << 1);
-
-                        int i = 0;
-                        for (auto& label : title)
-                        {
-                            auto& c = brush[i++];
-                            label = basis;
-                            label.decouple();
-
-                            //todo unify clear formatting/aligning in header
-                            label.locus.kill();
-                            label.style.rst();
-                            label.lyric->each([&](auto& a) { a.meta(c); });
-                        }
-                    }
+                    unused_hidden, // 00
+                    unused_usable, // 01
+                    active_hidden, // 10
+                    active_usable, // 11
+                    count
                 };
 
-                using sptr = netxs::sptr<base>;
+                para title[states::count];
+                cell brush[states::count];
+                para basis;
+                bool usable = faux;
+                bool highlighted = faux;
+                si32 active = 0;
+                tone color;
 
-                ward header;
-
-            public:
-                rect region;
-                sptr object;
-                id_t obj_id;
-                si32 z_order = Z_order::plain;
-
-                node(sptr item)
-                    : object{ item }
+                operator bool ()
                 {
-                    auto& inst = *item;
-                    obj_id = inst.bell::id;
-
-                    inst.SUBMIT(tier::release, e2::form::prop::zorder, order)
-                    {
-                        z_order = order;
-                    };
-                    inst.SUBMIT(tier::release, e2::size::set, size)
-                    {
-                        region.size = size;
-                    };
-                    inst.SUBMIT(tier::release, e2::coor::set, coor)
-                    {
-                        region.coor = coor;
-                    };
-                    inst.SUBMIT(tier::release, e2::form::state::mouse, state)
-                    {
-                        header.active = state;
-                    };
-                    inst.SUBMIT(tier::release, e2::form::highlight::any, state)
-                    {
-                        header.highlighted = state;
-                    };
-                    inst.SUBMIT(tier::release, e2::form::state::header, caption)
-                    {
-                        header.set(caption);
-                    };
-                    inst.SUBMIT(tier::release, e2::form::state::color, color)
-                    {
-                        header.color = color;
-                    };
-
-                    inst.SIGNAL(tier::request, e2::size::set,  region.size);
-                    inst.SIGNAL(tier::request, e2::coor::set,  region.coor);
-                    inst.SIGNAL(tier::request, e2::form::state::mouse,  header.active);
-                    inst.SIGNAL(tier::request, e2::form::state::header, header.basis);
-                    inst.SIGNAL(tier::request, e2::form::state::color,  header.color);
-
-                    header.recalc();
+                    return basis.size() != dot_00;
                 }
-                // hall::node: Check equality.
-                bool equals(id_t id)
+                void set(para const& caption)
                 {
-                    return obj_id == id;
+                    basis = caption;
+                    basis.decouple();
+                    recalc();
                 }
-                // hall::node: Draw the anchor line func and return true
-                //             if the mold is outside the canvas area.
-                void fasten(face& canvas)
+                auto& get()
                 {
-                    auto window = canvas.area();
-                    auto origin = window.size / 2;
-                    //auto origin = twod{ 6, window.size.y - 3 };
-                    auto offset = region.coor - window.coor;
-                    auto center = offset + (region.size / 2);
-                    header.usable = window.overlap(region);
-                    auto active = header.active || header.highlighted;
-                    auto& grade = skin::grade(active ? header.color.active
-                                                     : header.color.passive);
-                    auto pset = [&](twod const& p, uint8_t k)
-                    {
-                        //canvas[p].fuse(grade[k], obj_id, p - offset);
-                        //canvas[p].fuse(grade[k], obj_id);
-                        canvas[p].link(obj_id).bgc().mix_one(grade[k].bgc());
-                    };
-                    window.coor = dot_00;
-                    netxs::online(window, origin, center, pset);
+                    return title[(active || highlighted ? 2 : 0) + usable];
                 }
-                // hall::node: Output the title to the canvas.
-                //void enlist(face& canvas)
-                //{
-                //    if (header)
-                //    {
-                //        auto& title = header.get();
-                //        canvas.output(title);
-                //        canvas.eol();
-                //    }
-                //}
-                // hall::node: Visualize the underlying object.
-                void render(face& canvas)
+                void recalc()
                 {
-                    canvas.render(*object);
-                }
+                    brush[active_hidden] = skin::color(color.active);
+                    brush[active_usable] = skin::color(color.active);
+                    brush[unused_hidden] = skin::color(color.passive);
+                    brush[unused_usable] = skin::color(color.passive);
 
-                void postrender(face& canvas)
-                {
-                    object->SIGNAL(tier::release, e2::postrender, canvas);
+                    brush[unused_usable].bga(brush[unused_usable].bga() << 1);
+
+                    int i = 0;
+                    for (auto& label : title)
+                    {
+                        auto& c = brush[i++];
+                        label = basis;
+                        label.decouple();
+
+                        //todo unify clear formatting/aligning in header
+                        label.locus.kill();
+                        label.style.rst();
+                        label.lyric->each([&](auto& a) { a.meta(c); });
+                    }
                 }
             };
 
-            class list // hall: Helper-class. List of objects that can be reordered, etc.
-            {
-                std::list<sptr<node>> items;
+            using sptr = netxs::sptr<base>;
 
-                template<class D>
-                auto search(D head, D tail, id_t id)
-                {
-                    if (items.size())
-                    {
-                        auto test = [id](auto& a) { return a->equals(id); };
-                        return std::find_if(head, tail, test);
-                    }
-                    return tail;
-                }
-
-            public:
-                operator bool () { return items.size(); }
-                auto size()      { return items.size(); }
-                void append(sptr<base> item)
-                {
-                    items.push_back(std::make_shared<node>(item));
-                }
-                //hall::list: Draw backpane for spectators.
-                void prerender(face& canvas)
-                {
-                    for (auto& item : items) item->fasten(canvas); // Draw strings.
-                    for (auto& item : items) item->render(canvas); // Draw shadows.
-                }
-                //hall::list: Draw windows.
-                void render(face& canvas)
-                {
-                    for (auto& item : items) item->fasten(canvas);
-                    //todo optimize
-                    for (auto& item : items) if (item->z_order == Z_order::backmost) item->render(canvas);
-                    for (auto& item : items) if (item->z_order == Z_order::plain   ) item->render(canvas);
-                    for (auto& item : items) if (item->z_order == Z_order::topmost ) item->render(canvas);
-                }
-                //hall::list: Draw spectator's mouse pointers.
-                void postrender(face& canvas)
-                {
-                    for (auto& item : items) item->postrender(canvas);
-                }
-                //hall::list: Delete all items.
-                void reset()
-                {
-                    items.clear();
-                }
-                rect remove(id_t id)
-                {
-                    rect area;
-                    auto head = items.begin();
-                    auto tail = items.end();
-                    auto item = search(head, tail, id);
-                    if (item != tail)
-                    {
-                        area = (**item).region;
-                        items.erase(item);
-                    }
-                    return area;
-                }
-                rect bubble(id_t id)
-                {
-                    auto head = items.rbegin();
-                    auto tail = items.rend();
-                    auto item = search(head, tail, id);
-
-                    if (item != head && item != tail)
-                    {
-                        auto& area = (**item).region;
-                        if (!area.clip((**std::prev(item)).region))
-                        {
-                            auto shadow = *item;
-                            items.erase(std::next(item).base());
-
-                            while (--item != head
-                                && !area.clip((**std::prev(item)).region))
-                            { }
-
-                            items.insert(item.base(), shadow);
-                            return area;
-                        }
-                    }
-
-                    return rect_00;
-                }
-                rect expose(id_t id)
-                {
-                    auto head = items.rbegin();
-                    auto tail = items.rend();
-                    auto item = search(head, tail, id);
-
-                    if (item != head && item != tail)
-                    {
-                        auto shadow = *item;
-                        items.erase(std::next(item).base());
-                        items.push_back(shadow);
-                        return shadow->region;
-                    }
-
-                    return rect_00;
-                }
-                auto rotate_next()
-                {
-                    items.push_back(items.front());
-                    items.pop_front();
-                    return items.back();
-                }
-                auto rotate_prev()
-                {
-                    items.push_front(items.back());
-                    items.pop_back();
-                    return items.back();
-                }
-            };
-
-            using proc = drawfx;
-            using time = moment;
-            using area = std::vector<rect>;
-
-            base& boss;
-            subs  memo;
-            area edges; // hall: Wrecked regions history.
-            proc paint; // hall: Render all child items to the specified canvas.
-            list items; // hall: Child visual tree.
-            list users; // hall: Scene spectators.
-
-            sptr<registry_t>            app_registry;
-            sptr<std::list<sptr<base>>> usr_registry;
+            ward header;
 
         public:
-            hall(base&&) = delete;
-            hall(base& boss) : boss{ boss },
-                app_registry{ std::make_shared<registry_t>() },
-                usr_registry{ std::make_shared<std::list<sptr<base>>>() }
+            rect region;
+            sptr object;
+            id_t obj_id;
+            si32 z_order = Z_order::plain;
+
+            node(sptr item)
+                : object{ item }
             {
-                paint.second = [&](face& canvas, sptr<base> background)
+                auto& inst = *item;
+                obj_id = inst.bell::id;
+
+                inst.SUBMIT(tier::release, e2::form::prop::zorder, order)
                 {
-                    canvas.wipe(boss.id);
-                    canvas.render(background);
-                    //todo revise
-                    if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators.
-                    items.render    (canvas); // Draw objects of the world.
-                    users.postrender(canvas); // Draw spectator's mouse pointers.
+                    z_order = order;
+                };
+                inst.SUBMIT(tier::release, e2::size::set, size)
+                {
+                    region.size = size;
+                };
+                inst.SUBMIT(tier::release, e2::coor::set, coor)
+                {
+                    region.coor = coor;
+                };
+                inst.SUBMIT(tier::release, e2::form::state::mouse, state)
+                {
+                    header.active = state;
+                };
+                inst.SUBMIT(tier::release, e2::form::highlight::any, state)
+                {
+                    header.highlighted = state;
+                };
+                inst.SUBMIT(tier::release, e2::form::state::header, caption)
+                {
+                    header.set(caption);
+                };
+                inst.SUBMIT(tier::release, e2::form::state::color, color)
+                {
+                    header.color = color;
                 };
 
-                boss.SUBMIT_T(tier::preview, e2::form::proceed::detach, memo, item_ptr)
-                {
-                    auto& inst = *item_ptr;
-                    denote(items.remove(inst.id));
-                    denote(users.remove(inst.id));
+                inst.SIGNAL(tier::request, e2::size::set,  region.size);
+                inst.SIGNAL(tier::request, e2::coor::set,  region.coor);
+                inst.SIGNAL(tier::request, e2::form::state::mouse,  header.active);
+                inst.SIGNAL(tier::request, e2::form::state::header, header.basis);
+                inst.SIGNAL(tier::request, e2::form::state::color,  header.color);
 
-                    //todo unify
-                    bool found = faux;
-                    // Remove from active app registry.
-                    for (auto& [class_id, fxd_app_list] : *app_registry)
-                    {
-                        auto& [fixed, app_list] = fxd_app_list;
-                        auto head = app_list.begin();
-                        auto tail = app_list.end();
-                        auto iter = std::find_if(head, tail, [&](auto& c) { return c == item_ptr; });
-                        if (iter != tail)
-                        {
-                            app_list.erase(iter);
-                            if (app_list.empty() && !fixed)
-                            {
-                                app_registry->erase(class_id);
-                            }
-                            found = true;
-                            break;
-                        }
-                    }
-                    { // Remove user.
-                        auto& subset = *usr_registry;
-                        auto head = subset.begin();
-                        auto tail = subset.end();
-                        auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-                        if (item != tail)
-                        {
-                            subset.erase(item);
-                            found = true;
-                        }
-                    }
-                    if (found)
-                        inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, boss.This());
-                };
-                boss.SUBMIT_T(tier::release, e2::form::layout::bubble, memo, inst)
+                header.recalc();
+            }
+            // hall::node: Check equality.
+            bool equals(id_t id)
+            {
+                return obj_id == id;
+            }
+            // hall::node: Draw the anchor line func and return true
+            //             if the mold is outside the canvas area.
+            void fasten(face& canvas)
+            {
+                auto window = canvas.area();
+                auto origin = window.size / 2;
+                //auto origin = twod{ 6, window.size.y - 3 };
+                auto offset = region.coor - window.coor;
+                auto center = offset + (region.size / 2);
+                header.usable = window.overlap(region);
+                auto active = header.active || header.highlighted;
+                auto& grade = skin::grade(active ? header.color.active
+                                                    : header.color.passive);
+                auto pset = [&](twod const& p, uint8_t k)
                 {
-                    auto region = items.bubble(inst.bell::id);
-                    denote(region);
+                    //canvas[p].fuse(grade[k], obj_id, p - offset);
+                    //canvas[p].fuse(grade[k], obj_id);
+                    canvas[p].link(obj_id).bgc().mix_one(grade[k].bgc());
                 };
-                boss.SUBMIT_T(tier::release, e2::form::layout::expose, memo, inst)
-                {
-                    auto region = items.expose(inst.bell::id);
-                    denote(region);
-                };
-                boss.SUBMIT_T(tier::request, e2::bindings::list::users, memo, usr_list)
-                {
-                    usr_list = usr_registry;
-                };
-                boss.SUBMIT_T(tier::request, e2::bindings::list::apps, memo, app_list)
-                {
-                    app_list = app_registry;
-                };
-
-                // hall: Proceed request for available objects (next)
-                boss.SUBMIT_T(tier::request, e2::form::proceed::attach, memo, next)
-                {
-                    if (items)
-                        if (auto next_ptr = items.rotate_next())
-                            next = next_ptr->object;
-                };
-                // hall: Proceed request for available objects (prev)
-                boss.SUBMIT_T(tier::request, e2::form::proceed::detach, memo, prev)
-                {
-                    if (items)
-                        if (auto prev_ptr = items.rotate_prev())
-                            prev = prev_ptr->object;
-                };
+                window.coor = dot_00;
+                netxs::online(window, origin, center, pset);
+            }
+            // hall::node: Output the title to the canvas.
+            //void enlist(face& canvas)
+            //{
+            //    if (header)
+            //    {
+            //        auto& title = header.get();
+            //        canvas.output(title);
+            //        canvas.eol();
+            //    }
+            //}
+            // hall::node: Visualize the underlying object.
+            void render(face& canvas)
+            {
+                canvas.render(*object);
             }
 
-            // hall: .
-            void redraw()
+            void postrender(face& canvas)
             {
-                paint.first = edges.size();
-                edges.clear();
-                boss.SIGNAL(tier::release, e2::form::proceed::render, paint);
-            }
-            // hall: Mark dirty region.
-            void denote(rect const& updateregion)
-            {
-                if (updateregion)
-                {
-                    edges.push_back(updateregion);
-                }
-            }
-            // hall: Shutdown.
-            void shutdown()
-            {
-                app_registry.reset();
-                items.reset();
-            }
-            // hall: Attach a new item to the scene.
-            template<class S>
-            auto branch(text const& class_id, sptr<S> item, bool fixed = true)
-            {
-                items.append(item);
-                item->base::root(true); //todo move it to the window creator (main)
-                auto& [stat, list] = (*app_registry)[class_id];
-                stat = fixed;
-                list.push_back(item);
-                item->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
-
-                boss.SIGNAL(tier::release, e2::bindings::list::apps, app_registry);
-            }
-            // hall: Create a new user of the specified subtype and invite him to the scene.
-            template<class S, class ...Args>
-            auto invite(Args&&... args)
-            {
-                auto user = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
-                users.append(user);
-                usr_registry->push_back(user);
-                user->base::root(true);
-                user->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
-
-                //todo unify
-                tone color{ tone::brighter, tone::shadow};
-                user->SIGNAL(tier::preview, e2::form::state::color, color);
-
-                boss.SIGNAL(tier::release, e2::bindings::list::users, usr_registry);
-                return user;
+                object->SIGNAL(tier::release, e2::postrender, canvas);
             }
         };
 
-        using tick = quartz<events::reactor<>, e2::type>;
+        class list // hall: Helper-class. List of objects that can be reordered, etc.
+        {
+            std::list<sptr<node>> items;
 
-        tick synch; // host: Frame rate synchronizator.
-        si32 frate; // host: Frame rate value.
-        hall scene; // host: Scene controller.
+            template<class D>
+            auto search(D head, D tail, id_t id)
+            {
+                if (items.size())
+                {
+                    auto test = [id](auto& a) { return a->equals(id); };
+                    return std::find_if(head, tail, test);
+                }
+                return tail;
+            }
 
-        void deface(rect const& region) override
-        {
-            base::deface(region);
-            scene.denote(region);
-        }
+        public:
+            operator bool () { return items.size(); }
+            auto size()      { return items.size(); }
+            void append(sptr<base> item)
+            {
+                items.push_back(std::make_shared<node>(item));
+            }
+            //hall::list: Draw backpane for spectators.
+            void prerender(face& canvas)
+            {
+                for (auto& item : items) item->fasten(canvas); // Draw strings.
+                for (auto& item : items) item->render(canvas); // Draw shadows.
+            }
+            //hall::list: Draw windows.
+            void render(face& canvas)
+            {
+                for (auto& item : items) item->fasten(canvas);
+                //todo optimize
+                for (auto& item : items) if (item->z_order == Z_order::backmost) item->render(canvas);
+                for (auto& item : items) if (item->z_order == Z_order::plain   ) item->render(canvas);
+                for (auto& item : items) if (item->z_order == Z_order::topmost ) item->render(canvas);
+            }
+            //hall::list: Draw spectator's mouse pointers.
+            void postrender(face& canvas)
+            {
+                for (auto& item : items) item->postrender(canvas);
+            }
+            //hall::list: Delete all items.
+            void reset()
+            {
+                items.clear();
+            }
+            rect remove(id_t id)
+            {
+                rect area;
+                auto head = items.begin();
+                auto tail = items.end();
+                auto item = search(head, tail, id);
+                if (item != tail)
+                {
+                    area = (**item).region;
+                    items.erase(item);
+                }
+                return area;
+            }
+            rect bubble(id_t id)
+            {
+                auto head = items.rbegin();
+                auto tail = items.rend();
+                auto item = search(head, tail, id);
 
-    public:
-        // host: Create a new item of the specified subtype and attach it.
-        template<class T>
-        auto branch(text const& class_id, sptr<T> item_ptr, bool fixed = true)
-        {
-            scene.branch(class_id, item_ptr, fixed);
-        }
-        //todo unify
-        // host: .
-        template<class T, class ...Args>
-        auto invite(Args&&... args)
-        {
-            auto lock = events::sync{};
-            return scene.invite<T>(std::forward<Args>(args)...);
-        }
-        // host: Detach user.
-        template<class T>
-        auto resign(sptr<T>& client)
-        {
-            auto lock = events::sync{};
-            client->detach();
-            client.reset();
-        }
+                if (item != head && item != tail)
+                {
+                    auto& area = (**item).region;
+                    if (!area.clip((**std::prev(item)).region))
+                    {
+                        auto shadow = *item;
+                        items.erase(std::next(item).base());
+
+                        while (--item != head
+                            && !area.clip((**std::prev(item)).region))
+                        { }
+
+                        items.insert(item.base(), shadow);
+                        return area;
+                    }
+                }
+
+                return rect_00;
+            }
+            rect expose(id_t id)
+            {
+                auto head = items.rbegin();
+                auto tail = items.rend();
+                auto item = search(head, tail, id);
+
+                if (item != head && item != tail)
+                {
+                    auto shadow = *item;
+                    items.erase(std::next(item).base());
+                    items.push_back(shadow);
+                    return shadow->region;
+                }
+
+                return rect_00;
+            }
+            auto rotate_next()
+            {
+                items.push_back(items.front());
+                items.pop_front();
+                return items.back();
+            }
+            auto rotate_prev()
+            {
+                items.push_front(items.back());
+                items.pop_back();
+                return items.back();
+            }
+        };
+
+        #ifndef PROD
+        pro::watch zombi{*this }; // hall: Zombie protection.
+        #endif
+        pro::robot robot{*this }; // hall: Amination controller.
+        pro::keybd keybd{*this }; // hall: Keyboard controller.
+        pro::mouse mouse{*this }; // hall: Mouse controller.
+
+        using proc = drawfx;
+        using time = moment;
+        using area = std::vector<rect>;
+
+        area edges; // hall: Wrecked regions history.
+        proc paint; // hall: Render all child items to the specified canvas.
+        list items; // hall: Child visual tree.
+        list users; // hall: Scene spectators.
+
+        sptr<registry_t>            app_registry;
+        sptr<std::list<sptr<base>>> usr_registry;
 
     protected:
-        host(os::xipc& server)
-            : synch(router<tier::general>(), e2::timer::tick.id),
-              scene{ *this },
-              frate{ 0 }
+        hall(os::xipc& server)
+           : app_registry{ std::make_shared<registry_t>() },
+             usr_registry{ std::make_shared<std::list<sptr<base>>>() }
         {
-            using bttn = hids::events::mouse::button;
+            paint.second = [&](face& canvas, sptr<base> background)
+            {
+                canvas.wipe(bell::id);
+                canvas.render(background);
+                //todo revise
+                if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators.
+                items.render    (canvas); // Draw objects of the world.
+                users.postrender(canvas); // Draw spectator's mouse pointers.
+            };
 
             keybd.accept(true); // Subscribe on keybd offers.
 
-            SUBMIT(tier::general, e2::timer::any, timestamp)
-            {
-                scene.redraw();
-            };
-            SUBMIT(tier::general, e2::config::whereami, world_ptr)
-            {
-                world_ptr = This();
-            };
-
-            //SUBMIT(tier::release, bttn::click::right, gear)
-            //{
-            //    //auto newpos = gear.mouse.coord + gear.xview.coor;
-            //    this->SIGNAL(tier::general, e2::form::global::ctxmenu, gear.coord);
-            //};
-            SUBMIT(tier::general, hids::events::die, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.release();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(tier::general, e2::config::fps, fps)
-            {
-                if (fps > 0)
-                {
-                    frate = fps;
-                    synch.ignite(frate);
-                }
-                else if (fps == -1)
-                {
-                    fps = frate;
-                }
-                else
-                {
-                    synch.cancel();
-                }
-            };
-            SUBMIT(tier::general, e2::cleanup, counter)
-            {
-                router<tier::general>().cleanup(counter.ref_count, counter.del_count);
-            };
             SUBMIT(tier::general, e2::form::global::lucidity, alpha)
             {
                 if (alpha == -1)
@@ -4484,18 +4279,212 @@ namespace netxs::console
                 log("host: shutdown: ", msg);
                 server->stop();
             };
-            log("host: started");
+
+            SUBMIT(tier::preview, e2::form::proceed::detach, item_ptr)
+            {
+                auto& inst = *item_ptr;
+                denote(items.remove(inst.id));
+                denote(users.remove(inst.id));
+
+                //todo unify
+                bool found = faux;
+                // Remove from active app registry.
+                for (auto& [class_id, fxd_app_list] : *app_registry)
+                {
+                    auto& [fixed, app_list] = fxd_app_list;
+                    auto head = app_list.begin();
+                    auto tail = app_list.end();
+                    auto iter = std::find_if(head, tail, [&](auto& c) { return c == item_ptr; });
+                    if (iter != tail)
+                    {
+                        app_list.erase(iter);
+                        if (app_list.empty() && !fixed)
+                        {
+                            app_registry->erase(class_id);
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                { // Remove user.
+                    auto& subset = *usr_registry;
+                    auto head = subset.begin();
+                    auto tail = subset.end();
+                    auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+                    if (item != tail)
+                    {
+                        subset.erase(item);
+                        found = true;
+                    }
+                }
+                if (found)
+                    inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, This());
+            };
+            SUBMIT(tier::release, e2::form::layout::bubble, inst)
+            {
+                auto region = items.bubble(inst.bell::id);
+                denote(region);
+            };
+            SUBMIT(tier::release, e2::form::layout::expose, inst)
+            {
+                auto region = items.expose(inst.bell::id);
+                denote(region);
+            };
+            SUBMIT(tier::request, e2::bindings::list::users, usr_list)
+            {
+                usr_list = usr_registry;
+            };
+            SUBMIT(tier::request, e2::bindings::list::apps, app_list)
+            {
+                app_list = app_registry;
+            };
+
+            // hall: Proceed request for available objects (next)
+            SUBMIT(tier::request, e2::form::proceed::attach, next)
+            {
+                if (items)
+                    if (auto next_ptr = items.rotate_next())
+                        next = next_ptr->object;
+            };
+            // hall: Proceed request for available objects (prev)
+            SUBMIT(tier::request, e2::form::proceed::detach, prev)
+            {
+                if (items)
+                    if (auto prev_ptr = items.rotate_prev())
+                        prev = prev_ptr->object;
+            };
+            SUBMIT(tier::general, hids::events::die, gear)
+            {
+                if (gear.captured(bell::id))
+                {
+                    gear.release();
+                    gear.dismiss();
+                }
+            };
+        }
+
+        // hall: .
+        void redraw() override
+        {
+            paint.first = edges.size();
+            edges.clear();
+            SIGNAL(tier::release, e2::form::proceed::render, paint);
+        }
+        // hall: Mark dirty region.
+        void denote(rect const& updateregion)
+        {
+            if (updateregion)
+            {
+                edges.push_back(updateregion);
+            }
+        }
+        // hall: Shutdown.
+        void shutdown()
+        {
+            app_registry.reset();
+            items.reset();
         }
 
     public:
-        ~host()
+        ~hall()
         {
+            events::sync lock;
+            shutdown();
+            mouse.reset();
+        }
+        // hall: Attach a new item to the scene.
+        template<class S>
+        auto branch(text const& class_id, sptr<S> item, bool fixed = true)
+        {
+            items.append(item);
+            item->base::root(true); //todo move it to the window creator (main)
+            auto& [stat, list] = (*app_registry)[class_id];
+            stat = fixed;
+            list.push_back(item);
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+
+            SIGNAL(tier::release, e2::bindings::list::apps, app_registry);
+        }
+        // hall: Create a new user of the specified subtype and invite him to the scene.
+        template<class S, class ...Args>
+        auto invite(Args&&... args)
+        {
+            auto lock = events::sync{};
+            auto user = base::create<S>(std::forward<Args>(args)...);
+            users.append(user);
+            usr_registry->push_back(user);
+            user->base::root(true);
+            user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+
+            //todo unify
+            tone color{ tone::brighter, tone::shadow};
+            user->SIGNAL(tier::preview, e2::form::state::color, color);
+
+            SIGNAL(tier::release, e2::bindings::list::users, usr_registry);
+            return user;
+        }
+        void deface(rect const& region) override
+        {
+            base::deface(region);
+            denote(region);
+        }
+        // hall: Detach user.
+        template<class T>
+        auto resign(sptr<T>& client)
+        {
+            auto lock = events::sync{};
+            client->detach();
+            client.reset();
+        }
+    };
+
+    // console: World aether.
+    template<class THING>
+    class host
+        : public THING
+    {
+        using tick = quartz<events::reactor<>, e2::type>;
+
+        subs token; // host: Subscription tokens.
+        tick synch; // host: Frame rate synchronizator.
+        si32 frate; // host: Frame rate value.
+
+    public:
+        template<class ...Args>
+        host(Args&&... args)
+            : THING{ std::forward<Args>(args)... },
+              synch{ bell::router<tier::general>(), e2::timer::tick.id },
+              frate{ 0 }
+        {
+            SUBMIT_T(tier::general, e2::timer::any, token, timestamp)
             {
-                events::sync lock;
-                scene.shutdown();
-                mouse.reset();
-            }
-            synch.cancel();
+                THING::redraw();
+            };
+            SUBMIT_T(tier::general, e2::config::whereami, token, world_ptr)
+            {
+                world_ptr = THING::This();
+            };
+            SUBMIT_T(tier::general, e2::config::fps, token, fps)
+            {
+                if (fps > 0)
+                {
+                    frate = fps;
+                    synch.ignite(frate);
+                }
+                else if (fps == -1)
+                {
+                    fps = frate;
+                }
+                else
+                {
+                    synch.cancel();
+                }
+            };
+            SUBMIT_T(tier::general, e2::cleanup, token, counter)
+            {
+                this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
+            };
+            log("host: started");
         }
     };
 

@@ -38,20 +38,35 @@
 using namespace netxs::console;
 using namespace netxs;
 
+enum class type
+{
+    client,
+    server,
+    runapp,
+};
+
 int main(int argc, char* argv[])
 {
     auto syslog = logger([](auto data) { os::syslog(data); });
     auto banner = [&]() { log(MONOTTY_VER); };
     auto prefix = [](auto user) { return utf::concat(MONOTTY_PREFIX, user); }; //todo unify, use vtm.conf
-    auto client = true;
-    auto daemon = faux;
+    auto whoami = type::client;
+    auto params = "Term"s;
     {
+        auto daemon = faux;
         auto getopt = os::args{ argc, argv };
         while (getopt)
         {
             switch (getopt.next())
             {
-                case 's': client = faux; break;
+                case 'r':
+                {
+                    whoami = type::runapp;
+                    auto temp = getopt.param();
+                    if (!temp.empty()) params = temp;
+                    break;
+                }
+                case 's': whoami = type::server; break;
                 case 'd': daemon = true; break;
                 default:
                     #ifndef PROD
@@ -78,11 +93,19 @@ int main(int argc, char* argv[])
                     #endif
 
                     banner();
-                    log("Usage:\n\n ", argv[0], " [OPTION...]\n\n"s
+                    log("Usage:\n\n ", argv[0], " [ -d | -s | -r [<app> [<args...>]] ]\n\n"s
                                     + " No arguments\tRun client, auto start server if is not started.\n"s
                                              + "\t-d\tRun server in background.\n"s
-                                             + "\t-s\tRun server in interactive mode.\n"s);
-                    return 0;;
+                                             + "\t-s\tRun server in interactive mode.\n"s
+                                             + "\t-r\tRun standalone application.\n"s
+                                             + "\n"s
+                                             + "\tList of registered applications:\n\n"s
+                                             + "\t\tTerm\tTerminal emulator (default)\n"s
+                                             + "\t\tText\tText editor\n"s
+                                             + "\t\tCalc\tSpreadsheet calculator\n"s
+                                             + "\t\tFile\tFile manager\n"s
+                                             );
+                    return 0;
             }
         }
 
@@ -94,7 +117,7 @@ int main(int argc, char* argv[])
                 log("main: failed to daemonize");
                 return 1;
             }
-            else client = faux;
+            else whoami = type::server;
         }
     }
 
@@ -127,7 +150,7 @@ int main(int argc, char* argv[])
         skin::setup(tone::bordersz, dot_11);
     }
 
-    if (client)
+    if (whoami == type::client)
     {
         os::start_log("vtm");
 
@@ -173,7 +196,7 @@ int main(int argc, char* argv[])
 
         std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
     }
-    else
+    else if (whoami == type::server)
     {
         auto link = os::ipc::open<os::server>(path);
         if (!link)
@@ -188,10 +211,10 @@ int main(int argc, char* argv[])
                          "\n\tuser: ", user,
                          "\n\tpipe: ", path);
 
-        auto world = base::create<host>(link);
-        app::shared::init_app_registry(world);
+        auto scene = base::create<host<hall>>(link);
+        app::shared::init_app_registry(scene);
 
-        world->SIGNAL(tier::general, e2::config::fps, 60);
+        SIGNAL_GLOBAL(e2::config::fps, 60);
 
         auto session = os::pool{};
         while (auto peer = link->meet())
@@ -210,19 +233,47 @@ int main(int argc, char* argv[])
 
             session.run([&, peer, conf]()
             {
-                if (auto client = world->invite<ui::gate>())
+                if (auto client = scene->invite<ui::gate>())
                 {
                     log("user: new gate for ", peer);
                     auto deskmenu = app::shared::creator("Desk")(utf::concat(client->id, ";", conf.os_user_id));
                     auto bkground = app::shared::creator("Fone")("Shop;Demo;");
                     client->run(deskmenu, bkground, peer, conf);
 
-                    world->resign(client);
+                    scene->resign(client);
                     log("user: ", peer, " logged out");
                 }
             });
         }
 
         SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
+    }
+    else if (whoami == type::runapp)
+    {
+        auto mode = os::legacy_mode();
+        //auto gate = os::tty::proxy(link);
+        //if (gate.ignite())
+        //{
+        //    gate.output(ansi::esc{}.save_title()
+        //                           .altbuf(true)
+        //                           .vmouse(true)
+        //                           .cursor(faux)
+        //                           .bpmode(true)
+        //                           .setutf(true));
+        //    gate.splice(mode);
+        //    gate.output(ansi::esc{}.scrn_reset()
+        //                           .vmouse(faux)
+        //                           .cursor(true)
+        //                           .altbuf(faux)
+        //                           .bpmode(faux)
+        //                           .load_title());
+        //}
+
+        std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
+
+        if (params == "Term") log("Launch terminal emulator");
+        else                  log("Launch ", params);
+
+        auto scene = base::create<host<room>>();//link);
     }
 }

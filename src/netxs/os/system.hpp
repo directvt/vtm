@@ -191,6 +191,16 @@ namespace netxs::os
             }
             return '\0';
         }
+        auto param()
+        {
+            if (iter < argc)
+            {
+                auto crop = view{ argv[iter] + 1 };
+                iter = argc;
+                return crop;
+            }
+            return view{};
+        }
     };
     struct nothing
     {
