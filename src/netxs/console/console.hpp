@@ -3936,14 +3936,25 @@ namespace netxs::console
     class room
         : public base
     {
+        using proc = drawfx;
+
         pro::robot robot{*this }; // hall: Amination controller.
         pro::keybd keybd{*this }; // hall: Keyboard controller.
         pro::mouse mouse{*this }; // hall: Mouse controller.
         //sptr<base> owner;
 
+        proc paint; // room: Render all child items to the specified canvas.
+
     protected:
         room()
-        { }
+        {
+            paint.second = [&](face& canvas, sptr<base> background)
+            {
+                canvas.wipe(bell::id);
+                if (background) canvas.render(background);
+                canvas.render(*this);
+            };
+        }
 
     public:
         // room: Create a new user of the specified subtype and invite him to the scene.
@@ -3968,6 +3979,13 @@ namespace netxs::console
             auto lock = events::sync{};
             client->detach();
             client.reset();
+        }
+        // room: .
+        void redraw() override
+        {
+            paint.first = 1;//edges.size();
+            //edges.clear();
+            SIGNAL(tier::release, e2::form::proceed::render, paint);
         }
     };
 

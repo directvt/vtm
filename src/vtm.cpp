@@ -266,6 +266,11 @@ int main(int argc, char* argv[])
         std::thread{[mode, link]()
         {
             auto gate = os::tty::proxy(link.second);
+            link.second->send(utf::concat("spot", ";",
+                                          "host", ";",
+                                          "name", ";",
+                                          "user", ";",
+                                           mode , ";"));
             gate.ignite();
             gate.output(ansi::esc{}.save_title()
                                    .altbuf(true)

@@ -1772,8 +1772,8 @@ namespace netxs::os
         }
         void  send(view data)          override
         {
-            if constexpr (ROLE == role::server) server->send(data);
-            else                                client->send(data);
+            if constexpr (ROLE == role::server) client->send(data);
+            else                                server->send(data); 
         }
         void  send_f(view data)        override
         {
