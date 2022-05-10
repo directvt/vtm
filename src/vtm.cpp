@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
     auto banner = [&]() { log(MONOTTY_VER); };
     auto prefix = [](auto user) { return utf::concat(MONOTTY_PREFIX, user); }; //todo unify, use vtm.conf
     auto whoami = type::client;
-    auto params = "Term"s;
+    auto params = text{};
     {
         auto daemon = faux;
         auto getopt = os::args{ argc, argv };
@@ -60,12 +60,10 @@ int main(int argc, char* argv[])
             switch (getopt.next())
             {
                 case 'r':
-                {
                     whoami = type::runapp;
-                    auto temp = getopt.param();
-                    if (!temp.empty()) params = temp;
+                    params = getopt ? getopt.tail()
+                                    : "Term"s;
                     break;
-                }
                 case 's': whoami = type::server; break;
                 case 'd': daemon = true; break;
                 default:
@@ -150,7 +148,59 @@ int main(int argc, char* argv[])
         skin::setup(tone::bordersz, dot_11);
     }
 
-    if (whoami == type::client)
+    if (whoami == type::server)
+    {
+        auto link = os::ipc::open<os::server>(path);
+        if (!link)
+        {
+            log("main: error: can't start desktop server");
+            return 1;
+        }
+
+        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
+
+        log("main: listening socket ", link,
+                         "\n\tuser: ", user,
+                         "\n\tpipe: ", path);
+
+        auto scene = base::create<host<hall>>(link);
+        app::shared::init_app_registry(scene);
+
+        SIGNAL_GLOBAL(e2::config::fps, 60);
+
+        auto session = os::pool{};
+        while (auto peer = link->meet())
+        {
+            if (!peer->cred(user))
+            {
+                log("main: abort: foreign users are not allowed to the session");
+                continue;
+            }
+
+            auto lock = session.lock();
+            auto conf = console::conf(peer, session.next());
+            log("main: incoming connection:", conf);
+
+            conf.background_color = app::shared::background_color; //todo unify
+
+            session.run([&, peer, conf]()
+            {
+                if (auto client = scene->invite<ui::gate>())
+                {
+                    log("user: new gate for ", peer);
+                    auto deskmenu = app::shared::creator("Desk")(utf::concat(client->id, ";", conf.os_user_id));
+                    auto bkground = app::shared::creator("Fone")("Shop;Demo;");
+                    client->run(peer, conf, deskmenu, bkground);
+
+                    scene->resign(client);
+                    log("user: ", peer, " logged out");
+                }
+            });
+        }
+
+        SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
+    }
+    else if (whoami == type::client)
     {
         os::start_log("vtm");
 
@@ -196,84 +246,45 @@ int main(int argc, char* argv[])
 
         std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
     }
-    else if (whoami == type::server)
-    {
-        auto link = os::ipc::open<os::server>(path);
-        if (!link)
-        {
-            log("main: error: can't start desktop server");
-            return 1;
-        }
-
-        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
-
-        log("main: listening socket ", link,
-                         "\n\tuser: ", user,
-                         "\n\tpipe: ", path);
-
-        auto scene = base::create<host<hall>>(link);
-        app::shared::init_app_registry(scene);
-
-        SIGNAL_GLOBAL(e2::config::fps, 60);
-
-        auto session = os::pool{};
-        while (auto peer = link->meet())
-        {
-            if (!peer->cred(user))
-            {
-                log("main: abort: foreign users are not allowed to the session");
-                continue;
-            }
-
-            auto lock = session.lock();
-            auto conf = console::conf(peer, session.next());
-            log("main: incoming connection:", conf);
-
-            conf.background_color = app::shared::background_color; //todo unify
-
-            session.run([&, peer, conf]()
-            {
-                if (auto client = scene->invite<ui::gate>())
-                {
-                    log("user: new gate for ", peer);
-                    auto deskmenu = app::shared::creator("Desk")(utf::concat(client->id, ";", conf.os_user_id));
-                    auto bkground = app::shared::creator("Fone")("Shop;Demo;");
-                    client->run(deskmenu, bkground, peer, conf);
-
-                    scene->resign(client);
-                    log("user: ", peer, " logged out");
-                }
-            });
-        }
-
-        SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
-    }
     else if (whoami == type::runapp)
     {
-        auto mode = os::legacy_mode();
-        //auto gate = os::tty::proxy(link);
-        //if (gate.ignite())
-        //{
-        //    gate.output(ansi::esc{}.save_title()
-        //                           .altbuf(true)
-        //                           .vmouse(true)
-        //                           .cursor(faux)
-        //                           .bpmode(true)
-        //                           .setutf(true));
-        //    gate.splice(mode);
-        //    gate.output(ansi::esc{}.scrn_reset()
-        //                           .vmouse(faux)
-        //                           .cursor(true)
-        //                           .altbuf(faux)
-        //                           .bpmode(faux)
-        //                           .load_title());
-        //}
-
-        std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
 
         if (params == "Term") log("Launch terminal emulator");
         else                  log("Launch ", params);
 
-        auto scene = base::create<host<room>>();//link);
+        auto mode = os::legacy_mode();
+        auto conf = console::conf(mode);
+        auto link = os::ipc::local();
+
+        auto scene = base::create<host<room>>(link.first);
+        auto client = scene->invite<ui::gate>();
+
+        auto application = app::shared::creator("Text")(view{});
+
+        SIGNAL_GLOBAL(e2::config::fps, 60);
+
+        std::thread{[mode, link]()
+        {
+            auto gate = os::tty::proxy(link.second);
+            gate.ignite();
+            gate.output(ansi::esc{}.save_title()
+                                   .altbuf(true)
+                                   .vmouse(true)
+                                   .cursor(faux)
+                                   .bpmode(true)
+                                   .setutf(true));
+            gate.splice(mode);
+            gate.output(ansi::esc{}.scrn_reset()
+                                   .vmouse(faux)
+                                   .cursor(true)
+                                   .altbuf(faux)
+                                   .bpmode(faux)
+                                   .load_title());
+        }}.detach();
+
+        client->run(link.first, conf, application);
+        scene->resign(client);
+
+        std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
     }
 }

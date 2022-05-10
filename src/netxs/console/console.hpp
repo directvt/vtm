@@ -3939,10 +3939,36 @@ namespace netxs::console
         pro::robot robot{*this }; // hall: Amination controller.
         pro::keybd keybd{*this }; // hall: Keyboard controller.
         pro::mouse mouse{*this }; // hall: Mouse controller.
+        //sptr<base> owner;
 
     protected:
         room()
         { }
+
+    public:
+        // room: Create a new user of the specified subtype and invite him to the scene.
+        template<class S, class ...Args>
+        auto invite(Args&&... args)
+        {
+            auto lock = events::sync{};
+            auto user = base::create<S>(std::forward<Args>(args)...);
+            //owner = user;
+            user->base::root(true);
+            user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+
+            //todo unify
+            tone color{ tone::brighter, tone::shadow};
+            user->SIGNAL(tier::preview, e2::form::state::color, color);
+            return user;
+        }
+        // room: Detach user.
+        template<class T>
+        auto resign(sptr<T>& client)
+        {
+            auto lock = events::sync{};
+            client->detach();
+            client.reset();
+        }
     };
 
     // console: Desktop Virtual Environment.
@@ -4245,14 +4271,14 @@ namespace netxs::console
         sptr<std::list<sptr<base>>> usr_registry;
 
     protected:
-        hall(os::xipc& server)
+        hall()
            : app_registry{ std::make_shared<registry_t>() },
              usr_registry{ std::make_shared<std::list<sptr<base>>>() }
         {
             paint.second = [&](face& canvas, sptr<base> background)
             {
                 canvas.wipe(bell::id);
-                canvas.render(background);
+                if (background) canvas.render(background);
                 //todo revise
                 if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators.
                 items.render    (canvas); // Draw objects of the world.
@@ -4273,11 +4299,6 @@ namespace netxs::console
                     skin::setup(tone::lucidity, alpha);
                     this->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
                 }
-            };
-            SUBMIT(tier::general, e2::shutdown, msg)
-            {
-                log("host: shutdown: ", msg);
-                server->stop();
             };
 
             SUBMIT(tier::preview, e2::form::proceed::detach, item_ptr)
@@ -4352,14 +4373,6 @@ namespace netxs::console
                 if (items)
                     if (auto prev_ptr = items.rotate_prev())
                         prev = prev_ptr->object;
-            };
-            SUBMIT(tier::general, hids::events::die, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.release();
-                    gear.dismiss();
-                }
             };
         }
 
@@ -4448,13 +4461,15 @@ namespace netxs::console
         subs token; // host: Subscription tokens.
         tick synch; // host: Frame rate synchronizator.
         si32 frate; // host: Frame rate value.
+        os::xipc srv;
 
     public:
         template<class ...Args>
-        host(Args&&... args)
+        host(os::xipc server_pipe, Args&&... args)
             : THING{ std::forward<Args>(args)... },
               synch{ bell::router<tier::general>(), e2::timer::tick.id },
-              frate{ 0 }
+              frate{ 0 },
+              srv{ server_pipe }
         {
             SUBMIT_T(tier::general, e2::timer::any, token, timestamp)
             {
@@ -4483,6 +4498,19 @@ namespace netxs::console
             SUBMIT_T(tier::general, e2::cleanup, token, counter)
             {
                 this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
+            };
+            SUBMIT_T(tier::general, hids::events::die, token, gear)
+            {
+                if (gear.captured(bell::id))
+                {
+                    gear.release();
+                    gear.dismiss();
+                }
+            };
+            SUBMIT_T(tier::general, e2::shutdown, token, msg)
+            {
+                log("host: shutdown: ", msg);
+                srv->stop();
             };
             log("host: started");
         }
@@ -5528,6 +5556,15 @@ again:
         conf(conf&&)      = default;
         conf& operator = (conf const&) = default;
 
+        conf(si32 mode)
+            : session_id{ session_id },
+              legacy_mode{ mode }
+        {
+            clip_preview_size = twod{ 80,25 };
+            coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
+            tooltip_timeout   = 500ms;
+            tooltip_enabled   = true;            
+        }
         conf(os::xipc peer, si32 session_id)
             : session_id{ session_id }
         {
@@ -5633,13 +5670,13 @@ again:
             return item;
         }
         // Main loop.
-        void run(sptr deskmenu, sptr bkground, os::xipc media /*session socket*/, conf const& client_props)
+        void run(os::xipc media /*session socket*/, conf const& client_props, sptr deskmenu, sptr bkground = {})
         {
             auto lock = events::unique_lock();
 
                 props = client_props;
-                attach(deskmenu);
-                ground(bkground);
+                if (deskmenu) attach(deskmenu);
+                if (bkground) ground(bkground);
                 color(props.background_color.fgc(), props.background_color.bgc());
                 auto conf_usr_name = props.name;
                 SIGNAL(tier::release, e2::form::prop::name, conf_usr_name);

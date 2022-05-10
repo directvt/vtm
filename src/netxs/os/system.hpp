@@ -96,7 +96,7 @@
 namespace netxs::os
 {
     using list = std::vector<text>;
-    using xipc = std::shared_ptr<class ipc>;
+    using xipc = std::shared_ptr<class ipc_base>;
     using namespace std::chrono_literals;
     using namespace netxs::ui::atoms;
 
@@ -178,7 +178,9 @@ namespace netxs::os
             : argc{ argc }, argv{ argv }, iter{ 1 }
         { }
 
+        // args: Returns true if not end.
         operator bool () const { return iter < argc; }
+        // args: Return the next argument starting with '-' or '/' (skip others).
         auto next()
         {
             if (iter < argc)
@@ -191,15 +193,17 @@ namespace netxs::os
             }
             return '\0';
         }
-        auto param()
+        // args: Return the rest of the command line arguments.
+        auto tail()
         {
-            if (iter < argc)
+            auto crop = text{};
+            while (iter < argc)
             {
-                auto crop = view{ argv[iter] + 1 };
-                iter = argc;
-                return crop;
+                crop += view{ argv[iter++] };
+                crop.push_back(' ');
             }
-            return view{};
+            if (!crop.empty()) crop.pop_back(); // Pop last space.
+            return crop;
         }
     };
     struct nothing
@@ -229,6 +233,10 @@ namespace netxs::os
                 if (w != INVALID_FD) ::CloseHandle(w);
                 r = INVALID_FD;
                 w = INVALID_FD;
+            }
+            text str() const
+            {
+                return std::to_string((int)r) + "," + std::to_string((int)w);
             }
             friend auto& operator << (std::ostream& s, file const& handle)
             {
@@ -276,6 +284,10 @@ namespace netxs::os
             {
                 if (h != INVALID_FD) ::close(h);
                 h = INVALID_FD;
+            }
+            text str() const
+            {
+                return std::to_string(h);
             }
             friend auto& operator << (std::ostream& s, file const& handle)
             {
@@ -1647,11 +1659,165 @@ namespace netxs::os
         #endif
     }
 
+    class ipc_base
+    {
+    protected:
+        bool active = faux; // ipc: Used by the os::tty.
+
+    public:
+        virtual ~ipc_base()
+        { }
+        operator bool () { return active; }
+        virtual void  reset()           = 0;
+        virtual qiew  recv()            = 0;
+        virtual void  send(view data)   = 0;
+        virtual void  send_f(view data) = 0;
+        virtual void  send_t(view data) = 0;
+        virtual void  send(char data)   = 0;
+        virtual text  line(char delim)  = 0;
+        virtual void  stop()            = 0;
+        virtual bool  shut()            = 0;
+        virtual text  str() const       = 0;
+
+        friend auto& operator << (std::ostream& s, netxs::os::ipc_base const& sock)
+        {
+            return s << "{ xipc: " << sock.str() << " }";
+        }
+        friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
+        {
+            return s << sock->str();
+        }
+    };
+
+    class fifo
+    {
+        bool                    alive;
+        text                    store;
+        std::mutex              mutex;
+        std::condition_variable synch;
+
+    public:
+        fifo()
+            : alive{ true }
+        { }
+        void send(view data)
+        {
+            auto guard = std::lock_guard{ mutex };
+            store += data;
+            synch.notify_one();
+        }
+        bool read(text& data)
+        {
+            auto guard = std::unique_lock{ mutex };
+            if (store.size()
+             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
+            {
+                std::swap(data, store);
+                store.clear();
+                return true;
+            }
+            return faux;
+        }
+        bool read(char& c)
+        {
+            auto guard = std::unique_lock{ mutex };
+            if (store.size()
+             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
+            {
+                c = store.front();
+                store = store.substr(1);
+                return true;
+            }
+            return faux;
+        }
+        void stop()
+        {
+            auto guard = std::lock_guard{ mutex };
+            alive = faux;
+            synch.notify_one();
+        }
+    };
+
+    template<role ROLE>
+    class ipc_local
+        : public ipc_base
+    {
+        sptr<fifo> server;
+        sptr<fifo> client;
+        text       buffer;
+
+    public:
+        ipc_local(sptr<fifo> srv_queue, sptr<fifo> clt_queue)
+            : server{ srv_queue },
+              client{ clt_queue }
+        {
+            active = true;
+        }
+        void  reset()                  override
+        {
+            if constexpr (ROLE == role::server) server->stop();
+            else                                client->stop();
+        }
+        qiew  recv()                   override
+        {
+            buffer.clear();
+            if constexpr (ROLE == role::server) server->read(buffer);
+            else                                client->read(buffer);
+            return { buffer };
+        }
+        bool  recv(char& c)
+        {
+            if constexpr (ROLE == role::server) return server->read(c);
+            else                                return client->read(c);
+        }
+        void  send(view data)          override
+        {
+            if constexpr (ROLE == role::server) server->send(data);
+            else                                client->send(data);
+        }
+        void  send_f(view data)        override
+        {
+            send(data);
+        }
+        void  send_t(view data)        override
+        {
+            send(data);
+        }
+        void  send(char data)          override
+        {
+            send({ &data, 1 });
+        }
+        // ipc: Read until the delimeter appears.
+        text  line(char delim)         override
+        {
+            char c;
+            text crop;
+            while (recv(c) && c != delim)
+            {
+                crop.push_back(c);
+            }
+            return crop;
+        }
+        void  stop()                   override
+        {
+            reset();
+        }
+        bool  shut()                   override
+        {
+            reset();
+            return true;
+        }
+        text  str() const              override
+        {
+            return "ipc_local";
+        }
+    };
+
     class ipc
+        : public ipc_base
     {
         using vect = std::vector<char>;
 
-        bool active; // ipc: Used by the os::tty.
         file handle; // ipc: Socket file descriptor.
         vect buffer; // ipc: Receive buffer.
         bool sealed; // ipc: Provide autoclosing.
@@ -1663,8 +1829,7 @@ namespace netxs::os
     public:
         ipc(file descriptor = {}, bool sealed = faux)
             : handle{ std::move(descriptor) },
-              sealed{ sealed                },
-              active{ faux                  }
+              sealed{ sealed                }
         {
             if (handle) init();
         }
@@ -1680,8 +1845,6 @@ namespace netxs::os
             #endif
         }
 
-        operator bool () { return active; }
-
         void set(file h, bool s)
         {
             handle = std::move(h);
@@ -1692,7 +1855,7 @@ namespace netxs::os
         {
             return handle;
         }
-        void reset()
+        void reset() override
         {
             active = faux;
         }
@@ -1840,7 +2003,7 @@ namespace netxs::os
             //return result;
             return os::recv(handle, buff, size);
         }
-        auto recv() // It's not thread safe!
+        qiew recv() override // It's not thread safe!
         {
             return recv(buffer.data(), buffer.size());
         }
@@ -1856,12 +2019,25 @@ namespace netxs::os
             auto size = buff.size();
             return send<IS_TTY>(data, size);
         }
-        auto send(char c)
+        void send(view data) override
         {
-            return send(&c, 1);
+            ipc::send<faux>(data);
+        }
+        void send_f(view data) override
+        {
+            ipc::send<faux>(data);
+        }
+        void send_t(view data) override
+        {
+            ipc::send<true>(data);
+        }
+        void send(char c) override
+        {
+            //return send(&c, 1);
+            send(&c, 1);
         }
         // ipc: Read until the delimeter appears.
-        auto line(char delim)
+        text line(char delim) override
         {
             char c;
             text crop;
@@ -1871,7 +2047,7 @@ namespace netxs::os
             }
             return crop;
         }
-        void stop()
+        void stop() override
         {
             active = faux;
             #if defined(_WIN32)
@@ -1891,7 +2067,7 @@ namespace netxs::os
 
             #endif
         }
-        auto shut() -> bool
+        bool shut() override
         {
             active = faux;
             #if defined(_WIN32)
@@ -2119,13 +2295,22 @@ namespace netxs::os
             return sock_ptr;
         }
 
+        static auto local()
+        {
+            auto squeue = std::make_shared<fifo>();
+            auto cqueue = std::make_shared<fifo>();
+            auto server = std::make_shared<ipc_local<os::server>>(squeue, cqueue);
+            auto client = std::make_shared<ipc_local<os::client>>(squeue, cqueue);
+            return std::make_pair( server, client );
+        }
+
+        text str() const
+        {
+            return "{ xipc: " + handle.str() + " }";
+        }
         friend auto& operator << (std::ostream& s, netxs::os::ipc const& sock)
         {
             return s << "{ xipc: " << sock.handle << " }";
-        }
-        friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
-        {
-            return s << *sock;
         }
     };
 
@@ -2170,7 +2355,7 @@ namespace netxs::os
 
                 if (winsz.test)
                 {
-                    ipcio->send<faux>(ansi::win(winsz.last));
+                    ipcio->send_f(ansi::win(winsz.last));
                 }
             }
 
@@ -2468,7 +2653,7 @@ namespace netxs::os
                                 }
                             }
                             yield.show_mouse(true);
-                            ipcio.send<faux>(view(yield));
+                            ipcio.send_f(view(yield));
                             yield.clear();
                             log(" tty: mouse successfully connected, fd=", fd);
                         }
@@ -2487,13 +2672,13 @@ namespace netxs::os
                         yield.meta_state(state.shift.last);
                         auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
                         yield.add(data);
-                        ipcio.send<faux>(yield);
+                        ipcio.send_f(yield);
                         yield.clear();
                     }
                     else
                     {
                         auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                        ipcio.send<faux>(data);
+                        ipcio.send_f(data);
                     }
                 };
                 auto m_proc = [&]()
@@ -2528,7 +2713,7 @@ namespace netxs::os
                                         state.coord.last.x,
                                         state.coord.last.y)
                                      .w32close();
-                                ipcio.send<faux>(view(yield));
+                                ipcio.send_f(view(yield));
                                 yield.clear();
                             }
                         }
