@@ -5900,6 +5900,8 @@ again:
                         yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
                     #endif
                 };
+                SIGNAL(tier::anycast, e2::form::upon::started, This());
+
             lock.unlock();
 
             conio.session(props.title);

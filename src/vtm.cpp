@@ -256,7 +256,7 @@ int main(int argc, char* argv[])
             //todo unify
             if (params == "Term") log("Launch terminal emulator");
             else                  log("Launch ", params);
-            auto applet = app::shared::creator("Text")(view{});
+            auto applet = app::shared::creator("Term")(view{});
 
             SIGNAL_GLOBAL(e2::config::fps, 60);
 
