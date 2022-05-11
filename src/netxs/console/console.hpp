@@ -4528,7 +4528,7 @@ namespace netxs::console
             SUBMIT_T(tier::general, e2::shutdown, token, msg)
             {
                 log("host: shutdown: ", msg);
-                srv->stop();
+                srv->shut();
             };
             log("host: started");
         }
@@ -4587,7 +4587,7 @@ namespace netxs::console
         { }
         ~link()
         {
-            canal->shut(); // Terminate all blocking calls.
+            canal->stop(); // Terminate all blocking calls.
             auto id = input.get_id();
             if (input.joinable())
             {
@@ -5146,7 +5146,7 @@ again:
         void shutdown ()
         {
             auto guard = std::lock_guard{ mutex };
-            canal->shut(); // Terminate all blocking calls.
+            canal->stop(); // Terminate all blocking calls.
             alive = faux;
             ready = true;
             synch.notify_one(); // Interrupt reading session.
