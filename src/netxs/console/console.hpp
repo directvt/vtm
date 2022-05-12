@@ -5747,6 +5747,12 @@ again:
                     log("gate: global shutdown byemsg: ", msg);
                     conio.shutdown();
                 };
+                SUBMIT_T(tier::release, e2::form::quit, token, initiator)
+                {
+                    auto msg = ansi::add("gate: quit message from: ", initiator->id);
+                    conio.shutdown();
+                    this->SIGNAL(tier::general, e2::shutdown, msg);
+                };
                 //SUBMIT_T(tier::release, e2::form::state::header, token, newheader)
                 //{
                 //    text title;

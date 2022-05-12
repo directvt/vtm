@@ -1,7 +1,8 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.7.5"
+#define DESKTOP_VER "v0.7.6"
+#define MONOTTY_VER "Monotty Desktopio " DESKTOP_VER
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -48,12 +49,7 @@ enum class type
 int main(int argc, char* argv[])
 {
     auto syslog = logger([](auto data) { os::syslog(data); });
-    auto userid = os::user();
-    auto usernm = os::get_env("USER");
-    auto hostip = os::get_env("SSH_CLIENT");
-    auto legacy = os::legacy_mode();
     auto banner = [&]() { log(MONOTTY_VER); };
-    auto prefix = utf::concat(MONOTTY_PREFIX, userid);
     auto whoami = type::client;
     auto region = text{};
     auto params = text{};
@@ -124,8 +120,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    banner();
-
     {
         //todo mutex
         auto config = std::ifstream{};
@@ -152,6 +146,12 @@ int main(int argc, char* argv[])
 
     if (whoami == type::server)
     {
+        banner();
+        auto userid = os::user();
+        auto usernm = os::get_env("USER");
+        auto hostip = os::get_env("SSH_CLIENT");
+        auto legacy = os::legacy_mode();
+        auto prefix = utf::concat(MONOTTY_PREFIX, userid);
         auto server = os::ipc::open<os::server>(prefix);
         if (!server)
         {
@@ -201,69 +201,89 @@ int main(int argc, char* argv[])
     }
     else
     {
-        os::start_log("vtm");
-        auto splice = [&](auto link)
+        auto splice = [&](auto& gate, auto mode)
         {
-            link->send(utf::concat(region, ";",
-                                   hostip, ";",
-                                   usernm, ";",
-                                   userid, ";",
-                                   legacy, ";"));
-            auto gate = os::tty::proxy(link);
-            if (gate.ignite())
-            {
-                gate.output(ansi::esc{}.save_title()
-                                       .altbuf(true)
-                                       .vmouse(true)
-                                       .cursor(faux)
-                                       .bpmode(true)
-                                       .setutf(true));
-                gate.splice(legacy);
-                gate.output(ansi::esc{}.scrn_reset()
-                                       .vmouse(faux)
-                                       .cursor(true)
-                                       .altbuf(faux)
-                                       .bpmode(faux)
-                                       .load_title());
-                std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
-            }
+            gate.output(ansi::esc{}.save_title()
+                                   .altbuf(true)
+                                   .vmouse(true)
+                                   .cursor(faux)
+                                   .bpmode(true)
+                                   .setutf(true));
+            gate.splice(mode);
+            gate.output(ansi::esc{}.scrn_reset()
+                                   .vmouse(faux)
+                                   .cursor(true)
+                                   .altbuf(faux)
+                                   .bpmode(faux)
+                                   .load_title());
+            std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         };
 
         if (whoami == type::client)
         {
-            auto link = os::ipc::open<os::client>(prefix, 10s, [&]()
+            banner();
+            os::start_log("vtm");
+            auto userid = os::user();
+            auto usernm = os::get_env("USER");
+            auto hostip = os::get_env("SSH_CLIENT");
+            auto legacy = os::legacy_mode();
+            auto prefix = utf::concat(MONOTTY_PREFIX, userid);
+            auto client = os::ipc::open<os::client>(prefix, 10s, [&]()
                         {
                             log("main: new desktop environment for user ", userid);
                             auto binary = view{ argv[0] };
                             utf::trim_front(binary, "-"); // Sometimes "-" appears before executable.
                             return os::exec(text{ binary }, "-d");
                         });
-            if (!link)
+            if (!client)
             {
                 log("main: error: no desktop server connection");
                 return 1;
             }
-
-            splice(link);
+            client->send(utf::concat(region, ";",
+                                     hostip, ";",
+                                     usernm, ";",
+                                     userid, ";",
+                                     legacy, ";"));
+            auto cons = os::tty::proxy(client);
+            auto size = cons.ignite();
+            if (size.last) splice(cons, legacy);
         }
         else if (whoami == type::runapp)
         {
+            //todo unify
+            if (params == "Term") log("Desktopio Terminal " DESKTOP_VER);
+            else                  log("Desktopio ", params , " ", DESKTOP_VER);
+
+            skin::setup(tone::brighter, 0);
+
             auto tunnel = os::ipc::local();
+            auto legacy = os::legacy_mode();
             auto config = console::conf(legacy);
+
+            os::start_log("vtm"); // Redirect std::cout.
+
+            auto cons = os::tty::proxy(tunnel.second);
+            auto size = cons.ignite();
+            if (!size.last)
+            {
+                log("main: console initialization error");
+                return 1;
+            }
+
+            auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
             auto ground = base::create<host<room>>(tunnel.first);
             auto window = ground->invite<gate>();
-
-            //todo unify
-            if (params == "Term") log("Launch terminal emulator");
-            else                  log("Launch ", params);
-            auto applet = app::shared::creator("Term")(view{});
-
-            SIGNAL_GLOBAL(e2::config::fps, 60);
+            applet->SIGNAL(tier::anycast, e2::form::prop::menusize, 1);
+            window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
+            window->resize(size);
 
             auto thread = std::thread{[&]()
             {
-                splice(tunnel.second);
+                splice(cons, legacy);
             }};
+
+            SIGNAL_GLOBAL(e2::config::fps, 60);
 
             window->run(tunnel.first, config, applet);
             ground->resign(window);

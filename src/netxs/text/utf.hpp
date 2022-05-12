@@ -1407,6 +1407,12 @@ namespace netxs::utf
     {
         trim_front_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
     };
+    auto trim(view utf8, char space = ' ')
+    {
+        while (!utf8.empty() && utf8.front() == space) utf8.remove_prefix(1);
+        while (!utf8.empty() && utf8. back() == space) utf8.remove_suffix(1);
+        return utf8;
+    };
     auto get_quote(view& utf8, char delim, view skip = {})
     {
         auto head = utf8.begin();

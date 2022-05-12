@@ -81,11 +81,11 @@
 
     #if defined(__linux__)
         #include <sys/vt.h> // ::console_ioctl()
-	    #ifdef __ANDROID__
-	        #include <linux/kd.h>   // ::console_ioctl()
+        #ifdef __ANDROID__
+            #include <linux/kd.h>   // ::console_ioctl()
         #else
             #include <sys/kd.h>     // ::console_ioctl()
-	    #endif
+        #endif
         #include <linux/keyboard.h> // ::keyb_ioctl()
     #endif
 
@@ -684,6 +684,8 @@ namespace netxs::os
     }
     static void start_log(view srv_name)
     {
+        is_daemon = true;
+
         #if defined(_WIN32)
 
             //todo implement
@@ -691,26 +693,26 @@ namespace netxs::os
         #else
 
             ::openlog(srv_name.data(), LOG_NOWAIT | LOG_PID, LOG_USER);
-            is_daemon = true;
 
         #endif
     }
     static void syslog(view data)
     {
+        if (os::is_daemon)
+        {
+
         #if defined(_WIN32)
 
-            std::cout << data << std::flush;
+            //todo implement            
 
         #else
-
-            if (os::is_daemon)
-            {
-                auto copy = text{ data };
-                ::syslog(LOG_NOTICE, "%s", copy.c_str());
-            }
-            else std::cout << data << std::flush;
+            auto copy = text{ data };
+            ::syslog(LOG_NOTICE, "%s", copy.c_str());
 
         #endif
+
+        }
+        else std::cout << data << std::flush;
     }
     static auto daemonize(view srv_name)
     {
@@ -1757,8 +1759,9 @@ namespace netxs::os
         }
         void shut() override
         {
-            if constexpr (ROLE == role::server) server->stop();
-            else                                client->stop();
+            active = faux;
+            server->stop();
+            client->stop();
         }
         qiew recv() override
         {
@@ -2690,6 +2693,10 @@ namespace netxs::os
         { }
 
     public:
+        //static auto winsz()
+        //{
+        //    return _globals<void>::winsz;
+        //}
         static auto proxy(xipc pipe_link)
         {
             _globals<void>::ipcio = pipe_link;
@@ -2699,7 +2706,7 @@ namespace netxs::os
         {
             return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
-        bool ignite()
+        auto ignite()
         {
             auto& sig_hndl = _globals<void>::signal_handler;
 
@@ -2745,7 +2752,7 @@ namespace netxs::os
                     {
                         _globals<void>::ipcio->stop();
                     }
-                    return os::fail("abort: check you are using the proper tty device, try `ssh -tt ...` option");
+                    os::fail("warning: check you are using the proper tty device, try `ssh -tt ...` option");
                 }
 
                 ok(::signal(SIGPIPE , SIG_IGN ), "set signal(SIGPIPE ) failed");
@@ -2758,7 +2765,7 @@ namespace netxs::os
             ::atexit(_globals<void>::default_mode);
             _globals<void>::resize_handler();
 
-            return true;
+            return _globals<void>::winsz;
         }
         void splice(si32 mode)
         {

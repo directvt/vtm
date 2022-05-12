@@ -94,6 +94,23 @@ namespace netxs::app::shared
     const static auto x0 = cell{ c3 }.bgc(0xFF000000); //todo make it as desktop bg
     const static auto term_menu_bg = rgba{ 0x80404040 };
 
+    enum class app_type
+    {
+        simple,
+        normal,
+    };
+    const auto app_class = [](view& v)
+    {
+        auto type = app_type::normal;
+        if (!v.empty() && v.front() == '!')
+        {
+            type = app_type::simple;
+            v.remove_prefix(1);
+            v = utf::trim(v);
+        }
+        return type;
+    };
+
     const auto app_limit = [](auto boss, text title)
     {
         log("app_limit: max count reached");
