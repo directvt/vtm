@@ -2693,10 +2693,6 @@ namespace netxs::os
         { }
 
     public:
-        //static auto winsz()
-        //{
-        //    return _globals<void>::winsz;
-        //}
         static auto proxy(xipc pipe_link)
         {
             _globals<void>::ipcio = pipe_link;
