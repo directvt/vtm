@@ -2582,8 +2582,7 @@ namespace netxs::os
                     {
                         char ack;
                         os::recv(fd, &ack, sizeof(ack));
-                        if (ack == '\xfa')
-                        {
+                            //todo test
                             micefd = file{ fd };
                             auto tty_word = tty_name.find("tty", 0);
                             if (tty_word != text::npos)
@@ -2598,7 +2597,13 @@ namespace netxs::os
                             yield.show_mouse(true);
                             ipcio.send(view(yield));
                             yield.clear();
+                        if (ack == '\xfa')
+                        {
                             log(" tty: mouse successfully connected, fd=", fd);
+                        }
+                        else
+                        {
+                            log(" tty: unsupported acknowledge ", (int)ack);
                         }
                     }
                     if (!micefd)
@@ -2642,6 +2647,42 @@ namespace netxs::os
                             auto limit = _globals<void>::winsz.last * scale;
                             if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
                             state.flags = wheel ? 4 : 0;
+                            if (state.coord(mcoor / scale)
+                             || state.bttns(bttns)
+                             || state.shift(get_kb_state())
+                             || state.flags)
+                            {
+                                yield.w32begin()
+                                     .w32mouse(0,
+                                        state.bttns.last,
+                                        state.shift.last,
+                                        state.flags,
+                                        wheel,
+                                        state.coord.last.x,
+                                        state.coord.last.y)
+                                     .w32close();
+                                ipcio.send(view(yield));
+                                yield.clear();
+                            }
+                        }
+                    #endif
+                    }
+                    else if (data.size() == 3 /*PS/2 relative motion packet*/)
+                    {
+                    #if defined(__linux__)
+                        vt_stat vt_state;
+                        ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state), "ioctl(VT_GETSTATE) failed");
+                        if (vt_state.v_active == ttynum) // Proceed current active tty only.
+                        {
+                            auto scale = twod{ 6,12 }; //todo magic numbers
+                            auto bttns = data[0] & 7;
+                            mcoor.x   += data[1];
+                            mcoor.y   -= data[2];
+                            auto wheel = 0;
+                            auto limit = _globals<void>::winsz.last * scale;
+                            if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
+                            state.flags = wheel ? 4 : 0;
+                            state.flags = 0;
                             if (state.coord(mcoor / scale)
                              || state.bttns(bttns)
                              || state.shift(get_kb_state())
