@@ -729,6 +729,7 @@ namespace netxs::input
         rect slot; // slot for pro::maker and e2::createby.
 
         //todo unify
+        bool single_instance = faux;
         bool kb_focus_taken = faux;
         bool force_group_focus = faux;
         bool combine_focus = faux;
@@ -972,10 +973,14 @@ namespace netxs::input
                 _add_kb_focus(item);
             }
         }
+        void set_single_instance(bool b = true)
+        {
+            single_instance = b;
+        }
         void set_kb_focus(sptr<bell> item)
         {
             kb_focus_taken = true;
-            if (hids::meta(ANYCTRL) || force_group_focus)
+            if (!single_instance && (hids::meta(ANYCTRL) || force_group_focus))
             {
                 if (combine_focus)
                 {

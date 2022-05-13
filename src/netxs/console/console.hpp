@@ -2626,6 +2626,26 @@ namespace netxs::console
             {
                 track.render = tempus::now() - timestamp;
             }
+            void start()
+            {
+                boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
+                {
+                    status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
+                        utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
+
+                    status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
+                        utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
+
+                    status[prop::frame_size].set(stress) =
+                        utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
+
+                    status[prop::total_size].set(stress) =
+                        utf::format(track.totals) + " bytes";
+
+                    track.number++;
+                    canvas.output(status);
+                };
+            }
 
             debug(base&&) = delete;
             debug(base& boss) : skill{ boss }
@@ -2648,24 +2668,6 @@ namespace netxs::console
                     status += coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
                     coder.clear();
                 }
-
-                boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
-                {
-                    status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
-                        utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
-
-                    status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
-                        utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
-
-                    status[prop::frame_size].set(stress) =
-                        utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
-
-                    status[prop::total_size].set(stress) =
-                        utf::format(track.totals) + " bytes";
-
-                    track.number++;
-                    canvas.output(status);
-                };
 
                 //boss.SUBMIT_T(tier::release, e2::debug, owner::memo, track)
                 //{
@@ -3937,12 +3939,14 @@ namespace netxs::console
         : public base
     {
         using proc = drawfx;
+        using list = std::vector<rect>;
 
         pro::robot robot{*this }; // hall: Amination controller.
         pro::keybd keybd{*this }; // hall: Keyboard controller.
         pro::mouse mouse{*this }; // hall: Mouse controller.
         //sptr<base> owner;
 
+        list edges; // room: Wrecked regions history.
         proc paint; // room: Render all child items to the specified canvas.
 
     protected:
@@ -3983,9 +3987,22 @@ namespace netxs::console
         // room: .
         void redraw() override
         {
-            paint.first = 1;//edges.size();
-            //edges.clear();
+            paint.first = edges.size();
+            edges.clear();
             SIGNAL(tier::release, e2::form::proceed::render, paint);
+        }
+        // room: Mark dirty region.
+        void denote(rect const& updateregion)
+        {
+            if (updateregion)
+            {
+                edges.push_back(updateregion);
+            }
+        }
+        void deface(rect const& region) override
+        {
+            base::deface(region);
+            denote(region);
         }
     };
 
@@ -4534,7 +4551,7 @@ namespace netxs::console
         }
     };
 
-    // console: TTY session class.
+    // console: TTY session manager.
     class link
     {
         using work = std::thread;
@@ -5906,6 +5923,10 @@ again:
                         yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
                     #endif
                 };
+                #ifdef DEBUG_OVERLAY
+                debug.start(); // Draw debug info just after all.
+                #endif
+
                 SIGNAL(tier::anycast, e2::form::upon::started, This());
 
             lock.unlock();
@@ -5919,12 +5940,13 @@ again:
         }
 
     protected:
-        gate()
+        gate(bool is_standalone_app = faux)
         {
             //todo unify
             title.live = faux;
             mouse.draggable<sysmouse::leftright>(true);
             mouse.draggable<sysmouse::left>(true);
+            input.set_single_instance(is_standalone_app);
             SUBMIT(tier::release, e2::form::drag::start::any, gear)
             {
                 robot.pacify();
