@@ -682,7 +682,7 @@ namespace netxs::os
 
         #endif
     }
-    static void start_log(view srv_name)
+    static void start_log(text srv_name)
     {
         is_daemon = true;
 
@@ -692,7 +692,7 @@ namespace netxs::os
 
         #else
 
-            ::openlog(srv_name.data(), LOG_NOWAIT | LOG_PID, LOG_USER);
+            ::openlog(srv_name.c_str(), LOG_NOWAIT | LOG_PID, LOG_USER);
 
         #endif
     }
@@ -706,6 +706,7 @@ namespace netxs::os
             //todo implement            
 
         #else
+
             auto copy = text{ data };
             ::syslog(LOG_NOTICE, "%s", copy.c_str());
 
@@ -714,7 +715,7 @@ namespace netxs::os
         }
         else std::cout << data << std::flush;
     }
-    static auto daemonize(view srv_name)
+    static auto daemonize(text srv_name)
     {
         #if defined(_WIN32)
 
@@ -2582,29 +2583,22 @@ namespace netxs::os
                     {
                         char ack;
                         os::recv(fd, &ack, sizeof(ack));
-                            //todo test
-                            micefd = file{ fd };
-                            auto tty_word = tty_name.find("tty", 0);
-                            if (tty_word != text::npos)
+                        micefd = file{ fd };
+                        auto tty_word = tty_name.find("tty", 0);
+                        if (tty_word != text::npos)
+                        {
+                            tty_word += 3; /*skip tty letters*/
+                            auto tty_number = utf::to_view(buffer.data() + tty_word, buffer.size() - tty_word);
+                            if (auto cur_tty = utf::to_int(tty_number))
                             {
-                                tty_word += 3; /*skip tty letters*/
-                                auto tty_number = utf::to_view(buffer.data() + tty_word, buffer.size() - tty_word);
-                                if (auto cur_tty = utf::to_int(tty_number))
-                                {
-                                    ttynum = cur_tty.value();
-                                }
+                                ttynum = cur_tty.value();
                             }
-                            yield.show_mouse(true);
-                            ipcio.send(view(yield));
-                            yield.clear();
-                        if (ack == '\xfa')
-                        {
-                            log(" tty: mouse successfully connected, fd=", fd);
                         }
-                        else
-                        {
-                            log(" tty: unsupported acknowledge ", (int)ack);
-                        }
+                        yield.show_mouse(true);
+                        ipcio.send(view(yield));
+                        yield.clear();
+                        if (ack == '\xfa') log(" tty: ImPS/2 mouse connected, fd: ", fd);
+                        else               log(" tty: unknown PS/2 mouse connected, fd: ", fd, " ack: ", (int)ack);
                     }
                     if (!micefd)
                     {
@@ -2632,7 +2626,9 @@ namespace netxs::os
                 auto m_proc = [&]()
                 {
                     auto data = os::recv(micefd, buffer.data(), buffer.size());
-                    if (data.size() == 4 /*ImPS only*/)
+                    auto size = data.size();
+                    if (size == 4 /* ImPS/2 */
+                     || size == 3 /* PS/2 compatibility mode */)
                     {
                     #if defined(__linux__)
                         vt_stat vt_state;
@@ -2643,46 +2639,10 @@ namespace netxs::os
                             auto bttns = data[0] & 7;
                             mcoor.x   += data[1];
                             mcoor.y   -= data[2];
-                            auto wheel =-data[3];
+                            auto wheel =-size == 4 ? data[3] : 0;
                             auto limit = _globals<void>::winsz.last * scale;
                             if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
                             state.flags = wheel ? 4 : 0;
-                            if (state.coord(mcoor / scale)
-                             || state.bttns(bttns)
-                             || state.shift(get_kb_state())
-                             || state.flags)
-                            {
-                                yield.w32begin()
-                                     .w32mouse(0,
-                                        state.bttns.last,
-                                        state.shift.last,
-                                        state.flags,
-                                        wheel,
-                                        state.coord.last.x,
-                                        state.coord.last.y)
-                                     .w32close();
-                                ipcio.send(view(yield));
-                                yield.clear();
-                            }
-                        }
-                    #endif
-                    }
-                    else if (data.size() == 3 /*PS/2 relative motion packet*/)
-                    {
-                    #if defined(__linux__)
-                        vt_stat vt_state;
-                        ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state), "ioctl(VT_GETSTATE) failed");
-                        if (vt_state.v_active == ttynum) // Proceed current active tty only.
-                        {
-                            auto scale = twod{ 6,12 }; //todo magic numbers
-                            auto bttns = data[0] & 7;
-                            mcoor.x   += data[1];
-                            mcoor.y   -= data[2];
-                            auto wheel = 0;
-                            auto limit = _globals<void>::winsz.last * scale;
-                            if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
-                            state.flags = wheel ? 4 : 0;
-                            state.flags = 0;
                             if (state.coord(mcoor / scale)
                              || state.bttns(bttns)
                              || state.shift(get_kb_state())
