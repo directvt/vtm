@@ -38,7 +38,7 @@ namespace netxs::console
     class site;
 
     using namespace netxs::input;
-    using drawfx = std::pair<bool, std::function<void(face&, sptr<base>)>>;
+    using drawfx = std::pair<bool, std::function<void(face&)>>;
     using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using focus_test_t = std::pair<id_t, si32>;
     using functor = std::function<void(sptr<base>)>;
@@ -70,7 +70,7 @@ namespace netxs::events::userland
 
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
-            EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering.
+            EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
             EVENT_XS( depth     , si32                ), // request: Determine the depth of the hierarchy.
             EVENT_XS( shutdown  , const view          ), // general: Server shutdown.
             GROUP_XS( timer     , moment              ), // timer tick, arg: current moment (now).
@@ -924,7 +924,7 @@ namespace netxs::console
             }
         }
         // face: Render itself to the canvas using renderproc.
-        template<class T>
+        template<bool POST = true, class T>
         void render(T& object)
         {
             auto canvas_view = core::view();
@@ -938,8 +938,8 @@ namespace netxs::console
                 core::view(nested_view);
                 flow::full(object_area);
 
-                object.SIGNAL(tier::release, e2::render::prerender, *this);
-                object.SIGNAL(tier::release, e2::postrender, *this);
+                                    object.SIGNAL(tier::release, e2::render::prerender, *this);
+                if constexpr (POST) object.SIGNAL(tier::release, e2::postrender,        *this);
 
                 core::view(canvas_view);
                 flow::full(parent_area);
@@ -1356,6 +1356,8 @@ namespace netxs::console
         {
             struct sock
             {
+                using test = testy<twod>;
+
                 twod origin; // sock: Grab's initial coord info.
                 twod dtcoor; // sock: The form coor parameter change factor while resizing.
                 twod dtsize; // sock: The form size parameter change factor while resizing.
@@ -1365,6 +1367,7 @@ namespace netxs::console
                 twod widths; // sock: Grip's widths.
                 bool inside; // sock: Is active.
                 bool seized; // sock: Is seized.
+                test lastxy; // sock: Change tracker.
 
                 sock()
                     : inside{ faux },
@@ -1415,6 +1418,7 @@ namespace netxs::console
                     vtgrip.coor = dot_00;
                     vtgrip.size = widths;
                     vtgrip.size.y += s.y;
+                    return lastxy(curpos);
                 }
                 auto drag(base& master, twod const& curpos, dent const& outer)
                 {
@@ -1514,8 +1518,10 @@ namespace netxs::console
                 boss.SIGNAL(tier::release, e2::form::draggable::_<BUTTON>, true);
                 boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
                 {
-                    items.take(gear).calc(boss, gear.coord, outer, inner, width);
-                    boss.base::deface();
+                    if (items.take(gear).calc(boss, gear.coord, outer, inner, width))
+                    {
+                        boss.base::deface(); // Deface only if mouse moved.
+                    }
                 };
                 boss.SUBMIT_T(tier::release, e2::form::drag::start::_<BUTTON>, memo, gear)
                 {
@@ -3940,45 +3946,44 @@ namespace netxs::console
     {
         using proc = drawfx;
         using list = std::vector<rect>;
+        using sptr = netxs::sptr<base>;
 
-        pro::robot robot{*this }; // hall: Amination controller.
-        pro::keybd keybd{*this }; // hall: Keyboard controller.
-        pro::mouse mouse{*this }; // hall: Mouse controller.
-        //sptr<base> owner;
+        pro::robot robot{*this }; // room: Amination controller.
+        pro::keybd keybd{*this }; // room: Keyboard controller.
+        pro::mouse mouse{*this }; // room: Mouse controller.
 
+        //sptr stuff; // room: Root object.
         list edges; // room: Wrecked regions history.
         proc paint; // room: Render all child items to the specified canvas.
 
     protected:
         room()
         {
-            paint.second = [&](face& canvas, sptr<base> background)
+            paint.second = [&](face& canvas)
             {
-                canvas.wipe(bell::id);
-                if (background) canvas.render(background);
-                canvas.render(*this);
+                //canvas.render(stuff);
             };
         }
 
     public:
-        // room: Create a new user of the specified subtype and invite him to the scene.
+        // room: Create a new root of the specified subtype and attach it.
         template<class S, class ...Args>
         auto invite(Args&&... args)
         {
             auto lock = events::sync{};
-            auto user = base::create<S>(std::forward<Args>(args)...);
-            //owner = user;
-            user->base::root(true);
-            user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+            auto root = base::create<S>(std::forward<Args>(args)...);
+            //stuff = root;
+            root->base::root(true);
+            root->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
 
             //todo unify
             tone color{ tone::brighter, tone::shadow};
-            user->SIGNAL(tier::preview, e2::form::state::color, color);
-            return user;
+            root->SIGNAL(tier::preview, e2::form::state::color, color);
+            return root;
         }
-        // room: Detach user.
+        // room: Delete item.
         template<class T>
-        auto resign(sptr<T>& client)
+        auto resign(netxs::sptr<T>& client)
         {
             auto lock = events::sync{};
             client->detach();
@@ -4149,22 +4154,12 @@ namespace netxs::console
                 window.coor = dot_00;
                 netxs::online(window, origin, center, pset);
             }
-            // hall::node: Output the title to the canvas.
-            //void enlist(face& canvas)
-            //{
-            //    if (header)
-            //    {
-            //        auto& title = header.get();
-            //        canvas.output(title);
-            //        canvas.eol();
-            //    }
-            //}
             // hall::node: Visualize the underlying object.
+            template<bool POST = true>
             void render(face& canvas)
             {
-                canvas.render(*object);
+                canvas.render<POST>(*object);
             }
-
             void postrender(face& canvas)
             {
                 object->SIGNAL(tier::release, e2::postrender, canvas);
@@ -4197,7 +4192,7 @@ namespace netxs::console
             void prerender(face& canvas)
             {
                 for (auto& item : items) item->fasten(canvas); // Draw strings.
-                for (auto& item : items) item->render(canvas); // Draw shadows.
+                for (auto& item : items) item->render<faux>(canvas); // Draw shadows without postrendering.
             }
             //hall::list: Draw windows.
             void render(face& canvas)
@@ -4310,14 +4305,11 @@ namespace netxs::console
            : app_registry{ std::make_shared<registry_t>() },
              usr_registry{ std::make_shared<std::list<sptr<base>>>() }
         {
-            paint.second = [&](face& canvas, sptr<base> background)
+            paint.second = [&](face& canvas)
             {
-                canvas.wipe(bell::id);
-                if (background) canvas.render(background);
-                //todo revise
-                if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators.
-                items.render    (canvas); // Draw objects of the world.
-                users.postrender(canvas); // Draw spectator's mouse pointers.
+                if (users.size() > 1) users.prerender (canvas); // Draw backpane for spectators.
+                                      items.render    (canvas); // Draw objects of the world.
+                                      users.postrender(canvas); // Draw spectator's mouse pointers.
             };
 
             keybd.accept(true); // Subscribe on keybd offers.
@@ -5585,6 +5577,7 @@ again:
         si32 session_id;
         period tooltip_timeout; // conf: Timeout for tooltip.
         bool tooltip_enabled; // conf: Enable tooltips.
+        bool glow_fx; // conf: Enable glow effect in main menu.
 
         conf()            = default;
         conf(conf const&) = default;
@@ -5598,7 +5591,8 @@ again:
             clip_preview_size = twod{ 80,25 };
             coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
             tooltip_timeout   = 500ms;
-            tooltip_enabled   = true;            
+            tooltip_enabled   = true;
+            glow_fx           = faux;
         }
         conf(os::xipc peer, si32 session_id)
             : session_id{ session_id }
@@ -5629,6 +5623,7 @@ again:
             #endif
             tooltip_timeout   = 500ms;
             tooltip_enabled   = true;
+            glow_fx           = true;
         }
 
         friend auto& operator << (std::ostream& s, conf const& c)
@@ -5677,6 +5672,18 @@ again:
         text   tooltip_text; // gate: Tooltip data.
         page   tooltip_page; // gate: Tooltip render.
         id_t   tooltip_boss; // gate: Tooltip hover object.
+
+        void draw_mouse_pointer(face& canvas)
+        {
+            auto area = base::area();
+            area.coor += input.coord;
+            area.coor -= canvas.area().coor;
+            area.size = dot_11;
+            cell brush;
+            if (input.push) brush.txt(64 + input.push).bgc(reddk).fgc(0xFFffffff);
+            else            brush.txt("\u2588"/* █ */).fgc(0xFF00ff00);
+            canvas.fill(area, cell::shaders::fuse(brush));
+        }
 
     public:
         sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
@@ -5895,32 +5902,68 @@ again:
                 {
                     auto stamp = tempus::now();
 
-                    if (render_scene.first) render_scene.second(cache.canvas, background); // Put the world to the my canvas.
+                    if (render_scene.first)
+                    {
+                        auto& canvas = cache.canvas;
+                        canvas.wipe(world->bell::id);
+                        if (background) // Render active wallpaper.
+                        {
+                            canvas.render(background);
+                        }
+
+                        render_scene.second(canvas); // Put the rest of the world on my canvas.
+                        
+                        if (uibar && !fullscreen) // Render main menu/application.
+                        {
+                            //todo too hacky, unify
+                            if (props.glow_fx) canvas.render(uibar, base::coor()); // Render the main menu twice to achieve the glow effect.
+                                               canvas.render(uibar, base::coor());
+                        }
+                        if (legacy & os::legacy::mouse) // Render our mouse pointer.
+                        {
+                            draw_mouse_pointer(canvas);
+                        }
+                        if (clip_rawtext.size()) // Render clipboard content preview.
+                        {
+                            auto coor = input.coord + dot_21 * 2;
+                            clip_preview.move(coor);
+                            canvas.plot(clip_preview, cell::shaders::lite);
+                        }
+                        if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.captured()) // Render our tooltips.
+                        {
+                            static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
+                            auto full = canvas.full();
+                            auto area = full;
+                            area.coor = std::max(dot_00, input.coord - twod{ 4, tooltip_page.size() + 1 });
+                            canvas.full(area);
+                            canvas.cup(dot_00);
+                            canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
+                            canvas.full(full);
+                        }
+                    }
                     else if (yield) return;
 
-                    // Update objects under mouse cursor.
-                    //input.fire(hids::events::mouse::hover);
                     #ifdef DEBUG_OVERLAY
+
                         debug.bypass = true;
                         //input.fire(hids::events::mouse::hover);
                         input.fire(hids::events::mouse::move.id);
                         debug.bypass = faux;
-                    #else
-                        input.fire(hids::events::mouse::move.id);
-                    #endif
-
-                    // Draw debug overlay, maker, titles, etc.
-                    this->SIGNAL(tier::release, e2::postrender, cache.canvas);
-                    #ifdef DEBUG_OVERLAY
-                        if ((yield = paint.commit(cache.canvas)))
+                        if (yield = paint.commit(cache.canvas))
                         {
                             auto& watch = yield.value().first;
                             auto& delta = yield.value().second;
                             debug.update(watch, delta);
                         }
                         debug.update(stamp);
+
                     #else
+
+                        // Update objects under mouse cursor.
+                        //input.fire(hids::events::mouse::hover);
+                        input.fire(hids::events::mouse::move.id);
                         yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
+
                     #endif
                 };
                 #ifdef DEBUG_OVERLAY
@@ -6094,9 +6137,7 @@ again:
 
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
-                // Draw a shadow of user's terminal window for other users (spectators).
-                // see pro::scene.
-                if (&parent_canvas != &cache.canvas)
+                if (&parent_canvas != &cache.canvas) // Draw a shadow of user's terminal window for other users (spectators).
                 {
                     auto area = base::area();
                     area.coor-= parent_canvas.area().coor;
@@ -6117,7 +6158,7 @@ again:
                     //	log ("---- hover id ", hover_id);
                     //}
                     //auto& header = *title.header().lyric;
-                    if (uname.lyric)
+                    if (uname.lyric) // Render foreign user names at their place.
                     {
                         auto& header = *uname.lyric;
                         auto area = base::area();
@@ -6129,54 +6170,12 @@ again:
                         header.move(area.coor);
                         parent_canvas.fill(header, cell::shaders::fuse);
                     }
-                }
-                else
-                {
-                    if (uibar && !fullscreen) parent_canvas.render(uibar, base::coor());
-                }
-                bool show_mouse = legacy & os::legacy::mouse;
-                if (&parent_canvas != &cache.canvas || show_mouse)
-                {
-                    auto area = base::area();
-                    area.coor += input.coord;
-                    area.coor -= parent_canvas.area().coor;
-                    area.size = dot_11;
-                    cell brush;
-                    if (input.push)
-                    {
-                        brush.txt(64 + input.push).bgc(reddk).fgc(0xFFffffff);
-                    }
-                    else
-                    {
-                        if (show_mouse) brush.txt("\u2588"/* █ */).fgc(0xFF00ff00);
-                        else            brush.txt(whitespace).bgc(greenlt);
-                    }
-                    parent_canvas.fill(area, cell::shaders::fuse(brush));
-                }
-
-                if (&parent_canvas == &cache.canvas)
-                {
-                    if (clip_rawtext.size())
-                    {
-                        auto coor = input.coord + dot_21 * 2;
-                        clip_preview.move(coor);
-                        parent_canvas.plot(clip_preview, cell::shaders::lite);
-                    }
-                    if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.captured())
-                    {
-                        static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
-                        auto full = parent_canvas.full();
-                        auto area = full;
-                        area.coor = std::max(dot_00, input.coord - twod{ 4, tooltip_page.size() + 1 });
-                        parent_canvas.full(area);
-                        parent_canvas.cup(dot_00);
-                        parent_canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
-                        parent_canvas.full(full);
-                    }
+                    draw_mouse_pointer(parent_canvas);
                 }
 
                 #ifdef REGIONS
-                parent_canvas.each([](cell& c){
+                parent_canvas.each([](cell& c)
+                {
                     auto mark = rgba{ rgba::color256[c.link() % 256] };
                     auto bgc = c.bgc();
                     mark.alpha(64);

@@ -84,6 +84,7 @@ namespace netxs::app::desk
                                     ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left), true, true));
                     auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }))
                                                     ->template plugin<pro::fader>(x5, c5, 150ms)
+                                                    ->template plugin<pro::notes>(" Close instance ")
                                                     ->invoke([&](auto& boss)
                                                     {
                                                         auto data_src_shadow = ptr::shadow(data_src);
@@ -408,7 +409,7 @@ namespace netxs::app::desk
                                         auto bttn_area = label_bttn->attach(slot::_2, ui::fork::ctor());
                                             auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,1,1 }))
                                                                       ->plugin<pro::fader>(x6, c6, 150ms)
-                                                                      ->plugin<pro::notes>(" Show/hide users list ");
+                                                                      ->plugin<pro::notes>(" Show/hide user list ");
                                                 auto bttn = bttn_pads->attach(ui::item::ctor("<", faux));
                                 auto userlist_area = users_area->attach(slot::_2, ui::pads::ctor())
                                                                ->plugin<pro::limit>();
