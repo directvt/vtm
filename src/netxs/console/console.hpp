@@ -4015,6 +4015,12 @@ namespace netxs::console
             base::deface(region);
             denote(region);
         }
+        // room: Shutdown.
+        void shutdown()
+        {
+            events::sync lock;
+            mouse.reset(); //todo host::shutdown
+        }
     };
 
     // console: Desktop Virtual Environment.
@@ -4424,19 +4430,19 @@ namespace netxs::console
                 edges.push_back(updateregion);
             }
         }
-        // hall: Shutdown.
-        void shutdown()
+
+    public:
+       ~hall()
         {
+            events::sync lock;
             app_registry.reset();
             items.reset();
         }
-
-    public:
-        ~hall()
+        // hall: Shutdown.
+        void shutdown()
         {
             events::sync lock;
-            shutdown();
-            mouse.reset();
+            mouse.reset(); //todo host::shutdown
         }
         // hall: Attach a new item to the scene.
         template<class S>

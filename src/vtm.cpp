@@ -195,6 +195,7 @@ int main(int argc, char* argv[])
         }
 
         SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
+        ground->shutdown();
     }
     else
     {
@@ -258,7 +259,7 @@ int main(int argc, char* argv[])
             auto legacy = os::legacy_mode();
             auto config = console::conf(legacy);
 
-            os::start_log("vtm"); // Redirect std::cout.
+            os::start_log("vtm"); // Redirect logs.
 
             auto cons = os::tty::proxy(tunnel.second);
             auto size = cons.ignite();
@@ -284,6 +285,8 @@ int main(int argc, char* argv[])
 
             window->run(tunnel.first, config, applet);
             ground->resign(window);
+            applet.reset();
+            ground->shutdown();
 
             if (thread.joinable())
                 thread.join();
