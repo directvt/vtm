@@ -3960,30 +3960,10 @@ namespace netxs::console
         subs token; // host: Subscription tokens.
         tick synch; // host: Frame rate synchronizator.
         si32 frate; // host: Frame rate value.
-        list edges; // host: Wrecked regions history.
+        list edges; // host: Wrecked regions list.
         xipc joint;
 
     public:
-        // host: Shutdown.
-        void shutdown()
-        {
-            events::sync lock;
-            mouse.reset();
-        }
-        // host: Mark dirty region.
-        void denote(rect const& updateregion)
-        {
-            if (updateregion)
-            {
-                edges.push_back(updateregion);
-            }
-        }
-        void deface(rect const& region) override
-        {
-            base::deface(region);
-            denote(region);
-        }
-
         host(xipc server_pipe)
             : synch{ bell::router<tier::general>(), e2::timer::tick.id },
               frate{ 0 },
@@ -4036,19 +4016,20 @@ namespace netxs::console
             };
             log("host: started");
         }
-    };
-
-    // console: Standalone application host.
-    class room
-        : public host
-    {
-    protected:
-        room(xipc server_pipe)
-            : host{ server_pipe }
-        { }
-
-    public:
-        // room: Create a new root of the specified subtype and attach it.
+        // host: Mark dirty region.
+        void denote(rect const& updateregion)
+        {
+            if (updateregion)
+            {
+                edges.push_back(updateregion);
+            }
+        }
+        void deface(rect const& region) override
+        {
+            base::deface(region);
+            denote(region);
+        }
+        // host: Create a new root of the specified subtype and attach it.
         template<class S, class ...Args>
         auto invite(Args&&... args)
         {
@@ -4063,13 +4044,11 @@ namespace netxs::console
             root->SIGNAL(tier::preview, e2::form::state::color, color);
             return root;
         }
-        // room: Delete item.
-        template<class T>
-        auto resign(netxs::sptr<T>& client)
+        // host: Shutdown.
+        void shutdown()
         {
-            auto lock = events::sync{};
-            client->detach();
-            client.reset();
+            events::sync lock;
+            mouse.reset();
         }
     };
 
@@ -4343,24 +4322,64 @@ namespace netxs::console
             }
         };
 
+        class depo // hall: Helper-class. Actors registry.
+        {
+        public:
+            sptr<registry_t>            app_ptr = std::make_shared<registry_t>();
+            sptr<std::list<sptr<base>>> usr_ptr = std::make_shared<std::list<sptr<base>>>();
+            registry_t&                 app = *app_ptr;
+            std::list<sptr<base>>&      usr = *usr_ptr;
+
+            auto remove(sptr<base> item_ptr)
+            {
+                bool found = faux;
+                // Remove from active app registry.
+                for (auto& [class_id, fxd_app_list] : app)
+                {
+                    auto& [fixed, app_list] = fxd_app_list;
+                    auto head = app_list.begin();
+                    auto tail = app_list.end();
+                    auto iter = std::find_if(head, tail, [&](auto& c) { return c == item_ptr; });
+                    if (iter != tail)
+                    {
+                        app_list.erase(iter);
+                        if (app_list.empty() && !fixed)
+                        {
+                            app.erase(class_id);
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                { // Remove user.
+                    auto head = usr.begin();
+                    auto tail = usr.end();
+                    auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+                    if (iter != tail)
+                    {
+                        usr.erase(iter);
+                        found = true;
+                    }
+                }
+                return found;
+            }
+            void reset()
+            {
+                app_ptr.reset();
+            }
+        };
+
         #ifndef PROD
         pro::watch zombi{*this }; // hall: Zombie protection.
         #endif
 
-        using time = moment;
-        using area = std::vector<rect>;
-
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
-
-        sptr<registry_t>            app_registry;
-        sptr<std::list<sptr<base>>> usr_registry;
+        depo regis; // hall: Actors registry.
 
     protected:
         hall(xipc server_pipe)
-            : host{ server_pipe },
-              app_registry{ std::make_shared<registry_t>() },
-              usr_registry{ std::make_shared<std::list<sptr<base>>>() }
+            : host{ server_pipe }
         {
             SUBMIT(tier::general, e2::form::global::lucidity, alpha)
             {
@@ -4375,75 +4394,42 @@ namespace netxs::console
                     this->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
                 }
             };
-
             SUBMIT(tier::preview, e2::form::proceed::detach, item_ptr)
             {
                 auto& inst = *item_ptr;
-                denote(items.remove(inst.id));
-                denote(users.remove(inst.id));
-
-                //todo unify
-                bool found = faux;
-                // Remove from active app registry.
-                for (auto& [class_id, fxd_app_list] : *app_registry)
+                host::denote(items.remove(inst.id));
+                host::denote(users.remove(inst.id));
+                if (regis.remove(item_ptr))
                 {
-                    auto& [fixed, app_list] = fxd_app_list;
-                    auto head = app_list.begin();
-                    auto tail = app_list.end();
-                    auto iter = std::find_if(head, tail, [&](auto& c) { return c == item_ptr; });
-                    if (iter != tail)
-                    {
-                        app_list.erase(iter);
-                        if (app_list.empty() && !fixed)
-                        {
-                            app_registry->erase(class_id);
-                        }
-                        found = true;
-                        break;
-                    }
-                }
-                { // Remove user.
-                    auto& subset = *usr_registry;
-                    auto head = subset.begin();
-                    auto tail = subset.end();
-                    auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-                    if (item != tail)
-                    {
-                        subset.erase(item);
-                        found = true;
-                    }
-                }
-                if (found)
                     inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, This());
+                }
             };
             SUBMIT(tier::release, e2::form::layout::bubble, inst)
             {
                 auto region = items.bubble(inst.bell::id);
-                denote(region);
+                host::denote(region);
             };
             SUBMIT(tier::release, e2::form::layout::expose, inst)
             {
                 auto region = items.expose(inst.bell::id);
-                denote(region);
+                host::denote(region);
             };
-            SUBMIT(tier::request, e2::bindings::list::users, usr_list)
+            SUBMIT(tier::request, e2::bindings::list::users, usr_list_ptr)
             {
-                usr_list = usr_registry;
+                usr_list_ptr = regis.usr_ptr;
             };
-            SUBMIT(tier::request, e2::bindings::list::apps, app_list)
+            SUBMIT(tier::request, e2::bindings::list::apps, app_list_ptr)
             {
-                app_list = app_registry;
+                app_list_ptr = regis.app_ptr;
             };
-
-            // hall: Proceed request for available objects (next)
-            SUBMIT(tier::request, e2::form::proceed::attach, next)
+            //todo unify
+            SUBMIT(tier::request, e2::form::proceed::attach, next) // Proceed request for available objects (next)
             {
                 if (items)
                     if (auto next_ptr = items.rotate_next())
                         next = next_ptr->object;
             };
-            // hall: Proceed request for available objects (prev)
-            SUBMIT(tier::request, e2::form::proceed::detach, prev)
+            SUBMIT(tier::request, e2::form::proceed::detach, prev) // Proceed request for available objects (prev)
             {
                 if (items)
                     if (auto prev_ptr = items.rotate_prev())
@@ -4455,7 +4441,7 @@ namespace netxs::console
        ~hall()
         {
             events::sync lock;
-            app_registry.reset();
+            regis.reset();
             items.reset();
         }
         void redraw(face& canvas) override
@@ -4470,38 +4456,22 @@ namespace netxs::console
         {
             items.append(item);
             item->base::root(true); //todo move it to the window creator (main)
-            auto& [stat, list] = (*app_registry)[class_id];
+            auto& [stat, list] = regis.app[class_id];
             stat = fixed;
             list.push_back(item);
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-
-            SIGNAL(tier::release, e2::bindings::list::apps, app_registry);
+            SIGNAL(tier::release, e2::bindings::list::apps, regis.app_ptr);
         }
         // hall: Create a new user of the specified subtype and invite him to the scene.
         template<class S, class ...Args>
         auto invite(Args&&... args)
         {
             auto lock = events::sync{};
-            auto user = base::create<S>(std::forward<Args>(args)...);
+            auto user = host::invite<S>(std::forward<Args>(args)...);
             users.append(user);
-            usr_registry->push_back(user);
-            user->base::root(true);
-            user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-
-            //todo unify
-            tone color{ tone::brighter, tone::shadow};
-            user->SIGNAL(tier::preview, e2::form::state::color, color);
-
-            SIGNAL(tier::release, e2::bindings::list::users, usr_registry);
+            regis.usr.push_back(user);
+            SIGNAL(tier::release, e2::bindings::list::users, regis.usr_ptr);
             return user;
-        }
-        // hall: Detach user.
-        template<class T>
-        auto resign(sptr<T>& client)
-        {
-            auto lock = events::sync{};
-            client->detach();
-            client.reset();
         }
     };
 
@@ -5615,7 +5585,7 @@ again:
         pro::title title{*this }; // gate: Logo watermark.
         pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
         pro::input input{*this }; // gate: User input event handler.
-        pro::cache cache{*this, faux }; // gate: Object map.
+        pro::cache cache{*this, faux }; // gate: Map of objects.
         pro::debug debug{*this }; // gate: Debug telemetry controller.
 
         using pair = std::optional<std::pair<period, si32>>;
@@ -5954,6 +5924,7 @@ again:
             lock.lock();
                 token.clear();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
+                base::detach();
             lock.unlock();
         }
 

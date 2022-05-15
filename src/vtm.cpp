@@ -188,7 +188,6 @@ int main(int argc, char* argv[])
                     auto deskmenu = app::shared::creator("Desk")(utf::concat(window->id, ";", config.os_user_id));
                     auto bkground = app::shared::creator("Fone")("Shop;Demo;");
                     window->run(client, config, deskmenu, bkground);
-                    ground->resign(window);
                     log("user: ", client, " logged out");
                 }
             });
@@ -269,23 +268,21 @@ int main(int argc, char* argv[])
                 return 1;
             }
 
-            auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
-            auto ground = base::create<room>(tunnel.first);
-            auto window = ground->invite<gate>(true);
-            applet->SIGNAL(tier::anycast, e2::form::prop::menusize, 1); //todo config
-            window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
-            window->resize(size);
-
+            auto ground = base::create<host>(tunnel.first);
             auto thread = std::thread{[&]()
             {
                 splice(cons, legacy);
             }};
 
             SIGNAL_GLOBAL(e2::config::fps, 60);
-
-            window->run(tunnel.first, config, applet);
-            ground->resign(window);
-            applet.reset();
+            {
+                auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
+                auto window = ground->invite<gate>(true);
+                applet->SIGNAL(tier::anycast, e2::form::prop::menusize, 1); //todo config
+                window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
+                window->resize(size);
+                window->run(tunnel.first, config, applet);
+            }
             ground->shutdown();
 
             if (thread.joinable())
