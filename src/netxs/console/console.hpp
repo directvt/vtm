@@ -2607,6 +2607,12 @@ namespace netxs::console
 
         public:
             bool bypass = faux;
+
+            debug(base&&) = delete;
+            debug(base& boss) : skill{ boss }
+            { }
+            operator bool () const { return memo.count(); }
+
             void update(bool focus_state)
             {
                 shadow();
@@ -2632,29 +2638,29 @@ namespace netxs::console
             {
                 track.render = tempus::now() - timestamp;
             }
-            void start()
+            void output(face& canvas)
             {
-                boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
-                {
-                    status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
-                        utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
+                status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
+                    utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
 
-                    status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
-                        utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
+                status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
+                    utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
 
-                    status[prop::frame_size].set(stress) =
-                        utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
+                status[prop::frame_size].set(stress) =
+                    utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
 
-                    status[prop::total_size].set(stress) =
-                        utf::format(track.totals) + " bytes";
+                status[prop::total_size].set(stress) =
+                    utf::format(track.totals) + " bytes";
 
-                    track.number++;
-                    canvas.output(status);
-                };
+                track.number++;
+                canvas.output(status);
             }
-
-            debug(base&&) = delete;
-            debug(base& boss) : skill{ boss }
+            void stop()
+            {
+                track = {};
+                memo.clear();
+            }
+            void start()
             {
                 //todo use skin
                 stress = cell{}.fgc(whitelt);
@@ -2752,7 +2758,7 @@ namespace netxs::console
                         log("debug fired ", utf::to_utf(&k.character, 1));
                     #endif
 
-                    status[prop::last_event   ].set(stress) = "key";
+                    status[prop::last_event   ].set(stress) = "keybd";
                     status[prop::key_pressed  ].set(stress) = k.down ? "pressed" : "idle";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstate );
                     status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcode );
@@ -5578,6 +5584,8 @@ again:
         period tooltip_timeout; // conf: Timeout for tooltip.
         bool tooltip_enabled; // conf: Enable tooltips.
         bool glow_fx; // conf: Enable glow effect in main menu.
+        bool debug_overlay; // conf: Enable to show debug overlay.
+        text debug_toggle; // conf: Debug toggle shortcut.
 
         conf()            = default;
         conf(conf const&) = default;
@@ -5593,6 +5601,8 @@ again:
             tooltip_timeout   = 500ms;
             tooltip_enabled   = true;
             glow_fx           = faux;
+            debug_overlay     = faux;
+            debug_toggle      = "🐞";
         }
         conf(os::xipc peer, si32 session_id)
             : session_id{ session_id }
@@ -5624,6 +5634,8 @@ again:
             tooltip_timeout   = 500ms;
             tooltip_enabled   = true;
             glow_fx           = true;
+            debug_overlay     = faux;
+            debug_toggle      = "🐞";
         }
 
         friend auto& operator << (std::ostream& s, conf const& c)
@@ -5648,9 +5660,7 @@ again:
         pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
         pro::input input{*this }; // gate: User input event handler.
         pro::cache cache{*this, faux }; // gate: Object map.
-        #ifdef DEBUG_OVERLAY
         pro::debug debug{*this }; // gate: Debug telemetry controller.
-        #endif
 
         using pair = std::optional<std::pair<period, si32>>;
         using sptr = netxs::sptr<base>;
@@ -5719,6 +5729,7 @@ again:
                 props = client_props;
                 if (deskmenu) attach(deskmenu);
                 if (bkground) ground(bkground);
+                if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
                 auto conf_usr_name = props.name;
                 SIGNAL(tier::release, e2::form::prop::name, conf_usr_name);
@@ -5897,6 +5908,14 @@ again:
                         }
                     };
                 }
+                if (deskmenu)
+                {
+                    deskmenu->SUBMIT_T(tier::preview, hids::events::mouse::button::tplclick::leftright, token, gear)
+                    {
+                        debug ? debug.stop()
+                              : debug.start();
+                    };
+                }
 
                 world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
                 {
@@ -5940,11 +5959,12 @@ again:
                             canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
                             canvas.full(full);
                         }
+                        if (debug) debug.output(canvas);
                     }
                     else if (yield) return;
 
-                    #ifdef DEBUG_OVERLAY
-
+                    if (debug)
+                    {
                         debug.bypass = true;
                         //input.fire(hids::events::mouse::hover);
                         input.fire(hids::events::mouse::move.id);
@@ -5956,19 +5976,15 @@ again:
                             debug.update(watch, delta);
                         }
                         debug.update(stamp);
-
-                    #else
-
+                    }
+                    else
+                    {
                         // Update objects under mouse cursor.
                         //input.fire(hids::events::mouse::hover);
                         input.fire(hids::events::mouse::move.id);
                         yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
-
-                    #endif
+                    }
                 };
-                #ifdef DEBUG_OVERLAY
-                debug.start(); // Draw debug info just after all.
-                #endif
 
                 SIGNAL(tier::anycast, e2::form::upon::started, This());
 
@@ -6071,6 +6087,12 @@ again:
             };
             SUBMIT(tier::preview, hids::events::keybd::any, gear)
             {
+                //todo unify
+                if (gear.keystrokes == props.debug_toggle)
+                {
+                    debug ? debug.stop()
+                          : debug.start();
+                }
                 //todo unify
                 //if (gear.meta(hids::CTRL | hids::RCTRL))
                 {

@@ -23,9 +23,6 @@
 #define MONOTTY_PREFIX "monotty_"
 #define MONOTTY_FOLDER "/.config/vtm/"
 
-// Enable to show debug overlay.
-//#define DEBUG_OVERLAY
-
 // Enable to show all terminal input (keyboard/mouse etc).
 //#define KEYLOG
 

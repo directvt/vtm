@@ -395,6 +395,7 @@ namespace netxs::input
         id_t   start = 0;       // mouse: Initiator control ID.
         //hint   cause = e2::any; // mouse: Current event id.
         hint   cause = 0; // mouse: Current event id.
+        bool   debug = faux; // mouse: Trace mouse events.
 
         struct
         {
@@ -502,11 +503,12 @@ namespace netxs::input
                 }
 
                 coord = m.coor;
-#ifdef DEBUG_OVERLAY // Overlay needs current values for every frame
-                scrll = m.wheeled;
-                hzwhl = m.hzwheel;
-                whldt = m.wheeldt;
-#endif
+                if (debug) // Overlay needs current values for every frame
+                {
+                    scrll = m.wheeled;
+                    hzwhl = m.hzwheel;
+                    whldt = m.wheeldt;
+                }
                 // Double clicks is a win32 console only story.
                 // We catch them ourselves.
                 //if (m.doubled && pressed_list.size())
@@ -519,17 +521,20 @@ namespace netxs::input
                 //else if (m.wheeled)
                 if (m.wheeled)
                 {
-#ifndef DEBUG_OVERLAY
-                    scrll = m.wheeled;
-                    hzwhl = m.hzwheel;
-                    whldt = m.wheeldt;
-#endif
-                    action( m.wheeldt > 0 ? scrollup : scrolldn);
-#ifndef DEBUG_OVERLAY
-                    scrll = faux;
-                    hzwhl = faux;
-                    whldt = 0;
-#endif
+                    if (debug == faux)
+                    {
+                        scrll = m.wheeled;
+                        hzwhl = m.hzwheel;
+                        whldt = m.wheeldt;
+                        action( m.wheeldt > 0 ? scrollup : scrolldn);
+                        scrll = faux;
+                        hzwhl = faux;
+                        whldt = 0;
+                    }
+                    else
+                    {
+                        action( m.wheeldt > 0 ? scrollup : scrolldn);
+                    }
                 }
                 else
                 {
