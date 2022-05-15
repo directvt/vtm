@@ -982,6 +982,10 @@ namespace netxs::input
         {
             single_instance = b;
         }
+        auto get_single_instance()
+        {
+            return single_instance;
+        }
         void set_kb_focus(sptr<bell> item)
         {
             kb_focus_taken = true;

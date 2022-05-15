@@ -38,11 +38,12 @@ namespace netxs::console
     class site;
 
     using namespace netxs::input;
-    using drawfx = std::pair<bool, std::function<void(face&)>>;
     using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using focus_test_t = std::pair<id_t, si32>;
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
+    using os::xipc;
+
     struct create_t
     {
         using sptr = netxs::sptr<base>;
@@ -314,10 +315,10 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( create  , rect                ), // return coordinates of the new object placeholder.
                     EVENT_XS( createat, console::create_t   ), // general: create an intance at the specified location and return sptr<base>.
-                    EVENT_XS( createfrom, console::create_t   ), // general: attach spcified intance and return sptr<base>.
+                    EVENT_XS( createfrom, console::create_t ), // general: attach spcified intance and return sptr<base>.
                     EVENT_XS( createby, input::hids         ), // return gear with coordinates of the new object placeholder gear::slot.
                     EVENT_XS( destroy , console::base       ), // ??? bool return reference to the parent.
-                    EVENT_XS( render  , console::drawfx     ), // ask children to render itself to the parent canvas, arg is a function drawfx to perform drawing.
+                    EVENT_XS( render  , bool                ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
                     EVENT_XS( attach  , sptr<console::base> ), // order to attach a child, arg is a parent base_sptr.
                     EVENT_XS( detach  , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
                     EVENT_XS( focus   , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
@@ -1183,7 +1184,7 @@ namespace netxs::console
             }
         }
         // base: Initiate object redrawing.
-        virtual void redraw()
+        virtual void redraw(face& canvas)
         { }
 
     protected:
@@ -3946,30 +3947,105 @@ namespace netxs::console
         };
     }
 
-    // console: Standalone application host.
-    class room
+    // console: World aether.
+    class host
         : public base
     {
-        using proc = drawfx;
+        using tick = quartz<events::reactor<>, e2::type>;
         using list = std::vector<rect>;
-        using sptr = netxs::sptr<base>;
 
-        pro::robot robot{*this }; // room: Amination controller.
-        pro::keybd keybd{*this }; // room: Keyboard controller.
-        pro::mouse mouse{*this }; // room: Mouse controller.
+        pro::keybd keybd{*this }; // host: Keyboard controller.
+        pro::mouse mouse{*this }; // host: Mouse controller.
 
-        //sptr stuff; // room: Root object.
-        list edges; // room: Wrecked regions history.
-        proc paint; // room: Render all child items to the specified canvas.
+        subs token; // host: Subscription tokens.
+        tick synch; // host: Frame rate synchronizator.
+        si32 frate; // host: Frame rate value.
+        list edges; // host: Wrecked regions history.
+        xipc joint;
 
-    protected:
-        room()
+    public:
+        // host: Shutdown.
+        void shutdown()
         {
-            paint.second = [&](face& canvas)
-            {
-                //canvas.render(stuff);
-            };
+            events::sync lock;
+            mouse.reset();
         }
+        // host: Mark dirty region.
+        void denote(rect const& updateregion)
+        {
+            if (updateregion)
+            {
+                edges.push_back(updateregion);
+            }
+        }
+        void deface(rect const& region) override
+        {
+            base::deface(region);
+            denote(region);
+        }
+
+        host(xipc server_pipe)
+            : synch{ bell::router<tier::general>(), e2::timer::tick.id },
+              frate{ 0 },
+              joint{ server_pipe }
+        {
+            keybd.accept(true); // Subscribe on keybd offers.
+
+            SUBMIT_T(tier::general, e2::timer::any, token, timestamp)
+            {
+                auto damaged = !edges.empty();
+                edges.clear();
+                this->SIGNAL(tier::release, e2::form::proceed::render, damaged);
+            };
+            SUBMIT_T(tier::general, e2::config::whereami, token, world_ptr)
+            {
+                world_ptr = base::This();
+            };
+            SUBMIT_T(tier::general, e2::config::fps, token, fps)
+            {
+                if (fps > 0)
+                {
+                    frate = fps;
+                    synch.ignite(frate);
+                }
+                else if (fps == -1)
+                {
+                    fps = frate;
+                }
+                else
+                {
+                    synch.cancel();
+                }
+            };
+            SUBMIT_T(tier::general, e2::cleanup, token, counter)
+            {
+                this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
+            };
+            SUBMIT_T(tier::general, hids::events::die, token, gear)
+            {
+                if (gear.captured(bell::id))
+                {
+                    gear.release();
+                    gear.dismiss();
+                }
+            };
+            SUBMIT_T(tier::general, e2::shutdown, token, msg)
+            {
+                log("host: shutdown: ", msg);
+                joint->shut();
+            };
+            log("host: started");
+        }
+    };
+
+    // console: Standalone application host.
+    class room
+        : public host
+    {
+    protected:
+        room(xipc server_pipe)
+            : host{ server_pipe }
+        { }
 
     public:
         // room: Create a new root of the specified subtype and attach it.
@@ -3995,37 +4071,11 @@ namespace netxs::console
             client->detach();
             client.reset();
         }
-        // room: .
-        void redraw() override
-        {
-            paint.first = edges.size();
-            edges.clear();
-            SIGNAL(tier::release, e2::form::proceed::render, paint);
-        }
-        // room: Mark dirty region.
-        void denote(rect const& updateregion)
-        {
-            if (updateregion)
-            {
-                edges.push_back(updateregion);
-            }
-        }
-        void deface(rect const& region) override
-        {
-            base::deface(region);
-            denote(region);
-        }
-        // room: Shutdown.
-        void shutdown()
-        {
-            events::sync lock;
-            mouse.reset(); //todo host::shutdown
-        }
     };
 
     // console: Desktop Virtual Environment.
     class hall
-        : public base
+        : public host
     {
         class node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
         {
@@ -4296,16 +4346,10 @@ namespace netxs::console
         #ifndef PROD
         pro::watch zombi{*this }; // hall: Zombie protection.
         #endif
-        pro::robot robot{*this }; // hall: Amination controller.
-        pro::keybd keybd{*this }; // hall: Keyboard controller.
-        pro::mouse mouse{*this }; // hall: Mouse controller.
 
-        using proc = drawfx;
         using time = moment;
         using area = std::vector<rect>;
 
-        area edges; // hall: Wrecked regions history.
-        proc paint; // hall: Render all child items to the specified canvas.
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
 
@@ -4313,19 +4357,11 @@ namespace netxs::console
         sptr<std::list<sptr<base>>> usr_registry;
 
     protected:
-        hall()
-           : app_registry{ std::make_shared<registry_t>() },
-             usr_registry{ std::make_shared<std::list<sptr<base>>>() }
+        hall(xipc server_pipe)
+            : host{ server_pipe },
+              app_registry{ std::make_shared<registry_t>() },
+              usr_registry{ std::make_shared<std::list<sptr<base>>>() }
         {
-            paint.second = [&](face& canvas)
-            {
-                if (users.size() > 1) users.prerender (canvas); // Draw backpane for spectators.
-                                      items.render    (canvas); // Draw objects of the world.
-                                      users.postrender(canvas); // Draw spectator's mouse pointers.
-            };
-
-            keybd.accept(true); // Subscribe on keybd offers.
-
             SUBMIT(tier::general, e2::form::global::lucidity, alpha)
             {
                 if (alpha == -1)
@@ -4415,22 +4451,6 @@ namespace netxs::console
             };
         }
 
-        // hall: .
-        void redraw() override
-        {
-            paint.first = edges.size();
-            edges.clear();
-            SIGNAL(tier::release, e2::form::proceed::render, paint);
-        }
-        // hall: Mark dirty region.
-        void denote(rect const& updateregion)
-        {
-            if (updateregion)
-            {
-                edges.push_back(updateregion);
-            }
-        }
-
     public:
        ~hall()
         {
@@ -4438,11 +4458,11 @@ namespace netxs::console
             app_registry.reset();
             items.reset();
         }
-        // hall: Shutdown.
-        void shutdown()
+        void redraw(face& canvas) override
         {
-            events::sync lock;
-            mouse.reset(); //todo host::shutdown
+            if (users.size() > 1) users.prerender (canvas); // Draw backpane for spectators.
+                                  items.render    (canvas); // Draw objects of the world.
+                                  users.postrender(canvas); // Draw spectator's mouse pointers.
         }
         // hall: Attach a new item to the scene.
         template<class S>
@@ -4475,11 +4495,6 @@ namespace netxs::console
             SIGNAL(tier::release, e2::bindings::list::users, usr_registry);
             return user;
         }
-        void deface(rect const& region) override
-        {
-            base::deface(region);
-            denote(region);
-        }
         // hall: Detach user.
         template<class T>
         auto resign(sptr<T>& client)
@@ -4487,71 +4502,6 @@ namespace netxs::console
             auto lock = events::sync{};
             client->detach();
             client.reset();
-        }
-    };
-
-    // console: World aether.
-    template<class THING>
-    class host
-        : public THING
-    {
-        using tick = quartz<events::reactor<>, e2::type>;
-
-        subs token; // host: Subscription tokens.
-        tick synch; // host: Frame rate synchronizator.
-        si32 frate; // host: Frame rate value.
-        os::xipc srv;
-
-    public:
-        template<class ...Args>
-        host(os::xipc server_pipe, Args&&... args)
-            : THING{ std::forward<Args>(args)... },
-              synch{ bell::router<tier::general>(), e2::timer::tick.id },
-              frate{ 0 },
-              srv{ server_pipe }
-        {
-            SUBMIT_T(tier::general, e2::timer::any, token, timestamp)
-            {
-                THING::redraw();
-            };
-            SUBMIT_T(tier::general, e2::config::whereami, token, world_ptr)
-            {
-                world_ptr = THING::This();
-            };
-            SUBMIT_T(tier::general, e2::config::fps, token, fps)
-            {
-                if (fps > 0)
-                {
-                    frate = fps;
-                    synch.ignite(frate);
-                }
-                else if (fps == -1)
-                {
-                    fps = frate;
-                }
-                else
-                {
-                    synch.cancel();
-                }
-            };
-            SUBMIT_T(tier::general, e2::cleanup, token, counter)
-            {
-                this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
-            };
-            SUBMIT_T(tier::general, hids::events::die, token, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.release();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT_T(tier::general, e2::shutdown, token, msg)
-            {
-                log("host: shutdown: ", msg);
-                srv->shut();
-            };
-            log("host: started");
         }
     };
 
@@ -4563,7 +4513,7 @@ namespace netxs::console
         using cond = std::condition_variable_any;
 
         bell&     owner; // link: Boss.
-        os::xipc  canal; // link: Data highway.
+        xipc      canal; // link: Data highway.
         work      input; // link: Reading thread.
         cond      synch; // link: Thread sync cond variable.
         lock      mutex; // link: Thread sync mutex.
@@ -4597,7 +4547,7 @@ namespace netxs::console
         }
 
     public:
-        link(bell& boss, os::xipc sock)
+        link(bell& boss, xipc sock)
             : owner { boss },
               canal { sock },
               alive { true },
@@ -5610,7 +5560,7 @@ again:
             debug_overlay     = faux;
             debug_toggle      = "🐞";
         }
-        conf(os::xipc peer, si32 session_id)
+        conf(xipc peer, si32 session_id)
             : session_id{ session_id }
         {
             auto _region = peer->line(';');
@@ -5728,7 +5678,7 @@ again:
             return item;
         }
         // Main loop.
-        void run(os::xipc media /*session socket*/, conf const& client_props, sptr deskmenu, sptr bkground = {})
+        void run(xipc media /*session socket*/, conf const& client_props, sptr deskmenu, sptr bkground = {})
         {
             auto lock = events::unique_lock();
 
@@ -5923,21 +5873,24 @@ again:
                     };
                 }
 
-                world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
+                world->SUBMIT_T(tier::release, e2::form::proceed::render, token, damaged)
                 {
                     auto stamp = tempus::now();
 
-                    if (render_scene.first)
+                    if (damaged)
                     {
                         auto& canvas = cache.canvas;
-                        canvas.wipe(world->bell::id);
-                        if (background) // Render active wallpaper.
-                        {
-                            canvas.render(background);
-                        }
 
-                        render_scene.second(canvas); // Put the rest of the world on my canvas.
-                        
+                        if (input.get_single_instance() == faux)
+                        {
+                            canvas.wipe(world->bell::id);
+                            if (background) // Render active wallpaper.
+                            {
+                                canvas.render(background);
+                            }
+
+                            world->redraw(canvas); // Put the rest of the world on my canvas.
+                        }
                         if (uibar && !fullscreen) // Render main menu/application.
                         {
                             //todo too hacky, unify

@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
                          "\n\tuser: ", userid,
                          "\n\tpipe: ", prefix);
 
-        auto ground = base::create<host<hall>>(server);
+        auto ground = base::create<hall>(server);
         app::shared::init_app_registry(ground);
 
         SIGNAL_GLOBAL(e2::config::fps, 60);
@@ -270,7 +270,7 @@ int main(int argc, char* argv[])
             }
 
             auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
-            auto ground = base::create<host<room>>(tunnel.first);
+            auto ground = base::create<room>(tunnel.first);
             auto window = ground->invite<gate>(true);
             applet->SIGNAL(tier::anycast, e2::form::prop::menusize, 1); //todo config
             window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
