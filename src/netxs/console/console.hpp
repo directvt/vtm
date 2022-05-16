@@ -5508,8 +5508,8 @@ again:
         text title;
         twod coor;
         twod clip_preview_size;
-        si32 legacy_mode;
         cell background_color;
+        si32 legacy_mode;
         si32 session_id;
         period tooltip_timeout; // conf: Timeout for tooltip.
         bool tooltip_enabled; // conf: Enable tooltips.
@@ -5523,7 +5523,7 @@ again:
         conf& operator = (conf const&) = default;
 
         conf(si32 mode)
-            : session_id{ session_id },
+            : session_id{ 0 },
               legacy_mode{ mode }
         {
             clip_preview_size = twod{ 80,25 };
@@ -5902,7 +5902,8 @@ again:
                         //input.fire(hids::events::mouse::hover);
                         input.fire(hids::events::mouse::move.id);
                         debug.bypass = faux;
-                        if (yield = paint.commit(cache.canvas))
+                        yield = paint.commit(cache.canvas);
+                        if (yield)
                         {
                             auto& watch = yield.value().first;
                             auto& delta = yield.value().second;
