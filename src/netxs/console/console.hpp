@@ -223,8 +223,8 @@ namespace netxs::events::userland
                     EVENT_XS( bubble, console::base      ), // order to popup the requested item through the visual tree.
                     EVENT_XS( expose, console::base      ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
                     EVENT_XS( appear, twod               ), // fly to the specified coords.
-                    EVENT_XS( next  , sptr<console::base>), // request: proceed request for available objects (next)
-                    EVENT_XS( prev  , sptr<console::base>), // request: proceed request for available objects (prev)
+                    EVENT_XS( gonext, sptr<console::base>), // request: proceed request for available objects (next)
+                    EVENT_XS( goprev, sptr<console::base>), // request: proceed request for available objects (prev)
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
@@ -4427,13 +4427,13 @@ namespace netxs::console
                 app_list_ptr = regis.app_ptr;
             };
             //todo unify
-            SUBMIT(tier::request, e2::form::layout::next, next)
+            SUBMIT(tier::request, e2::form::layout::gonext, next)
             {
                 if (items)
                     if (auto next_ptr = items.rotate_next())
                         next = next_ptr->object;
             };
-            SUBMIT(tier::request, e2::form::layout::prev, prev)
+            SUBMIT(tier::request, e2::form::layout::goprev, prev)
             {
                 if (items)
                     if (auto prev_ptr = items.rotate_prev())
@@ -6033,8 +6033,8 @@ again:
                     if (pgup || pgdn)
                     {
                         sptr item_ptr;
-                        if (pgdn) world.SIGNAL(tier::request, e2::form::layout::prev, item_ptr); // Take prev item
-                        else      world.SIGNAL(tier::request, e2::form::layout::next, item_ptr); // Take next item
+                        if (pgdn) world.SIGNAL(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
+                        else      world.SIGNAL(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
 
                         if (item_ptr)
                         {
