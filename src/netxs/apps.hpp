@@ -25,7 +25,7 @@ namespace netxs::app::shared
     X(Term         , "Term"                  , ("Term")                                                        , "" ) \
     X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
     X(Calc         , "Calc"                  , (ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled 1.ods"))  , "" ) \
-    X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \
+    X(Gems         , "Gems"                  , ("Desktopio App Manager (Demo)")                                         , "" ) \
     X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
     X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
     X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"Term\" ,\"\"), a(\"Term\" ,\"Term\" ,\"\"))" ) \
@@ -93,6 +93,23 @@ namespace netxs::app::shared
     const static auto x1 = cell{ c1 }.bga(0x00);
     const static auto x0 = cell{ c3 }.bgc(0xFF000000); //todo make it as desktop bg
     const static auto term_menu_bg = rgba{ 0x80404040 };
+
+    enum class app_type
+    {
+        simple,
+        normal,
+    };
+    const auto app_class = [](view& v)
+    {
+        auto type = app_type::normal;
+        if (!v.empty() && v.front() == '!')
+        {
+            type = app_type::simple;
+            v.remove_prefix(1);
+            v = utf::trim(v);
+        }
+        return type;
+    };
 
     const auto app_limit = [](auto boss, text title)
     {
@@ -929,12 +946,14 @@ namespace netxs::app::shared
                 menu_list[objs_lookup["Tile"]];
                 menu_list[objs_lookup["Logs"]];
                 menu_list[objs_lookup["View"]];
+                menu_list[objs_lookup["Gems"]];
                 menu_list[objs_lookup["Settings"]];
             #else
                 menu_list[objs_lookup["Term"]];
                 menu_list[objs_lookup["Tile"]];
                 menu_list[objs_lookup["Logs"]];
                 menu_list[objs_lookup["View"]];
+                menu_list[objs_lookup["Gems"]];
                 menu_list[objs_lookup["Settings"]];
             #endif
 
@@ -1072,7 +1091,7 @@ namespace netxs::app::shared
             auto sub_pos = twod{ 12+17, 0 };
             creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
             creator(objs_lookup["Test"], { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
-            creator(objs_lookup["Shop"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
+            creator(objs_lookup["Gems"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
             creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
             creator(objs_lookup["Text"], { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
             creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 68, 22 } });

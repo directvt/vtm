@@ -241,10 +241,11 @@ namespace netxs::app::term
         auto build = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
+            auto term_type = shared::app_class(v);
+            if (term_type == shared::app_type::normal) window->plugin<pro::focus>()
+                                                             ->plugin<pro::track>()
+                                                             ->plugin<pro::acryl>()
+                                                             ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, terminal_menu(true));
