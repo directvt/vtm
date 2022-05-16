@@ -72,6 +72,7 @@ namespace netxs::events::userland
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
             EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
+            EVENT_XS( nextframe , bool                ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
             EVENT_XS( depth     , si32                ), // request: Determine the depth of the hierarchy.
             EVENT_XS( shutdown  , const view          ), // general: Server shutdown.
             GROUP_XS( timer     , moment              ), // timer tick, arg: current moment (now).
@@ -217,11 +218,13 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( layout )
                 {
-                    EVENT_XS( shift , const twod    ), // request a global shifting  with delta.
-                    EVENT_XS( convey, cube          ), // request a global conveying with delta (Inform all children to be conveyed).
-                    EVENT_XS( bubble, console::base ), // order to popup the requested item through the visual tree.
-                    EVENT_XS( expose, console::base ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
-                    EVENT_XS( appear, twod          ), // fly to the specified coords.
+                    EVENT_XS( shift , const twod         ), // request a global shifting  with delta.
+                    EVENT_XS( convey, cube               ), // request a global conveying with delta (Inform all children to be conveyed).
+                    EVENT_XS( bubble, console::base      ), // order to popup the requested item through the visual tree.
+                    EVENT_XS( expose, console::base      ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
+                    EVENT_XS( appear, twod               ), // fly to the specified coords.
+                    EVENT_XS( next  , sptr<console::base>), // request: proceed request for available objects (next)
+                    EVENT_XS( prev  , sptr<console::base>), // request: proceed request for available objects (prev)
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
@@ -229,8 +232,6 @@ namespace netxs::events::userland
                     //EVENT_XS( rect      , rect       ), // return client rect.
                     //EVENT_XS( show      , bool       ), // order to make it visible.
                     //EVENT_XS( hide      , bool       ), // order to make it hidden.
-                    //EVENT_XS( next      , sptr<base> ), // request client for next child object, only request.
-                    //EVENT_XS( prev      , sptr<base> ), // request client for prev child object, only request.
                 };
                 SUBSET_XS( highlight )
                 {
@@ -1183,9 +1184,6 @@ namespace netxs::console
                 }
             }
         }
-        // base: Initiate object redrawing.
-        virtual void redraw(face& canvas)
-        { }
 
     protected:
         virtual ~base() = default;
@@ -3959,14 +3957,14 @@ namespace netxs::console
 
         subs token; // host: Subscription tokens.
         tick synch; // host: Frame rate synchronizator.
-        si32 frate; // host: Frame rate value.
+        si32 hertz; // host: Frame rate value.
         list edges; // host: Wrecked regions list.
         xipc joint;
 
     public:
-        host(xipc server_pipe)
+        host(xipc server_pipe, si32 fps)
             : synch{ bell::router<tier::general>(), e2::timer::tick.id },
-              frate{ 0 },
+              hertz{ fps },
               joint{ server_pipe }
         {
             keybd.accept(true); // Subscribe on keybd offers.
@@ -3975,7 +3973,7 @@ namespace netxs::console
             {
                 auto damaged = !edges.empty();
                 edges.clear();
-                this->SIGNAL(tier::release, e2::form::proceed::render, damaged);
+                SIGNAL_GLOBAL(e2::nextframe, damaged);
             };
             SUBMIT_T(tier::general, e2::config::whereami, token, world_ptr)
             {
@@ -3985,12 +3983,12 @@ namespace netxs::console
             {
                 if (fps > 0)
                 {
-                    frate = fps;
-                    synch.ignite(frate);
+                    hertz = fps;
+                    synch.ignite(hertz);
                 }
                 else if (fps == -1)
                 {
-                    fps = frate;
+                    fps = hertz;
                 }
                 else
                 {
@@ -4014,7 +4012,13 @@ namespace netxs::console
                 log("host: shutdown: ", msg);
                 joint->shut();
             };
-            log("host: started");
+            synch.ignite(hertz);
+            log("host: started at ", hertz, "fps");
+        }
+        // host: Initiate redrawing.
+        virtual void redraw(face& canvas)
+        {
+            SIGNAL_GLOBAL(e2::shutdown, "host: rendering is not provided");
         }
         // host: Mark dirty region.
         void denote(rect const& updateregion)
@@ -4034,7 +4038,7 @@ namespace netxs::console
         auto invite(Args&&... args)
         {
             auto lock = events::sync{};
-            auto root = base::create<S>(std::forward<Args>(args)...);
+            auto root = base::create<S>(*this, std::forward<Args>(args)...);
             //stuff = root;
             root->base::root(true);
             root->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
@@ -4378,8 +4382,8 @@ namespace netxs::console
         depo regis; // hall: Actors registry.
 
     protected:
-        hall(xipc server_pipe)
-            : host{ server_pipe }
+        hall(xipc server_pipe, si32 maxfps)
+            : host{ server_pipe, maxfps }
         {
             SUBMIT(tier::general, e2::form::global::lucidity, alpha)
             {
@@ -4423,13 +4427,13 @@ namespace netxs::console
                 app_list_ptr = regis.app_ptr;
             };
             //todo unify
-            SUBMIT(tier::request, e2::form::proceed::attach, next) // Proceed request for available objects (next)
+            SUBMIT(tier::request, e2::form::layout::next, next)
             {
                 if (items)
                     if (auto next_ptr = items.rotate_next())
                         next = next_ptr->object;
             };
-            SUBMIT(tier::request, e2::form::proceed::detach, prev) // Proceed request for available objects (prev)
+            SUBMIT(tier::request, e2::form::layout::prev, prev)
             {
                 if (items)
                     if (auto prev_ptr = items.rotate_prev())
@@ -5590,14 +5594,15 @@ again:
 
         using pair = std::optional<std::pair<period, si32>>;
         using sptr = netxs::sptr<base>;
-        pair yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
-        para uname; // gate: Client name.
-        text uname_txt; // gate: Client name (original).
-        bool native = faux; //gate: Extended functionality support.
-        bool fullscreen = faux; //gate: Fullscreen mode.
-        si32 legacy = os::legacy::clean;
-        text clip_rawtext; // gate: Clipboard data.
-        face clip_preview; // gate: Clipboard render.
+        host& world;
+        pair  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
+        para  uname; // gate: Client name.
+        text  uname_txt; // gate: Client name (original).
+        bool  native = faux; //gate: Extended functionality support.
+        bool  fullscreen = faux; //gate: Fullscreen mode.
+        si32  legacy = os::legacy::clean;
+        text  clip_rawtext; // gate: Clipboard data.
+        face  clip_preview; // gate: Clipboard render.
 
         conf props; // gate: Client properties.
 
@@ -5648,7 +5653,7 @@ again:
             return item;
         }
         // Main loop.
-        void run(xipc media /*session socket*/, conf const& client_props, sptr deskmenu, sptr bkground = {})
+        void launch(xipc media /*session socket*/, conf const& client_props, sptr deskmenu, sptr bkground = {})
         {
             auto lock = events::unique_lock();
 
@@ -5665,7 +5670,6 @@ again:
                 clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
                 legacy |= props.legacy_mode;
 
-                auto world = base::parent();
                 auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
                               : legacy & os::legacy::vga256 ? svga::vga256
                                                             : svga::truecolor;
@@ -5843,7 +5847,7 @@ again:
                     };
                 }
 
-                world->SUBMIT_T(tier::release, e2::form::proceed::render, token, damaged)
+                SUBMIT_T(tier::general, e2::nextframe, token, damaged)
                 {
                     auto stamp = tempus::now();
 
@@ -5853,13 +5857,13 @@ again:
 
                         if (input.get_single_instance() == faux)
                         {
-                            canvas.wipe(world->bell::id);
+                            canvas.wipe(world.bell::id);
                             if (background) // Render active wallpaper.
                             {
                                 canvas.render(background);
                             }
 
-                            world->redraw(canvas); // Put the rest of the world on my canvas.
+                            world.redraw(canvas); // Put the rest of the world on my canvas.
                         }
                         if (uibar && !fullscreen) // Render main menu/application.
                         {
@@ -5929,7 +5933,8 @@ again:
         }
 
     protected:
-        gate(bool is_standalone_app = faux)
+        gate(host& world, bool is_standalone_app = faux)
+            : world{ world }
         {
             //todo unify
             title.live = faux;
@@ -5974,20 +5979,14 @@ again:
             //todo unify creation (delete simple create wo gear)
             SUBMIT(tier::preview, e2::form::proceed::create, region)
             {
-                if (auto world = base::parent())
-                {
-                    region.coor += base::coor();
-                    world->SIGNAL(tier::release, e2::form::proceed::create, region);
-                }
+                region.coor += base::coor();
+                world.SIGNAL(tier::release, e2::form::proceed::create, region);
             };
             //todo revise
             SUBMIT(tier::preview, e2::form::proceed::createby, gear)
             {
-                if (auto world = base::parent())
-                {
-                    gear.slot.coor += base::coor();
-                    world->SIGNAL(tier::release, e2::form::proceed::createby, gear);
-                }
+                gear.slot.coor += base::coor();
+                world.SIGNAL(tier::release, e2::form::proceed::createby, gear);
             };
             SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr) //todo use e2::form::proceed::onbehalf
             {
@@ -6033,22 +6032,19 @@ again:
                             || (gear.keystrokes == "\033[6~"s && gear.meta(hids::CTRL | hids::RCTRL));
                     if (pgup || pgdn)
                     {
-                        if (auto world = base::parent())
-                        {
-                            sptr item_ptr;
-                            if (pgdn) world->SIGNAL(tier::request, e2::form::proceed::detach, item_ptr); // Take prev item
-                            else      world->SIGNAL(tier::request, e2::form::proceed::attach, item_ptr); // Take next item
+                        sptr item_ptr;
+                        if (pgdn) world.SIGNAL(tier::request, e2::form::layout::prev, item_ptr); // Take prev item
+                        else      world.SIGNAL(tier::request, e2::form::layout::next, item_ptr); // Take next item
 
-                            if (item_ptr)
-                            {
-                                auto& item = *item_ptr;
-                                auto& area = item.area();
-                                auto center = area.coor + (area.size / 2);
-                                this->SIGNAL(tier::release, e2::form::layout::shift, center);
-                                gear.pass_kb_focus(item);
-                            }
-                            gear.dismiss();
+                        if (item_ptr)
+                        {
+                            auto& item = *item_ptr;
+                            auto& area = item.area();
+                            auto center = area.coor + (area.size / 2);
+                            this->SIGNAL(tier::release, e2::form::layout::shift, center);
+                            gear.pass_kb_focus(item);
                         }
+                        gear.dismiss();
                     }
                 }
             };

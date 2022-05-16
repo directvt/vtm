@@ -50,6 +50,7 @@ int main(int argc, char* argv[])
     auto whoami = type::client;
     auto region = text{};
     auto params = text{};
+    auto maxfps = si32{ 60 };
     {
         auto daemon = faux;
         auto getopt = os::args{ argc, argv };
@@ -155,19 +156,15 @@ int main(int argc, char* argv[])
             log("main: error: can't start desktop server");
             return 1;
         }
-
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
+        auto ground = base::create<hall>(server, maxfps);
+        auto thread = os::pool{};
+        app::shared::init_app_registry(ground);
 
         log("main: listening socket ", server,
                          "\n\tuser: ", userid,
                          "\n\tpipe: ", prefix);
 
-        auto ground = base::create<hall>(server);
-        app::shared::init_app_registry(ground);
-
-        SIGNAL_GLOBAL(e2::config::fps, 60);
-
-        auto thread = os::pool{};
         while (auto client = server->meet())
         {
             if (!client->cred(userid))
@@ -187,7 +184,7 @@ int main(int argc, char* argv[])
                     log("user: new gate for ", client);
                     auto deskmenu = app::shared::creator("Desk")(utf::concat(window->id, ";", config.os_user_id));
                     auto bkground = app::shared::creator("Fone")("Shop;Demo;");
-                    window->run(client, config, deskmenu, bkground);
+                    window->launch(client, config, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }
             });
@@ -268,20 +265,19 @@ int main(int argc, char* argv[])
                 return 1;
             }
 
-            auto ground = base::create<host>(tunnel.first);
+            auto ground = base::create<host>(tunnel.first, maxfps);
             auto thread = std::thread{[&]()
             {
                 splice(cons, legacy);
             }};
 
-            SIGNAL_GLOBAL(e2::config::fps, 60);
             {
                 auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
                 auto window = ground->invite<gate>(true);
                 applet->SIGNAL(tier::anycast, e2::form::prop::menusize, 1); //todo config
                 window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
                 window->resize(size);
-                window->run(tunnel.first, config, applet);
+                window->launch(tunnel.first, config, applet);
             }
             ground->shutdown();
 
