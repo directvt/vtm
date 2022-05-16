@@ -1436,12 +1436,25 @@ namespace netxs::utf
         if (!skip.empty()) trim_front(utf8, skip);
         return str;
     };
-
     template<class TEXT_or_VIEW>
     auto is_plain(TEXT_or_VIEW&& utf8)
     {
         auto test = utf8.find('\033');
         return test == text::npos;
+    }
+    auto& to_low(text& utf8, size_t size = text::npos)
+    {
+        auto head = utf8.begin();
+        auto tail = head + std::min(utf8.size(), size);
+        std::transform(head, tail, head, [](unsigned char c) { return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c; });
+        return utf8;
+    }
+    auto& to_up(text& utf8, size_t size = text::npos)
+    {
+        auto head = utf8.begin();
+        auto tail = head + std::min(utf8.size(), size);
+        std::transform(head, tail, head, [](unsigned char c) { return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c; });
+        return utf8;
     }
 }
 

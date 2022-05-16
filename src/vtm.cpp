@@ -98,9 +98,9 @@ int main(int argc, char* argv[])
                                              + "\n"s
                                              + "\tList of registered applications:\n\n"s
                                              + "\t\tTerm\tTerminal emulator (default)\n"s
-                                             + "\t\tText\tText editor\n"s
-                                             + "\t\tCalc\tSpreadsheet calculator\n"s
-                                             + "\t\tFile\tFile manager\n"s
+                                             + "\t\tText\t(Demo) Text editor\n"s
+                                             + "\t\tCalc\t(Demo) Spreadsheet calculator\n"s
+                                             + "\t\tGems\t(Demo) Desktopio application manager\n"s
                                              );
                     return 0;
             }
@@ -183,7 +183,7 @@ int main(int argc, char* argv[])
                 {
                     log("user: new gate for ", client);
                     auto deskmenu = app::shared::creator("Desk")(utf::concat(window->id, ";", config.os_user_id));
-                    auto bkground = app::shared::creator("Fone")("Shop;Demo;");
+                    auto bkground = app::shared::creator("Fone")("Gems;Demo;");
                     window->launch(client, config, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }
@@ -246,8 +246,17 @@ int main(int argc, char* argv[])
         else if (whoami == type::runapp)
         {
             //todo unify
-            if (params == "Term") log("Desktopio Terminal " DESKTOP_VER);
-            else                  log("Desktopio ", params , " ", DESKTOP_VER);
+            auto menusz = 3;
+            utf::to_up(utf::to_low(params), 1);
+                 if (params == "Text") log("Desktopio Text Editor (DEMO) " DESKTOP_VER);
+            else if (params == "Calc") log("Desktopio Spreadsheet (DEMO) " DESKTOP_VER);
+            else if (params == "Gems") log("Desktopio App Manager (DEMO) " DESKTOP_VER);
+            else
+            {
+                menusz = 1;
+                params = "Term";
+                log("Desktopio Terminal " DESKTOP_VER);
+            }
 
             skin::setup(tone::brighter, 0);
 
@@ -274,7 +283,7 @@ int main(int argc, char* argv[])
             {
                 auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
                 auto window = ground->invite<gate>(true);
-                applet->SIGNAL(tier::anycast, e2::form::prop::menusize, 1); //todo config
+                applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
                 window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
                 window->resize(size);
                 window->launch(tunnel.first, config, applet);

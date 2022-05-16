@@ -5854,10 +5854,9 @@ again:
                     if (damaged)
                     {
                         auto& canvas = cache.canvas;
-
+                        canvas.wipe(world.bell::id);
                         if (input.get_single_instance() == faux)
                         {
-                            canvas.wipe(world.bell::id);
                             if (background) // Render active wallpaper.
                             {
                                 canvas.render(background);
