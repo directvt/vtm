@@ -125,7 +125,7 @@ namespace netxs::app::shop
                     "An utility that allows browsing all Unicode "
                     "codepoints and inspecting their metadata."),
 
-                    item(ansi::fgc(0xff0000).add("File"), cyanlt, "4", "Free ", "Get",
+                    item(ansi::fgc(0xFFff0000).add("File"), cyanlt, "4", "Free ", "Get",
                     "An orthodox file manager for Monotty Desktopio environment."),
 
                     item("Time", bluedk, "4", "Free ", "Get",
