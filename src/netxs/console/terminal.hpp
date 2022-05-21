@@ -30,7 +30,6 @@ namespace netxs::events::userland
             };
         };
     };
-
 }
 
 // terminal: Terminal UI control.
@@ -6546,6 +6545,213 @@ namespace netxs::ui
                 //    vp = vp.clip(parent_canvas.view());
                 //    parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(magentalt).bga(50)); });
                 //}
+            };
+        }
+    };
+
+    class dtvt
+        : public ui::form<dtvt>
+    {
+        os::direct::pty ptycon; // dtvt: PTY device.
+        text            cmdarg; // dtvt: Startup command line arguments.
+        bool            active; // dtvt: Terminal lifetime.
+        face            canvas; // dtvt:
+        hook            oneoff; // dtvt: One-shot token for start and shutdown events.
+        cell            marker; // dtvt: Current brush.
+
+        struct header
+        {
+            ui32 length;
+            id_t id;
+            rect area;
+        };
+        // dtvt: Proceed DirectVT input.
+        void ondata(view data)
+        {
+            while (active)
+            {
+                netxs::events::try_sync guard;
+                if (guard)
+                {
+                    log("=====\n", utf::debase(data));
+                    //auto t = para{ data };
+                    //canvas.output(t);
+                    //auto head = data.data();
+                    auto frame = *reinterpret_cast<header const*>(data.data());
+                    frame.length -= sizeof(header);
+
+                    //head += sizeof(header);
+                    data.remove_prefix(sizeof(header));
+
+                    auto size = std::clamp(frame.area.size, dot_11, console::max_value);
+                    auto full = canvas.full();
+                    if (size != full.size)
+                    {
+                        full.size = size;
+                        canvas.full(full);
+                    }
+                    auto iter = canvas.iter();
+                    while (frame.length > 0)
+                    {
+                        //auto type = utf::letter(data);
+                        if (auto code = utf::cpit{ data })
+                        {
+                            auto cp = code.take();
+                            data.remove_prefix(cp.utf8len);
+                            //head += cp.utf8len;
+                            auto type = cp.cdpoint;
+                            if (type == 0) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
+                            {
+                                ++iter;
+                            }
+                            else if (type <= 7) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                            {
+
+
+                                ++iter;
+                            }
+                            else if (type == 8) //<= 8: cup: 8 bytes: si32 X + si32 Y
+                            {
+
+                            }
+                            else if (type == 9) //<= 9: bg/fg colors: 8 bytes: rgba + rgba
+                            {
+
+                            }
+                            else if (type == 10) //<=10: style: token 4 bytes
+                            {
+
+                            }
+                            else if (type == 11) //<=11: wipe canvas
+                            {
+
+                            }
+                            else if (type == 12) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
+                            {
+
+                            }
+                            else if (type == 100) //<=100: 4 b
+                            {
+
+                            }
+                        }
+                    }
+                    //log(" length=", frame.length, " id=", frame.id, " area=", frame.area);
+                    //log("==================");
+                    base::deface();
+                    //if (onlogs) SIGNAL_GLOBAL(e2::debug::output, data); // Post data for Logs.
+
+                    //if (follow[axis::Y]) ansi::parse(data, target);
+                    //else
+                    //{
+                    //    auto last_basis = target->get_basis();
+                    //    auto last_slide = target->get_slide();
+                    //    ansi::parse(data, target);
+                    //    auto next_basis = target->get_basis();
+                    //    follow[axis::Y] = last_basis <= last_slide && last_slide <= next_basis
+                    //                   || next_basis <= last_slide && last_slide <= last_basis;
+                    //}
+                    //unsync = true;
+                    break;
+                }
+                else std::this_thread::yield();
+            }
+        }
+        // dtvt: Shutdown callback handler.
+        void onexit(si32 code)
+        {
+            log("term: exit code ", code);
+            if (code)
+            {
+                auto error = para{ ansi::bgc(reddk).fgc(whitelt).add("\nterm: exit code ", code, " ") };
+                canvas.cup(dot_00);
+                canvas.output(error);
+            }
+            else
+            {
+                log("term: submit for destruction on next frame/tick");
+                SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
+                {
+                    auto backup = This();
+                    this->base::riseup<tier::release>(e2::form::quit, backup);
+                    oneoff.reset();
+                };
+            }
+        }
+
+    public:
+        // dtvt: Start a new process.
+        void start()
+        {
+            static auto unique = decltype(e2::timer::tick)::type{}; // Eliminate concurrent start actions.
+
+            if (!ptycon && !oneoff)
+            {
+                SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)
+                {
+                    if (unique != timer)
+                    {
+                        auto initsz = canvas.size();
+
+                        ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                     [&](auto exit_reason) { onexit(exit_reason); } );
+                        unique = timer;
+                        oneoff.reset();
+                    }
+                };
+            }
+        }
+       ~dtvt(){ active = faux; }
+        dtvt(text command_line)
+            : active{  true }
+        {
+            cmdarg = command_line;
+            form::keybd.accept(true); // Subscribe on keybd offers.
+            //SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+            //{
+            //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
+            //};
+
+            SUBMIT(tier::release, e2::coor::set, new_coor)
+            {
+                canvas.move(new_coor);
+            };
+            SUBMIT(tier::release, e2::size::set, new_size)
+            {
+                new_size = std::max(new_size, dot_11);
+                canvas.crop(new_size);
+                ptycon.resize(new_size);
+            };
+            SUBMIT(tier::release, hids::events::keybd::any, gear)
+            {
+                this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
+
+                #ifndef PROD
+                    return;
+                #endif
+
+                auto data = gear.keystrokes;
+                ptycon.write(data);
+
+                #ifdef KEYLOG
+                    std::stringstream d;
+                    view v = gear.keystrokes;
+                    log("key strokes raw: ", utf::debase(v));
+                    while (v.size())
+                    {
+                        d << (int)v.front() << " ";
+                        v.remove_prefix(1);
+                    }
+                    log("key strokes bin: ", d.str());
+                #endif
+            };
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                auto view = parent_canvas.view();
+                auto full = parent_canvas.full();
+                auto base = full.coor - view.coor;
+                canvas.move(base);
+                parent_canvas.fill(canvas, cell::shaders::full);
             };
         }
     };

@@ -472,6 +472,8 @@ namespace netxs::console
 {
     using e2 = netxs::events::userland::e2;
 
+    static constexpr auto max_value = twod{ 2000, 1000 }; //todo unify
+
     //todo OMG!, make it in another way.
     class skin
     {
@@ -3448,7 +3450,6 @@ namespace netxs::console
             : public skill
         {
             static constexpr auto min_value = dot_00;
-            static constexpr auto max_value = twod{ 2000, 1000 }; //todo unify
             using skill::boss,
                   skill::memo;
             struct lims_t

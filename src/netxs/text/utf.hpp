@@ -257,7 +257,7 @@ namespace netxs::utf
     template<bool EGC = true, class S, class Y>
     void decode(S serve, Y yield, view utf8)
     {
-        if (auto code = cpit { utf8 })
+        if (auto code = cpit{ utf8 })
         {
             auto next = code.take();
             do

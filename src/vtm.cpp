@@ -45,6 +45,8 @@ enum class type
 
 int main(int argc, char* argv[])
 {
+    auto vtmode = os::vt_mode();
+
     auto syslog = logger([](auto data) { os::syslog(data); });
     auto banner = [&]() { log(MONOTTY_VER); };
     auto whoami = type::client;
@@ -148,7 +150,7 @@ int main(int argc, char* argv[])
         auto userid = os::user();
         auto usernm = os::get_env("USER");
         auto hostip = os::get_env("SSH_CLIENT");
-        auto legacy = os::legacy_mode();
+        auto vtmode = os::vt_mode();
         auto prefix = utf::concat(MONOTTY_PREFIX, userid);
         auto server = os::ipc::open<os::server>(prefix);
         if (!server)
@@ -220,7 +222,7 @@ int main(int argc, char* argv[])
             auto userid = os::user();
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
-            auto legacy = os::legacy_mode();
+            auto vtmode = os::vt_mode();
             auto prefix = utf::concat(MONOTTY_PREFIX, userid);
             auto client = os::ipc::open<os::client>(prefix, 10s, [&]()
                         {
@@ -238,10 +240,10 @@ int main(int argc, char* argv[])
                                      hostip, ";",
                                      usernm, ";",
                                      userid, ";",
-                                     legacy, ";"));
+                                     vtmode, ";"));
             auto cons = os::tty::proxy(client);
-            auto size = cons.ignite();
-            if (size.last) splice(cons, legacy);
+            auto size = cons.ignite(vtmode);
+            if (size.last) splice(cons, vtmode);
         }
         else if (whoami == type::runapp)
         {
@@ -259,39 +261,68 @@ int main(int argc, char* argv[])
             }
 
             skin::setup(tone::brighter, 0);
+            auto config = console::conf(vtmode);
 
-            auto tunnel = os::ipc::local();
-            auto legacy = os::legacy_mode();
-            auto config = console::conf(legacy);
-
-            os::start_log("vtm"); // Redirect logs.
-
-            auto cons = os::tty::proxy(tunnel.second);
-            auto size = cons.ignite();
-            if (!size.last)
+            if (vtmode & os::legacy::direct)
             {
-                log("main: console initialization error");
-                return 1;
+                std::this_thread::sleep_for(15s);
+                auto tunnel = os::ipc::local(vtmode);
+
+                os::start_log("vtm"); // Redirect logs.
+
+                auto cons = os::tty::proxy(tunnel.second);
+                auto size = cons.ignite(vtmode);
+                if (!size.last)
+                {
+                    log("main: console initialization error");
+                    return 1;
+                }
+
+                auto ground = base::create<host>(tunnel.first, maxfps);
+
+                {
+                    auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
+                    auto window = ground->invite<gate>(true);
+                    applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
+                    window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
+                    window->resize(size);
+                    window->launch(tunnel.first, config, applet);
+                }
+                ground->shutdown();
             }
-
-            auto ground = base::create<host>(tunnel.first, maxfps);
-            auto thread = std::thread{[&]()
+            else
             {
-                splice(cons, legacy);
-            }};
+                auto tunnel = os::ipc::local(vtmode);
 
-            {
-                auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
-                auto window = ground->invite<gate>(true);
-                applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
-                window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
-                window->resize(size);
-                window->launch(tunnel.first, config, applet);
+                os::start_log("vtm"); // Redirect logs.
+
+                auto cons = os::tty::proxy(tunnel.second);
+                auto size = cons.ignite(vtmode);
+                if (!size.last)
+                {
+                    log("main: console initialization error");
+                    return 1;
+                }
+
+                auto ground = base::create<host>(tunnel.first, maxfps);
+                auto thread = std::thread{[&]()
+                {
+                    splice(cons, vtmode);
+                }};
+
+                {
+                    auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
+                    auto window = ground->invite<gate>(true);
+                    applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
+                    window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
+                    window->resize(size);
+                    window->launch(tunnel.first, config, applet);
+                }
+                ground->shutdown();
+
+                if (thread.joinable())
+                    thread.join();
             }
-            ground->shutdown();
-
-            if (thread.joinable())
-                thread.join();
         }
     }
 }

@@ -909,6 +909,21 @@ namespace netxs::app::shared
                     };
                 });
         };
+        auto build_Direct        = [](view v)
+        {
+            if (v.empty()) throw;
+            auto object = ui::cake::ctor();
+            auto direct = ui::dtvt::ctor(text{ v })
+                ->invoke([](auto& boss)
+                {
+                    boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                    {
+                        boss.start();
+                    };
+                });
+            object->attach(direct);
+            return object;
+        };
 
         app::shared::initialize builder_Strobe       { "Strobe"       , build_Strobe        };
         app::shared::initialize builder_Settings     { "Settings"     , build_Settings      };
@@ -921,6 +936,7 @@ namespace netxs::app::shared
         app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
         app::shared::initialize builder_HeadlessTerm { "HeadlessTerm" , build_HeadlessTerm  };
         app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
+        app::shared::initialize builder_Direct       { "Direct"       , build_Direct        };
     }
 
     auto init_app_registry = [](auto& world)

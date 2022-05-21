@@ -102,6 +102,7 @@ namespace netxs::os
 
     enum role { client, server };
 
+    static constexpr auto direct_vt = char{ '\xff' };
     static constexpr si32 STDIN_BUF = 1024;
     static bool is_daemon = faux;
 
@@ -147,27 +148,6 @@ namespace netxs::os
 
     #endif
 
-    struct legacy
-    {
-        static constexpr auto clean  = 0;
-        static constexpr auto mouse  = 1 << 0;
-        static constexpr auto vga16  = 1 << 1;
-        static constexpr auto vga256 = 1 << 2;
-        template<class T>
-        static auto str(T mode)
-        {
-            auto result = text{};
-            if (mode)
-            {
-                if (mode & mouse ) result += "mouse ";
-                if (mode & vga16 ) result += "vga16 ";
-                if (mode & vga256) result += "vga256 ";
-                if (result.size()) result.pop_back();
-            }
-            else result = "fresh";
-            return result;
-        }
-    };
     struct args
     {
         int    argc;
@@ -342,6 +322,272 @@ namespace netxs::os
         }
         else return true;
     }
+
+    template<class SIZE_T>
+    auto recv(fd_t fd, char* buff, SIZE_T size)
+    {
+        #if defined(_WIN32)
+
+            auto count = DWORD{};
+            auto fSuccess = ::ReadFile( fd,       // pipe handle
+                                        buff,     // buffer to receive reply
+                                (DWORD) size,     // size of buffer
+                                       &count,    // number of bytes read
+                                        nullptr); // not overlapped
+            if (!fSuccess) count = 0;
+
+        #else
+
+            auto count = ::read(fd, buff, size);
+
+        #endif
+
+        return count > 0 ? qiew{ buff, count }
+                         : qiew{};
+    }
+    template<bool IS_TTY = true, class SIZE_T>
+    auto send(fd_t fd, char const* buff, SIZE_T size)
+    {
+        while (size)
+        {
+            #if defined(_WIN32)
+
+                auto count = DWORD{};
+                auto fSuccess = ::WriteFile( fd,       // pipe handle
+                                             buff,     // message
+                                     (DWORD) size,     // message length
+                                            &count,    // bytes written
+                                             nullptr); // not overlapped
+
+            #else
+                // Mac OS X does not support the flag MSG_NOSIGNAL
+                // See GH#182, https://lists.apple.com/archives/macnetworkprog/2002/Dec/msg00091.html
+                 #if defined(__APPLE__)
+                    #define NO_SIGSEND SO_NOSIGPIPE
+                #else
+                    #define NO_SIGSEND MSG_NOSIGNAL
+                #endif
+                auto count = IS_TTY ? ::write(fd, buff, size)
+                                    : ::send (fd, buff, size, NO_SIGSEND); // not work with open_pty
+                                                                           // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
+                #undef NO_SIGSEND
+                //  send(2) does not work with file descriptors, only sockets.
+                // write(2) works with fds as well as sockets.
+
+            #endif
+
+            if (count != size)
+            {
+                if (count > 0)
+                {
+                    log("send: partial writing: socket=", fd,
+                        " total=", size, ", written=", count);
+                    buff += count;
+                    size -= count;
+                }
+                else
+                {
+                    os::fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                    return faux;
+                }
+            }
+            else return true;
+        }
+        return faux;
+    }
+    template<bool IS_TTY = true, class T, class SIZE_T>
+    auto send(fd_t fd, T* buff, SIZE_T size)
+    {
+        return os::send<IS_TTY, SIZE_T>(fd, (char const*)buff, size);
+    }
+    template<class ...Args>
+    auto recv(file& handle, Args&&... args)
+    {
+        return recv(handle.get_r(), std::forward<Args>(args)...);
+    }
+    template<class ...Args>
+    auto send(file& handle, Args&&... args)
+    {
+        return send(handle.get_w(), std::forward<Args>(args)...);
+    }
+
+    namespace
+    {
+        #if defined(_WIN32)
+
+            template<class A, std::size_t... I>
+            constexpr auto _repack(fd_t h, A const& a, std::index_sequence<I...>)
+            {
+                return std::array{ h, a[I]... };
+            }
+            template<std::size_t N, class P, class IDX = std::make_index_sequence<N>, class ...Args>
+            constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
+            {   // Clang 11.0.1 don't allow sizeof...(args) as bool
+                if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, IDX{}), std::forward<Args>(args)...);
+                else                             return _repack(h, a, IDX{});
+            }
+            template<class P, class ...Args>
+            constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
+            {
+                if constexpr (!!sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
+                else                             return std::array{ handle };
+            }
+            template<class R, class P, class ...Args>
+            constexpr auto _handle(R& i, fd_t handle, P&& proc, Args&&... args)
+            {
+                if (i-- == 0)
+                {
+                    proc();
+                    return true;
+                }
+                else
+                {
+                    if constexpr (!!sizeof...(args)) return _handle(i, std::forward<Args>(args)...);
+                    else                             return faux;
+                }
+            }
+
+        #else
+            
+            template<class P, class ...Args>
+            auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+            {
+                FD_SET(handle, &socks);
+                if constexpr (!!sizeof...(args))
+                {
+                    return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
+                }
+                else
+                {
+                    return handle;
+                }
+            }
+            template<class P, class ...Args>
+            auto _select(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+            {
+                if (FD_ISSET(handle, &socks))
+                {
+                    proc();
+                }
+                else
+                {
+                    if constexpr (!!sizeof...(args)) _select(socks, std::forward<Args>(args)...);
+                }
+            }
+
+        #endif
+    }
+
+    template<bool NONBLOCKED = faux, class ...Args>
+    void select(Args&&... args)
+    {
+        #if defined(_WIN32)
+
+            static constexpr auto timeout = NONBLOCKED ? 1 /*millisecond*/ : INFINITE;
+            auto socks = _fd_set(std::forward<Args>(args)...);
+            auto yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeout);
+                 yield -= WAIT_OBJECT_0;
+            _handle(yield, std::forward<Args>(args)...);
+
+        #else
+
+            auto timeval = ::timeval{ .tv_sec = 10, .tv_usec = 1 };
+            auto timeout = NONBLOCKED ? &timeval/*returns immediately*/ : nullptr;
+            auto socks = fd_set{};
+            FD_ZERO(&socks);
+
+            auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
+            if (::select(nfds, &socks, 0, 0, timeout) > 0)
+            {
+                _select(socks, std::forward<Args>(args)...);
+            }
+
+        #endif
+    }
+
+    struct legacy
+    {
+        static constexpr auto clean  = 0;
+        static constexpr auto mouse  = 1 << 0;
+        static constexpr auto vga16  = 1 << 1;
+        static constexpr auto vga256 = 1 << 2;
+        static constexpr auto direct = 1 << 3;
+        template<class T>
+        static auto str(T mode)
+        {
+            auto result = text{};
+            if (mode)
+            {
+                if (mode & mouse ) result += "mouse ";
+                if (mode & vga16 ) result += "vga16 ";
+                if (mode & vga256) result += "vga256 ";
+                if (mode & direct) result += "direct ";
+                if (result.size()) result.pop_back();
+            }
+            else result = "fresh";
+            return result;
+        }
+        static void send_dmd(fd_t m_pipe_w, twod const& winsz)
+        {
+            auto marker_ff = direct_vt;
+            os::send(m_pipe_w, &marker_ff, sizeof(marker_ff));
+            os::send(m_pipe_w, &winsz, sizeof(winsz));
+            os::send(m_pipe_w, &--marker_ff, sizeof(marker_ff));
+        }
+        static auto peek_dmd(fd_t stdin_fd)
+        {
+            #if defined (__linux__)
+                char c = 0;
+                int u = 0;
+                auto m = ::fcntl(stdin_fd, F_GETFL);
+                ::fcntl(stdin_fd, F_SETFL, m | O_NONBLOCK);
+                        auto state = ::termios{};
+                        if (ok(::tcgetattr(stdin_fd, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
+                        {
+                            auto raw_mode = state;
+                            ::cfmakeraw(&raw_mode);
+                            ok(::tcsetattr(stdin_fd, TCSANOW, &raw_mode), "tcsetattr(STDIN_FD, TCSANOW) failed");
+                        }
+                u = ::read(stdin_fd, &c, sizeof(c));
+                        if (ok(::tcsetattr(stdin_fd, TCSANOW, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
+                ::fcntl(stdin_fd, F_SETFL, m);
+                log("mark ", (int)c, " u=", (int)u);
+            #else
+                //os::select<true>(STDIN_FD, [&]() { os::recv(STDIN_FD, &c, sizeof(c)); log("recv ok"); });
+                    //std::this_thread::sleep_for(15s);
+                auto buffer = std::array<char, 10>{};
+                auto BytesRead = DWORD{ 0 };
+                if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
+                                    &buffer,        // lpBuffer
+                                    sizeof(buffer), // nBufferSize
+                                    &BytesRead,     // lpBytesRead
+                                    NULL,           // lpTotalBytesAvail,
+                                    NULL))          // lpBytesLeftThisMessage
+                {
+                    std::this_thread::sleep_for(15s);
+                    if (buffer[0] == direct_vt
+                     && buffer[9] == direct_vt - 1)
+                    {
+                        auto size = *reinterpret_cast<twod const*>(buffer.data() + 1);
+                        log("  os: DirectVT detected, winsize: ", size);
+                        return true;
+                    }
+                }
+            #endif
+            return faux;
+        }
+        static void read_dmd(fd_t m_pipe_r, twod& winsz)
+        {
+            char marker_ff;
+            char marker_fe;
+            auto winsz_ptr = reinterpret_cast<char*>(&winsz);
+            os::recv(m_pipe_r, &marker_ff, sizeof(marker_ff));
+            os::recv(m_pipe_r,  winsz_ptr, sizeof(winsz));
+            os::recv(m_pipe_r, &marker_fe, sizeof(marker_fe));
+            assert(marker_ff == direct_vt && marker_fe == direct_vt - 1);
+        }
+    };
+
     static void exit(int code)
     {
         #if defined(_WIN32)
@@ -393,18 +639,18 @@ namespace netxs::os
     //system: Get list of envvars using wildcard.
     static auto get_envars(text&& var)
     {
-        std::vector<text> yield;
-        char **list = environ;
+        auto crop = std::vector<text>{};
+        auto list = environ;
         while (*list)
         {
             auto v = view{ *list++ };
             if (v.starts_with(var))
             {
-                yield.emplace_back(v);
+                crop.emplace_back(v);
             }
         }
-        std::sort(yield.begin(), yield.end());
-        return yield;
+        std::sort(crop.begin(), crop.end());
+        return crop;
     }
     static auto local_mode()
     {
@@ -425,7 +671,7 @@ namespace netxs::os
 
         return conmode != -1;
     }
-    static auto legacy_mode()
+    static auto vt_mode()
     {
         auto vga16colors = { // https://github.com//termstandard/colors
             "ansi",
@@ -438,6 +684,13 @@ namespace netxs::os
             "rxvt-unicode-256color",
         };
         si32 mode = legacy::clean;
+
+        if (os::legacy::peek_dmd(STDIN_FD))
+        {
+            log("  os: DirectVT");
+            mode |= legacy::direct;
+        }
+
         auto term = os::get_env("TERM");
         if (term.size())
         {
@@ -1385,7 +1638,7 @@ namespace netxs::os
         auto name = path.substr(prefix.size());
         auto what = prefix + '*';
         auto hndl = ::FindFirstFileA(what.c_str(), &next);
-        if (hndl != INVALID_HANDLE_VALUE)
+        if (hndl != INVALID_FD)
         {
             do hits = next.cFileName == name;
             while (!hits && ::FindNextFileA(hndl, &next));
@@ -1397,89 +1650,6 @@ namespace netxs::os
     }
 
     #endif  // Windows specific
-
-    template<class SIZE_T>
-    auto recv(fd_t fd, char* buff, SIZE_T size)
-    {
-        #if defined(_WIN32)
-
-            auto count = DWORD{};
-            auto fSuccess = ::ReadFile( fd,       // pipe handle
-                                        buff,     // buffer to receive reply
-                                (DWORD) size,     // size of buffer
-                                       &count,    // number of bytes read
-                                        nullptr); // not overlapped
-            if (!fSuccess) count = 0;
-
-        #else
-
-            auto count = ::read(fd, buff, size);
-
-        #endif
-
-        return count > 0 ? qiew{ buff, count }
-                         : qiew{};
-    }
-    template<bool IS_TTY = true, class SIZE_T>
-    auto send(fd_t fd, char const* buff, SIZE_T size)
-    {
-        while (size)
-        {
-            #if defined(_WIN32)
-
-                auto count = DWORD{};
-                auto fSuccess = ::WriteFile( fd,       // pipe handle
-                                             buff,     // message
-                                     (DWORD) size,     // message length
-                                            &count,    // bytes written
-                                             nullptr); // not overlapped
-
-            #else
-                // Mac OS X does not support the flag MSG_NOSIGNAL
-                // See GH#182, https://lists.apple.com/archives/macnetworkprog/2002/Dec/msg00091.html
-                 #if defined(__APPLE__)
-                    #define NO_SIGSEND SO_NOSIGPIPE
-                #else
-                    #define NO_SIGSEND MSG_NOSIGNAL
-                #endif
-                auto count = IS_TTY ? ::write(fd, buff, size)
-                                    : ::send (fd, buff, size, NO_SIGSEND); // not work with open_pty
-                                                                           // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
-                #undef NO_SIGSEND
-                //  send(2) does not work with file descriptors, only sockets.
-                // write(2) works with fds as well as sockets.
-
-            #endif
-
-            if (count != size)
-            {
-                if (count > 0)
-                {
-                    log("send: partial writing: socket=", fd,
-                        " total=", size, ", written=", count);
-                    buff += count;
-                    size -= count;
-                }
-                else
-                {
-                    os::fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
-                    return faux;
-                }
-            }
-            else return true;
-        }
-        return faux;
-    }
-    template<class ...Args>
-    auto recv(file& handle, Args&&... args)
-    {
-        return recv(handle.get_r(), std::forward<Args>(args)...);
-    }
-    template<class ...Args>
-    auto send(file& handle, Args&&... args)
-    {
-        return send(handle.get_w(), std::forward<Args>(args)...);
-    }
 
     class fire
     {
@@ -1562,97 +1732,98 @@ namespace netxs::os
             log(" tty: palette restored");
         }
     }
-    
-    namespace
+
+    class pool
     {
-        #if defined(_WIN32)
+        struct item
+        {
+            bool        state;
+            std::thread guest;
+        };
 
-            template<class A, std::size_t... I>
-            constexpr auto _repack(fd_t h, A const& a, std::index_sequence<I...>)
-            {
-                return std::array{ h, a[I]... };
-            }
-            template<std::size_t N, class P, class IDX = std::make_index_sequence<N>, class ...Args>
-            constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
-            {   // Clang 11.0.1 don't allow sizeof...(args) as bool
-                if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, IDX{}), std::forward<Args>(args)...);
-                else                             return _repack(h, a, IDX{});
-            }
-            template<class P, class ...Args>
-            constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
-            {
-                if constexpr (!!sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
-                else                             return std::array{ handle };
-            }
-            template<class R, class P, class ...Args>
-            constexpr auto _handle(R& i, fd_t handle, P&& proc, Args&&... args)
-            {
-                if (i-- == 0)
-                {
-                    proc();
-                    return true;
-                }
-                else
-                {
-                    if constexpr (!!sizeof...(args)) return _handle(i, std::forward<Args>(args)...);
-                    else                             return faux;
-                }
-            }
+        std::recursive_mutex            mutex;
+        std::condition_variable_any     synch;
+        std::map<std::thread::id, item> index;
+        si32                            count;
+        bool                            alive;
+        std::thread                     agent;
 
-        #else
-            
-            template<class P, class ...Args>
-            auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+        void worker()
+        {
+            auto guard = std::unique_lock{ mutex };
+            log("pool: session control started");
+
+            while (alive)
             {
-                FD_SET(handle, &socks);
-                if constexpr (!!sizeof...(args))
+                synch.wait(guard);
+                for (auto it = index.begin(); it != index.end();)
                 {
-                    return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
-                }
-                else
-                {
-                    return handle;
+                    auto& [sid, session] = *it;
+                    auto& [state, guest] = session;
+                    if (state == faux || !alive)
+                    {
+                        if (guest.joinable())
+                        {
+                            guard.unlock();
+                            guest.join();
+                            guard.lock();
+                            log("pool: id: ", sid, " session joined");
+                        }
+                        it = index.erase(it);
+                    }
+                    else ++it;
                 }
             }
-            template<class P, class ...Args>
-            auto _select(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+        }
+        void checkout()
+        {
+            auto guard = std::lock_guard{ mutex };
+            auto session_id = std::this_thread::get_id();
+            index[session_id].state = faux;
+            synch.notify_one();
+            log("pool: id: ", session_id, " session deleted");
+        }
+
+    public:
+        template<class PROC>
+        void run(PROC process)
+        {
+            auto guard = std::lock_guard{ mutex };
+            auto next_id = count++;
+            auto session = std::thread([&, process, next_id]()
             {
-                if (FD_ISSET(handle, &socks))
-                {
-                    proc();
-                }
-                else
-                {
-                    if constexpr (!!sizeof...(args)) _select(socks, std::forward<Args>(args)...);
-                }
-            }
+                process(next_id);
+                checkout();
+            });
+            auto session_id = session.get_id();
+            index[session_id] = { true, std::move(session) };
+            log("pool: id: ", session_id, " session created");
+        }
+        auto size()
+        {
+            return index.size();
+        }
 
-        #endif
-    }
+        pool()
+            : count{ 0    },
+              alive{ true },
+              agent{ [&]() { worker(); }}
+        { }
+        ~pool()
+        {
+            mutex.lock();
+            alive = faux;
+            synch.notify_one();
+            mutex.unlock();
 
-    template<class ...Args>
-    void select(Args&&... args)
-    {
-        #if defined(_WIN32)
-
-            auto socks = _fd_set(std::forward<Args>(args)...);
-            auto yield = ::WaitForMultipleObjects(socks.size(), socks.data(), FALSE, INFINITE);
-                 yield -= WAIT_OBJECT_0;
-            _handle(yield, std::forward<Args>(args)...);
-
-        #else
-
-            auto socks = fd_set{};
-            FD_ZERO(&socks);
-
-            auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
-            if (::select(nfds, &socks, 0, 0, 0) > 0)
+            if (agent.joinable())
             {
-                _select(socks, std::forward<Args>(args)...);
+                log("pool: joining agent");
+                agent.join();
             }
-
-        #endif
-    }
+            log("pool: session control ended");
+        }
+    };
 
     class ipc_base
     {
@@ -2243,13 +2414,22 @@ namespace netxs::os
             return sock_ptr;
         }
 
-        static auto local()
+        static auto local(si32 vtmode) -> std::pair<sptr<ipc_base>, sptr<ipc_base>>
         {
-            auto squeue = std::make_shared<fifo>();
-            auto cqueue = std::make_shared<fifo>();
-            auto server = std::make_shared<ipc_local<os::server>>(squeue, cqueue);
-            auto client = std::make_shared<ipc_local<os::client>>(squeue, cqueue);
-            return std::make_pair( server, client );
+            if (vtmode & os::legacy::direct)
+            {
+                auto server = std::make_shared<ipc>(file{ STDIN_FD, STDOUT_FD }, faux);
+                auto client = server;
+                return std::make_pair( server, client );
+            }
+            else
+            {
+                auto squeue = std::make_shared<fifo>();
+                auto cqueue = std::make_shared<fifo>();
+                auto server = std::make_shared<ipc_local<os::server>>(squeue, cqueue);
+                auto client = std::make_shared<ipc_local<os::client>>(squeue, cqueue);
+                return std::make_pair( server, client );
+            }
         }
 
         flux& show(flux& s) const override
@@ -2703,8 +2883,15 @@ namespace netxs::os
         {
             return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
-        auto ignite()
+        auto ignite(si32 vtmode)
         {
+            if (vtmode & os::legacy::direct)
+            {
+                auto& winsz = _globals<void>::winsz;
+                os::legacy::read_dmd(STDIN_FD, winsz);
+                return winsz;
+            }
+
             auto& sig_hndl = _globals<void>::signal_handler;
 
             #if defined(_WIN32)
@@ -2809,8 +2996,8 @@ namespace netxs::os
             HPCON  hPC      { INVALID_FD };
             HANDLE hProcess { INVALID_FD };
             HANDLE hThread  { INVALID_FD };
-            HANDLE gameover { INVALID_FD };
-            std::thread client_exit_waiter;
+            HANDLE gameover { INVALID_FD }; // ConPTY do not close pipe handles when client process exits,
+            std::thread client_exit_waiter; // so we need to catch the process ending.
 
         #else
 
@@ -2875,17 +3062,17 @@ namespace netxs::os
                     //static constexpr auto PSEUDOCONSOLE_RESIZE_QUIRK     = 2u;
                     //static constexpr auto PSEUDOCONSOLE_WIN32_INPUT_MODE = 4u;
                     //static constexpr auto PSEUDOCONSOLE_PASSTHROUGH_MODE = 8u;
-                    HRESULT err_code{ E_UNEXPECTED };
-                    HANDLE  s_pipe_r{ INVALID_HANDLE_VALUE };
-                    HANDLE  s_pipe_w{ INVALID_HANDLE_VALUE };
-                    DWORD    dwFlags = 0;
+                    auto err_code = HRESULT{ E_UNEXPECTED };
+                    auto s_pipe_r = HANDLE{ INVALID_FD };
+                    auto s_pipe_w = HANDLE{ INVALID_FD };
+                    auto dwFlags = DWORD{ 0 };
                                     // | PSEUDOCONSOLE_WIN32_INPUT_MODE
                                     // | PSEUDOCONSOLE_PASSTHROUGH_MODE;
 
                     if (::CreatePipe(&m_pipe_r, &s_pipe_w, nullptr, 0) &&
                         ::CreatePipe(&s_pipe_r, &m_pipe_w, nullptr, 0))
                     {
-                        COORD consz;
+                        auto consz = COORD{};
                         consz.X = winsz.x;
                         consz.Y = winsz.y;
                         err_code = ::CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, dwFlags, &hPC);
@@ -2898,7 +3085,7 @@ namespace netxs::os
                 };
                 auto fillup = [](HPCON hPC, auto& attrs_buff, auto& lpAttributeList)
                 {
-                    SIZE_T attr_size = 0;
+                    auto attr_size = SIZE_T{ 0 };
                     ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
                     attrs_buff.resize(attr_size);
                     lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrs_buff.data());
@@ -2917,11 +3104,11 @@ namespace netxs::os
                     else return faux;
                 };
 
-                HANDLE m_pipe_r{ INVALID_HANDLE_VALUE };
-                HANDLE m_pipe_w{ INVALID_HANDLE_VALUE };
-                STARTUPINFOEX        start_info{ sizeof(STARTUPINFOEX) };
-                PROCESS_INFORMATION  procs_info{};
-                std::vector<uint8_t> attrs_buff;
+                auto m_pipe_r = HANDLE{ INVALID_FD };
+                auto m_pipe_w = HANDLE{ INVALID_FD };
+                auto start_info = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
+                auto procs_info = PROCESS_INFORMATION{};
+                auto attrs_buff = std::vector<uint8_t>{};
 
                 if (   create(hPC, winsz, m_pipe_r, m_pipe_w)
                     && fillup(hPC, attrs_buff, start_info.lpAttributeList)
@@ -2942,15 +3129,12 @@ namespace netxs::os
                                               FALSE,  // auto-reset
                                               FALSE,  // initial state
                                               NULL);
-                    client_exit_waiter = std::thread([&]
+                    client_exit_waiter = std::thread([&] // ConPTY do not catch the process ending. Or write-handle leaks on ConPTY side.
                     {
-                        HANDLE signals[] = { hProcess, gameover };
-                        if (WAIT_OBJECT_0 != ::WaitForMultipleObjects(2, signals, FALSE, INFINITE))
-                        {
-                            log("xpty: child process waiter aborted");
-                        }
-                        else log("xpty: child process terminated");
+                        os::select(hProcess, [](){ log("xpty: child process terminated itself"); },
+                                   gameover, [](){ log("xpty: child process will be terminated forcibly"); });
                         ::CloseHandle(gameover);
+                        gameover = INVALID_FD;
                         if (termlink)
                         {
                             auto exit_code = wait_child();
@@ -3022,32 +3206,51 @@ namespace netxs::os
             stdinput = std::thread([&] { read_socket_thread(); });
             stdwrite = std::thread([&] { send_socket_thread(); });
 
-            writesyn.notify_one();
+            writesyn.notify_one(); // Flush temp buffer.
         }
 
         si32 wait_child()
         {
-            si32 exit_code = {};
+            auto exit_code = si32{};
             log("xpty: wait child process, tty=", termlink);
             termlink.stop();
 
             #if defined(_WIN32)
 
                 ::ClosePseudoConsole(hPC);
-                DWORD code = 0;
-                if (::GetExitCodeProcess(hProcess, &code) == FALSE) log("xpty: GetExitCodeProcess() return code: ", ::GetLastError());
-                else if (code == STILL_ACTIVE)                      log("xpty: child process still running");
-                else                                                log("xpty: child process exit code ", code);
+                auto code = DWORD{ 0 };
+                if (::GetExitCodeProcess(hProcess, &code) == FALSE)
+                {
+                    log("xpty: GetExitCodeProcess() return code: ", ::GetLastError());
+                }
+                else if (code == STILL_ACTIVE)
+                {
+                    log("xpty: child process still running");
+                    ::TerminateProcess(hProcess, 0);
+                    code = 0;
+                }
+                else log("xpty: child process exit code ", code);
                 exit_code = code;
-                ::SetEvent(gameover);
-                ::CloseHandle(hProcess);
-                ::CloseHandle(hThread);
+                if (gameover != INVALID_FD)
+                {
+                    ::SetEvent(gameover);
+                }
+                if (hProcess != INVALID_FD)
+                {
+                    ::CloseHandle(hProcess);
+                    hProcess = INVALID_FD;
+                }
+                if (hThread != INVALID_FD)
+                {
+                    ::CloseHandle(hThread);
+                    hThread = INVALID_FD;
+                }
 
             #else
 
             if (pid != 0)
             {
-                int status;
+                auto status = int{};
                 ok(::kill(pid, SIGKILL), "kill(pid, SIGKILL) failed");
                 ok(::waitpid(pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                 if (WIFEXITED(status))
@@ -3069,7 +3272,7 @@ namespace netxs::os
         void read_socket_thread()
         {
             log("xpty: id: ", stdinput.get_id(), " reading thread started");
-            text flow;
+            auto flow = text{};
             while (termlink)
             {
                 auto shot = termlink.recv();
@@ -3093,7 +3296,7 @@ namespace netxs::os
         {
             log("xpty: id: ", stdwrite.get_id(), " writing thread started");
             auto guard = std::unique_lock{ writemtx };
-            text cache;
+            auto cache = text{};
             while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
             {
                 std::swap(cache, writebuf);
@@ -3112,7 +3315,7 @@ namespace netxs::os
             {
                 #if defined(_WIN32)
 
-                    COORD winsz;
+                    auto winsz = COORD{};
                     winsz.X = newsize.x;
                     winsz.Y = newsize.y;
                     auto hr = ::ResizePseudoConsole(hPC, winsz);
@@ -3136,97 +3339,340 @@ namespace netxs::os
         }
     };
 
-    class pool
+    namespace direct
     {
-        struct item
+        class pty
         {
-            bool        state;
-            std::thread guest;
-        };
-
-        std::recursive_mutex            mutex;
-        std::condition_variable_any     synch;
-        std::map<std::thread::id, item> index;
-        si32                            count;
-        bool                            alive;
-        std::thread                     agent;
-
-        void worker()
-        {
-            auto guard = std::unique_lock{ mutex };
-            log("pool: session control started");
-
-            while (alive)
+            struct ipc_pty
+                : public ipc
             {
-                synch.wait(guard);
-                for (auto it = index.begin(); it != index.end();)
+                void stop() override
                 {
-                    auto& [sid, session] = *it;
-                    auto& [state, guest] = session;
-                    if (state == faux || !alive)
+                    active = faux;
+                }
+            };
+
+            #if defined(_WIN32)
+
+                HANDLE hProcess { INVALID_FD };
+                HANDLE hThread  { INVALID_FD };
+
+            #else
+
+                pid_t pid = 0;
+
+            #endif
+
+            ipc_pty                   termlink{};
+            testy<twod>               termsize{};
+            std::thread               stdinput{};
+            std::thread               stdwrite{};
+            std::function<void(view)> receiver{};
+            std::function<void(si32)> shutdown{};
+            text                      writebuf{};
+            std::mutex                writemtx{};
+            std::condition_variable   writesyn{};
+
+        public:
+            ~pty()
+            {
+                log("dtvt: dtor started");
+                if (termlink) wait_child();
+                if (stdwrite.joinable())
+                {
+                    writesyn.notify_one();
+                    log("dtvt: id: ", stdwrite.get_id(), " writing thread joining");
+                    stdwrite.join();
+                }
+                if (stdinput.joinable())
+                {
+                    log("dtvt: id: ", stdinput.get_id(), " reading thread joining");
+                    stdinput.join();
+                }
+                log("dtvt: dtor complete");
+            }
+            
+            operator bool () { return termlink; }
+
+            void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
+                                               , std::function<void(si32)> shutdown_hndl)
+            {
+                receiver = input_hndl;
+                shutdown = shutdown_hndl;
+                log("dtvt: new child process: ", cmdline);
+
+                #if defined(_WIN32)
+
+                    termsize(winsz);
+                    auto s_pipe_r = HANDLE{ INVALID_FD };
+                    auto s_pipe_w = HANDLE{ INVALID_FD };
+                    auto m_pipe_r = HANDLE{ INVALID_FD };
+                    auto m_pipe_w = HANDLE{ INVALID_FD };
+                    auto start_info = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
+                    auto procs_info = PROCESS_INFORMATION{};
+                    auto attrs_buff = std::vector<uint8_t>{};
+                    auto attrs_size = SIZE_T{ 0 };
+                    auto stdhandles = std::array<HANDLE, 2>{};
+
+                    auto create = [&]()
                     {
-                        if (guest.joinable())
+                        auto sa = SECURITY_ATTRIBUTES{};
+                        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+                        sa.lpSecurityDescriptor = NULL;
+                        sa.bInheritHandle = TRUE;
+                        if (::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0) &&
+                            ::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0))
                         {
-                            guard.unlock();
-                            guest.join();
-                            guard.lock();
-                            log("pool: id: ", sid, " session joined");
+                            os::legacy::send_dmd(m_pipe_w, winsz);
+
+                            start_info.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+                            start_info.StartupInfo.hStdInput = s_pipe_r;
+                            start_info.StartupInfo.hStdOutput = s_pipe_w;
+                            start_info.StartupInfo.hStdError  = s_pipe_w;
+                            return true;
                         }
-                        it = index.erase(it);
+                        else
+                        {
+                            ::CloseHandle(s_pipe_w);
+                            ::CloseHandle(s_pipe_r);
+                            return faux;
+                        }
+                    };
+                    auto fillup = [&]()
+                    {
+                        stdhandles[0] = s_pipe_r;
+                        stdhandles[1] = s_pipe_w;
+                        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrs_size);
+                        attrs_buff.resize(attrs_size);
+                        start_info.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrs_buff.data());
+
+                        if (::InitializeProcThreadAttributeList(start_info.lpAttributeList, 1, 0, &attrs_size)
+                         && ::UpdateProcThreadAttribute( start_info.lpAttributeList,
+                                                         0,
+                                                         PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                                         &stdhandles,
+                                                         sizeof(stdhandles),
+                                                         nullptr,
+                                                         nullptr))
+                        {
+                            return true;
+                        }
+                        else return faux;
+                    };
+
+                    if ( create()
+                      && fillup()
+                      && ::CreateProcessA( nullptr,                      // lpApplicationName
+                                           cmdline.data(),               // lpCommandLine
+                                           nullptr,                      // lpProcessAttributes
+                                           nullptr,                      // lpThreadAttributes
+                                           TRUE,                         // bInheritHandles
+                                           DETACHED_PROCESS |            // create without attached console, dwCreationFlags
+                                           EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
+                                           nullptr,                      // lpCurrentDirectory
+                                           nullptr,                      // lpEnvironment
+                                           &start_info.StartupInfo,      // lpStartupInfo (ptr to STARTUPINFO)
+                                           &procs_info))                 // lpProcessInformation
+                    {
+                        ::CloseHandle(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
+                        ::CloseHandle(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+
+                        hProcess = procs_info.hProcess;
+                        hThread  = procs_info.hThread;
+                        termlink.set({ m_pipe_r, m_pipe_w }, true);
+                        log("dtvt: conpty created: ", winsz);
                     }
-                    else ++it;
+                    else log("dtvt: child process creation error ", ::GetLastError());
+
+                #else
+
+                    auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
+                    auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
+                    auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
+                    auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
+
+                    termlink.set({ fdm }, true);
+                    //resize(winsz);
+
+                    os::legacy::send_dmd(m_pipe_w, winsz);
+
+                    pid = ::fork();
+                    if (pid == 0) // Child branch.
+                    {
+                        ::close(fdm);
+                        ok(::setsid(), "setsid error"); // Make the current process a new session leader, return process group id.
+
+                        // In order to receive WINCH signal make fds the controlling
+                        // terminal of the current process.
+                        // Current process must be a session leader (::setsid()) and not have
+                        // a controlling terminal already.
+                        // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
+                        ok(::ioctl(fds, TIOCSCTTY, 0), "dtvt: assign controlling terminal error");
+
+                        ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
+                        ::signal(SIGQUIT, SIG_DFL); //
+                        ::signal(SIGTSTP, SIG_DFL); //
+                        ::signal(SIGTTIN, SIG_DFL); //
+                        ::signal(SIGTTOU, SIG_DFL); //
+                        ::signal(SIGCHLD, SIG_DFL); //
+
+                        ::dup2 (fds, STDIN_FILENO);  // Assign stdio lines atomically
+                        ::dup2 (fds, STDOUT_FILENO); // = close(new);
+                        ::dup2 (fds, STDERR_FILENO); // fcntl(old, F_DUPFD, new)
+                        ::close(fds);
+
+                        auto args = os::split_cmdline(cmdline);
+                        auto argv = std::vector<char*>{};
+                        for (auto& c : args)
+                        {
+                            argv.push_back(c.data());
+                        }
+                        argv.push_back(nullptr);
+
+                        ::setenv("TERM", "xterm-256color", 1); //todo too hacky
+                        ok(::execvp(argv.front(), argv.data()), "execvp failed");
+                        os::exit(1, "dtvt: exec error ", errno);
+                    }
+
+                    // Parent branch.
+                    ::close(fds);
+
+                #endif
+
+                stdinput = std::thread([&] { read_socket_thread(); });
+                stdwrite = std::thread([&] { send_socket_thread(); });
+
+                writesyn.notify_one(); // Flush temp buffer.
+            }
+
+            si32 wait_child()
+            {
+                auto exit_code = si32{};
+                log("dtvt: wait child process, tty=", termlink);
+                termlink.stop();
+
+                #if defined(_WIN32)
+
+                    auto code = DWORD{ 0 };
+                    if (::GetExitCodeProcess(hProcess, &code) == FALSE)
+                    {
+                        log("dtvt: GetExitCodeProcess() return code: ", ::GetLastError());
+                    }
+                    else if (code == STILL_ACTIVE)
+                    {
+                        log("dtvt: child process still running");
+                        ::TerminateProcess(hProcess, 0);
+                        code = 0;
+                    }
+                    else log("dtvt: child process exit code ", code);
+                    exit_code = code;
+                    if (hProcess != INVALID_FD)
+                    {
+                        ::CloseHandle(hProcess);
+                        hProcess = INVALID_FD;
+                    }
+                    if (hThread != INVALID_FD)
+                    {
+                        ::CloseHandle(hThread);
+                        hThread = INVALID_FD;
+                    }
+
+                #else
+
+                if (pid != 0)
+                {
+                    int status;
+                    ok(::kill(pid, SIGKILL), "kill(pid, SIGKILL) failed");
+                    ok(::waitpid(pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                    if (WIFEXITED(status))
+                    {
+                        exit_code = WEXITSTATUS(status);
+                        log("dtvt: child process exit code ", exit_code);
+                    }
+                    else
+                    {
+                        exit_code = 0;
+                        log("dtvt: warning: child process exit code not detected");
+                    }
+                }
+
+                #endif
+                log("dtvt: child waiting complete");
+                return exit_code;
+            }
+            void read_socket_thread()
+            {
+                log("dtvt: id: ", stdinput.get_id(), " reading thread started");
+                auto flow = text{};
+                while (termlink)
+                {
+                    auto shot = termlink.recv();
+                    if (shot && termlink)
+                    {
+                        flow += shot;
+                        // Check integrity (DirectVT)
+                        auto size = flow.length();
+                        auto head = flow.data();
+                        auto iter = head;
+                        while (size >= 4)
+                        {
+                            auto step = *reinterpret_cast<ui32*>(iter); // Stored with same endianness.
+                            if (step < 4)
+                            {
+                                log("dtvt: stream corrupted, frame size: ", step);
+                                break;
+                            }
+                            if (size < step) break;
+                            size -= step;
+                            iter += step;
+                        }
+                        auto crop = view(head, iter - head);
+                        //auto crop = view{ flow };
+
+                        receiver(crop);
+                        flow.erase(0, crop.size()); // Delete processed data.
+                    }
+                    else break;
+                }
+                if (termlink)
+                {
+                    auto exit_code = wait_child();
+                    shutdown(exit_code);
+                }
+                log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
+            }
+            void send_socket_thread()
+            {
+                log("dtvt: id: ", stdwrite.get_id(), " writing thread started");
+                auto guard = std::unique_lock{ writemtx };
+                auto cache = text{};
+                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
+                {
+                    std::swap(cache, writebuf);
+                    guard.unlock();
+
+                    if (termlink.send(cache)) cache.clear();
+                    else                      break;
+
+                    guard.lock();
+                }
+                log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");
+            }
+            void resize(twod const& newsize)
+            {
+                if (termlink && termsize(newsize))
+                {
+                    write(ansi::win(newsize));
                 }
             }
-        }
-        void checkout()
-        {
-            auto guard = std::lock_guard{ mutex };
-            auto session_id = std::this_thread::get_id();
-            index[session_id].state = faux;
-            synch.notify_one();
-            log("pool: id: ", session_id, " session deleted");
-        }
-
-    public:
-        template<class PROC>
-        void run(PROC process)
-        {
-            auto guard = std::lock_guard{ mutex };
-            auto next_id = count++;
-            auto session = std::thread([&, process, next_id]()
+            void write(view data)
             {
-                process(next_id);
-                checkout();
-            });
-            auto session_id = session.get_id();
-            index[session_id] = { true, std::move(session) };
-            log("pool: id: ", session_id, " session created");
-        }
-        auto size()
-        {
-            return index.size();
-        }
-
-        pool()
-            : count{ 0    },
-              alive{ true },
-              agent{ [&]() { worker(); }}
-        { }
-        ~pool()
-        {
-            mutex.lock();
-            alive = faux;
-            synch.notify_one();
-            mutex.unlock();
-
-            if (agent.joinable())
-            {
-                log("pool: joining agent");
-                agent.join();
+                auto guard = std::lock_guard{ writemtx };
+                writebuf += data;
+                if (termlink) writesyn.notify_one();
             }
-            log("pool: session control ended");
-        }
-    };
+        };
+    }
 }
 
 #endif // NETXS_SYSTEM_HPP
