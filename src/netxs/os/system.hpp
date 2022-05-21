@@ -3494,7 +3494,7 @@ namespace netxs::os
                     termlink.set({ fdm }, true);
                     //resize(winsz);
 
-                    os::legacy::send_dmd(m_pipe_w, winsz);
+                    os::legacy::send_dmd(fdm, winsz);
 
                     pid = ::fork();
                     if (pid == 0) // Child branch.

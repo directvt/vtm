@@ -269,6 +269,17 @@ namespace netxs::ansi
     static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
     static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
 
+    // DirectVT record types.
+    static const byte DTVT_NGC = 0x00; // Skip grapheme cluster. gc len = 0
+    static const byte DTVT_GCL = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
+    static const byte DTVT_CUP = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
+    static const byte DTVT_BGC = 0x09; // BG rgba color. 4 bytes: rgba
+    static const byte DTVT_FGC = 0x0A; // FG rgba color. 4 bytes: rgba
+    static const byte DTVT_STL = 0x0B; // Grapheme style. token 4 bytes
+    static const byte DTVT_RST = 0x0C; // Wipe canvas. Fill canvas using current brush.
+    static const byte DTVT_JGC = 0x0D; // Jumbo Grapheme Cluster. gc.token + gc.view (send after terminal's request)
+    static const byte DTVT_CMD = 0x64; // Arbitrary vt-command in UTF-8 format.
+
     // ansi: Escaped sequences accumulator.
     class esc
         : public text
@@ -297,74 +308,157 @@ namespace netxs::ansi
             else bake(data);
             auto gain = tail - cptr;
             auto size = text::size();
-            resize(size + gain);
-            memcpy(size + text::data(), cptr, gain);
+            text::resize(size + gain);
+            ::memcpy(size + text::data(), cptr, gain);
         }
 
-        template<class T>
+        template<svga VGAMODE = svga::truecolor, class T>
         inline void fuse(T&& data)
         {
             using D = std::remove_cv_t<std::remove_reference_t<T>>;
-            if constexpr (std::is_same_v<D, char>)
+            if constexpr (VGAMODE == svga::directvt)
             {
-                push_back(data);
+                if constexpr (std::is_same_v<D, char>
+                           || std::is_same_v<D, byte>)
+                {
+                    text::push_back(static_cast<char>(data));
+                }
+                else if constexpr (std::is_integral_v<D>
+                                || std::is_same_v<D, rgba>
+                                || std::is_same_v<D, twod>
+                                || std::is_same_v<D, rect>)
+                {
+                    auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
+                    text::operator+=(v);
+                }
+                else if constexpr (std::is_same_v<D, view>
+                                || std::is_same_v<D, text>)
+                {
+                    text::operator+=(data);
+                }
             }
-            else if constexpr (std::is_integral_v<D>)
+            else
             {
-                itos(data);
+                if constexpr (std::is_same_v<D, char>)
+                {
+                    text::push_back(data);
+                }
+                else if constexpr (std::is_integral_v<D>)
+                {
+                    itos(data);
+                }
+                else if constexpr (std::is_same_v<D, bias>
+                                || std::is_same_v<D, wrap>
+                                || std::is_same_v<D, rtol>
+                                || std::is_same_v<D, feed>)
+                {
+                    itos(static_cast<si32>(data));
+                }
+                else if constexpr (std::is_same_v<D, twod>)
+                {
+                    text::operator+=("{ "); itos(data.x); text::operator+=(", ");
+                                            itos(data.y); text::operator+=(" }");
+                }
+                else if constexpr (std::is_same_v<D, rect>)
+                {
+                    text::operator+=("{"); fuse(data.coor); text::operator+=(",");
+                                           fuse(data.size); text::operator+=("}");
+                }
+                else text::operator+=(std::forward<T>(data));
             }
-            else if constexpr (std::is_same_v<D, bias>
-                            || std::is_same_v<D, wrap>
-                            || std::is_same_v<D, rtol>
-                            || std::is_same_v<D, feed>)
-            {
-                itos(static_cast<si32>(data));
-            }
-            else if constexpr (std::is_same_v<D, twod>)
-            {
-                operator+=("{ "); itos(data.x); operator+=(", ");
-                                  itos(data.y); operator+=(" }");
-            }
-            else if constexpr (std::is_same_v<D, rect>)
-            {
-                operator+=("{"); fuse(data.coor); operator+=(",");
-                                 fuse(data.size); operator+=("}");
-            }
-            else operator+=(std::forward<T>(data));
         }
 
     public:
         esc() = default;
 
-        template<class T>
-        esc(T&& data) { fuse(std::forward<T>(data)); }
+        template<svga VGAMODE = svga::truecolor, class T>
+        esc(T&& data) { fuse<VGAMODE>(std::forward<T>(data)); }
 
-        template<class T>
+        template<svga VGAMODE = svga::truecolor, class T>
         inline auto& add(T&& data)
         {
-            fuse(std::forward<T>(data));
+            fuse<VGAMODE>(std::forward<T>(data));
             return *this;
         }
-        template<class T, class ...Args>
+        template<svga VGAMODE = svga::truecolor, class T, class ...Args>
         inline auto& add(T&& data, Args&&... data_list)
         {
-            fuse(std::forward<T>(data));
-            return add(std::forward<Args>(data_list)...);
+            fuse<VGAMODE>(std::forward<T>(data));
+            return add<VGAMODE>(std::forward<Args>(data_list)...);
+        }
+        // esc: Replace bytes at specified position.
+        template<svga VGAMODE = svga::truecolor, class T>
+        inline auto& add_at(si32 at, T&& data)
+        {
+            if constexpr (VGAMODE == svga::directvt)
+            {
+                text::replace(at, sizeof(data), reinterpret_cast<char const*>(&data));
+            }
+            return *this;
         }
 
-        esc& vmouse      (bool b)   { return add(b ? "\033[?1002;1003;1004;1006;10060h"
-                                                   : "\033[?1002;1003;1004;1006;10060l"); } // esc: Focus and Mouse position reporting/tracking.
-        esc& locate(si32 x, si32 y) { return add("\033[", y,     ';', x,     'H'       ); } // esc: 1-Based caret position.
-        esc& locate(twod const& p)  { return add("\033[", p.y+1, ';', p.x+1, 'H'       ); } // esc: 0-Based caret position.
+        // esc: Grapheme cluster.
+        template<svga VGAMODE = svga::truecolor, class T>
+        esc& gc(T const& gc)
+        {
+            if constexpr (VGAMODE == svga::directvt)
+            {
+                auto size = gc.state.count;
+                if (size > 0) add<VGAMODE>(size, gc.template get<VGAMODE>());
+                else          add<VGAMODE>(DTVT_NGC);
+                assert(size <= DTVT_GCL);
+            }
+            return *this;
+        }
+        // esc: Text style.
+        template<svga VGAMODE = svga::truecolor, class T>
+        esc& style(T token)
+        {
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::DTVT_STL, token);
+            else                                     return *this;
+        }
+        // esc: Focus and Mouse position reporting/tracking.
+        esc& vmouse(bool b)
+        {
+            return add(b ? "\033[?1002;1003;1004;1006;10060h"
+                         : "\033[?1002;1003;1004;1006;10060l");
+        }
+        // esc: 1-Based caret position.
+        template<svga VGAMODE = svga::truecolor>
+        esc& locate(si32 x, si32 y)
+        {
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_CUP, twod{ x,y } - dot_11);
+            else                                     return add("\033[", y, ';', x, 'H');
+        }
+         // esc: 0-Based caret position.
+        template<svga VGAMODE = svga::truecolor>
+        esc& locate(twod const& p)
+        {
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_CUP, p);
+            else                                     return add("\033[", p.y+1, ';', p.x+1, 'H'       );
+        }
+        // esc: Extra command.
+        template<svga VGAMODE = svga::truecolor>
+        esc& extcmd(text const& extra_cached)
+        {
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::DTVT_CMD, (ui32)extra_cached.size(), extra_cached);
+            else                                     return add(extra_cached);
+        }
         esc& report(twod const& p)  { return add("\033[", p.y+1, ";", p.x+1, "R"       ); } // esc: Report 1-Based caret position (CPR).
-        esc& locate_wipe ()         { return add("\033[r"                              ); } // esc: Enable scrolling for entire display (clear screen).
-        esc& locate_call ()         { return add("\033[6n"                             ); } // esc: Report caret position.
-        esc& scroll_wipe ()         { return add("\033[2J"                             ); } // esc: Erase scrollback.
+        esc& locate_wipe()          { return add("\033[r"                              ); } // esc: Enable scrolling for entire display (clear screen).
+        esc& locate_call()          { return add("\033[6n"                             ); } // esc: Report caret position.
+        // esc: Erase scrollback.
+        template<svga VGAMODE = svga::truecolor>
+        esc& scroll_wipe()
+        {
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_RST);
+            else                                     return add("\033[2J");
+        }
         esc& tag         (view t)   { return add("\033]2;", t, '\07'                   ); } // esc: Window title.
         esc& setutf      (bool b)   { return add(b ? "\033%G"      : "\033%@"          ); } // esc: Select UTF-8 character set (true) or default (faux).
         esc& altbuf      (bool b)   { return add(b ? "\033[?1049h" : "\033[?1049l"     ); } // esc: Alternative buffer.
         esc& cursor      (bool b)   { return add(b ? "\033[?25h"   : "\033[?25l"       ); } // esc: Caret visibility.
-        esc& appkey      (bool b)   { return add(b ? "\033[?1h"    : "\033[?1l"        ); } // ansi: Application(=on)/ANSI(=off) Caret Keys (DECCKM).
+        esc& appkey      (bool b)   { return add(b ? "\033[?1h"    : "\033[?1l"        ); } // esc: Application(=on)/ANSI(=off) Caret Keys (DECCKM).
         esc& bpmode      (bool b)   { return add(b ? "\033[?2004h" : "\033[?2004l"     ); } // esc: Set bracketed paste mode.
         esc& autowr      (bool b)   { return add(b ? "\033[?7h"    : "\033[?7l"        ); } // esc: Set autowrap mode.
         esc& scrn_reset  ()         { return add("\033[H\033[m\033[2J"                 ); } // esc: Reset palette, erase scrollback and reset caret location.
@@ -378,7 +472,7 @@ namespace netxs::ansi
             if constexpr (ENCODE) return add("\033]52;;", utf::base64(t), C0_BEL);
             else                  return add("\033]52;" , t             , C0_BEL); // Forward as is. See ui::term.
         }
-        esc& osc_palette (si32 i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
+        esc& osc_palette(si32 i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
         {
             return add("\033]4;", i, ";rgb:", utf::to_hex(c.chan.r), '/',
                                               utf::to_hex(c.chan.g), '/',
@@ -419,7 +513,7 @@ namespace netxs::ansi
             if (back() == ';') pop_back();
             return add(W32_INP);
         }
-        // ansi: win32-input-mode sequence (keyboard).
+        // esc: win32-input-mode sequence (keyboard).
         esc& w32keybd(si32 id, si32 kc, si32 sc, si32 kd, si32 ks, si32 rc, si32 uc)
         {
             add(ansi::W32_KEYBD_EVENT, ':');
@@ -431,7 +525,7 @@ namespace netxs::ansi
                             rc, ':',
                             uc, ';');
         }
-        // ansi: win32-input-mode sequence (mouse).
+        // esc: win32-input-mode sequence (mouse).
         esc& w32mouse(si32 id, si32 bttns, si32 ctrls, si32 flags, si32 wheel, si32 xcoor, si32 ycoor)
         {
             add(ansi::W32_MOUSE_EVENT, ':');
@@ -443,14 +537,14 @@ namespace netxs::ansi
                             xcoor, ':',
                             ycoor, ';');
         }
-        // ansi: win32-input-mode sequence (focus).
+        // esc: win32-input-mode sequence (focus).
         esc& w32focus(si32 id, si32 focus)
         {
             add(ansi::W32_FOCUS_EVENT, ':');
             if (id) fuse(id);
             return add(':', focus, ';');
         }
-        // ansi: win32-input-mode sequence (window resize).
+        // esc: win32-input-mode sequence (window resize).
         esc& w32winsz(twod size)
         {
             return add(ansi::W32_WINSZ_EVENT, ':', size.x, ':',
@@ -581,6 +675,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& fgc(rgba const& c)
         {
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_FGC, c);
             switch (VGAMODE)
             {
                 case svga::truecolor:
@@ -591,7 +686,7 @@ namespace netxs::ansi
                                                  c.chan.b, 'm');
                     }
                     else return add("\033[39m");
-                case svga::vga16:  return fgc16 (c);
+                case svga::vga16:  return fgc16(c);
                 case svga::vga256: return fgc256(c);
                 default:           return *this;
             }
@@ -600,6 +695,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& bgc(rgba const& c)
         {
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_BGC, c);
             switch (VGAMODE)
             {
                 case svga::truecolor:
@@ -610,7 +706,7 @@ namespace netxs::ansi
                                                  c.chan.b, 'm');
                     }
                     else return add("\033[49m");
-                case svga::vga16:  return bgc16 (c);
+                case svga::vga16:  return bgc16(c);
                 case svga::vga256: return bgc256(c);
                 default:           return *this;
             }

@@ -26,6 +26,7 @@ namespace netxs::ui::atoms
         truecolor,
         vga16    ,
         vga256   ,
+        directvt ,
     };
 
     enum Z_order : si32
@@ -635,15 +636,17 @@ namespace netxs::ui::atoms
                 auto cluster = utf::letter(utf8);
                 set(cluster.text, cluster.attr.ucwidth);
             }
+            template<svga VGAMODE = svga::truecolor>
             view get() const
             {
-                if (state.jumbo)
+                if constexpr (VGAMODE == svga::directvt)
                 {
-                    return netxs::get_or(jumbo, token, empty);
+                    return view(glyph, state.count + 1);
                 }
                 else
                 {
-                    return view{ glyph + 1, state.count };
+                    if (state.jumbo) return netxs::get_or(jumbo, token, empty);
+                    else             return view(glyph + 1, state.count);
                 }
             }
             auto is_space() const
@@ -738,45 +741,53 @@ namespace netxs::ui::atoms
             {
                 if (!like(base))
                 {
-                    auto& cvar =      param.shared.var;
-                    auto& bvar = base.param.shared.var;
-                    if constexpr (USESGR)
+                    if constexpr (VGAMODE == svga::directvt)
                     {
-                        if (cvar.bolded != bvar.bolded)
-                        {
-                            dest.bld(cvar.bolded);
-                        }
-                        if (cvar.italic != bvar.italic)
-                        {
-                            dest.itc(cvar.italic);
-                        }
-                        if (cvar.unline != bvar.unline)
-                        {
-                            if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
-                            else                                  dest.und(cvar.unline);
-                        }
-                        if (cvar.invert != bvar.invert)
-                        {
-                            dest.inv(cvar.invert);
-                        }
-                        if (cvar.strike != bvar.strike)
-                        {
-                            dest.stk(cvar.strike);
-                        }
-                        if (cvar.overln != bvar.overln)
-                        {
-                            dest.ovr(cvar.overln);
-                        }
-                        if (cvar.r_to_l != bvar.r_to_l)
-                        {
-                            //todo implement RTL
-                        }
-                        if (cvar.blinks != bvar.blinks)
-                        {
-                            dest.blk(cvar.blinks);
-                        }
+                        dest.template style<VGAMODE>(token);
+                        base.token = token;
                     }
-                    bvar = cvar;
+                    else
+                    {
+                        auto& cvar =      param.shared.var;
+                        auto& bvar = base.param.shared.var;
+                        if constexpr (USESGR)
+                        {
+                            if (cvar.bolded != bvar.bolded)
+                            {
+                                dest.bld(cvar.bolded);
+                            }
+                            if (cvar.italic != bvar.italic)
+                            {
+                                dest.itc(cvar.italic);
+                            }
+                            if (cvar.unline != bvar.unline)
+                            {
+                                if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
+                                else                                  dest.und(cvar.unline);
+                            }
+                            if (cvar.invert != bvar.invert)
+                            {
+                                dest.inv(cvar.invert);
+                            }
+                            if (cvar.strike != bvar.strike)
+                            {
+                                dest.stk(cvar.strike);
+                            }
+                            if (cvar.overln != bvar.overln)
+                            {
+                                dest.ovr(cvar.overln);
+                            }
+                            if (cvar.r_to_l != bvar.r_to_l)
+                            {
+                                //todo implement RTL
+                            }
+                            if (cvar.blinks != bvar.blinks)
+                            {
+                                dest.blk(cvar.blinks);
+                            }
+                        }
+                        bvar = cvar;
+                    }
                 }
             }
             void wipe()
@@ -1016,8 +1027,15 @@ namespace netxs::ui::atoms
                 st.get<VGAMODE, USESGR>(base.st, dest);
             }
 
-            if (wdt() && !gc.is_space()) dest += gc.get();
-            else                         dest += whitespace;
+            if constexpr (VGAMODE == svga::directvt)
+            {
+                dest.template gc<VGAMODE>(gc);
+            }
+            else
+            {
+                if (wdt() && !gc.is_space()) dest += gc.get();
+                else                         dest += whitespace;
+            }
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
@@ -1031,7 +1049,8 @@ namespace netxs::ui::atoms
                     uv.get<VGAMODE, USESGR>(base.uv, dest);
                     st.get<VGAMODE, USESGR>(base.st, dest);
                 }
-                dest += gc.get();
+                if constexpr (VGAMODE == svga::directvt) dest.template gc<VGAMODE>(gc);
+                else                                     dest += gc.get();
                 return true;
             }
             else

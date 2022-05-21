@@ -5155,9 +5155,18 @@ again:
                 ready = faux;
                 start = tempus::now();
 
+                if constexpr (VGAMODE == svga::directvt)
+                {
+                    ui32 length = 0; // Placeholder for total length.
+                    ui32 id = 0; // Always 0.
+                    rect canvas_area = { dot_00, field };
+                    frame.add<VGAMODE>(length, id, canvas_area);
+                }
+                auto initial_size = static_cast<si32>(frame.size());
+
                 if (extra_cached.length())
                 {
-                    frame.add(extra_cached);
+                    frame.extcmd<VGAMODE>(extra_cached);
                     extra_cached.clear();
                 }
 
@@ -5167,10 +5176,10 @@ again:
                     auto src = front.data();
                     auto end = src + front.size();
                     auto row = 0;
-                    frame.scroll_wipe();
+                    frame.scroll_wipe<VGAMODE>();
                     while (row++ < field.y)
                     {
-                        frame.locate(1, row);
+                        frame.locate<VGAMODE>(1, row);
                         auto end_line = src + field.x;
                         while (src != end_line)
                         {
@@ -5236,7 +5245,7 @@ again:
                                 if (back != fore)
                                 {
                                     auto col = static_cast<si32>(src - beg);
-                                    frame.locate(col, row);
+                                    frame.locate<VGAMODE>(col, row);
 
                                     back = fore;
                                     fore.scan<VGAMODE>(state, frame);
@@ -5332,7 +5341,7 @@ again:
                                         back = fore;
 
                                         auto col = static_cast<si32>(src - beg);
-                                        frame.locate(col, row);
+                                        frame.locate<VGAMODE>(col, row);
 
                                         if (src != end)
                                         {
@@ -5369,7 +5378,7 @@ again:
                                             if (d.wdt() < 3)
                                             {
                                                 auto col = static_cast<si32>(src - beg - 1);
-                                                frame.locate(col, row);
+                                                frame.locate<VGAMODE>(col, row);
                                                 fallback(fore, state, frame); // Left part alone.
                                                 src--; // Repeat all for d again.
                                                 dst--; // Repeat all for g again.
@@ -5380,7 +5389,7 @@ again:
                                                 {
                                                     g = d;
                                                     auto col = static_cast<si32>(src - beg - 1);
-                                                    frame.locate(col, row);
+                                                    frame.locate<VGAMODE>(col, row);
 
                                                     if (!fore.scan<VGAMODE>(d, state, frame))
                                                     {
@@ -5393,7 +5402,7 @@ again:
                                         else
                                         {
                                             auto col = static_cast<si32>(src - beg);
-                                            frame.locate(col, row);
+                                            frame.locate<VGAMODE>(col, row);
                                             fallback(fore, state, frame); // Left part alone.
                                         }
                                     }
@@ -5401,7 +5410,7 @@ again:
                                 else // w == 3 // Right part has changed.
                                 {
                                     auto col = static_cast<si32>(src - beg);
-                                    frame.locate(col, row);
+                                    frame.locate<VGAMODE>(col, row);
                                     back = fore;
                                     fallback(fore, state, frame); // Right part alone.
                                 }
@@ -5412,13 +5421,17 @@ again:
                 }
 
                 auto size = static_cast<si32>(frame.size());
-                if (size)
+                if (size != initial_size)
                 {
                     guard.unlock();
+                    if constexpr (VGAMODE == svga::directvt)
+                    {
+                        frame.add_at<VGAMODE>(0, size); // Write total frame size.
+                    }
                     conio.output(frame);
-                    frame.clear();
                     guard.lock();
                 }
+                frame.clear();
                 delta = size;
                 watch = tempus::now() - start;
             }
@@ -5468,6 +5481,7 @@ again:
                     switch (video)
                     {
                         case svga::truecolor: render<svga::truecolor>(); break;
+                        case svga::directvt:  render<svga::directvt >(); break;
                         case svga::vga16:     render<svga::vga16    >(); break;
                         case svga::vga256:    render<svga::vga256   >(); break;
                         default: break;
@@ -5673,6 +5687,7 @@ again:
 
                 auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
                               : legacy & os::legacy::vga256 ? svga::vga256
+                              : legacy & os::legacy::direct ? svga::directvt
                                                             : svga::truecolor;
                 link conio{ *this, media }; // gate: Terminal IO.
                 diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
