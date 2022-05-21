@@ -4542,11 +4542,11 @@ namespace netxs::console
             log("link: id: ", id, " reading thread joined");
         }
 
-        void output (view buffer)
+        void output(view buffer)
         {
             canal->send(buffer);
         }
-        void session(text title)
+        void session(text title, svga vgamode)
         {
             log("link: id: ", std::this_thread::get_id(), " conio session started");
             text total;
@@ -4555,8 +4555,20 @@ namespace netxs::console
 
             input = std::thread([&] { reader(); });
 
-            output(ansi::ext(true));
-            if (title.size()) output(ansi::tag(title));
+            if (vgamode == svga::directvt)
+            {
+                //todo proceed title
+                //auto size = ui32{ 0 };
+                //auto data = ansi::esc{}.add<svga::directvt>(ansi::DTVT_CMD, size);
+                //data.ext(true);
+                //if (title.size()) data.tag(title);
+                //output(data);
+            }
+            else
+            {
+                output(ansi::ext(true));
+                if (title.size()) output(ansi::tag(title));
+            }
 
             while ((void)synch.wait(guard, [&] { return ready; }), alive)
             {
@@ -5157,10 +5169,10 @@ again:
 
                 if constexpr (VGAMODE == svga::directvt)
                 {
-                    ui32 length = 0; // Placeholder for total length.
-                    ui32 id = 0; // Always 0.
-                    rect canvas_area = { dot_00, field };
-                    frame.add<VGAMODE>(length, id, canvas_area);
+                    auto header = netxs::ansi::dtvt_header{};
+                    header.area.size = field;
+                    header.id = 0xaabbccdd;
+                    frame.add<VGAMODE>(header);
                 }
                 auto initial_size = static_cast<si32>(frame.size());
 
@@ -5939,7 +5951,7 @@ again:
 
             lock.unlock();
 
-            conio.session(props.title);
+            conio.session(props.title, vga_mode);
 
             lock.lock();
                 token.clear();

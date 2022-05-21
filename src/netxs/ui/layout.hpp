@@ -547,21 +547,18 @@ namespace netxs::ui::atoms
             char glyph[limit];
 
             constexpr glyf()
-                : token(0)
+                : token{ 0 }
             { }
-
             constexpr glyf(glyf const& c)
-                : token(c.token)
+                : token{ c.token }
             { }
-
             constexpr glyf(char c)
-                : token(0)
+                : token{ 0 }
             {
                 set(c);
             }
-
             glyf(glyf const& c, view const& utf8, size_t width)
-                : token(c.token)
+                : token{ c.token }
             {
                 set(utf8, width);
             }
@@ -606,6 +603,10 @@ namespace netxs::ui::atoms
             *   version of the previous character"
             */
 
+            constexpr void set(ui64 t)
+            {
+                token = t;
+            }
             constexpr void set(char c)
             {
                 token       = 0;
@@ -1145,6 +1146,7 @@ namespace netxs::ui::atoms
         si32  len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
         si32  wdt () const { return gc.state.width;} // cell: Return Grapheme cluster screen width.
         auto  txt () const { return gc.get();      } // cell: Return Grapheme cluster.
+        auto& egc ()       { return gc.glyph;      } // cell: Get Grapheme cluster token.
         auto  bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
         auto  fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
         auto& bgc ()       { return uv.bg;         } // cell: Return Background color.
@@ -1159,6 +1161,7 @@ namespace netxs::ui::atoms
         auto  inv () const { return st.inv();      } // cell: Return Negative attribute.
         auto  stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
         auto  blk () const { return st.blk();      } // cell: Return Blink attribute.
+        auto& stl ()       { return st.token;      } // cell: Return style token.
         auto link () const { return id;            } // cell: Return link object ID.
         auto iswide()const { return wdt() > 1;     } // cell: Return true if char is wide.
         auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.

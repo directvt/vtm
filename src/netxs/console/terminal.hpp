@@ -6559,12 +6559,6 @@ namespace netxs::ui
         hook            oneoff; // dtvt: One-shot token for start and shutdown events.
         cell            marker; // dtvt: Current brush.
 
-        struct header
-        {
-            ui32 length;
-            id_t id;
-            rect area;
-        };
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
         {
@@ -6573,15 +6567,14 @@ namespace netxs::ui
                 netxs::events::try_sync guard;
                 if (guard)
                 {
-                    log("=====\n", utf::debase(data));
-                    //auto t = para{ data };
-                    //canvas.output(t);
-                    //auto head = data.data();
-                    auto frame = *reinterpret_cast<header const*>(data.data());
-                    frame.length -= sizeof(header);
-
-                    //head += sizeof(header);
-                    data.remove_prefix(sizeof(header));
+                    auto frame = *reinterpret_cast<ansi::dtvt_header const*>(data.data());
+                    if (frame.length > data.size())
+                    {
+                        log("dtvt: corrupted data");
+                        return;
+                    }
+                    frame.length -= sizeof(ansi::dtvt_header);
+                    data.remove_prefix(sizeof(ansi::dtvt_header));
 
                     auto size = std::clamp(frame.area.size, dot_11, console::max_value);
                     auto full = canvas.full();
@@ -6591,48 +6584,69 @@ namespace netxs::ui
                         canvas.full(full);
                     }
                     auto iter = canvas.iter();
-                    while (frame.length > 0)
+                    auto coor = dot_00;
+                    while (data.size() > 0)
                     {
-                        //auto type = utf::letter(data);
                         if (auto code = utf::cpit{ data })
                         {
                             auto cp = code.take();
                             data.remove_prefix(cp.utf8len);
-                            //head += cp.utf8len;
                             auto type = cp.cdpoint;
                             if (type == 0) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
                             {
-                                ++iter;
+                                coor.x++;
+                                //++iter;
                             }
                             else if (type <= 7) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
                             {
-
-
-                                ++iter;
+                                auto size = type + 1;
+                                auto& glyph = marker.egc();
+                                ::memcpy(glyph, reinterpret_cast<void const*>(data.data()), size);
+                                if (full.size.inside(coor))
+                                {
+                                    canvas[coor] = marker;
+                                }
+                                data.remove_prefix(size);
+                                coor.x++;
                             }
                             else if (type == 8) //<= 8: cup: 8 bytes: si32 X + si32 Y
                             {
-
+                                coor = *reinterpret_cast<twod const*>(data.data());
+                                auto size = sizeof(twod);
+                                data.remove_prefix(size);
+                                //iter = canvas.begin() + 
                             }
-                            else if (type == 9) //<= 9: bg/fg colors: 8 bytes: rgba + rgba
+                            else if (type == 9) //<= 9: bg color: 4 bytes: rgba
                             {
-
+                                marker.bgc() = *reinterpret_cast<rgba const*>(data.data());
+                                auto size = sizeof(rgba);
+                                data.remove_prefix(size);
                             }
-                            else if (type == 10) //<=10: style: token 4 bytes
+                            else if (type == 10) //<= 10: fg colors: 4 bytes: rgba
                             {
-
+                                marker.fgc() = *reinterpret_cast<rgba const*>(data.data());
+                                auto size = sizeof(rgba);
+                                data.remove_prefix(size);
+                            }                            
+                            else if (type == 11) //<=11: style: token 4 bytes
+                            {
+                                auto& token = marker.stl();
+                                token = *reinterpret_cast<ui32 const*>(data.data());
+                                auto size = sizeof(token);
+                                data.remove_prefix(size);
                             }
-                            else if (type == 11) //<=11: wipe canvas
+                            else if (type == 12) //<=12: wipe canvas
                             {
-
+                                marker.txt('\0');
+                                canvas.wipe(marker);
                             }
                             else if (type == 12) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
                             {
-
+                                throw;
                             }
                             else if (type == 100) //<=100: 4 b
                             {
-
+                                throw;
                             }
                         }
                     }

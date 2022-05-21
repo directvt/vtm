@@ -280,6 +280,13 @@ namespace netxs::ansi
     static const byte DTVT_JGC = 0x0D; // Jumbo Grapheme Cluster. gc.token + gc.view (send after terminal's request)
     static const byte DTVT_CMD = 0x64; // Arbitrary vt-command in UTF-8 format.
 
+    struct dtvt_header
+    {
+        ui32 length;
+        id_t id;
+        rect area;
+    };
+
     // ansi: Escaped sequences accumulator.
     class esc
         : public text
@@ -324,6 +331,7 @@ namespace netxs::ansi
                     text::push_back(static_cast<char>(data));
                 }
                 else if constexpr (std::is_integral_v<D>
+                                || std::is_same_v<D, dtvt_header>
                                 || std::is_same_v<D, rgba>
                                 || std::is_same_v<D, twod>
                                 || std::is_same_v<D, rect>)
@@ -392,7 +400,7 @@ namespace netxs::ansi
         {
             if constexpr (VGAMODE == svga::directvt)
             {
-                text::replace(at, sizeof(data), reinterpret_cast<char const*>(&data));
+                ::memcpy(at + text::data(), reinterpret_cast<void const*>(&data), sizeof(data));
             }
             return *this;
         }

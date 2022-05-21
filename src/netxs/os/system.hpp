@@ -564,7 +564,6 @@ namespace netxs::os
                                     NULL,           // lpTotalBytesAvail,
                                     NULL))          // lpBytesLeftThisMessage
                 {
-                    std::this_thread::sleep_for(15s);
                     if (buffer[0] == direct_vt
                      && buffer[9] == direct_vt - 1)
                     {
@@ -3626,11 +3625,14 @@ namespace netxs::os
                             size -= step;
                             iter += step;
                         }
-                        auto crop = view(head, iter - head);
                         //auto crop = view{ flow };
 
-                        receiver(crop);
-                        flow.erase(0, crop.size()); // Delete processed data.
+                        if (iter != head)
+                        {
+                            auto crop = view(head, iter - head);
+                            receiver(crop);
+                            flow.erase(0, crop.size()); // Delete processed data.
+                        }
                     }
                     else break;
                 }

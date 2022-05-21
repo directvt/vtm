@@ -46,8 +46,8 @@ enum class type
 int main(int argc, char* argv[])
 {
     auto vtmode = os::vt_mode();
-
-    auto syslog = logger([](auto data) { os::syslog(data); });
+    auto syslog = vtmode & os::legacy::direct ? logger([](auto data) { /*todo log to the temp file*/ })
+                                              : logger([](auto data) { os::syslog(data); });
     auto banner = [&]() { log(MONOTTY_VER); };
     auto whoami = type::client;
     auto region = text{};
@@ -150,7 +150,6 @@ int main(int argc, char* argv[])
         auto userid = os::user();
         auto usernm = os::get_env("USER");
         auto hostip = os::get_env("SSH_CLIENT");
-        auto vtmode = os::vt_mode();
         auto prefix = utf::concat(MONOTTY_PREFIX, userid);
         auto server = os::ipc::open<os::server>(prefix);
         if (!server)
@@ -222,7 +221,6 @@ int main(int argc, char* argv[])
             auto userid = os::user();
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
-            auto vtmode = os::vt_mode();
             auto prefix = utf::concat(MONOTTY_PREFIX, userid);
             auto client = os::ipc::open<os::client>(prefix, 10s, [&]()
                         {
@@ -265,7 +263,6 @@ int main(int argc, char* argv[])
 
             if (vtmode & os::legacy::direct)
             {
-                std::this_thread::sleep_for(15s);
                 auto tunnel = os::ipc::local(vtmode);
 
                 os::start_log("vtm"); // Redirect logs.
