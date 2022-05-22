@@ -5518,7 +5518,8 @@ again:
 
         void append(view utf8)
         {
-            extra = utf8;
+            auto lock = std::lock_guard{ mutex };
+            extra += utf8;
         }
     };
 
@@ -5765,7 +5766,7 @@ again:
                         para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
                     }
                     log("gate: title changed to '", temp, ansi::nil().add("'"));
-                    conio.output(ansi::tag(temp));
+                    paint.append(ansi::tag(temp));
                 };
                 SUBMIT_T(tier::release, e2::command::cout, token, extra_data)
                 {

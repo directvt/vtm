@@ -3054,19 +3054,18 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 termsize(winsz);
-                auto create = [](HPCON& hPC, twod winsz,
-                    HANDLE& m_pipe_r, HANDLE& m_pipe_w)
+                auto s_pipe_r = HANDLE{ INVALID_FD };
+                auto s_pipe_w = HANDLE{ INVALID_FD };
+                auto m_pipe_r = HANDLE{ INVALID_FD };
+                auto m_pipe_w = HANDLE{ INVALID_FD };
+                auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
+                auto procsinf = PROCESS_INFORMATION{};
+                auto attrbuff = std::vector<uint8_t>{};
+
+                auto pseudo = [&]()
                 {
-                    //todo experimental feature
-                    //static constexpr auto PSEUDOCONSOLE_RESIZE_QUIRK     = 2u;
-                    //static constexpr auto PSEUDOCONSOLE_WIN32_INPUT_MODE = 4u;
-                    //static constexpr auto PSEUDOCONSOLE_PASSTHROUGH_MODE = 8u;
-                    auto err_code = HRESULT{ E_UNEXPECTED };
-                    auto s_pipe_r = HANDLE{ INVALID_FD };
-                    auto s_pipe_w = HANDLE{ INVALID_FD };
+                    auto errcode = HRESULT{ E_UNEXPECTED };
                     auto dwFlags = DWORD{ 0 };
-                                    // | PSEUDOCONSOLE_WIN32_INPUT_MODE
-                                    // | PSEUDOCONSOLE_PASSTHROUGH_MODE;
 
                     if (::CreatePipe(&m_pipe_r, &s_pipe_w, nullptr, 0) &&
                         ::CreatePipe(&s_pipe_r, &m_pipe_w, nullptr, 0))
@@ -3074,56 +3073,70 @@ namespace netxs::os
                         auto consz = COORD{};
                         consz.X = winsz.x;
                         consz.Y = winsz.y;
-                        err_code = ::CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, dwFlags, &hPC);
+                        errcode = ::CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, dwFlags, &hPC);
                     }
-
-                    ::CloseHandle(s_pipe_w);
-                    ::CloseHandle(s_pipe_r);
-
-                    return err_code ? faux : true;
+                    return errcode ? faux : true;
                 };
-                auto fillup = [](HPCON hPC, auto& attrs_buff, auto& lpAttributeList)
+                auto fillup = [&]()
                 {
                     auto attr_size = SIZE_T{ 0 };
                     ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
-                    attrs_buff.resize(attr_size);
-                    lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrs_buff.data());
+                    attrbuff.resize(attr_size);
+                    startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
 
-                    if (::InitializeProcThreadAttributeList(lpAttributeList, 1, 0, &attr_size)
-                        &&  ::UpdateProcThreadAttribute( lpAttributeList,
-                                                         0,
-                                                         PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                                                         hPC,
-                                                         sizeof(hPC),
-                                                         nullptr,
-                                                         nullptr))
+                    if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attr_size)
+                     && ::UpdateProcThreadAttribute( startinf.lpAttributeList,
+                                                     0,
+                                                     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                                                     hPC,
+                                                     sizeof(hPC),
+                                                     nullptr,
+                                                     nullptr))
                     {
                         return true;
                     }
                     else return faux;
                 };
-
-                auto m_pipe_r = HANDLE{ INVALID_FD };
-                auto m_pipe_w = HANDLE{ INVALID_FD };
-                auto start_info = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
-                auto procs_info = PROCESS_INFORMATION{};
-                auto attrs_buff = std::vector<uint8_t>{};
-
-                if (   create(hPC, winsz, m_pipe_r, m_pipe_w)
-                    && fillup(hPC, attrs_buff, start_info.lpAttributeList)
-                    && ::CreateProcessA( nullptr,                      // lpApplicationName
-                                         cmdline.data(),               // lpCommandLine
-                                         nullptr,                      // lpProcessAttributes
-                                         nullptr,                      // lpThreadAttributes
-                                         FALSE,                        // bInheritHandles
-                                         EXTENDED_STARTUPINFO_PRESENT, // dwCreationFlags (override startupInfo type)
-                                         nullptr,                      // lpCurrentDirectory
-                                         nullptr,                      // lpEnvironment
-                                         &start_info.StartupInfo,      // lpStartupInfo (ptr to STARTUPINFOEX)
-                                         &procs_info))                 // lpProcessInformation
+                auto create = [&]()
                 {
-                    hProcess = procs_info.hProcess;
-                    hThread  = procs_info.hThread;
+                    auto noconsole = faux;
+                    if (!::GetConsoleWindow()) // Set (temporarily) stdio to my pipe because CreateProcess bypasses ConPTY
+                    {                          // if no WindowsConsole is attached to the current process. ConPTY is not used in that case.
+                        noconsole = true;
+                        auto hh = ::AllocConsole();
+                        auto ih = ::CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                        auto oh = ::CreateFileA("CONIN$",  GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                        ::SetStdHandle(STD_OUTPUT_HANDLE, ih);
+                        ::SetStdHandle(STD_INPUT_HANDLE,  oh);
+                    }
+                    auto result = ::CreateProcessA( nullptr,                      // lpApplicationName
+                                                    cmdline.data(),               // lpCommandLine
+                                                    nullptr,                      // lpProcessAttributes
+                                                    nullptr,                      // lpThreadAttributes
+                                                    FALSE,                        // bInheritHandles
+                                                    EXTENDED_STARTUPINFO_PRESENT, // dwCreationFlags (override startupInfo type)
+                                                    nullptr,                      // lpCurrentDirectory
+                                                    nullptr,                      // lpEnvironment
+                                                    &startinf.StartupInfo,        // lpStartupInfo (ptr to STARTUPINFOEX)
+                                                    &procsinf);                   // lpProcessInformation
+                    if (noconsole)  // Restore actual stdio.
+                    {
+                        auto ih = ::GetStdHandle(STD_INPUT_HANDLE);
+                        auto oh = ::GetStdHandle(STD_OUTPUT_HANDLE);
+                        ::CloseHandle(ih);
+                        ::CloseHandle(oh);
+                        ::FreeConsole();
+                        ::SetStdHandle(STD_INPUT_HANDLE,  STDIN_FD);
+                        ::SetStdHandle(STD_OUTPUT_HANDLE, STDOUT_FD);
+                    }
+                    return result;
+                };
+                if (pseudo()
+                 && fillup()
+                 && create())
+                {
+                    hProcess = procsinf.hProcess;
+                    hThread  = procsinf.hThread;
                     gameover = ::CreateEvent( NULL,   // security attributes
                                               FALSE,  // auto-reset
                                               FALSE,  // initial state
@@ -3146,6 +3159,8 @@ namespace netxs::os
                 }
                 else log("xpty: child process creation error ", ::GetLastError());
 
+                ::CloseHandle(s_pipe_w);
+                ::CloseHandle(s_pipe_r);
                 //todo workaround for GH#10400 (resolved) https://github.com/microsoft/terminal/issues/10400
                 std::this_thread::sleep_for(250ms);
 
@@ -3407,13 +3422,13 @@ namespace netxs::os
                     auto s_pipe_w = HANDLE{ INVALID_FD };
                     auto m_pipe_r = HANDLE{ INVALID_FD };
                     auto m_pipe_w = HANDLE{ INVALID_FD };
-                    auto start_info = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
-                    auto procs_info = PROCESS_INFORMATION{};
-                    auto attrs_buff = std::vector<uint8_t>{};
-                    auto attrs_size = SIZE_T{ 0 };
-                    auto stdhandles = std::array<HANDLE, 2>{};
+                    auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
+                    auto procsinf = PROCESS_INFORMATION{};
+                    auto attrbuff = std::vector<uint8_t>{};
+                    auto attrsize = SIZE_T{ 0 };
+                    auto stdhndls = std::array<HANDLE, 2>{};
 
-                    auto create = [&]()
+                    auto tunnel = [&]()
                     {
                         auto sa = SECURITY_ATTRIBUTES{};
                         sa.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -3424,10 +3439,10 @@ namespace netxs::os
                         {
                             os::legacy::send_dmd(m_pipe_w, winsz);
 
-                            start_info.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
-                            start_info.StartupInfo.hStdInput = s_pipe_r;
-                            start_info.StartupInfo.hStdOutput = s_pipe_w;
-                            start_info.StartupInfo.hStdError  = s_pipe_w;
+                            startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
+                            startinf.StartupInfo.hStdInput  = s_pipe_r;
+                            startinf.StartupInfo.hStdOutput = s_pipe_w;
+                            startinf.StartupInfo.hStdError  = s_pipe_w;
                             return true;
                         }
                         else
@@ -3439,18 +3454,18 @@ namespace netxs::os
                     };
                     auto fillup = [&]()
                     {
-                        stdhandles[0] = s_pipe_r;
-                        stdhandles[1] = s_pipe_w;
-                        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrs_size);
-                        attrs_buff.resize(attrs_size);
-                        start_info.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrs_buff.data());
+                        stdhndls[0] = s_pipe_r;
+                        stdhndls[1] = s_pipe_w;
+                        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
+                        attrbuff.resize(attrsize);
+                        startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
 
-                        if (::InitializeProcThreadAttributeList(start_info.lpAttributeList, 1, 0, &attrs_size)
-                         && ::UpdateProcThreadAttribute( start_info.lpAttributeList,
+                        if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
+                         && ::UpdateProcThreadAttribute( startinf.lpAttributeList,
                                                          0,
                                                          PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                                         &stdhandles,
-                                                         sizeof(stdhandles),
+                                                         &stdhndls,
+                                                         sizeof(stdhndls),
                                                          nullptr,
                                                          nullptr))
                         {
@@ -3458,30 +3473,34 @@ namespace netxs::os
                         }
                         else return faux;
                     };
-
-                    if ( create()
-                      && fillup()
-                      && ::CreateProcessA( nullptr,                      // lpApplicationName
-                                           cmdline.data(),               // lpCommandLine
-                                           nullptr,                      // lpProcessAttributes
-                                           nullptr,                      // lpThreadAttributes
-                                           TRUE,                         // bInheritHandles
-                                           DETACHED_PROCESS |            // create without attached console, dwCreationFlags
-                                           EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
-                                           nullptr,                      // lpCurrentDirectory
-                                           nullptr,                      // lpEnvironment
-                                           &start_info.StartupInfo,      // lpStartupInfo (ptr to STARTUPINFO)
-                                           &procs_info))                 // lpProcessInformation
+                    auto create = [&]()
                     {
-                        ::CloseHandle(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
-                        ::CloseHandle(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+                        return ::CreateProcessA( nullptr,                      // lpApplicationName
+                                                 cmdline.data(),               // lpCommandLine
+                                                 nullptr,                      // lpProcessAttributes
+                                                 nullptr,                      // lpThreadAttributes
+                                                 TRUE,                         // bInheritHandles
+                                                 DETACHED_PROCESS |            // create without attached console, dwCreationFlags
+                                                 EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
+                                                 nullptr,                      // lpCurrentDirectory
+                                                 nullptr,                      // lpEnvironment
+                                                 &startinf.StartupInfo,        // lpStartupInfo (ptr to STARTUPINFO)
+                                                 &procsinf);                   // lpProcessInformation
+                    };
 
-                        hProcess = procs_info.hProcess;
-                        hThread  = procs_info.hThread;
+                    if (tunnel()
+                     && fillup()
+                     && create())
+                    {
+                        hProcess = procsinf.hProcess;
+                        hThread  = procsinf.hThread;
                         termlink.set({ m_pipe_r, m_pipe_w }, true);
                         log("dtvt: conpty created: ", winsz);
                     }
                     else log("dtvt: child process creation error ", ::GetLastError());
+
+                    ::CloseHandle(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
+                    ::CloseHandle(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
 
                 #else
 
