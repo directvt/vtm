@@ -3074,6 +3074,8 @@ namespace netxs::os
                         consz.X = winsz.x;
                         consz.Y = winsz.y;
                         errcode = ::CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, dwFlags, &hPC);
+                        ::CloseHandle(s_pipe_w);
+                        ::CloseHandle(s_pipe_r);
                     }
                     return errcode ? faux : true;
                 };
@@ -3099,16 +3101,8 @@ namespace netxs::os
                 };
                 auto create = [&]()
                 {
-                    auto noconsole = faux;
-                    if (!::GetConsoleWindow()) // Set (temporarily) stdio to my pipe because CreateProcess bypasses ConPTY
-                    {                          // if no WindowsConsole is attached to the current process. ConPTY is not used in that case.
-                        noconsole = true;
-                        auto hh = ::AllocConsole();
-                        auto ih = ::CreateFileA("CONOUT$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-                        auto oh = ::CreateFileA("CONIN$",  GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-                        ::SetStdHandle(STD_OUTPUT_HANDLE, ih);
-                        ::SetStdHandle(STD_INPUT_HANDLE,  oh);
-                    }
+                    startinf.StartupInfo.dwFlags |= STARTF_USESTDHANDLES; // Force the new process to not inherit the redirected default handles.
+                                                                          // https://github.com/microsoft/terminal/issues/11276#issuecomment-923207186
                     auto result = ::CreateProcessA( nullptr,                      // lpApplicationName
                                                     cmdline.data(),               // lpCommandLine
                                                     nullptr,                      // lpProcessAttributes
@@ -3119,16 +3113,6 @@ namespace netxs::os
                                                     nullptr,                      // lpEnvironment
                                                     &startinf.StartupInfo,        // lpStartupInfo (ptr to STARTUPINFOEX)
                                                     &procsinf);                   // lpProcessInformation
-                    if (noconsole)  // Restore actual stdio.
-                    {
-                        auto ih = ::GetStdHandle(STD_INPUT_HANDLE);
-                        auto oh = ::GetStdHandle(STD_OUTPUT_HANDLE);
-                        ::CloseHandle(ih);
-                        ::CloseHandle(oh);
-                        ::FreeConsole();
-                        ::SetStdHandle(STD_INPUT_HANDLE,  STDIN_FD);
-                        ::SetStdHandle(STD_OUTPUT_HANDLE, STDOUT_FD);
-                    }
                     return result;
                 };
                 if (pseudo()
@@ -3159,8 +3143,6 @@ namespace netxs::os
                 }
                 else log("xpty: child process creation error ", ::GetLastError());
 
-                ::CloseHandle(s_pipe_w);
-                ::CloseHandle(s_pipe_r);
                 //todo workaround for GH#10400 (resolved) https://github.com/microsoft/terminal/issues/10400
                 std::this_thread::sleep_for(250ms);
 
