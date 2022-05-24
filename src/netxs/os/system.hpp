@@ -463,7 +463,7 @@ namespace netxs::os
 
         #else
 
-            auto timeval = ::timeval{ .tv_sec = 10, .tv_usec = 1 };
+            auto timeval = ::timeval{ .tv_sec = 0, .tv_usec = 1 };
             auto timeout = NONBLOCKED ? &timeval/*returns immediately*/ : nullptr;
             auto socks = fd_set{};
             FD_ZERO(&socks);
@@ -484,6 +484,26 @@ namespace netxs::os
         static constexpr auto vga16  = 1 << 1;
         static constexpr auto vga256 = 1 << 2;
         static constexpr auto direct = 1 << 3;
+        static auto& get_winsz()
+        {
+            static auto winsz = dot_00;
+            return winsz;
+        }
+        static auto& get_state()
+        {
+            static auto state = faux;
+            return state;
+        }
+        static auto& get_start()
+        {
+            static auto start = text{};
+            return start;
+        }
+        static auto& get_ready()
+        {
+            static auto ready = faux;
+            return ready;
+        }
         template<class T>
         static auto str(T mode)
         {
@@ -508,24 +528,28 @@ namespace netxs::os
         }
         static auto peek_dmd(fd_t stdin_fd)
         {
+            auto buffer = std::array<char, 10>{};
+            auto& ready = get_ready();
+            auto& winsz = get_winsz();
+            auto& state = get_state();
+            if (ready) return state;
+            ready = true;
             #if defined (__linux__)
-                char c = 0;
-                int u = 0;
-                auto m = ::fcntl(stdin_fd, F_GETFL);
-                ::fcntl(stdin_fd, F_SETFL, m | O_NONBLOCK);
-                        auto state = ::termios{};
-                        if (ok(::tcgetattr(stdin_fd, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
-                        {
-                            auto raw_mode = state;
-                            ::cfmakeraw(&raw_mode);
-                            ok(::tcsetattr(stdin_fd, TCSANOW, &raw_mode), "tcsetattr(STDIN_FD, TCSANOW) failed");
-                        }
-                u = ::read(stdin_fd, &c, sizeof(c));
-                        if (ok(::tcsetattr(stdin_fd, TCSANOW, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
-                ::fcntl(stdin_fd, F_SETFL, m);
-                log("mark ", (int)c, " u=", (int)u);
+                os::select<true>(stdin_fd, [&]()
+                {
+                    std::this_thread::sleep_for(15s);
+                    auto header = os::recv(stdin_fd, buffer.data(), sizeof(buffer));
+                    if (header.length() == sizeof(buffer)
+                     && buffer[0] == direct_vt
+                     && buffer[sizeof(buffer) - 1] == direct_vt - 1)
+                    {
+                        winsz = *reinterpret_cast<twod const*>(buffer.data() + 1);
+                        state = true;
+                    }
+                    else get_start() = header;
+                });
             #else
-                auto buffer = std::array<char, 10>{};
+                // os::select sometimes doesn't trigger, so use pipe peeking.
                 auto BytesRead = DWORD{ 0 };
                 if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
                                     &buffer,        // lpBuffer
@@ -534,26 +558,18 @@ namespace netxs::os
                                     NULL,           // lpTotalBytesAvail,
                                     NULL))          // lpBytesLeftThisMessage
                 {
-                    if (buffer[0] == direct_vt
-                     && buffer[9] == direct_vt - 1)
+                    if (BytesRead == sizeof(buffer)
+                     && buffer[0] == direct_vt
+                     && buffer[sizeof(buffer) - 1] == direct_vt - 1)
                     {
-                        auto size = *reinterpret_cast<twod const*>(buffer.data() + 1);
-                        log("  os: DirectVT detected, winsize: ", size);
-                        return true;
+                        os::recv(stdin_fd, buffer.data(), sizeof(buffer));
+                        winsz = *reinterpret_cast<twod const*>(buffer.data() + 1);
+                        state = true;
                     }
                 }
             #endif
-            return faux;
-        }
-        static void read_dmd(fd_t m_pipe_r, twod& winsz)
-        {
-            char marker_ff;
-            char marker_fe;
-            auto winsz_ptr = reinterpret_cast<char*>(&winsz);
-            os::recv(m_pipe_r, &marker_ff, sizeof(marker_ff));
-            os::recv(m_pipe_r,  winsz_ptr, sizeof(winsz));
-            os::recv(m_pipe_r, &marker_fe, sizeof(marker_fe));
-            assert(marker_ff == direct_vt && marker_fe == direct_vt - 1);
+            if (state) log("  os: DirectVT detected, winsize: ", winsz);
+            return state;
         }
     };
 
@@ -2091,7 +2107,7 @@ namespace netxs::os
                 auto result = std::shared_ptr<ipc>{};
                 auto h_proc = [&]()
                 {
-                    auto h = ::accept(handle, 0, 0);
+                    auto h = ::accept(handle.get_r(), 0, 0);
                     auto s = file{ h, h };
                     if (s) result = std::make_shared<ipc>(std::move(s), true);
                 };
@@ -2101,8 +2117,8 @@ namespace netxs::os
                     signal.flush();
                 };
 
-                os::select(handle, h_proc,
-                           signal, f_proc);
+                os::select(handle.get_r(), h_proc,
+                           signal        , f_proc);
 
                 return result;
 
@@ -2872,7 +2888,7 @@ namespace netxs::os
             if (vtmode & os::legacy::direct)
             {
                 auto& winsz = _globals<void>::winsz;
-                os::legacy::read_dmd(STDIN_FD, winsz);
+                winsz = os::legacy::get_winsz();
                 return winsz;
             }
 
@@ -3137,7 +3153,7 @@ namespace netxs::os
                 auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
                 auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
 
-                termlink.set({ fdm }, true);
+                termlink.set({ fdm,fdm }, true);
                 resize(winsz);
 
                 pid = ::fork();
@@ -3295,7 +3311,7 @@ namespace netxs::os
                     winsize winsz;
                     winsz.ws_col = newsize.x;
                     winsz.ws_row = newsize.y;
-                    ok(::ioctl(termlink.get(), TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
+                    ok(::ioctl(termlink.get().get_r(), TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
 
                 #endif
             }
@@ -3464,9 +3480,7 @@ namespace netxs::os
                     auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
                     auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
 
-                    termlink.set({ fdm }, true);
-                    //resize(winsz);
-
+                    termlink.set({ fdm,fdm }, true);
                     os::legacy::send_dmd(fdm, winsz);
 
                     pid = ::fork();
