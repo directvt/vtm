@@ -147,12 +147,13 @@ namespace netxs::os
 
     #endif
 
-    struct args
+    class args
     {
         int    argc;
         char** argv;
         int    iter;
 
+    public:
         args(int argc, char** argv)
             : argc{ argc }, argv{ argv }, iter{ 1 }
         { }
@@ -185,23 +186,57 @@ namespace netxs::os
             return crop;
         }
     };
-    struct nothing
+
+    class nothing
     {
+    public:
         template<class T>
         operator T () { return T{}; }
     };
+
     void close(fd_t& h)
     {
         if (h != INVALID_FD)
         {
             #if defined(_WIN32)
-            ::CloseHandle(h);
+                ::CloseHandle(h);
             #else
-            ::close(h);
+                ::close(h);
             #endif
             h = INVALID_FD;
         }
     }
+    auto error()
+    {
+        #if defined(_WIN32)
+            return ::GetLastError();
+        #else
+            return errno;
+        #endif
+    }
+    template<class ...Args>
+    auto fail(Args&&... msg)
+    {
+        log("  os: ", msg..., " (", os::error(), ") ");
+        return nothing{};
+    };
+    template<class T>
+    auto ok(T error_condition, text msg = {})
+    {
+        if (
+            #if defined(_WIN32)
+                error_condition == 0
+            #else
+                error_condition == (T)-1
+            #endif
+        )
+        {
+            os::fail(msg);
+            return faux;
+        }
+        else return true;
+    }
+
     class file
     {
         fd_t r; // file: Read descriptor.
@@ -259,40 +294,55 @@ namespace netxs::os
         }
     };
 
-    inline auto error()
+    class fifo
     {
-        #if defined(_WIN32)
+        bool                    alive;
+        text                    store;
+        std::mutex              mutex;
+        std::condition_variable synch;
 
-            return ::GetLastError();
-
-        #else
-
-            return errno;
-
-        #endif
-    }
-    template<class ...Args>
-    auto fail(Args&&... msg)
-    {
-        log("  os: ", msg..., " (", os::error(), ") ");
-        return nothing{};
-    };
-    template<class T>
-    bool ok(T error_condition, text msg = {})
-    {
-        if (
-            #if defined(_WIN32)
-                error_condition == 0
-            #else
-                error_condition == (T)-1
-            #endif
-        )
+    public:
+        fifo()
+            : alive{ true }
+        { }
+        bool send(view data)
         {
-            os::fail(msg);
+            auto guard = std::lock_guard{ mutex };
+            store += data;
+            synch.notify_one();
+            return true;
+        }
+        bool read(text& data)
+        {
+            auto guard = std::unique_lock{ mutex };
+            if (store.size()
+             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
+            {
+                std::swap(data, store);
+                store.clear();
+                return true;
+            }
             return faux;
         }
-        else return true;
-    }
+        bool read(char& c)
+        {
+            auto guard = std::unique_lock{ mutex };
+            if (store.size()
+             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
+            {
+                c = store.front();
+                store = store.substr(1);
+                return true;
+            }
+            return faux;
+        }
+        void stop()
+        {
+            auto guard = std::lock_guard{ mutex };
+            alive = faux;
+            synch.notify_one();
+        }
+    };
 
     template<class SIZE_T>
     auto recv(fd_t fd, char* buff, SIZE_T size)
@@ -477,8 +527,9 @@ namespace netxs::os
         #endif
     }
 
-    struct legacy
+    class legacy
     {
+    public:
         static constexpr auto clean  = 0;
         static constexpr auto mouse  = 1 << 0;
         static constexpr auto vga16  = 1 << 1;
@@ -551,17 +602,13 @@ namespace netxs::os
         }
     };
 
-    static void exit(int code)
+    void exit(int code)
     {
         #if defined(_WIN32)
-
             ::ExitProcess(code);
-
         #else
-
             if (is_daemon) ::closelog();
             ::exit(code);
-
         #endif
     }
     template<class ...Args>
@@ -570,13 +617,13 @@ namespace netxs::os
         log(args...);
         os::exit(code);
     }
-    static auto get_env(text&& var)
+    auto get_env(text&& var)
     {
         auto val = std::getenv(var.c_str());
         return val ? text{ val }
                    : text{};
     }
-    static text get_shell()
+    text get_shell()
     {
         #if defined(_WIN32)
             return "cmd";
@@ -591,7 +638,7 @@ namespace netxs::os
             return shell;
         #endif
     }
-    static text homepath()
+    text homepath()
     {
         #if defined(_WIN32)
             return os::get_env("HOMEDRIVE") + os::get_env("HOMEPATH");
@@ -600,7 +647,7 @@ namespace netxs::os
         #endif
     }
     //system: Get list of envvars using wildcard.
-    static auto get_envars(text&& var)
+    auto get_envars(text&& var)
     {
         auto crop = std::vector<text>{};
         auto list = environ;
@@ -615,7 +662,7 @@ namespace netxs::os
         std::sort(crop.begin(), crop.end());
         return crop;
     }
-    static auto local_mode()
+    auto local_mode()
     {
         auto conmode = -1;
         #if defined (__linux__)
@@ -634,7 +681,7 @@ namespace netxs::os
 
         return conmode != -1;
     }
-    static auto vt_mode()
+    auto vt_mode()
     {
         auto vga16colors = { // https://github.com//termstandard/colors
             "ansi",
@@ -646,6 +693,7 @@ namespace netxs::os
         auto vga256colors = {
             "rxvt-unicode-256color",
         };
+
         si32 mode = legacy::clean;
 
         if (os::legacy::peek_dmd(STDIN_FD))
@@ -698,7 +746,7 @@ namespace netxs::os
         }
         return mode;
     }
-    static auto vgafont_update(si32 mode)
+    auto vgafont_update(si32 mode)
     {
         #if defined (__linux__)
 
@@ -767,13 +815,13 @@ namespace netxs::os
 
         #endif
     }
-    static auto vtgafont_revert()
+    auto vtgafont_revert()
     {
         //todo implement
     }
-    static auto current_module_file()
+    auto current_module_file()
     {
-        text result;
+        auto result = text{};
 
         #if defined(_WIN32)
 
@@ -809,7 +857,7 @@ namespace netxs::os
 
         return result;
     }
-    static auto split_cmdline(view cmdline)
+    auto split_cmdline(view cmdline)
     {
         auto args = std::vector<text>{};
         auto mark = '\0';
@@ -853,7 +901,7 @@ namespace netxs::os
 
         return args;
     }
-    static auto exec(text binary, text params = {}, int window_state = 0)
+    auto exec(text binary, text params = {}, int window_state = 0)
     {
         #if defined(_WIN32)
 
@@ -898,7 +946,7 @@ namespace netxs::os
 
         #endif
     }
-    static void start_log(text srv_name)
+    void start_log(text srv_name)
     {
         is_daemon = true;
 
@@ -912,7 +960,7 @@ namespace netxs::os
 
         #endif
     }
-    static void syslog(view data)
+    void syslog(view data)
     {
         if (os::is_daemon)
         {
@@ -931,7 +979,7 @@ namespace netxs::os
         }
         else std::cout << data << std::flush;
     }
-    static auto daemonize(text srv_name)
+    auto daemonize(text srv_name)
     {
         #if defined(_WIN32)
 
@@ -980,7 +1028,7 @@ namespace netxs::os
 
         #endif
     }
-    static auto host_name()
+    auto host_name()
     {
         auto hostname = text{};
 
@@ -1026,7 +1074,7 @@ namespace netxs::os
         #endif
         return hostname;
     }
-    static auto is_mutex_exists(text&& mutex_name)
+    auto is_mutex_exists(text&& mutex_name)
     {
         auto result = faux;
 
@@ -1044,22 +1092,19 @@ namespace netxs::os
 
         #endif
     }
-    static auto process_id()
+    auto process_id()
     {
         auto result = ui32{};
 
         #if defined(_WIN32)
-
             result = ::GetCurrentProcessId();
-
         #else
-
             result = ::getpid();
-
         #endif
+
         return result;
     }
-    static auto logged_in_users(view domain_delimiter = "\\", view record_delimiter = "\0")
+    static auto logged_in_users(view domain_delimiter = "\\", view record_delimiter = "\0") //  static required by ::WTSQuerySessionInformation
     {
         auto active_users_array = text{};
 
@@ -1081,7 +1126,7 @@ namespace netxs::os
 
                     if (user.length())
                     {
-                        WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSDomainName, &buffer_pointer, &buffer_length);
+                        ::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSDomainName, &buffer_pointer, &buffer_length);
                         auto domain = text(utf::to_view(buffer_pointer, buffer_length / sizeof(wchar_t)));
                         ::WTSFreeMemory(buffer_pointer);
 
@@ -1128,7 +1173,7 @@ namespace netxs::os
         #endif
         return active_users_array;
     }
-    static auto user()
+    auto user()
     {
         #if defined(_WIN32)
 
@@ -1241,7 +1286,7 @@ namespace netxs::os
     static security_descriptor global_access{ "D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)" };
     */
 
-    static auto take_partition(text&& utf8_file_name)
+    auto take_partition(text&& utf8_file_name)
     {
         auto result = text{};
         auto volume = std::vector<char>(std::max<size_t>(MAX_PATH, utf8_file_name.size() + 1));
@@ -1263,7 +1308,7 @@ namespace netxs::os
         }
         return result;
     }
-    static auto take_temp(text&& utf8_file_name)
+    auto take_temp(text&& utf8_file_name)
     {
         auto tmp_dir = text{};
         auto file_guid = take_partition(std::move(utf8_file_name));
@@ -1276,11 +1321,11 @@ namespace netxs::os
 
         return tmp_dir;
     }
-    static auto trusted_domain_name()
+    static auto trusted_domain_name() // static required by ::DsEnumerateDomainTrusts
     {
-        PDS_DOMAIN_TRUSTS info;
-        text  domain_name;
-        ULONG DomainCount;
+        auto info = PDS_DOMAIN_TRUSTS{};
+        auto domain_name = text{};
+        auto DomainCount = ULONG{};
 
         bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &DomainCount);
         if (result == ERROR_SUCCESS)
@@ -1290,29 +1335,29 @@ namespace netxs::os
         }
         return domain_name;
     }
-    static auto trusted_domain_guid()
+    static auto trusted_domain_guid() // static required by ::DsEnumerateDomainTrusts
     {
-        PDS_DOMAIN_TRUSTS info;
-        text  domain_guid;
-        ULONG domain_count;
+        auto info = PDS_DOMAIN_TRUSTS{};
+        auto domain_guid = text{};
+        auto domain_count = ULONG{};
 
         bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &domain_count);
         if (result == ERROR_SUCCESS && domain_count > 0)
         {
             auto& guid = info->DomainGuid;
             domain_guid = utf::to_hex(guid.Data1)
-                + '-' + utf::to_hex(guid.Data2)
-                + '-' + utf::to_hex(guid.Data3)
-                + '-' + utf::to_hex(std::string(guid.Data4, guid.Data4 + 2))
-                + '-' + utf::to_hex(std::string(guid.Data4 + 2, guid.Data4 + sizeof(guid.Data4)));
+                  + '-' + utf::to_hex(guid.Data2)
+                  + '-' + utf::to_hex(guid.Data3)
+                  + '-' + utf::to_hex(std::string(guid.Data4, guid.Data4 + 2))
+                  + '-' + utf::to_hex(std::string(guid.Data4 + 2, guid.Data4 + sizeof(guid.Data4)));
 
             ::NetApiBufferFree(info);
         }
         return domain_guid;
     }
-    static auto create_shortcut(text&& path_to_object, text&& path_to_link)
+    auto create_shortcut(text&& path_to_object, text&& path_to_link)
     {
-        HRESULT result;
+        auto result = HRESULT{};
         IShellLink* psl;
         ::CoInitialize(0);
         result = ::CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
@@ -1347,7 +1392,7 @@ namespace netxs::os
 
         return faux;
     }
-    static auto expand(text&& directory)
+    auto expand(text&& directory)
     {
         auto result = text{};
         if (auto len = ::ExpandEnvironmentStrings(directory.c_str(), NULL, 0))
@@ -1360,9 +1405,9 @@ namespace netxs::os
         }
         return result;
     }
-    static auto set_registry_key(text&& key_path, text&& parameter_name, text&& value)
+    auto set_registry_key(text&& key_path, text&& parameter_name, text&& value)
     {
-        HKEY hKey;
+        auto hKey = HKEY{};
         auto status = ::RegCreateKeyEx( HKEY_LOCAL_MACHINE,
                                         key_path.c_str(),
                                         0,
@@ -1393,13 +1438,12 @@ namespace netxs::os
 
         return (status == ERROR_SUCCESS);
     }
-    static auto get_registry_string_value(text&& key_path, text&& parameter_name)
+    auto get_registry_string_value(text&& key_path, text&& parameter_name)
     {
-        text result;
-        HKEY hKey;
-        DWORD value_type;
-        DWORD data_length = 0;
-
+        auto result = text{};
+        auto hKey = HKEY{};
+        auto value_type = DWORD{};
+        auto data_length = DWORD{};
         auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
                                       key_path.c_str(),
                                       0,
@@ -1441,10 +1485,10 @@ namespace netxs::os
 
         return result;
     }
-    static auto get_registry_subkeys(text&& key_path)
+    auto get_registry_subkeys(text&& key_path)
     {
-        list result;
-        HKEY hKey;
+        auto result = list{};
+        auto hKey = HKEY{};
         auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
                                       key_path.c_str(),
                                       0,
@@ -1453,7 +1497,7 @@ namespace netxs::os
 
         if (status == ERROR_SUCCESS && hKey != NULL)
         {
-            DWORD lpcbMaxSubKeyLen;
+            auto lpcbMaxSubKeyLen = DWORD{};
             if (ERROR_SUCCESS == ::RegQueryInfoKey(hKey, NULL, NULL, NULL, NULL, &lpcbMaxSubKeyLen, NULL, NULL, NULL, NULL, NULL, NULL))
             {
                 auto size = lpcbMaxSubKeyLen;
@@ -1479,13 +1523,11 @@ namespace netxs::os
 
         return result;
     }
-    static auto cmdline()
+    auto cmdline()
     {
         auto result = list{};
         auto argc = int{ 0 };
-        auto params = std::shared_ptr<void>(
-            ::CommandLineToArgvW(GetCommandLineW(), &argc), ::LocalFree);
-
+        auto params = std::shared_ptr<void>(::CommandLineToArgvW(GetCommandLineW(), &argc), ::LocalFree);
         auto argv = (LPWSTR*)params.get();
         for (auto i = 0; i < argc; i++)
         {
@@ -1494,10 +1536,9 @@ namespace netxs::os
 
         return result;
     }
-    static auto delete_registry_tree(text&& path)
+    static auto delete_registry_tree(text&& path) // static required by ::SHDeleteKey
     {
-        bool result;
-        HKEY hKey;
+        auto hKey = HKEY{};
         auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
                                       path.c_str(),
                                       0,
@@ -1510,7 +1551,7 @@ namespace netxs::os
             ::RegCloseKey(hKey);
         }
 
-        result = status == ERROR_SUCCESS;
+        auto result = status == ERROR_SUCCESS;
 
         if (!result)
         {
@@ -1520,7 +1561,7 @@ namespace netxs::os
 
         return result;
     }
-    static void update_process_privileges(void)
+    void update_process_privileges(void)
     {
         auto hToken = INVALID_FD;
         auto tp = TOKEN_PRIVILEGES{};
@@ -1537,7 +1578,7 @@ namespace netxs::os
             ::AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL);
         }
     }
-    static auto kill_process(unsigned long proc_id)
+    auto kill_process(unsigned long proc_id)
     {
         auto result = faux;
 
@@ -1557,7 +1598,7 @@ namespace netxs::os
 
         return result;
     }
-    static auto global_startup_dir()
+    auto global_startup_dir()
     {
         auto result = text{};
 
@@ -1593,7 +1634,7 @@ namespace netxs::os
 
         return result;
     }
-    static auto check_pipe(text const& path, text prefix = "\\\\.\\pipe\\")
+    auto check_pipe(text const& path, text prefix = "\\\\.\\pipe\\")
     {
         auto hits = faux;
         auto next = WIN32_FIND_DATAA{};
@@ -1641,9 +1682,9 @@ namespace netxs::os
         #endif
     };
 
-    static auto set_palette(si32 legacy)
+    auto set_palette(si32 legacy)
     {
-        ansi::esc yield;
+        auto yield = ansi::esc{};
         bool legacy_mouse = legacy & os::legacy::mouse;
         bool legacy_color = legacy & os::legacy::vga16;
         if (legacy_color)
@@ -1677,9 +1718,9 @@ namespace netxs::os
             yield.clear();
         }
     }
-    static auto rst_palette(si32 legacy)
+    auto rst_palette(si32 legacy)
     {
-        ansi::esc yield;
+        auto yield = ansi::esc{};
         bool legacy_mouse = legacy & os::legacy::mouse;
         bool legacy_color = legacy & os::legacy::vga16;
         if (legacy_color)
@@ -1801,10 +1842,15 @@ namespace netxs::os
         virtual bool  send(view data)   = 0;
         virtual qiew  recv()            = 0;
         virtual bool  recv(char&)       = 0;
-        virtual void  shut()            = 0;
-        virtual void  stop()            = 0;
         virtual flux& show(flux&) const = 0;
-
+        virtual void  stop()
+        {
+            active = faux;
+        }
+        virtual void  shut()
+        {
+            active = faux;
+        }
         // ipc: Read until the delimeter appears.
         auto line(char delim)
         {
@@ -1823,56 +1869,6 @@ namespace netxs::os
         friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
         {
             return s << *sock;
-        }
-    };
-
-    class fifo
-    {
-        bool                    alive;
-        text                    store;
-        std::mutex              mutex;
-        std::condition_variable synch;
-
-    public:
-        fifo()
-            : alive{ true }
-        { }
-        bool send(view data)
-        {
-            auto guard = std::lock_guard{ mutex };
-            store += data;
-            synch.notify_one();
-            return true;
-        }
-        bool read(text& data)
-        {
-            auto guard = std::unique_lock{ mutex };
-            if (store.size()
-             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
-            {
-                std::swap(data, store);
-                store.clear();
-                return true;
-            }
-            return faux;
-        }
-        bool read(char& c)
-        {
-            auto guard = std::unique_lock{ mutex };
-            if (store.size()
-             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
-            {
-                c = store.front();
-                store = store.substr(1);
-                return true;
-            }
-            return faux;
-        }
-        void stop()
-        {
-            auto guard = std::lock_guard{ mutex };
-            alive = faux;
-            synch.notify_one();
         }
     };
 
@@ -1924,13 +1920,52 @@ namespace netxs::os
         }
     };
 
-    template<bool FORCED_WRITE = faux>
+    class ipc_direct
+        : public ipc_base
+    {
+        using vect = std::vector<char>;
+
+        file handle; // ipc: Socket file descriptor.
+        vect buffer; // ipc: Receive buffer.
+
+    public:
+        ipc_direct(fd_t r, fd_t w)
+            : handle{ r, w }
+        {
+            active = true;
+            buffer.resize(PIPE_BUF);
+        }
+
+        template<class SIZE_T>
+        auto recv(char* buff, SIZE_T size)
+        {
+            return os::recv(handle, buff, size);
+        }
+        qiew recv() override // It's not thread safe!
+        {
+            return recv(buffer.data(), buffer.size());
+        }
+        bool recv(char& c) override
+        {
+            return recv(&c, sizeof(c));
+        }
+        bool send(view buff) override
+        {
+            auto data = buff.data();
+            auto size = buff.size();
+            return os::send<true>(handle.get_w(), data, size);
+        }
+        flux& show(flux& s) const override
+        {
+            return s << handle;
+        }
+    };
+
     class ipc
         : public ipc_base
     {
         using vect = std::vector<char>;
 
-    protected:
         file handle; // ipc: Socket file descriptor.
         vect buffer; // ipc: Receive buffer.
         bool sealed; // ipc: Provide autoclosing.
@@ -2130,8 +2165,7 @@ namespace netxs::os
         }
         bool send(view data) override
         {
-            //return ipc::send<faux>(data);
-            return ipc::send<FORCED_WRITE>(data);
+            return ipc::send<faux>(data);
         }
         void shut() override
         {
@@ -2395,7 +2429,7 @@ namespace netxs::os
         {
             if (vtmode & os::legacy::direct)
             {
-                auto server = std::make_shared<ipc<true>>(file{ STDIN_FD, STDOUT_FD }, faux);
+                auto server = std::make_shared<ipc_direct>(STDIN_FD, STDOUT_FD);
                 auto client = server;
                 return std::make_pair( server, client );
             }
@@ -2409,6 +2443,50 @@ namespace netxs::os
             }
         }
 
+        flux& show(flux& s) const override
+        {
+            return s << handle;
+        }
+    };
+
+    class ipc_pty
+        : public ipc_base
+    {
+        using vect = std::vector<char>;
+
+        file handle; // ipc: Socket file descriptor.
+        vect buffer; // ipc: Receive buffer.
+
+    public:
+        void set(fd_t r, fd_t w)
+        {
+            active = true;
+            handle = { r, w };
+            buffer.resize(PIPE_BUF);
+        }
+        auto& get_w()
+        {
+            return handle.get_w();
+        }
+        template<class SIZE_T>
+        auto recv(char* buff, SIZE_T size)
+        {
+            return os::recv(handle, buff, size);
+        }
+        qiew recv() override // It's not thread safe!
+        {
+            return recv(buffer.data(), buffer.size());
+        }
+        bool recv(char& c) override
+        {
+            return recv(&c, sizeof(c));
+        }
+        bool send(view buff) override
+        {
+            auto data = buff.data();
+            auto size = buff.size();
+            return os::send<true>(handle.get_w(), data, size);
+        }
         flux& show(flux& s) const override
         {
             return s << handle;
@@ -2958,15 +3036,6 @@ namespace netxs::os
 
     class pty // Note: STA.
     {
-        struct ipc_pty
-            : public ipc<true>
-        {
-            void stop() override
-            {
-                active = faux;
-            }
-        };
-
         #if defined(_WIN32)
 
             HPCON  hPC      { INVALID_FD };
@@ -3114,7 +3183,7 @@ namespace netxs::os
                         }
                         log("xpty: child process waiter ended");
                     });
-                    termlink.set({ m_pipe_r, m_pipe_w }, true);
+                    termlink.set(m_pipe_r, m_pipe_w);
                     log("xpty: conpty created: ", winsz);
                 }
                 else log("xpty: child process creation error ", ::GetLastError());
@@ -3129,7 +3198,7 @@ namespace netxs::os
                 auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
                 auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
 
-                termlink.set({ fdm,fdm }, true);
+                termlink.set(fdm, fdm);
                 resize(winsz);
 
                 pid = ::fork();
@@ -3287,7 +3356,7 @@ namespace netxs::os
                     winsize winsz;
                     winsz.ws_col = newsize.x;
                     winsz.ws_row = newsize.y;
-                    ok(::ioctl(termlink.get().get_r(), TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
+                    ok(::ioctl(termlink.get_w(), TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
 
                 #endif
             }
@@ -3304,15 +3373,6 @@ namespace netxs::os
     {
         class pty
         {
-            struct ipc_pty
-                : public ipc<true>
-            {
-                void stop() override
-                {
-                    active = faux;
-                }
-            };
-
             #if defined(_WIN32)
 
                 HANDLE hProcess { INVALID_FD };
@@ -3441,7 +3501,7 @@ namespace netxs::os
                     {
                         hProcess = procsinf.hProcess;
                         hThread  = procsinf.hThread;
-                        termlink.set({ m_pipe_r, m_pipe_w }, true);
+                        termlink.set(m_pipe_r, m_pipe_w);
                         log("dtvt: conpty created: ", winsz);
                     }
                     else log("dtvt: child process creation error ", ::GetLastError());
@@ -3457,7 +3517,7 @@ namespace netxs::os
                     ok(::pipe(to_server), "dtvt: server ipc error");
                     ok(::pipe(to_client), "dtvt: client ipc error");
 
-                    termlink.set({ to_server[0], to_client[1] }, true);
+                    termlink.set(to_server[0], to_client[1]);
                     os::legacy::send_dmd(to_client[1], winsz);
 
                     pid = ::fork();

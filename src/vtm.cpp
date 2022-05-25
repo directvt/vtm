@@ -151,7 +151,7 @@ int main(int argc, char* argv[])
         auto usernm = os::get_env("USER");
         auto hostip = os::get_env("SSH_CLIENT");
         auto prefix = utf::concat(MONOTTY_PREFIX, userid);
-        auto server = os::ipc<true>::open<os::server>(prefix);
+        auto server = os::ipc::open<os::server>(prefix);
         if (!server)
         {
             log("main: error: can't start desktop server");
@@ -222,7 +222,7 @@ int main(int argc, char* argv[])
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
             auto prefix = utf::concat(MONOTTY_PREFIX, userid);
-            auto client = os::ipc<true>::open<os::client>(prefix, 10s, [&]()
+            auto client = os::ipc::open<os::client>(prefix, 10s, [&]()
                         {
                             log("main: new desktop environment for user ", userid);
                             auto binary = view{ argv[0] };
@@ -263,7 +263,7 @@ int main(int argc, char* argv[])
 
             if (vtmode & os::legacy::direct)
             {
-                auto tunnel = os::ipc<true>::local(vtmode);
+                auto tunnel = os::ipc::local(vtmode);
 
                 os::start_log("vtm"); // Redirect logs.
 
@@ -289,7 +289,7 @@ int main(int argc, char* argv[])
             }
             else
             {
-                auto tunnel = os::ipc<true>::local(vtmode);
+                auto tunnel = os::ipc::local(vtmode);
 
                 os::start_log("vtm"); // Redirect logs.
 
