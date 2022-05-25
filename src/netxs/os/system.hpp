@@ -102,7 +102,6 @@ namespace netxs::os
 
     enum role { client, server };
 
-    static constexpr auto direct_vt = char{ '\xff' };
     static constexpr si32 STDIN_BUF = 1024;
     static bool is_daemon = faux;
 
@@ -315,7 +314,7 @@ namespace netxs::os
         #endif
 
         return count > 0 ? qiew{ buff, count }
-                         : qiew{};
+                         : qiew{}; // An empty result is always an error condition.
     }
     template<bool IS_TTY = true, class SIZE_T>
     auto send(fd_t fd, char const* buff, SIZE_T size)
@@ -334,14 +333,15 @@ namespace netxs::os
             #else
                 // Mac OS X does not support the flag MSG_NOSIGNAL
                 // See GH#182, https://lists.apple.com/archives/macnetworkprog/2002/Dec/msg00091.html
-                 #if defined(__APPLE__)
+                #if defined(__APPLE__)
                     #define NO_SIGSEND SO_NOSIGPIPE
                 #else
                     #define NO_SIGSEND MSG_NOSIGNAL
                 #endif
-                auto count = IS_TTY ? ::write(fd, buff, size)
-                                    : ::send (fd, buff, size, NO_SIGSEND); // not work with open_pty
-                                                                           // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
+
+                auto count = IS_TTY ? ::write(fd, buff, size)              // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
+                                    : ::send (fd, buff, size, NO_SIGSEND); // ::send() does not work with ::open_pty() and ::pipe() (Errno 88 - it is not a socket)
+
                 #undef NO_SIGSEND
                 //  send(2) does not work with file descriptors, only sockets.
                 // write(2) works with fds as well as sockets.
@@ -455,7 +455,7 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            static constexpr auto timeout = NONBLOCKED ? 1 /*millisecond*/ : INFINITE;
+            static constexpr auto timeout = NONBLOCKED ? 0 /*milliseconds*/ : INFINITE;
             auto socks = _fd_set(std::forward<Args>(args)...);
             auto yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeout);
                  yield -= WAIT_OBJECT_0;
@@ -463,7 +463,7 @@ namespace netxs::os
 
         #else
 
-            auto timeval = ::timeval{ .tv_sec = 0, .tv_usec = 1 };
+            auto timeval = ::timeval{ .tv_sec = 0, .tv_usec = 0 };
             auto timeout = NONBLOCKED ? &timeval/*returns immediately*/ : nullptr;
             auto socks = fd_set{};
             FD_ZERO(&socks);
@@ -521,54 +521,32 @@ namespace netxs::os
         }
         static void send_dmd(fd_t m_pipe_w, twod const& winsz)
         {
-            auto marker_ff = direct_vt;
-            os::send(m_pipe_w, &marker_ff, sizeof(marker_ff));
-            os::send(m_pipe_w, &winsz, sizeof(winsz));
-            os::send(m_pipe_w, &--marker_ff, sizeof(marker_ff));
+            auto buffer = ansi::dtvt::marker{ winsz };
+            os::send<true>(m_pipe_w, buffer.data, buffer.size);
         }
         static auto peek_dmd(fd_t stdin_fd)
         {
-            auto buffer = std::array<char, 10>{};
             auto& ready = get_ready();
             auto& winsz = get_winsz();
             auto& state = get_state();
+            auto& start = get_start();
             if (ready) return state;
             ready = true;
-            #if defined (__linux__)
-                os::select<true>(stdin_fd, [&]()
+            os::select<true>(stdin_fd, [&]()
+            {
+                auto buffer = ansi::dtvt::marker{};
+                auto header = os::recv(stdin_fd, buffer.data, buffer.size);
+                auto length = header.length();
+                if (length)
                 {
-                    std::this_thread::sleep_for(15s);
-                    auto header = os::recv(stdin_fd, buffer.data(), sizeof(buffer));
-                    if (header.length() == sizeof(buffer)
-                     && buffer[0] == direct_vt
-                     && buffer[sizeof(buffer) - 1] == direct_vt - 1)
+                    state = buffer.size == length
+                         && buffer.get_sz(winsz);
+                    if (!state)
                     {
-                        winsz = *reinterpret_cast<twod const*>(buffer.data() + 1);
-                        state = true;
-                    }
-                    else get_start() = header;
-                });
-            #else
-                // os::select sometimes doesn't trigger, so use pipe peeking.
-                auto BytesRead = DWORD{ 0 };
-                if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
-                                    &buffer,        // lpBuffer
-                                    sizeof(buffer), // nBufferSize
-                                    &BytesRead,     // lpBytesRead
-                                    NULL,           // lpTotalBytesAvail,
-                                    NULL))          // lpBytesLeftThisMessage
-                {
-                    if (BytesRead == sizeof(buffer)
-                     && buffer[0] == direct_vt
-                     && buffer[sizeof(buffer) - 1] == direct_vt - 1)
-                    {
-                        os::recv(stdin_fd, buffer.data(), sizeof(buffer));
-                        winsz = *reinterpret_cast<twod const*>(buffer.data() + 1);
-                        state = true;
+                        start = header; //todo use it when the reading thread starts
                     }
                 }
-            #endif
-            if (state) log("  os: DirectVT detected, winsize: ", winsz);
+            });
             return state;
         }
     };
@@ -1946,6 +1924,7 @@ namespace netxs::os
         }
     };
 
+    template<bool FORCED_WRITE = faux>
     class ipc
         : public ipc_base
     {
@@ -2151,7 +2130,8 @@ namespace netxs::os
         }
         bool send(view data) override
         {
-            return ipc::send<faux>(data);
+            //return ipc::send<faux>(data);
+            return ipc::send<FORCED_WRITE>(data);
         }
         void shut() override
         {
@@ -2415,7 +2395,7 @@ namespace netxs::os
         {
             if (vtmode & os::legacy::direct)
             {
-                auto server = std::make_shared<ipc>(file{ STDIN_FD, STDOUT_FD }, faux);
+                auto server = std::make_shared<ipc<true>>(file{ STDIN_FD, STDOUT_FD }, faux);
                 auto client = server;
                 return std::make_pair( server, client );
             }
@@ -2979,12 +2959,8 @@ namespace netxs::os
     class pty // Note: STA.
     {
         struct ipc_pty
-            : public ipc
+            : public ipc<true>
         {
-            bool send(view data) override
-            {
-                return ipc::send<true>(data);
-            }
             void stop() override
             {
                 active = faux;
@@ -3329,7 +3305,7 @@ namespace netxs::os
         class pty
         {
             struct ipc_pty
-                : public ipc
+                : public ipc<true>
             {
                 void stop() override
                 {
@@ -3475,26 +3451,20 @@ namespace netxs::os
 
                 #else
 
-                    auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
-                    auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
-                    auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
-                    auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
 
-                    termlink.set({ fdm,fdm }, true);
-                    os::legacy::send_dmd(fdm, winsz);
+                    fd_t to_server[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
+                    fd_t to_client[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
+                    ok(::pipe(to_server), "dtvt: server ipc error");
+                    ok(::pipe(to_client), "dtvt: client ipc error");
+
+                    termlink.set({ to_server[0], to_client[1] }, true);
+                    os::legacy::send_dmd(to_client[1], winsz);
 
                     pid = ::fork();
                     if (pid == 0) // Child branch.
                     {
-                        os::close(fdm);
-                        ok(::setsid(), "setsid error"); // Make the current process a new session leader, return process group id.
-
-                        // In order to receive WINCH signal make fds the controlling
-                        // terminal of the current process.
-                        // Current process must be a session leader (::setsid()) and not have
-                        // a controlling terminal already.
-                        // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-                        ok(::ioctl(fds, TIOCSCTTY, 0), "dtvt: assign controlling terminal error");
+                        os::close(to_server[0]);
+                        os::close(to_client[1]);
 
                         ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                         ::signal(SIGQUIT, SIG_DFL); //
@@ -3503,10 +3473,11 @@ namespace netxs::os
                         ::signal(SIGTTOU, SIG_DFL); //
                         ::signal(SIGCHLD, SIG_DFL); //
 
-                        ::dup2 (fds, STDIN_FILENO);  // Assign stdio lines atomically
-                        ::dup2 (fds, STDOUT_FILENO); // = close(new);
-                        ::dup2 (fds, STDERR_FILENO); // fcntl(old, F_DUPFD, new)
-                        os::close(fds);
+                        ::dup2(to_client[0], STDIN_FILENO ); // Assign stdio lines atomically
+                        ::dup2(to_server[1], STDOUT_FILENO); // = close(new);
+                        ::dup2(to_server[1], STDERR_FILENO); // fcntl(old, F_DUPFD, new)
+                        os::close(to_client[0]);
+                        os::close(to_server[1]);
 
                         auto args = os::split_cmdline(cmdline);
                         auto argv = std::vector<char*>{};
@@ -3516,13 +3487,13 @@ namespace netxs::os
                         }
                         argv.push_back(nullptr);
 
-                        ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                         ok(::execvp(argv.front(), argv.data()), "execvp failed");
                         os::exit(1, "dtvt: exec error ", errno);
                     }
 
                     // Parent branch.
-                    os::close(fds);
+                    os::close(to_client[0]);
+                    os::close(to_server[1]);
 
                 #endif
 
@@ -3589,7 +3560,7 @@ namespace netxs::os
                     if (shot && termlink)
                     {
                         flow += shot;
-                        // Check integrity (DirectVT)
+                        // Check DirectVT frame integrity.
                         auto size = flow.length();
                         auto head = flow.data();
                         auto iter = head;
@@ -3605,7 +3576,6 @@ namespace netxs::os
                             size -= step;
                             iter += step;
                         }
-                        //auto crop = view{ flow };
 
                         if (iter != head)
                         {

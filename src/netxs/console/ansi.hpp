@@ -280,12 +280,52 @@ namespace netxs::ansi
     static const byte DTVT_JGC = 0x0D; // Jumbo Grapheme Cluster. gc.token + gc.view (send after terminal's request)
     static const byte DTVT_CMD = 0x64; // Arbitrary vt-command in UTF-8 format.
 
-    struct dtvt_header
+    namespace dtvt
     {
-        ui32 length;
-        id_t id;
-        rect area;
-    };
+        #pragma pack(push,1)
+        static constexpr auto initial = char{ '\xFF' };
+        union marker
+        {
+            struct mask
+            {
+                char mark_FF;
+                twod winsize;
+                char mark_FE;
+            };
+
+            static constexpr
+            auto size = sizeof(mask);
+            char data[size];
+            mask pack;
+
+            marker()
+            { }
+            marker(twod const& winsize)
+            {
+                pack.mark_FF = initial;
+                pack.winsize = winsize;
+                pack.mark_FE = initial - 1;
+            }
+
+            auto get_sz(twod& winsize)
+            {
+                if (pack.mark_FF == initial
+                 && pack.mark_FE == initial - 1)
+                {
+                    winsize = pack.winsize;
+                    return true;
+                }
+                else return faux;
+            }
+        };
+        struct header
+        {
+            ui32 length;
+            id_t id;
+            rect area;
+        };
+        #pragma pack(pop)
+    }
 
     // ansi: Escaped sequences accumulator.
     class esc
@@ -331,7 +371,7 @@ namespace netxs::ansi
                     text::push_back(static_cast<char>(data));
                 }
                 else if constexpr (std::is_integral_v<D>
-                                || std::is_same_v<D, dtvt_header>
+                                || std::is_same_v<D, dtvt::header>
                                 || std::is_same_v<D, rgba>
                                 || std::is_same_v<D, twod>
                                 || std::is_same_v<D, rect>)

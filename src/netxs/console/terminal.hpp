@@ -6742,14 +6742,14 @@ namespace netxs::ui
                 netxs::events::try_sync guard;
                 if (guard)
                 {
-                    auto frame = *reinterpret_cast<ansi::dtvt_header const*>(data.data());
+                    auto frame = *reinterpret_cast<ansi::dtvt::header const*>(data.data());
                     if (frame.length > data.size())
                     {
                         log("dtvt: corrupted data");
                         return;
                     }
-                    frame.length -= sizeof(ansi::dtvt_header);
-                    data.remove_prefix(sizeof(ansi::dtvt_header));
+                    frame.length -= sizeof(ansi::dtvt::header);
+                    data.remove_prefix(sizeof(ansi::dtvt::header));
 
                     auto size = std::clamp(frame.area.size, dot_11, console::max_value);
                     auto full = canvas.full();
@@ -6944,10 +6944,6 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
-                auto view = parent_canvas.view();
-                auto full = parent_canvas.full();
-                auto base = full.coor - view.coor;
-                canvas.move(base);
                 parent_canvas.fill(canvas, cell::shaders::full);
             };
         }
