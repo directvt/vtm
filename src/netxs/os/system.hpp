@@ -1839,9 +1839,9 @@ namespace netxs::os
         {
         protected:
             using flux = std::ostream;
-            using vect = std::vector<char>;
 
-            bool active = faux;
+            bool active{};
+            text buffer{}; // ipc::base: Receive buffer.
 
         public:
             virtual ~base()
@@ -1859,7 +1859,7 @@ namespace netxs::os
             {
                 active = faux;
             }
-            // ipc: Read until the delimeter appears.
+            // ipc::base: Read until the delimeter appears.
             auto line(char delim)
             {
                 char c;
@@ -1886,7 +1886,6 @@ namespace netxs::os
         {
             sptr<fifo> server;
             sptr<fifo> client;
-            text       buffer;
 
         public:
             memory(sptr<fifo> srv_queue, sptr<fifo> clt_queue)
@@ -1928,20 +1927,30 @@ namespace netxs::os
             }
         };
 
-        class direct
+        class ptycon
             : public base
         {
-            file handle; // direct: Socket file descriptor.
-            vect buffer; // direct: Receive buffer.
+            file handle; // ptycon: Stdio file descriptor.
 
         public:
-            direct(fd_t r, fd_t w)
+            ptycon() = default;
+            ptycon(fd_t r, fd_t w)
                 : handle{ r, w }
             {
                 active = true;
                 buffer.resize(PIPE_BUF);
             }
 
+            void set(fd_t r, fd_t w)
+            {
+                handle = { r, w };
+                active = true;
+                buffer.resize(PIPE_BUF);
+            }
+            auto& get_w()
+            {
+                return handle.get_w();
+            }
             template<class SIZE_T>
             auto recv(char* buff, SIZE_T size)
             {
@@ -1971,7 +1980,6 @@ namespace netxs::os
             : public base
         {
             file handle; // socket: Socket file descriptor.
-            vect buffer; // socket: Receive buffer.
             text scpath; // socket: Socket path (in order to unlink).
             fire signal; // socket: Interruptor.
 
@@ -2218,49 +2226,6 @@ namespace netxs::os
 
                 #endif
             }
-
-            flux& show(flux& s) const override
-            {
-                return s << handle;
-            }
-        };
-
-        class ptycon
-            : public base
-        {
-            file handle; // ptycon: Socket file descriptor.
-            vect buffer; // ptycon: Receive buffer.
-
-        public:
-            void set(fd_t r, fd_t w)
-            {
-                handle = { r, w };
-                active = true;
-                buffer.resize(PIPE_BUF);
-            }
-            auto& get_w()
-            {
-                return handle.get_w();
-            }
-            template<class SIZE_T>
-            auto recv(char* buff, SIZE_T size)
-            {
-                return os::recv(handle, buff, size);
-            }
-            qiew recv() override // It's not thread safe!
-            {
-                return recv(buffer.data(), buffer.size());
-            }
-            bool recv(char& c) override
-            {
-                return recv(&c, sizeof(c));
-            }
-            bool send(view buff) override
-            {
-                auto data = buff.data();
-                auto size = buff.size();
-                return os::send<true>(handle.get_w(), data, size);
-            }
             flux& show(flux& s) const override
             {
                 return s << handle;
@@ -2470,7 +2435,7 @@ namespace netxs::os
         {
             if (vtmode & os::legacy::direct)
             {
-                auto server = std::make_shared<ipc::direct>(STDIN_FD, STDOUT_FD);
+                auto server = std::make_shared<ipc::ptycon>(STDIN_FD, STDOUT_FD);
                 auto client = server;
                 return std::make_pair( server, client );
             }
