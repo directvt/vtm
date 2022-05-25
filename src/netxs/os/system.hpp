@@ -95,8 +95,13 @@
 
 namespace netxs::os
 {
+    namespace ipc
+    {
+        class base;
+    }
+
     using list = std::vector<text>;
-    using xipc = std::shared_ptr<class ipc_base>;
+    using xipc = std::shared_ptr<ipc::base>;
     using namespace std::chrono_literals;
     using namespace netxs::ui::atoms;
 
@@ -1828,408 +1833,448 @@ namespace netxs::os
         }
     };
 
-    class ipc_base
+    namespace ipc
     {
-    protected:
-        using flux = std::ostream;
+        class base
+        {
+        protected:
+            using flux = std::ostream;
+            using vect = std::vector<char>;
 
-        bool active = faux; // ipc: Used by the os::tty.
+            bool active = faux;
 
-    public:
-        virtual ~ipc_base()
-        { }
-        operator bool () { return active; }
-        virtual bool  send(view data)   = 0;
-        virtual qiew  recv()            = 0;
-        virtual bool  recv(char&)       = 0;
-        virtual flux& show(flux&) const = 0;
-        virtual void  stop()
-        {
-            active = faux;
-        }
-        virtual void  shut()
-        {
-            active = faux;
-        }
-        // ipc: Read until the delimeter appears.
-        auto line(char delim)
-        {
-            char c;
-            auto crop = text{};
-            while (recv(c) && c != delim)
+        public:
+            virtual ~base()
+            { }
+            operator bool () { return active; }
+            virtual bool  send(view data)   = 0;
+            virtual qiew  recv()            = 0;
+            virtual bool  recv(char&)       = 0;
+            virtual flux& show(flux&) const = 0;
+            virtual void  stop()
             {
-                crop.push_back(c);
+                active = faux;
             }
-            return crop;
-        }
-        friend auto& operator << (flux& s, ipc_base const& sock)
-        {
-            return sock.show(s << "{ xipc: ") << " }";
-        }
-        friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
-        {
-            return s << *sock;
-        }
-    };
-
-    template<role ROLE>
-    class ipc_local
-        : public ipc_base
-    {
-        sptr<fifo> server;
-        sptr<fifo> client;
-        text       buffer;
-
-    public:
-        ipc_local(sptr<fifo> srv_queue, sptr<fifo> clt_queue)
-            : server{ srv_queue },
-              client{ clt_queue }
-        {
-            active = true;
-        }
-        void shut() override
-        {
-            active = faux;
-            server->stop();
-            client->stop();
-        }
-        qiew recv() override
-        {
-            buffer.clear();
-            if constexpr (ROLE == role::server) server->read(buffer);
-            else                                client->read(buffer);
-            return { buffer };
-        }
-        bool recv(char& c) override
-        {
-            if constexpr (ROLE == role::server) return server->read(c);
-            else                                return client->read(c);
-        }
-        bool send(view data) override
-        {
-            if constexpr (ROLE == role::server) return client->send(data);
-            else                                return server->send(data); 
-        }
-        flux& show(flux& s) const override
-        {
-            return s << "local pipe: server=" << server.get() << " client=" << client.get();
-        }
-        void stop() override
-        {
-            shut();
-        }
-    };
-
-    class ipc_direct
-        : public ipc_base
-    {
-        using vect = std::vector<char>;
-
-        file handle; // ipc: Socket file descriptor.
-        vect buffer; // ipc: Receive buffer.
-
-    public:
-        ipc_direct(fd_t r, fd_t w)
-            : handle{ r, w }
-        {
-            active = true;
-            buffer.resize(PIPE_BUF);
-        }
-
-        template<class SIZE_T>
-        auto recv(char* buff, SIZE_T size)
-        {
-            return os::recv(handle, buff, size);
-        }
-        qiew recv() override // It's not thread safe!
-        {
-            return recv(buffer.data(), buffer.size());
-        }
-        bool recv(char& c) override
-        {
-            return recv(&c, sizeof(c));
-        }
-        bool send(view buff) override
-        {
-            auto data = buff.data();
-            auto size = buff.size();
-            return os::send<true>(handle.get_w(), data, size);
-        }
-        flux& show(flux& s) const override
-        {
-            return s << handle;
-        }
-    };
-
-    class ipc
-        : public ipc_base
-    {
-        using vect = std::vector<char>;
-
-        file handle; // ipc: Socket file descriptor.
-        vect buffer; // ipc: Receive buffer.
-        bool sealed; // ipc: Provide autoclosing.
-        text scpath; // ipc: Socket path (in order to unlink).
-        fire signal; // ipc: Interruptor.
-
-        void init(si32 buff_size = PIPE_BUF) { active = true; buffer.resize(buff_size); }
-
-    public:
-        ipc(file descriptor = {}, bool sealed = faux)
-            : handle{ std::move(descriptor) },
-              sealed{ sealed                }
-        {
-            if (handle) init();
-        }
-        ~ipc()
-        {
-            #if defined(__BSD__)
-
-                if (scpath.length())
+            virtual void  shut()
+            {
+                active = faux;
+            }
+            // ipc: Read until the delimeter appears.
+            auto line(char delim)
+            {
+                char c;
+                auto crop = text{};
+                while (recv(c) && c != delim)
                 {
-                    ::unlink(scpath.c_str()); // Cleanup file system unix domain socket.
+                    crop.push_back(c);
                 }
+                return crop;
+            }
+            friend auto& operator << (flux& s, ipc::base const& sock)
+            {
+                return sock.show(s << "{ xipc: ") << " }";
+            }
+            friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
+            {
+                return s << *sock;
+            }
+        };
 
-            #endif
-        }
-
-        void set(file h, bool s)
+        template<role ROLE>
+        class memory
+            : public base
         {
-            handle = std::move(h);
-            sealed = s;
-            if (handle) init();
-        }
-        auto& get()
+            sptr<fifo> server;
+            sptr<fifo> client;
+            text       buffer;
+
+        public:
+            memory(sptr<fifo> srv_queue, sptr<fifo> clt_queue)
+                : server{ srv_queue },
+                  client{ clt_queue }
+            {
+                active = true;
+            }
+            void shut() override
+            {
+                active = faux;
+                server->stop();
+                client->stop();
+            }
+            qiew recv() override
+            {
+                buffer.clear();
+                if constexpr (ROLE == role::server) server->read(buffer);
+                else                                client->read(buffer);
+                return { buffer };
+            }
+            bool recv(char& c) override
+            {
+                if constexpr (ROLE == role::server) return server->read(c);
+                else                                return client->read(c);
+            }
+            bool send(view data) override
+            {
+                if constexpr (ROLE == role::server) return client->send(data);
+                else                                return server->send(data); 
+            }
+            flux& show(flux& s) const override
+            {
+                return s << "local pipe: server=" << server.get() << " client=" << client.get();
+            }
+            void stop() override
+            {
+                shut();
+            }
+        };
+
+        class direct
+            : public base
         {
-            return handle;
-        }
-        template<class T>
-        auto cred(T id) const // Check peer cred.
+            file handle; // direct: Socket file descriptor.
+            vect buffer; // direct: Receive buffer.
+
+        public:
+            direct(fd_t r, fd_t w)
+                : handle{ r, w }
+            {
+                active = true;
+                buffer.resize(PIPE_BUF);
+            }
+
+            template<class SIZE_T>
+            auto recv(char* buff, SIZE_T size)
+            {
+                return os::recv(handle, buff, size);
+            }
+            qiew recv() override // It's not thread safe!
+            {
+                return recv(buffer.data(), buffer.size());
+            }
+            bool recv(char& c) override
+            {
+                return recv(&c, sizeof(c));
+            }
+            bool send(view buff) override
+            {
+                auto data = buff.data();
+                auto size = buff.size();
+                return os::send<true>(handle.get_w(), data, size);
+            }
+            flux& show(flux& s) const override
+            {
+                return s << handle;
+            }
+        };
+
+        class socket
+            : public base
         {
-            #if defined(_WIN32)
+            file handle; // socket: Socket file descriptor.
+            vect buffer; // socket: Receive buffer.
+            text scpath; // socket: Socket path (in order to unlink).
+            fire signal; // socket: Interruptor.
 
-                //Note: Named Pipes - default ACL used for a named pipe grant full control to the LocalSystem, admins, and the creator owner
-                //https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights
+        public:
+            socket(file descriptor = {})
+                : handle{ std::move(descriptor) }
+            {
+                if (handle) init();
+            }
+            ~socket()
+            {
+                #if defined(__BSD__)
 
-            #elif defined(__linux__)
+                    if (scpath.length())
+                    {
+                        ::unlink(scpath.c_str()); // Cleanup file system unix domain socket.
+                    }
 
-                auto cred = ucred{};
-                #ifndef __ANDROID__
-                    auto size = socklen_t{ sizeof(cred) };
-                #else
-                    auto size = unsigned{ sizeof(cred) };
+                #endif
+            }
+
+            void set_path(text path)
+            {
+                scpath = path;
+            }
+            void init(si32 buff_size = PIPE_BUF)
+            {
+                active = true;
+                buffer.resize(buff_size);
+            }
+            auto& get_r()
+            {
+                return handle.get_r();
+            }
+            auto& get_w()
+            {
+                return handle.get_w();
+            }
+            template<class T>
+            auto cred(T id) const // Check peer cred.
+            {
+                #if defined(_WIN32)
+
+                    //Note: Named Pipes - default ACL used for a named pipe grant full control to the LocalSystem, admins, and the creator owner
+                    //https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights
+
+                #elif defined(__linux__)
+
+                    auto cred = ucred{};
+                    #ifndef __ANDROID__
+                        auto size = socklen_t{ sizeof(cred) };
+                    #else
+                        auto size = unsigned{ sizeof(cred) };
+                    #endif
+
+                    if (!ok(::getsockopt(handle.get_r(), SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt(SOL_SOCKET) failed"))
+                    {
+                        return faux;
+                    }
+
+                    if (cred.uid && id != cred.uid)
+                    {
+                        log("sock: other users are not allowed to the session, abort");
+                        return faux;
+                    }
+
+                    log("sock: creds from SO_PEERCRED:",
+                            "\n\t  pid: ", cred.pid,
+                            "\n\t euid: ", cred.uid,
+                            "\n\t egid: ", cred.gid);
+
+                #elif defined(__BSD__)
+
+                    auto euid = uid_t{};
+                    auto egid = gid_t{};
+
+                    if (!ok(::getpeereid(handle.get_r(), &euid, &egid), "getpeereid failed"))
+                    {
+                        return faux;
+                    }
+
+                    if (euid && id != euid)
+                    {
+                        log("sock: other users are not allowed to the session, abort");
+                        return faux;
+                    }
+
+                    log("sock: creds from getpeereid:",
+                            "\n\t  pid: ", id,
+                            "\n\t euid: ", euid,
+                            "\n\t egid: ", egid);
+
                 #endif
 
-                if (!ok(::getsockopt(handle.get_r(), SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt(SOL_SOCKET) failed"))
-                {
-                    return faux;
-                }
+                return true;
+            }
+            auto meet() -> std::shared_ptr<ipc::socket>
+            {
+                #if defined(_WIN32)
 
-                if (cred.uid && id != cred.uid)
-                {
-                    log("sock: other users are not allowed to the session, abort");
-                    return faux;
-                }
-
-                log("sock: creds from SO_PEERCRED:",
-                        "\n\t  pid: ", cred.pid,
-                        "\n\t euid: ", cred.uid,
-                        "\n\t egid: ", cred.gid);
-
-            #elif defined(__BSD__)
-
-                auto euid = uid_t{};
-                auto egid = gid_t{};
-
-                if (!ok(::getpeereid(handle.get_r(), &euid, &egid), "getpeereid failed"))
-                {
-                    return faux;
-                }
-
-                if (euid && id != euid)
-                {
-                    log("sock: other users are not allowed to the session, abort");
-                    return faux;
-                }
-
-                log("sock: creds from getpeereid:",
-                        "\n\t  pid: ", id,
-                        "\n\t euid: ", euid,
-                        "\n\t egid: ", egid);
-
-            #endif
-
-            return true;
-        }
-        auto meet() -> std::shared_ptr<ipc>
-        {
-            #if defined(_WIN32)
-
-                auto to_server = RD_PIPE_PATH + scpath;
-                auto to_client = WR_PIPE_PATH + scpath;
-                auto next_link = [&](auto h, auto const& path, auto type)
-                {
-                    auto next_waiting_point = INVALID_FD;
-                    auto connected = ::ConnectNamedPipe(h, NULL)
-                        ? true
-                        : (::GetLastError() == ERROR_PIPE_CONNECTED);
-
-                    if (active && connected) // Recreate the waiting point for the next client.
+                    auto to_server = RD_PIPE_PATH + scpath;
+                    auto to_client = WR_PIPE_PATH + scpath;
+                    auto next_link = [&](auto h, auto const& path, auto type)
                     {
-                        next_waiting_point =
-                            ::CreateNamedPipe( path.c_str(),             // pipe path
-                                               type,                     // read/write access
-                                               PIPE_TYPE_BYTE |          // message type pipe
-                                               PIPE_READMODE_BYTE |      // message-read mode
-                                               PIPE_WAIT,                // blocking mode
-                                               PIPE_UNLIMITED_INSTANCES, // max. instances
-                                               PIPE_BUF,                 // output buffer size
-                                               PIPE_BUF,                 // input buffer size
-                                               0,                        // client time-out
-                                               NULL);                    // DACL (pipe_acl)
-                        // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);
-                        //       The ACLs in the default security descriptor for a named pipe grant full control to the
-                        //       LocalSystem account, administrators, and the creator owner.They also grant read access to
-                        //       members of the Everyone groupand the anonymous account.
-                        //       Without write access, the desktop will be inaccessible to non-owners.
+                        auto next_waiting_point = INVALID_FD;
+                        auto connected = ::ConnectNamedPipe(h, NULL)
+                            ? true
+                            : (::GetLastError() == ERROR_PIPE_CONNECTED);
+
+                        if (active && connected) // Recreate the waiting point for the next client.
+                        {
+                            next_waiting_point =
+                                ::CreateNamedPipe( path.c_str(),             // pipe path
+                                                   type,                     // read/write access
+                                                   PIPE_TYPE_BYTE |          // message type pipe
+                                                   PIPE_READMODE_BYTE |      // message-read mode
+                                                   PIPE_WAIT,                // blocking mode
+                                                   PIPE_UNLIMITED_INSTANCES, // max. instances
+                                                   PIPE_BUF,                 // output buffer size
+                                                   PIPE_BUF,                 // input buffer size
+                                                   0,                        // client time-out
+                                                   NULL);                    // DACL (pipe_acl)
+                            // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);
+                            //       The ACLs in the default security descriptor for a named pipe grant full control to the
+                            //       LocalSystem account, administrators, and the creator owner.They also grant read access to
+                            //       members of the Everyone groupand the anonymous account.
+                            //       Without write access, the desktop will be inaccessible to non-owners.
+                        }
+                        else os::fail("not active");
+
+                        return next_waiting_point;
+                    };
+
+                    auto r = next_link(handle.get_r(), to_server, PIPE_ACCESS_INBOUND);
+                    if (r == INVALID_FD)
+                    {
+                        return os::fail("CreateNamedPipe error (read)");
                     }
-                    else os::fail("not active");
 
-                    return next_waiting_point;
-                };
+                    auto w = next_link(handle.get_w(), to_client, PIPE_ACCESS_OUTBOUND);
+                    if (w == INVALID_FD)
+                    {
+                        ::CloseHandle(r);
+                        return os::fail("CreateNamedPipe error (write)");
+                    }
 
-                auto r = next_link(handle.get_r(), to_server, PIPE_ACCESS_INBOUND);
-                if (r == INVALID_FD)
-                {
-                    return os::fail("CreateNamedPipe error (read)");
-                }
+                    auto connector = std::make_shared<ipc::socket>(std::move(handle));
+                    handle = { r, w };
 
-                auto w = next_link(handle.get_w(), to_client, PIPE_ACCESS_OUTBOUND);
-                if (w == INVALID_FD)
-                {
-                    ::CloseHandle(r);
-                    return os::fail("CreateNamedPipe error (write)");
-                }
+                    return connector;
 
-                auto connector = std::make_shared<ipc>(std::move(handle), true);
-                handle = { r, w };
+                #else
 
-                return connector;
+                    auto result = std::shared_ptr<ipc::socket>{};
+                    auto h_proc = [&]()
+                    {
+                        auto h = ::accept(handle.get_r(), 0, 0);
+                        auto s = file{ h, h };
+                        if (s) result = std::make_shared<ipc::socket>(std::move(s));
+                    };
+                    auto f_proc = [&]()
+                    {
+                        log("xipc: signal fired");
+                        signal.flush();
+                    };
 
-            #else
+                    os::select(handle.get_r(), h_proc,
+                               signal        , f_proc);
 
-                auto result = std::shared_ptr<ipc>{};
-                auto h_proc = [&]()
-                {
-                    auto h = ::accept(handle.get_r(), 0, 0);
-                    auto s = file{ h, h };
-                    if (s) result = std::make_shared<ipc>(std::move(s), true);
-                };
-                auto f_proc = [&]()
-                {
-                    log("xipc: signal fired");
-                    signal.flush();
-                };
+                    return result;
 
-                os::select(handle.get_r(), h_proc,
-                           signal        , f_proc);
+                #endif
+            }
+            template<class SIZE_T>
+            auto recv(char* buff, SIZE_T size)
+            {
+                return os::recv(handle, buff, size);
+            }
+            qiew recv() override // It's not thread safe!
+            {
+                return recv(buffer.data(), buffer.size());
+            }
+            bool recv(char& c) override
+            {
+                return recv(&c, sizeof(c));
+            }
+            bool send(view buff) override
+            {
+                auto data = buff.data();
+                auto size = buff.size();
+                return os::send<faux>(handle.get_w(), data, size);
+            }
+            void shut() override
+            {
+                active = faux;
+                #if defined(_WIN32)
 
-                return result;
-
-            #endif
-        }
-        template<class SIZE_T>
-        auto recv(char* buff, SIZE_T size)
-        {
-            //todo calling ::select() causes performance hit
-            //auto result = qiew{};
-            //os::select(handle.get_r(), [&]() { result = os::recv(handle, buff, size); },
-            //           signal,         [&]() { log("xipc: abort reading"); signal.flush(); });
-            //return result;
-            return os::recv(handle, buff, size);
-        }
-        qiew recv() override // It's not thread safe!
-        {
-            return recv(buffer.data(), buffer.size());
-        }
-        bool recv(char& c) override
-        {
-            return recv(&c, sizeof(c));
-        }
-        template<bool IS_TTY, class T>
-        auto send(T const& buff)
-        {
-            auto data = buff.data();
-            auto size = buff.size();
-            return os::send<IS_TTY>(handle.get_w(), data, size);
-        }
-        bool send(view data) override
-        {
-            return ipc::send<faux>(data);
-        }
-        void shut() override
-        {
-            active = faux;
-            #if defined(_WIN32)
-
-                if (sealed) // Disconnection order does matter.
-                {
+                    // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
                     auto to_client = WR_PIPE_PATH + scpath;
                     auto to_server = RD_PIPE_PATH + scpath;
                     if (handle.get_w() != INVALID_FD) ok(::DeleteFileA(to_client.c_str()));
                     if (handle.get_r() != INVALID_FD) ok(::DeleteFileA(to_server.c_str()));
                     handle.close();
-                }
 
-            #else
+                #else
 
-                signal.reset();
+                    signal.reset();
 
-            #endif
-        }
-        void stop() override
-        {
-            active = faux;
-            #if defined(_WIN32)
+                #endif
+            }
+            void stop() override
+            {
+                active = faux;
+                #if defined(_WIN32)
 
-                if (sealed) // Disconnection order does matter.
-                {
+                    // Disconnection order does matter.
                     if (handle.get_w() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_w()));
                     if (handle.get_r() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_r()));
-                }
 
-            #else
+                #else
 
-                //an important conceptual reason to want
-                //to use shutdown:
-                //             to signal EOF to the peer
-                //             and still be able to receive
-                //             pending data the peer sent.
-                //"shutdown() doesn't actually close the file descriptor
-                //            — it just changes its usability.
-                //To free a socket descriptor, you need to use close()."
+                    //an important conceptual reason to want
+                    //to use shutdown:
+                    //             to signal EOF to the peer
+                    //             and still be able to receive
+                    //             pending data the peer sent.
+                    //"shutdown() doesn't actually close the file descriptor
+                    //            — it just changes its usability.
+                    //To free a socket descriptor, you need to use close()."
 
-                log("xipc: shutdown: handle descriptor: ", handle.get_r());
-                if (!ok(::shutdown(handle.get_r(), SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
-                {
-                    switch (errno)
+                    log("xipc: shutdown: handle descriptor: ", handle.get_r());
+                    if (!ok(::shutdown(handle.get_r(), SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
                     {
-                        case EBADF:    os::fail("EBADF: The socket argument is not a valid file descriptor.");                             break;
-                        case EINVAL:   os::fail("EINVAL: The how argument is invalid.");                                                   break;
-                        case ENOTCONN: os::fail("ENOTCONN: The socket is not connected.");                                                 break;
-                        case ENOTSOCK: os::fail("ENOTSOCK: The socket argument does not refer to a socket.");                              break;
-                        case ENOBUFS:  os::fail("ENOBUFS: Insufficient resources were available in the system to perform the operation."); break;
-                        default:       os::fail("unknown reason");                                                                         break;
+                        switch (errno)
+                        {
+                            case EBADF:    os::fail("EBADF: The socket argument is not a valid file descriptor.");                             break;
+                            case EINVAL:   os::fail("EINVAL: The how argument is invalid.");                                                   break;
+                            case ENOTCONN: os::fail("ENOTCONN: The socket is not connected.");                                                 break;
+                            case ENOTSOCK: os::fail("ENOTSOCK: The socket argument does not refer to a socket.");                              break;
+                            case ENOBUFS:  os::fail("ENOBUFS: Insufficient resources were available in the system to perform the operation."); break;
+                            default:       os::fail("unknown reason");                                                                         break;
+                        }
                     }
-                }
 
-            #endif
-        }
-        template<role ROLE, class P = noop>
-        static auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
-            -> std::shared_ptr<ipc>
+                #endif
+            }
+
+            flux& show(flux& s) const override
+            {
+                return s << handle;
+            }
+        };
+
+        class ptycon
+            : public base
         {
-            auto sock_ptr = std::make_shared<ipc>(file{}, true);
+            file handle; // ptycon: Socket file descriptor.
+            vect buffer; // ptycon: Receive buffer.
+
+        public:
+            void set(fd_t r, fd_t w)
+            {
+                handle = { r, w };
+                active = true;
+                buffer.resize(PIPE_BUF);
+            }
+            auto& get_w()
+            {
+                return handle.get_w();
+            }
+            template<class SIZE_T>
+            auto recv(char* buff, SIZE_T size)
+            {
+                return os::recv(handle, buff, size);
+            }
+            qiew recv() override // It's not thread safe!
+            {
+                return recv(buffer.data(), buffer.size());
+            }
+            bool recv(char& c) override
+            {
+                return recv(&c, sizeof(c));
+            }
+            bool send(view buff) override
+            {
+                auto data = buff.data();
+                auto size = buff.size();
+                return os::send<true>(handle.get_w(), data, size);
+            }
+            flux& show(flux& s) const override
+            {
+                return s << handle;
+            }
+        };
+
+        template<role ROLE, class P = noop>
+        auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
+            -> std::shared_ptr<ipc::socket>
+        {
+            auto sock_ptr = std::make_shared<ipc::socket>();
+            auto& r_sock = sock_ptr->get_r();
+            auto& w_sock = sock_ptr->get_w();
+
             auto try_start = [&](auto play) -> bool
             {
                 auto done = play();
@@ -2259,10 +2304,7 @@ namespace netxs::os
                 //security_descriptor pipe_acl(security_descriptor_string);
                 //log("pipe: DACL=", pipe_acl.security_string);
 
-                auto& r_sock = sock_ptr->handle.get_r();
-                auto& w_sock = sock_ptr->handle.get_w();
-
-                sock_ptr->scpath = path;
+                sock_ptr->set_path(path);
                 auto to_server = RD_PIPE_PATH + path;
                 auto to_client = WR_PIPE_PATH + path;
 
@@ -2344,8 +2386,6 @@ namespace netxs::os
 
                 ok(::signal(SIGPIPE, SIG_IGN), "failed to set SIG_IGN");
 
-                auto& sock_r = sock_ptr->handle.get_r();
-                auto& sock_w = sock_ptr->handle.get_w();
                 auto addr = sockaddr_un{};
                 auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
 
@@ -2366,11 +2406,11 @@ namespace netxs::os
                     return os::fail("socket path too long");
                 }
 
-                if ((sock_w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
+                if ((w_sock = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
                 {
                     return os::fail("open unix domain socket error");
                 }
-                sock_r = sock_w;
+                r_sock = w_sock;
 
                 addr.sun_family = AF_UNIX;
                 auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
@@ -2378,7 +2418,7 @@ namespace netxs::os
 
                 auto play = [&]()
                 {
-                    return -1 != ::connect(sock_r, (struct sockaddr*)&addr, sock_addr_len);
+                    return -1 != ::connect(r_sock, (struct sockaddr*)&addr, sock_addr_len);
                 };
 
                 if constexpr (ROLE == role::server)
@@ -2388,7 +2428,7 @@ namespace netxs::os
                         {
                             if (play())
                             {
-                                os::close(sock_r);
+                                os::close(r_sock);
                                 return os::fail("server already running");
                             }
                             else
@@ -2399,15 +2439,17 @@ namespace netxs::os
                         }
                     #endif
 
-                    sock_ptr->scpath = path; // For unlink on exit (file system socket).
+                    sock_ptr->set_path(path); // For unlink on exit (file system socket).
 
-                    if (::bind(sock_r, (struct sockaddr*)&addr, sock_addr_len) == -1)
+                    if (::bind(r_sock, (struct sockaddr*)&addr, sock_addr_len) == -1)
                     {
+                        os::close(r_sock);
                         return os::fail("error unix socket bind for ", path);
                     }
 
-                    if (::listen(sock_r, 5) == -1)
+                    if (::listen(r_sock, 5) == -1)
                     {
+                        os::close(r_sock);
                         return os::fail("error listen socket for ", path);
                     }
                 }
@@ -2424,12 +2466,11 @@ namespace netxs::os
             sock_ptr->init();
             return sock_ptr;
         }
-
-        static auto local(si32 vtmode) -> std::pair<sptr<ipc_base>, sptr<ipc_base>>
+        auto local(si32 vtmode) -> std::pair<sptr<ipc::base>, sptr<ipc::base>>
         {
             if (vtmode & os::legacy::direct)
             {
-                auto server = std::make_shared<ipc_direct>(STDIN_FD, STDOUT_FD);
+                auto server = std::make_shared<ipc::direct>(STDIN_FD, STDOUT_FD);
                 auto client = server;
                 return std::make_pair( server, client );
             }
@@ -2437,61 +2478,12 @@ namespace netxs::os
             {
                 auto squeue = std::make_shared<fifo>();
                 auto cqueue = std::make_shared<fifo>();
-                auto server = std::make_shared<ipc_local<os::server>>(squeue, cqueue);
-                auto client = std::make_shared<ipc_local<os::client>>(squeue, cqueue);
+                auto server = std::make_shared<ipc::memory<os::server>>(squeue, cqueue);
+                auto client = std::make_shared<ipc::memory<os::client>>(squeue, cqueue);
                 return std::make_pair( server, client );
             }
         }
-
-        flux& show(flux& s) const override
-        {
-            return s << handle;
-        }
-    };
-
-    class ipc_pty
-        : public ipc_base
-    {
-        using vect = std::vector<char>;
-
-        file handle; // ipc: Socket file descriptor.
-        vect buffer; // ipc: Receive buffer.
-
-    public:
-        void set(fd_t r, fd_t w)
-        {
-            active = true;
-            handle = { r, w };
-            buffer.resize(PIPE_BUF);
-        }
-        auto& get_w()
-        {
-            return handle.get_w();
-        }
-        template<class SIZE_T>
-        auto recv(char* buff, SIZE_T size)
-        {
-            return os::recv(handle, buff, size);
-        }
-        qiew recv() override // It's not thread safe!
-        {
-            return recv(buffer.data(), buffer.size());
-        }
-        bool recv(char& c) override
-        {
-            return recv(&c, sizeof(c));
-        }
-        bool send(view buff) override
-        {
-            auto data = buff.data();
-            auto size = buff.size();
-            return os::send<true>(handle.get_w(), data, size);
-        }
-        flux& show(flux& s) const override
-        {
-            return s << handle;
-        }
-    };
+    }
 
     class tty
     {
@@ -3050,7 +3042,7 @@ namespace netxs::os
 
         #endif
 
-        ipc_pty                   termlink{};
+        ipc::ptycon               termlink{};
         testy<twod>               termsize{};
         std::thread               stdinput{};
         std::thread               stdwrite{};
@@ -3384,7 +3376,7 @@ namespace netxs::os
 
             #endif
 
-            ipc_pty                   termlink{};
+            ipc::ptycon               termlink{};
             testy<twod>               termsize{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
