@@ -512,8 +512,15 @@ namespace netxs::os
 
             static constexpr auto timeout = NONBLOCKED ? 0 /*milliseconds*/ : INFINITE;
             auto socks = _fd_set(std::forward<Args>(args)...);
+
+            // Possible bug in win32api from 1998: https://groups.google.com/g/microsoft.public.win32.programmer.kernel/c/3vYIeKWZuvw?pli=1
+            // instead of WFMO() use some kind of ::NtQueryEvent() as workaround for single handle.
+            //auto yield = DWORD{};
+            //if constexpr (NONBLOCKED && sizeof...(args) == 2) yield = ::WaitForSingleObject(socks[0], 0);
+            //else                                              yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeout);
+
             auto yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeout);
-                 yield -= WAIT_OBJECT_0;
+            yield -= WAIT_OBJECT_0;
             _handle(yield, std::forward<Args>(args)...);
 
         #else
@@ -588,21 +595,46 @@ namespace netxs::os
             auto& start = get_start();
             if (ready) return state;
             ready = true;
-            os::select<true>(stdin_fd, [&]()
-            {
+
+            #if defined(_WIN32)
+                //todo
+                // Possible a win32api bug: os::select sometimes doesn't trigger, so use pipe peeking.
                 auto buffer = ansi::dtvt::marker{};
-                auto header = os::recv(stdin_fd, buffer.data, buffer.size);
-                auto length = header.length();
-                if (length)
+                auto length = DWORD{ 0 };
+                if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
+                                    &buffer,        // lpBuffer
+                                    sizeof(buffer), // nBufferSize
+                                    &length,        // lpBytesRead
+                                    NULL,           // lpTotalBytesAvail,
+                                    NULL))          // lpBytesLeftThisMessage
                 {
-                    state = buffer.size == length
-                         && buffer.get_sz(winsz);
-                    if (!state)
+                    if (length)
                     {
-                        start = header; //todo use it when the reading thread starts
+                        state = buffer.size == length
+                             && buffer.get_sz(winsz);
+                        if (state)
+                        {
+                            os::recv(stdin_fd, buffer.data, buffer.size);
+                        }
                     }
                 }
-            });
+            #else
+                os::select<true>(stdin_fd, [&]()
+                {
+                    auto buffer = ansi::dtvt::marker{};
+                    auto header = os::recv(stdin_fd, buffer.data, buffer.size);
+                    auto length = header.length();
+                    if (length)
+                    {
+                        state = buffer.size == length
+                             && buffer.get_sz(winsz);
+                        if (!state)
+                        {
+                            start = header; //todo use it when the reading thread starts
+                        }
+                    }
+                });
+            #endif
             return state;
         }
     };
