@@ -3,12 +3,20 @@
 
 #define DESKTOP_VER "v0.7.6"
 #define MONOTTY_VER "Monotty Desktopio " DESKTOP_VER
+#define MONOTTY_PREFIX "monotty_"
+#define MONOTTY_MYNAME "vtm"
+#define MONOTTY_FOLDER "/.config/" MONOTTY_MYNAME "/"
+#define MONOTTY_DEFAPP "Term"
+#define MONOTTY_APPINF "Desktopio Terminal " DESKTOP_VER
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
 
 // Enable keyboard input and unassign Esc key.
 #define PROD
+
+// Enable to show all terminal input (keyboard/mouse etc).
+//#define KEYLOG
 
 // Tiling limits.
 #ifndef PROD
@@ -20,17 +28,7 @@
 #endif
 #define APPS_DEL_TIMEOUT  1s
 
-#define MONOTTY_PREFIX "monotty_"
-#define MONOTTY_FOLDER "/.config/vtm/"
-
-// Enable to show all terminal input (keyboard/mouse etc).
-//#define KEYLOG
-
-// Highlight region ownership.
-//#define REGIONS
-
 #include "netxs/apps.hpp"
-
 #include <fstream> // Get current config from vtm.conf.
 
 using namespace netxs::console;
@@ -64,14 +62,14 @@ int main(int argc, char* argv[])
                 case 'r':
                     whoami = type::runapp;
                     params = getopt ? getopt.tail()
-                                    : "Term"s;
+                                    : text{ MONOTTY_DEFAPP };
                     break;
                 case 's': whoami = type::server; break;
                 case 'd': daemon = true; break;
                 default:
                     #ifndef PROD
 
-                        if (os::get_env("SHELL").ends_with("vtm"))
+                        if (os::get_env("SHELL").ends_with(MONOTTY_MYNAME))
                         {
                             auto error = utf::text{ "main: interactive server is not allowed in demo mode" };
                             if (argc > 1)
@@ -85,7 +83,7 @@ int main(int argc, char* argv[])
                                     error += utf::text(argv[i]);
                                 }
                             }
-                            os::start_log("vtm");
+                            os::start_log(MONOTTY_MYNAME);
                             log(error);
                             return 1;
                         }
@@ -218,7 +216,7 @@ int main(int argc, char* argv[])
         if (whoami == type::client)
         {
             banner();
-            os::start_log("vtm");
+            os::start_log(MONOTTY_MYNAME);
             auto userid = os::user();
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
@@ -258,15 +256,15 @@ int main(int argc, char* argv[])
             else
             {
                 menusz = 1;
-                params = "Term";
-                log("Desktopio Terminal " DESKTOP_VER);
+                params = MONOTTY_DEFAPP;
+                log(MONOTTY_APPINF);
             }
 
             skin::setup(tone::brighter, 0);
             auto config = console::conf(vtmode);
             auto tunnel = os::ipc::local(vtmode);
 
-            os::start_log("vtm"); // Redirect logs.
+            os::start_log(MONOTTY_MYNAME); // Redirect logs.
 
             auto cons = os::tty::proxy(tunnel.second);
             auto size = cons.ignite(vtmode);

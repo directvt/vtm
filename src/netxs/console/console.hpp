@@ -5544,6 +5544,7 @@ again:
         bool glow_fx; // conf: Enable glow effect in main menu.
         bool debug_overlay; // conf: Enable to show debug overlay.
         text debug_toggle; // conf: Debug toggle shortcut.
+        bool show_regions; // conf: Highlight region ownership.
 
         conf()            = default;
         conf(conf const&) = default;
@@ -5561,6 +5562,7 @@ again:
             glow_fx           = faux;
             debug_overlay     = faux;
             debug_toggle      = "🐞";
+            show_regions      = faux;
         }
         conf(xipc peer, si32 session_id)
             : session_id{ session_id }
@@ -5594,6 +5596,7 @@ again:
             glow_fx           = true;
             debug_overlay     = faux;
             debug_toggle      = "🐞";
+            show_regions      = faux;
         }
 
         friend auto& operator << (std::ostream& s, conf const& c)
@@ -5871,8 +5874,16 @@ again:
                 {
                     deskmenu->SUBMIT_T(tier::preview, hids::events::mouse::button::tplclick::leftright, token, gear)
                     {
-                        debug ? debug.stop()
-                              : debug.start();
+                        if (debug)
+                        {
+                            props.show_regions = true;
+                            debug.stop();
+                        }
+                        else
+                        {
+                            if (props.show_regions) props.show_regions = faux;
+                            else                    debug.start();
+                        }
                     };
                 }
 
@@ -5921,6 +5932,17 @@ again:
                             canvas.full(full);
                         }
                         if (debug) debug.output(canvas);
+                        if (props.show_regions)
+                        {
+                            canvas.each([](cell& c)
+                            {
+                                auto mark = rgba{ rgba::color256[c.link() % 256] };
+                                auto bgc = c.bgc();
+                                mark.alpha(64);
+                                bgc.mix(mark);
+                                c.bgc(bgc);
+                            });
+                        }
                     }
                     else if (yield) return;
 
@@ -6149,17 +6171,6 @@ again:
                     }
                     draw_mouse_pointer(parent_canvas);
                 }
-
-                #ifdef REGIONS
-                parent_canvas.each([](cell& c)
-                {
-                    auto mark = rgba{ rgba::color256[c.link() % 256] };
-                    auto bgc = c.bgc();
-                    mark.alpha(64);
-                    bgc.mix(mark);
-                    c.bgc(bgc);
-                });
-                #endif
             };
         }
     };
