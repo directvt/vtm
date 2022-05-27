@@ -97,11 +97,11 @@ namespace netxs::os
 {
     namespace ipc
     {
-        class base;
+        class iobase;
     }
 
     using list = std::vector<text>;
-    using xipc = std::shared_ptr<ipc::base>;
+    using xipc = std::shared_ptr<ipc::iobase>;
     using namespace std::chrono_literals;
     using namespace netxs::ui::atoms;
 
@@ -1874,16 +1874,16 @@ namespace netxs::os
 
     namespace ipc
     {
-        class base
+        class iobase
         {
         protected:
             using flux = std::ostream;
 
             bool active{};
-            text buffer{}; // ipc::base: Receive buffer.
+            text buffer{}; // ipc::iobase: Receive buffer.
 
         public:
-            virtual ~base()
+            virtual ~iobase()
             { }
             operator bool () { return active; }
             virtual bool  send(view data)   = 0;
@@ -1898,7 +1898,7 @@ namespace netxs::os
             {
                 active = faux;
             }
-            // ipc::base: Read until the delimeter appears.
+            // ipc::iobase: Read until the delimeter appears.
             auto line(char delim)
             {
                 char c;
@@ -1909,7 +1909,7 @@ namespace netxs::os
                 }
                 return crop;
             }
-            friend auto& operator << (flux& s, ipc::base const& sock)
+            friend auto& operator << (flux& s, ipc::iobase const& sock)
             {
                 return sock.show(s << "{ xipc: ") << " }";
             }
@@ -1921,7 +1921,7 @@ namespace netxs::os
 
         template<role ROLE>
         class memory
-            : public base
+            : public iobase
         {
             sptr<fifo> server;
             sptr<fifo> client;
@@ -1967,7 +1967,7 @@ namespace netxs::os
         };
 
         class ptycon
-            : public base
+            : public iobase
         {
             file handle; // ipc::ptycon: Stdio file descriptor.
 
@@ -2025,7 +2025,7 @@ namespace netxs::os
         };
 
         class socket
-            : public base
+            : public iobase
         {
             file handle; // ipc:socket: Socket file descriptor.
             text scpath; // ipc:socket: Socket path (in order to unlink).
@@ -2479,7 +2479,7 @@ namespace netxs::os
             sock_ptr->init();
             return sock_ptr;
         }
-        auto local(si32 vtmode) -> std::pair<sptr<ipc::base>, sptr<ipc::base>>
+        auto local(si32 vtmode) -> std::pair<sptr<ipc::iobase>, sptr<ipc::iobase>>
         {
             if (vtmode & os::legacy::direct)
             {
