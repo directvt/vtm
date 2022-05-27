@@ -258,15 +258,27 @@ namespace netxs::os
                                   && w != INVALID_FD; }
         void close()
         {
-            if (w != r)
+            if (w == r)
             {
                 os::close(r);
-                os::close(w);
+                w = r;
             }
             else
             {
                 os::close(r);
-                w = r;
+                os::close(w);
+            }
+        }
+        void shutdown() // Reset writing end of the pipe to interrupt reading call.
+        {
+            if (w == r)
+            {
+                os::close(w);
+                r = w;
+            }
+            else
+            {
+                os::close(w);
             }
         }
         friend auto& operator << (std::ostream& s, file const& handle)
@@ -445,7 +457,7 @@ namespace netxs::os
             template<class A, std::size_t... I>
             constexpr auto _repack(fd_t h, A const& a, std::index_sequence<I...>)
             {
-                return std::array{ h, a[I]... };
+                return std::array{ a[I]..., h };
             }
             template<std::size_t N, class P, class IDX = std::make_index_sequence<N>, class ...Args>
             constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
@@ -460,16 +472,16 @@ namespace netxs::os
                 else                             return std::array{ handle };
             }
             template<class R, class P, class ...Args>
-            constexpr auto _handle(R& i, fd_t handle, P&& proc, Args&&... args)
+            constexpr auto _handle(R i, fd_t handle, P&& proc, Args&&... args)
             {
-                if (i-- == 0)
+                if (i == 0)
                 {
                     proc();
                     return true;
                 }
                 else
                 {
-                    if constexpr (!!sizeof...(args)) return _handle(i, std::forward<Args>(args)...);
+                    if constexpr (!!sizeof...(args)) return _handle(--i, std::forward<Args>(args)...);
                     else                             return faux;
                 }
             }
@@ -513,12 +525,7 @@ namespace netxs::os
             static constexpr auto timeout = NONBLOCKED ? 0 /*milliseconds*/ : INFINITE;
             auto socks = _fd_set(std::forward<Args>(args)...);
 
-            // Possible bug in win32api from 1998: https://groups.google.com/g/microsoft.public.win32.programmer.kernel/c/3vYIeKWZuvw?pli=1
-            // instead of WFMO() use some kind of ::NtQueryEvent() as workaround for single handle.
-            //auto yield = DWORD{};
-            //if constexpr (NONBLOCKED && sizeof...(args) == 2) yield = ::WaitForSingleObject(socks[0], 0);
-            //else                                              yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeout);
-
+            // Note: ::WaitForMultipleObjects() does not work with pipes (DirectVT).
             auto yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeout);
             yield -= WAIT_OBJECT_0;
             _handle(yield, std::forward<Args>(args)...);
@@ -597,8 +604,8 @@ namespace netxs::os
             ready = true;
 
             #if defined(_WIN32)
-                //todo
                 // Possible a win32api bug: os::select sometimes doesn't trigger, so use pipe peeking.
+                // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
                 auto buffer = ansi::dtvt::marker{};
                 auto length = DWORD{ 0 };
                 if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
@@ -1926,12 +1933,6 @@ namespace netxs::os
             {
                 active = true;
             }
-            void shut() override
-            {
-                active = faux;
-                server->stop();
-                client->stop();
-            }
             qiew recv() override
             {
                 buffer.clear();
@@ -1953,6 +1954,12 @@ namespace netxs::os
             {
                 return s << "local pipe: server=" << server.get() << " client=" << client.get();
             }
+            void shut() override
+            {
+                active = faux;
+                server->stop();
+                client->stop();
+            }
             void stop() override
             {
                 shut();
@@ -1962,7 +1969,7 @@ namespace netxs::os
         class ptycon
             : public base
         {
-            file handle; // ptycon: Stdio file descriptor.
+            file handle; // ipc::ptycon: Stdio file descriptor.
 
         public:
             ptycon() = default;
@@ -1986,7 +1993,7 @@ namespace netxs::os
             template<class SIZE_T>
             auto recv(char* buff, SIZE_T size)
             {
-                return os::recv(handle, buff, size);
+                return os::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
             }
             qiew recv() override // It's not thread safe!
             {
@@ -2002,6 +2009,15 @@ namespace netxs::os
                 auto size = buff.size();
                 return os::send<true>(handle.get_w(), data, size);
             }
+            void shut() override
+            {
+                active = faux;
+                handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
+            }
+            void stop() override
+            {
+                shut();
+            }
             flux& show(flux& s) const override
             {
                 return s << handle;
@@ -2011,9 +2027,9 @@ namespace netxs::os
         class socket
             : public base
         {
-            file handle; // socket: Socket file descriptor.
-            text scpath; // socket: Socket path (in order to unlink).
-            fire signal; // socket: Interruptor.
+            file handle; // ipc:socket: Socket file descriptor.
+            text scpath; // ipc:socket: Socket path (in order to unlink).
+            fire signal; // ipc:socket: Interruptor.
 
         public:
             socket(file descriptor = {})
@@ -3032,6 +3048,9 @@ namespace netxs::os
             HANDLE hThread  { INVALID_FD };
             HANDLE gameover { INVALID_FD }; // ConPTY do not close pipe handles when client process exits,
             std::thread client_exit_waiter; // so we need to catch the process ending.
+            // Note: Not closing STDERR_FILENO (STDERR_FILENO and STDIN_FILENO the same)
+            //       causes the reading process to not stop reading when only STDIN_FILENO is closed.
+            //       An open STDERR_FILENO on the client side blocks the read interrupt on the ConPTY side.
 
         #else
 
@@ -3249,15 +3268,19 @@ namespace netxs::os
 
                 ::ClosePseudoConsole(hPC);
                 auto code = DWORD{ 0 };
-                if (::GetExitCodeProcess(hProcess, &code) == FALSE)
+                if (!::GetExitCodeProcess(hProcess, &code))
                 {
                     log("xpty: GetExitCodeProcess() return code: ", ::GetLastError());
                 }
                 else if (code == STILL_ACTIVE)
                 {
                     log("xpty: child process still running");
-                    ::TerminateProcess(hProcess, 0);
-                    code = 0;
+                    auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(hProcess, 10000 /*10 seconds*/);
+                    if (!result || !::GetExitCodeProcess(hProcess, &code))
+                    {
+                        ::TerminateProcess(hProcess, 0);
+                        code = 0;
+                    }
                 }
                 else log("xpty: child process exit code ", code);
                 exit_code = code;
@@ -3523,8 +3546,8 @@ namespace netxs::os
                         ::signal(SIGCHLD, SIG_DFL); //
 
                         ::dup2(to_client[0], STDIN_FILENO ); // Assign stdio lines atomically
-                        ::dup2(to_server[1], STDOUT_FILENO); // = close(new);
-                        ::dup2(to_server[1], STDERR_FILENO); // fcntl(old, F_DUPFD, new)
+                        ::dup2(to_server[1], STDOUT_FILENO); // = close(new); fcntl(old, F_DUPFD, new)
+                        ::close(STDERR_FILENO); // Not used. ::dup2(to_server[1], STDERR_FILENO);
                         os::close(to_client[0]);
                         os::close(to_server[1]);
 
@@ -3561,15 +3584,19 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     auto code = DWORD{ 0 };
-                    if (::GetExitCodeProcess(hProcess, &code) == FALSE)
+                    if (!::GetExitCodeProcess(hProcess, &code))
                     {
                         log("dtvt: GetExitCodeProcess() return code: ", ::GetLastError());
                     }
                     else if (code == STILL_ACTIVE)
                     {
                         log("dtvt: child process still running");
-                        ::TerminateProcess(hProcess, 0);
-                        code = 0;
+                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(hProcess, 10000 /*10 seconds*/);
+                        if (!result || !::GetExitCodeProcess(hProcess, &code))
+                        {
+                            ::TerminateProcess(hProcess, 0);
+                            code = 0;
+                        }
                     }
                     else log("dtvt: child process exit code ", code);
                     exit_code = code;

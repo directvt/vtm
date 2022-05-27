@@ -5958,7 +5958,7 @@ namespace netxs::ui
             log("term: exit code ", code);
             if (code)
             {
-                text error = ansi::bgc(reddk).fgc(whitelt).add("\nterm: exit code ", code, " ");
+                text error = ansi::bgc(reddk).fgc(whitelt).add("\r\nterm: exit code ", code, " ");
                 ondata(error);
             }
             else
@@ -6856,13 +6856,13 @@ namespace netxs::ui
         void onexit(si32 code)
         {
             log("dtvt: exit code ", code);
-            //if (code)
+            if (code)
             {
-                auto error = para{ ansi::bgc(reddk).fgc(whitelt).add("\nterm: exit code ", code, " ") };
+                auto error = para{ ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code ", code, " ") };
                 canvas.cup(dot_00);
                 canvas.output(error);
             }
-            //else
+            else
             {
                 log("dtvt: submit for destruction on next frame/tick");
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
