@@ -71,7 +71,7 @@ namespace netxs::ui::atoms
         ui32                               token;
 
         constexpr rgba()
-            : token(0)
+            : token{ 0 }
         { }
 
         template<class T, class A = byte>
@@ -83,15 +83,15 @@ namespace netxs::ui::atoms
         { }
 
         constexpr rgba(rgba const& c)
-            : token(c.token)
+            : token{ c.token }
+        { }
+
+        constexpr rgba(ui32 c)
+            : token{ netxs::letoh(c) }
         { }
 
         constexpr rgba(tint c)
             : rgba{ color256[c] }
-        { }
-
-        constexpr rgba(ui32 c)
-            : token(c)
         { }
 
         rgba(fifo& queue)
@@ -110,7 +110,7 @@ namespace netxs::ui::atoms
                         chan.a = queue.subarg(0xFF);
                         break;
                     case mode_256:
-                        token = color256[queue.subarg(0)];
+                        token = netxs::letoh(color256[queue.subarg(0)]);
                         break;
                     default:
                         break;
@@ -127,7 +127,7 @@ namespace netxs::ui::atoms
                         chan.a = 0xFF;
                         break;
                     case mode_256:
-                        token = color256[queue(0)];
+                        token = netxs::letoh(color256[queue(0)]);
                         break;
                     default:
                         break;
@@ -151,9 +151,9 @@ namespace netxs::ui::atoms
         // rgba: Set color to opaque black.
         void rst()
         {
-            static constexpr ui32 colorblack = 0xFF000000;
+            static constexpr rgba colorblack{ 0xFF000000 };
 
-            token = colorblack;
+            token = colorblack.token;
         }
         // rgba: Are the colors alpha blenable?
         auto is_alpha_blendable() const
@@ -175,11 +175,12 @@ namespace netxs::ui::atoms
             return chan.a;
         }
         // rgba: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
-        auto constexpr luma() const
+        constexpr auto luma() const
         {
-            return static_cast<byte>(0.2627 * ((token & 0x0000FF) >> 0)
-                                   + 0.6780 * ((token & 0x00FF00) >> 8)
-                                   + 0.0593 * ((token & 0xFF0000) >> 16));
+            auto t = netxs::letoh(token);
+            return static_cast<byte>(0.2627 * ((t & 0x0000FF) >> 0)
+                                   + 0.6780 * ((t & 0x00FF00) >> 8)
+                                   + 0.0593 * ((t & 0xFF0000) >> 16));
         }
         // rgba: Return 256-color 6x6x6 cube.
         auto to256cube() const
@@ -193,7 +194,7 @@ namespace netxs::ui::atoms
             else
             {
                 clr = 16 + 36 * ((chan.r * 6) >> 8)
-                          + 6 * ((chan.g * 6) >> 8)
+                         +  6 * ((chan.g * 6) >> 8)
                               + ((chan.b * 6) >> 8);
             }
             return clr;
@@ -349,7 +350,10 @@ namespace netxs::ui::atoms
         // rgba: Invert the color.
         void invert()
         {
-            token = (token & 0xFF000000) | ~(token & 0x00FFFFFF);
+            static constexpr rgba pureblack{ 0xFF000000 };
+            static constexpr rgba antiwhite{ 0x00FFFFFF };
+
+            token = (token & pureblack.token ) | ~(token & antiwhite.token );
         }
         // rgba: Serialize the color.
         auto str() const
@@ -571,9 +575,8 @@ namespace netxs::ui::atoms
             // Check grapheme clusters equality.
             bool same(glyf const& c) const
             {
-                //auto mask = ~(decltype(token))0xFF;
-                //return (token >> sizeof(mode)) == c.token >> sizeof(mode);
-                return (token >> 8) == (c.token >> 8);
+                static constexpr auto mask = netxs::letoh(~(decltype(token))0xFF);
+                return (token & mask) == (c.token & mask); // Compare excluding glyph[0].
             }
 
             void wipe()
@@ -605,7 +608,7 @@ namespace netxs::ui::atoms
 
             constexpr void set(ui64 t)
             {
-                token = t;
+                token = netxs::letoh(t);
             }
             constexpr void set(char c)
             {
@@ -715,11 +718,11 @@ namespace netxs::ui::atoms
             param;
 
             constexpr body()
-                : token(0)
+                : token{ 0 }
             { }
 
             constexpr body(body const& b)
-                : token(b.token)
+                : token{ b.token }
             { }
 
             bool operator == (body const& b) const
@@ -797,7 +800,7 @@ namespace netxs::ui::atoms
             }
             void rev()
             {
-                param.shared.var.invert = !param.shared.var.invert;
+                param.shared.var.invert = !!!param.shared.var.invert;
             }
 
             void bld (bool b) { param.shared.var.bolded = b; }
@@ -829,21 +832,25 @@ namespace netxs::ui::atoms
             rgba fg;
 
             constexpr clrs()
-                : bg{}, fg{}
+                : bg{},
+                  fg{}
             { }
 
             template<class T>
             constexpr clrs(T colors)
-                : bg{ *(colors.begin() + 0) }, fg{ *(colors.begin() + 1) }
+                : bg{ *(colors.begin() + 0) },
+                  fg{ *(colors.begin() + 1) }
             { }
 
             constexpr clrs(clrs const& c)
-                : bg{ c.bg }, fg{ c.fg }
+                : bg{ c.bg },
+                  fg{ c.fg }
             { }
 
             constexpr bool operator == (clrs const& c) const
             {
-                return bg == c.bg && fg == c.fg;
+                return bg == c.bg
+                    && fg == c.fg;
                 // sizeof(*this);
             }
             constexpr bool operator != (clrs const& c) const

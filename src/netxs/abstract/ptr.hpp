@@ -12,8 +12,8 @@ namespace netxs
     template<class T>
     struct testy
     {
-        T    prev;
-        T    last;
+        T    prev = {};
+        T    last = {};
         bool test = faux;
 
         bool operator () (T newvalue)

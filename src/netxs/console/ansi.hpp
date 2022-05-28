@@ -302,6 +302,7 @@ namespace netxs::ansi
             { }
             marker(twod const& winsize)
             {
+                //todo respect endianness
                 pack.mark_FF = initial;
                 pack.winsize = winsize;
                 pack.mark_FE = initial - 1;
@@ -312,6 +313,7 @@ namespace netxs::ansi
                 if (pack.mark_FF == initial
                  && pack.mark_FE == initial - 1)
                 {
+                    //todo respect endianness
                     winsize = pack.winsize;
                     return true;
                 }
@@ -320,6 +322,7 @@ namespace netxs::ansi
         };
         struct header
         {
+            //todo respect endianness
             ui32 length;
             id_t id;
             rect area;
@@ -365,6 +368,7 @@ namespace netxs::ansi
             using D = std::remove_cv_t<std::remove_reference_t<T>>;
             if constexpr (VGAMODE == svga::directvt)
             {
+                //todo respect endianness
                 if constexpr (std::is_same_v<D, char>
                            || std::is_same_v<D, byte>)
                 {
