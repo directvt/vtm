@@ -288,9 +288,9 @@ namespace netxs::ansi
         {
             struct mask
             {
-                using twod = le_t<netxs::twod>;
+                using rect = le_t<ui::atoms::rect>;
                 char mark_FF;
-                twod winsize;
+                rect winarea;
                 char mark_FE;
             };
 
@@ -301,19 +301,19 @@ namespace netxs::ansi
 
             marker()
             { }
-            marker(twod const& winsize)
+            marker(rect const& winarea)
             {
                 pack.mark_FF = initial;
-                pack.winsize.set(winsize);
+                pack.winarea.set(winarea);
                 pack.mark_FE = initial - 1;
             }
 
-            auto get_sz(twod& winsize)
+            auto get_sz(rect& winarea)
             {
                 if (pack.mark_FF == initial
                  && pack.mark_FE == initial - 1)
                 {
-                    winsize = pack.winsize.get();
+                    winarea = pack.winarea.get();
                     return true;
                 }
                 else return faux;
@@ -802,6 +802,12 @@ namespace netxs::ansi
         //                                                 p.y, CSI_CCC); }
         esc& win (twod const& p) { return add("\033]", p.x, ';',           // esc: Terminal window resize report.
                                                        p.y, 'w'       ); }
+        esc& mov (twod const& p) { return add("\033]", p.x, ';',           // esc: Terminal window moveto report.
+                                                       p.y, 'z'       ); }
+        esc& area(rect const& r) { return add("\033]", r.coor.x, ';',           // esc: Terminal window moveto report.
+                                                       r.coor.y, ';',
+                                                       r.size.x, ';',
+                                                       r.size.y, 'x' ); }
         esc& fcs (bool b)        { return add("\033[", b ? 'I' : 'O'  ); } // ansi: Terminal window focus.
         esc& eol ()              { return add("\n"                    ); } // esc: EOL.
         esc& edl ()              { return add("\033[K"                ); } // esc: EDL.
@@ -904,6 +910,8 @@ namespace netxs::ansi
     //      All following text is under the IDX until the next command is issued.
     //      Redefine if the id already exists.
     static esc win (twod const& p)   { return esc{}.win (p); } // ansi: Terminal window resize.
+    static esc mov (twod const& p)   { return esc{}.mov (p); } // ansi: Terminal window moveto.
+    static esc area(rect const& r)   { return esc{}.area(r); } // ansi: Terminal window moveto.
     static esc fcs (bool b)          { return esc{}.fcs (b); } // ansi: Terminal window focus.
     static esc idx (si32 i)          { return esc{}.idx (i); }
     static esc ref (si32 i)          { return esc{}.ref (i); } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.

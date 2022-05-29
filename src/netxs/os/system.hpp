@@ -556,7 +556,7 @@ namespace netxs::os
         static constexpr auto direct = 1 << 3;
         static auto& get_winsz()
         {
-            static auto winsz = dot_00;
+            static auto winsz = rect{};
             return winsz;
         }
         static auto& get_state()
@@ -589,7 +589,7 @@ namespace netxs::os
             else result = "fresh";
             return result;
         }
-        static void send_dmd(fd_t m_pipe_w, twod const& winsz)
+        static void send_dmd(fd_t m_pipe_w, rect const& winsz)
         {
             auto buffer = ansi::dtvt::marker{ winsz };
             os::send<true>(m_pipe_w, buffer.data, buffer.size);
@@ -2946,12 +2946,17 @@ namespace netxs::os
         {
             return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
+        auto ext_coor(bool direct)
+        {
+            if (direct) return os::legacy::get_winsz().coor;
+            else        return dot_00;
+        }
         auto ignite(si32 vtmode)
         {
             if (vtmode & os::legacy::direct)
             {
                 auto& winsz = _globals<void>::winsz;
-                winsz = os::legacy::get_winsz();
+                winsz = os::legacy::get_winsz().size;
                 return winsz;
             }
 
@@ -3397,6 +3402,7 @@ namespace netxs::os
             #endif
 
             ipc::ptycon               termlink{};
+            testy<twod>               termcoor{};
             testy<twod>               termsize{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
@@ -3427,7 +3433,7 @@ namespace netxs::os
             
             operator bool () { return termlink; }
 
-            void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
+            void start(text cmdline, rect winsz, std::function<void(view)> input_hndl
                                                , std::function<void(si32)> shutdown_hndl)
             {
                 receiver = input_hndl;
@@ -3436,7 +3442,8 @@ namespace netxs::os
 
                 #if defined(_WIN32)
 
-                    termsize(winsz);
+                    termsize(winsz.size);
+                    termcoor(winsz.coor);
                     auto s_pipe_r = INVALID_FD;
                     auto s_pipe_w = INVALID_FD;
                     auto m_pipe_r = INVALID_FD;
@@ -3691,6 +3698,25 @@ namespace netxs::os
                 if (termlink && termsize(newsize))
                 {
                     write(ansi::win(newsize));
+                }
+            }
+            void moveto(twod const& newcoor)
+            {
+                if (termlink && termcoor(newcoor))
+                {
+                    write(ansi::mov(newcoor));
+                }
+            }
+            void extend(rect const& newarea)
+            {
+                if (termlink)
+                {
+                    auto s = termsize(newarea.size);
+                    auto c = termcoor(newarea.coor);
+                    if (c || s)
+                    {
+                        write(ansi::area(newarea));
+                    }
                 }
             }
             void write(view data)

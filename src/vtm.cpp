@@ -282,7 +282,7 @@ int main(int argc, char* argv[])
                 applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
                 window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
                 window->resize(size);
-                window->launch(tunnel.first, config, applet);
+                window->launch(tunnel.first, config, applet, {}, cons.ext_coor(direct));
                 window.reset();
                 applet.reset();
                 ground->shutdown();

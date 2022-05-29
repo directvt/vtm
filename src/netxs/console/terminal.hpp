@@ -6552,7 +6552,6 @@ namespace netxs::ui
     class dtvt
         : public ui::form<dtvt>
     {
-
         // dtvt: VT-style mouse tracking functionality.
         struct m_tracking
         {
@@ -6754,16 +6753,23 @@ namespace netxs::ui
                     length -= sizeof(ansi::dtvt::header);
                     data.remove_prefix(sizeof(ansi::dtvt::header));
 
-                    auto size = std::clamp(area.size, dot_11, console::max_value);
+                    area.size = std::clamp(area.size, dot_11, console::max_value);
                     auto full = canvas.full();
-                    if (size != full.size)
+                    auto changed = faux;
+                    if (area.size != full.size)
                     {
-                        full.size = size;
+                        changed = true;
+                        full.size = area.size;
+                        canvas.crop(area.size);
+                    }
+                    if (changed || area.coor != full.coor)
+                    {
                         canvas.full(full);
+                        this->base::riseup<tier::release>(e2::form::layout::newpos, area);
                     }
                     auto iter = canvas.iter();
                     auto coor = dot_00;
-                    auto limits = std::min(full.size, canvas.size());
+                    auto limits = full.size;//std::min(full.size, canvas.size());
                     while (data.size() > 0)
                     {
                         if (auto code = utf::cpit{ data })
@@ -6834,22 +6840,8 @@ namespace netxs::ui
                             }
                         }
                     }
-                    //log(" length=", frame.length, " id=", frame.id, " area=", frame.area);
-                    //log("==================");
-                    base::deface();
-                    //if (onlogs) SIGNAL_GLOBAL(e2::debug::output, data); // Post data for Logs.
 
-                    //if (follow[axis::Y]) ansi::parse(data, target);
-                    //else
-                    //{
-                    //    auto last_basis = target->get_basis();
-                    //    auto last_slide = target->get_slide();
-                    //    ansi::parse(data, target);
-                    //    auto next_basis = target->get_basis();
-                    //    follow[axis::Y] = last_basis <= last_slide && last_slide <= next_basis
-                    //                   || next_basis <= last_slide && last_slide <= last_basis;
-                    //}
-                    //unsync = true;
+                    base::deface();
                     break;
                 }
                 else std::this_thread::yield();
@@ -6881,7 +6873,10 @@ namespace netxs::ui
                 {
                     if (unique != timer)
                     {
-                        auto initsz = canvas.size();
+                        this->base::riseup<tier::release>(e2::config::plugins::sizer::inert, true);
+
+                        auto initsz = base::area();
+                        this->base::riseup<tier::request>(e2::form::layout::newpos, initsz);
 
                         ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
                                                      [&](auto exit_reason) { onexit(exit_reason); } );
@@ -6904,15 +6899,13 @@ namespace netxs::ui
             //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
             //};
 
-            SUBMIT(tier::release, e2::coor::set, new_coor)
+            SUBMIT(tier::anycast, e2::form::layout::newpos, area)
             {
-                canvas.move(new_coor);
-            };
-            SUBMIT(tier::release, e2::size::set, new_size)
-            {
-                new_size = std::max(new_size, dot_11);
-                canvas.crop(new_size);
-                ptycon.resize(new_size);
+                if (ptycon) ptycon.extend(area);
+                else
+                {
+                    this->base::riseup<tier::release>(e2::form::layout::newpos, area);
+                }
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
