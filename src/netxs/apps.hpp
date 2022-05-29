@@ -993,6 +993,7 @@ namespace netxs::app::shared
                         auto group = ""s;
                         auto app_name = ""s;
                         auto app_cmdline = ""s;
+                        auto menu_name = ""s;
                         auto apps_count = [&](view data)
                         {
                             auto count = 0;
@@ -1009,7 +1010,7 @@ namespace netxs::app::shared
                                 if (b != e)
                                 {
                                     envvar_data = view{ &(*b), (size_t)(e - b) };
-                                    auto menu_name = utf::get_quote(envvar_data, '\"');
+                                    menu_name = utf::get_quote(envvar_data, '\"');
                                     window_title   = utf::get_quote(envvar_data, '\"', ", ");
                                 }
                             }
@@ -1045,7 +1046,7 @@ namespace netxs::app::shared
                         if (apps_count(p) == 1)
                         {
                             m.group = group;
-                            m.label = app_name;
+                            m.label = menu_name;
                             m.title = app_name; // Use the same title as the menu label.
                             m.param = app_cmdline;
                         }
