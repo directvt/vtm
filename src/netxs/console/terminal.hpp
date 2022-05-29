@@ -6858,23 +6858,15 @@ namespace netxs::ui
         // dtvt: Shutdown callback handler.
         void onexit(si32 code)
         {
-            log("dtvt: exit code ", code);
-            if (code)
+            if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code ", code, " ").nil());
+            else      log("dtvt: exit code ", code);
+            log("dtvt: submit for destruction on next frame/tick");
+            SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
             {
-                auto error = para{ ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code ", code, " ") };
-                canvas.cup(dot_00);
-                canvas.output(error);
-            }
-            else
-            {
-                log("dtvt: submit for destruction on next frame/tick");
-                SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
-                {
-                    auto backup = This();
-                    this->base::riseup<tier::release>(e2::form::quit, backup);
-                    oneoff.reset();
-                };
-            }
+                auto backup = This();
+                this->base::riseup<tier::release>(e2::form::quit, backup);
+                oneoff.reset();
+            };
         }
 
     public:

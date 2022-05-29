@@ -1534,6 +1534,7 @@ namespace netxs::ui::atoms
         {
             return s << '{' << r.coor << ", " << r.size << '}';
         }
+        // rect: Change endianness to LE.
         friend auto letoh(rect const& r)
         {
             return rect{ netxs::letoh(r.coor), netxs::letoh(r.size) };

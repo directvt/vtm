@@ -912,7 +912,9 @@ namespace netxs::app::shared
         auto build_Direct        = [](view v)
         {
             if (v.empty()) throw;
-            auto object = ui::cake::ctor();
+            auto window = ui::cake::ctor()
+                            ->plugin<pro::focus>();
+
             auto direct = ui::dtvt::ctor(text{ v })
                 ->invoke([](auto& boss)
                 {
@@ -921,8 +923,8 @@ namespace netxs::app::shared
                         boss.start();
                     };
                 });
-            object->attach(direct);
-            return object;
+            window->attach(direct);
+            return window;
         };
 
         app::shared::initialize builder_Strobe       { "Strobe"       , build_Strobe        };
@@ -988,11 +990,72 @@ namespace netxs::app::shared
                     auto name = utf::get_quote(v, '\"');
                     if (!name.empty())
                     {
+                        auto group = ""s;
+                        auto app_name = ""s;
+                        auto app_cmdline = ""s;
+                        auto apps_count = [&](view data)
+                        {
+                            auto count = 0;
+                            view envvar_data;
+                            text window_title;
+                            auto a = data.find('=');
+                            if (a != text::npos)
+                            {
+                                auto b = data.begin();
+                                auto e = data.end();
+                                auto t = b + a;
+                                auto envvar_name = view{ &(*b), (size_t)(t - b) };
+                                b = t + 1;
+                                if (b != e)
+                                {
+                                    envvar_data = view{ &(*b), (size_t)(e - b) };
+                                    auto menu_name = utf::get_quote(envvar_data, '\"');
+                                    window_title   = utf::get_quote(envvar_data, '\"', ", ");
+                                }
+                            }
+                            else return count;
+                            utf::trim_front(envvar_data, ", ");
+                            if (envvar_data.empty()) return count;
+                            auto tag = envvar_data.front();
+                            if (tag == '\"') //todo deprecated - use a("Term"...
+                            {
+                                // add term
+                                app_cmdline = utf::get_quote(envvar_data, '\"');
+                                if (app_cmdline.empty()) return count;
+                                group = "Term"s;
+                                app_name = group;
+                                count = 1;
+                            }
+                            else if (tag == 'a')
+                            {
+                                // add app
+                                envvar_data.remove_prefix(1);
+                                utf::trim_front(envvar_data, " ");
+                                if (envvar_data.empty() || envvar_data.front() != '(') return count;
+                                envvar_data.remove_prefix(1);
+                                group  = utf::get_quote(envvar_data, '\"', ", ");
+                                if (group.empty()) return count;
+                                app_name = utf::get_quote(envvar_data, '\"', ", ");
+                                app_cmdline = utf::get_quote(envvar_data, '\"', ") ");
+                                count = 1;
+                            }
+                            return count;
+                        };
                         auto& m = app::shared::objs_config[name];
-                        m.group = "Tile";
-                        m.label = name;
-                        m.title = name; // Use the same title as the menu label.
-                        m.param = text{ p };
+                        if (apps_count(p) == 1)
+                        {
+                            m.group = group;
+                            m.label = app_name;
+                            m.title = app_name; // Use the same title as the menu label.
+                            m.param = app_cmdline;
+                        }
+                        else
+                        {
+                            m.group = "Tile";
+                            m.label = name;
+                            m.title = name; // Use the same title as the menu label.
+                            m.param = text{ p };
+                        }
                         menu_list[name];
                     }
                 }
