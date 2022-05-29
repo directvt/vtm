@@ -353,7 +353,7 @@ namespace netxs::ui::atoms
             static constexpr rgba pureblack{ 0xFF000000 };
             static constexpr rgba antiwhite{ 0x00FFFFFF };
 
-            token = (token & pureblack.token ) | ~(token & antiwhite.token );
+            token = (token & pureblack.token) | ~(token & antiwhite.token);
         }
         // rgba: Serialize the color.
         auto str() const
@@ -1533,6 +1533,10 @@ namespace netxs::ui::atoms
         friend auto& operator << (std::ostream& s, rect const& r)
         {
             return s << '{' << r.coor << ", " << r.size << '}';
+        }
+        friend auto letoh(rect const& r)
+        {
+            return rect{ netxs::letoh(r.coor), netxs::letoh(r.size) };
         }
     };
 

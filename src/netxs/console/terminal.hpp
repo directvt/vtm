@@ -6743,15 +6743,18 @@ namespace netxs::ui
                 if (guard)
                 {
                     auto frame = *reinterpret_cast<ansi::dtvt::header const*>(data.data());
-                    if (frame.length > data.size())
+                    auto length = frame.length.get();
+                    auto area = frame.area.get();
+                    auto surface_id = frame.id.get();
+                    if (length > data.size())
                     {
                         log("dtvt: corrupted data");
                         return;
                     }
-                    frame.length -= sizeof(ansi::dtvt::header);
+                    length -= sizeof(ansi::dtvt::header);
                     data.remove_prefix(sizeof(ansi::dtvt::header));
 
-                    auto size = std::clamp(frame.area.size, dot_11, console::max_value);
+                    auto size = std::clamp(area.size, dot_11, console::max_value);
                     auto full = canvas.full();
                     if (size != full.size)
                     {
@@ -6787,7 +6790,7 @@ namespace netxs::ui
                             }
                             else if (type == 8) //<= 8: cup: 8 bytes: si32 X + si32 Y
                             {
-                                coor = *reinterpret_cast<twod const*>(data.data());
+                                coor = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
                                 auto size = sizeof(twod);
                                 data.remove_prefix(size);
                                 //iter = canvas.begin() + 
@@ -6807,7 +6810,7 @@ namespace netxs::ui
                             else if (type == 11) //<=11: style: token 4 bytes
                             {
                                 auto& token = marker.stl();
-                                token = *reinterpret_cast<ui32 const*>(data.data());
+                                token = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
                                 auto size = sizeof(token);
                                 data.remove_prefix(size);
                             }
@@ -6823,7 +6826,7 @@ namespace netxs::ui
                             }
                             else if (type == 100) //<=100: 4 b
                             {
-                                auto size = *reinterpret_cast<ui32 const*>(data.data());
+                                auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
                                 auto vcmd = view(data.data() + sizeof(size), size);
                                 //todo implement
                                 log("dtvt: vt-data:\n", utf::debase(vcmd));

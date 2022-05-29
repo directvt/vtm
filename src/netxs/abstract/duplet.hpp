@@ -127,6 +127,11 @@ namespace netxs
         {
             return s << "{ " << p.x << ", " << p.y << " }";
         }
+        // Change endianness to LE.
+        friend auto letoh(duplet const& p)
+        {
+            return duplet{ netxs::letoh(p.x), netxs::letoh(p.y) };
+        }
     };
 
     using twod = duplet<si32>;

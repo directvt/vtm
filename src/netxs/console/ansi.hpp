@@ -288,6 +288,7 @@ namespace netxs::ansi
         {
             struct mask
             {
+                using twod = le_t<netxs::twod>;
                 char mark_FF;
                 twod winsize;
                 char mark_FE;
@@ -302,9 +303,8 @@ namespace netxs::ansi
             { }
             marker(twod const& winsize)
             {
-                //todo respect endianness
                 pack.mark_FF = initial;
-                pack.winsize = winsize;
+                pack.winsize.set(winsize);
                 pack.mark_FE = initial - 1;
             }
 
@@ -313,8 +313,7 @@ namespace netxs::ansi
                 if (pack.mark_FF == initial
                  && pack.mark_FE == initial - 1)
                 {
-                    //todo respect endianness
-                    winsize = pack.winsize;
+                    winsize = pack.winsize.get();
                     return true;
                 }
                 else return faux;
@@ -322,10 +321,9 @@ namespace netxs::ansi
         };
         struct header
         {
-            //todo respect endianness
-            ui32 length;
-            id_t id;
-            rect area;
+            le_t<ui32> length;
+            le_t<id_t> id;
+            le_t<rect> area;
         };
         #pragma pack(pop)
     }
@@ -368,17 +366,22 @@ namespace netxs::ansi
             using D = std::remove_cv_t<std::remove_reference_t<T>>;
             if constexpr (VGAMODE == svga::directvt)
             {
-                //todo respect endianness
                 if constexpr (std::is_same_v<D, char>
                            || std::is_same_v<D, byte>)
                 {
                     text::push_back(static_cast<char>(data));
                 }
                 else if constexpr (std::is_integral_v<D>
-                                || std::is_same_v<D, dtvt::header>
-                                || std::is_same_v<D, rgba>
                                 || std::is_same_v<D, twod>
                                 || std::is_same_v<D, rect>)
+                {
+                    auto le_data = netxs::letoh(data);
+                    auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
+                    text::operator+=(v);
+                }
+                else if constexpr (std::is_integral_v<D>
+                                || std::is_same_v<D, dtvt::header>
+                                || std::is_same_v<D, rgba>)
                 {
                     auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
                     text::operator+=(v);
@@ -444,7 +447,8 @@ namespace netxs::ansi
         {
             if constexpr (VGAMODE == svga::directvt)
             {
-                ::memcpy(at + text::data(), reinterpret_cast<void const*>(&data), sizeof(data));
+                auto le_data = netxs::letoh(data);
+                ::memcpy(at + text::data(), reinterpret_cast<void const*>(&le_data), sizeof(le_data));
             }
             return *this;
         }

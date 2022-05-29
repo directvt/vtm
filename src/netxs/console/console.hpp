@@ -5170,8 +5170,8 @@ again:
                 if constexpr (VGAMODE == svga::directvt)
                 {
                     auto header = netxs::ansi::dtvt::header{};
-                    header.area.size = field;
-                    header.id = 0xaabbccdd; //todo use it
+                    header.area.set(rect{ dot_00, field });
+                    header.id.set(0xaabbccdd); //todo use it
                     frame.add<VGAMODE>(header);
                 }
                 auto initial_size = static_cast<si32>(frame.size());

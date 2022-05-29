@@ -151,6 +151,16 @@ namespace netxs
         if constexpr (LE) return _swap_bytes(i);
         else              return i;
     }
+    // intmath: LE type wrapper. T has an LE format in memory.
+    template<class T>
+    class le_t
+    {
+        T data = {};
+
+    public:
+        void set(T const& v) { data = netxs::letoh(v); }
+        T    get() const     { return netxs::letoh(data); }
+    };
 
     // intmath: Summ and return TRUE in case of
     //          unsigned integer overflow and store result in accum.
