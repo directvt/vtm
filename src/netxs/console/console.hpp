@@ -157,9 +157,8 @@ namespace netxs::events::userland
                 EVENT_XS( focus   , bool              ), // order to change focus.
                 EVENT_XS( mouse   , console::sysmouse ), // mouse activity.
                 EVENT_XS( key     , console::syskeybd ), // keybd activity.
-                EVENT_XS( coor    , twod              ), // order to update terminal primary overlay.
                 EVENT_XS( size    , twod              ), // order to update terminal primary overlay.
-                EVENT_XS( area    , rect              ), // order to update terminal primary overlay.
+                EVENT_XS( anchor  , dent              ), // order to anchored resize.
                 EVENT_XS( native  , bool              ), // extended functionality.
                 EVENT_XS( layout  , const twod        ),
                 EVENT_XS( preclose, const bool        ), // signal to quit after idle timeout, arg: bool - ready to shutdown.
@@ -228,7 +227,7 @@ namespace netxs::events::userland
                     EVENT_XS( appear, twod               ), // fly to the specified coords.
                     EVENT_XS( gonext, sptr<console::base>), // request: proceed request for available objects (next)
                     EVENT_XS( goprev, sptr<console::base>), // request: proceed request for available objects (prev)
-                    EVENT_XS( newpos, rect               ), // preview: request new form layout
+                    EVENT_XS( anchor, dent               ), // preview: form anchored resize
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
@@ -1434,11 +1433,13 @@ namespace netxs::console
                         if (inert)
                         {
                             auto area = master.base::area();
+                            auto next = area;
                             auto dxdy = delta * dtsize;
                             auto step = -dxdy * dtcoor;
-                            area.coor += step;
-                            area.size += dxdy;
-                            master.SIGNAL(tier::anycast, e2::form::layout::newpos, area);
+                            next.coor += step;
+                            next.size += dxdy;
+                            auto anchor = next - area;
+                            master.SIGNAL(tier::anycast, e2::form::layout::anchor, anchor);
                         }
                         else if (auto dxdy = master.base::sizeby(delta * dtsize))
                         {
@@ -1507,12 +1508,10 @@ namespace netxs::console
                     items.dec(gear);
                 };
 
-                boss.SUBMIT_T(tier::request, e2::form::layout::newpos, memo, get_area)
+                boss.SUBMIT_T(tier::release, e2::form::layout::anchor, memo, anchor)
                 {
-                    get_area = boss.base::area();
-                };
-                boss.SUBMIT_T(tier::release, e2::form::layout::newpos, memo, new_area)
-                {
+                    auto area = boss.base::area();
+                    auto new_area = area + anchor;
                     boss.extend(new_area);
                 };
                 boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::inert, memo, inert_mode)
@@ -5083,12 +5082,6 @@ again:
                                                 owner.SIGNAL(tier::release, e2::conio::size, winsz);
                                                 ++pos;
                                             }
-                                            else if (strv.at(pos) == 'z')
-                                            {
-                                                auto winxy = twod{ x,y };
-                                                owner.SIGNAL(tier::release, e2::conio::coor, winxy);
-                                                ++pos;
-                                            }
                                             else if (strv.at(pos) == ';')
                                             {
                                                 if (++pos == len) { total = strv; break; }//incomlpete
@@ -5109,12 +5102,14 @@ again:
                                                             pos += l - tmp.size();
                                                             if (pos == len) { total = strv; break; }//incomlpete
                                                             {
-                                                                auto x2 = pos_x.value();
-                                                                auto y2 = pos_y.value();
+                                                                auto head = pos_x.value();
+                                                                auto foot = pos_y.value();
                                                                 if (strv.at(pos) == 'x')
                                                                 {
-                                                                    auto area = rect{{ x,y }, { x2,y2 }};
-                                                                    owner.SIGNAL(tier::release, e2::conio::area, area);
+                                                                    auto west = x;
+                                                                    auto east = y;
+                                                                    auto anchor = dent{ west, east, head, foot };
+                                                                    owner.SIGNAL(tier::release, e2::conio::anchor, anchor);
                                                                     ++pos;
                                                                 }
                                                             }
@@ -5201,7 +5196,8 @@ again:
         si32  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
         si32  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
         twod  field; // diff: Current terminal/screen window size.
-        twod  coord; // diff: Current terminal/screen window coor.
+        dent  anker; // diff: Current terminal/screen window anchored size.
+        //dent  cached_anker; // diff: .
         span  watch; // diff: Duration of the STDOUT rendering.
         si32  delta; // diff: Last ansi-rendered frame size.
         ansi  frame; // diff: Text screen representation.
@@ -5241,9 +5237,10 @@ again:
                 if constexpr (VGAMODE == svga::directvt)
                 {
                     auto header = netxs::ansi::dtvt::header{};
-                    header.area.set(rect{ coord, field });
+                    header.anchor.set(anker);
                     header.id.set(0xaabbccdd); //todo use it
                     frame.add<VGAMODE>(header);
+                    anker = {};
                 }
                 auto initial_size = static_cast<si32>(frame.size());
 
@@ -5521,10 +5518,12 @@ again:
         }
 
     public:
-        // diff: Update canvas coor.
-        void moveto(twod const& p)
+        // diff: Update anchored size.
+        void anchor(dent const& d)
         {
-            coord = p;
+            auto lock = std::lock_guard{ mutex };
+            //cached_anker += d;
+            anker += d;
         }
         // diff: Obtain new content to render.
         pair commit(core& canvas) // Run inside the e2::sync.
@@ -5544,6 +5543,8 @@ again:
                     extra.clear();
                 }
 
+                //std::swap(anker, cached_anker);
+
                 ready = true;
                 synch.notify_one();
                 return debug;
@@ -5551,7 +5552,7 @@ again:
             return std::nullopt;
         }
 
-        diff(link& conio, pro::input& input, svga vga_mode, twod coor)
+        diff(link& conio, pro::input& input, svga vga_mode)
             : rhash{ 0 },
               dhash{ 0 },
               delta{ 0 },
@@ -5561,8 +5562,7 @@ again:
               conio{ conio },
               video{ vga_mode },
               mutex{ input.sync },
-              cache{ input.xmap.pick() },
-              coord{ coor }
+              cache{ input.xmap.pick() }
         {
             paint = work([&]
                 { 
@@ -5761,7 +5761,7 @@ again:
             return item;
         }
         // Main loop.
-        void launch(xipc media /*session socket*/, conf const& client_props, sptr deskmenu, sptr bkground = {}, twod coor = {})
+        void launch(xipc media /*session socket*/, conf const& client_props, sptr deskmenu, sptr bkground = {})
         {
             auto lock = events::unique_lock();
 
@@ -5783,30 +5783,24 @@ again:
                               : legacy & os::legacy::direct ? svga::directvt
                                                             : svga::truecolor;
                 link conio{ *this, media }; // gate: Terminal IO.
-                diff paint{ conio, input, vga_mode, coor }; // gate: Rendering loop.
+                diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
                 subs token;                 // gate: Subscription tokens array.
 
                 // conio events.
                 SUBMIT_T(tier::release, e2::conio::size, token, newsize)
                 {
                     base::resize(newsize);
-                    if (vga_mode == svga::directvt)
-                    {
-                        //todo trigger to redraw
-                    }
                 };
-                SUBMIT_T(tier::release, e2::conio::coor, token, newcoor)
+                SUBMIT_T(tier::release, e2::conio::anchor, token, anchor)
                 {
-                    paint.moveto(newcoor);
-                    if (vga_mode == svga::directvt)
-                    {
-                        //todo trigger to redraw
-                    }
-                };
-                SUBMIT_T(tier::release, e2::conio::area, token, newarea)
-                {
-                    base::resize(newarea.size);
-                    paint.moveto(newarea.coor);
+                    auto area = rect{ dot_00, base::size() };
+                    auto new_area = area + anchor;
+                    auto dtcoor = new_area.coor.equals(dot_00, dot_00, dot_11);
+                    auto dxdy = base::resize(new_area.size);
+                    area.size += dxdy;
+                    area.coor -= dxdy * dtcoor;
+                    anchor -= area - new_area;
+                    paint.anchor(anchor);
                     if (vga_mode == svga::directvt)
                     {
                         //todo trigger to redraw

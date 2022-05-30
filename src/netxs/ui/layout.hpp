@@ -1378,17 +1378,14 @@ namespace netxs::ui::atoms
         {
             return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
         }
+        bool operator == (rect const&) const = default;
         explicit operator bool ()              const { return size.x != 0 && size.y != 0;       }
         auto   area            ()              const { return size.x * size.y;                  }
         twod   map             (twod const& p) const { return p - coor;                         }
         rect   shift           (twod const& p) const { return { coor + p, size };               }
         auto&  shift_itself    (twod const& p)       { coor += p; return *this;                 }
         rect   operator &      (rect const& r) const { return clip(r);                          }
-        rect   operator +      (rect const& r) const { return { coor + r.coor, size + r.size }; }
-        rect   operator -      (rect const& r) const { return { coor - r.coor, size - r.size }; }
         rect   operator |      (rect const& r) const { return unite(r);                         }
-        bool   operator !=     (rect const& r) const { return coor != r.coor || size != r.size; }
-        bool   operator ==     (rect const& r) const { return coor == r.coor && size == r.size; }
         void   operator +=     (rect const& r)       { coor += r.coor; size += r.size;          }
         void   operator -=     (rect const& r)       { coor -= r.coor; size -= r.size;          }
 
@@ -1583,6 +1580,9 @@ namespace netxs::ui::atoms
             t = queue(0);
             b = queue(0);
         }
+
+        bool operator == (side const&) const = default;
+
         // side: Unite the two rectangles.
         void operator |= (side const& s)
         {
@@ -1651,16 +1651,24 @@ namespace netxs::ui::atoms
         {
             return s << p.str();
         }
+        // side: Change endianness to LE.
+        friend auto letoh(side const& s)
+        {
+            return side{ netxs::letoh(s.l),
+                         netxs::letoh(s.r),
+                         netxs::letoh(s.t),
+                         netxs::letoh(s.b) };
+        }
     };
 
     // layout: Padding, space around an element's content.
-    template<class type>
-    struct dent_t
+    struct dent
     {
         template<auto just>
         struct edge
         {
-            type step = 0;
+            si32 step = 0;
+            bool operator == (edge const&) const = default;
             constexpr inline auto get(si32 size) const
             {
                 if constexpr (just) return step;
@@ -1672,21 +1680,25 @@ namespace netxs::ui::atoms
         edge<true> head = {};
         edge<faux> foot = {};
 
-        constexpr dent_t() = default;
-        constexpr dent_t(si32 w, si32 e = 0, si32 h = 0, si32 f = 0)
-            : west{ static_cast<type>(w) },
-              east{ static_cast<type>(e) },
-              head{ static_cast<type>(h) },
-              foot{ static_cast<type>(f) }
+        dent() = default;
+        constexpr dent(si32 w, si32 e = 0, si32 h = 0, si32 f = 0)
+            : west{ w },
+              east{ e },
+              head{ h },
+              foot{ f }
         { }
-        constexpr dent_t(dent_t const& pad)
+        constexpr dent(dent const& pad)
             : west{ pad.west.step },
               east{ pad.east.step },
               head{ pad.head.step },
               foot{ pad.foot.step }
         { }
-
-        constexpr auto& operator = (dent_t const& pad)
+        bool operator == (dent const&) const = default;
+        explicit operator bool () const { return west.step != 0 ||
+                                                 east.step != 0 ||
+                                                 head.step != 0 ||
+                                                 foot.step != 0; }
+        constexpr auto& operator = (dent const& pad)
         {
             west = pad.west;
             east = pad.east;
@@ -1694,24 +1706,21 @@ namespace netxs::ui::atoms
             foot = pad.foot;
             return *this;
         }
-        constexpr auto& operator += (dent_t const& pad)
+        constexpr auto& operator -= (dent const& pad)
+        {
+            west.step -= pad.west.step;
+            east.step -= pad.east.step;
+            head.step -= pad.head.step;
+            foot.step -= pad.foot.step;
+            return *this;
+        }
+        constexpr auto& operator += (dent const& pad)
         {
             west.step += pad.west.step;
             east.step += pad.east.step;
             head.step += pad.head.step;
             foot.step += pad.foot.step;
             return *this;
-        }
-        constexpr auto operator == (dent_t const& pad)
-        {
-            return west.step == pad.west.step
-                && east.step == pad.east.step
-                && head.step == pad.head.step
-                && foot.step == pad.foot.step;
-        }
-        auto operator != (dent_t const& pad)
-        {
-            return !operator==(pad);
         }
         // dent: Return inner area rectangle.
         constexpr auto area(si32 size_x, si32 size_y) const
@@ -1789,19 +1798,19 @@ namespace netxs::ui::atoms
             foot.step = q(0);
         }
         // dent: Return size with padding.
-        friend auto operator + (twod const& size, dent_t const& pad)
+        friend auto operator + (twod const& size, dent const& pad)
         {
             return twod{ std::max(0, size.x + (pad.west.step + pad.east.step)),
                          std::max(0, size.y + (pad.head.step + pad.foot.step)) };
         }
         // dent: Return size without padding.
-        friend auto operator - (twod const& size, dent_t const& pad)
+        friend auto operator - (twod const& size, dent const& pad)
         {
             return twod{ std::max(0, size.x - (pad.west.step + pad.east.step)),
                          std::max(0, size.y - (pad.head.step + pad.foot.step)) };
         }
         // dent: Return area with padding.
-        friend auto operator + (rect const& area, dent_t const& pad)
+        friend auto operator + (rect const& area, dent const& pad)
         {
             return rect{{ area.coor.x - pad.west.step,
                           area.coor.y - pad.head.step },
@@ -1809,7 +1818,7 @@ namespace netxs::ui::atoms
                           std::max(0, area.size.y + (pad.head.step + pad.foot.step)) }};
         }
         // dent: Return area without padding.
-        friend auto operator - (rect const& area, dent_t const& pad)
+        friend auto operator - (rect const& area, dent const& pad)
         {
             return rect{ { area.coor.x + pad.west.step,
                            area.coor.y + pad.head.step },
@@ -1817,23 +1826,38 @@ namespace netxs::ui::atoms
                            std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
         }
         // dent: Return summ of two paddings.
-        friend auto operator + (dent_t const& pad1, dent_t const& pad2)
+        friend auto operator + (dent const& pad1, dent const& pad2)
         {
-            return dent_t{ pad1.west.step + pad2.west.step,
-                           pad1.east.step + pad2.east.step,
-                           pad1.head.step + pad2.head.step,
-                           pad1.foot.step + pad2.foot.step };
+            return dent{ pad1.west.step + pad2.west.step,
+                         pad1.east.step + pad2.east.step,
+                         pad1.head.step + pad2.head.step,
+                         pad1.foot.step + pad2.foot.step };
         }
         // dent: Return diff of two paddings.
-        friend auto operator - (dent_t const& pad1, dent_t const& pad2)
+        friend auto operator - (dent const& pad1, dent const& pad2)
         {
-            return dent_t{ pad1.west.step - pad2.west.step,
-                           pad1.east.step - pad2.east.step,
-                           pad1.head.step - pad2.head.step,
-                           pad1.foot.step - pad2.foot.step };
+            return dent{ pad1.west.step - pad2.west.step,
+                         pad1.east.step - pad2.east.step,
+                         pad1.head.step - pad2.head.step,
+                         pad1.foot.step - pad2.foot.step };
+        }
+        // dent: Change endianness to LE.
+        friend auto letoh(dent const& d)
+        {
+            return dent{ netxs::letoh(d.west.step),
+                         netxs::letoh(d.east.step),
+                         netxs::letoh(d.head.step),
+                         netxs::letoh(d.foot.step) };
         }
     };
-
+    // dent: Return difference between area.
+    auto operator - (rect const& r1, rect const& r2)
+    {
+        auto top = r2.coor - r1.coor;
+        auto end = r1.size - r2.size - top;
+        return dent{ top.x, end.x,
+                     top.y, end.y };
+    }
     // layout: Scroll info.
     struct rack
     {
@@ -1869,7 +1893,6 @@ namespace netxs::ui::atoms
     }
 
     using grid = std::vector<cell>;
-    using dent = dent_t<int8_t>;
 }
 namespace netxs::ui
 {

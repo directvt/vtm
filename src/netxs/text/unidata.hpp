@@ -310,7 +310,6 @@ namespace netxs::unidata
             : unidata(select(cp))
         { }
 
-        constexpr
         unidata(unidata const&) = default;
 
         bool is_cmd()

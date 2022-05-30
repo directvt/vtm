@@ -397,7 +397,6 @@ namespace netxs::{module}
             : {module}(select(cp))
         {{ }}
 
-        constexpr
         {module}({module} const&) = default;
 
         bool is_cmd()

@@ -6743,7 +6743,7 @@ namespace netxs::ui
                 {
                     auto frame = *reinterpret_cast<ansi::dtvt::header const*>(data.data());
                     auto length = frame.length.get();
-                    auto area = frame.area.get();
+                    auto anchor = frame.anchor.get();
                     auto surface_id = frame.id.get();
                     if (length > data.size())
                     {
@@ -6753,23 +6753,28 @@ namespace netxs::ui
                     length -= sizeof(ansi::dtvt::header);
                     data.remove_prefix(sizeof(ansi::dtvt::header));
 
-                    area.size = std::clamp(area.size, dot_11, console::max_value);
-                    auto full = canvas.full();
-                    auto changed = faux;
-                    if (area.size != full.size)
+                    if (anchor)
                     {
-                        changed = true;
-                        full.size = area.size;
-                        canvas.crop(area.size);
-                    }
-                    if (changed || area.coor != full.coor)
-                    {
-                        canvas.full(full);
-                        this->base::riseup<tier::release>(e2::form::layout::newpos, area);
+                        auto size = canvas.size();
+                        auto area = rect{ dot_00, size };
+                        area = area + anchor;
+                        auto new_size = std::clamp(area.size, dot_11, console::max_value);
+                        if (new_size != area.size) // Correct anchor if size clamped.
+                        {
+                            auto new_area = rect{ area.coor, new_size };
+                            anchor += new_area - area;
+                        }
+                        if (area.size != size)
+                        {
+                            size = area.size;
+                            canvas.crop(size);
+                        }
+
+                        this->base::riseup<tier::release>(e2::form::layout::anchor, anchor);
                     }
                     auto iter = canvas.iter();
                     auto coor = dot_00;
-                    auto limits = full.size;//std::min(full.size, canvas.size());
+                    auto limits = canvas.size();
                     while (data.size() > 0)
                     {
                         if (auto code = utf::cpit{ data })
@@ -6875,9 +6880,8 @@ namespace netxs::ui
                     {
                         this->base::riseup<tier::release>(e2::config::plugins::sizer::inert, true);
 
-                        auto initsz = base::area();
-                        this->base::riseup<tier::request>(e2::form::layout::newpos, initsz);
-
+                        auto initsz = base::size();
+                        canvas.crop(initsz);
                         ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
                                                      [&](auto exit_reason) { onexit(exit_reason); } );
                         unique = timer;
@@ -6899,13 +6903,10 @@ namespace netxs::ui
             //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
             //};
 
-            SUBMIT(tier::anycast, e2::form::layout::newpos, area)
+            SUBMIT(tier::anycast, e2::form::layout::anchor, anchor)
             {
-                if (ptycon) ptycon.extend(area);
-                else
-                {
-                    this->base::riseup<tier::release>(e2::form::layout::newpos, area);
-                }
+                if (ptycon) ptycon.anchor(anchor);
+                else        this->base::riseup<tier::release>(e2::form::layout::anchor, anchor);
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {

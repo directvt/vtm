@@ -976,7 +976,6 @@ namespace netxs::console
         si32        width;
 
     public:
-        constexpr
         shot(shot const&) = default;
 
         constexpr
