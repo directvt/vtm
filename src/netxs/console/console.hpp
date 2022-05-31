@@ -5784,8 +5784,18 @@ again:
             auto lock = events::unique_lock();
 
                 props = client_props;
+                legacy |= props.legacy_mode;
+
+                auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
+                              : legacy & os::legacy::vga256 ? svga::vga256
+                              : legacy & os::legacy::direct ? svga::directvt
+                                                            : svga::truecolor;
+                auto r1 = rect{ dot_00, base::size() };
                 if (deskmenu) attach(deskmenu);
                 if (bkground) ground(bkground);
+                auto r2 = rect{ dot_00, base::size() };
+                auto warp = r2 - r1;
+
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
                 auto conf_usr_name = props.name;
@@ -5794,15 +5804,12 @@ again:
                 base::moveby(props.coor);
 
                 clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
-                legacy |= props.legacy_mode;
 
-                auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
-                              : legacy & os::legacy::vga256 ? svga::vga256
-                              : legacy & os::legacy::direct ? svga::directvt
-                                                            : svga::truecolor;
                 link conio{ *this, media }; // gate: Terminal IO.
                 diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
                 subs token;                 // gate: Subscription tokens array.
+
+                paint.swarping(warp); // Respect app/deskmenu size limits.
 
                 auto rebuild_scene = [&](bool damaged)
                 {
