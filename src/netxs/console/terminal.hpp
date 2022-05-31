@@ -6766,8 +6766,7 @@ namespace netxs::ui
                         }
                         if (area.size != size)
                         {
-                            size = area.size;
-                            canvas.crop(size);
+                            canvas.crop(area.size);
                         }
 
                         this->base::riseup<tier::release>(e2::form::layout::anchor, anchor);

@@ -1373,6 +1373,10 @@ namespace netxs::console
                 bool seized; // sock: Is seized.
                 test lastxy; // sock: Change tracker.
 
+                dent anchor_full; // sock: .
+                twod width2; // sock: .
+                twod origin2; // sock: .
+
                 sock()
                     : inside{ faux },
                       seized{ faux }
@@ -1388,6 +1392,9 @@ namespace netxs::console
                     {
                         origin = curpos - corner(master.base::size() + outer);
                         seized = true;
+                        width2 = master.base::size() + outer;
+                        origin2 = curpos - corner(master.base::size() + outer);
+                        anchor_full = {};
                     }
                     return seized;
                 }
@@ -1432,14 +1439,26 @@ namespace netxs::console
                         auto delta = curpos - corner(width) - origin;
                         if (inert)
                         {
+                            //auto area = master.base::area();
+                            //auto next = area;
+                            //auto dxdy = delta * dtsize;
+                            //auto step = -dxdy * dtcoor;
+                            //next.coor += step;
+                            //next.size += dxdy;
+                            //auto anchor = next - area;
+                            //master.SIGNAL(tier::anycast, e2::form::layout::anchor, anchor);
+
                             auto area = master.base::area();
                             auto next = area;
-                            auto dxdy = delta * dtsize;
+                            auto dxdy = (curpos - corner(width2) - origin2) * dtsize;
                             auto step = -dxdy * dtcoor;
                             next.coor += step;
                             next.size += dxdy;
                             auto anchor = next - area;
-                            master.SIGNAL(tier::anycast, e2::form::layout::anchor, anchor);
+                            auto ank = anchor - anchor_full;
+                            anchor_full = anchor;
+                            //origin2 = curpos - corner(master.base::size() + outer);
+                            master.SIGNAL(tier::anycast, e2::form::layout::anchor, ank);
                         }
                         else if (auto dxdy = master.base::sizeby(delta * dtsize))
                         {
@@ -5196,8 +5215,10 @@ again:
         si32  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
         si32  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
         twod  field; // diff: Current terminal/screen window size.
+
         dent  anker; // diff: Current terminal/screen window anchored size.
-        //dent  cached_anker; // diff: .
+        dent  cached_anker; // diff: .
+
         span  watch; // diff: Duration of the STDOUT rendering.
         si32  delta; // diff: Last ansi-rendered frame size.
         ansi  frame; // diff: Text screen representation.
@@ -5521,9 +5542,7 @@ again:
         // diff: Update anchored size.
         void anchor(dent const& d)
         {
-            auto lock = std::lock_guard{ mutex };
-            //cached_anker += d;
-            anker += d;
+            cached_anker += d;
         }
         // diff: Obtain new content to render.
         pair commit(core& canvas) // Run inside the e2::sync.
@@ -5543,7 +5562,7 @@ again:
                     extra.clear();
                 }
 
-                //std::swap(anker, cached_anker);
+                std::swap(anker, cached_anker);
 
                 ready = true;
                 synch.notify_one();
@@ -5786,6 +5805,89 @@ again:
                 diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
                 subs token;                 // gate: Subscription tokens array.
 
+                auto rebuild_scene = [&](bool damaged)
+                {
+                    auto stamp = tempus::now();
+
+                    if (damaged)
+                    {
+                        auto& canvas = cache.canvas;
+                        canvas.wipe(world.bell::id);
+                        if (input.get_single_instance() == faux)
+                        {
+                            if (background) // Render active wallpaper.
+                            {
+                                canvas.render(background);
+                            }
+
+                            world.redraw(canvas); // Put the rest of the world on my canvas.
+                        }
+                        if (uibar && !fullscreen) // Render main menu/application.
+                        {
+                            //todo too hacky, unify
+                            if (props.glow_fx) canvas.render(uibar, base::coor()); // Render the main menu twice to achieve the glow effect.
+                                               canvas.render(uibar, base::coor());
+                        }
+                        if (legacy & os::legacy::mouse) // Render our mouse pointer.
+                        {
+                            draw_mouse_pointer(canvas);
+                        }
+                        if (clip_rawtext.size()) // Render clipboard content preview.
+                        {
+                            auto coor = input.coord + dot_21 * 2;
+                            clip_preview.move(coor);
+                            canvas.plot(clip_preview, cell::shaders::lite);
+                        }
+                        if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.captured()) // Render our tooltips.
+                        {
+                            static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
+                            auto full = canvas.full();
+                            auto area = full;
+                            area.coor = std::max(dot_00, input.coord - twod{ 4, tooltip_page.size() + 1 });
+                            canvas.full(area);
+                            canvas.cup(dot_00);
+                            canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
+                            canvas.full(full);
+                        }
+                        if (debug) debug.output(canvas);
+                        if (props.show_regions)
+                        {
+                            canvas.each([](cell& c)
+                            {
+                                auto mark = rgba{ rgba::color256[c.link() % 256] };
+                                auto bgc = c.bgc();
+                                mark.alpha(64);
+                                bgc.mix(mark);
+                                c.bgc(bgc);
+                            });
+                        }
+                    }
+                    else if (yield) return;
+
+                    // Note: We have to fire a mouse move event every frame,
+                    //       because in the global frame the mouse can stand still,
+                    //       but any form can move under the cursor, so for the form itself,
+                    //       the mouse cursor moves inside the form.
+                    if (debug)
+                    {
+                        debug.bypass = true;
+                        input.fire(hids::events::mouse::move.id);
+                        debug.bypass = faux;
+                        yield = paint.commit(cache.canvas);
+                        if (yield)
+                        {
+                            auto& [watch, delta] = yield.value();
+                            debug.update(watch, delta);
+                        }
+                        debug.update(stamp);
+                    }
+                    else
+                    {
+                        // Update objects under mouse cursor.
+                        input.fire(hids::events::mouse::move.id);
+                        yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
+                    }
+                };
                 // conio events.
                 SUBMIT_T(tier::release, e2::conio::size, token, newsize)
                 {
@@ -5803,7 +5905,7 @@ again:
                     paint.anchor(anchor);
                     if (vga_mode == svga::directvt)
                     {
-                        //todo trigger to redraw
+                        rebuild_scene(!!anchor);
                     }
                 };
                 SUBMIT_T(tier::release, e2::conio::unknown, token, unkstate)
@@ -5981,85 +6083,7 @@ again:
 
                 SUBMIT_T(tier::general, e2::nextframe, token, damaged)
                 {
-                    auto stamp = tempus::now();
-
-                    if (damaged)
-                    {
-                        auto& canvas = cache.canvas;
-                        canvas.wipe(world.bell::id);
-                        if (input.get_single_instance() == faux)
-                        {
-                            if (background) // Render active wallpaper.
-                            {
-                                canvas.render(background);
-                            }
-
-                            world.redraw(canvas); // Put the rest of the world on my canvas.
-                        }
-                        if (uibar && !fullscreen) // Render main menu/application.
-                        {
-                            //todo too hacky, unify
-                            if (props.glow_fx) canvas.render(uibar, base::coor()); // Render the main menu twice to achieve the glow effect.
-                                               canvas.render(uibar, base::coor());
-                        }
-                        if (legacy & os::legacy::mouse) // Render our mouse pointer.
-                        {
-                            draw_mouse_pointer(canvas);
-                        }
-                        if (clip_rawtext.size()) // Render clipboard content preview.
-                        {
-                            auto coor = input.coord + dot_21 * 2;
-                            clip_preview.move(coor);
-                            canvas.plot(clip_preview, cell::shaders::lite);
-                        }
-                        if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.captured()) // Render our tooltips.
-                        {
-                            static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
-                            auto full = canvas.full();
-                            auto area = full;
-                            area.coor = std::max(dot_00, input.coord - twod{ 4, tooltip_page.size() + 1 });
-                            canvas.full(area);
-                            canvas.cup(dot_00);
-                            canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
-                            canvas.full(full);
-                        }
-                        if (debug) debug.output(canvas);
-                        if (props.show_regions)
-                        {
-                            canvas.each([](cell& c)
-                            {
-                                auto mark = rgba{ rgba::color256[c.link() % 256] };
-                                auto bgc = c.bgc();
-                                mark.alpha(64);
-                                bgc.mix(mark);
-                                c.bgc(bgc);
-                            });
-                        }
-                    }
-                    else if (yield) return;
-
-                    if (debug)
-                    {
-                        debug.bypass = true;
-                        //input.fire(hids::events::mouse::hover);
-                        input.fire(hids::events::mouse::move.id);
-                        debug.bypass = faux;
-                        yield = paint.commit(cache.canvas);
-                        if (yield)
-                        {
-                            auto& watch = yield.value().first;
-                            auto& delta = yield.value().second;
-                            debug.update(watch, delta);
-                        }
-                        debug.update(stamp);
-                    }
-                    else
-                    {
-                        // Update objects under mouse cursor.
-                        //input.fire(hids::events::mouse::hover);
-                        input.fire(hids::events::mouse::move.id);
-                        yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
-                    }
+                    rebuild_scene(damaged);
                 };
 
                 SIGNAL(tier::anycast, e2::form::upon::started, This());
