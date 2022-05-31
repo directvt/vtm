@@ -6235,9 +6235,22 @@ again:
             {
                 cache.canvas.mark(brush);
             };
+            SUBMIT(tier::preview, e2::size::set, newsz)
+            {
+                auto direct = legacy & os::legacy::direct;
+                if (uibar && direct)
+                {
+                    uibar->SIGNAL(tier::preview, e2::size::set, newsz);
+                }
+            };
             SUBMIT(tier::release, e2::size::set, newsz)
             {
-                if (uibar) uibar->base::resize(newsz);
+                if (uibar)
+                {
+                    auto direct = legacy & os::legacy::direct;
+                    if (direct) uibar->SIGNAL(tier::release, e2::size::set, newsz);
+                    else        uibar->base::resize(newsz);
+                }
                 if (background) background->base::resize(newsz);
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
