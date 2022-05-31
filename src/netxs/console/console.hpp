@@ -1196,9 +1196,9 @@ namespace netxs::console
         {
             SUBMIT(tier::request, e2::depth, depth) { depth++; };
 
-            SUBMIT(tier::release, e2::coor::set, new_coor) { square.coor = new_coor; };
+            SUBMIT(tier::release, e2::coor::any, new_coor) { square.coor = new_coor; };
             SUBMIT(tier::request, e2::coor::set, coor_var) { coor_var = square.coor; };
-            SUBMIT(tier::release, e2::size::set, new_size) { square.size = new_size; };
+            SUBMIT(tier::release, e2::size::any, new_size) { square.size = new_size; };
             SUBMIT(tier::request, e2::size::set, size_var) { size_var = square.size; };
 
             SUBMIT(tier::release, e2::cascade, proc)
@@ -5740,6 +5740,8 @@ again:
         page   tooltip_page; // gate: Tooltip render.
         id_t   tooltip_boss; // gate: Tooltip hover object.
 
+        bool onswarp = faux; // gate .
+
         void draw_mouse_pointer(face& canvas)
         {
             auto area = base::area();
@@ -5790,12 +5792,6 @@ again:
                               : legacy & os::legacy::vga256 ? svga::vga256
                               : legacy & os::legacy::direct ? svga::directvt
                                                             : svga::truecolor;
-                auto r1 = rect{ dot_00, base::size() };
-                if (deskmenu) attach(deskmenu);
-                if (bkground) ground(bkground);
-                auto r2 = rect{ dot_00, base::size() };
-                auto warp = r2 - r1;
-
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
                 auto conf_usr_name = props.name;
@@ -5808,8 +5804,6 @@ again:
                 link conio{ *this, media }; // gate: Terminal IO.
                 diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
                 subs token;                 // gate: Subscription tokens array.
-
-                paint.swarping(warp); // Respect app/deskmenu size limits.
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -5904,7 +5898,9 @@ again:
                     auto area = rect{ dot_00, base::size() };
                     auto new_area = area + warp;
                     auto dtcoor = new_area.coor.equals(dot_00, dot_00, dot_11);
+                    onswarp = true;
                     auto dxdy = base::resize(new_area.size);
+                    onswarp = faux;
                     area.size += dxdy;
                     area.coor -= dxdy * dtcoor;
                     warp -= area - new_area;
@@ -5912,6 +5908,29 @@ again:
                     if (vga_mode == svga::directvt)
                     {
                         rebuild_scene(!!anchor);
+                    }
+                };
+                SUBMIT(tier::preview, e2::size::set, newsz)
+                {
+                    auto direct = legacy & os::legacy::direct;
+                    if (uibar && direct)
+                    {
+                        uibar->SIGNAL(tier::preview, e2::size::set, newsz);
+                    }
+                };
+                SUBMIT(tier::release, e2::size::set, newsz)
+                {
+                    if (uibar)
+                    {
+                        auto direct = legacy & os::legacy::direct;
+                        if (direct) uibar->SIGNAL(tier::release, e2::size::set, newsz);
+                        else        uibar->base::resize(newsz);
+                    }
+                    if (background) background->base::resize(newsz);
+                    if (!onswarp)
+                    {
+                        auto warp = dent::diff(newsz, base::size());
+                        paint.swarping(warp);
                     }
                 };
                 SUBMIT_T(tier::release, e2::conio::unknown, token, unkstate)
@@ -5999,6 +6018,11 @@ again:
                 {
                     clipbrd_size = clip_preview.size();
                 };
+                SUBMIT_T(tier::general, e2::nextframe, token, damaged)
+                {
+                    rebuild_scene(damaged);
+                };
+
                 if (props.tooltip_enabled)
                 {
                     SUBMIT_T(tier::preview, hids::events::mouse::any, token, gear)
@@ -6072,6 +6096,7 @@ again:
                 }
                 if (deskmenu)
                 {
+                    attach(deskmenu); // Our size could be changed here during attaching.
                     deskmenu->SUBMIT_T(tier::preview, hids::events::mouse::button::tplclick::leftright, token, gear)
                     {
                         if (debug)
@@ -6086,11 +6111,10 @@ again:
                         }
                     };
                 }
-
-                SUBMIT_T(tier::general, e2::nextframe, token, damaged)
+                if (bkground)
                 {
-                    rebuild_scene(damaged);
-                };
+                    ground(bkground);
+                }
 
                 SIGNAL(tier::anycast, e2::form::upon::started, This());
 
@@ -6241,24 +6265,6 @@ again:
             SUBMIT(tier::release, e2::form::prop::brush, brush)
             {
                 cache.canvas.mark(brush);
-            };
-            SUBMIT(tier::preview, e2::size::set, newsz)
-            {
-                auto direct = legacy & os::legacy::direct;
-                if (uibar && direct)
-                {
-                    uibar->SIGNAL(tier::preview, e2::size::set, newsz);
-                }
-            };
-            SUBMIT(tier::release, e2::size::set, newsz)
-            {
-                if (uibar)
-                {
-                    auto direct = legacy & os::legacy::direct;
-                    if (direct) uibar->SIGNAL(tier::release, e2::size::set, newsz);
-                    else        uibar->base::resize(newsz);
-                }
-                if (background) background->base::resize(newsz);
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
             {

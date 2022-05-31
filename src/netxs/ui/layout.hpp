@@ -1797,6 +1797,12 @@ namespace netxs::ui::atoms
             head.step = q(0);
             foot.step = q(0);
         }
+        // dent: Return difference between sizes.
+        static auto diff(twod const& p1, twod const& p2)
+        {
+            return dent{ 0, p1.x - p2.x,
+                         0, p1.y - p2.y };
+        }
         // dent: Return size with padding.
         friend auto operator + (twod const& size, dent const& pad)
         {
