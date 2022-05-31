@@ -3692,11 +3692,11 @@ namespace netxs::os
                     write(ansi::win(newsize));
                 }
             }
-            void anchor(dent const& anchor)
+            void swarp(dent const& warp)
             {
-                if (termlink && anchor)
+                if (termlink && warp)
                 {
-                    write(ansi::win(anchor));
+                    write(ansi::warp(warp));
                 }
             }
             void write(view data)

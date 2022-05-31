@@ -6743,7 +6743,7 @@ namespace netxs::ui
                 {
                     auto frame = *reinterpret_cast<ansi::dtvt::header const*>(data.data());
                     auto length = frame.length.get();
-                    auto anchor = frame.anchor.get();
+                    auto warp = frame.swarp.get();
                     auto surface_id = frame.id.get();
                     if (length > data.size())
                     {
@@ -6753,23 +6753,23 @@ namespace netxs::ui
                     length -= sizeof(ansi::dtvt::header);
                     data.remove_prefix(sizeof(ansi::dtvt::header));
 
-                    if (anchor)
+                    if (warp)
                     {
                         auto size = canvas.size();
                         auto area = rect{ dot_00, size };
-                        area = area + anchor;
+                        area = area + warp;
                         auto new_size = std::clamp(area.size, dot_11, console::max_value);
-                        if (new_size != area.size) // Correct anchor if size clamped.
+                        if (new_size != area.size) // Correct warp if size clamped.
                         {
                             auto new_area = rect{ area.coor, new_size };
-                            anchor += new_area - area;
+                            warp += new_area - area;
                         }
                         if (area.size != size)
                         {
                             canvas.crop(area.size);
                         }
 
-                        this->base::riseup<tier::release>(e2::form::layout::anchor, anchor);
+                        this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
                     }
                     auto iter = canvas.iter();
                     auto coor = dot_00;
@@ -6902,10 +6902,10 @@ namespace netxs::ui
             //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
             //};
 
-            SUBMIT(tier::anycast, e2::form::layout::anchor, anchor)
+            SUBMIT(tier::anycast, e2::form::layout::swarp, warp)
             {
-                if (ptycon) ptycon.anchor(anchor);
-                else        this->base::riseup<tier::release>(e2::form::layout::anchor, anchor);
+                if (ptycon) ptycon.swarp(warp);
+                else        this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {

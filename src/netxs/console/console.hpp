@@ -158,7 +158,7 @@ namespace netxs::events::userland
                 EVENT_XS( mouse   , console::sysmouse ), // mouse activity.
                 EVENT_XS( key     , console::syskeybd ), // keybd activity.
                 EVENT_XS( size    , twod              ), // order to update terminal primary overlay.
-                EVENT_XS( anchor  , dent              ), // order to anchored resize.
+                EVENT_XS( swarp   , dent              ), // order to swarp.
                 EVENT_XS( native  , bool              ), // extended functionality.
                 EVENT_XS( layout  , const twod        ),
                 EVENT_XS( preclose, const bool        ), // signal to quit after idle timeout, arg: bool - ready to shutdown.
@@ -227,7 +227,7 @@ namespace netxs::events::userland
                     EVENT_XS( appear, twod               ), // fly to the specified coords.
                     EVENT_XS( gonext, sptr<console::base>), // request: proceed request for available objects (next)
                     EVENT_XS( goprev, sptr<console::base>), // request: proceed request for available objects (prev)
-                    EVENT_XS( anchor, dent               ), // preview: form anchored resize
+                    EVENT_XS( swarp , dent               ), // preview: form swarping
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
@@ -1439,14 +1439,15 @@ namespace netxs::console
                         auto delta = curpos - corner(width) - origin;
                         if (inert)
                         {
+                            //todo bug bug: out of sync!
                             //auto area = master.base::area();
                             //auto next = area;
                             //auto dxdy = delta * dtsize;
                             //auto step = -dxdy * dtcoor;
-                            //next.coor += step;
-                            //next.size += dxdy;
-                            //auto anchor = next - area;
-                            //master.SIGNAL(tier::anycast, e2::form::layout::anchor, anchor);
+                            //next.coor+= step;
+                            //next.size+= dxdy;
+                            //auto warp = next - area;
+                            //master.SIGNAL(tier::anycast, e2::form::layout::swarp, warp);
 
                             auto area = master.base::area();
                             auto next = area;
@@ -1454,11 +1455,11 @@ namespace netxs::console
                             auto step = -dxdy * dtcoor;
                             next.coor += step;
                             next.size += dxdy;
-                            auto anchor = next - area;
-                            auto ank = anchor - anchor_full;
-                            anchor_full = anchor;
+                            auto warp = next - area;
+                            auto data = warp - anchor_full;
+                            anchor_full = warp;
                             //origin2 = curpos - corner(master.base::size() + outer);
-                            master.SIGNAL(tier::anycast, e2::form::layout::anchor, ank);
+                            master.SIGNAL(tier::anycast, e2::form::layout::swarp, data);
                         }
                         else if (auto dxdy = master.base::sizeby(delta * dtsize))
                         {
@@ -1527,10 +1528,10 @@ namespace netxs::console
                     items.dec(gear);
                 };
 
-                boss.SUBMIT_T(tier::release, e2::form::layout::anchor, memo, anchor)
+                boss.SUBMIT_T(tier::release, e2::form::layout::swarp, memo, warp)
                 {
                     auto area = boss.base::area();
-                    auto new_area = area + anchor;
+                    auto new_area = area + warp;
                     boss.extend(new_area);
                 };
                 boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::inert, memo, inert_mode)
@@ -5127,8 +5128,8 @@ again:
                                                                 {
                                                                     auto west = x;
                                                                     auto east = y;
-                                                                    auto anchor = dent{ west, east, head, foot };
-                                                                    owner.SIGNAL(tier::release, e2::conio::anchor, anchor);
+                                                                    auto warp = dent{ west, east, head, foot };
+                                                                    owner.SIGNAL(tier::release, e2::conio::swarp, warp);
                                                                     ++pos;
                                                                 }
                                                             }
@@ -5215,10 +5216,8 @@ again:
         si32  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
         si32  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
         twod  field; // diff: Current terminal/screen window size.
-
-        dent  anker; // diff: Current terminal/screen window anchored size.
-        dent  cached_anker; // diff: .
-
+        dent  swarp; // diff: Current terminal/screen window warp data.
+        dent  cwarp; // diff: Cached warp data.
         span  watch; // diff: Duration of the STDOUT rendering.
         si32  delta; // diff: Last ansi-rendered frame size.
         ansi  frame; // diff: Text screen representation.
@@ -5258,10 +5257,10 @@ again:
                 if constexpr (VGAMODE == svga::directvt)
                 {
                     auto header = netxs::ansi::dtvt::header{};
-                    header.anchor.set(anker);
+                    header.swarp.set(swarp);
                     header.id.set(0xaabbccdd); //todo use it
                     frame.add<VGAMODE>(header);
-                    anker = {};
+                    swarp = {};
                 }
                 auto initial_size = static_cast<si32>(frame.size());
 
@@ -5539,10 +5538,10 @@ again:
         }
 
     public:
-        // diff: Update anchored size.
-        void anchor(dent const& d)
+        // diff: Accumulate swarp data.
+        void swarping(dent const& warp_data)
         {
-            cached_anker += d;
+            cwarp += warp_data;
         }
         // diff: Obtain new content to render.
         pair commit(core& canvas) // Run inside the e2::sync.
@@ -5562,7 +5561,7 @@ again:
                     extra.clear();
                 }
 
-                std::swap(anker, cached_anker);
+                std::swap(swarp, cwarp);
 
                 ready = true;
                 synch.notify_one();
@@ -5893,16 +5892,16 @@ again:
                 {
                     base::resize(newsize);
                 };
-                SUBMIT_T(tier::release, e2::conio::anchor, token, anchor)
+                SUBMIT_T(tier::release, e2::conio::swarp, token, warp)
                 {
                     auto area = rect{ dot_00, base::size() };
-                    auto new_area = area + anchor;
+                    auto new_area = area + warp;
                     auto dtcoor = new_area.coor.equals(dot_00, dot_00, dot_11);
                     auto dxdy = base::resize(new_area.size);
                     area.size += dxdy;
                     area.coor -= dxdy * dtcoor;
-                    anchor -= area - new_area;
-                    paint.anchor(anchor);
+                    warp -= area - new_area;
+                    paint.swarping(warp);
                     if (vga_mode == svga::directvt)
                     {
                         rebuild_scene(!!anchor);
