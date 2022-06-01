@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
 {
     auto vtmode = os::vt_mode();
     auto direct = !!(vtmode & os::legacy::direct);
-    auto syslog = direct ? logger([](auto data) { /*todo forward data to the Logs*/ })
+    auto syslog = direct ? logger([](auto data) { os::stdlog(data); })
                          : logger([](auto data) { os::syslog(data); });
     auto banner = [&]() { log(MONOTTY_VER); };
     auto whoami = type::client;
@@ -213,10 +213,10 @@ int main(int argc, char* argv[])
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         };
 
+        if (!direct) os::start_log(MONOTTY_MYNAME);
         if (whoami == type::client)
         {
             banner();
-            os::start_log(MONOTTY_MYNAME);
             auto userid = os::user();
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
@@ -263,8 +263,6 @@ int main(int argc, char* argv[])
             skin::setup(tone::brighter, 0);
             auto config = console::conf(vtmode);
             auto tunnel = os::ipc::local(vtmode);
-
-            os::start_log(MONOTTY_MYNAME); // Redirect logs.
 
             auto cons = os::tty::proxy(tunnel.second);
             auto size = cons.ignite(vtmode);

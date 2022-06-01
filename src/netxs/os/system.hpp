@@ -117,6 +117,7 @@ namespace netxs::os
         static const fd_t INVALID_FD = INVALID_HANDLE_VALUE;
         static const fd_t STDIN_FD  = ::GetStdHandle(STD_INPUT_HANDLE);
         static const fd_t STDOUT_FD = ::GetStdHandle(STD_OUTPUT_HANDLE);
+        static const fd_t STDERR_FD = ::GetStdHandle(STD_ERROR_HANDLE);
         static const si32 PIPE_BUF = 65536;
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
@@ -149,6 +150,7 @@ namespace netxs::os
         static constexpr fd_t INVALID_FD = -1;
         static constexpr fd_t STDIN_FD  = STDIN_FILENO;
         static constexpr fd_t STDOUT_FD = STDOUT_FILENO;
+        static constexpr fd_t STDERR_FD = STDERR_FILENO;
 
     #endif
 
@@ -301,11 +303,76 @@ namespace netxs::os
             f.r = INVALID_FD;
             f.w = INVALID_FD;
         }
-        file(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
-            : r{ fd_r },
-              w{ fd_w }
+        file(fd_t r = INVALID_FD, fd_t w = INVALID_FD)
+            : r{ r },
+              w{ w }
         { }
         ~file()
+        {
+            close();
+        }
+    };
+
+    class dstd
+    {
+        fd_t r; // file: Read descriptor.
+        fd_t w; // file: Send descriptor.
+        fd_t l; // file: Logs descriptor.
+
+    public:
+        auto& get_r()       { return r; }
+        auto& get_w()       { return w; }
+        auto& get_l()       { return l; }
+        auto& get_r() const { return r; }
+        auto& get_w() const { return w; }
+        auto& get_l() const { return l; }
+        void  set_r(fd_t f) { r = f;    }
+        void  set_w(fd_t f) { w = f;    }
+        void  set_l(fd_t f) { l = f;    }
+        operator bool ()    { return r != INVALID_FD
+                                  && w != INVALID_FD
+                                  && l != INVALID_FD; }
+        void close()
+        {
+            os::close(r);
+            os::close(w);
+            os::close(l);
+        }
+        void shutdown() // Reset writing end of the pipe to interrupt reading call.
+        {
+            os::close(w);
+            os::close(l);
+        }
+        friend auto& operator << (std::ostream& s, dstd const& handle)
+        {
+            return s << handle.r << "," << handle.w << "," << handle.l;
+        }
+        auto& operator = (dstd&& f)
+        {
+            r = f.r;
+            w = f.w;
+            l = f.l;
+            f.r = INVALID_FD;
+            f.w = INVALID_FD;
+            f.l = INVALID_FD;
+            return *this;
+        }
+        dstd(dstd const&) = delete;
+        dstd(dstd&& f)
+            : r{ f.r },
+              w{ f.w },
+              l{ f.l }
+        {
+            f.r = INVALID_FD;
+            f.w = INVALID_FD;
+            f.l = INVALID_FD;
+        }
+        dstd(fd_t r = INVALID_FD, fd_t w = INVALID_FD, fd_t l = INVALID_FD)
+            : r{ r },
+              w{ w },
+              l{ l }
+        { }
+        ~dstd()
         {
             close();
         }
@@ -1004,6 +1071,10 @@ namespace netxs::os
 
         #endif
     }
+    void stdlog(view data)
+    {
+        os::send<true>(STDERR_FD, data.data(), data.size());
+    }
     void syslog(view data)
     {
         if (os::is_daemon)
@@ -1052,9 +1123,9 @@ namespace netxs::os
                     ::umask(0);
                     os::start_log(srv_name);
 
-                    ::close(STDIN_FILENO);  // A daemon cannot use the terminal,
-                    ::close(STDOUT_FILENO); // so close standard file descriptors
-                    ::close(STDERR_FILENO); // for security reasons.
+                    ::close(STDIN_FD);  // A daemon cannot use the terminal,
+                    ::close(STDOUT_FD); // so close standard file descriptors
+                    ::close(STDERR_FD); // for security reasons.
                     return true;
                 }
 
@@ -2024,6 +2095,69 @@ namespace netxs::os
             }
         };
 
+        class direct
+            : public iobase
+        {
+            dstd handle; // ipc::direct: Stdio file descriptor.
+
+        public:
+            direct() = default;
+            direct(fd_t r, fd_t w, fd_t l)
+                : handle{ r, w, l }
+            {
+                active = true;
+                buffer.resize(PIPE_BUF);
+            }
+
+            void set(fd_t r, fd_t w, fd_t l)
+            {
+                handle = { r, w, l };
+                active = true;
+                buffer.resize(PIPE_BUF);
+            }
+            auto& get_w()
+            {
+                return handle.get_w();
+            }
+            template<class SIZE_T>
+            auto recv(char* buff, SIZE_T size)
+            {
+                return os::recv(handle.get_r(), buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
+            }
+            qiew recv() override // It's not thread safe!
+            {
+                return recv(buffer.data(), buffer.size());
+            }
+            bool recv(char& c) override
+            {
+                return recv(&c, sizeof(c));
+            }
+            bool send(view buff) override
+            {
+                auto data = buff.data();
+                auto size = buff.size();
+                return os::send<true>(handle.get_w(), data, size);
+            }
+            template<class SIZE_T>
+            qiew rlog(char* buff, SIZE_T size)
+            {
+                return os::recv(handle.get_l(), buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
+            }
+            void shut() override
+            {
+                active = faux;
+                handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
+            }
+            void stop() override
+            {
+                shut();
+            }
+            flux& show(flux& s) const override
+            {
+                return s << handle;
+            }
+        };
+
         class socket
             : public iobase
         {
@@ -2483,7 +2617,7 @@ namespace netxs::os
         {
             if (vtmode & os::legacy::direct)
             {
-                auto server = std::make_shared<ipc::ptycon>(STDIN_FD, STDOUT_FD);
+                auto server = std::make_shared<ipc::direct>(STDIN_FD, STDOUT_FD, STDERR_FD);
                 auto client = server;
                 return std::make_pair( server, client );
             }
@@ -3048,9 +3182,9 @@ namespace netxs::os
             HANDLE hThread  { INVALID_FD };
             HANDLE gameover { INVALID_FD }; // ConPTY do not close pipe handles when client process exits,
             std::thread client_exit_waiter; // so we need to catch the process ending.
-            // Note: Not closing STDERR_FILENO (STDERR_FILENO and STDIN_FILENO the same)
-            //       causes the reading process to not stop reading when only STDIN_FILENO is closed.
-            //       An open STDERR_FILENO on the client side blocks the read interrupt on the ConPTY side.
+            // Note: Not closing STDERR_FD (STDERR_FD and STDIN_FD the same)
+            //       causes the reading process to not stop reading when only STDIN_FD is closed.
+            //       An open STDERR_FD on the client side blocks the read interrupt on the ConPTY side.
 
         #else
 
@@ -3229,9 +3363,9 @@ namespace netxs::os
                     ::signal(SIGTTOU, SIG_DFL); //
                     ::signal(SIGCHLD, SIG_DFL); //
 
-                    ::dup2 (fds, STDIN_FILENO);  // Assign stdio lines atomically
-                    ::dup2 (fds, STDOUT_FILENO); // = close(new);
-                    ::dup2 (fds, STDERR_FILENO); // fcntl(old, F_DUPFD, new)
+                    ::dup2 (fds, STDIN_FD);  // Assign stdio lines atomically
+                    ::dup2 (fds, STDOUT_FD); // = close(new);
+                    ::dup2 (fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
                     os::close(fds);
 
                     auto args = os::split_cmdline(cmdline);
@@ -3389,17 +3523,18 @@ namespace netxs::os
 
                 HANDLE hProcess { INVALID_FD };
                 HANDLE hThread  { INVALID_FD };
-
+                DWORD  Proc_id  { 0          };
             #else
 
-                pid_t pid = 0;
+                pid_t Proc_id = 0;
 
             #endif
 
-            ipc::ptycon               termlink{};
+            ipc::direct               termlink{};
             testy<twod>               termsize{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
+            std::thread               stderror{};
             std::function<void(view)> receiver{};
             std::function<void(si32)> shutdown{};
             text                      writebuf{};
@@ -3422,6 +3557,11 @@ namespace netxs::os
                     log("dtvt: id: ", stdinput.get_id(), " reading thread joining");
                     stdinput.join();
                 }
+                if (stderror.joinable())
+                {
+                    log("dtvt: id: ", stderror.get_id(), " logging thread joining");
+                    stderror.join();
+                }
                 log("dtvt: dtor complete");
             }
             
@@ -3439,13 +3579,15 @@ namespace netxs::os
 
                     auto s_pipe_r = INVALID_FD;
                     auto s_pipe_w = INVALID_FD;
+                    auto s_pipe_l = INVALID_FD;
                     auto m_pipe_r = INVALID_FD;
                     auto m_pipe_w = INVALID_FD;
+                    auto m_pipe_l = INVALID_FD;
                     auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
                     auto procsinf = PROCESS_INFORMATION{};
                     auto attrbuff = std::vector<uint8_t>{};
                     auto attrsize = SIZE_T{ 0 };
-                    auto stdhndls = std::array<HANDLE, 2>{};
+                    auto stdhndls = std::array<HANDLE, 3>{};
 
                     auto tunnel = [&]()
                     {
@@ -3454,20 +3596,22 @@ namespace netxs::os
                         sa.lpSecurityDescriptor = NULL;
                         sa.bInheritHandle = TRUE;
                         if (::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0) &&
-                            ::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0))
+                            ::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0) &&
+                            ::CreatePipe(&m_pipe_l, &s_pipe_l, &sa, 0))
                         {
                             os::legacy::send_dmd(m_pipe_w, winsz);
 
                             startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                             startinf.StartupInfo.hStdInput  = s_pipe_r;
                             startinf.StartupInfo.hStdOutput = s_pipe_w;
-                            startinf.StartupInfo.hStdError  = s_pipe_w;
+                            startinf.StartupInfo.hStdError  = s_pipe_l;
                             return true;
                         }
                         else
                         {
-                            os::close(s_pipe_w);
-                            os::close(s_pipe_r);
+                            os::close(m_pipe_w);
+                            os::close(m_pipe_r);
+                            os::close(m_pipe_l);
                             return faux;
                         }
                     };
@@ -3475,6 +3619,7 @@ namespace netxs::os
                     {
                         stdhndls[0] = s_pipe_r;
                         stdhndls[1] = s_pipe_w;
+                        stdhndls[2] = s_pipe_l;
                         ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
                         attrbuff.resize(attrsize);
                         startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
@@ -3512,30 +3657,35 @@ namespace netxs::os
                      && create())
                     {
                         hProcess = procsinf.hProcess;
+                        Proc_id  = procsinf.dwProcessId;
                         hThread  = procsinf.hThread;
-                        termlink.set(m_pipe_r, m_pipe_w);
+                        termlink.set(m_pipe_r, m_pipe_w, m_pipe_l);
                         log("dtvt: conpty created: ", winsz);
                     }
                     else log("dtvt: child process creation error ", ::GetLastError());
 
                     os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
                     os::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+                    os::close(s_pipe_l); //
 
                 #else
 
-                    fd_t to_server[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
-                    fd_t to_client[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
+                    fd_t to_server[2] = { INVALID_FD, INVALID_FD };
+                    fd_t to_client[2] = { INVALID_FD, INVALID_FD };
+                    fd_t to_srvlog[2] = { INVALID_FD, INVALID_FD };
                     ok(::pipe(to_server), "dtvt: server ipc error");
                     ok(::pipe(to_client), "dtvt: client ipc error");
+                    ok(::pipe(to_srvlog), "dtvt: srvlog ipc error");
 
-                    termlink.set(to_server[0], to_client[1]);
+                    termlink.set(to_server[0], to_client[1], to_srvlog[0]);
                     os::legacy::send_dmd(to_client[1], winsz);
 
-                    pid = ::fork();
-                    if (pid == 0) // Child branch.
+                    Proc_id = ::fork();
+                    if (Proc_id == 0) // Child branch.
                     {
                         os::close(to_server[0]);
                         os::close(to_client[1]);
+                        os::close(to_srvlog[0]);
 
                         ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                         ::signal(SIGQUIT, SIG_DFL); //
@@ -3544,11 +3694,12 @@ namespace netxs::os
                         ::signal(SIGTTOU, SIG_DFL); //
                         ::signal(SIGCHLD, SIG_DFL); //
 
-                        ::dup2(to_client[0], STDIN_FILENO ); // Assign stdio lines atomically
-                        ::dup2(to_server[1], STDOUT_FILENO); // = close(new); fcntl(old, F_DUPFD, new)
-                        ::close(STDERR_FILENO); // Not used. ::dup2(to_server[1], STDERR_FILENO);
+                        ::dup2(to_client[0], STDIN_FD ); // Assign stdio lines atomically
+                        ::dup2(to_server[1], STDOUT_FD); // = close(new); fcntl(old, F_DUPFD, new).
+                        ::dup2(to_srvlog[1], STDERR_FD); // Used for the logs output
                         os::close(to_client[0]);
                         os::close(to_server[1]);
+                        os::close(to_srvlog[1]);
 
                         auto args = os::split_cmdline(cmdline);
                         auto argv = std::vector<char*>{};
@@ -3565,11 +3716,13 @@ namespace netxs::os
                     // Parent branch.
                     os::close(to_client[0]);
                     os::close(to_server[1]);
+                    os::close(to_srvlog[1]);
 
                 #endif
 
                 stdinput = std::thread([&] { read_socket_thread(); });
                 stdwrite = std::thread([&] { send_socket_thread(); });
+                stderror = std::thread([&] { logs_socket_thread(); });
 
                 writesyn.notify_one(); // Flush temp buffer.
             }
@@ -3604,11 +3757,11 @@ namespace netxs::os
 
                 #else
 
-                if (pid != 0)
+                if (Proc_id != 0)
                 {
                     int status;
-                    ok(::kill(pid, SIGKILL), "kill(pid, SIGKILL) failed");
-                    ok(::waitpid(pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                    ok(::kill(Proc_id, SIGKILL), "kill(pid, SIGKILL) failed");
+                    ok(::waitpid(Proc_id, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                     if (WIFEXITED(status))
                     {
                         exit_code = WEXITSTATUS(status);
@@ -3624,6 +3777,22 @@ namespace netxs::os
                 #endif
                 log("dtvt: child waiting complete");
                 return exit_code;
+            }
+            void logs_socket_thread()
+            {
+                auto thread_id = stderror.get_id();
+                log("dtvt: id: ", thread_id, " logging thread for process:", Proc_id, " started");
+                auto buff = std::vector<char>(PIPE_BUF);
+                while (termlink)
+                {
+                    auto shot = termlink.rlog(buff.data(), buff.size());
+                    if (shot && termlink)
+                    {
+                        log("    ", Proc_id, ": ", shot, faux);
+                    }
+                    else break;
+                }
+                log("dtvt: id: ", thread_id, " logging thread ended");
             }
             void read_socket_thread()
             {
