@@ -1693,6 +1693,13 @@ namespace netxs::ui::atoms
               head{ pad.head.step },
               foot{ pad.foot.step }
         { }
+        // dent: Form swarp values.
+        constexpr dent(twod const& offset, twod const& sector)
+            : west{ sector.x > 0 ? offset.x : 0 },
+              east{ sector.x > 0 ? 0 :-offset.x },
+              head{ sector.y > 0 ? offset.y : 0 },
+              foot{ sector.y > 0 ? 0 :-offset.y }
+        { }
         bool operator == (dent const&) const = default;
         explicit operator bool () const { return west.step != 0 ||
                                                  east.step != 0 ||

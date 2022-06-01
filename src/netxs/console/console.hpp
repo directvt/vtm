@@ -1364,18 +1364,14 @@ namespace netxs::console
 
                 twod origin; // sock: Grab's initial coord info.
                 twod dtcoor; // sock: The form coor parameter change factor while resizing.
-                twod dtsize; // sock: The form size parameter change factor while resizing.
                 twod sector; // sock: Active quadrant, x,y = {-1|+1}. Border widths.
+                twod stored; // sock: Last captured cursor position.
                 rect hzgrip; // sock: Horizontal grip.
                 rect vtgrip; // sock: Vertical grip.
                 twod widths; // sock: Grip's widths.
                 bool inside; // sock: Is active.
                 bool seized; // sock: Is seized.
                 test lastxy; // sock: Change tracker.
-
-                dent anchor_full; // sock: .
-                twod width2; // sock: .
-                twod origin2; // sock: .
 
                 sock()
                     : inside{ faux },
@@ -1390,11 +1386,9 @@ namespace netxs::console
                 {
                     if (inside)
                     {
-                        origin = curpos - corner(master.base::size() + outer);
+                        stored = curpos;
+                        origin = stored - corner(master.base::size() + outer);
                         seized = true;
-                        width2 = master.base::size() + outer;
-                        origin2 = curpos - corner(master.base::size() + outer);
-                        anchor_full = {};
                     }
                     return seized;
                 }
@@ -1411,8 +1405,7 @@ namespace netxs::console
                     if (!seized)
                     {
                         dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
-                        dtsize = dtcoor.less(dot_11, dot_11,-dot_11);
-                        sector = dtcoor.less(dot_11,-dot_11, dot_11);
+                        sector = dtcoor.less(dot_11, -dot_11, dot_11);
                         widths = sector.less(dot_00, twod{-border.east.step,-border.foot.step },
                                                      twod{ border.west.step, border.head.step });
                     }
@@ -1431,40 +1424,31 @@ namespace netxs::console
                     vtgrip.size.y += s.y;
                     return lastxy(curpos);
                 }
+                void cure(twod const& dc)
+                {
+                    stored -= dc;
+                }
                 auto drag(base& master, twod const& curpos, dent const& outer, bool inert)
                 {
                     if (seized)
                     {
-                        auto width = master.base::size() + outer;
-                        auto delta = curpos - corner(width) - origin;
                         if (inert)
                         {
-                            //todo bug bug: out of sync!
-                            //auto area = master.base::area();
-                            //auto next = area;
-                            //auto dxdy = delta * dtsize;
-                            //auto step = -dxdy * dtcoor;
-                            //next.coor+= step;
-                            //next.size+= dxdy;
-                            //auto warp = next - area;
-                            //master.SIGNAL(tier::anycast, e2::form::layout::swarp, warp);
-
-                            auto area = master.base::area();
-                            auto next = area;
-                            auto dxdy = (curpos - corner(width2) - origin2) * dtsize;
-                            auto step = -dxdy * dtcoor;
-                            next.coor += step;
-                            next.size += dxdy;
-                            auto warp = next - area;
-                            auto data = warp - anchor_full;
-                            anchor_full = warp;
-                            //origin2 = curpos - corner(master.base::size() + outer);
-                            master.SIGNAL(tier::anycast, e2::form::layout::swarp, data);
+                            auto delta = stored - curpos;
+                            auto swarp = dent{ delta, sector };
+                            master.SIGNAL(tier::anycast, e2::form::layout::swarp, swarp);
+                            stored = curpos;
                         }
-                        else if (auto dxdy = master.base::sizeby(delta * dtsize))
+                        else
                         {
-                            master.base::moveby(-dxdy * dtcoor);
-                            master.SIGNAL(tier::preview, e2::form::upon::changed, dxdy);
+                            auto width = master.base::size() + outer;
+                            auto delta = corner(width) + origin - curpos;
+                            if (auto dxdy = master.base::sizeby(delta * sector))
+                            {
+                                auto step = -dxdy * dtcoor;
+                                master.base::moveby(step);
+                                master.SIGNAL(tier::preview, e2::form::upon::changed, dxdy);
+                            }
                         }
                     }
                     return seized;
@@ -1531,8 +1515,12 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, e2::form::layout::swarp, memo, warp)
                 {
                     auto area = boss.base::area();
-                    auto new_area = area + warp;
-                    boss.extend(new_area);
+                    auto next = area + warp;
+                    auto step = boss.extend(next).coor;
+                    if (inert && step)
+                    {
+                        items.foreach([&](auto& s) { s.cure(step); });
+                    }
                 };
                 boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::inert, memo, inert_mode)
                 {
@@ -5883,7 +5871,6 @@ again:
                     }
                     else
                     {
-                        // Update objects under mouse cursor.
                         input.fire(hids::events::mouse::move.id);
                         yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
                     }
@@ -5910,7 +5897,7 @@ again:
                         rebuild_scene(!!anchor);
                     }
                 };
-                SUBMIT(tier::preview, e2::size::set, newsz)
+                SUBMIT_T(tier::preview, e2::size::set, token, newsz)
                 {
                     auto direct = legacy & os::legacy::direct;
                     if (uibar && direct)
@@ -5918,7 +5905,7 @@ again:
                         uibar->SIGNAL(tier::preview, e2::size::set, newsz);
                     }
                 };
-                SUBMIT(tier::release, e2::size::set, newsz)
+                SUBMIT_T(tier::release, e2::size::set, token, newsz)
                 {
                     if (uibar)
                     {

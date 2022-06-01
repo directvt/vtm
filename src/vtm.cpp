@@ -213,10 +213,10 @@ int main(int argc, char* argv[])
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         };
 
-        if (!direct) os::start_log(MONOTTY_MYNAME);
         if (whoami == type::client)
         {
             banner();
+            if (!direct) os::start_log(MONOTTY_MYNAME);
             auto userid = os::user();
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
@@ -259,6 +259,8 @@ int main(int argc, char* argv[])
                 params = MONOTTY_DEFAPP;
                 log(MONOTTY_APPINF);
             }
+
+            if (!direct) os::start_log(MONOTTY_MYNAME);
 
             skin::setup(tone::brighter, 0);
             auto config = console::conf(vtmode);
