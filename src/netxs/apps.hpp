@@ -372,10 +372,12 @@ namespace netxs::app::shared
                 };
                 boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
                 {
+                    boss.mouse.reset();
                     boss.base::detach(); // The object kills itself.
                 };
                 boss.SUBMIT(tier::release, e2::form::quit, nested_item)
                 {
+                    boss.mouse.reset();
                     if (nested_item) boss.base::detach(); // The object kills itself.
                 };
                 boss.SUBMIT(tier::release, e2::dtor, p)
