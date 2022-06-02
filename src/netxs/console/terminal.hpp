@@ -6625,7 +6625,7 @@ namespace netxs::ui
                 }
                 //owner.selection_selmod(xsgr::disabled);
             }
-            void disable(mode m)
+            void disable(mode m = mode::negative_args)
             {
                 state &= ~(m);
                 if (!state) token.clear();
@@ -6885,6 +6885,7 @@ namespace netxs::ui
             canvas.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
             canvas.output(note);
             this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
+            mtrack.disable();
         }
 
     public:
@@ -6914,7 +6915,7 @@ namespace netxs::ui
         }
        ~dtvt(){ active = faux; }
         dtvt(text command_line)
-            : active{  true }
+            : active{ true }
         {
             marker.link(base::id);
             cmdarg = command_line;
@@ -6928,6 +6929,7 @@ namespace netxs::ui
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 if (ptycon) ptycon.stop();
+                else        base::riseup<tier::release>(e2::form::quit, item);
             };
             SUBMIT(tier::anycast, e2::form::layout::swarp, warp)
             {
