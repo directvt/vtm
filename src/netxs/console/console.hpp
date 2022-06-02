@@ -1803,12 +1803,12 @@ namespace netxs::console
                     gate.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
                     gate.SIGNAL(tier::release, e2::form::prop::fullscreen, true);
 
-                    gate.SUBMIT_T(tier::release, e2::size::set, memo, size)
+                    gate.SUBMIT_T(tier::release, e2::size::any, memo, size)
                     {
                         body.size = size + pads * 2;
                         boss.base::resize(body.size);
                     };
-                    gate.SUBMIT_T(tier::release, e2::coor::set, memo, coor)
+                    gate.SUBMIT_T(tier::release, e2::coor::any, memo, coor)
                     {
                         unbind();
                     };
@@ -1817,11 +1817,11 @@ namespace netxs::console
                         unbind();
                     };
 
-                    boss.SUBMIT_T(tier::release, e2::size::set, memo, size)
+                    boss.SUBMIT_T(tier::release, e2::size::any, memo, size)
                     {
                         if (weak && body.size != size) unbind(faux);
                     };
-                    boss.SUBMIT_T(tier::release, e2::coor::set, memo, coor)
+                    boss.SUBMIT_T(tier::release, e2::coor::any, memo, coor)
                     {
                         if (weak && body.coor != coor) unbind();
                     };
@@ -2745,7 +2745,7 @@ namespace netxs::console
                     update(focusstate);
                     boss.base::strike(); // to update debug info
                 };
-                boss.SUBMIT_T(tier::release, e2::size::set, memo, newsize)
+                boss.SUBMIT_T(tier::release, e2::size::any, memo, newsize)
                 {
                     update(newsize);
                 };
@@ -2902,7 +2902,7 @@ namespace netxs::console
             }
             void init()
             {
-                boss.SUBMIT_T(tier::release, e2::size::set, memo, new_size)
+                boss.SUBMIT_T(tier::release, e2::size::any, memo, new_size)
                 {
                     recalc(new_size);
                 };
@@ -3335,12 +3335,12 @@ namespace netxs::console
             {
                 xmap.move(boss.base::coor());
                 xmap.size(boss.base::size());
-                boss.SUBMIT_T(tier::release, e2::size::set, memo, newsize)
+                boss.SUBMIT_T(tier::release, e2::size::any, memo, newsize)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.size(newsize);
                 };
-                boss.SUBMIT_T(tier::release, e2::coor::set, memo, newcoor)
+                boss.SUBMIT_T(tier::release, e2::coor::any, memo, newcoor)
                 {
                     xmap.move(newcoor);
                 };
@@ -3583,8 +3583,8 @@ namespace netxs::console
                 {
                     boss.SIGNAL(tier::general, e2::form::canvas, canvas.shared_from_this());
                 };
-                boss.SUBMIT_T(tier::release, e2::coor::set, memo, new_xy) { canvas.move(new_xy); };
-                boss.SUBMIT_T(tier::release, e2::size::set, memo, new_sz) { canvas.size(new_sz); };
+                boss.SUBMIT_T(tier::release, e2::coor::any, memo, new_xy) { canvas.move(new_xy); };
+                boss.SUBMIT_T(tier::release, e2::size::any, memo, new_sz) { canvas.size(new_sz); };
                 boss.SUBMIT_T(tier::request, e2::form::canvas, memo, canvas_ptr) { canvas_ptr = coreface; };
                 if (rendered)
                 {
@@ -4176,11 +4176,11 @@ namespace netxs::console
                 {
                     z_order = order;
                 };
-                inst.SUBMIT(tier::release, e2::size::set, size)
+                inst.SUBMIT(tier::release, e2::size::any, size)
                 {
                     region.size = size;
                 };
-                inst.SUBMIT(tier::release, e2::coor::set, coor)
+                inst.SUBMIT(tier::release, e2::coor::any, coor)
                 {
                     region.coor = coor;
                 };
@@ -5905,7 +5905,7 @@ again:
                         uibar->SIGNAL(tier::preview, e2::size::set, newsz);
                     }
                 };
-                SUBMIT_T(tier::release, e2::size::set, token, newsz)
+                SUBMIT_T(tier::release, e2::size::set, token, newsz) // Using e2::size::set instead of ::any in order to use previuos base::size.
                 {
                     if (uibar)
                     {

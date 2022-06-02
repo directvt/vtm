@@ -67,7 +67,7 @@ namespace netxs::app::tile
 
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
 
-            boss.SUBMIT_T(tier::release, e2::size::set, memo, newsz)
+            boss.SUBMIT_T(tier::release, e2::size::any, memo, newsz)
             {
                 if (client)
                 {
