@@ -3552,7 +3552,7 @@ namespace netxs::os
             ~pty()
             {
                 log("dtvt: dtor started");
-                if (termlink) wait_child();
+                if (termlink) stop();
                 if (stdwrite.joinable())
                 {
                     writesyn.notify_one();

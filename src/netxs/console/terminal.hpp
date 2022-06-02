@@ -6743,7 +6743,7 @@ namespace netxs::ui
         {
             while (active)
             {
-                netxs::events::try_sync guard;
+                auto guard = netxs::events::try_sync{};
                 if (guard)
                 {
                     auto frame = *reinterpret_cast<ansi::dtvt::header const*>(data.data());
@@ -6876,16 +6876,19 @@ namespace netxs::ui
         // dtvt: Preclose callback handler.
         void atexit(si32 code)
         {
-            netxs::events::sync guard;
-            auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50})
-                .add("              \n",
-                     "  Closing...  \n",
-                     "              \n") };
-            canvas.output(note);
-            canvas.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-            canvas.output(note);
-            this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
-            mtrack.disable();
+            if (active)
+            {
+                auto lock = netxs::events::sync{};
+                auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50})
+                    .add("              \n",
+                         "  Closing...  \n",
+                         "              \n") };
+                canvas.output(note);
+                canvas.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                canvas.output(note);
+                this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
+                mtrack.disable();
+            }
         }
 
     public:
