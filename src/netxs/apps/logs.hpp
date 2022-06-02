@@ -257,7 +257,11 @@ namespace netxs::app::logs
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
                   {
-                      boss.keybd.accept(true);
+                        boss.keybd.accept(true);
+                        boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                        {
+                            boss.base::riseup<tier::release>(e2::form::quit, item);
+                        };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);

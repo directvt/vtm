@@ -147,6 +147,7 @@ namespace netxs::events::userland
                         EVENT_XS( inner, dent ), // release: set inner size; request: request unner size.
                         EVENT_XS( outer, dent ), // release: set outer size; request: request outer size.
                         EVENT_XS( inert, bool ), // release: set read only mode (no active actions, follow only).
+                        EVENT_XS( alive, bool ), // release: shutdown the sizer.
                     };
                 };
             };
@@ -1434,6 +1435,8 @@ namespace netxs::console
                     {
                         if (inert)
                         {
+                            //auto width = master.base::size() + outer;
+                            //auto delta = std::max(-width, stored - curpos);
                             auto delta = stored - curpos;
                             auto swarp = dent{ delta, sector };
                             master.SIGNAL(tier::anycast, e2::form::layout::swarp, swarp);
@@ -1467,6 +1470,7 @@ namespace netxs::console
             dent inner;
             dent width;
             bool inert; // pro::sizer: Read only mode.
+            bool alive; // pro::sizer: The sizer state.
 
         public:
             void props(dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
@@ -1485,10 +1489,16 @@ namespace netxs::console
                   outer{ outer_rect    },
                   inner{ inner_rect    },
                   width{ outer - inner },
-                  inert{ faux          }
+                  inert{ faux          },
+                  alive{ true          }
             {
+                boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::alive, memo, state)
+                {
+                    alive = state;
+                };
                 boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
                 {
+                    if (!alive) return;
                     auto area = canvas.full() + outer;
                     auto fuse = [&](cell& c){ c.xlight(); };
                     canvas.cage(area, width, [&](cell& c){ c.link(boss.id); });
@@ -5882,6 +5892,7 @@ again:
                 };
                 SUBMIT_T(tier::release, e2::conio::swarp, token, warp)
                 {
+                    //log("warp: ", warp);
                     auto area = rect{ dot_00, base::size() };
                     auto new_area = area + warp;
                     auto dtcoor = new_area.coor.equals(dot_00, dot_00, dot_11);

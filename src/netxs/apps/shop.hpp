@@ -214,6 +214,10 @@ namespace netxs::app::shop
                   ->invoke([](auto& boss)
                   {
                         boss.keybd.accept(true);
+                        boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                        {
+                            boss.base::riseup<tier::release>(e2::form::quit, item);
+                        };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);

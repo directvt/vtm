@@ -441,6 +441,13 @@ namespace netxs::app::shared
 {
     namespace
     {
+        auto closing_on_quit = [](auto& boss)
+        {
+            boss.SUBMIT(tier::anycast, e2::form::quit, item)
+            {
+                boss.base::riseup<tier::release>(e2::form::quit, item);
+            };
+        };
         auto closing_by_gesture = [](auto& boss)
         {
             boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
@@ -466,6 +473,7 @@ namespace netxs::app::shared
                                 {
                                     boss.keybd.accept(true);
                                     closing_by_gesture(boss);
+                                    closing_on_quit(boss);
                                 })
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
@@ -493,6 +501,7 @@ namespace netxs::app::shared
                   {
                       boss.keybd.accept(true);
                       closing_by_gesture(boss);
+                      closing_on_quit(boss);
                   });
             return window;
         };
@@ -507,6 +516,7 @@ namespace netxs::app::shared
                   {
                       boss.keybd.accept(true);
                       closing_by_gesture(boss);
+                      closing_on_quit(boss);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           auto title = ansi::add("Empty Instance \nid: ", parent->id);
@@ -539,6 +549,7 @@ namespace netxs::app::shared
                         //        gear.dismiss();
                         //    }
                         //};
+                        closing_on_quit(boss);
                         boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas)
                         {
                             rgba title_fg_color = 0xFFffffff;
@@ -714,6 +725,7 @@ namespace netxs::app::shared
                   ->invoke([](auto& boss)
                     {
                         boss.keybd.accept(true);
+                        closing_on_quit(boss);
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA01f0fc4);
@@ -735,7 +747,11 @@ namespace netxs::app::shared
             window->plugin<pro::focus>()
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
+                  ->plugin<pro::cache>()
+                  ->invoke([&](auto& boss)
+                    {
+                        closing_on_quit(boss);
+                    });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
@@ -774,7 +790,11 @@ namespace netxs::app::shared
         };
         auto build_MC            = [](view v)
         {
-            auto window = ui::cake::ctor();
+            auto window = ui::cake::ctor()
+                  ->invoke([&](auto& boss)
+                    {
+                        closing_on_quit(boss);
+                    });
             window->plugin<pro::focus>()
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
@@ -823,7 +843,11 @@ namespace netxs::app::shared
         };
         auto build_HeadlessTerm  = [](view v)
         {
-            auto window = ui::cake::ctor();
+            auto window = ui::cake::ctor()
+                  ->invoke([&](auto& boss)
+                    {
+                        closing_on_quit(boss);
+                    });
             window->plugin<pro::focus>()
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()

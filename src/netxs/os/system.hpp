@@ -343,6 +343,10 @@ namespace netxs::os
             os::close(w);
             os::close(l);
         }
+        void shutsend() // Reset writing end of the pipe to interrupt reading call.
+        {
+            os::close(w);
+        }
         friend auto& operator << (std::ostream& s, dstd const& handle)
         {
             return s << handle.r << "," << handle.w << "," << handle.l;
@@ -1073,7 +1077,8 @@ namespace netxs::os
     }
     void stdlog(view data)
     {
-        os::send<true>(STDERR_FD, data.data(), data.size());
+        std::cerr << data;
+        //os::send<true>(STDERR_FD, data.data(), data.size());
     }
     void syslog(view data)
     {
@@ -2143,14 +2148,15 @@ namespace netxs::os
             {
                 return os::recv(handle.get_l(), buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
             }
-            void shut() override
+            void shut() override // Only for server side.
             {
                 active = faux;
-                handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
+                handle.shutsend(); // Close only writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
             }
             void stop() override
             {
-                shut();
+                active = faux;
+                handle.shutdown(); // Close all writing handles (output + logs) to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
             }
             flux& show(flux& s) const override
             {
@@ -3537,6 +3543,7 @@ namespace netxs::os
             std::thread               stderror{};
             std::function<void(view)> receiver{};
             std::function<void(si32)> shutdown{};
+            std::function<void(si32)> preclose{};
             text                      writebuf{};
             std::mutex                writemtx{};
             std::condition_variable   writesyn{};
@@ -3568,9 +3575,11 @@ namespace netxs::os
             operator bool () { return termlink; }
 
             void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
+                                               , std::function<void(si32)> preclose_hndl
                                                , std::function<void(si32)> shutdown_hndl)
             {
                 receiver = input_hndl;
+                preclose = preclose_hndl;
                 shutdown = shutdown_hndl;
                 termsize(winsz);
                 log("dtvt: new child process: ", cmdline);
@@ -3727,11 +3736,16 @@ namespace netxs::os
                 writesyn.notify_one(); // Flush temp buffer.
             }
 
+            void stop()
+            {
+                termlink.shut();
+                writesyn.notify_one();
+            }
             si32 wait_child()
             {
                 auto exit_code = si32{};
                 log("dtvt: wait child process, tty=", termlink);
-                termlink.stop();
+                termlink.shut();
 
                 #if defined(_WIN32)
 
@@ -3743,6 +3757,7 @@ namespace netxs::os
                     else if (code == STILL_ACTIVE)
                     {
                         log("dtvt: child process still running");
+                        //std::this_thread::sleep_for(15s);
                         auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(hProcess, 10000 /*10 seconds*/);
                         if (!result || !::GetExitCodeProcess(hProcess, &code))
                         {
@@ -3830,8 +3845,10 @@ namespace netxs::os
                     }
                     else break;
                 }
-                if (termlink)
+                //todo test
+                //if (termlink)
                 {
+                    preclose(0); //todo send msg from the client app
                     auto exit_code = wait_child();
                     shutdown(exit_code);
                 }

@@ -327,6 +327,10 @@ namespace netxs::app::calc
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
+                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      {
+                          boss.base::riseup<tier::release>(e2::form::quit, item);
+                      };
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;

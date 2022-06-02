@@ -1862,6 +1862,14 @@ namespace netxs::ui::atoms
                          netxs::letoh(d.head.step),
                          netxs::letoh(d.foot.step) };
         }
+        friend auto& operator << (std::ostream& s, dent const& d)
+        {
+            return s << '{' << d.west.step << ','
+                            << d.east.step << ','
+                            << d.head.step << ','
+                            << d.foot.step << ','
+                            << '}';
+        }
     };
     // dent: Return difference between area.
     auto operator - (rect const& r1, rect const& r2)

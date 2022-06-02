@@ -6374,6 +6374,11 @@ namespace netxs::ui
             publish_property(ui::term::events::layout::align,  [&](auto& v){ v = target->style.jet(); });
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
 
+            SUBMIT(tier::anycast, e2::form::quit, item)
+            {
+                //todo revise, see dtvt
+                this->base::riseup<tier::release>(e2::form::quit, item);
+            };
             SUBMIT(tier::general, e2::debug::count::any, count)
             {
                 onlogs = count > 0;
@@ -6854,15 +6859,32 @@ namespace netxs::ui
         // dtvt: Shutdown callback handler.
         void onexit(si32 code)
         {
-            if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code ", code, " ").nil());
-            else      log("dtvt: exit code ", code);
-            log("dtvt: submit for destruction on next frame/tick");
-            SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
+            if (active)
             {
-                auto backup = This();
-                this->base::riseup<tier::release>(e2::form::quit, backup);
-                oneoff.reset();
-            };
+                active = faux;
+                if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code ", code, " ").nil());
+                else      log("dtvt: exit code ", code);
+                log("dtvt: submit for destruction on next frame/tick");
+                SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
+                {
+                    auto backup = This();
+                    this->base::riseup<tier::release>(e2::form::quit, backup);
+                    oneoff.reset();
+                };
+            }
+        }
+        // dtvt: Preclose callback handler.
+        void atexit(si32 code)
+        {
+            netxs::events::sync guard;
+            auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50})
+                .add("              \n",
+                     "  Closing...  \n",
+                     "              \n") };
+            canvas.output(note);
+            canvas.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+            canvas.output(note);
+            this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
         }
 
     public:
@@ -6882,6 +6904,7 @@ namespace netxs::ui
                         auto initsz = base::size();
                         canvas.crop(initsz);
                         ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                     [&](auto exit_reason) { atexit(exit_reason); },
                                                      [&](auto exit_reason) { onexit(exit_reason); } );
                         unique = timer;
                         oneoff.reset();
@@ -6902,6 +6925,10 @@ namespace netxs::ui
             //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
             //};
 
+            SUBMIT(tier::anycast, e2::form::quit, item)
+            {
+                if (ptycon) ptycon.stop();
+            };
             SUBMIT(tier::anycast, e2::form::layout::swarp, warp)
             {
                 if (ptycon) ptycon.swarp(warp);
