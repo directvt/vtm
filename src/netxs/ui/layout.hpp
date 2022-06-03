@@ -1693,13 +1693,6 @@ namespace netxs::ui::atoms
               head{ pad.head.step },
               foot{ pad.foot.step }
         { }
-        // dent: Form swarp values.
-        constexpr dent(twod const& offset, twod const& sector)
-            : west{ sector.x > 0 ? offset.x : 0 },
-              east{ sector.x > 0 ? 0 :-offset.x },
-              head{ sector.y > 0 ? offset.y : 0 },
-              foot{ sector.y > 0 ? 0 :-offset.y }
-        { }
         bool operator == (dent const&) const = default;
         explicit operator bool () const { return west.step != 0 ||
                                                  east.step != 0 ||
@@ -1803,12 +1796,6 @@ namespace netxs::ui::atoms
             east.step = q(0);
             head.step = q(0);
             foot.step = q(0);
-        }
-        // dent: Return difference between sizes.
-        static auto diff(twod const& p1, twod const& p2)
-        {
-            return dent{ 0, p1.x - p2.x,
-                         0, p1.y - p2.y };
         }
         // dent: Return size with padding.
         friend auto operator + (twod const& size, dent const& pad)

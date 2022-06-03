@@ -3878,13 +3878,6 @@ namespace netxs::os
                     write(ansi::win(newsize));
                 }
             }
-            void swarp(dent const& warp)
-            {
-                if (termlink && warp)
-                {
-                    write(ansi::warp(warp));
-                }
-            }
             void write(view data)
             {
                 auto guard = std::lock_guard{ writemtx };

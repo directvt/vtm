@@ -6729,6 +6729,9 @@ namespace netxs::ui
         hook            oneoff; // dtvt: One-shot token for start and shutdown events.
         cell            marker; // dtvt: Current brush.
 
+        std::mutex canvas_mutex;
+        std::condition_variable canvas_cv;
+
         // dtvt: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
         {
@@ -6741,120 +6744,111 @@ namespace netxs::ui
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
         {
-            while (active)
+            auto frame = *reinterpret_cast<ansi::dtvt::header const*>(data.data());
+            auto length = frame.length.get();
+            auto square = frame.square.get();
+            auto surface_id = frame.id.get();
+            if (length > data.size())
             {
-                auto guard = netxs::events::try_sync{};
-                if (guard)
-                {
-                    auto frame = *reinterpret_cast<ansi::dtvt::header const*>(data.data());
-                    auto length = frame.length.get();
-                    auto warp = frame.swarp.get();
-                    auto surface_id = frame.id.get();
-                    if (length > data.size())
-                    {
-                        log("dtvt: corrupted data");
-                        return;
-                    }
-                    length -= sizeof(ansi::dtvt::header);
-                    data.remove_prefix(sizeof(ansi::dtvt::header));
-
-                    if (warp)
-                    {
-                        auto size = canvas.size();
-                        auto area = rect{ dot_00, size };
-                        area = area + warp;
-                        auto new_size = std::clamp(area.size, dot_11, console::max_value);
-                        if (new_size != area.size) // Correct warp if size clamped.
-                        {
-                            auto new_area = rect{ area.coor, new_size };
-                            warp += new_area - area;
-                        }
-                        if (area.size != size)
-                        {
-                            canvas.crop(area.size);
-                        }
-
-                        this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
-                    }
-                    auto iter = canvas.iter();
-                    auto coor = dot_00;
-                    auto limits = canvas.size();
-                    while (data.size() > 0)
-                    {
-                        if (auto code = utf::cpit{ data })
-                        {
-                            auto cp = code.take();
-                            data.remove_prefix(cp.utf8len);
-                            auto type = cp.cdpoint;
-                            if (type == 0) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
-                            {
-                                coor.x++;
-                                //++iter;
-                            }
-                            else if (type <= 7) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
-                            {
-                                auto size = type + 1;
-                                auto& glyph = marker.egc();
-                                ::memcpy(glyph, reinterpret_cast<void const*>(data.data()), size);
-                                if (limits.inside(coor))
-                                {
-                                    canvas[coor] = marker;
-                                }
-                                data.remove_prefix(size);
-                                coor.x++;
-                            }
-                            else if (type == 8) //<= 8: cup: 8 bytes: si32 X + si32 Y
-                            {
-                                coor = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
-                                auto size = sizeof(twod);
-                                data.remove_prefix(size);
-                                //iter = canvas.begin() + 
-                            }
-                            else if (type == 9) //<= 9: bg color: 4 bytes: rgba
-                            {
-                                marker.bgc() = *reinterpret_cast<rgba const*>(data.data());
-                                auto size = sizeof(rgba);
-                                data.remove_prefix(size);
-                            }
-                            else if (type == 10) //<= 10: fg colors: 4 bytes: rgba
-                            {
-                                marker.fgc() = *reinterpret_cast<rgba const*>(data.data());
-                                auto size = sizeof(rgba);
-                                data.remove_prefix(size);
-                            }                            
-                            else if (type == 11) //<=11: style: token 4 bytes
-                            {
-                                auto& token = marker.stl();
-                                token = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                                auto size = sizeof(token);
-                                data.remove_prefix(size);
-                            }
-                            else if (type == 12) //<=12: wipe canvas
-                            {
-                                marker.txt('\0');
-                                canvas.wipe(marker);
-                            }
-                            else if (type == 12) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
-                            {
-                                //todo implement
-                                throw;
-                            }
-                            else if (type == 100) //<=100: 4 b
-                            {
-                                auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                                auto vcmd = view(data.data() + sizeof(size), size);
-                                //todo implement
-                                log("dtvt: vt-data:\n", utf::debase(vcmd));
-                                data.remove_prefix(size + sizeof(size));
-                            }
-                        }
-                    }
-
-                    base::deface();
-                    break;
-                }
-                else std::this_thread::yield();
+                log("dtvt: corrupted data");
+                return;
             }
+            length -= sizeof(ansi::dtvt::header);
+            data.remove_prefix(sizeof(ansi::dtvt::header));
+
+            {
+                auto lock = std::lock_guard{ canvas_mutex };
+
+                if (square.size != canvas.size())
+                {
+                    canvas.size(square.size);
+                }
+                auto iter = canvas.iter();
+                auto coor = dot_00;
+                auto limits = canvas.size();
+                while (data.size() > 0)
+                {
+                    if (auto code = utf::cpit{ data })
+                    {
+                        auto cp = code.take();
+                        data.remove_prefix(cp.utf8len);
+                        auto type = cp.cdpoint;
+                        if (type == 0) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
+                        {
+                            coor.x++;
+                            //++iter;
+                        }
+                        else if (type <= 7) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                        {
+                            auto size = type + 1;
+                            auto& glyph = marker.egc();
+                            ::memcpy(glyph, reinterpret_cast<void const*>(data.data()), size);
+                            if (limits.inside(coor))
+                            {
+                                canvas[coor] = marker;
+                            }
+                            data.remove_prefix(size);
+                            coor.x++;
+                        }
+                        else if (type == 8) //<= 8: cup: 8 bytes: si32 X + si32 Y
+                        {
+                            coor = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
+                            auto size = sizeof(twod);
+                            data.remove_prefix(size);
+                            //iter = canvas.begin() + 
+                        }
+                        else if (type == 9) //<= 9: bg color: 4 bytes: rgba
+                        {
+                            marker.bgc() = *reinterpret_cast<rgba const*>(data.data());
+                            auto size = sizeof(rgba);
+                            data.remove_prefix(size);
+                        }
+                        else if (type == 10) //<= 10: fg colors: 4 bytes: rgba
+                        {
+                            marker.fgc() = *reinterpret_cast<rgba const*>(data.data());
+                            auto size = sizeof(rgba);
+                            data.remove_prefix(size);
+                        }                            
+                        else if (type == 11) //<=11: style: token 4 bytes
+                        {
+                            auto& token = marker.stl();
+                            token = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
+                            auto size = sizeof(token);
+                            data.remove_prefix(size);
+                        }
+                        else if (type == 12) //<=12: wipe canvas
+                        {
+                            marker.txt('\0');
+                            canvas.wipe(marker);
+                        }
+                        else if (type == 12) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
+                        {
+                            //todo implement
+                            throw;
+                        }
+                        else if (type == 100) //<=100: 4 b
+                        {
+                            auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
+                            auto vcmd = view(data.data() + sizeof(size), size);
+                            //todo implement
+                            log("dtvt: vt-data:\n", utf::debase(vcmd));
+                            data.remove_prefix(size + sizeof(size));
+                        }
+                    }
+                }
+                canvas_cv.notify_one();
+            }            
+
+            //while (active)
+            //{
+            //    auto guard = netxs::events::try_sync{};
+            //    if (guard)
+            //    {
+            //        base::deface();
+            //        break;
+            //    }
+            //    else std::this_thread::yield();
+            //}
         }
         // dtvt: Shutdown callback handler.
         void onexit(si32 code)
@@ -6903,10 +6897,7 @@ namespace netxs::ui
                 {
                     if (unique != timer)
                     {
-                        this->base::riseup<tier::release>(e2::config::plugins::sizer::inert, true);
-
                         auto initsz = base::size();
-                        canvas.crop(initsz);
                         ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
                                                      [&](auto exit_reason) { atexit(exit_reason); },
                                                      [&](auto exit_reason) { onexit(exit_reason); } );
@@ -6934,10 +6925,9 @@ namespace netxs::ui
                 if (ptycon) ptycon.stop();
                 else        base::riseup<tier::release>(e2::form::quit, item);
             };
-            SUBMIT(tier::anycast, e2::form::layout::swarp, warp)
+            SUBMIT(tier::release, e2::size::any, new_size)
             {
-                if (ptycon) ptycon.swarp(warp);
-                else        this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
+                if (ptycon) ptycon.resize(new_size);
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
@@ -6964,6 +6954,12 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
+                auto size = base::size();
+                auto guard = std::unique_lock{ canvas_mutex };
+                //while (size != canvas.size() && active)
+                //{
+                //    canvas_cv.wait(guard, [&]{ return !active || size == canvas.size(); });
+                //}
                 parent_canvas.fill(canvas, cell::shaders::full);
             };
         }

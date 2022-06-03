@@ -323,7 +323,7 @@ namespace netxs::ansi
         {
             le_t<ui32> length;
             le_t<id_t> id;
-            le_t<dent> swarp;
+            le_t<rect> square;
         };
         #pragma pack(pop)
     }
@@ -802,10 +802,6 @@ namespace netxs::ansi
         //                                                 p.y, CSI_CCC); }
         esc& win (twod const& p) { return add("\033]", p.x, ';',           // esc: Terminal window resize report.
                                                        p.y, 'w'       ); }
-        esc& warp(dent const& d) { return add("\033]", d.west.step, ';',   // esc: Terminal window swarp.
-                                                       d.east.step, ';',
-                                                       d.head.step, ';',
-                                                       d.foot.step, 'x' ); }
         esc& fcs (bool b)        { return add("\033[", b ? 'I' : 'O'  ); } // ansi: Terminal window focus.
         esc& eol ()              { return add("\n"                    ); } // esc: EOL.
         esc& edl ()              { return add("\033[K"                ); } // esc: EDL.
@@ -905,7 +901,6 @@ namespace netxs::ansi
     static esc rst ()                { return esc{}.rst ( ); } // ansi: Reset formatting parameters.
     static esc nop ()                { return esc{}.nop ( ); } // ansi: No operation. Split the text run.
     static esc win (twod const& p)   { return esc{}.win (p); } // ansi: Terminal window resize.
-    static esc warp(dent const& d)   { return esc{}.warp(d); } // ansi: Terminal window swarp.
     static esc fcs (bool b)          { return esc{}.fcs (b); } // ansi: Terminal window focus.
     //ansi: Split the text run and associate the fragment with an id.
     //      All following text is under the IDX until the next command is issued.

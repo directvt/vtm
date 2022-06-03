@@ -159,7 +159,6 @@ namespace netxs::events::userland
                 EVENT_XS( mouse   , console::sysmouse ), // mouse activity.
                 EVENT_XS( key     , console::syskeybd ), // keybd activity.
                 EVENT_XS( size    , twod              ), // order to update terminal primary overlay.
-                EVENT_XS( swarp   , dent              ), // order to swarp.
                 EVENT_XS( native  , bool              ), // extended functionality.
                 EVENT_XS( layout  , const twod        ),
                 EVENT_XS( preclose, const bool        ), // signal to quit after idle timeout, arg: bool - ready to shutdown.
@@ -228,7 +227,6 @@ namespace netxs::events::userland
                     EVENT_XS( appear, twod               ), // fly to the specified coords.
                     EVENT_XS( gonext, sptr<console::base>), // request: proceed request for available objects (next)
                     EVENT_XS( goprev, sptr<console::base>), // request: proceed request for available objects (prev)
-                    EVENT_XS( swarp , dent               ), // preview: form swarping
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
@@ -1366,7 +1364,6 @@ namespace netxs::console
                 twod origin; // sock: Grab's initial coord info.
                 twod dtcoor; // sock: The form coor parameter change factor while resizing.
                 twod sector; // sock: Active quadrant, x,y = {-1|+1}. Border widths.
-                twod stored; // sock: Last captured cursor position.
                 rect hzgrip; // sock: Horizontal grip.
                 rect vtgrip; // sock: Vertical grip.
                 twod widths; // sock: Grip's widths.
@@ -1387,8 +1384,7 @@ namespace netxs::console
                 {
                     if (inside)
                     {
-                        stored = curpos;
-                        origin = stored - corner(master.base::size() + outer);
+                        origin = curpos - corner(master.base::size() + outer);
                         seized = true;
                     }
                     return seized;
@@ -1425,33 +1421,17 @@ namespace netxs::console
                     vtgrip.size.y += s.y;
                     return lastxy(curpos);
                 }
-                void cure(twod const& dc)
-                {
-                    stored -= dc;
-                }
-                auto drag(base& master, twod const& curpos, dent const& outer, bool inert)
+                auto drag(base& master, twod const& curpos, dent const& outer)
                 {
                     if (seized)
                     {
-                        if (inert)
+                        auto width = master.base::size() + outer;
+                        auto delta = corner(width) + origin - curpos;
+                        if (auto dxdy = master.base::sizeby(delta * sector))
                         {
-                            //auto width = master.base::size() + outer;
-                            //auto delta = std::max(-width, stored - curpos);
-                            auto delta = stored - curpos;
-                            auto swarp = dent{ delta, sector };
-                            master.SIGNAL(tier::anycast, e2::form::layout::swarp, swarp);
-                            stored = curpos;
-                        }
-                        else
-                        {
-                            auto width = master.base::size() + outer;
-                            auto delta = corner(width) + origin - curpos;
-                            if (auto dxdy = master.base::sizeby(delta * sector))
-                            {
-                                auto step = -dxdy * dtcoor;
-                                master.base::moveby(step);
-                                master.SIGNAL(tier::preview, e2::form::upon::changed, dxdy);
-                            }
+                            auto step = -dxdy * dtcoor;
+                            master.base::moveby(step);
+                            master.SIGNAL(tier::preview, e2::form::upon::changed, dxdy);
                         }
                     }
                     return seized;
@@ -1469,7 +1449,6 @@ namespace netxs::console
             dent outer;
             dent inner;
             dent width;
-            bool inert; // pro::sizer: Read only mode.
             bool alive; // pro::sizer: The sizer state.
 
         public:
@@ -1489,7 +1468,6 @@ namespace netxs::console
                   outer{ outer_rect    },
                   inner{ inner_rect    },
                   width{ outer - inner },
-                  inert{ faux          },
                   alive{ true          }
             {
                 boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::alive, memo, state)
@@ -1521,22 +1499,6 @@ namespace netxs::console
                 {
                     items.dec(gear);
                 };
-
-                boss.SUBMIT_T(tier::release, e2::form::layout::swarp, memo, warp)
-                {
-                    auto area = boss.base::area();
-                    auto next = area + warp;
-                    auto step = boss.extend(next).coor;
-                    if (inert && step)
-                    {
-                        items.foreach([&](auto& s) { s.cure(step); });
-                    }
-                };
-                boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::inert, memo, inert_mode)
-                {
-                    inert = inert_mode;
-                };
-
                 boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::outer, memo, outer_rect)
                 {
                     outer = outer_rect;
@@ -1577,7 +1539,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<BUTTON>, memo, gear)
                 {
-                    if (items.take(gear).drag(boss, gear.coord, outer, inert))
+                    if (items.take(gear).drag(boss, gear.coord, outer))
                         gear.dismiss();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<BUTTON>, memo, gear)
@@ -5100,41 +5062,39 @@ again:
                                                 owner.SIGNAL(tier::release, e2::conio::size, winsz);
                                                 ++pos;
                                             }
-                                            else if (strv.at(pos) == ';')
-                                            {
-                                                if (++pos == len) { total = strv; break; }//incomlpete
-
-                                                auto tmp = strv.substr(pos);
-                                                auto l = tmp.size();
-                                                if (auto pos_x = utf::to_int(tmp))
-                                                {
-                                                    pos += l - tmp.size();
-                                                    if (pos == len) { total = strv; break; }//incomlpete
-                                                    {
-                                                        if (++pos == len) { total = strv; break; }//incomlpete
-
-                                                        auto tmp = strv.substr(pos);
-                                                        auto l = tmp.size();
-                                                        if (auto pos_y = utf::to_int(tmp))
-                                                        {
-                                                            pos += l - tmp.size();
-                                                            if (pos == len) { total = strv; break; }//incomlpete
-                                                            {
-                                                                auto head = pos_x.value();
-                                                                auto foot = pos_y.value();
-                                                                if (strv.at(pos) == 'x')
-                                                                {
-                                                                    auto west = x;
-                                                                    auto east = y;
-                                                                    auto warp = dent{ west, east, head, foot };
-                                                                    owner.SIGNAL(tier::release, e2::conio::swarp, warp);
-                                                                    ++pos;
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            //else if (strv.at(pos) == ';')
+                                            //{
+                                            //    if (++pos == len) { total = strv; break; }//incomlpete
+                                            //    auto tmp = strv.substr(pos);
+                                            //    auto l = tmp.size();
+                                            //    if (auto pos_x = utf::to_int(tmp))
+                                            //    {
+                                            //        pos += l - tmp.size();
+                                            //        if (pos == len) { total = strv; break; }//incomlpete
+                                            //        {
+                                            //            if (++pos == len) { total = strv; break; }//incomlpete
+                                            //            auto tmp = strv.substr(pos);
+                                            //            auto l = tmp.size();
+                                            //            if (auto pos_y = utf::to_int(tmp))
+                                            //            {
+                                            //                pos += l - tmp.size();
+                                            //                if (pos == len) { total = strv; break; }//incomlpete
+                                            //                {
+                                            //                    auto head = pos_x.value();
+                                            //                    auto foot = pos_y.value();
+                                            //                    if (strv.at(pos) == 'x')
+                                            //                    {
+                                            //                        auto west = x;
+                                            //                        auto east = y;
+                                            //                        auto warp = dent{ west, east, head, foot };
+                                            //                        owner.SIGNAL(tier::release, e2::conio::swarp, warp);
+                                            //                        ++pos;
+                                            //                    }
+                                            //                }
+                                            //            }
+                                            //        }
+                                            //    }
+                                            //}
                                             //++pos;
                                         }
                                     }
@@ -5214,13 +5174,12 @@ again:
         si32  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
         si32  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
         twod  field; // diff: Current terminal/screen window size.
-        dent  swarp; // diff: Current terminal/screen window warp data.
-        dent  cwarp; // diff: Cached warp data.
         span  watch; // diff: Duration of the STDOUT rendering.
         si32  delta; // diff: Last ansi-rendered frame size.
         ansi  frame; // diff: Text screen representation.
         bool  alive; // diff: Working loop state.
         bool  ready; // diff: Conditional variable to avoid spurious wakeup.
+        bool  abort; // diff: Abort building current frame.
         svga  video; // diff: VGA 16/256-color compatibility mode.
         work  paint; // diff: Rendering thread.
         pair  debug; // diff: Debug info.
@@ -5250,15 +5209,15 @@ again:
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
                 ready = faux;
+                abort = faux;
                 start = tempus::now();
 
                 if constexpr (VGAMODE == svga::directvt)
                 {
                     auto header = netxs::ansi::dtvt::header{};
-                    header.swarp.set(swarp);
+                    header.square.set({ dot_00, field }); //todo set coor
                     header.id.set(0xaabbccdd); //todo use it
                     frame.add<VGAMODE>(header);
-                    swarp = {};
                 }
                 auto initial_size = static_cast<si32>(frame.size());
 
@@ -5277,6 +5236,7 @@ again:
                     frame.scroll_wipe<VGAMODE>();
                     while (row++ < field.y)
                     {
+                        if (abort) break;
                         frame.locate<VGAMODE>(1, row);
                         auto end_line = src + field.x;
                         while (src != end_line)
@@ -5330,6 +5290,7 @@ again:
 
                     while (row++ < field.y)
                     {
+                        if (abort) break;
                         end += field.x;
 
                         while (src != end)
@@ -5519,7 +5480,7 @@ again:
                 }
 
                 auto size = static_cast<si32>(frame.size());
-                if (size != initial_size)
+                if (!abort && size != initial_size)
                 {
                     guard.unlock();
                     if constexpr (VGAMODE == svga::directvt)
@@ -5536,16 +5497,10 @@ again:
         }
 
     public:
-        // diff: Accumulate swarp data.
-        void swarping(dent const& warp_data)
-        {
-            cwarp += warp_data;
-        }
         // diff: Obtain new content to render.
         pair commit(core& canvas) // Run inside the e2::sync.
         {
-            auto lock = std::unique_lock{ mutex, std::try_to_lock };
-            if (lock.owns_lock())
+            auto send_frame = [&]()
             {
                 dhash = canvas.hash();
                 field = canvas.swap(cache); // Use one surface for reading (cache), one for writing (canvas).
@@ -5559,13 +5514,36 @@ again:
                     extra.clear();
                 }
 
-                std::swap(swarp, cwarp);
-
                 ready = true;
                 synch.notify_one();
                 return debug;
+            };
+            if (abort)
+            {
+                while (alive) // Try to send a new frame as soon as possible.
+                {
+                    auto lock = std::unique_lock{ mutex, std::try_to_lock };
+                    if (lock.owns_lock())
+                    {
+                        return send_frame();
+                    }
+                    else std::this_thread::yield();
+                }
+            }
+            else
+            {
+                auto lock = std::unique_lock{ mutex, std::try_to_lock };
+                if (lock.owns_lock())
+                {
+                    return send_frame();
+                }
             }
             return std::nullopt;
+        }
+        // diff: Discard current rendered frame.
+        void abort_render()
+        {
+            abort = true;
         }
 
         diff(link& conio, pro::input& input, svga vga_mode)
@@ -5575,6 +5553,7 @@ again:
               watch{ 0 },
               alive{ true },
               ready{ faux },
+              abort{ faux },
               conio{ conio },
               video{ vga_mode },
               mutex{ input.sync },
@@ -5738,8 +5717,6 @@ again:
         page   tooltip_page; // gate: Tooltip render.
         id_t   tooltip_boss; // gate: Tooltip hover object.
 
-        bool onswarp = faux; // gate .
-
         void draw_mouse_pointer(face& canvas)
         {
             auto area = base::area();
@@ -5888,48 +5865,17 @@ again:
                 // conio events.
                 SUBMIT_T(tier::release, e2::conio::size, token, newsize)
                 {
-                    base::resize(newsize);
-                };
-                SUBMIT_T(tier::release, e2::conio::swarp, token, warp)
-                {
-                    //log("warp: ", warp);
-                    auto area = rect{ dot_00, base::size() };
-                    auto new_area = area + warp;
-                    auto dtcoor = new_area.coor.equals(dot_00, dot_00, dot_11);
-                    onswarp = true;
-                    auto dxdy = base::resize(new_area.size);
-                    onswarp = faux;
-                    area.size += dxdy;
-                    area.coor -= dxdy * dtcoor;
-                    warp -= area - new_area;
-                    paint.swarping(warp);
-                    if (vga_mode == svga::directvt)
+                    auto delta = base::resize(newsize);
+                    if (delta && vga_mode == svga::directvt)
                     {
-                        rebuild_scene(!!anchor);
+                        paint.abort_render();
+                        rebuild_scene(true);
                     }
                 };
-                SUBMIT_T(tier::preview, e2::size::set, token, newsz)
+                SUBMIT_T(tier::release, e2::size::any, token, newsz)
                 {
-                    auto direct = legacy & os::legacy::direct;
-                    if (uibar && direct)
-                    {
-                        uibar->SIGNAL(tier::preview, e2::size::set, newsz);
-                    }
-                };
-                SUBMIT_T(tier::release, e2::size::set, token, newsz) // Using e2::size::set instead of ::any in order to use previuos base::size.
-                {
-                    if (uibar)
-                    {
-                        auto direct = legacy & os::legacy::direct;
-                        if (direct) uibar->SIGNAL(tier::release, e2::size::set, newsz);
-                        else        uibar->base::resize(newsz);
-                    }
+                    if (uibar) uibar->base::resize(newsz);
                     if (background) background->base::resize(newsz);
-                    if (!onswarp)
-                    {
-                        auto warp = dent::diff(newsz, base::size());
-                        paint.swarping(warp);
-                    }
                 };
                 SUBMIT_T(tier::release, e2::conio::unknown, token, unkstate)
                 {
