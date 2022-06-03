@@ -17,6 +17,7 @@ namespace netxs::events::userland
         EVENTPACK( hids, netxs::events::userland::root::hids )
         {
             EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone.
+            EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
             GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
@@ -602,7 +603,7 @@ namespace netxs::input
             action(event_subset[index]);
             index = mouse::none;
         }
-        void action (hint cause)
+        void action(hint cause)
         {
             fire(cause);
         }

@@ -6583,6 +6583,14 @@ namespace netxs::ui
             { }
 
             operator bool () { return state != mode::none; }
+            void leave(hids& gear)
+            {
+                log("dtvt: dtvt::die, id = ", gear.id);
+                auto cause = hids::events::die.id;
+                if (proto == sgr) serialize<sgr>(gear, cause);
+                else              serialize<x11>(gear, cause);
+                owner.answer(queue);
+            }
             void enable (mode m)
             {
                 state |= m;
@@ -6615,11 +6623,7 @@ namespace netxs::ui
                     };
                     owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                     {
-                        log("term: hids::events::die, id = ", gear.id);
-                        auto cause = hids::events::die.id;
-                        if (proto == sgr) serialize<sgr>(gear, cause);
-                        else              serialize<x11>(gear, cause);
-                        owner.answer(queue);
+                        leave(gear);
                     };
                     //smode = owner.selmod;
                 }
@@ -6708,6 +6712,9 @@ namespace netxs::ui
                     // Gone
                     case hids::events::die.id:
                         release(gear);
+                            //todo unify
+                            coord(owner.base::size() / 2);
+                            proceed<PROT>(gear, faux);
                         if (auto buttons = gear.buttons())
                         {
                             // Release pressed mouse buttons.
@@ -6899,6 +6906,8 @@ namespace netxs::ui
             }
         }
        ~dtvt(){ active = faux; }
+
+        testy<twod> coord;
         dtvt(text command_line)
             : active{ true }
         {
@@ -6910,6 +6919,41 @@ namespace netxs::ui
             //{
             //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
             //};
+
+            //todo enumerate all gears and pass it to the dtvt instance
+            SUBMIT(tier::general, hids::events::spawn, gear)
+            {
+                log("dtvt: hids::events::spawn, id = ", gear.id);
+                auto cause = hids::events::spawn.id;
+            };
+            //SUBMIT(tier::general, hids::events::die, gear)
+            //{
+            //    log("dtvt: hids::events::die, id = ", gear.id);
+            //    auto cause = hids::events::die.id;
+            //};
+            SUBMIT(tier::release, hids::events::notify::mouse::enter, gear)
+            {
+                log("dtvt: notify::mouse::enter, id = ", gear.id);
+                //gear.capture(base::id);
+            };
+            SUBMIT(tier::release, hids::events::mouse::move, gear)
+            {
+                //log("dtvt: mouse::move, id = ", gear.id, " coord: ", gear.coord);
+                auto area = base::area();
+                if (coord(gear.coord)
+                 && gear.captured(base::id)
+                 && !area.hittest(coord)
+                 && !gear.buttons())
+                {
+                    //gear.release();
+                }
+            };
+            SUBMIT(tier::release, hids::events::notify::mouse::leave, gear)
+            {
+                log("dtvt: notify::mouse::leave, id = ", gear.id);
+                mtrack.leave(gear);
+                //gear.release();
+            };
 
             SUBMIT(tier::anycast, e2::form::quit, item)
             {

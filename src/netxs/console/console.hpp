@@ -156,6 +156,7 @@ namespace netxs::events::userland
                 EVENT_XS( unknown , si32              ), // return platform unknown event code.
                 EVENT_XS( error   , si32              ), // return error code.
                 EVENT_XS( focus   , bool              ), // order to change focus.
+                EVENT_XS( input   , input::hids       ), // DirectVT input.
                 EVENT_XS( mouse   , console::sysmouse ), // mouse activity.
                 EVENT_XS( key     , console::syskeybd ), // keybd activity.
                 EVENT_XS( size    , twod              ), // order to update terminal primary overlay.
@@ -5767,6 +5768,7 @@ again:
                               : legacy & os::legacy::vga256 ? svga::vga256
                               : legacy & os::legacy::direct ? svga::directvt
                                                             : svga::truecolor;
+                auto direct = vga_mode == svga::directvt;
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
                 auto conf_usr_name = props.name;
@@ -5866,7 +5868,7 @@ again:
                 SUBMIT_T(tier::release, e2::conio::size, token, newsize)
                 {
                     auto delta = base::resize(newsize);
-                    if (delta && vga_mode == svga::directvt)
+                    if (delta && direct)
                     {
                         paint.abort_render();
                         rebuild_scene(true);
@@ -5882,6 +5884,10 @@ again:
                 };
                 SUBMIT_T(tier::release, e2::conio::focus, token, unkstate)
                 {
+                };
+                SUBMIT_T(tier::release, e2::conio::input, token, gear)
+                {
+                    log("gear.coord: ", gear.coord);
                 };
                 SUBMIT_T(tier::release, e2::conio::native, token, extended)
                 {
