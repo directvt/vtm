@@ -156,7 +156,7 @@ namespace netxs::events::userland
                 EVENT_XS( unknown , si32              ), // return platform unknown event code.
                 EVENT_XS( error   , si32              ), // return error code.
                 EVENT_XS( focus   , bool              ), // order to change focus.
-                EVENT_XS( input   , input::hids       ), // DirectVT input.
+                //EVENT_XS( input   , input::hids       ), // DirectVT input.
                 EVENT_XS( mouse   , console::sysmouse ), // mouse activity.
                 EVENT_XS( key     , console::syskeybd ), // keybd activity.
                 EVENT_XS( size    , twod              ), // order to update terminal primary overlay.
@@ -3299,19 +3299,34 @@ namespace netxs::console
 
         // pro: Provides functionality related to keyboard interaction.
         class input
-            : public skill, public hids
+            : public skill
         {
+            struct hids2
+                : public hids
+            {
+                text  clip_rawtext; // gate: Clipboard data.
+                face  clip_preview; // gate: Clipboard render.
+
+                //using hids::hids;
+
+            };
+
+            using depo = std::unordered_map<id_t, hids>;
             using lock = std::recursive_mutex;
             using skill::boss,
                   skill::memo;
+
+            bool single_instance;
+
         public:
             core xmap;
             lock sync;
-            si32 push = 0; // input: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
+            depo gears;
 
             input(base&&) = delete;
             input(base& boss)
-                : skill{ boss }, hids{ boss, xmap }
+                : skill{ boss },
+                  single_instance{ faux }
             {
                 xmap.move(boss.base::coor());
                 xmap.size(boss.base::size());
@@ -3326,15 +3341,60 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, mousestate)
                 {
-                    push = hids::take(mousestate);
+                    auto gear_it = gears.find(mousestate.mouseid);
+                    if (gear_it == gears.end())
+                    {
+                        auto id = mousestate.mouseid;
+                        gear_it = gears.emplace(id, hids{ boss, xmap, id }).first;
+                        auto& [_id, gear] = *gear_it;
+                        gear.set_single_instance(single_instance);
+                        gear.hids::take(mousestate);
+                    }
+                    else
+                    {
+                        auto& [_id, gear] = *gear_it;
+                        gear.hids::take(mousestate);
+                    }
                     boss.strike();
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::key, memo, keybdstate)
                 {
-                    hids::take(keybdstate);
+                    auto gear_it = gears.find(keybdstate.keybdid);
+                    if (gear_it == gears.end())
+                    {
+                        auto id = keybdstate.keybdid;
+                        gear_it = gears.emplace(id, hids{ boss, xmap, id }).first;
+                        auto& [_id, gear] = *gear_it;
+                        gear.set_single_instance(single_instance);
+                        gear.hids::take(keybdstate);
+                    }
+                    else
+                    {
+                        auto& [_id, gear] = *gear_it;
+                        gear.hids::take(keybdstate);
+                    }
                     boss.strike();
                 };
-            };
+            }
+            void set_single_instance(bool b)
+            {
+                single_instance = b;
+                for (auto& [id, gear] : gears)
+                {
+                    gear.set_single_instance(b);
+                }
+            }
+            auto get_single_instance()
+            {
+                return single_instance;
+            }
+            void fire(events::id_t event_id)
+            {
+                for (auto& [id, gear] : gears)
+                {
+                    gear.fire(event_id);
+                }
+            }
         };
 
         // pro: Glow gradient filter.
@@ -5709,8 +5769,9 @@ again:
         bool  native = faux; //gate: Extended functionality support.
         bool  fullscreen = faux; //gate: Fullscreen mode.
         si32  legacy = os::legacy::clean;
-        text  clip_rawtext; // gate: Clipboard data.
-        face  clip_preview; // gate: Clipboard render.
+        //todo hids
+        //text  clip_rawtext; // gate: Clipboard data.
+        //face  clip_preview; // gate: Clipboard render.
 
         conf props; // gate: Client properties.
 
@@ -5722,16 +5783,46 @@ again:
         page   tooltip_page; // gate: Tooltip render.
         id_t   tooltip_boss; // gate: Tooltip hover object.
 
+        void draw_foreign_names(face& parent_canvas)
+        {
+            auto& header = *uname.lyric;
+            auto  basexy = base::coor();
+            auto  half_x = (si32)header.size().x / 2;
+            for (auto& [id, gear] : input.gears)
+            {
+                auto coor = basexy;
+                coor += gear.coord;
+                coor.y--;
+                coor.x -= half_x;
+                //todo unify header coords
+                header.move(coor);
+                parent_canvas.fill(header, cell::shaders::fuse);
+            }
+        }
         void draw_mouse_pointer(face& canvas)
         {
-            auto area = base::area();
-            area.coor += input.coord;
-            area.coor -= canvas.area().coor;
-            area.size = dot_11;
             cell brush;
-            if (input.push) brush.txt(64 + input.push).bgc(reddk).fgc(0xFFffffff);
-            else            brush.txt("\u2588"/* █ */).fgc(0xFF00ff00);
-            canvas.fill(area, cell::shaders::fuse(brush));
+            auto coor = base::coor();
+            auto area = rect{ coor, dot_11 };
+            auto base = canvas.core::coor();
+            for (auto& [id, gear] : input.gears)
+            {
+                area.coor = coor + gear.coord;
+                area.coor -= base;
+                if (gear.push) brush.txt(64 + gear.push).bgc(reddk).fgc(0xFFffffff);
+                else           brush.txt("\u2588"/* █ */).bgc(0x00).fgc(0xFF00ff00);
+                canvas.fill(area, cell::shaders::fuse(brush));
+            }
+        }
+        void draw_clip_preview(face& canvas)
+        {
+            for (auto& [id, gear] : input.gears)
+            {
+                //todo hids
+                //auto coor = gear.coord + dot_21 * 2;
+                //gear.clip_preview.move(coor);
+                //canvas.plot(gear.clip_preview, cell::shaders::lite);
+            }
         }
 
     public:
@@ -5780,7 +5871,8 @@ again:
                 SIGNAL(tier::preview, e2::form::prop::ui::header, conf_usr_name);
                 base::moveby(props.coor);
 
-                clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
+                //todo hids
+                //clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
 
                 link conio{ *this, media }; // gate: Terminal IO.
                 diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
@@ -5813,23 +5905,24 @@ again:
                         {
                             draw_mouse_pointer(canvas);
                         }
-                        if (clip_rawtext.size()) // Render clipboard content preview.
-                        {
-                            auto coor = input.coord + dot_21 * 2;
-                            clip_preview.move(coor);
-                            canvas.plot(clip_preview, cell::shaders::lite);
-                        }
-                        if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.captured()) // Render our tooltips.
-                        {
-                            static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
-                            auto full = canvas.full();
-                            auto area = full;
-                            area.coor = std::max(dot_00, input.coord - twod{ 4, tooltip_page.size() + 1 });
-                            canvas.full(area);
-                            canvas.cup(dot_00);
-                            canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
-                            canvas.full(full);
-                        }
+                        //todo hids
+                        //if (clip_rawtext.size()) // Render clipboard content preview.
+                        //{
+                        //    draw_clip_preview(canvas);
+                        //}
+
+                        //todo hids
+                        //if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.gear.captured()) // Render our tooltips.
+                        //{
+                        //    static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
+                        //    auto full = canvas.full();
+                        //    auto area = full;
+                        //    area.coor = std::max(dot_00, input.gear.coord - twod{ 4, tooltip_page.size() + 1 });
+                        //    canvas.full(area);
+                        //    canvas.cup(dot_00);
+                        //    canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
+                        //    canvas.full(full);
+                        //}
                         if (debug) debug.output(canvas);
                         if (props.show_regions)
                         {
@@ -5895,10 +5988,10 @@ again:
                 SUBMIT_T(tier::release, e2::conio::focus, token, unkstate)
                 {
                 };
-                SUBMIT_T(tier::release, e2::conio::input, token, gear)
-                {
-                    log("gear.coord: ", gear.coord);
-                };
+                //SUBMIT_T(tier::release, e2::conio::input, token, gear)
+                //{
+                //    log("gear.coord: ", gear.coord);
+                //};
                 SUBMIT_T(tier::release, e2::conio::native, token, extended)
                 {
                     native = extended;
@@ -5956,38 +6049,44 @@ again:
                 };
                 SUBMIT_T(tier::release, e2::command::clipboard::set, token, clipbrd_data)
                 {
-                    clip_rawtext = clipbrd_data;
-                    page block{ clipbrd_data };
-                    clip_preview.mark(cell{});
-                    clip_preview.wipe();
-                    clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                    //todo hids
+                    //clip_rawtext = clipbrd_data;
+                    //page block{ clipbrd_data };
+                    //clip_preview.mark(cell{});
+                    //clip_preview.wipe();
+                    //clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
                 };
                 SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
                 {
-                    clipbrd_data = clip_rawtext;
+                    //todo hids
+                    //clipbrd_data = clip_rawtext;
                 };
                 SUBMIT_T(tier::release, e2::command::clipboard::layout, token, clipbrd_size)
                 {
-                    clip_preview.size(clipbrd_size);
-                    clip_preview.mark(cell{});
-                    clip_preview.wipe();
-                    page block{ clip_rawtext };
-                    clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                    //todo hids
+                    //clip_preview.size(clipbrd_size);
+                    //clip_preview.mark(cell{});
+                    //clip_preview.wipe();
+                    //page block{ clip_rawtext };
+                    //clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
                 };
                 SUBMIT_T(tier::request, e2::command::clipboard::layout, token, clipbrd_size)
                 {
-                    clipbrd_size = clip_preview.size();
+                    //todo hids
+                    //clipbrd_size = clip_preview.size();
                 };
                 SUBMIT_T(tier::general, e2::nextframe, token, damaged)
                 {
                     rebuild_scene(damaged);
                 };
 
+                //todo hids
+                /*
                 if (props.tooltip_enabled)
                 {
                     SUBMIT_T(tier::preview, hids::events::mouse::any, token, gear)
                     {
-                        if (tooltip_boss != input.hover) // Welcome new object.
+                        if (tooltip_boss != input.gear.hover) // Welcome new object.
                         {
                             tooltip_stop = faux;
                         }
@@ -5997,9 +6096,9 @@ again:
                             auto deed = this->bell::template protos<tier::preview>();
                             if (deed == hids::events::mouse::move.id)
                             {
-                                if (tooltip_coor(gear.coord) || (tooltip_show && tooltip_boss != input.hover)) // Do nothing on shuffle.
+                                if (tooltip_coor(gear.coord) || (tooltip_show && tooltip_boss != input.gear.hover)) // Do nothing on shuffle.
                                 {
-                                    if (tooltip_show && tooltip_boss == input.hover) // Drop tooltip if moved.
+                                    if (tooltip_show && tooltip_boss == input.gear.hover) // Drop tooltip if moved.
                                     {
                                         tooltip_stop = true;
                                     }
@@ -6013,7 +6112,7 @@ again:
                             else // Drop tooltip on any other event.
                             {
                                 tooltip_stop = true;
-                                tooltip_boss = input.hover;
+                                tooltip_boss = input.gear.hover;
                             }
                         }
                     };
@@ -6022,14 +6121,14 @@ again:
                         if (!tooltip_stop
                          && !tooltip_show
                          &&  tooltip_time < tempus::now()
-                         && !input.captured())
+                         && !input.gear.captured())
                         {
                             tooltip_show = true;
-                            if (tooltip_boss != input.hover)
+                            if (tooltip_boss != input.gear.hover)
                             {
-                                tooltip_boss = input.hover;
+                                tooltip_boss = input.gear.hover;
                                 tooltip_text = {};
-                                if (auto boss_ptr = bell::getref(input.hover))
+                                if (auto boss_ptr = bell::getref(input.gear.hover))
                                 {
                                     if (!boss_ptr->SIGNAL(tier::request, e2::form::prop::ui::tooltip, tooltip_text))
                                     {
@@ -6047,13 +6146,14 @@ again:
                                 }
                             }
                         }
-                        else if (tooltip_show == true && input.captured())
+                        else if (tooltip_show == true && input.gear.captured())
                         {
                             tooltip_show = faux;
                             tooltip_stop = faux;
                         }
                     };
                 }
+                */
                 if (deskmenu)
                 {
                     attach(deskmenu); // Our size could be changed here during attaching.
@@ -6147,29 +6247,32 @@ again:
             };
             SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr) //todo use e2::form::proceed::onbehalf
             {
-                if (item_ptr)
-                {
-                    auto& gear = input;
-                    //todo unify
-                    gear.force_group_focus = true;
-                    gear.kb_focus_taken = faux;
-                    item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                    gear.force_group_focus = faux;
-                }
+                //todo hids
+                //if (item_ptr)
+                //{
+                //    auto& gear = input.gear;
+                //    //todo unify
+                //    gear.force_group_focus = true;
+                //    gear.kb_focus_taken = faux;
+                //    item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                //    gear.force_group_focus = faux;
+                //}
             };
             SUBMIT(tier::preview, e2::form::proceed::unfocus, item_ptr) //todo use e2::form::proceed::onbehalf
             {
-                if (item_ptr)
-                {
-                    auto& gear = input;
-                    //todo unify
-                    gear.kb_focus_taken = faux; //todo used in base::upevent handler
-                    item_ptr->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
-                }
+                //todo hids
+                //if (item_ptr)
+                //{
+                //    auto& gear = input.gear;
+                //    //todo unify
+                //    gear.kb_focus_taken = faux; //todo used in base::upevent handler
+                //    item_ptr->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
+                //}
             };
             SUBMIT(tier::release, e2::form::proceed::onbehalf, proc)
             {
-                proc(input);
+                //todo hids
+                //proc(input.gear);
             };
             SUBMIT(tier::preview, hids::events::keybd::any, gear)
             {
@@ -6228,11 +6331,12 @@ again:
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
             {
-                if (!clip_rawtext.empty())
-                {
-                    this->SIGNAL(tier::release, e2::command::clipboard::set, "");
-                    gear.dismiss();
-                }
+                //todo hids
+                //if (!clip_rawtext.empty())
+                //{
+                //    this->SIGNAL(tier::release, e2::command::clipboard::set, "");
+                //    gear.dismiss();
+                //}
             };
 
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
@@ -6260,15 +6364,7 @@ again:
                     //auto& header = *title.header().lyric;
                     if (uname.lyric) // Render foreign user names at their place.
                     {
-                        auto& header = *uname.lyric;
-                        auto area = base::area();
-                        area.coor += input.coord;
-                        area.size = dot_11;
-                        area.coor.y--;
-                        area.coor.x -= (si32)header.size().x / 2;
-                        //todo unify header coords
-                        header.move(area.coor);
-                        parent_canvas.fill(header, cell::shaders::fuse);
+                        draw_foreign_names(parent_canvas);
                     }
                     draw_mouse_pointer(parent_canvas);
                 }

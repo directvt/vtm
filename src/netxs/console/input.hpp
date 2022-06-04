@@ -262,6 +262,7 @@ namespace netxs::input
         bool wheeled = faux;           // sysmouse: Vertical scroll wheel.
         bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
         si32 wheeldt = 0;              // sysmouse: Scroll delta.
+        id_t mouseid = 0;              // sysmouse: Scroll delta.
 
         ui32 ctlstate = 0;
 
@@ -323,6 +324,7 @@ namespace netxs::input
             F12       = 0x7B,
         };
 
+        id_t keybdid = 0;
         bool down = faux;
         ui16 repeatcount = 0;
         ui16 virtcode = 0;
@@ -740,6 +742,8 @@ namespace netxs::input
         bool force_group_focus = faux;
         bool combine_focus = faux;
         si32 countdown = 0;
+        id_t ext_id = 0;
+        si32 push = 0; // hids: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
         auto state()
         {
@@ -769,11 +773,12 @@ namespace netxs::input
         auto meta(ui32 ctl_key = -1) { return hids::ctlstate & ctl_key; }
 
         template<class T>
-        hids(T& owner, xmap const& idmap)
+        hids(T& owner, xmap const& idmap, id_t ext_id)
             : relay { 0        },
               owner { owner    },
               id    { owner.id },
               idmap { idmap    },
+              ext_id{ ext_id   },
               alive { faux     }
         { }
         ~hids()
@@ -796,11 +801,11 @@ namespace netxs::input
         {
             return alive;
         }
-        auto take(sysmouse& m)
+        void take(sysmouse& m)
         {
             ctlstate = m.ctlstate;
             mouse::update(m);
-            return mouse::buttons();
+            push = mouse::buttons();
         }
         void take(syskeybd& k)
         {
