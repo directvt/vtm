@@ -119,7 +119,7 @@ namespace netxs::ansi
     static const char CSI_hRM = 'h';     // CSI n      h  — Reset mode (always Replace mode n=4).
     static const char CSI_lRM = 'l';     // CSI n      l  — Reset mode (always Replace mode n=4).
     static const char CSI_CCC = 'p';     // CSI n [; x1; x2; ...; xn ] p — Custom Caret Command.
-    static const char W32_INP = '_';     // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
+    static const char DVT_INP = '_';     // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — DTVT-input-mode.
 
     static const char C0_NUL = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
     static const char C0_SOH = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
@@ -153,13 +153,6 @@ namespace netxs::ansi
     static const char C0_GS  = '\x1D'; // Group Separator.
     static const char C0_RS  = '\x1E'; // Record Separator.
     static const char C0_US  = '\x1F'; // Unit Separator.
-
-    static const si32 W32_START_EVENT = 10000; // for quick recognition.
-    static const si32 W32_KEYBD_EVENT = 10001;
-    static const si32 W32_MOUSE_EVENT = 10002;
-    static const si32 W32_WINSZ_EVENT = 10003;
-    static const si32 W32_FOCUS_EVENT = 10004;
-    static const si32 W32_FINAL_EVENT = 10005; // for quick recognition.
 
     static const auto OSC_LABEL_TITLE  = "0"   ; // Set icon label and title.
     static const auto OSC_LABEL        = "1"   ; // Set icon label.
@@ -269,19 +262,26 @@ namespace netxs::ansi
     static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
     static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
 
-    // DirectVT record types.
-    static const byte DTVT_NGC = 0x00; // Skip grapheme cluster. gc len = 0
-    static const byte DTVT_GCL = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
-    static const byte DTVT_CUP = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
-    static const byte DTVT_BGC = 0x09; // BG rgba color. 4 bytes: rgba
-    static const byte DTVT_FGC = 0x0A; // FG rgba color. 4 bytes: rgba
-    static const byte DTVT_STL = 0x0B; // Grapheme style. token 4 bytes
-    static const byte DTVT_RST = 0x0C; // Wipe canvas. Fill canvas using current brush.
-    static const byte DTVT_JGC = 0x0D; // Jumbo Grapheme Cluster. gc.token + gc.view (send after terminal's request)
-    static const byte DTVT_CMD = 0x64; // Arbitrary vt-command in UTF-8 format.
-
     namespace dtvt
     {
+        // DirectVT record types.
+        static const byte NGC = 0x00; // Skip grapheme cluster. gc len = 0
+        static const byte GCL = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
+        static const byte CUP = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
+        static const byte BGC = 0x09; // BG rgba color. 4 bytes: rgba
+        static const byte FGC = 0x0A; // FG rgba color. 4 bytes: rgba
+        static const byte STL = 0x0B; // Grapheme style. token 4 bytes
+        static const byte RST = 0x0C; // Wipe canvas. Fill canvas using current brush.
+        static const byte JGC = 0x0D; // Jumbo Grapheme Cluster. gc.token + gc.view (send after terminal's request)
+        static const byte CMD = 0x64; // Arbitrary vt-command in UTF-8 format.
+
+        static const si32 start = 10000; // https://github.com/microsoft/terminal/issues/8343.
+        static const si32 keybd = 10001; // .
+        static const si32 mouse = 10002; // .
+        static const si32 winsz = 10003; // .
+        static const si32 focus = 10004; // .
+        static const si32 final = 10005; // .
+
         #pragma pack(push,1)
         static constexpr auto initial = char{ '\xFF' };
         union marker
@@ -461,8 +461,8 @@ namespace netxs::ansi
             {
                 auto size = gc.state.count;
                 if (size > 0) add<VGAMODE>(size, gc.template get<VGAMODE>());
-                else          add<VGAMODE>(DTVT_NGC);
-                assert(size <= DTVT_GCL);
+                else          add<VGAMODE>(dtvt::NGC);
+                assert(size <= ansi::dtvt::GCL);
             }
             return *this;
         }
@@ -470,7 +470,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor, class T>
         esc& style(T token)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::DTVT_STL, token);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::STL, token);
             else                                     return *this;
         }
         // esc: Focus and Mouse position reporting/tracking.
@@ -483,21 +483,21 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& locate(si32 x, si32 y)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_CUP, twod{ x,y } - dot_11);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::CUP, twod{ x,y } - dot_11);
             else                                     return add("\033[", y, ';', x, 'H');
         }
          // esc: 0-Based caret position.
         template<svga VGAMODE = svga::truecolor>
         esc& locate(twod const& p)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_CUP, p);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::CUP, p);
             else                                     return add("\033[", p.y+1, ';', p.x+1, 'H'       );
         }
         // esc: Extra command.
         template<svga VGAMODE = svga::truecolor>
         esc& extcmd(text const& extra_cached)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::DTVT_CMD, (ui32)extra_cached.size(), extra_cached);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::CMD, (ui32)extra_cached.size(), extra_cached);
             else                                     return add(extra_cached);
         }
         esc& report(twod const& p)  { return add("\033[", p.y+1, ";", p.x+1, "R"       ); } // esc: Report 1-Based caret position (CPR).
@@ -507,7 +507,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& scroll_wipe()
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_RST);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::RST);
             else                                     return add("\033[2J");
         }
         esc& tag         (view t)   { return add("\033]2;", t, '\07'                   ); } // esc: Window title.
@@ -562,49 +562,59 @@ namespace netxs::ansi
                                                     utf::to_hex(c.chan.b, 2), '\033');
         }
 
-        esc& w32input(bool b) { return add(b ? "\033[?9001h" : "\033[?9001l"); } // ansi: Application Caret Keys (DECCKM).
-        esc& w32begin()       { return add("\033["                          ); }
-        esc& w32close()
+        esc& dtvt_begin()
+        {
+            return add("\033[");
+        }
+        esc& dtvt_close()
         {
             if (back() == ';') pop_back();
-            return add(W32_INP);
+            return add(DVT_INP);
         }
-        // esc: win32-input-mode sequence (keyboard).
-        esc& w32keybd(si32 id, si32 kc, si32 sc, si32 kd, si32 ks, si32 rc, si32 uc)
+        // esc: DTVT-input-mode sequence (keyboard).
+        esc& dtvt_keybd(si32 id, si32 kc, si32 sc, si32 kd, si32 ks, si32 rc, si32 uc)
         {
-            add(ansi::W32_KEYBD_EVENT, ':');
-            if (id) fuse(id);
-            return add(':', kc, ':',
-                            sc, ':',
-                            kd, ':',
-                            ks, ':',
-                            rc, ':',
-                            uc, ';');
+            return add(dtvt::keybd, ':',
+                                id, ':',
+                                kc, ':',
+                                sc, ':',
+                                kd, ':',
+                                ks, ':',
+                                rc, ':',
+                                uc, ';');
         }
-        // esc: win32-input-mode sequence (mouse).
-        esc& w32mouse(si32 id, si32 bttns, si32 ctrls, si32 flags, si32 wheel, si32 xcoor, si32 ycoor)
+        // esc: DTVT-input-mode sequence (mouse).
+        esc& dtvt_mouse(si32 id, si32 bttns, si32 ctrls, si32 flags, si32 wheel, si32 xcoor, si32 ycoor)
         {
-            add(ansi::W32_MOUSE_EVENT, ':');
-            if (id) fuse(id);
-            return add(':', bttns, ':',
-                            ctrls, ':',
-                            flags, ':',
-                            wheel, ':',
-                            xcoor, ':',
-                            ycoor, ';');
+            return add(dtvt::mouse, ':',
+                                id, ':',
+                             bttns, ':',
+                             ctrls, ':',
+                             flags, ':',
+                             wheel, ':',
+                             xcoor, ':',
+                             ycoor, ';');
         }
-        // esc: win32-input-mode sequence (focus).
-        esc& w32focus(si32 id, si32 focus)
+        // esc: DTVT-input-mode sequence (focus).
+        esc& dtvt_focus(si32 id, si32 focus)
         {
-            add(ansi::W32_FOCUS_EVENT, ':');
-            if (id) fuse(id);
-            return add(':', focus, ';');
+            return add(dtvt::focus, ':',
+                                id, ':',
+                             focus, ';');
         }
-        // esc: win32-input-mode sequence (window resize).
-        esc& w32winsz(twod size)
+        // esc: DTVT-input-mode sequence (window resize).
+        esc& dtvt_winsz(twod size)
         {
-            return add(ansi::W32_WINSZ_EVENT, ':', size.x, ':',
-                                                   size.y, ';');
+            return add(dtvt::winsz, ':',
+                            size.x, ':',
+                            size.y, ';');
+        }
+        // esc: Disintegrative DTVT-input-mode sequence (window resize).
+        esc& win(twod size)
+        {
+            return dtvt_begin().
+                   dtvt_winsz(size).
+                   dtvt_close();
         }
 
         esc& cup(twod const& p) { return add("\033[20:", p.y, ':',
@@ -731,7 +741,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& fgc(rgba const& c)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_FGC, c);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::FGC, c);
             switch (VGAMODE)
             {
                 case svga::truecolor:
@@ -751,7 +761,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& bgc(rgba const& c)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(DTVT_BGC, c);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::BGC, c);
             switch (VGAMODE)
             {
                 case svga::truecolor:
@@ -797,11 +807,7 @@ namespace netxs::ansi
         esc& ext (si32 b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
         esc& show_mouse (si32 b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
         esc& meta_state (si32 m) { return add("\033[27:", m  , CSI_CCC); } // esc: Set keyboard meta modifiers (Ctrl, Shift, Alt, etc).
-        //todo unify
-        //esc& win (twod const& p){ return add("\033[20:", p.x, ':',              // esc: Terminal window resize report.
-        //                                                 p.y, CSI_CCC); }
-        esc& win (twod const& p) { return add("\033]", p.x, ';',           // esc: Terminal window resize report.
-                                                       p.y, 'w'       ); }
+
         esc& fcs (bool b)        { return add("\033[", b ? 'I' : 'O'  ); } // ansi: Terminal window focus.
         esc& eol ()              { return add("\n"                    ); } // esc: EOL.
         esc& edl ()              { return add("\033[K"                ); } // esc: EDL.
@@ -836,11 +842,10 @@ namespace netxs::ansi
     template<bool ENCODE = true>
     static esc setbuf (view t)       { return esc{}.setbuf<ENCODE>(t); } // ansi: Set clipboard.
 
-    static esc w32input (bool b)     { return esc{}.w32input(b); } // ansi: Turn on w32-input-mode (Microsoft specific, not released yet).
-    template<class ...Args> static esc w32keybd (Args&&... p){ return esc{}.w32keybd(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (keyboard).
-    template<class ...Args> static esc w32mouse (Args&&... p){ return esc{}.w32mouse(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (mouse).
-    template<class ...Args> static esc w32focus (Args&&... p){ return esc{}.w32focus(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (focus).
-    template<class ...Args> static esc w32winsz (Args&&... p){ return esc{}.w32winsz(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (window resize).
+    template<class ...Args> static esc dtvt_keybd (Args&&... p){ return esc{}.dtvt_keybd(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (keyboard).
+    template<class ...Args> static esc dtvt_mouse (Args&&... p){ return esc{}.dtvt_mouse(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (mouse).
+    template<class ...Args> static esc dtvt_focus (Args&&... p){ return esc{}.dtvt_focus(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (focus).
+    template<class ...Args> static esc dtvt_winsz (Args&&... p){ return esc{}.dtvt_winsz(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (window resize).
 
     static esc cup (twod const& n)   { return esc{}.cup (n); } // ansi: 0-Based caret position.
     static esc cuu (si32 n)          { return esc{}.cuu (n); } // ansi: Caret up.
@@ -900,8 +905,9 @@ namespace netxs::ansi
 
     static esc rst ()                { return esc{}.rst ( ); } // ansi: Reset formatting parameters.
     static esc nop ()                { return esc{}.nop ( ); } // ansi: No operation. Split the text run.
-    static esc win (twod const& p)   { return esc{}.win (p); } // ansi: Terminal window resize.
     static esc fcs (bool b)          { return esc{}.fcs (b); } // ansi: Terminal window focus.
+    static esc win (twod const& p)   { return esc{}.win (p); } // ansi: Terminal DTVT-window resize report.
+
     //ansi: Split the text run and associate the fragment with an id.
     //      All following text is under the IDX until the next command is issued.
     //      Redefine if the id already exists.

@@ -4575,7 +4575,7 @@ namespace netxs::console
             {
                 //todo proceed title
                 //auto size = ui32{ 0 };
-                //auto data = ansi::esc{}.add<svga::directvt>(ansi::DTVT_CMD, size);
+                //auto data = ansi::esc{}.add<svga::directvt>(ansi::dtvt::CMD, size);
                 //data.ext(true);
                 //if (title.size()) data.tag(title);
                 //output(data);
@@ -4827,10 +4827,9 @@ again:
                                 view tmp = strv.substr(pos);
                                 auto l = tmp.size();
                                 auto event_id = utf::to_int(tmp).value();
-                                if (event_id > ansi::W32_START_EVENT
-                                 && event_id < ansi::W32_FINAL_EVENT)
+                                if (event_id > ansi::dtvt::start
+                                 && event_id < ansi::dtvt::final)
                                 {
-                                    //log("win32input: ", strv);
                                     pos += l - tmp.size();
                                     if (pos == len) { total = strv; break; }// incomlpete sequence
                                     {
@@ -4855,7 +4854,7 @@ again:
                                         };
                                         switch (event_id)
                                         {
-                                            case ansi::W32_MOUSE_EVENT:
+                                        case ansi::dtvt::mouse:
                                             {
                                                 si32 id    = take();
                                                 si32 bttns = take();
@@ -4896,7 +4895,7 @@ again:
                                                     owner.SIGNAL(tier::release, e2::conio::mouse, mouse);
                                                 break;
                                             }
-                                            case ansi::W32_KEYBD_EVENT:
+                                            case ansi::dtvt::keybd:
                                             {
                                                 si32 id = take();
                                                 si32 kc = take();
@@ -4966,7 +4965,7 @@ again:
                                                 owner.SIGNAL(tier::release, e2::conio::key, keybd);
                                                 break;
                                             }
-                                            case ansi::W32_WINSZ_EVENT:
+                                            case ansi::dtvt::winsz:
                                             {
                                                 si32 xsize = take();
                                                 si32 ysize = take();
@@ -4974,7 +4973,7 @@ again:
                                                 owner.SIGNAL(tier::release, e2::conio::size, winsz);
                                                 break;
                                             }
-                                            case ansi::W32_FOCUS_EVENT:
+                                            case ansi::dtvt::focus:
                                             {
                                                 //todo clear pressed keys on lost focus
                                                 si32 id    = take();
@@ -5042,73 +5041,71 @@ again:
                                 pos = 0_sz;
                             }
                         }
-                        else if (strv.at(pos) == ']')
-                        {
-                            if (++pos == len) { total = strv; break; }//incomlpete
-
-                            auto tmp = strv.substr(pos);
-                            auto l = tmp.size();
-                            if (auto pos_x = utf::to_int(tmp))
-                            {
-                                pos += l - tmp.size();
-                                if (pos == len) { total = strv; break; }//incomlpete
-                                {
-                                    if (++pos == len) { total = strv; break; }//incomlpete
-
-                                    auto tmp = strv.substr(pos);
-                                    auto l = tmp.size();
-                                    if (auto pos_y = utf::to_int(tmp))
-                                    {
-                                        pos += l - tmp.size();
-                                        if (pos == len) { total = strv; break; }//incomlpete
-                                        {
-                                            auto x = pos_x.value();
-                                            auto y = pos_y.value();
-                                            if (strv.at(pos) == 'w')
-                                            {
-                                                auto winsz = twod{ x,y };
-                                                owner.SIGNAL(tier::release, e2::conio::size, winsz);
-                                                ++pos;
-                                            }
-                                            //else if (strv.at(pos) == ';')
-                                            //{
-                                            //    if (++pos == len) { total = strv; break; }//incomlpete
-                                            //    auto tmp = strv.substr(pos);
-                                            //    auto l = tmp.size();
-                                            //    if (auto pos_x = utf::to_int(tmp))
-                                            //    {
-                                            //        pos += l - tmp.size();
-                                            //        if (pos == len) { total = strv; break; }//incomlpete
-                                            //        {
-                                            //            if (++pos == len) { total = strv; break; }//incomlpete
-                                            //            auto tmp = strv.substr(pos);
-                                            //            auto l = tmp.size();
-                                            //            if (auto pos_y = utf::to_int(tmp))
-                                            //            {
-                                            //                pos += l - tmp.size();
-                                            //                if (pos == len) { total = strv; break; }//incomlpete
-                                            //                {
-                                            //                    auto head = pos_x.value();
-                                            //                    auto foot = pos_y.value();
-                                            //                    if (strv.at(pos) == 'x')
-                                            //                    {
-                                            //                        auto west = x;
-                                            //                        auto east = y;
-                                            //                        auto warp = dent{ west, east, head, foot };
-                                            //                        owner.SIGNAL(tier::release, e2::conio::swarp, warp);
-                                            //                        ++pos;
-                                            //                    }
-                                            //                }
-                                            //            }
-                                            //        }
-                                            //    }
-                                            //}
-                                            //++pos;
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        //else if (strv.at(pos) == ']')
+                        //{
+                        //    if (++pos == len) { total = strv; break; }//incomlpete
+                        //    auto tmp = strv.substr(pos);
+                        //    auto l = tmp.size();
+                        //    if (auto pos_x = utf::to_int(tmp))
+                        //    {
+                        //        pos += l - tmp.size();
+                        //        if (pos == len) { total = strv; break; }//incomlpete
+                        //        {
+                        //            if (++pos == len) { total = strv; break; }//incomlpete
+                        //            auto tmp = strv.substr(pos);
+                        //            auto l = tmp.size();
+                        //            if (auto pos_y = utf::to_int(tmp))
+                        //            {
+                        //                pos += l - tmp.size();
+                        //                if (pos == len) { total = strv; break; }//incomlpete
+                        //                {
+                        //                    auto x = pos_x.value();
+                        //                    auto y = pos_y.value();
+                        //                    if (strv.at(pos) == 'w')
+                        //                    {
+                        //                        auto winsz = twod{ x,y };
+                        //                        owner.SIGNAL(tier::release, e2::conio::size, winsz);
+                        //                        ++pos;
+                        //                    }
+                        //                    //else if (strv.at(pos) == ';')
+                        //                    //{
+                        //                    //    if (++pos == len) { total = strv; break; }//incomlpete
+                        //                    //    auto tmp = strv.substr(pos);
+                        //                    //    auto l = tmp.size();
+                        //                    //    if (auto pos_x = utf::to_int(tmp))
+                        //                    //    {
+                        //                    //        pos += l - tmp.size();
+                        //                    //        if (pos == len) { total = strv; break; }//incomlpete
+                        //                    //        {
+                        //                    //            if (++pos == len) { total = strv; break; }//incomlpete
+                        //                    //            auto tmp = strv.substr(pos);
+                        //                    //            auto l = tmp.size();
+                        //                    //            if (auto pos_y = utf::to_int(tmp))
+                        //                    //            {
+                        //                    //                pos += l - tmp.size();
+                        //                    //                if (pos == len) { total = strv; break; }//incomlpete
+                        //                    //                {
+                        //                    //                    auto head = pos_x.value();
+                        //                    //                    auto foot = pos_y.value();
+                        //                    //                    if (strv.at(pos) == 'x')
+                        //                    //                    {
+                        //                    //                        auto west = x;
+                        //                    //                        auto east = y;
+                        //                    //                        auto warp = dent{ west, east, head, foot };
+                        //                    //                        owner.SIGNAL(tier::release, e2::conio::swarp, warp);
+                        //                    //                        ++pos;
+                        //                    //                    }
+                        //                    //                }
+                        //                    //            }
+                        //                    //        }
+                        //                    //    }
+                        //                    //}
+                        //                    //++pos;
+                        //                }
+                        //            }
+                        //        }
+                        //    }
+                        //}
                         else
                         {
                             unk = true;

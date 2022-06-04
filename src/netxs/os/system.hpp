@@ -675,7 +675,6 @@ namespace netxs::os
             ready = true;
 
             #if defined(_WIN32)
-                // Possible a win32api bug: os::select sometimes doesn't trigger, so use pipe peeking.
                 // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
                 auto buffer = ansi::dtvt::marker{};
                 auto length = DWORD{ 0 };
@@ -2795,14 +2794,14 @@ namespace netxs::os
                     {
                         auto entry = reply.begin();
                         auto limit = entry + count;
-                        yield.w32begin();
+                        yield.dtvt_begin();
                         while (entry != limit)
                         {
                             auto& reply = *entry++;
                             switch (reply.EventType)
                             {
                                 case KEY_EVENT:
-                                    yield.w32keybd(0,
+                                    yield.dtvt_keybd(0,
                                         reply.Event.KeyEvent.wVirtualKeyCode,
                                         reply.Event.KeyEvent.wVirtualScanCode,
                                         reply.Event.KeyEvent.bKeyDown,
@@ -2811,7 +2810,7 @@ namespace netxs::os
                                         utf::tocode(reply.Event.KeyEvent.uChar.UnicodeChar));
                                     break;
                                 case MOUSE_EVENT:
-                                    yield.w32mouse(0,
+                                    yield.dtvt_mouse(0,
                                         reply.Event.MouseEvent.dwButtonState & 0xFFFF,
                                         reply.Event.MouseEvent.dwControlKeyState,
                                         reply.Event.MouseEvent.dwEventFlags,
@@ -2823,14 +2822,14 @@ namespace netxs::os
                                     _globals<void>::resize_handler();
                                     break;
                                 case FOCUS_EVENT:
-                                    yield.w32focus(0,
+                                    yield.dtvt_focus(0,
                                         reply.Event.FocusEvent.bSetFocus);
                                     break;
                                 default:
                                     break;
                             }
                         }
-                        yield.w32close();
+                        yield.dtvt_close();
                         ipcio.send(yield);
                         yield.clear();
                     }
@@ -3029,15 +3028,15 @@ namespace netxs::os
                              || state.shift(get_kb_state())
                              || state.flags)
                             {
-                                yield.w32begin()
-                                     .w32mouse(0,
+                                yield.dtvt_begin()
+                                     .dtvt_mouse(0,
                                         state.bttns.last,
                                         state.shift.last,
                                         state.flags,
                                         wheel,
                                         state.coord.last.x,
                                         state.coord.last.y)
-                                     .w32close();
+                                     .dtvt_close();
                                 ipcio.send(view(yield));
                                 yield.clear();
                             }
