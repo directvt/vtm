@@ -15,6 +15,7 @@
 #include <functional>
 #include <optional>
 #include <thread>
+#include <condition_variable>
 
 namespace netxs::events
 {
@@ -580,6 +581,66 @@ namespace netxs::events
         virtual void  global(twod& coor) { } // bell: Recursively calculate global coordinate.
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
+
+    // events: Separate thread for executing deferred tasks.
+    class enqueue_t
+    {
+    public:
+        using wptr = netxs::wptr<bell>;
+        using func = std::function<void(bell&)>;
+        using item = std::pair<wptr, func>;
+
+        std::mutex              mutex;
+        std::condition_variable synch;
+        std::list<item>         queue;
+        bool                    alive;
+        std::thread             agent;
+
+        void worker()
+        {
+            auto guard = std::unique_lock{ mutex };
+            while (alive)
+            {
+                synch.wait(guard);
+                while (alive && queue.size())
+                {
+                    auto lock = events::sync{};
+                    auto& [ptr, proc] = queue.front();
+                    if (auto item = ptr.lock())
+                    {
+                        proc(*item);
+                    }
+                    queue.pop_front();
+                }
+            }
+        }
+
+        enqueue_t()
+            : alive{ true },
+              agent{ [&]() { worker(); } }
+        { }
+       ~enqueue_t()
+        {
+            mutex.lock();
+            alive = faux;
+            synch.notify_one();
+            mutex.unlock();
+            agent.join();
+        }
+        void add(enqueue_t::wptr object_ptr, enqueue_t::func proc)
+        {
+            auto guard = std::lock_guard{ mutex };
+            queue.emplace_back(std::move(object_ptr), std::move(proc));
+            synch.notify_one();
+        }
+    };
+
+    // events: Enqueue deferred task.
+    void enqueue(enqueue_t::wptr object_ptr, enqueue_t::func proc)
+    {
+        static auto agent = enqueue_t{};
+        agent.add(std::move(object_ptr), std::move(proc));
+    }
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;
 }

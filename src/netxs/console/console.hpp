@@ -228,6 +228,7 @@ namespace netxs::events::userland
                     EVENT_XS( appear, twod               ), // fly to the specified coords.
                     EVENT_XS( gonext, sptr<console::base>), // request: proceed request for available objects (next)
                     EVENT_XS( goprev, sptr<console::base>), // request: proceed request for available objects (prev)
+                    EVENT_XS( swarp , const dent         ), // preview: form swarping
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
@@ -1491,6 +1492,12 @@ namespace netxs::console
                         canvas.fill(side_x, fuse);
                         canvas.fill(side_y, fuse);
                     });
+                };
+                boss.SUBMIT_T(tier::release, e2::form::layout::swarp, memo, warp)
+                {
+                    auto area = boss.base::area();
+                    auto next = area + warp;
+                    auto step = boss.extend(next);
                 };
                 boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
                 {
@@ -5867,9 +5874,15 @@ again:
                 // conio events.
                 SUBMIT_T(tier::release, e2::conio::size, token, newsize)
                 {
+                    //static auto i = 100;
                     auto delta = base::resize(newsize);
                     if (delta && direct)
                     {
+                        //if (i-- == 0)
+                        //{
+                        //    std::this_thread::sleep_for(5s);
+                        //    i = 100;
+                        //}
                         paint.abort_render();
                         rebuild_scene(true);
                     }

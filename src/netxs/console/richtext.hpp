@@ -224,6 +224,11 @@ namespace netxs::console
             netxs::onbody(*this, block, fuse);
         }
         template<class P>
+        void zoom(core const& block, P fuse) // core: Fill canvas by the stretched block.
+        {
+            netxs::zoomin(*this, block, fuse);
+        }
+        template<class P>
         void plot(core const& block, P fuse) // core: Fill view by the specified face using its coordinates.
         {
             auto joint = view().clip(block.area());

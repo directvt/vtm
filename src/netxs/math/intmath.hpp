@@ -424,6 +424,47 @@ namespace netxs
         return width;
     }
 
+    // intmath: Fill the canvas by the stretched bitmap.
+    template<class T, class P>
+    void zoomin(T& canvas, T const& bitmap, P handle)
+    {
+        auto size1 = canvas.size();
+        auto size2 = bitmap.size();
+        auto data1 = canvas.data();
+        auto data2 = bitmap.data();
+        auto data3 = data2;
+        if (size1.x * size1.y == 0
+         || size2.x * size2.y == 0) return;
+
+        auto dot_11 = size1 / size1;
+        auto msize0 = size1 - dot_11;
+        auto msize1 = max(dot_11, msize0);
+        auto msize2 = size2 - dot_11;
+
+        auto y = 0;
+        auto h_line = [&]()
+        {
+            auto x = 0;
+            while (x != msize0.x)
+            {
+                auto xpos = x++ * msize2.x / msize1.x;
+                auto from = data3 + xpos;
+                handle(*data1++, *from);
+            }
+            auto ypos = ++y * msize2.y / msize1.y;
+            auto from = data3 + msize2.x;
+            handle(*data1++, *from);
+            data3 = data2 + ypos * size2.x;
+        };
+
+        while (y != msize0.y)
+        {
+            h_line();
+        }
+        data3 = data2 + msize2.y * size2.x;
+        h_line();
+    }
+
     // intmath: Copy the bitmap to the bitmap by invoking
     //          handle(sprite1_element, sprite2_element) for each elem.
     template<class T, class P>

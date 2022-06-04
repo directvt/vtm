@@ -3745,7 +3745,7 @@ namespace netxs::os
             {
                 auto exit_code = si32{};
                 log("dtvt: wait child process, tty=", termlink);
-                termlink.shut();
+                if (termlink) termlink.shut();
 
                 #if defined(_WIN32)
 

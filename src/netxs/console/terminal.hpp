@@ -6734,11 +6734,14 @@ namespace netxs::ui
         os::direct::pty ptycon; // dtvt: PTY device.
         text            cmdarg; // dtvt: Startup command line arguments.
         bool            active; // dtvt: Terminal lifetime.
+        bool            nodata; // dtvt: Show splash "No signal".
         face            canvas; // dtvt:
+        face            splash; // dtvt: "No signal" splash.
         hook            oneoff; // dtvt: One-shot token for start and shutdown events.
         cell            marker; // dtvt: Current brush.
         std::mutex      access; // dtvt: Canvas accesss mutex.
         sync            syncxs; // dtvt: Canvas access condvar.
+        period          maxoff; // dtvt: Max delay before showing "No signal".
 
         // dtvt: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
@@ -6769,6 +6772,7 @@ namespace netxs::ui
             auto resized = square.size != canvas.size();
             if (resized)
             {
+                nodata = faux;
                 canvas.size(square.size);
             }
             auto iter = canvas.iter();
@@ -6829,10 +6833,20 @@ namespace netxs::ui
                         marker.txt('\0');
                         canvas.wipe(marker);
                     }
-                    else if (type == 12) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
+                    else if (type == 13) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
                     {
                         //todo implement
                         throw;
+                    }
+                    else if (type == 14) //<=14: Warping
+                    {
+                        auto warp = netxs::letoh(*reinterpret_cast<dent const*>(data.data()));
+                        auto size = sizeof(warp);
+                        data.remove_prefix(size);
+                        netxs::events::enqueue(This(), [&, warp](auto& boss)
+                        {
+                            this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
+                        });
                     }
                     else if (type == 100) //<=100: 4 b
                     {
@@ -6845,7 +6859,8 @@ namespace netxs::ui
                 }
             }
 
-            base::deface(); //todo revise, should we make a separate thread for deface?
+            //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
+            base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
             syncxs.notify_one();
         }
         // dtvt: Shutdown callback handler.
@@ -6871,7 +6886,7 @@ namespace netxs::ui
             if (active)
             {
                 auto lock = netxs::events::sync{};
-                auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50})
+                auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
                     .add("              \n",
                          "  Closing...  \n",
                          "              \n") };
@@ -6909,7 +6924,8 @@ namespace netxs::ui
 
         testy<twod> coord;
         dtvt(text command_line)
-            : active{ true }
+            : active{ true },
+              nodata{ faux }
         {
             marker.link(base::id);
             cmdarg = command_line;
@@ -6955,6 +6971,16 @@ namespace netxs::ui
                 //gear.release();
             };
 
+            //todo make it configurable (max_drops)
+            static constexpr auto max_drops = 1;
+            auto fps = decltype(e2::config::fps)::type{ -1 };
+            SIGNAL(tier::general, e2::config::fps, fps);
+            maxoff = max_drops * period{ period::period::den / fps };
+            SUBMIT(tier::general, e2::config::fps, fps)
+            {
+                maxoff = max_drops * period{ period::period::den / fps };
+            };
+
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 if (ptycon) ptycon.stop();
@@ -6991,12 +7017,48 @@ namespace netxs::ui
             {
                 auto size = base::size();
                 auto lock = std::unique_lock{ access };
-                if (canvas.size()) while (size != canvas.size() && active) // Always waiting for the correct frame.
+                if (nodata) // " No signal " on timeout > 1/60s
                 {
-                    syncxs.wait(lock, [&]{ return !active || size == canvas.size(); });
+                    fallback(parent_canvas);
+                    return;
                 }
-                parent_canvas.fill(canvas, cell::shaders::full);
+                else if (size == canvas.size())
+                {
+                    parent_canvas.fill(canvas, cell::shaders::full);
+                }
+                else if (canvas.size())
+                {
+                    while (size != canvas.size()) // Always waiting for the correct frame.
+                    {
+                        if (!active) return;
+                        if (std::cv_status::timeout == syncxs.wait_for(lock, maxoff)
+                         && size != canvas.size())
+                        {
+                            nodata = true;
+                            fallback(parent_canvas);
+                            return;
+                        }
+                    }
+                    parent_canvas.fill(canvas, cell::shaders::full);
+                }
             };
+        }
+        void fallback(face& parent_canvas)
+        {
+            auto size = base::size();
+            if (splash.size() != size)
+            {
+                splash.size(size);
+                splash.zoom(canvas, cell::shaders::full);
+                auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
+                            .add("             \n",
+                                 "  NO SIGNAL  \n",
+                                 "             \n") };
+                splash.output(note);
+                splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                splash.output(note);
+            }
+            parent_canvas.fill(splash, cell::shaders::full);
         }
     };
 }

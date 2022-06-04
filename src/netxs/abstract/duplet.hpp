@@ -137,6 +137,11 @@ namespace netxs
         {
             return duplet{ netxs::letoh(p.x), netxs::letoh(p.y) };
         }
+        friend auto min  (duplet const& p1, duplet const& p2) { return duplet{ std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
+        friend auto max  (duplet const& p1, duplet const& p2) { return duplet{ std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
+        friend auto round(duplet const& p) { return duplet{ std::round(p.x), std::round(p.y) }; }
+        friend auto abs  (duplet const& p) { return duplet{ std::  abs(p.x), std::  abs(p.y) }; }
+        friend auto clamp(duplet const& p, duplet const& p1, duplet const& p2) { return duplet{ std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
     };
 
     using twod = duplet<si32>;
