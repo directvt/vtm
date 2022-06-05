@@ -153,18 +153,16 @@ namespace netxs::events::userland
             };
             SUBSET_XS( conio )
             {
-                EVENT_XS( unknown , si32              ), // return platform unknown event code.
-                EVENT_XS( error   , si32              ), // return error code.
-                EVENT_XS( focus   , bool              ), // order to change focus.
-                //EVENT_XS( input   , input::hids       ), // DirectVT input.
-                EVENT_XS( mouse   , console::sysmouse ), // mouse activity.
-                EVENT_XS( key     , console::syskeybd ), // keybd activity.
-                EVENT_XS( size    , twod              ), // order to update terminal primary overlay.
-                EVENT_XS( native  , bool              ), // extended functionality.
-                EVENT_XS( layout  , const twod        ),
-                EVENT_XS( preclose, const bool        ), // signal to quit after idle timeout, arg: bool - ready to shutdown.
-                EVENT_XS( quit    , const view        ), // quit, arg: text - bye msg.
-                EVENT_XS( pointer , const bool        ), // mouse pointer visibility.
+                EVENT_XS( unknown , const si32              ), // release: return platform unknown event code.
+                EVENT_XS( error   , const si32              ), // release: return error code.
+                EVENT_XS( focus   , const bool              ), // release: order to change focus.
+                EVENT_XS( mouse   , const console::sysmouse ), // release: mouse activity.
+                EVENT_XS( keybd   , const console::syskeybd ), // release: keybd activity.
+                EVENT_XS( winsz   , const twod              ), // release: order to update terminal primary overlay.
+                EVENT_XS( native  , const bool              ), // release: extended functionality.
+                EVENT_XS( preclose, const bool              ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
+                EVENT_XS( quit    , const text              ), // release: quit, arg: text - bye msg.
+                EVENT_XS( pointer , const bool              ), // release: mouse pointer visibility.
                 //EVENT_XS( menu  , si32 ), 
             };
             SUBSET_XS( data )
@@ -2766,7 +2764,7 @@ namespace netxs::console
                 //	status[prop::menu_id].set(stress) = "UI:" + std::to_string(iface);
                 //};
 
-                boss.SUBMIT_T(tier::release, e2::conio::key, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, gear)
                 {
                     shadow();
                     auto& k = gear;
@@ -3357,7 +3355,7 @@ namespace netxs::console
                     }
                     boss.strike();
                 };
-                boss.SUBMIT_T(tier::release, e2::conio::key, memo, keybdstate)
+                boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, keybdstate)
                 {
                     auto gear_it = gears.find(keybdstate.keybdid);
                     if (gear_it == gears.end())
@@ -4559,77 +4557,71 @@ namespace netxs::console
     // console: TTY session manager.
     class link
     {
-        using work = std::thread;
         using lock = std::recursive_mutex;
         using cond = std::condition_variable_any;
+        using sptr = netxs::sptr<bell>;
 
-        bell&     owner; // link: Boss.
-        xipc      canal; // link: Data highway.
-        work      input; // link: Reading thread.
-        cond      synch; // link: Thread sync cond variable.
-        lock      mutex; // link: Thread sync mutex.
-        bool      alive; // link: Working loop state.
-        bool      ready; // link: To avoid spuritous wakeup (cv).
-        bool      focus; // link: Terminal window focus state.
-        si32      iface; // link: Platform specific UI code.
-        sysmouse  mouse; // link: Mouse state.
-        syskeybd  keybd; // link: Keyboard state.
-        bool      close; // link: Pre closing condition.
-        text      accum; // link: Accumulated unparsed input.
+        sptr owner; // link: Boss.
+        xipc canal; // link: Data highway.
+        cond synch; // link: Thread sync cond variable.
+        lock mutex; // link: Thread sync mutex.
+        bool alive; // link: Working loop state.
+        bool close; // link: Pre closing condition.
+        si32 iface; // link: Platform specific UI code.
+        text accum; // link: Accumulated unparsed input.
 
         void reader()
         {
-            log("link: id: ", std::this_thread::get_id(), " reading thread started");
+            auto thread_id = std::this_thread::get_id();
+            log("link: id: ", thread_id, " reading thread started");
             while (auto yield = canal->recv())
             {
                 auto guard = std::lock_guard{ mutex };
                 accum += yield;
-                ready = true;
                 synch.notify_one();
             }
 
             if (alive)
             {
                 log("link: signaling to close the read channel ", canal);
-                owner.SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
-                log("link: read channel close signaling completed ", canal);
+                notify(e2::conio::quit, "link: read channel is closed");
             }
-            log("link: id: ", std::this_thread::get_id(), " reading thread ended");
+            log("link: id: ", thread_id, " reading thread ended");
         }
 
     public:
-        link(bell& boss, xipc sock)
-            : owner { boss },
-              canal { sock },
-              alive { true },
-              ready { faux },
-              focus { faux },
-              close { faux },
-              iface { 0    }
+        link(sptr boss, xipc sock)
+            : owner{ boss },
+              canal{ sock },
+              alive{ true },
+              close{ faux },
+              iface{ 0    }
         { }
-        ~link()
-        {
-            canal->stop(); // Terminate all blocking calls.
-            auto id = input.get_id();
-            if (input.joinable())
-            {
-                input.join();
-            }
-            log("link: id: ", id, " reading thread joined");
-        }
 
         void output(view buffer)
         {
             canal->send(buffer);
         }
+        template<class E, class T>
+        void notify(E, T& data)
+        {
+            netxs::events::enqueue(owner, [d = data](auto& boss)
+            {
+                boss.SIGNAL(tier::release, E{}, d);
+            });
+        }
         void session(text title, svga vgamode)
         {
-            log("link: id: ", std::this_thread::get_id(), " conio session started");
-            text total;
-            auto digit = [](auto c) { return c >= '0' && c <= '9'; };
-            auto guard = std::unique_lock{ mutex };
+            auto thread_id = std::this_thread::get_id();
+            log("link: id: ", thread_id, " conio session started");
 
-            input = std::thread([&] { reader(); });
+            auto digit = [](auto c) { return c >= '0' && c <= '9'; };
+            auto mouse = sysmouse{};
+            auto keybd = syskeybd{};
+            auto focus = faux;
+            auto total = text{};
+            auto guard = std::unique_lock{ mutex };
+            auto input = std::thread([&] { reader(); });
 
             if (vgamode == svga::directvt)
             {
@@ -4646,9 +4638,8 @@ namespace netxs::console
                 if (title.size()) output(ansi::tag(title));
             }
 
-            while ((void)synch.wait(guard, [&] { return ready; }), alive)
+            while ((void)synch.wait(guard, [&] { return accum.size() || !alive; }), alive)
             {
-                ready = faux;
                 total += accum;
                 accum.clear();
                 guard.unlock();
@@ -4676,11 +4667,11 @@ namespace netxs::console
                 if (close)
                 {
                     close = faux;
-                    owner.SIGNAL(tier::release, e2::conio::preclose, close);
+                    notify(e2::conio::preclose, close);
                     if (total.front() == '\x1b') // two consecutive escapes
                     {
                         log("\t - two consecutive escapes: \n\tstrv:        ", strv);
-                        owner.SIGNAL(tier::release, e2::conio::quit, "pipe two consecutive escapes");
+                        notify(e2::conio::quit, "pipe two consecutive escapes");
                         return;
                     }
                 }
@@ -4702,14 +4693,14 @@ namespace netxs::console
                             close = true;
                             total = strv;
                             log("\t - preclose: ", canal);
-                            owner.SIGNAL(tier::release, e2::conio::preclose, close);
+                            notify(e2::conio::preclose, close);
                             break;
                         }
                         else if (strv.at(pos) == '\x1b') // two consecutive escapes
                         {
                             total.clear();
                             log("\t - two consecutive escapes: ", canal);
-                            owner.SIGNAL(tier::release, e2::conio::quit, "pipe2: two consecutive escapes");
+                            notify(e2::conio::quit, "pipe2: two consecutive escapes");
                             break;
                         }
                         #else
@@ -4717,15 +4708,15 @@ namespace netxs::console
                         {
                             // Pass Esc.
                             keybd.textline = strv.substr(0, 1);
-                            owner.SIGNAL(tier::release, e2::conio::key, keybd);
+                            notify(e2::conio::keybd, keybd);
                             total.clear();
                             break;
                         }
                         else if (strv.at(pos) == '\x1b') // two consecutive escapes
                         {
-                            //  Pass Esc.
+                            // Pass Esc.
                             keybd.textline = strv.substr(0, 1);
-                            owner.SIGNAL(tier::release, e2::conio::key, keybd);
+                            notify(e2::conio::keybd, keybd);
                             total = strv.substr(1);
                             break;
                         }
@@ -4736,14 +4727,14 @@ namespace netxs::console
                             if (strv.at(pos) == 'I')
                             {
                                 focus = true;
-                                owner.SIGNAL(tier::release, e2::conio::focus, focus);
+                                notify(e2::conio::focus, focus);
                                 log("\t - focus on ", canal);
                                 ++pos;
                             }
                             else if (strv.at(pos) == 'O')
                             {
                                 focus = faux;
-                                owner.SIGNAL(tier::release, e2::conio::focus, focus);
+                                notify(e2::conio::focus, focus);
                                 log("\t - focus off: ", canal);
                                 ++pos;
                             }
@@ -4827,12 +4818,14 @@ namespace netxs::console
                                                             mouse.button[midst] = faux;
                                                             mouse.button[other] = faux;
                                                             mouse.button[winbt] = faux;
-                                                            owner.SIGNAL(tier::release, e2::conio::mouse, mouse);
+                                                            mouse.update_buttons();
+                                                            notify(e2::conio::mouse, mouse);
                                                         }
                                                         // Moving should be fired first
                                                         if ((mouse.ismoved = mouse.coor({ x, y })))
                                                         {
-                                                            owner.SIGNAL(tier::release, e2::conio::mouse, mouse);
+                                                            mouse.update_buttons();
+                                                            notify(e2::conio::mouse, mouse);
                                                             mouse.ismoved = faux;
                                                         }
 
@@ -4872,7 +4865,8 @@ namespace netxs::console
 
                                                         if (fire)
                                                         {
-                                                            owner.SIGNAL(tier::release, e2::conio::mouse, mouse);
+                                                            mouse.update_buttons();
+                                                            notify(e2::conio::mouse, mouse);
                                                         }
                                                     }
                                                 }
@@ -4952,7 +4946,10 @@ again:
                                                                + (k_ctrl  ? hids::CTRL  : 0);
 
                                                 if (!mouse.shuffle)
-                                                    owner.SIGNAL(tier::release, e2::conio::mouse, mouse);
+                                                {
+                                                    mouse.update_buttons();
+                                                    notify(e2::conio::mouse, mouse);
+                                                }
                                                 break;
                                             }
                                             case ansi::dtvt::keybd:
@@ -5014,7 +5011,9 @@ again:
                                                         default:
                                                             //log("uc = ", uc);
                                                             if (uc)
+                                                            {
                                                                 keybd.textline = utf::to_utf_from_code(uc);
+                                                            }
                                                             break;
                                                     }
                                                 }
@@ -5022,7 +5021,7 @@ again:
                                                 {
                                                     keybd.textline.clear();
                                                 }
-                                                owner.SIGNAL(tier::release, e2::conio::key, keybd);
+                                                notify(e2::conio::keybd, keybd);
                                                 break;
                                             }
                                             case ansi::dtvt::winsz:
@@ -5030,7 +5029,7 @@ again:
                                                 si32 xsize = take();
                                                 si32 ysize = take();
                                                 twod winsz{ xsize,ysize };
-                                                owner.SIGNAL(tier::release, e2::conio::size, winsz);
+                                                notify(e2::conio::winsz, winsz);
                                                 break;
                                             }
                                             case ansi::dtvt::focus:
@@ -5038,7 +5037,7 @@ again:
                                                 //todo clear pressed keys on lost focus
                                                 si32 id    = take();
                                                 bool focus = take();
-                                                owner.SIGNAL(tier::release, e2::conio::focus, focus);
+                                                notify(e2::conio::focus, focus);
                                                 break;
                                             }
                                             default:
@@ -5057,13 +5056,15 @@ again:
                                     && tmp.at(0) == ':' && tmp.at(2) == 'p')
                                 {
                                     pos += 5 /* 25:1p */;
-                                    owner.SIGNAL(tier::release, e2::conio::native, tmp.at(1) == '1');
+                                    auto native = tmp.at(1) == '1';
+                                    notify(e2::conio::native, native);
                                 }
                                 else if (event_id == ansi::CCC_SMS && l > 2
                                     && tmp.at(0) == ':' && tmp.at(2) == 'p')
                                 {
                                     pos += 5 /* 26:1p */;
-                                    owner.SIGNAL(tier::release, e2::conio::pointer, tmp.at(1) == '1');
+                                    auto pointer = tmp.at(1) == '1';
+                                    notify(e2::conio::pointer, pointer);
                                 }
                                 else if (event_id == ansi::CCC_KBD && l > 2
                                     && tmp.at(0) == ':')
@@ -5197,7 +5198,7 @@ again:
                         if (i)
                         {
                             keybd.textline = strv.substr(0, i);
-                            owner.SIGNAL(tier::release, e2::conio::key, keybd);
+                            notify(e2::conio::keybd, keybd);
                             total = strv.substr(i);
                             strv = total;
                         }
@@ -5206,16 +5207,19 @@ again:
                 guard.lock();
             }
 
-            log("link: id: ", std::this_thread::get_id(), " conio session ended");
+            auto reader_id = input.get_id();
+            guard.unlock();
+            input.join();
+            log("link: id: ", reader_id, " reading thread joined",
+                "link: id: ", thread_id, " conio session ended");
         }
-        // link: Interrupt the run only.
+        // link: Interrupt IO.
         void shutdown ()
         {
             auto guard = std::lock_guard{ mutex };
-            canal->stop(); // Terminate all blocking calls.
             alive = faux;
-            ready = true;
-            synch.notify_one(); // Interrupt reading session.
+            canal->stop();
+            synch.notify_one();
         }
     };
 
@@ -5874,9 +5878,9 @@ again:
                 //todo hids
                 //clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
 
-                link conio{ *this, media }; // gate: Terminal IO.
+                link conio{ This(), media };          // gate: Terminal IO.
                 diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
-                subs token;                 // gate: Subscription tokens array.
+                subs token;                           // gate: Subscription tokens array.
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -5962,17 +5966,11 @@ again:
                     }
                 };
                 // conio events.
-                SUBMIT_T(tier::release, e2::conio::size, token, newsize)
+                SUBMIT_T(tier::release, e2::conio::winsz, token, newsize)
                 {
-                    //static auto i = 100;
                     auto delta = base::resize(newsize);
                     if (delta && direct)
                     {
-                        //if (i-- == 0)
-                        //{
-                        //    std::this_thread::sleep_for(5s);
-                        //    i = 100;
-                        //}
                         paint.abort_render();
                         rebuild_scene(true);
                     }

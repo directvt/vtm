@@ -7051,9 +7051,9 @@ namespace netxs::ui
                 splash.size(size);
                 splash.zoom(canvas, cell::shaders::full);
                 auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
-                            .add("             \n",
-                                 "  NO SIGNAL  \n",
-                                 "             \n") };
+                                       .add("             \n",
+                                            "  NO SIGNAL  \n",
+                                            "             \n") };
                 splash.output(note);
                 splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
                 splash.output(note);

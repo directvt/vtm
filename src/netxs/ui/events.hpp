@@ -593,6 +593,7 @@ namespace netxs::events
         std::mutex              mutex;
         std::condition_variable synch;
         std::list<item>         queue;
+        std::list<item>         cache;
         bool                    alive;
         std::thread             agent;
 
@@ -601,23 +602,29 @@ namespace netxs::events
             auto guard = std::unique_lock{ mutex };
             while (alive)
             {
-                synch.wait(guard);
-                while (alive && queue.size())
+                if (queue.empty()) synch.wait(guard);
+
+                std::swap(queue, cache);
+                guard.unlock();
+
+                while (alive && cache.size())
                 {
                     auto lock = events::sync{};
-                    auto& [ptr, proc] = queue.front();
+                    auto& [ptr, proc] = cache.front();
                     if (auto item = ptr.lock())
                     {
                         proc(*item);
                     }
-                    queue.pop_front();
+                    cache.pop_front();
                 }
+
+                guard.lock();
             }
         }
 
         enqueue_t()
             : alive{ true },
-              agent{ [&]() { worker(); } }
+              agent{ &enqueue_t::worker, this }
         { }
        ~enqueue_t()
         {

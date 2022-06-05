@@ -262,7 +262,7 @@ namespace netxs::input
         bool wheeled = faux;           // sysmouse: Vertical scroll wheel.
         bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
         si32 wheeldt = 0;              // sysmouse: Scroll delta.
-        id_t mouseid = 0;              // sysmouse: Scroll delta.
+        id_t mouseid = 0;              // sysmouse: Gear id.
 
         ui32 ctlstate = 0;
 
@@ -282,6 +282,15 @@ namespace netxs::input
                        && wheeldt == m.wheeldt;
             }
             return !result;
+        }
+        void update_buttons()
+        {
+            // Interpret button combinations
+            //todo possible bug in Apple's Terminal - it does not return the second release
+            //                                        in case the two buttons are pressed.
+            button[leftright] = (button[left     ] && button[right])
+                             || (button[leftright] && button[left ])
+                             || (button[leftright] && button[right]);
         }
     };
 
@@ -414,7 +423,7 @@ namespace netxs::input
         idxs  pressed_list;
         idxs  flipped_list;
 
-        void update(sysmouse& m)
+        void update(sysmouse const& m)
         {
             //if (m.shuffle)
             //{
@@ -423,12 +432,7 @@ namespace netxs::input
             //}
             //else
             {
-                // Interpret button combinations
-                //todo possible bug in Apple's Terminal - it does not return the second release
-                //                                        in case the two buttons are pressed.
-                if ((m.button[joint] = (m.button[first]         && m.button[other])
-                                    || (  button[joint].pressed && m.button[first])
-                                    || (  button[joint].pressed && m.button[other])))
+                if (m.button[joint])
                 {
                     if (button[first].dragged)
                     {
@@ -529,14 +533,14 @@ namespace netxs::input
                         scrll = m.wheeled;
                         hzwhl = m.hzwheel;
                         whldt = m.wheeldt;
-                        action( m.wheeldt > 0 ? scrollup : scrolldn);
+                        action(m.wheeldt > 0 ? scrollup : scrolldn);
                         scrll = faux;
                         hzwhl = faux;
                         whldt = 0;
                     }
                     else
                     {
-                        action( m.wheeldt > 0 ? scrollup : scrolldn);
+                        action(m.wheeldt > 0 ? scrollup : scrolldn);
                     }
                 }
                 else
@@ -688,7 +692,7 @@ namespace netxs::input
         wchar_t  character = 0;
         hint     cause = netxs::events::userland::hids::keybd::any.id;
 
-        void update	(syskeybd& k)
+        void update(syskeybd const& k)
         {
             virtcode    = k.virtcode;
             down        = k.down;
@@ -801,13 +805,13 @@ namespace netxs::input
         {
             return alive;
         }
-        void take(sysmouse& m)
+        void take(sysmouse const& m)
         {
             ctlstate = m.ctlstate;
             mouse::update(m);
             push = mouse::buttons();
         }
-        void take(syskeybd& k)
+        void take(syskeybd const& k)
         {
             ctlstate = k.ctlstate;
             keybd::update(k);

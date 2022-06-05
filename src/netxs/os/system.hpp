@@ -1929,7 +1929,7 @@ namespace netxs::os
         pool()
             : count{ 0    },
               alive{ true },
-              agent{ [&]() { worker(); }}
+              agent{ &pool::worker, this }
         { }
         ~pool()
         {
