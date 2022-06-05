@@ -366,7 +366,7 @@ namespace netxs::app::shared
                     if (!area.size.inside(gear.coord))
                     {
                         auto center = area.coor + (area.size / 2);
-                        bell::getref(gear.id)->SIGNAL(tier::release, e2::form::layout::shift, center);
+                        bell::getref(gear.topid)->SIGNAL(tier::release, e2::form::layout::shift, center);
                     }
                     boss.base::deface();
                 };
@@ -540,7 +540,7 @@ namespace netxs::app::shared
                         //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
                         //    if (actual_rect.hittest(gear.coord))
                         //    {
-                        //        if (auto gate_ptr = bell::getref(gear.id))
+                        //        if (auto gate_ptr = bell::getref(gear.topid))
                         //        {
                         //            rect viewport;
                         //            gate_ptr->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
@@ -582,7 +582,7 @@ namespace netxs::app::shared
                             boss.base::template riseup<tier::preview>(e2::form::prop::zorder, Z_order::backmost);
                             parent.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                             {
-                                if (auto gate_ptr = bell::getref(gear.id))
+                                if (auto gate_ptr = bell::getref(gear.topid))
                                 {
                                     auto old_title = decltype(e2::form::prop::ui::header)::type{};
                                     boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
@@ -1093,7 +1093,7 @@ namespace netxs::app::shared
         world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
         {
             static si32 insts_count = 0;
-            if (auto gate_ptr = bell::getref(gear.id))
+            if (auto gate_ptr = bell::getref(gear.topid))
             {
                 auto& gate = *gate_ptr;
                 auto location = gear.slot;

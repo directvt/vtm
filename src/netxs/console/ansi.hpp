@@ -584,7 +584,7 @@ namespace netxs::ansi
                                 uc, ';');
         }
         // esc: DTVT-input-mode sequence (mouse).
-        esc& dtvt_mouse(si32 id, si32 bttns, si32 ctrls, si32 flags, si32 wheel, si32 xcoor, si32 ycoor)
+        esc& dtvt_mouse(si32 id, si32 bttns = -1, si32 ctrls = 0, si32 flags = 0, si32 wheel = 0, si32 xcoor = 0, si32 ycoor = 0)
         {
             return add(dtvt::mouse, ':',
                                 id, ':',

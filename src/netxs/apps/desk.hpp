@@ -50,7 +50,7 @@ namespace netxs::app::desk
                                 inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
                                 auto& area = inst.base::area();
                                 auto center = area.coor + (area.size / 2);
-                                bell::getref(gear.id)->SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
+                                bell::getref(gear.topid)->SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
                                 gear.pass_kb_focus(inst);
                                 gear.dismiss();
                             }
@@ -184,7 +184,7 @@ namespace netxs::app::desk
                                          //           inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
                                          //           auto& area = inst.base::area();
                                          //           auto center = area.coor + (area.size / 2);
-                                         //           bell::getref(gear.id)->
+                                         //           bell::getref(gear.topid)->
                                          //           SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
                                          //           gear.pass_kb_focus(inst);
                                          //           gear.dismiss();
@@ -459,7 +459,7 @@ namespace netxs::app::desk
                                                             {
                                                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                                                 {
-                                                                    if (auto owner = base::getref(gear.id))
+                                                                    if (auto owner = base::getref(gear.topid))
                                                                     {
                                                                         owner->SIGNAL(tier::release, e2::conio::quit, "taskbar: logout by button");
                                                                         gear.dismiss();

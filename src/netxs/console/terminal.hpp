@@ -198,7 +198,7 @@ namespace netxs::ui
             { }
 
             operator bool () { return state != mode::none; }
-            void enable (mode m)
+            void enable(mode m)
             {
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed
@@ -229,7 +229,7 @@ namespace netxs::ui
                     };
                     owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                     {
-                        log("term: hids::events::die, id = ", gear.id);
+                        log("term: hids::events::die, id = ", gear.topid);
                         auto cause = hids::events::die.id;
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
@@ -6064,7 +6064,7 @@ namespace netxs::ui
                 auto data = console.selection_pickup(selmod);
                 if (data.size())
                 {
-                    if (auto gate_ptr = bell::getref(gear.id))
+                    if (auto gate_ptr = bell::getref(gear.topid))
                     {
                         auto state = gear.state();
                         gear.combine_focus = true;
@@ -6087,7 +6087,7 @@ namespace netxs::ui
                     return;
                 #endif
 
-                if (auto gate_ptr = bell::getref(gear.id))
+                if (auto gate_ptr = bell::getref(gear.topid))
                 {
                     auto data = decltype(e2::command::clipboard::get)::type{};
                     gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
@@ -6232,7 +6232,7 @@ namespace netxs::ui
             }
             else
             {
-                if (auto gate_ptr = bell::getref(gear.id))
+                if (auto gate_ptr = bell::getref(gear.topid))
                 {
                     auto data = decltype(e2::command::clipboard::get)::type{};
                     gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
@@ -6557,95 +6557,14 @@ namespace netxs::ui
     class dtvt
         : public ui::form<dtvt>
     {
-        // dtvt: VT-style mouse tracking functionality.
-        struct m_tracking
+        // dtvt: DTVT-style mouse tracking functionality.
+        class m_tracking
         {
-            enum mode
-            {
-                none = 0,
-                bttn = 1 << 0,
-                drag = 1 << 1,
-                move = 1 << 2,
-                over = 1 << 3,
-                buttons_press = bttn,
-                buttons_drags = bttn | drag,
-                all_movements = bttn | drag | move,
-                negative_args = bttn | drag | move | over,
-            };
-            enum prot
-            {
-                x11,
-                sgr,
-            };
-
-            m_tracking(dtvt& owner)
-                : owner{ owner }
-            { }
-
-            operator bool () { return state != mode::none; }
-            void leave(hids& gear)
-            {
-                log("dtvt: dtvt::die, id = ", gear.id);
-                auto cause = hids::events::die.id;
-                if (proto == sgr) serialize<sgr>(gear, cause);
-                else              serialize<x11>(gear, cause);
-                owner.answer(queue);
-            }
-            void enable (mode m)
-            {
-                state |= m;
-                if (state && !token.count()) // Do not subscribe if it is already subscribed
-                {
-                    //owner.SUBMIT_T(tier::release, hids::events::mouse::scroll::any, token, gear)
-                    //{
-                    //    if (owner.selmod == xsgr::disabled)
-                    //    {
-                    //        gear.dismiss();
-                    //    }
-                    //};
-                    owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
-                    {
-                        //if (owner.selmod != xsgr::disabled)
-                        //{
-                        //    owner.bell::router<tier::release>().skip();
-                        //    return;
-                        //}
-                        //auto& console = *owner.target;
-                        //auto c = gear.coord;
-                        //c.y -= console.get_basis();
-                        //moved = coord((state & mode::over) ? c
-                        //                                   : std::clamp(c, dot_00, console.panel - dot_11));
-                        moved = coord(gear.coord);
-                        auto cause = owner.bell::protos<tier::release>();
-                        if (proto == sgr) serialize<sgr>(gear, cause);
-                        else              serialize<x11>(gear, cause);
-                        owner.answer(queue);
-                    };
-                    owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
-                    {
-                        leave(gear);
-                    };
-                    //smode = owner.selmod;
-                }
-                //owner.selection_selmod(xsgr::disabled);
-            }
-            void disable(mode m = mode::negative_args)
-            {
-                state &= ~(m);
-                if (!state) token.clear();
-                //owner.selection_selmod(smode);
-            }
-            void setmode(prot p) { proto = p; }
-
-        private:
             dtvt&       owner; // m_tracking: Terminal object reference.
             testy<twod> coord; // m_tracking: Last coord of mouse cursor.
             ansi::esc   queue; // m_tracking: Buffer.
             subs        token; // m_tracking: Subscription token.
-            bool        moved = faux;
-            si32        proto = prot::sgr;
-            si32        state = mode::none;
-            //si32        smode = xsgr::disabled; // m_tracking: Selection mode state backup.
+            bool        moved; // m_tracking: .
 
             void capture(hids& gear)
             {
@@ -6657,80 +6576,112 @@ namespace netxs::ui
                 if (gear.captured(owner.id)) gear.release(faux);
                 gear.dismiss();
             }
-            template<prot PROT>
-            void proceed(hids& gear, si32 meta, bool ispressed = faux)
+            void proceed(hids& gear)
             {
-                meta |= gear.meta(hids::SHIFT | hids::ALT | hids::CTRL);
-                meta |= gear.meta(hids::RCTRL) ? hids::CTRL : 0;
-                switch (PROT)
-                {
-                    case prot::x11: queue.mouse_x11(meta, coord);            break;
-                    case prot::sgr: queue.mouse_sgr(meta, coord, ispressed); break;
-                    default: break;
-                }
+                auto coor = gear.coord;
+                auto buttons = gear.buttons();
+                auto meta = gear.meta();
+                auto flags = (gear.whldt ? (1 << 2) : 0)
+                           | (gear.hzwhl ? (1 << 3) : 0);
+                auto wheeldt = gear.whldt;
+                queue.dtvt_begin()
+                     .dtvt_mouse(gear.ownid,
+                                 buttons,
+                                 meta,
+                                 flags,
+                                 wheeldt,
+                                 coor.x,
+                                 coor.y)
+                     .dtvt_close();
+                log("dtvt: ", utf::debase(queue));
+                owner.answer(queue);
             }
-            // m_tracking: Serialize mouse state.
-            template<prot PROT>
+            void leave(hids& gear)
+            {
+                log("dtvt: mouse::die, id = ", gear.ownid);
+                release(gear);
+                queue.dtvt_begin()
+                     .dtvt_mouse(gear.ownid)
+                     .dtvt_close();
+                log("dtvt: ", utf::debase(queue));
+                owner.answer(queue);
+            }
+            void outside(hids& gear)
+            {
+                log("dtvt: mouse::outside, id = ", gear.ownid);
+                queue.dtvt_begin()
+                     .dtvt_mouse(gear.ownid)
+                     .dtvt_close();
+                log("dtvt: ", utf::debase(queue));
+                owner.answer(queue);
+            }
             void serialize(hids& gear, id_t cause)
             {
                 using m = hids::events::mouse;
                 using b = hids::events::mouse::button;
-                constexpr static si32 left = 0;
-                constexpr static si32 mddl = 1;
-                constexpr static si32 rght = 2;
-                constexpr static si32 btup = 3;
-                constexpr static si32 idle = 32;
-                constexpr static si32 wheel_up = 64;
-                constexpr static si32 wheel_dn = 65;
-                constexpr static si32 up_left = PROT == sgr ? left : btup;
-                constexpr static si32 up_rght = PROT == sgr ? rght : btup;
-                constexpr static si32 up_mddl = PROT == sgr ? mddl : btup;
 
-                auto ismove = moved && state & mode::move;
-                auto isdrag = moved && state & mode::drag;
+                auto active = faux;
                 switch (cause)
                 {
                     // Move
                     case b::drag::pull::leftright.id:
-                    case b::drag::pull::left     .id: if (isdrag) proceed<PROT>(gear, idle + left, true); break;
-                    case b::drag::pull::middle   .id: if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
-                    case b::drag::pull::right    .id: if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
-                    case m::move                 .id: if (ismove) proceed<PROT>(gear, idle + btup, faux); break;
+                    case b::drag::pull::left     .id: active = moved; break;
+                    case b::drag::pull::middle   .id: active = moved; break;
+                    case b::drag::pull::right    .id: active = moved; break;
+                    case m::move                 .id: active = moved; break;
                     // Press
                     case b::down::leftright.id: capture(gear); break;
-                    case b::down::left     .id: capture(gear); proceed<PROT>(gear, left, true); break;
-                    case b::down::middle   .id: capture(gear); proceed<PROT>(gear, mddl, true); break;
-                    case b::down::right    .id: capture(gear); proceed<PROT>(gear, rght, true); break;
+                    case b::down::left     .id: capture(gear); active = true; break;
+                    case b::down::middle   .id: capture(gear); active = true; break;
+                    case b::down::right    .id: capture(gear); active = true; break;
                     // Release
                     case b::up::leftright.id:   release(gear); break;
-                    case b::up::left     .id:   release(gear); proceed<PROT>(gear, up_left); break;
-                    case b::up::middle   .id:   release(gear); proceed<PROT>(gear, up_mddl); break;
-                    case b::up::right    .id:   release(gear); proceed<PROT>(gear, up_rght); break;
+                    case b::up::left     .id:   release(gear); active = true; break;
+                    case b::up::middle   .id:   release(gear); active = true; break;
+                    case b::up::right    .id:   release(gear); active = true; break;
                     // Wheel
-                    case m::scroll::up  .id: proceed<PROT>(gear, wheel_up, true); break;
-                    case m::scroll::down.id: proceed<PROT>(gear, wheel_dn, true); break;
+                    case m::scroll::up  .id: active = true; break;
+                    case m::scroll::down.id: active = true; break;
                     // Gone
                     case hids::events::die.id:
                         release(gear);
-                            //todo unify
-                            coord(owner.base::size() / 2);
-                            proceed<PROT>(gear, faux);
-                        if (auto buttons = gear.buttons())
-                        {
-                            // Release pressed mouse buttons.
-                            if (buttons | sysmouse::left)   proceed<PROT>(gear, up_left);
-                            if (buttons | sysmouse::middle) proceed<PROT>(gear, up_mddl);
-                            if (buttons | sysmouse::right)  proceed<PROT>(gear, up_rght);
-                        }
+                        active = true;
                         break;
                     default:
                         break;
                 }
+                if (active) proceed(gear);
             }
-        }mtrack{*this};
+
+        public:
+            void disable()
+            {
+                token.clear();
+            }
+
+            m_tracking(dtvt& owner)
+                : owner{ owner }
+            {
+                owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
+                {
+                    moved = coord(gear.coord);
+                    auto cause = owner.bell::protos<tier::release>();
+                    serialize(gear, cause);
+                };
+                owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
+                {
+                    leave(gear);
+                };
+                owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
+                {
+                    outside(gear);
+                };
+            }
+        };
 
         using sync = std::condition_variable;
 
+        m_tracking      mtrack; // dtvt: .
         os::direct::pty ptycon; // dtvt: PTY device.
         text            cmdarg; // dtvt: Startup command line arguments.
         bool            active; // dtvt: Terminal lifetime.
@@ -6924,13 +6875,13 @@ namespace netxs::ui
 
         testy<twod> coord;
         dtvt(text command_line)
-            : active{ true },
+            : mtrack{*this },
+              active{ true },
               nodata{ faux }
         {
             marker.link(base::id);
             cmdarg = command_line;
             form::keybd.accept(true); // Subscribe on keybd offers.
-            mtrack.enable(m_tracking::mode::negative_args);
             //SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             //{
             //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
@@ -6939,22 +6890,22 @@ namespace netxs::ui
             //todo enumerate all gears and pass it to the dtvt instance
             SUBMIT(tier::general, hids::events::spawn, gear)
             {
-                log("dtvt: hids::events::spawn, id = ", gear.id);
+                log("dtvt: hids::events::spawn, id = ", gear.ownid);
                 auto cause = hids::events::spawn.id;
             };
             //SUBMIT(tier::general, hids::events::die, gear)
             //{
-            //    log("dtvt: hids::events::die, id = ", gear.id);
+            //    log("dtvt: hids::events::die, id = ", gear.ownid);
             //    auto cause = hids::events::die.id;
             //};
             SUBMIT(tier::release, hids::events::notify::mouse::enter, gear)
             {
-                log("dtvt: notify::mouse::enter, id = ", gear.id);
+                log("dtvt: notify::mouse::enter, id = ", gear.ownid);
                 //gear.capture(base::id);
             };
             SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
-                //log("dtvt: mouse::move, id = ", gear.id, " coord: ", gear.coord);
+                //log("dtvt: mouse::move, id = ", gear.ownid, " coord: ", gear.coord);
                 auto area = base::area();
                 if (coord(gear.coord)
                  && gear.captured(base::id)
@@ -6964,12 +6915,7 @@ namespace netxs::ui
                     //gear.release();
                 }
             };
-            SUBMIT(tier::release, hids::events::notify::mouse::leave, gear)
-            {
-                log("dtvt: notify::mouse::leave, id = ", gear.id);
-                mtrack.leave(gear);
-                //gear.release();
-            };
+
 
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;

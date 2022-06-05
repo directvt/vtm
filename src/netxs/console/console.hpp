@@ -1310,15 +1310,15 @@ namespace netxs::console
                 {
                     for (auto& item : items) // Linear search, because a few items.
                     {
-                        if (item.id == gear.id) return item;
+                        if (item.id == gear.ownid) return item;
                     }
 
                     if constexpr (CONST_WARN)
                     {
-                        log("sock: error: access to unregistered input device, id: ", gear.id);
+                        log("sock: error: access to unregistered input device, id: ", gear.ownid);
                     }
 
-                    return items.emplace_back(gear.id);
+                    return items.emplace_back(gear.ownid);
                 }
                 template<class P>
                 void foreach(P proc)
@@ -1343,7 +1343,7 @@ namespace netxs::console
                 void del(hids& gear)
                 {
                     for (auto& item : items) // Linear search, because a few items.
-                        if (item.id == gear.id)
+                        if (item.id == gear.ownid)
                         {
                             if (items.size() > 1) item = items.back(); // Remove an item without allocations.
                             items.pop_back();
@@ -1734,8 +1734,9 @@ namespace netxs::console
 
         public:
             align(base&&) = delete;
-            align(base& boss, bool maximize = true) : skill{ boss },
-                weak{}
+            align(base& boss, bool maximize = true)
+                : skill{ boss },
+                   weak{}
             {
                 boss.SUBMIT_T(tier::release, e2::config::plugins::align, memo, set)
                 {
@@ -1746,8 +1747,8 @@ namespace netxs::console
                             auto size = boss.base::size();
                             if (size.inside(gear.coord))
                             {
-                                if (seized(gear.id)) unbind();
-                                else                 follow(gear.id, dot_00);
+                                if (seized(gear.topid)) unbind();
+                                else                    follow(gear.topid, dot_00);
                             }
                         };
                     }
@@ -2186,7 +2187,7 @@ namespace netxs::console
 
             void check_modifiers(hids& gear)
             {
-                auto& data = slots[gear.id];
+                auto& data = slots[gear.ownid];
                 auto state = !!gear.meta(hids::ANYCTRL);
                 if (data.ctrl != state)
                 {
@@ -2198,7 +2199,7 @@ namespace netxs::console
             {
                 if (gear.capture(boss.bell::id))
                 {
-                    auto& data = slots[gear.id];
+                    auto& data = slots[gear.ownid];
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
@@ -2215,7 +2216,7 @@ namespace netxs::console
                 if (gear.captured(boss.bell::id))
                 {
                     check_modifiers(gear);
-                    auto& data = slots[gear.id];
+                    auto& data = slots[gear.ownid];
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
@@ -2231,7 +2232,7 @@ namespace netxs::console
             {
                 if (gear.captured(boss.bell::id))
                 {
-                    slots.erase(gear.id);
+                    slots.erase(gear.ownid);
                     gear.dismiss();
                     gear.release();
                 }
@@ -2241,13 +2242,13 @@ namespace netxs::console
                 if (gear.captured(boss.bell::id))
                 {
                     check_modifiers(gear);
-                    auto& data = slots[gear.id];
+                    auto& data = slots[gear.ownid];
                     if (data.slot)
                     {
                         gear.slot = data.slot;
                         boss.SIGNAL(tier::preview, e2::form::proceed::createby, gear);
                     }
-                    slots.erase(gear.id);
+                    slots.erase(gear.ownid);
                     gear.dismiss();
                     gear.release();
                 }
@@ -3339,8 +3340,17 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, mousestate)
                 {
+                    log("input: ", mousestate.mouseid, " ", mousestate.coor);
+
                     auto gear_it = gears.find(mousestate.mouseid);
-                    if (gear_it == gears.end())
+                    if (mousestate.outside)
+                    {
+                        if (gear_it != gears.end())
+                        {
+                            gears.erase(gear_it);
+                        }
+                    }
+                    else if (gear_it == gears.end())
                     {
                         auto id = mousestate.mouseid;
                         gear_it = gears.emplace(id, hids{ boss, xmap, id }).first;
@@ -3814,7 +3824,7 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
                     boss.template riseup<tier::preview>(e2::form::highlight::any, true);
-                    pool.push_back(gear.id);
+                    pool.push_back(gear.topid);
                     boss.base::deface();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
@@ -3826,7 +3836,7 @@ namespace netxs::console
                     {
                         auto head = pool.begin();
                         auto tail = pool.end();
-                        auto item = std::find_if(head, tail, [&](auto& c) { return c == gear.id; });
+                        auto item = std::find_if(head, tail, [&](auto& c) { return c == gear.topid; });
                         if (item != tail)
                         {
                             pool.erase(item);
@@ -4707,6 +4717,7 @@ namespace netxs::console
                         if (pos == len) // the only one esc
                         {
                             // Pass Esc.
+                            keybd.keybdid = owner->id;
                             keybd.textline = strv.substr(0, 1);
                             notify(e2::conio::keybd, keybd);
                             total.clear();
@@ -4715,6 +4726,7 @@ namespace netxs::console
                         else if (strv.at(pos) == '\x1b') // two consecutive escapes
                         {
                             // Pass Esc.
+                            keybd.keybdid = owner->id;
                             keybd.textline = strv.substr(0, 1);
                             notify(e2::conio::keybd, keybd);
                             total = strv.substr(1);
@@ -4794,6 +4806,7 @@ namespace netxs::console
                                                         //if ( mouse.ctlstate ) log(" mouse.ctlstate =",  mouse.ctlstate );
                                                         ctl = ctl & ~0b00011100;
 
+                                                        mouse.mouseid = owner->id;
                                                         mouse.wheeled = faux;
                                                         mouse.wheeldt = 0;
                                                         mouse.shuffle = faux;
@@ -4926,6 +4939,8 @@ again:
                                                 mouse.button[2] = bttns & (1 << 3); // FROM_LEFT_3RD_BUTTON_PRESSED;
                                                 mouse.button[4] = bttns & (1 << 4); // FROM_LEFT_4TH_BUTTON_PRESSED;
 
+                                                mouse.mouseid = id ? id : owner->id;
+                                                mouse.outside = bttns == -1;
                                                 mouse.ismoved = mouse.coor(coord);
                                                 mouse.shuffle = !mouse.ismoved && (flags & (1 << 0)); // MOUSE_MOVED
                                                 // Makes no sense (ignored)
@@ -4961,6 +4976,7 @@ again:
                                                 si32 ks = take();
                                                 si32 rc = take();
                                                 si32 uc = take();
+                                                keybd.keybdid     = id ? id : owner->id;
                                                 keybd.virtcode    = kc;
                                                 keybd.ctlstate    = ks & 0x1f; // only modifiers
                                                 keybd.down        = kd;
@@ -5197,6 +5213,7 @@ again:
 
                         if (i)
                         {
+                            keybd.keybdid = owner->id;
                             keybd.textline = strv.substr(0, i);
                             notify(e2::conio::keybd, keybd);
                             total = strv.substr(i);

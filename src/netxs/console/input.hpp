@@ -256,6 +256,7 @@ namespace netxs::input
         twod coor = dot_mx;            // sysmouse: Cursor coordinates.
         bool button[numofbutton] = {}; // sysmouse: Button states.
 
+        bool outside = faux;           // sysmouse: It is gone.
         bool ismoved = faux;           // sysmouse: Movement through the cells.
         bool shuffle = faux;           // sysmouse: Movement inside the cell.
         bool doubled = faux;           // sysmouse: Double click.
@@ -735,7 +736,8 @@ namespace netxs::input
         static constexpr auto gone_event    = events::die                 .id;
 
     public:
-        id_t const& id;    // hids: Owner/gear ID.
+        id_t const& topid; // hids: Owner/gear ID.
+        id_t const& ownid; // hids: Instance ID.
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
@@ -746,7 +748,6 @@ namespace netxs::input
         bool force_group_focus = faux;
         bool combine_focus = faux;
         si32 countdown = 0;
-        id_t ext_id = 0;
         si32 push = 0; // hids: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
         auto state()
@@ -777,13 +778,13 @@ namespace netxs::input
         auto meta(ui32 ctl_key = -1) { return hids::ctlstate & ctl_key; }
 
         template<class T>
-        hids(T& owner, xmap const& idmap, id_t ext_id)
-            : relay { 0        },
-              owner { owner    },
-              id    { owner.id },
-              idmap { idmap    },
-              ext_id{ ext_id   },
-              alive { faux     }
+        hids(T& owner, xmap const& idmap, id_t ownid)
+            : relay{ 0        },
+              owner{ owner    },
+              topid{ owner.id },
+              idmap{ idmap    },
+              ownid{ ownid    },
+              alive{ faux     }
         { }
         ~hids()
         {
@@ -850,7 +851,7 @@ namespace netxs::input
         }
         void mouse_leave()
         {
-            log("hids: mouse leave, id ", id);
+            log("hids: mouse leave, top id ", topid);
             mouse_leave(mouse::hover, mouse::start);
         }
         void take_mouse_focus(bell& boss)
@@ -900,7 +901,7 @@ namespace netxs::input
                 if (!alive) return;
 
                 auto next = idmap.link(mouse::coord);
-                if (next != id)
+                if (next != topid)
                 {
                     relay = next;
                     pass<tier::preview>(bell::getref(next), offset, true);
