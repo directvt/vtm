@@ -139,7 +139,7 @@ namespace netxs::console
                     recalc();
                     gear.dismiss();
                 };
-                boss.SUBMIT_T(tier::general, hids::events::die, memo, gear)
+                boss.SUBMIT_T(tier::general, hids::events::halt, memo, gear)
                 {
                     recalc();
                     boss.deface();

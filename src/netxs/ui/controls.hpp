@@ -1427,7 +1427,7 @@ namespace netxs::ui
                     giveup(gear);
                 }
             };
-            SUBMIT(tier::general, hids::events::die, gear)
+            SUBMIT(tier::general, hids::events::halt, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1967,7 +1967,7 @@ namespace netxs::ui
             {
                 giveup(gear);
             };
-            SUBMIT(tier::general, hids::events::die, gear)
+            SUBMIT(tier::general, hids::events::halt, gear)
             {
                 giveup(gear);
             };
@@ -2341,7 +2341,7 @@ namespace netxs::ui
             {
                 giveup(gear);
             };
-            SUBMIT(tier::general, hids::events::die, gear)
+            SUBMIT(tier::general, hids::events::halt, gear)
             {
                 giveup(gear);
             };
@@ -2852,7 +2852,7 @@ namespace netxs::ui
                 {
                     giveup(gear);
                 };
-                grip_ctl->SUBMIT(tier::general, hids::events::die, gear)
+                grip_ctl->SUBMIT(tier::general, hids::events::halt, gear)
                 {
                     giveup(gear);
                 };

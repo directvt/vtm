@@ -227,10 +227,10 @@ namespace netxs::ui
                         else              serialize<x11>(gear, cause);
                         owner.answer(queue);
                     };
-                    owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
+                    owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                     {
-                        log("term: hids::events::die, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
-                        auto cause = hids::events::die.id;
+                        log("term: hids::events::halt, ", gear.id);
+                        auto cause = hids::events::halt.id;
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
                         owner.answer(queue);
@@ -320,7 +320,7 @@ namespace netxs::ui
                     case m::scroll::up  .id: proceed<PROT>(gear, wheel_up, true); break;
                     case m::scroll::down.id: proceed<PROT>(gear, wheel_dn, true); break;
                     // Gone
-                    case hids::events::die.id:
+                    case hids::events::halt.id:
                         release(gear);
                         if (auto buttons = gear.buttons())
                         {
@@ -6576,7 +6576,7 @@ namespace netxs::ui
                 if (gear.captured(owner.id)) gear.release(faux);
                 gear.dismiss();
             }
-            void proceed(hids& gear)
+            void serialize(hids& gear)
             {
                 auto coor = gear.coord;
                 auto buttons = gear.buttons();
@@ -6596,26 +6596,26 @@ namespace netxs::ui
                 log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
-            void leave(hids& gear)
+            void gone(hids& gear)
             {
-                log("dtvt: mouse::die, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
+                log("dtvt: mouse::die, ", gear.id);
                 release(gear);
                 queue.dtvt_begin()
-                     .dtvt_mouse(gear.id.sub)
+                     .dtvt_mouse_stop(gear.id.sub)
                      .dtvt_close();
                 log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
-            void outside(hids& gear)
+            void leave(hids& gear)
             {
-                log("dtvt: mouse::outside, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
+                log("dtvt: mouse::halt, ", gear.id);
                 queue.dtvt_begin()
-                     .dtvt_mouse(gear.id.sub)
+                     .dtvt_mouse_halt(gear.id.sub)
                      .dtvt_close();
                 log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
-            void serialize(hids& gear, id_t cause)
+            void proceed(hids& gear, id_t cause)
             {
                 using m = hids::events::mouse;
                 using b = hids::events::mouse::button;
@@ -6642,15 +6642,10 @@ namespace netxs::ui
                     // Wheel
                     case m::scroll::up  .id: active = true; break;
                     case m::scroll::down.id: active = true; break;
-                    // Gone
-                    case hids::events::die.id:
-                        release(gear);
-                        active = true;
-                        break;
                     default:
                         break;
                 }
-                if (active) proceed(gear);
+                if (active) serialize(gear);
             }
 
         public:
@@ -6666,15 +6661,22 @@ namespace netxs::ui
                 {
                     moved = coord(gear.coord);
                     auto cause = owner.bell::protos<tier::release>();
-                    serialize(gear, cause);
+                    proceed(gear, cause);
                 };
                 owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                 {
+                    log("dtvt: die ", gear.id);
+                    gone(gear);
+                };
+                owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
+                {
+                    log("dtvt: halt ", gear.id);
                     leave(gear);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
                 {
-                    outside(gear);
+                    log("dtvt: leave ", gear.id);
+                    leave(gear);
                 };
             }
         };
@@ -6887,36 +6889,6 @@ namespace netxs::ui
             //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
             //};
 
-            //todo enumerate all gears and pass it to the dtvt instance
-            SUBMIT(tier::general, hids::events::spawn, gear)
-            {
-                log("dtvt: hids::events::spawn, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
-                auto cause = hids::events::spawn.id;
-            };
-            //SUBMIT(tier::general, hids::events::die, gear)
-            //{
-            //    log("dtvt: hids::events::die, id = ", gear.id);
-            //    auto cause = hids::events::die.id;
-            //};
-            SUBMIT(tier::release, hids::events::notify::mouse::enter, gear)
-            {
-                log("dtvt: notify::mouse::enter, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
-                //gear.capture(base::id);
-            };
-            SUBMIT(tier::release, hids::events::mouse::move, gear)
-            {
-                //log("dtvt: mouse::move, id = ", gear.id, " coord: ", gear.coord);
-                auto area = base::area();
-                if (coord(gear.coord)
-                 && gear.captured(base::id)
-                 && !area.hittest(coord)
-                 && !gear.buttons())
-                {
-                    //gear.release();
-                }
-            };
-
-
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
             auto fps = decltype(e2::config::fps)::type{ -1 };
@@ -6945,6 +6917,7 @@ namespace netxs::ui
                 #endif
 
                 auto data = gear.keystrokes;
+                //todo gear.id + raw_keybd_data
                 ptycon.write(data);
 
                 #ifdef KEYLOG

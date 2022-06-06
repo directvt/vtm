@@ -16,7 +16,8 @@ namespace netxs::events::userland
     {
         EVENTPACK( hids, netxs::events::userland::root::hids )
         {
-            EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone.
+            EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
+            EVENT_XS( halt   , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
@@ -37,7 +38,7 @@ namespace netxs::events::userland
                 SUBSET_XS( mouse )
                 {
                     EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
-                    EVENT_XS( leave, input::hids ), // inform the form about the mouse leave.
+                    EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
                 };
                 SUBSET_XS( keybd )
                 {
@@ -253,11 +254,17 @@ namespace netxs::input
             win       = usable::win      .index(),
             total     = numofbutton,
         };
+        enum class stat
+        {
+            ok,
+            halt,
+            die,
+        };
 
         twod coor = dot_mx;            // sysmouse: Cursor coordinates.
+        stat status = stat::ok;        // sysmouse: Mouse status.
         bool button[numofbutton] = {}; // sysmouse: Button states.
 
-        bool outside = faux;           // sysmouse: It is gone.
         bool ismoved = faux;           // sysmouse: Movement through the cells.
         bool shuffle = faux;           // sysmouse: Movement inside the cell.
         bool doubled = faux;           // sysmouse: Double click.
@@ -351,6 +358,7 @@ namespace netxs::input
         using tail = netxs::datetime::tail<twod>;
         using idxs = std::vector<si32>;
         using mouse_event = netxs::events::userland::hids::mouse;
+
         enum bttns
         {
             first = sysmouse::left     ,
@@ -361,6 +369,7 @@ namespace netxs::input
             joint = sysmouse::leftright,
             total = sysmouse::total    ,
         };
+
         constexpr static auto dragstrt = mouse_event::button::drag::start:: any.group<total>();
         constexpr static auto dragpull = mouse_event::button::drag::pull::  any.group<total>();
         constexpr static auto dragcncl = mouse_event::button::drag::cancel::any.group<total>();
@@ -734,7 +743,8 @@ namespace netxs::input
         static constexpr auto focus_take    = events::notify::keybd::got  .id;
         static constexpr auto focus_lost    = events::notify::keybd::lost .id;
         static constexpr auto kboffer_event = events::upevent::kboffer    .id;
-        static constexpr auto gone_event    = events::die                 .id;
+        static constexpr auto halt_event    = events::halt                .id;
+        static constexpr auto die_event     = events::die                 .id;
 
     public:
         idid const id; // hids: Instance ID and Owner/gear ID.
@@ -743,6 +753,7 @@ namespace netxs::input
         rect slot; // slot for pro::maker and e2::createby.
 
         //todo unify
+        bool disabled = faux;
         bool single_instance = faux;
         bool kb_focus_taken = faux;
         bool force_group_focus = faux;
@@ -788,9 +799,11 @@ namespace netxs::input
         ~hids()
         {
             netxs::events::sync lock;
-            mouse_leave();
+            log("hids: mouse leave, ", id);
+            mouse_leave(mouse::hover, mouse::start);
             clear_kb_focus();
-            bell::signal_global(gone_event, *this);
+            bell::signal_global(halt_event, *this);
+            bell::signal_global(die_event, *this);
         }
 
         // hids: Stop handeling this event.
@@ -808,6 +821,7 @@ namespace netxs::input
         void take(sysmouse const& m)
         {
             ctlstate = m.ctlstate;
+            disabled = faux;
             mouse::update(m);
             push = mouse::buttons();
         }
@@ -845,13 +859,8 @@ namespace netxs::input
                     last->bell::template signal<tier::release>(leave_event, *this);
                     mouse::start = start;
                 }
-                else log("hids: error condition: Clients count is broken, dangling id ", last_id);
+                else log("hids: error condition: Clients count is broken, dangling ", last_id);
             }
-        }
-        void mouse_leave()
-        {
-            log("hids: mouse leave, gate id: ", id.top, " inst id: ", id.sub);
-            mouse_leave(mouse::hover, mouse::start);
         }
         void take_mouse_focus(bell& boss)
         {
@@ -867,6 +876,13 @@ namespace netxs::input
                 mouse::hover = boss.id;
             }
         }
+        void deactivate()
+        {
+            take_mouse_focus(owner);
+            bell::signal_global(halt_event, *this);
+            disabled = true;
+            log("hids: mouse deactivated, ", id);
+        }
         void okay(bell& boss)
         {
             if (boss.id == relay)
@@ -877,6 +893,8 @@ namespace netxs::input
         }
         void fire(hint cause)
         {
+            if (disabled) return;
+
             alive = true;
             mouse::cause = cause;
             mouse::coord = mouse::prime;

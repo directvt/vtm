@@ -1301,7 +1301,7 @@ namespace netxs::console
 
                 socks()
                 {
-                    SUBMIT_GLOBAL(hids::events::die, token, gear)
+                    SUBMIT_GLOBAL(hids::events::halt, token, gear)
                     {
                         del(gear);
                     };
@@ -1316,7 +1316,7 @@ namespace netxs::console
 
                     if constexpr (CONST_WARN)
                     {
-                        log("sock: error: access to unregistered input device, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
+                        log("sock: error: access to unregistered input device, ", gear.id);
                     }
 
                     return items.emplace_back(gear.id);
@@ -2309,7 +2309,7 @@ namespace netxs::console
                     handle_stop(gear);
                 };
 
-                boss.SUBMIT_T(tier::general, hids::events::die, memo, gear)
+                boss.SUBMIT_T(tier::general, hids::events::halt, memo, gear)
                 {
                     handle_drop(gear);
                 };
@@ -3279,7 +3279,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_T(tier::general, hids::events::die, dragmemo[BUTTON], gear)
+                    boss.SUBMIT_T(tier::general, hids::events::halt, dragmemo[BUTTON], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3348,11 +3348,20 @@ namespace netxs::console
                     log("input: ", mousestate.mouseid, " ", mousestate.coor);
 
                     auto gear_it = gears.find(mousestate.mouseid);
-                    if (mousestate.outside)
+                    if (mousestate.status != sysmouse::stat::ok)
                     {
+                        log("input: mousestate.status: ", (si32)mousestate.status);
                         if (gear_it != gears.end())
                         {
-                            gears.erase(gear_it);
+                            switch (mousestate.status)
+                            {
+                                case sysmouse::stat::halt:
+                                    gear_it->second.deactivate();
+                                    break;
+                                case sysmouse::stat::die:
+                                    gears.erase(gear_it);
+                                    break;
+                            }
                         }
                     }
                     else if (gear_it == gears.end())
@@ -4089,7 +4098,7 @@ namespace netxs::console
             {
                 this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
             };
-            SUBMIT_T(tier::general, hids::events::die, token, gear)
+            SUBMIT_T(tier::general, hids::events::halt, token, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4926,7 +4935,7 @@ again:
                                         };
                                         switch (event_id)
                                         {
-                                        case ansi::dtvt::mouse:
+                                            case ansi::dtvt::mouse:
                                             {
                                                 si32 id    = take();
                                                 si32 bttns = take();
@@ -4945,7 +4954,7 @@ again:
                                                 mouse.button[4] = bttns & (1 << 4); // FROM_LEFT_4TH_BUTTON_PRESSED;
 
                                                 mouse.mouseid = id ? id : owner->id;
-                                                mouse.outside = bttns == -1;
+                                                mouse.status = sysmouse::stat::ok;
                                                 mouse.ismoved = mouse.coor(coord);
                                                 mouse.shuffle = !mouse.ismoved && (flags & (1 << 0)); // MOUSE_MOVED
                                                 // Makes no sense (ignored)
@@ -5059,6 +5068,22 @@ again:
                                                 si32 id    = take();
                                                 bool focus = take();
                                                 notify(e2::conio::focus, focus);
+                                                break;
+                                            }
+                                            case ansi::dtvt::mouse_halt:
+                                            {
+                                                si32 id = take();
+                                                mouse.mouseid = id ? id : owner->id;
+                                                mouse.status = sysmouse::stat::halt;
+                                                notify(e2::conio::mouse, mouse);
+                                                break;
+                                            }
+                                            case ansi::dtvt::mouse_stop:
+                                            {
+                                                si32 id = take();
+                                                mouse.mouseid = id ? id : owner->id;
+                                                mouse.status = sysmouse::stat::die;
+                                                notify(e2::conio::mouse, mouse);
                                                 break;
                                             }
                                             default:

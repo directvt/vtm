@@ -276,11 +276,13 @@ namespace netxs::ansi
         static const byte CMD = 0x64; // Arbitrary vt-command in UTF-8 format.
 
         static const si32 start = 10000; // https://github.com/microsoft/terminal/issues/8343.
-        static const si32 keybd = 10001; // .
-        static const si32 mouse = 10002; // .
-        static const si32 winsz = 10003; // .
-        static const si32 focus = 10004; // .
-        static const si32 final = 10005; // .
+        static const si32 keybd = 10010; // .
+        static const si32 mouse = 10020; // .
+        static const si32 mouse_stop = mouse + 1; // .
+        static const si32 mouse_halt = mouse + 2; // .
+        static const si32 winsz = 10030; // .
+        static const si32 focus = 10040; // .
+        static const si32 final = 10050; // .
 
         #pragma pack(push,1)
         static constexpr auto initial = char{ '\xFF' };
@@ -595,6 +597,9 @@ namespace netxs::ansi
                              xcoor, ':',
                              ycoor, ';');
         }
+        // esc: DTVT-input-mode sequence (mouse).
+        esc& dtvt_mouse_stop(si32 id) { return add(dtvt::mouse_stop, ':', id, ';'); }
+        esc& dtvt_mouse_halt(si32 id) { return add(dtvt::mouse_halt, ':', id, ';'); }
         // esc: DTVT-input-mode sequence (focus).
         esc& dtvt_focus(si32 id, si32 focus)
         {

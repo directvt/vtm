@@ -28,6 +28,10 @@ namespace netxs::events
         id_t top;
         id_t sub;
         bool operator == (idid const&) const = default;
+        friend auto& operator << (std::ostream& s, idid const& id)
+        {
+            return s << "{gate: " << id.top << ", inst: " << id.sub << '}';
+        }
     };
 
     enum class execution_order
