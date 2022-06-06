@@ -39,7 +39,8 @@ namespace netxs::console
 
     using namespace netxs::input;
     using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
-    using focus_test_t = std::pair<id_t, si32>;
+    using focus_test_t = std::pair<idid, si32>;
+    using gear_id_list_t = std::list<idid>;
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
     using os::xipc;
@@ -458,11 +459,11 @@ namespace netxs::events::userland
 
                     SUBSET_XS( keybd )
                     {
-                        EVENT_XS( got     , input::hids           ), // release: got  keyboard focus.
-                        EVENT_XS( lost    , input::hids           ), // release: lost keyboard focus.
-                        EVENT_XS( handover, std::list<id_t>       ), // request: Handover all available foci.
-                        EVENT_XS( enlist  , std::list<id_t>       ), // anycast: Enumerate all available foci.
-                        EVENT_XS( find    , console::focus_test_t ), // request: Check the focus.
+                        EVENT_XS( got     , input::hids             ), // release: got  keyboard focus.
+                        EVENT_XS( lost    , input::hids             ), // release: lost keyboard focus.
+                        EVENT_XS( handover, console::gear_id_list_t ), // request: Handover all available foci.
+                        EVENT_XS( enlist  , console::gear_id_list_t ), // anycast: Enumerate all available foci.
+                        EVENT_XS( find    , console::focus_test_t   ), // request: Check the focus.
                     };
                 };
             };
@@ -1286,9 +1287,9 @@ namespace netxs::console
             {
                 struct sock : public T
                 {
-                    id_t    id; // sock: Hids ID.
+                    idid    id; // sock: Hids ID.
                     si32 count; // sock: Clients count.
-                    sock(id_t ctrl)
+                    sock(idid ctrl)
                         :    id{ ctrl },
                           count{ 0    }
                     { }
@@ -1310,21 +1311,23 @@ namespace netxs::console
                 {
                     for (auto& item : items) // Linear search, because a few items.
                     {
-                        if (item.id == gear.ownid) return item;
+                        if (item.id == gear.id) return item;
                     }
 
                     if constexpr (CONST_WARN)
                     {
-                        log("sock: error: access to unregistered input device, id: ", gear.ownid);
+                        log("sock: error: access to unregistered input device, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
                     }
 
-                    return items.emplace_back(gear.ownid);
+                    return items.emplace_back(gear.id);
                 }
                 template<class P>
                 void foreach(P proc)
                 {
                     for (auto& item : items)
+                    {
                         if (item) proc(item);
+                    }
                 }
                 void add(hids& gear)
                 {
@@ -1343,12 +1346,14 @@ namespace netxs::console
                 void del(hids& gear)
                 {
                     for (auto& item : items) // Linear search, because a few items.
-                        if (item.id == gear.ownid)
+                    {
+                        if (item.id == gear.id)
                         {
                             if (items.size() > 1) item = items.back(); // Remove an item without allocations.
                             items.pop_back();
                             return;
                         }
+                    }
                 }
             };
         };
@@ -1747,8 +1752,8 @@ namespace netxs::console
                             auto size = boss.base::size();
                             if (size.inside(gear.coord))
                             {
-                                if (seized(gear.topid)) unbind();
-                                else                    follow(gear.topid, dot_00);
+                                if (seized(gear.id.top)) unbind();
+                                else                     follow(gear.id.top, dot_00);
                             }
                         };
                     }
@@ -2167,7 +2172,7 @@ namespace netxs::console
             }
         };
 
-        // pro: Form generator functionality.
+        // pro: Form generator.
         class maker
             : public skill
         {
@@ -2182,12 +2187,12 @@ namespace netxs::console
                 twod init;
                 bool ctrl = faux;
             };
-            std::map<id_t, slot_t> slots;
+            std::unordered_map<id_t, slot_t> slots;
             ansi::esc coder;
 
             void check_modifiers(hids& gear)
             {
-                auto& data = slots[gear.ownid];
+                auto& data = slots[gear.id.sub];
                 auto state = !!gear.meta(hids::ANYCTRL);
                 if (data.ctrl != state)
                 {
@@ -2199,7 +2204,7 @@ namespace netxs::console
             {
                 if (gear.capture(boss.bell::id))
                 {
-                    auto& data = slots[gear.ownid];
+                    auto& data = slots[gear.id.sub];
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
@@ -2216,7 +2221,7 @@ namespace netxs::console
                 if (gear.captured(boss.bell::id))
                 {
                     check_modifiers(gear);
-                    auto& data = slots[gear.ownid];
+                    auto& data = slots[gear.id.sub];
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
@@ -2232,7 +2237,7 @@ namespace netxs::console
             {
                 if (gear.captured(boss.bell::id))
                 {
-                    slots.erase(gear.ownid);
+                    slots.erase(gear.id.sub);
                     gear.dismiss();
                     gear.release();
                 }
@@ -2242,13 +2247,13 @@ namespace netxs::console
                 if (gear.captured(boss.bell::id))
                 {
                     check_modifiers(gear);
-                    auto& data = slots[gear.ownid];
+                    auto& data = slots[gear.id.sub];
                     if (data.slot)
                     {
                         gear.slot = data.slot;
                         boss.SIGNAL(tier::preview, e2::form::proceed::createby, gear);
                     }
-                    slots.erase(gear.ownid);
+                    slots.erase(gear.id.sub);
                     gear.dismiss();
                     gear.release();
                 }
@@ -3353,7 +3358,7 @@ namespace netxs::console
                     else if (gear_it == gears.end())
                     {
                         auto id = mousestate.mouseid;
-                        gear_it = gears.emplace(id, hids{ boss, xmap, id }).first;
+                        gear_it = gears.try_emplace(id, boss, xmap, id).first;
                         auto& [_id, gear] = *gear_it;
                         gear.set_single_instance(single_instance);
                         gear.hids::take(mousestate);
@@ -3371,7 +3376,7 @@ namespace netxs::console
                     if (gear_it == gears.end())
                     {
                         auto id = keybdstate.keybdid;
-                        gear_it = gears.emplace(id, hids{ boss, xmap, id }).first;
+                        gear_it = gears.try_emplace(id, boss, xmap, id).first;
                         auto& [_id, gear] = *gear_it;
                         gear.set_single_instance(single_instance);
                         gear.hids::take(keybdstate);
@@ -3756,7 +3761,7 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            using list = std::list<id_t>;
+            using list = gear_id_list_t;
 
             list pool; // focus: List of active input devices.
 
@@ -3824,7 +3829,7 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
                     boss.template riseup<tier::preview>(e2::form::highlight::any, true);
-                    pool.push_back(gear.topid);
+                    pool.push_back(gear.id);
                     boss.base::deface();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
@@ -3836,7 +3841,7 @@ namespace netxs::console
                     {
                         auto head = pool.begin();
                         auto tail = pool.end();
-                        auto item = std::find_if(head, tail, [&](auto& c) { return c == gear.topid; });
+                        auto item = std::find_if(head, tail, [&](auto& c) { return c == gear.id; });
                         if (item != tail)
                         {
                             pool.erase(item);

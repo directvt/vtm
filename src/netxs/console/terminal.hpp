@@ -229,7 +229,7 @@ namespace netxs::ui
                     };
                     owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                     {
-                        log("term: hids::events::die, id = ", gear.topid);
+                        log("term: hids::events::die, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
                         auto cause = hids::events::die.id;
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
@@ -6064,7 +6064,7 @@ namespace netxs::ui
                 auto data = console.selection_pickup(selmod);
                 if (data.size())
                 {
-                    if (auto gate_ptr = bell::getref(gear.topid))
+                    if (auto gate_ptr = bell::getref(gear.id))
                     {
                         auto state = gear.state();
                         gear.combine_focus = true;
@@ -6087,7 +6087,7 @@ namespace netxs::ui
                     return;
                 #endif
 
-                if (auto gate_ptr = bell::getref(gear.topid))
+                if (auto gate_ptr = bell::getref(gear.id))
                 {
                     auto data = decltype(e2::command::clipboard::get)::type{};
                     gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
@@ -6232,7 +6232,7 @@ namespace netxs::ui
             }
             else
             {
-                if (auto gate_ptr = bell::getref(gear.topid))
+                if (auto gate_ptr = bell::getref(gear.id))
                 {
                     auto data = decltype(e2::command::clipboard::get)::type{};
                     gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
@@ -6585,7 +6585,7 @@ namespace netxs::ui
                            | (gear.hzwhl ? (1 << 3) : 0);
                 auto wheeldt = gear.whldt;
                 queue.dtvt_begin()
-                     .dtvt_mouse(gear.ownid,
+                     .dtvt_mouse(gear.id.sub,
                                  buttons,
                                  meta,
                                  flags,
@@ -6598,19 +6598,19 @@ namespace netxs::ui
             }
             void leave(hids& gear)
             {
-                log("dtvt: mouse::die, id = ", gear.ownid);
+                log("dtvt: mouse::die, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
                 release(gear);
                 queue.dtvt_begin()
-                     .dtvt_mouse(gear.ownid)
+                     .dtvt_mouse(gear.id.sub)
                      .dtvt_close();
                 log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
             void outside(hids& gear)
             {
-                log("dtvt: mouse::outside, id = ", gear.ownid);
+                log("dtvt: mouse::outside, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
                 queue.dtvt_begin()
-                     .dtvt_mouse(gear.ownid)
+                     .dtvt_mouse(gear.id.sub)
                      .dtvt_close();
                 log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
@@ -6890,22 +6890,22 @@ namespace netxs::ui
             //todo enumerate all gears and pass it to the dtvt instance
             SUBMIT(tier::general, hids::events::spawn, gear)
             {
-                log("dtvt: hids::events::spawn, id = ", gear.ownid);
+                log("dtvt: hids::events::spawn, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
                 auto cause = hids::events::spawn.id;
             };
             //SUBMIT(tier::general, hids::events::die, gear)
             //{
-            //    log("dtvt: hids::events::die, id = ", gear.ownid);
+            //    log("dtvt: hids::events::die, id = ", gear.id);
             //    auto cause = hids::events::die.id;
             //};
             SUBMIT(tier::release, hids::events::notify::mouse::enter, gear)
             {
-                log("dtvt: notify::mouse::enter, id = ", gear.ownid);
+                log("dtvt: notify::mouse::enter, gate id: ", gear.id.top, " inst id: ", gear.id.sub);
                 //gear.capture(base::id);
             };
             SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
-                //log("dtvt: mouse::move, id = ", gear.ownid, " coord: ", gear.coord);
+                //log("dtvt: mouse::move, id = ", gear.id, " coord: ", gear.coord);
                 auto area = base::area();
                 if (coord(gear.coord)
                  && gear.captured(base::id)

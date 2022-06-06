@@ -234,6 +234,7 @@ namespace netxs::input
     using netxs::events::tier;
     using netxs::events::hook;
     using netxs::events::id_t;
+    using netxs::events::idid;
 
     // console: Base mouse class.
     class sysmouse
@@ -736,8 +737,7 @@ namespace netxs::input
         static constexpr auto gone_event    = events::die                 .id;
 
     public:
-        id_t const& topid; // hids: Owner/gear ID.
-        id_t const& ownid; // hids: Instance ID.
+        idid const id; // hids: Instance ID and Owner/gear ID.
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
@@ -777,14 +777,13 @@ namespace netxs::input
 
         auto meta(ui32 ctl_key = -1) { return hids::ctlstate & ctl_key; }
 
-        template<class T>
-        hids(T& owner, xmap const& idmap, id_t ownid)
-            : relay{ 0        },
-              owner{ owner    },
-              topid{ owner.id },
-              idmap{ idmap    },
-              ownid{ ownid    },
-              alive{ faux     }
+        hids(bell& owner, xmap const& idmap, id_t ownid)
+            : relay{ 0     },
+              owner{ owner },
+              idmap{ idmap },
+              alive{ faux  },
+                 id{.top = owner.id,
+                    .sub = ownid }
         { }
         ~hids()
         {
@@ -851,7 +850,7 @@ namespace netxs::input
         }
         void mouse_leave()
         {
-            log("hids: mouse leave, top id ", topid);
+            log("hids: mouse leave, gate id: ", id.top, " inst id: ", id.sub);
             mouse_leave(mouse::hover, mouse::start);
         }
         void take_mouse_focus(bell& boss)
@@ -901,7 +900,7 @@ namespace netxs::input
                 if (!alive) return;
 
                 auto next = idmap.link(mouse::coord);
-                if (next != topid)
+                if (next != id.top)
                 {
                     relay = next;
                     pass<tier::preview>(bell::getref(next), offset, true);

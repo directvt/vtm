@@ -168,7 +168,7 @@ namespace netxs::app::tile
                 auto parent_memo = std::make_shared<subs>();
                 parent->SUBMIT_T(tier::anycast, app::tile::events::ui::any, *parent_memo, gear)
                 {
-                    auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.topid, 0 };
+                    auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.id, 0 };
                     boss.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
                     if (gear_test.second)
                     {
@@ -581,7 +581,7 @@ namespace netxs::app::tile
                             auto& boss = *boss_ptr;
                             if (auto deed = boss.bell::template protos<tier::release>())
                             {
-                                if (auto gate_ptr = bell::getref(gear.topid))
+                                if (auto gate_ptr = bell::getref(gear.id))
                                 {
                                     using type = decltype(e2::depth)::type;
                                     auto depth = type{};
@@ -669,7 +669,7 @@ namespace netxs::app::tile
                             }
                             else
                             {
-                                if (auto gate_ptr = bell::getref(gear.topid))
+                                if (auto gate_ptr = bell::getref(gear.id))
                                 {
                                     auto& gate = *gate_ptr;
                                     auto current_default = decltype(e2::data::changed)::type{};
@@ -869,7 +869,7 @@ namespace netxs::app::tile
                     auto objs_config_ptr = &app::shared::objs_config;
                     boss.SUBMIT_T_BYVAL(tier::anycast, e2::form::upon::created, *oneoff, gear)
                     {
-                        if (auto gate_ptr = bell::getref(gear.topid))
+                        if (auto gate_ptr = bell::getref(gear.id))
                         {
                             auto& gate = *gate_ptr;
                             auto& objs_config = *objs_config_ptr;
@@ -1029,7 +1029,7 @@ namespace netxs::app::tile
                                 backups empty_slot_list;
                                 auto proc = decltype(e2::form::proceed::functor)::type{[&](sptr<base> item_ptr)
                                 {
-                                    auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.topid, 0 };
+                                    auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.id, 0 };
                                     item_ptr->SIGNAL(tier::request, e2::form::state::keybd::find, gear_test);
                                     if (gear_test.second)
                                     {
