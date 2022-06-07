@@ -322,7 +322,7 @@ namespace netxs::ui
                     // Gone
                     case hids::events::halt.id:
                         release(gear);
-                        if (auto buttons = gear.buttons())
+                        if (auto buttons = gear.get_buttons())
                         {
                             // Release pressed mouse buttons.
                             if (buttons | sysmouse::left)   proceed<PROT>(gear, up_left);
@@ -6579,7 +6579,7 @@ namespace netxs::ui
             void serialize(hids& gear)
             {
                 auto coor = gear.coord;
-                auto buttons = gear.buttons();
+                auto buttons = gear.get_buttons();
                 auto meta = gear.meta();
                 auto flags = (gear.whldt ? (1 << 2) : 0)
                            | (gear.hzwhl ? (1 << 3) : 0);

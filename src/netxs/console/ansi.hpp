@@ -578,12 +578,12 @@ namespace netxs::ansi
         esc& dtvt_keybd(si32 id, si32 virtcod, si32 scancod, si32 pressed, si32 ctlstat, si32 imitate, view cluster)
         {
             add(dtvt::keybd,
-                ':',      id,
-                ':', virtcod,
-                ':', scancod,
-                ':', pressed,
-                ':', ctlstat,
-                ':', imitate);
+               ':',      id,
+               ':', virtcod,
+               ':', scancod,
+               ':', pressed,
+               ':', ctlstat,
+               ':', imitate);
             if (auto code = utf::cpit{ cluster })
             {
                 do add(':', code.next().cdpoint);

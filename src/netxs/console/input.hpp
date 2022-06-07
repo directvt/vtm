@@ -296,8 +296,8 @@ namespace netxs::input
             //todo possible bug in Apple's Terminal - it does not return the second release
             //                                        in case the two buttons are pressed.
             buttons[leftright] = (buttons[left     ] && buttons[right])
-                             || (buttons[leftright] && buttons[left ])
-                             || (buttons[leftright] && buttons[right]);
+                              || (buttons[leftright] && buttons[left ])
+                              || (buttons[leftright] && buttons[right]);
         }
     };
 
@@ -426,10 +426,9 @@ namespace netxs::input
         stamp[sysmouse::total] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
         static constexpr period delay = 500ms;   // mouse: Double-click threshold.
 
-        knob   button[sysmouse::total];
-
-        idxs  pressed_list;
-        idxs  flipped_list;
+        knob buttons[sysmouse::total];
+        idxs pressed_list;
+        idxs flipped_list;
 
         void update(sysmouse const& m)
         {
@@ -442,24 +441,24 @@ namespace netxs::input
             {
                 if (m.buttons[joint])
                 {
-                    if (button[first].dragged)
+                    if (buttons[first].dragged)
                     {
-                        button[first].dragged = faux;
+                        buttons[first].dragged = faux;
                         action(dragcncl, first);
                     }
-                    if (button[other].dragged)
+                    if (buttons[other].dragged)
                     {
-                        button[other].dragged = faux;
+                        buttons[other].dragged = faux;
                         action(dragcncl, other);
                     }
                 }
 
                 // In order to avoid single button tracking (Click, Pull, etc)
-                button[first].succeed = !(m.buttons[joint] || button[joint].pressed);
-                button[other].succeed = button[first].succeed;
+                buttons[first].succeed = !(m.buttons[joint] || buttons[joint].pressed);
+                buttons[other].succeed = buttons[first].succeed;
 
                 auto sysptr = std::begin(m.buttons);
-                auto genptr = std::begin(  button);
+                auto genptr = std::begin(  buttons);
                 if (m.ismoved)
                 {
                     delta.set(m.coor - prime);
@@ -472,7 +471,7 @@ namespace netxs::input
                             if (genbtn.flipped)
                             {
                                 genbtn.flipped = faux;
-                                if (button[i].succeed)
+                                if (buttons[i].succeed)
                                 {
                                     genbtn.dragged = true;
                                     action(dragstrt, i);
@@ -491,7 +490,7 @@ namespace netxs::input
                     {
                         for (auto i : pressed_list)
                         {
-                            if (button[i].succeed) action(dragpull, i);
+                            if (buttons[i].succeed) action(dragpull, i);
                         }
                         pressed_list.clear();
                     }
@@ -499,7 +498,7 @@ namespace netxs::input
                     action(movement);
 
                     sysptr = std::begin(m.buttons);
-                    genptr = std::begin(  button);
+                    genptr = std::begin(  buttons);
                 }
 
                 for (auto i = 0; i < total; i++)
@@ -555,7 +554,7 @@ namespace netxs::input
                 {
                     for (auto i : flipped_list)
                     {
-                        auto& b = button[i];
+                        auto& b = buttons[i];
                         if (b.pressed)
                         {
                             action(pushdown, i);
@@ -677,12 +676,12 @@ namespace netxs::input
             if (!locks) swift = {};
         }
         // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
-        si32 buttons()
+        si32 get_buttons()
         {
             si32 bitfield = 0;
             for (auto i = 0; i < sysmouse::numofbutton; i++)
             {
-                if (mouse::button[i].pressed) bitfield |= 1 << i;
+                if (mouse::buttons[i].pressed) bitfield |= 1 << i;
             }
             return bitfield;
         }
@@ -818,7 +817,7 @@ namespace netxs::input
             ctlstate = m.ctlstat;
             disabled = faux;
             mouse::update(m);
-            push = mouse::buttons();
+            push = mouse::get_buttons();
         }
         void take(syskeybd const& k)
         {

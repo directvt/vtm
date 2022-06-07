@@ -2748,11 +2748,11 @@ namespace netxs::console
                     {
                         auto& state = status[prop::mouse_btn_1 + btn].set(stress);
 
-                        state = m.button[btn].pressed ? "pressed" : "";
-                        if (m.button[btn].flipped)
+                        state = m.buttons[btn].pressed ? "pressed" : "";
+                        if (m.buttons[btn].flipped)
                             state += state.length() ? " | flipped" : "flipped";
 
-                        if (m.button[btn].dragged)
+                        if (m.buttons[btn].dragged)
                             state += state.length() ? " | dragged" : "dragged";
 
                         state += state.length() ? "" : "idle";
