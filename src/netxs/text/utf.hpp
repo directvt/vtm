@@ -754,6 +754,10 @@ namespace netxs::utf
         _to_utf(utf8, code);
         return utf8;
     }
+    static void to_utf_from_code(utfx code, text& utf8_out)
+    {
+        _to_utf(utf8_out, code);
+    }
     static text to_utf(wchar_t const* wide_text, size_t size)
     {
         text utf8;

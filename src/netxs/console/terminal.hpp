@@ -6615,6 +6615,15 @@ namespace netxs::ui
                 log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
+            void keybd(hids& gear)
+            {
+                auto data = gear.keystrokes;
+                queue.dtvt_begin()
+                     .dtvt_keybd_text(gear.id.sub, gear.keystrokes)
+                     .dtvt_close();
+                log("dtvt: ", utf::debase(queue));
+                owner.answer(queue);
+            }
             void proceed(hids& gear, id_t cause)
             {
                 using m = hids::events::mouse;
@@ -6677,6 +6686,11 @@ namespace netxs::ui
                 {
                     log("dtvt: leave ", gear.id);
                     leave(gear);
+                };
+                owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
+                {
+                    log("dtvt: keybd: ", gear.id);
+                    keybd(gear);
                 };
             }
         };
@@ -6910,15 +6924,11 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
-                this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
+                //this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
 
                 #ifndef PROD
                     return;
                 #endif
-
-                auto data = gear.keystrokes;
-                //todo gear.id + raw_keybd_data
-                ptycon.write(data);
 
                 #ifdef KEYLOG
                     std::stringstream d;

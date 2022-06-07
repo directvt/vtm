@@ -4640,9 +4640,14 @@ namespace netxs::console
             auto thread_id = std::this_thread::get_id();
             log("link: id: ", thread_id, " conio session started");
 
+            struct sysgears
+            {
+                sysmouse mouse = {};
+                syskeybd keybd = {};
+            };
+
             auto digit = [](auto c) { return c >= '0' && c <= '9'; };
-            auto mouse = std::unordered_map<id_t, sysmouse>{};
-            auto keybd = syskeybd{};
+            auto gears = std::unordered_map<id_t, sysgears>{};
             auto focus = faux;
             auto total = text{};
             auto guard = std::unique_lock{ mutex };
@@ -4732,18 +4737,22 @@ namespace netxs::console
                         if (pos == len) // the only one esc
                         {
                             // Pass Esc.
-                            keybd.keybdid = owner->id;
-                            keybd.textline = strv.substr(0, 1);
-                            notify(e2::conio::keybd, keybd);
+                            auto id = owner->id;
+                            auto& k = gears[id].keybd;
+                            k.keybdid = id;
+                            k.textline = strv.substr(0, 1);
+                            notify(e2::conio::keybd, k);
                             total.clear();
                             break;
                         }
                         else if (strv.at(pos) == '\x1b') // two consecutive escapes
                         {
                             // Pass Esc.
-                            keybd.keybdid = owner->id;
-                            keybd.textline = strv.substr(0, 1);
-                            notify(e2::conio::keybd, keybd);
+                            auto id = owner->id;
+                            auto& k = gears[id].keybd;
+                            k.keybdid = id;
+                            k.textline = strv.substr(0, 1);
+                            notify(e2::conio::keybd, k);
                             total = strv.substr(1);
                             break;
                         }
@@ -4805,7 +4814,7 @@ namespace netxs::console
                                                         auto y = clamp(pos_y.value() - 1);
                                                         auto ctl = ctrl.value();
                                                         auto id = owner->id;
-                                                        auto& m = mouse[id];
+                                                        auto& m = gears[id].mouse;
 
                                                         // ks & 0x10 ? f + ";2" // shift
                                                         // ks & 0x02 || ks & 0x01 ? f + ";3" // alt
@@ -4917,7 +4926,8 @@ again:
                                     pos += l - tmp.size();
                                     if (pos == len) { total = strv; break; }// incomlpete sequence
                                     {
-                                        auto take = [&]() {
+                                        auto take = [&]() -> si32
+                                        {
                                             view tmp = strv.substr(pos);
                                             if (auto l = tmp.size())
                                             {
@@ -4940,17 +4950,16 @@ again:
                                         {
                                             case ansi::dtvt::mouse:
                                             {
-                                                si32 id    = take();
-                                                if (id == 0) id = owner->id;
-                                                si32 bttns = take();
-                                                si32 ctrls = take();
-                                                si32 flags = take();
-                                                si32 wheel = take();
-                                                si32 xcoor = take();
-                                                si32 ycoor = take();
+                                                auto id    = take(); if (id == 0) id = owner->id;
+                                                auto bttns = take();
+                                                auto ctrls = take();
+                                                auto flags = take();
+                                                auto wheel = take();
+                                                auto xcoor = take();
+                                                auto ycoor = take();
 
                                                 auto coord = twod{ xcoor, ycoor };
-                                                auto& m = mouse[id];
+                                                auto& m = gears[id].mouse;
 
                                                 m.button[0] = bttns & (1 << 0); // FROM_LEFT_1ST_BUTTON_PRESSED
                                                 m.button[1] = bttns & (1 << 1); // RIGHTMOST_BUTTON_PRESSED;
@@ -4986,22 +4995,38 @@ again:
                                                 }
                                                 break;
                                             }
+                                            case ansi::dtvt::keybd_text:
+                                            {
+                                                auto id = take(); if (id == 0) id = owner->id;
+                                                auto& k = gears[id].keybd;
+                                                k.keybdid = id;
+                                                k.textline = "";
+                                                do
+                                                {
+                                                    auto uc = take();
+                                                    utf::to_utf_from_code(uc, k.textline);
+                                                }
+                                                while (strv.at(pos) == ':');
+                                                notify(e2::conio::keybd, k);
+                                                break;
+                                            }
                                             case ansi::dtvt::keybd:
                                             {
-                                                si32 id = take();
-                                                si32 kc = take();
-                                                si32 sc = take();
-                                                si32 kd = take();
-                                                si32 ks = take();
-                                                si32 rc = take();
-                                                si32 uc = take();
-                                                keybd.keybdid     = id ? id : owner->id;
-                                                keybd.virtcode    = kc;
-                                                keybd.ctlstate    = ks & 0x1f; // only modifiers
-                                                keybd.down        = kd;
-                                                keybd.repeatcount = rc;
-                                                keybd.scancode    = sc;
-                                                keybd.character   = uc;
+                                                auto id = take(); if (id == 0) id = owner->id;
+                                                auto kc = take();
+                                                auto sc = take();
+                                                auto kd = take();
+                                                auto ks = take();
+                                                auto rc = take();
+                                                auto uc = take();
+                                                auto& k = gears[id].keybd;
+                                                k.keybdid     = id;
+                                                k.virtcode    = kc;
+                                                k.ctlstate    = ks & 0x1f; // only modifiers
+                                                k.down        = kd;
+                                                k.repeatcount = rc;
+                                                k.scancode    = sc;
+                                                k.character   = uc;
                                                 auto ctrl = [ks](text f, auto e)
                                                 {
                                                     auto b = ks & 0x10 ? f + ";2" // shift
@@ -5011,7 +5036,7 @@ again:
                                                     return "\033[" + b + e;
                                                 };
                                                 using key = syskeybd;
-                                                if (keybd.down)
+                                                if (k.down)
                                                 {
                                                     switch (kc)
                                                     {
@@ -5019,67 +5044,68 @@ again:
                                                         //     Ctrl+Backspace
                                                         //     Alt+0..9
                                                         //     Ctrl/Shift+Enter
-                                                        case key::Backspace: keybd.textline = "\177"; break;
-                                                        case key::Tab:       keybd.textline = ks & 0x10 ? "\033[Z" : "\t"; break;
-                                                        case key::PageUp:    keybd.textline = ctrl("5",  "~"); break;
-                                                        case key::PageDown:  keybd.textline = ctrl("6",  "~"); break;
-                                                        case key::End:       keybd.textline = ctrl("1",  "F"); break;
-                                                        case key::Home:      keybd.textline = ctrl("1",  "H"); break;
-                                                        case key::Insert:    keybd.textline = ctrl("2",  "~"); break;
-                                                        case key::Delete:    keybd.textline = ctrl("3",  "~"); break;
-                                                        case key::Up:        keybd.textline = ctrl("1",  "A"); break;
-                                                        case key::Down:      keybd.textline = ctrl("1",  "B"); break;
-                                                        case key::Right:     keybd.textline = ctrl("1",  "C"); break;
-                                                        case key::Left:      keybd.textline = ctrl("1",  "D"); break;
-                                                        case key::F1:        keybd.textline = ctrl("1",  "P"); break;
-                                                        case key::F2:        keybd.textline = ctrl("1",  "Q"); break;
-                                                        case key::F3:        keybd.textline = ctrl("1",  "R"); break;
-                                                        case key::F4:        keybd.textline = ctrl("1",  "S"); break;
-                                                        case key::F5:        keybd.textline = ctrl("15", "~"); break;
-                                                        case key::F6:        keybd.textline = ctrl("17", "~"); break;
-                                                        case key::F7:        keybd.textline = ctrl("18", "~"); break;
-                                                        case key::F8:        keybd.textline = ctrl("19", "~"); break;
-                                                        case key::F9:        keybd.textline = ctrl("20", "~"); break;
-                                                        case key::F10:       keybd.textline = ctrl("21", "~"); break;
-                                                        case key::F11:       keybd.textline = ctrl("23", "~"); break;
-                                                        case key::F12:       keybd.textline = ctrl("24", "~"); break;
+                                                        case key::Backspace: k.textline = "\177"; break;
+                                                        case key::Tab:       k.textline = ks & 0x10 ? "\033[Z" : "\t"; break;
+                                                        case key::PageUp:    k.textline = ctrl("5",  "~"); break;
+                                                        case key::PageDown:  k.textline = ctrl("6",  "~"); break;
+                                                        case key::End:       k.textline = ctrl("1",  "F"); break;
+                                                        case key::Home:      k.textline = ctrl("1",  "H"); break;
+                                                        case key::Insert:    k.textline = ctrl("2",  "~"); break;
+                                                        case key::Delete:    k.textline = ctrl("3",  "~"); break;
+                                                        case key::Up:        k.textline = ctrl("1",  "A"); break;
+                                                        case key::Down:      k.textline = ctrl("1",  "B"); break;
+                                                        case key::Right:     k.textline = ctrl("1",  "C"); break;
+                                                        case key::Left:      k.textline = ctrl("1",  "D"); break;
+                                                        case key::F1:        k.textline = ctrl("1",  "P"); break;
+                                                        case key::F2:        k.textline = ctrl("1",  "Q"); break;
+                                                        case key::F3:        k.textline = ctrl("1",  "R"); break;
+                                                        case key::F4:        k.textline = ctrl("1",  "S"); break;
+                                                        case key::F5:        k.textline = ctrl("15", "~"); break;
+                                                        case key::F6:        k.textline = ctrl("17", "~"); break;
+                                                        case key::F7:        k.textline = ctrl("18", "~"); break;
+                                                        case key::F8:        k.textline = ctrl("19", "~"); break;
+                                                        case key::F9:        k.textline = ctrl("20", "~"); break;
+                                                        case key::F10:       k.textline = ctrl("21", "~"); break;
+                                                        case key::F11:       k.textline = ctrl("23", "~"); break;
+                                                        case key::F12:       k.textline = ctrl("24", "~"); break;
                                                         default:
                                                             //log("uc = ", uc);
                                                             if (uc)
                                                             {
-                                                                keybd.textline = utf::to_utf_from_code(uc);
+                                                                k.textline = utf::to_utf_from_code(uc);
                                                             }
                                                             break;
                                                     }
                                                 }
                                                 else
                                                 {
-                                                    keybd.textline.clear();
+                                                    k.textline.clear();
                                                 }
-                                                notify(e2::conio::keybd, keybd);
+                                                notify(e2::conio::keybd, k);
                                                 break;
                                             }
                                             case ansi::dtvt::winsz:
                                             {
-                                                si32 xsize = take();
-                                                si32 ysize = take();
-                                                twod winsz{ xsize,ysize };
+                                                auto xsize = take();
+                                                auto ysize = take();
+                                                auto winsz = twod{ xsize,ysize };
                                                 notify(e2::conio::winsz, winsz);
                                                 break;
                                             }
+                                            //todo deprecate
                                             case ansi::dtvt::focus:
                                             {
                                                 //todo clear pressed keys on lost focus
-                                                si32 id    = take();
+                                                auto id    = take();
                                                 bool focus = take();
                                                 notify(e2::conio::focus, focus);
                                                 break;
                                             }
                                             case ansi::dtvt::mouse_halt:
                                             {
-                                                si32 id = take();
+                                                auto id = take();
                                                 if (id == 0) id = owner->id;
-                                                auto& m = mouse[id];
+                                                auto& m = gears[id].mouse;
                                                 m.mouseid = id;
                                                 m.status = sysmouse::stat::halt;
                                                 notify(e2::conio::mouse, m);
@@ -5087,9 +5113,9 @@ again:
                                             }
                                             case ansi::dtvt::mouse_stop:
                                             {
-                                                si32 id = take();
+                                                auto id = take();
                                                 if (id == 0) id = owner->id;
-                                                auto& m = mouse[id];
+                                                auto& m = gears[id].mouse;
                                                 m.mouseid = id;
                                                 m.status = sysmouse::stat::die;
                                                 notify(e2::conio::mouse, m);
@@ -5137,11 +5163,14 @@ again:
                                                 bool k_rctrl = ctrls & 0x4;
                                                 bool k_ctrl  = ctrls & 0x8;
                                                 bool k_shift = ctrls & 0x10;
-                                                keybd.ctlstate = (k_shift ? hids::SHIFT : 0)
-                                                               + (k_alt   ? hids::ALT   : 0)
-                                                               + (k_ralt  ? hids::ALT   : 0)
-                                                               + (k_rctrl ? hids::RCTRL : 0)
-                                                               + (k_ctrl  ? hids::CTRL  : 0);
+                                                auto id = owner->id;
+                                                auto& k = gears[id].keybd;
+                                                k.keybdid = id;
+                                                k.ctlstate = (k_shift ? hids::SHIFT : 0)
+                                                           + (k_alt   ? hids::ALT   : 0)
+                                                           + (k_ralt  ? hids::ALT   : 0)
+                                                           + (k_rctrl ? hids::RCTRL : 0)
+                                                           + (k_ctrl  ? hids::CTRL  : 0);
                                         }
                                     }
                                 }
@@ -5252,9 +5281,11 @@ again:
 
                         if (i)
                         {
-                            keybd.keybdid = owner->id;
-                            keybd.textline = strv.substr(0, i);
-                            notify(e2::conio::keybd, keybd);
+                            auto id = owner->id;
+                            auto& k = gears[id].keybd;
+                            k.keybdid = id;
+                            k.textline = strv.substr(0, i);
+                            notify(e2::conio::keybd, k);
                             total = strv.substr(i);
                             strv = total;
                         }

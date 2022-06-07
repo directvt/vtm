@@ -256,6 +256,7 @@ namespace netxs::ansi
     static const si32 CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
     static const si32 CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
     static const si32 CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
+    //todo deprecate - reason: no gear.id
     static const si32 CCC_KBD    = 27 ; // CSI 27: n       p  - Set keyboard modifiers.
     
     static const si32 CCC_SGR    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
@@ -277,11 +278,12 @@ namespace netxs::ansi
 
         static const si32 start = 10000; // https://github.com/microsoft/terminal/issues/8343.
         static const si32 keybd = 10010; // .
+        static const si32 keybd_text = keybd + 1; // .
         static const si32 mouse = 10020; // .
         static const si32 mouse_stop = mouse + 1; // .
         static const si32 mouse_halt = mouse + 2; // .
         static const si32 winsz = 10030; // .
-        static const si32 focus = 10040; // .
+        static const si32 focus = 10040; //todo deprecate - not used
         static const si32 final = 10050; // .
 
         #pragma pack(push,1)
@@ -597,9 +599,25 @@ namespace netxs::ansi
                              xcoor, ':',
                              ycoor, ';');
         }
-        // esc: DTVT-input-mode sequence (mouse).
+        // esc: DTVT-input-mode sequences.
         esc& dtvt_mouse_stop(si32 id) { return add(dtvt::mouse_stop, ':', id, ';'); }
         esc& dtvt_mouse_halt(si32 id) { return add(dtvt::mouse_halt, ':', id, ';'); }
+        esc& dtvt_keybd_text(si32 id, view utf8)
+        {
+            if (auto code = utf::cpit{ utf8 })
+            {
+                add(dtvt::keybd_text, ':', id);
+                do
+                {
+                    auto next = code.take();
+                    add(':', next.cdpoint);
+                    code.step();
+                }
+                while (code);
+                add(';');
+            }
+            return *this;
+        }
         // esc: DTVT-input-mode sequence (focus).
         esc& dtvt_focus(si32 id, si32 focus)
         {
