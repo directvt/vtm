@@ -278,7 +278,6 @@ namespace netxs::ansi
 
         static const si32 start = 10000; // https://github.com/microsoft/terminal/issues/8343.
         static const si32 keybd = 10010; // .
-        static const si32 keybd_text = keybd + 1; // .
         static const si32 mouse = 10020; // .
         static const si32 mouse_stop = mouse + 1; // .
         static const si32 mouse_halt = mouse + 2; // .
@@ -576,16 +575,22 @@ namespace netxs::ansi
             return add(DVT_INP);
         }
         // esc: DTVT-input-mode sequence (keyboard).
-        esc& dtvt_keybd(si32 id, si32 kc, si32 sc, si32 kd, si32 ks, si32 rc, si32 uc)
+        esc& dtvt_keybd(si32 id, si32 virtcod, si32 scancod, si32 pressed, si32 ctlstat, si32 imitate, view cluster)
         {
-            return add(dtvt::keybd, ':',
-                                id, ':',
-                                kc, ':',
-                                sc, ':',
-                                kd, ':',
-                                ks, ':',
-                                rc, ':',
-                                uc, ';');
+            add(dtvt::keybd,
+                ':',      id,
+                ':', virtcod,
+                ':', scancod,
+                ':', pressed,
+                ':', ctlstat,
+                ':', imitate);
+            if (auto code = utf::cpit{ cluster })
+            {
+                do add(':', code.next().cdpoint);
+                while (code);
+            }
+            else add(':');
+            return add(';');
         }
         // esc: DTVT-input-mode sequence (mouse).
         esc& dtvt_mouse(si32 id, si32 bttns = -1, si32 ctrls = 0, si32 flags = 0, si32 wheel = 0, si32 xcoor = 0, si32 ycoor = 0)
@@ -602,22 +607,6 @@ namespace netxs::ansi
         // esc: DTVT-input-mode sequences.
         esc& dtvt_mouse_stop(si32 id) { return add(dtvt::mouse_stop, ':', id, ';'); }
         esc& dtvt_mouse_halt(si32 id) { return add(dtvt::mouse_halt, ':', id, ';'); }
-        esc& dtvt_keybd_text(si32 id, view utf8)
-        {
-            if (auto code = utf::cpit{ utf8 })
-            {
-                add(dtvt::keybd_text, ':', id);
-                do
-                {
-                    auto next = code.take();
-                    add(':', next.cdpoint);
-                    code.step();
-                }
-                while (code);
-                add(';');
-            }
-            return *this;
-        }
         // esc: DTVT-input-mode sequence (focus).
         esc& dtvt_focus(si32 id, si32 focus)
         {

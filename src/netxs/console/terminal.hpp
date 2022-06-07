@@ -6419,7 +6419,7 @@ namespace netxs::ui
                     return;
                 #endif
                 //todo optimize/unify
-                auto data = gear.keystrokes;
+                auto data = gear.interpret();
                 if (!bpmode)
                 {
                     utf::change(data, "\033[200~", "");
@@ -6617,9 +6617,14 @@ namespace netxs::ui
             }
             void keybd(hids& gear)
             {
-                auto data = gear.keystrokes;
                 queue.dtvt_begin()
-                     .dtvt_keybd_text(gear.id.sub, gear.keystrokes)
+                     .dtvt_keybd(gear.id.sub,
+                                 gear.virtcod,
+                                 gear.scancod,
+                                 gear.pressed,
+                                 gear.ctlstate,
+                                 gear.imitate,
+                                 gear.cluster)
                      .dtvt_close();
                 log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);

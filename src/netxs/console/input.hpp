@@ -262,9 +262,8 @@ namespace netxs::input
         };
 
         twod coor = dot_mx;            // sysmouse: Cursor coordinates.
-        stat status = stat::ok;        // sysmouse: Mouse status.
-        bool button[numofbutton] = {}; // sysmouse: Button states.
-
+        stat control = stat::ok;        // sysmouse: Mouse status.
+        bool buttons[numofbutton] = {}; // sysmouse: Button states.
         bool ismoved = faux;           // sysmouse: Movement through the cells.
         bool shuffle = faux;           // sysmouse: Movement inside the cell.
         bool doubled = faux;           // sysmouse: Double click.
@@ -272,8 +271,7 @@ namespace netxs::input
         bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
         si32 wheeldt = 0;              // sysmouse: Scroll delta.
         id_t mouseid = 0;              // sysmouse: Gear id.
-
-        ui32 ctlstate = 0;
+        ui32 ctlstat = 0;
 
         bool operator != (sysmouse const& m) const
         {
@@ -282,7 +280,7 @@ namespace netxs::input
             {
                 for (int i = 0; i < numofbutton && result; i++)
                 {
-                    result &= button[i] == m.button[i];
+                    result &= buttons[i] == m.buttons[i];
                 }
                 result &= ismoved == m.ismoved
                        && doubled == m.doubled
@@ -297,9 +295,9 @@ namespace netxs::input
             // Interpret button combinations
             //todo possible bug in Apple's Terminal - it does not return the second release
             //                                        in case the two buttons are pressed.
-            button[leftright] = (button[left     ] && button[right])
-                             || (button[leftright] && button[left ])
-                             || (button[leftright] && button[right]);
+            buttons[leftright] = (buttons[left     ] && buttons[right])
+                             || (buttons[leftright] && buttons[left ])
+                             || (buttons[leftright] && buttons[right]);
         }
     };
 
@@ -342,14 +340,13 @@ namespace netxs::input
             F12       = 0x7B,
         };
 
-        id_t keybdid = 0;
-        bool down = faux;
-        ui16 repeatcount = 0;
-        ui16 virtcode = 0;
-        ui16 scancode = 0;
-        wchar_t character = 0;
-        ui32 ctlstate = 0;
-        text textline;
+        id_t keybdid = {};
+        bool pressed = {};
+        ui16 imitate = {};
+        ui16 virtcod = {};
+        ui16 scancod = {};
+        ui32 ctlstat = {};
+        text cluster = {};
     };
 
     // console: Mouse tracking.
@@ -443,7 +440,7 @@ namespace netxs::input
             //}
             //else
             {
-                if (m.button[joint])
+                if (m.buttons[joint])
                 {
                     if (button[first].dragged)
                     {
@@ -458,10 +455,10 @@ namespace netxs::input
                 }
 
                 // In order to avoid single button tracking (Click, Pull, etc)
-                button[first].succeed = !(m.button[joint] || button[joint].pressed);
+                button[first].succeed = !(m.buttons[joint] || button[joint].pressed);
                 button[other].succeed = button[first].succeed;
 
-                auto sysptr = std::begin(m.button);
+                auto sysptr = std::begin(m.buttons);
                 auto genptr = std::begin(  button);
                 if (m.ismoved)
                 {
@@ -501,7 +498,7 @@ namespace netxs::input
 
                     action(movement);
 
-                    sysptr = std::begin(m.button);
+                    sysptr = std::begin(m.buttons);
                     genptr = std::begin(  button);
                 }
 
@@ -695,22 +692,20 @@ namespace netxs::input
     class keybd
     {
     public:
-        text     keystrokes;
-        bool     down = faux;
-        uint16_t repeatcount = 0;
-        uint16_t virtcode = 0;
-        uint16_t scancode = 0;
-        wchar_t  character = 0;
-        hint     cause = netxs::events::userland::hids::keybd::any.id;
+        text cluster = {};
+        bool pressed = {};
+        ui16 imitate = {};
+        ui16 virtcod = {};
+        ui16 scancod = {};
+        hint cause = netxs::events::userland::hids::keybd::any.id;
 
         void update(syskeybd const& k)
         {
-            virtcode    = k.virtcode;
-            down        = k.down;
-            repeatcount = k.repeatcount;
-            scancode    = k.scancode;
-            character   = k.character;
-            keystrokes  = k.textline;
+            pressed = k.pressed;
+            imitate = k.imitate;
+            virtcod = k.virtcod;
+            scancod = k.scancod;
+            cluster = k.cluster;
 
             fire_keybd();
         }
@@ -736,7 +731,6 @@ namespace netxs::input
         list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
         //todo revise
-        ui32 ctlstate = 0;
 
         static constexpr auto enter_event   = events::notify::mouse::enter.id;
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
@@ -748,6 +742,7 @@ namespace netxs::input
 
     public:
         idid const id; // hids: Instance ID and Owner/gear ID.
+        ui32 ctlstate = 0;
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
@@ -820,14 +815,14 @@ namespace netxs::input
         }
         void take(sysmouse const& m)
         {
-            ctlstate = m.ctlstate;
+            ctlstate = m.ctlstat;
             disabled = faux;
             mouse::update(m);
             push = mouse::buttons();
         }
         void take(syskeybd const& k)
         {
-            ctlstate = k.ctlstate;
+            ctlstate = k.ctlstat;
             keybd::update(k);
         }
 
@@ -1056,6 +1051,58 @@ namespace netxs::input
             clear_kb_focus();
             kb_focus_taken = faux;
             inst.bell::template signal<tier::release>(kboffer_event, *this);
+        }
+
+        auto interpret()
+        {
+            auto textline = text{};
+            auto ctrl = [ks = ctlstate](text f, auto e)
+            {
+                auto b = ks & 0x10 ? f + ";2" // shift
+                       : ks & 0x02 || ks & 0x01 ? f + ";3" // alt
+                       : ks & 0x04 || ks & 0x08 ? f + ";5" // ctrl
+                       : f;
+                return "\033[" + b + e;
+            };
+            using key = syskeybd::key;
+            if (pressed)
+            {
+                switch (virtcod)
+                {
+                    //todo Ctrl+Space
+                    //     Ctrl+Backspace
+                    //     Alt+0..9
+                    //     Ctrl/Shift+Enter
+                    case key::Backspace: textline = "\177"; break;
+                    case key::Tab:       textline = ctlstate & 0x10 ? "\033[Z" : "\t"; break;
+                    case key::PageUp:    textline = ctrl("5",  "~"); break;
+                    case key::PageDown:  textline = ctrl("6",  "~"); break;
+                    case key::End:       textline = ctrl("1",  "F"); break;
+                    case key::Home:      textline = ctrl("1",  "H"); break;
+                    case key::Insert:    textline = ctrl("2",  "~"); break;
+                    case key::Delete:    textline = ctrl("3",  "~"); break;
+                    case key::Up:        textline = ctrl("1",  "A"); break;
+                    case key::Down:      textline = ctrl("1",  "B"); break;
+                    case key::Right:     textline = ctrl("1",  "C"); break;
+                    case key::Left:      textline = ctrl("1",  "D"); break;
+                    case key::F1:        textline = ctrl("1",  "P"); break;
+                    case key::F2:        textline = ctrl("1",  "Q"); break;
+                    case key::F3:        textline = ctrl("1",  "R"); break;
+                    case key::F4:        textline = ctrl("1",  "S"); break;
+                    case key::F5:        textline = ctrl("15", "~"); break;
+                    case key::F6:        textline = ctrl("17", "~"); break;
+                    case key::F7:        textline = ctrl("18", "~"); break;
+                    case key::F8:        textline = ctrl("19", "~"); break;
+                    case key::F9:        textline = ctrl("20", "~"); break;
+                    case key::F10:       textline = ctrl("21", "~"); break;
+                    case key::F11:       textline = ctrl("23", "~"); break;
+                    case key::F12:       textline = ctrl("24", "~"); break;
+                    default:
+                        textline = cluster;
+                        break;
+                }
+            }
+            return textline;
         }
     };
 }

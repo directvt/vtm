@@ -2807,7 +2807,7 @@ namespace netxs::os
                                         reply.Event.KeyEvent.bKeyDown,
                                         reply.Event.KeyEvent.dwControlKeyState,
                                         reply.Event.KeyEvent.wRepeatCount,
-                                        utf::tocode(reply.Event.KeyEvent.uChar.UnicodeChar));
+                                        utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar));
                                     break;
                                 case MOUSE_EVENT:
                                     yield.dtvt_mouse(0,

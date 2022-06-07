@@ -234,6 +234,13 @@ namespace netxs::utf
             return prop{ cp, utf8len };
         }
 
+        auto next()
+        {
+            auto cpoint = take();
+                          step();
+            return cpoint;
+        }
+
         operator bool ()
         {
             return balance > 0;
@@ -795,6 +802,10 @@ namespace netxs::utf
         auto iter = c_str;
         while (*iter != 0) { ++iter; }
         return to_utf(c_str, iter - c_str);
+    }
+    auto to_utf(wchar_t wc)
+    {
+        return to_utf(&wc, 1);
     }
 
     template<class TEXT_OR_VIEW>
