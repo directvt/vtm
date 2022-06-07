@@ -38,9 +38,13 @@ namespace netxs
     {
         const auto it = map.find(key);
         if (it == map.end())
+        {
             return default_value;
+        }
         else
+        {
             return it->second;
+        }
     }
 
     // hash: Map that keeps the insertion order.

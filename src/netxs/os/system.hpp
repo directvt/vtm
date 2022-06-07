@@ -1413,9 +1413,11 @@ namespace netxs::os
         {
             auto partition = std::vector<char>(50 + 1);
             if (0 != ::GetVolumeNameForVolumeMountPoint( volume.data(),
-                                                         partition.data(),
-                                                  (DWORD)partition.size()))
+                                                      partition.data(),
+                                               (DWORD)partition.size()))
+            {
                 result = text(partition.data());
+            }
             else
             {
                 //error_handler();
@@ -3168,9 +3170,7 @@ namespace netxs::os
 
             ipcio.stop();
             signal.reset();
-
-            if (input.joinable())
-                input.join();
+            input.join();
         }
     };
 
@@ -3211,7 +3211,10 @@ namespace netxs::os
         ~pty()
         {
             log("xpty: dtor started");
-            if (termlink) wait_child();
+            if (termlink)
+            {
+                wait_child();
+            }
             if (stdwrite.joinable())
             {
                 writesyn.notify_one();
@@ -3260,8 +3263,8 @@ namespace netxs::os
                     auto errcode = HRESULT{ E_UNEXPECTED };
                     auto dwFlags = DWORD{ 0 };
 
-                    if (::CreatePipe(&m_pipe_r, &s_pipe_w, nullptr, 0) &&
-                        ::CreatePipe(&s_pipe_r, &m_pipe_w, nullptr, 0))
+                    if (::CreatePipe(&m_pipe_r, &s_pipe_w, nullptr, 0)
+                     && ::CreatePipe(&s_pipe_r, &m_pipe_w, nullptr, 0))
                     {
                         auto consz = COORD{};
                         consz.X = winsz.x;
@@ -3551,7 +3554,10 @@ namespace netxs::os
             ~pty()
             {
                 log("dtvt: dtor started");
-                if (termlink) stop();
+                if (termlink)
+                {
+                    stop();
+                }
                 if (stdwrite.joinable())
                 {
                     writesyn.notify_one();
@@ -3603,9 +3609,9 @@ namespace netxs::os
                         sa.nLength = sizeof(SECURITY_ATTRIBUTES);
                         sa.lpSecurityDescriptor = NULL;
                         sa.bInheritHandle = TRUE;
-                        if (::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0) &&
-                            ::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0) &&
-                            ::CreatePipe(&m_pipe_l, &s_pipe_l, &sa, 0))
+                        if (::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0)
+                         && ::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
+                         && ::CreatePipe(&m_pipe_l, &s_pipe_l, &sa, 0))
                         {
                             os::legacy::send_dmd(m_pipe_w, winsz);
 
@@ -3744,7 +3750,10 @@ namespace netxs::os
             {
                 auto exit_code = si32{};
                 log("dtvt: wait child process, tty=", termlink);
-                if (termlink) termlink.shut();
+                if (termlink)
+                {
+                    termlink.shut();
+                }
 
                 #if defined(_WIN32)
 

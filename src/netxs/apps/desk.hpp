@@ -369,7 +369,7 @@ namespace netxs::app::desk
                                                     auto& timer = boss_ptr->template plugins<pro::timer>();
                                                     timer.pacify(faux);
                                                     if (active) apply(true);
-                                                    else timer.actify(faux, MENU_TIMEOUT, apply);
+                                                    else        timer.actify(faux, MENU_TIMEOUT, apply);
                                                 }
                                             };
                                             boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::viewport, viewport)

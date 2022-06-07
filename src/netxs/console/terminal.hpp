@@ -413,7 +413,7 @@ namespace netxs::ui
             // w_tracking: CSI n n  Device status report (DSR).
             void report(si32 n)
             {
-                switch(n)
+                switch (n)
                 {
                     default:
                     case 6: queue.report(owner.target->coord); break;
@@ -425,11 +425,12 @@ namespace netxs::ui
             // w_tracking: CSI n c  Primary device attributes (DA1).
             void device(si32 n)
             {
-                switch(n)
+                switch (n)
                 {
                     case 0:
                     default:
-                        queue.add("\033[?1;2c"); break;
+                        queue.add("\033[?1;2c");
+                        break;
                 }
                 owner.answer(queue);
             }
@@ -575,7 +576,7 @@ namespace netxs::ui
                 procs[ansi::OSC_RESET_COLOR] = [&](view data) // ESC ] 104 ; 0; 1;...
                 {
                     auto empty = true;
-                    while(data.length())
+                    while (data.length())
                     {
                         utf::trim_front_if(data, [](char c){ return c >= '0' && c <= '9'; });
                         if (auto v = utf::to_int(data))
@@ -1100,8 +1101,11 @@ namespace netxs::ui
                 top    = std::clamp(top   , 0, panel.y);
                 bottom = std::clamp(bottom, 0, panel.y);
                 if (top    != 0 &&
+                    bottom != 0 && top >= bottom)
                     //bottom != 0 && top > bottom) top = bottom; //todo Nobody respects that.
-                    bottom != 0 && top >= bottom) top = bottom = 0;
+                {
+                    top = bottom = 0;
+                }
 
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
@@ -1419,7 +1423,7 @@ namespace netxs::ui
                     {
                         auto& last = (--tail)->first;
                         if (last == base) last = coord.x;
-                        else break;
+                        else              break;
                     }
                     if (coord.x < size)
                     {
@@ -1432,7 +1436,7 @@ namespace netxs::ui
                         {
                             auto& next = head->second;
                             if (next == prev) next = coord.x;
-                            else break;
+                            else              break;
                         }
                     }
                 }
@@ -1458,7 +1462,7 @@ namespace netxs::ui
                     --tail;
                     auto& item = tail->first;
                     if (base == std::abs(item)) item = main;
-                    else break;
+                    else                        break;
                 }
 
                 tail = stops.end();
@@ -1469,7 +1473,7 @@ namespace netxs::ui
                 {
                     auto& item = back->second;
                     if (base == std::abs(item)) item = main;
-                    else break;
+                    else                        break;
                 }
             }
             // bufferbase: CSI ? W  Reset tabstops to the 8 (todo hardcoded?) column defaults.
@@ -1485,7 +1489,10 @@ namespace netxs::ui
                 if constexpr (FWD)
                 {
                     auto x = std::clamp(coord.x, 0, size ? size - 1 : 0);
-                    if (coord.x == x) coord.x = std::abs(stops[x].first);
+                    if (coord.x == x)
+                    {
+                        coord.x = std::abs(stops[x].first);
+                    }
                     else
                     {
                         coord.x += notab ? term::def_tablen
@@ -1495,7 +1502,10 @@ namespace netxs::ui
                 else
                 {
                     auto x = std::clamp(coord.x, 1, size);
-                    if (coord.x == x) coord.x = stops[x - 1].second;
+                    if (coord.x == x)
+                    {
+                        coord.x = stops[x - 1].second;
+                    }
                     else
                     {
                         coord.x -= notab ? term::def_tablen
@@ -2271,7 +2281,10 @@ namespace netxs::ui
                 uifwd = faux;
                 selection_gonext(direction);
                 if (direction == feed::fwd && uirev == faux
-                 || direction == feed::rev && uifwd == faux) selection_cancel();
+                 || direction == feed::rev && uifwd == faux)
+                {
+                    selection_cancel();
+                }
                 return dot_00;
             }
             // alt_screen: Search prev/next selection match and return distance to it.
@@ -2468,7 +2481,10 @@ namespace netxs::ui
                     undock(kind, size);
                     dec_height(basis, kind, size);
                     dec_height(slide, kind, size);
-                    if (basis < 0) basis = 0;
+                    if (basis < 0)
+                    {
+                        basis = 0;
+                    }
                     if (slide < 0)
                     {
                         ancid = l.index + 1;
@@ -2646,7 +2662,10 @@ namespace netxs::ui
             auto test_height()
             {
                 auto test_vsize = 0;
-                for (auto& l : batch) test_vsize += l.height(panel.x);
+                for (auto& l : batch)
+                {
+                    test_vsize += l.height(panel.x);
+                }
                 if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
                 return test_vsize == batch.vsize;
             }
@@ -2878,7 +2897,7 @@ namespace netxs::ui
                                     auto& curln = *head;
                                     auto newpos = vpos + curln.height(panel.x);
                                     if (newpos > fresh_slide) break;
-                                    else vpos = newpos;
+                                    else                      vpos = newpos;
                                 }
                                 while (++head != tail);
                                 assert(vpos <= fresh_slide);
@@ -3877,7 +3896,10 @@ namespace netxs::ui
                                 auto after = batch.index() + 1;
                                      spoil = batch.remove(after, spoil);
 
-                                if (saved < batch.basis) index_rebuild(); // Update index. (processing lines larger than viewport)
+                                if (saved < batch.basis)
+                                {
+                                    index_rebuild(); // Update index. (processing lines larger than viewport)
+                                }
                                 else
                                 {
                                     saved -= batch.basis;
@@ -4030,7 +4052,9 @@ namespace netxs::ui
                 auto fill = [&](auto& area, auto chr)
                 {
                     if (auto r = view.clip(area))
+                    {
                         target.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
+                    }
                 };
                 auto left_edge = view.coor.x;
                 auto rght_edge = view.coor.x + view.size.x;
@@ -4068,7 +4092,7 @@ namespace netxs::ui
                         if (height == 1)
                         {
                             auto lt_dot = full.coor.x;
-                            if      (adjust == bias::center) lt_dot += half_size - length / 2;
+                                 if (adjust == bias::center) lt_dot += half_size - length / 2;
                             else if (adjust == bias::right)  lt_dot += full.size.x - length;
 
                             if (left_edge > lt_dot         ) fill(left_rect, '<');
@@ -4737,12 +4761,12 @@ namespace netxs::ui
                         {
                             if (dnmid.role == grip::join)
                             {
-                                if(upend.role == grip::join)
+                                if (upend.role == grip::join)
                                 {
                                     dnmid.coor.x = dot_mx.x;
                                     upend.coor.x =-dot_mx.x;
                                 }
-                                if(uptop.role == grip::join)
+                                if (uptop.role == grip::join)
                                 {
                                     dnmid.coor.x =-dot_mx.x;
                                     uptop.coor.x = dot_mx.x;
@@ -4750,12 +4774,12 @@ namespace netxs::ui
                             }
                             if (upmid.role == grip::join)
                             {
-                                if(dnend.role == grip::join)
+                                if (dnend.role == grip::join)
                                 {
                                     upmid.coor.x = dot_mx.x;
                                     dnend.coor.x =-dot_mx.x;
                                 }
-                                if(dntop.role == grip::join)
+                                if (dntop.role == grip::join)
                                 {
                                     upmid.coor.x =-dot_mx.x;
                                     dntop.coor.x = dot_mx.x;
@@ -5313,7 +5337,10 @@ namespace netxs::ui
                         twod dt;
                         top.x = std::clamp(top.x, 0, panel.x - 1);
                         end.x = std::clamp(end.x, 0, panel.x - 1);
-                        if (top.y == end.y) dt = { std::abs(end.x - top.x) + 1, 1 };
+                        if (top.y == end.y)
+                        {
+                            dt = { std::abs(end.x - top.x) + 1, 1 };
+                        }
                         else
                         {
                             if (top.y > end.y) std::swap(top, end);
@@ -5333,7 +5360,10 @@ namespace netxs::ui
             void selection_foreach(P proc)
             {
                 auto [i_top, i_end, upcur, dncur] = selection_get_it();
-                if (i_top == -1) selection_cancel();
+                if (i_top == -1)
+                {
+                    selection_cancel();
+                }
                 else
                 {
                     auto data = batch.begin();
@@ -5935,7 +5965,10 @@ namespace netxs::ui
                 {
                     if (onlogs) SIGNAL_GLOBAL(e2::debug::output, data); // Post data for Logs.
 
-                    if (follow[axis::Y]) ansi::parse(data, target);
+                    if (follow[axis::Y])
+                    {
+                        ansi::parse(data, target);
+                    }
                     else
                     {
                         auto last_basis = target->get_basis();
@@ -6226,8 +6259,11 @@ namespace netxs::ui
             auto fwd = dir == feed::fwd;
             if (console.selection_active())
             {
-                if (console.match.empty()) delta.y = fwd ? -console.arena // Page by page scrolling if nothing to search.
-                                                         :  console.arena;
+                if (console.match.empty())
+                {
+                    delta.y = fwd ? -console.arena // Page by page scrolling if nothing to search.
+                                  :  console.arena;
+                }
                 else delta = console.selection_search(dir);
             }
             else

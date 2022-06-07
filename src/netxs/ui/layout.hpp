@@ -158,11 +158,7 @@ namespace netxs::ui::atoms
         // rgba: Are the colors alpha blenable?
         auto is_alpha_blendable() const
         {
-            if (chan.a && chan.a != 0xFF)
-            {
-                return true;
-            }
-            return faux;
+            return chan.a && chan.a != 0xFF;
         }
         // rgba: Set alpha channel.
         void alpha(byte k)

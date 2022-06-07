@@ -82,7 +82,7 @@ namespace netxs
         auto guard = std::lock_guard{ mutex };
 
         auto thing = count.lock();
-        if  (thing) return thing;
+         if (thing) return thing;
 
         thing = std::make_shared<T>();
         count = thing;

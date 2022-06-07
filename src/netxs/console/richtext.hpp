@@ -1085,7 +1085,10 @@ namespace netxs::console
         {
             if (count <= 0) return;
             auto len = length();
-            if constexpr (AUTOGROW) reserv(at + count);
+            if constexpr (AUTOGROW)
+            {
+                reserv(at + count);
+            }
             else
             {
                 if (at >= len) return;

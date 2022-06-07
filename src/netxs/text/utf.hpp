@@ -685,7 +685,7 @@ namespace netxs::utf
         {
             auto c = static_cast<unsigned char>(*utf8++);
 
-            if      (c < 0x80) code = c;
+                 if (c < 0x80) code = c;
             else if (c < 0xc0) code =(c & 0x3f) | code << 6;
             else if (c < 0xe0) code = c & 0x1f;
             else if (c < 0xf0) code = c & 0x0f;
@@ -1265,7 +1265,9 @@ namespace netxs::utf
             {
                 auto crop = (unsigned char)*iter++ << 16;
                 if (iter != tail) //todo move ifs to the outside of loop (optimization)
+                {
                     crop += (unsigned char)*iter++ << 8;
+                }
                 else
                 {
                     *dest++ = code[0x3F & crop >> 18];
@@ -1275,7 +1277,9 @@ namespace netxs::utf
                     break;
                 }
                 if (iter != tail)
+                {
                     crop += (unsigned char)*iter++;
+                }
                 else
                 {
                     *dest++ = code[0x3F & crop >> 18];

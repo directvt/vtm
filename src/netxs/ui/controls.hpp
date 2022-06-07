@@ -729,7 +729,9 @@ namespace netxs::ui
                 for (auto& client : subset)
                 {
                     if (client)
+                    {
                         client->SIGNAL(tier::preview, e2::size::set, newsz);
+                    }
                 }
             };
             SUBMIT(tier::release, e2::size::any, newsz)
@@ -737,7 +739,9 @@ namespace netxs::ui
                 for (auto& client : subset)
                 {
                     if (client)
+                    {
                         client->SIGNAL(tier::release, e2::size::set, newsz);
+                    }
                 }
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
@@ -941,13 +945,17 @@ namespace netxs::ui
             {
                 if (subset.size())
                 if (auto active = subset.back())
+                {
                     active->SIGNAL(tier::preview, e2::size::set, newsz);
+                }
             };
             SUBMIT(tier::release, e2::size::any, newsz)
             {
                 if (subset.size())
                 if (auto active = subset.back())
+                {
                     active->SIGNAL(tier::release, e2::size::set, newsz);
+                }
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
@@ -1114,7 +1122,9 @@ namespace netxs::ui
         void recalc()
         {
             if (topic.size() > layout.capacity())
+            {
                 layout.reserve(topic.size() * 2);
+            }
 
             auto entry = layout.get_entry(base::anchor); // Take the object under central point
             layout.clear();
@@ -1229,7 +1239,9 @@ namespace netxs::ui
         void recalc()
         {
             if (topic.size() > layout.capacity())
+            {
                 layout.reserve(topic.size() * 2);
+            }
 
             auto entry = layout.get_entry(base::anchor); // Take the object under central point
             layout.clear();
@@ -1379,7 +1391,9 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::size::any, new_size)
             {
                 if (client)
+                {
                     client->base::resize(new_size, base::anchor);
+                }
             };
 
             using bttn = hids::events::mouse::button;
@@ -1482,7 +1496,9 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 if (client)
+                {
                     parent_canvas.render<faux>(client, base::coor());
+                }
             };
         }
         void cutoff()
@@ -1574,7 +1590,7 @@ namespace netxs::ui
         template<bool PREVIEW>
         auto scroll(twod& coord)
         {
-            twod delta;
+            auto delta = dot_00;
             if (client)
             {
                 auto& item = *client;
@@ -1611,7 +1627,9 @@ namespace netxs::ui
         void movexy(twod const& delta)
         {
             if (client)
+            {
                 client->base::moveby(delta);
+            }
         }
         template<axis AXIS>
         void move(si32 p)
@@ -1816,7 +1834,10 @@ namespace netxs::ui
         }
         void giveup(hids& gear)
         {
-            if (on_pager) gear.dismiss();
+            if (on_pager)
+            {
+                gear.dismiss();
+            }
             else
             {
                 if (gear.captured(bell::id))
@@ -1888,8 +1909,8 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
-                if (this->form::template protos<tier::release>(bttn::down::left) ||
-                    this->form::template protos<tier::release>(bttn::down::right))
+                if (this->form::template protos<tier::release>(bttn::down::left)
+                 || this->form::template protos<tier::release>(bttn::down::right))
                 if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
                 {
                     if (gear.capture(bell::id))
@@ -1916,8 +1937,8 @@ namespace netxs::ui
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (this->form::template protos<tier::release>(bttn::up::left) ||
-                        this->form::template protos<tier::release>(bttn::up::right))
+                    if (this->form::template protos<tier::release>(bttn::up::left)
+                     || this->form::template protos<tier::release>(bttn::up::right))
                     {
                         gear.release();
                         gear.dismiss();
@@ -1938,7 +1959,10 @@ namespace netxs::ui
 
             SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.capture(bell::id))
@@ -1949,7 +1973,10 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.captured(bell::id))
@@ -1973,7 +2000,10 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.captured(bell::id))
@@ -2190,7 +2220,10 @@ namespace netxs::ui
         }
         void giveup(hids& gear)
         {
-            if (on_pager) gear.dismiss();
+            if (on_pager)
+            {
+                gear.dismiss();
+            }
             else
             {
                 if (gear.captured(bell::id))
@@ -2262,8 +2295,8 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
-                if (this->form::template protos<tier::release>(bttn::down::left) ||
-                    this->form::template protos<tier::release>(bttn::down::right))
+                if (this->form::template protos<tier::release>(bttn::down::left)
+                 || this->form::template protos<tier::release>(bttn::down::right))
                 if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
                 {
                     if (gear.capture(bell::id))
@@ -2290,8 +2323,8 @@ namespace netxs::ui
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (this->form::template protos<tier::release>(bttn::up::left) ||
-                        this->form::template protos<tier::release>(bttn::up::right))
+                    if (this->form::template protos<tier::release>(bttn::up::left)
+                     || this->form::template protos<tier::release>(bttn::up::right))
                     {
                         gear.release();
                         gear.dismiss();
@@ -2312,7 +2345,10 @@ namespace netxs::ui
 
             SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.capture(bell::id))
@@ -2323,7 +2359,10 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.captured(bell::id))
@@ -2347,7 +2386,10 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.captured(bell::id))
@@ -2470,7 +2512,9 @@ namespace netxs::ui
                 this->SIGNAL(tier::release, e2::render::any, parent_canvas);
                 parent_canvas.view(view);
                 if (client)
+                {
                     parent_canvas.render(client, base::coor());
+                }
                 this->bell::expire<tier::release>();
             };
         }
@@ -2732,7 +2776,7 @@ namespace netxs::ui
             auto pin_abs = netxs::divround((bar_len + 1) * (cur_val - min_val),
                 (max_val - min_val));
             text pin_str;
-            if (pin_abs == 0)           pin_str = "├";
+                 if (pin_abs == 0)           pin_str = "├";
             else if (pin_abs == bar_len + 1) pin_str = "┤";
             else                             pin_str = "┼";
 

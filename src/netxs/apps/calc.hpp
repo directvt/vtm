@@ -206,7 +206,9 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, e2::form::drag::start::_<BUTTON>, memo, gear)
                 {
                     if (items.take(gear).grab(gear.coord, gear.meta(hids::ANYCTRL)))
+                    {
                         gear.dismiss();
+                    }
                 };
                 boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<BUTTON>, memo, gear)
                 {

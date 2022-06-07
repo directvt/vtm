@@ -125,10 +125,14 @@ int main(int argc, char* argv[])
         config.open(os::homepath() + MONOTTY_FOLDER "settings.ini");
 
         if (config.is_open())
+        {
             std::getline(config, region);
+        }
 
         if (region.empty())
+        {
             region = "unknown region";
+        }
 
         //todo unify
         //fps

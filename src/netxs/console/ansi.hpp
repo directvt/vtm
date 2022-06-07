@@ -708,7 +708,7 @@ namespace netxs::ansi
                     return add("\033[22;", clr, 'm');
                 default: // grayscale
                     auto l = c.luma();
-                    if      (l < 42)  clr += 1;
+                         if (l < 42)  clr += 1;
                     else if (l < 90)  clr += 2;
                     else if (l < 170) clr += 3;
                     else if (l < 240) clr += 4;
@@ -740,7 +740,7 @@ namespace netxs::ansi
                     else // grayscale
                     {
                         auto l = c.luma();
-                        if      (l < 42)  clr += 1;
+                             if (l < 42)  clr += 1;
                         else if (l < 90)  clr += 2;
                         else if (l < 170) clr += 3;
                         else if (l < 240) clr += 4;
@@ -1807,7 +1807,7 @@ namespace netxs::ansi
                         if (++step != tail)
                         {
                             auto c = *step;
-                            if(c == 'P') // Set linux console palette.
+                            if (c == 'P') // Set linux console palette.
                             {
                                 if (tail - step < 8)
                                 {
@@ -1820,7 +1820,7 @@ namespace netxs::ansi
                                 }
                                 return utf8;
                             }
-                            else if(c == 'R') // Reset linux console palette.
+                            else if (c == 'R') // Reset linux console palette.
                             {
                                 utf::purify(utf8);
                                 return utf8;

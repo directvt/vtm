@@ -593,8 +593,11 @@ namespace netxs
         auto left = x1 - xmin;
         auto top  = y1 - ymin;
 
-        if ((dx == 0.0f && left < 0.0f) ||
-            (dy == 0.0f && top  < 0.0f)) return faux; // Line is parallel to rectangle.
+        if ((dx == 0.0f && left < 0.0f)
+         || (dy == 0.0f && top  < 0.0f))
+        {
+            return faux; // Line is parallel to rectangle.
+        }
 
         auto max = 0.0f;
         auto min = 1.0f;
@@ -717,11 +720,15 @@ namespace netxs
                 auto decr = [](auto& a){ --a; };
 
                 if (dy > 0)
+                {
                     if (dx > 0) line(p0, p1, incr, incr);
                     else        line(p0, p1, decr, incr);
+                }
                 else
+                {
                     if (dx > 0) line(p0, p1, incr, decr);
                     else        line(p0, p1, decr, decr);
+                }
             }
         };
 

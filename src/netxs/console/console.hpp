@@ -1265,7 +1265,9 @@ namespace netxs::console
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 if (base::brush.wdt())
+                {
                     parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
+                }
             };
         }
     };
@@ -1546,12 +1548,16 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, e2::form::drag::start::_<BUTTON>, memo, gear)
                 {
                     if (items.take(gear).grab(boss, gear.coord, outer))
+                    {
                         gear.dismiss();
+                    }
                 };
                 boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<BUTTON>, memo, gear)
                 {
                     if (items.take(gear).drag(boss, gear.coord, outer))
+                    {
                         gear.dismiss();
+                    }
                 };
                 boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<BUTTON>, memo, gear)
                 {
@@ -2750,10 +2756,14 @@ namespace netxs::console
 
                         state = m.buttons[btn].pressed ? "pressed" : "";
                         if (m.buttons[btn].flipped)
+                        {
                             state += state.length() ? " | flipped" : "flipped";
+                        }
 
                         if (m.buttons[btn].dragged)
+                        {
                             state += state.length() ? " | dragged" : "dragged";
+                        }
 
                         state += state.length() ? "" : "idle";
                     }
@@ -3189,7 +3199,10 @@ namespace netxs::console
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
                 boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
                 {
-                    if (!full++) soul = boss.This();
+                    if (!full++)
+                    {
+                        soul = boss.This();
+                    }
                     if (gear.direct<true>(boss.bell::id) || omni)
                     {
                         if (!rent++)
@@ -3201,7 +3214,11 @@ namespace netxs::console
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
                 boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
                 {
-                    if (!--full) { soul->base::strike(); soul.reset(); }
+                    if (!--full)
+                    {
+                        soul->base::strike();
+                        soul.reset();
+                    }
                     if (gear.direct<faux>(boss.bell::id) || omni)
                     {
                         if (!--rent)
@@ -3255,6 +3272,7 @@ namespace netxs::console
                     //using bttn = hids::events::mouse::button; //MSVC 16.9.4 don't get it
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
+                        log("captured");
                         if (gear.capture(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::start::_<BUTTON>, gear);
@@ -3263,6 +3281,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
+                        log("pull delta: ", gear.delta.get());
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::pull::_<BUTTON>, gear);
@@ -3271,6 +3290,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
+                        log("pull cancel");
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
@@ -3280,6 +3300,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::general, hids::events::halt, dragmemo[BUTTON], gear)
                     {
+                        log("pull halt");
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
@@ -3289,6 +3310,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
+                        log("drag stop");
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::stop::_<BUTTON>, gear);
@@ -3576,7 +3598,9 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::preview, e2::size::set, memo, new_size)
                 {
                     if (sure)
+                    {
                         new_size = std::clamp(new_size, lims.min, lims.max);
+                    }
                 };
                 if (forced_resize)
                 {
@@ -3633,7 +3657,10 @@ namespace netxs::console
                 canvas.size(boss.base::size());
                 boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, value)
                 {
-                    if (value == -1) value = lucidity;
+                    if (value == -1)
+                    {
+                        value = lucidity;
+                    }
                     else
                     {
                         lucidity = value;
@@ -3776,7 +3803,10 @@ namespace netxs::console
             template<class T>
             bool find(T test_id)
             {
-                for (auto id : pool) if (test_id == id) return true;
+                for (auto id : pool)
+                {
+                    if (test_id == id) return true;
+                }
                 return faux;
             }
 
@@ -4528,14 +4558,18 @@ namespace netxs::console
             SUBMIT(tier::request, e2::form::layout::gonext, next)
             {
                 if (items)
-                    if (auto next_ptr = items.rotate_next())
-                        next = next_ptr->object;
+                if (auto next_ptr = items.rotate_next())
+                {
+                    next = next_ptr->object;
+                }
             };
             SUBMIT(tier::request, e2::form::layout::goprev, prev)
             {
                 if (items)
-                    if (auto prev_ptr = items.rotate_prev())
-                        prev = prev_ptr->object;
+                if (auto prev_ptr = items.rotate_prev())
+                {
+                    prev = prev_ptr->object;
+                }
             };
         }
 
@@ -5944,7 +5978,10 @@ again:
                         //    canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
                         //    canvas.full(full);
                         //}
-                        if (debug) debug.output(canvas);
+                        if (debug)
+                        {
+                            debug.output(canvas);
+                        }
                         if (props.show_regions)
                         {
                             canvas.each([](cell& c)

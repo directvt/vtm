@@ -298,16 +298,18 @@ namespace netxs::app::shared
                 };
                 //todo revise
                 if (menu_items.size()) // Show scrolling hint only if elements exist.
-                boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
                 {
-                    if (auto park_ptr = park_shadow.lock())
-                    if (auto grip_ptr = grip_shadow.lock())
-                    if (auto boss_ptr = boss_shadow.lock())
+                    boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
                     {
-                        park_ptr->visible(grip_ptr, active);
-                        boss_ptr->base::deface();
-                    }
-                };
+                        if (auto park_ptr = park_shadow.lock())
+                        if (auto grip_ptr = grip_shadow.lock())
+                        if (auto boss_ptr = boss_shadow.lock())
+                        {
+                            park_ptr->visible(grip_ptr, active);
+                            boss_ptr->base::deface();
+                        }
+                    };
+                }
             });
         menu_block->attach(snap::stretch, snap::center, menu_area);
 
@@ -415,10 +417,14 @@ namespace netxs::app::shared
         auto& map = get_creator();
         const auto it = map.find(key);
         if (it == map.end())
+        {
             //return map["Empty"];
             return empty;
+        }
         else
+        {
             return it->second;
+        }
     }
     struct initialize
     {
