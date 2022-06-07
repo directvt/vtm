@@ -6596,11 +6596,10 @@ namespace netxs::ui
         // dtvt: DTVT-style mouse tracking functionality.
         class m_tracking
         {
-            dtvt&       owner; // m_tracking: Terminal object reference.
-            testy<twod> coord; // m_tracking: Last coord of mouse cursor.
-            ansi::esc   queue; // m_tracking: Buffer.
-            subs        token; // m_tracking: Subscription token.
-            bool        moved; // m_tracking: .
+            dtvt&                          owner; // m_tracking: Terminal object reference.
+            ansi::esc                      queue; // m_tracking: Buffer.
+            subs                           token; // m_tracking: Subscription token.
+            std::unordered_map<id_t, twod> coord; // m_tracking: Last coord of mouse cursor.
 
             void capture(hids& gear)
             {
@@ -6614,22 +6613,22 @@ namespace netxs::ui
             }
             void serialize(hids& gear)
             {
-                auto coor = gear.coord;
-                auto buttons = gear.get_buttons();
-                auto meta = gear.meta();
-                auto flags = (gear.whldt ? (1 << 2) : 0)
-                           | (gear.hzwhl ? (1 << 3) : 0);
-                auto wheeldt = gear.whldt;
+                auto coord = gear.coord;
+                auto bttns = gear.get_buttons();
+                auto ctrls = gear.meta();
+                auto wheel = gear.whldt;
+                auto flags =(gear.whldt ? (1 << 2) : 0)
+                          | (gear.hzwhl ? (1 << 3) : 0);
                 queue.dtvt_begin()
                      .dtvt_mouse(gear.id.sub,
-                                 buttons,
-                                 meta,
+                                 bttns,
+                                 ctrls,
                                  flags,
-                                 wheeldt,
-                                 coor.x,
-                                 coor.y)
+                                 wheel,
+                                 coord.x,
+                                 coord.y)
                      .dtvt_close();
-                log("dtvt: ", utf::debase(queue));
+                //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
             void gone(hids& gear)
@@ -6639,7 +6638,7 @@ namespace netxs::ui
                 queue.dtvt_begin()
                      .dtvt_mouse_stop(gear.id.sub)
                      .dtvt_close();
-                log("dtvt: ", utf::debase(queue));
+                //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
             void leave(hids& gear)
@@ -6648,7 +6647,7 @@ namespace netxs::ui
                 queue.dtvt_begin()
                      .dtvt_mouse_halt(gear.id.sub)
                      .dtvt_close();
-                log("dtvt: ", utf::debase(queue));
+                //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
             void keybd(hids& gear)
@@ -6662,10 +6661,10 @@ namespace netxs::ui
                                  gear.imitate,
                                  gear.cluster)
                      .dtvt_close();
-                log("dtvt: ", utf::debase(queue));
+                //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
-            void proceed(hids& gear, id_t cause)
+            void proceed(hids& gear, id_t cause, bool moved)
             {
                 using m = hids::events::mouse;
                 using b = hids::events::mouse::button;
@@ -6709,9 +6708,16 @@ namespace netxs::ui
             {
                 owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                 {
-                    moved = coord(gear.coord);
+                    bool moved; // It's valuable for the drag start in a multi user environment.
+                    auto mapit = coord.find(gear.id.sub);
+                    if (mapit == coord.end())
+                    {
+                        coord.try_emplace(gear.id.sub, gear.coord);
+                        moved = true;
+                    }
+                    else moved = mapit->second(gear.coord);
                     auto cause = owner.bell::protos<tier::release>();
-                    proceed(gear, cause);
+                    proceed(gear, cause, moved);
                 };
                 owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                 {

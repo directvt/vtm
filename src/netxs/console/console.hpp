@@ -769,9 +769,9 @@ namespace netxs::console
                 if (decoy)
                 {
                     // Don't tie the first line if it's the only one. Make one step forward.
-                    if (anker.y == 0 &&
-                        anker.y == flow::cp().y &&
-                        cover.height() > 1)
+                    if (anker.y == 0
+                     && anker.y == flow::cp().y
+                     && cover.height() > 1)
                     {
                         // the increment is removed bcos it shifts mc one row down on Ctrl+O and back
                         //basis.y++;
@@ -4885,7 +4885,7 @@ namespace netxs::console
                                                                       || m.buttons[other]
                                                                       || m.buttons[winbt]))
                                                         {
-                                                            // Moving without buttons (case when second release not fired: wezterm, terminal.app)
+                                                            // Moving without buttons (case when second release not fired: apple's terminal.app)
                                                             m.buttons[first] = faux;
                                                             m.buttons[midst] = faux;
                                                             m.buttons[other] = faux;

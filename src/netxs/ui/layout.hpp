@@ -1690,10 +1690,10 @@ namespace netxs::ui::atoms
               foot{ pad.foot.step }
         { }
         bool operator == (dent const&) const = default;
-        explicit operator bool () const { return west.step != 0 ||
-                                                 east.step != 0 ||
-                                                 head.step != 0 ||
-                                                 foot.step != 0; }
+        explicit operator bool () const { return west.step != 0
+                                              || east.step != 0
+                                              || head.step != 0
+                                              || foot.step != 0; }
         constexpr auto& operator = (dent const& pad)
         {
             west = pad.west;

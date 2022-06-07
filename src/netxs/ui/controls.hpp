@@ -1396,25 +1396,25 @@ namespace netxs::ui
                 }
             };
 
-            using bttn = hids::events::mouse::button;
+            using button = hids::events::mouse::button;
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 auto dt = gear.whldt > 0;
                 auto hz = permit == xy(axes::X_ONLY)
-                       || permit == xy(axes::ALL) && gear.meta(hids::ANYCTRL | hids::SHIFT );
+                      || (permit == xy(axes::ALL) && gear.meta(hids::ANYCTRL | hids::SHIFT));
                 if (hz) wheels<X>(dt);
                 else    wheels<Y>(dt);
                 gear.dismiss();
             };
-            SUBMIT(tier::release, bttn::drag::start::right, gear)
+            SUBMIT(tier::release, button::drag::start::right, gear)
             {
                 auto ds = gear.delta.get();
                 auto dx = ds.x;
                 auto dy = ds.y * 2;
                 auto vt = std::abs(dx) < std::abs(dy);
 
-                if ((siezed[X] && !vt) ||
-                    (siezed[Y] &&  vt))
+                if ((siezed[X] && !vt)
+                 || (siezed[Y] &&  vt))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -1424,7 +1424,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, bttn::drag::pull::right, gear)
+            SUBMIT(tier::release, button::drag::pull::right, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1434,7 +1434,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, bttn::drag::cancel::right, gear)
+            SUBMIT(tier::release, button::drag::cancel::right, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1448,7 +1448,7 @@ namespace netxs::ui
                     giveup(gear);
                 }
             };
-            SUBMIT(tier::release, bttn::drag::stop::right, gear)
+            SUBMIT(tier::release, button::drag::stop::right, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1467,7 +1467,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, bttn::click::right, gear)
+            SUBMIT(tier::release, button::click::right, gear)
             {
                 if (!gear.captured(bell::id))
                 {
@@ -1475,7 +1475,7 @@ namespace netxs::ui
                     if (manual[Y]) cancel<Y, true>();
                 }
             };
-            SUBMIT(tier::release, bttn::down::any, gear)
+            SUBMIT(tier::release, button::down::any, gear)
             {
                 cutoff();
             };
@@ -1888,7 +1888,7 @@ namespace netxs::ui
                 calc.resize(new_size);
             };
 
-            using bttn = hids::events::mouse::button;
+            using button = hids::events::mouse::button;
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 if (gear.whldt)
@@ -1909,8 +1909,8 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
-                if (this->form::template protos<tier::release>(bttn::down::left)
-                 || this->form::template protos<tier::release>(bttn::down::right))
+                if (this->form::template protos<tier::release>(button::down::left)
+                 || this->form::template protos<tier::release>(button::down::right))
                 if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
                 {
                     if (gear.capture(bell::id))
@@ -1937,8 +1937,8 @@ namespace netxs::ui
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (this->form::template protos<tier::release>(bttn::up::left)
-                     || this->form::template protos<tier::release>(bttn::up::right))
+                    if (this->form::template protos<tier::release>(button::up::left)
+                     || this->form::template protos<tier::release>(button::up::right))
                     {
                         gear.release();
                         gear.dismiss();
@@ -2008,7 +2008,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (this->form::template protos<tier::release>(bttn::drag::stop::right))
+                        if (this->form::template protos<tier::release>(button::drag::stop::right))
                         {
                             send<upon::scroll::cancel>();
                         }
