@@ -4629,6 +4629,7 @@ namespace netxs::console
         template<class E, class T>
         void notify(E, T& data)
         {
+            //owner->SIGNAL(tier::release, E{}, data);
             netxs::events::enqueue(owner, [d = data](auto& boss)
             {
                 boss.SIGNAL(tier::release, E{}, d);
@@ -4640,7 +4641,7 @@ namespace netxs::console
             log("link: id: ", thread_id, " conio session started");
 
             auto digit = [](auto c) { return c >= '0' && c <= '9'; };
-            auto mouse = sysmouse{};
+            auto mouse = std::unordered_map<id_t, sysmouse>{};
             auto keybd = syskeybd{};
             auto focus = faux;
             auto total = text{};
@@ -4803,6 +4804,8 @@ namespace netxs::console
                                                         auto x = clamp(pos_x.value() - 1);
                                                         auto y = clamp(pos_y.value() - 1);
                                                         auto ctl = ctrl.value();
+                                                        auto id = owner->id;
+                                                        auto& m = mouse[id];
 
                                                         // ks & 0x10 ? f + ";2" // shift
                                                         // ks & 0x02 || ks & 0x01 ? f + ";3" // alt
@@ -4814,16 +4817,16 @@ namespace netxs::console
                                                         bool k_shift = ctl & 0x4;
                                                         bool k_alt   = ctl & 0x8;
                                                         bool k_ctrl  = ctl & 0x10;
-                                                        mouse.ctlstate = (k_shift ? hids::SHIFT : 0)
-                                                                       + (k_alt   ? hids::ALT   : 0)
-                                                                       + (k_ctrl  ? hids::CTRL  : 0);
+                                                        m.ctlstate = (k_shift ? hids::SHIFT : 0)
+                                                                   + (k_alt   ? hids::ALT   : 0)
+                                                                   + (k_ctrl  ? hids::CTRL  : 0);
                                                         //if ( mouse.ctlstate ) log(" mouse.ctlstate =",  mouse.ctlstate );
                                                         ctl = ctl & ~0b00011100;
 
-                                                        mouse.mouseid = owner->id;
-                                                        mouse.wheeled = faux;
-                                                        mouse.wheeldt = 0;
-                                                        mouse.shuffle = faux;
+                                                        m.mouseid = id;
+                                                        m.shuffle = faux;
+                                                        m.wheeled = faux;
+                                                        m.wheeldt = 0;
 
                                                         bool fire = true;
 
@@ -4835,65 +4838,65 @@ namespace netxs::console
                                                         constexpr static int wheel = sysmouse::wheel;
                                                         constexpr static int joint = sysmouse::leftright;
 
-                                                        if (ctl == 35 &&(mouse.button[first]
-                                                                      || mouse.button[midst]
-                                                                      || mouse.button[other]
-                                                                      || mouse.button[winbt]))
+                                                        if (ctl == 35 &&(m.button[first]
+                                                                      || m.button[midst]
+                                                                      || m.button[other]
+                                                                      || m.button[winbt]))
                                                         {
                                                             // Moving without buttons (case when second release not fired: wezterm, terminal.app)
-                                                            mouse.button[first] = faux;
-                                                            mouse.button[midst] = faux;
-                                                            mouse.button[other] = faux;
-                                                            mouse.button[winbt] = faux;
-                                                            mouse.update_buttons();
-                                                            notify(e2::conio::mouse, mouse);
+                                                            m.button[first] = faux;
+                                                            m.button[midst] = faux;
+                                                            m.button[other] = faux;
+                                                            m.button[winbt] = faux;
+                                                            m.update_buttons();
+                                                            notify(e2::conio::mouse, m);
                                                         }
                                                         // Moving should be fired first
-                                                        if ((mouse.ismoved = mouse.coor({ x, y })))
+                                                        if ((m.ismoved = m.coor({ x, y })))
                                                         {
-                                                            mouse.update_buttons();
-                                                            notify(e2::conio::mouse, mouse);
-                                                            mouse.ismoved = faux;
+                                                            m.update_buttons();
+                                                            notify(e2::conio::mouse, m);
+                                                            m.ismoved = faux;
                                                         }
 
                                                         switch (ctl)
                                                         {
                                                             case 0:
-                                                                mouse.button[first] = ispressed;
+                                                                m.button[first] = ispressed;
                                                                 break;
                                                             case 1:
-                                                                mouse.button[midst] = ispressed;
+                                                                m.button[midst] = ispressed;
                                                                 break;
                                                             case 2:
-                                                                mouse.button[other] = ispressed;
+                                                                m.button[other] = ispressed;
                                                                 break;
                                                             case 3:
-                                                                mouse.button[winbt] = ispressed;
+                                                                m.button[winbt] = ispressed;
                                                                 //if (!ispressed) // WinSrv2019 vtmouse bug workaround
                                                                 //{               //  - release any button always fires winbt release
-                                                                //	mouse.button[first] = ispressed;
-                                                                //	mouse.button[midst] = ispressed;
-                                                                //	mouse.button[other] = ispressed;
+                                                                //	m.button[first] = ispressed;
+                                                                //	m.button[midst] = ispressed;
+                                                                //	m.button[other] = ispressed;
                                                                 //}
                                                                 break;
                                                             case 64:
-                                                                mouse.wheeled = true;
-                                                                mouse.wheeldt = 1;
+                                                                m.wheeled = true;
+                                                                m.wheeldt = 1;
                                                                 break;
                                                             case 65:
-                                                                mouse.wheeled = true;
-                                                                mouse.wheeldt = -1;
+                                                                m.wheeled = true;
+                                                                m.wheeldt = -1;
                                                                 break;
                                                             default:
                                                                 fire = faux;
-                                                                mouse.shuffle = !mouse.ismoved;
+                                                                m.shuffle = !m.ismoved;
                                                                 break;
                                                         }
 
                                                         if (fire)
                                                         {
-                                                            mouse.update_buttons();
-                                                            notify(e2::conio::mouse, mouse);
+                                                            m.update_buttons();
+                                                            notify(e2::conio::mouse, m);
                                                         }
                                                     }
                                                 }
@@ -4938,6 +4941,7 @@ again:
                                             case ansi::dtvt::mouse:
                                             {
                                                 si32 id    = take();
+                                                if (id == 0) id = owner->id;
                                                 si32 bttns = take();
                                                 si32 ctrls = take();
                                                 si32 flags = take();
@@ -4946,38 +4950,39 @@ again:
                                                 si32 ycoor = take();
 
                                                 auto coord = twod{ xcoor, ycoor };
+                                                auto& m = mouse[id];
 
-                                                mouse.button[0] = bttns & (1 << 0); // FROM_LEFT_1ST_BUTTON_PRESSED
-                                                mouse.button[1] = bttns & (1 << 1); // RIGHTMOST_BUTTON_PRESSED;
-                                                mouse.button[3] = bttns & (1 << 2); // FROM_LEFT_2ND_BUTTON_PRESSED;
-                                                mouse.button[2] = bttns & (1 << 3); // FROM_LEFT_3RD_BUTTON_PRESSED;
-                                                mouse.button[4] = bttns & (1 << 4); // FROM_LEFT_4TH_BUTTON_PRESSED;
+                                                m.button[0] = bttns & (1 << 0); // FROM_LEFT_1ST_BUTTON_PRESSED
+                                                m.button[1] = bttns & (1 << 1); // RIGHTMOST_BUTTON_PRESSED;
+                                                m.button[3] = bttns & (1 << 2); // FROM_LEFT_2ND_BUTTON_PRESSED;
+                                                m.button[2] = bttns & (1 << 3); // FROM_LEFT_3RD_BUTTON_PRESSED;
+                                                m.button[4] = bttns & (1 << 4); // FROM_LEFT_4TH_BUTTON_PRESSED;
 
-                                                mouse.mouseid = id ? id : owner->id;
-                                                mouse.status = sysmouse::stat::ok;
-                                                mouse.ismoved = mouse.coor(coord);
-                                                mouse.shuffle = !mouse.ismoved && (flags & (1 << 0)); // MOUSE_MOVED
+                                                m.mouseid = id;
+                                                m.status = sysmouse::stat::ok;
+                                                m.ismoved = m.coor(coord);
+                                                m.shuffle = !m.ismoved && (flags & (1 << 0)); // MOUSE_MOVED
                                                 // Makes no sense (ignored)
-                                                mouse.doubled = flags & (1 << 1); // DOUBLE_CLICK;
-                                                mouse.wheeled = flags & (1 << 2); // MOUSE_WHEELED;
-                                                mouse.hzwheel = flags & (1 << 3); // MOUSE_HWHEELED;
-                                                mouse.wheeldt = wheel;
+                                                m.doubled = flags & (1 << 1); // DOUBLE_CLICK;
+                                                m.wheeled = flags & (1 << 2); // MOUSE_WHEELED;
+                                                m.hzwheel = flags & (1 << 3); // MOUSE_HWHEELED;
+                                                m.wheeldt = wheel;
 
                                                 bool k_ralt  = ctrls & 0x1;
                                                 bool k_alt   = ctrls & 0x2;
                                                 bool k_rctrl = ctrls & 0x4;
                                                 bool k_ctrl  = ctrls & 0x8;
                                                 bool k_shift = ctrls & 0x10;
-                                                mouse.ctlstate = (k_shift ? hids::SHIFT : 0)
-                                                               + (k_alt   ? hids::ALT   : 0)
-                                                               + (k_ralt  ? hids::ALT   : 0)
-                                                               + (k_rctrl ? hids::RCTRL : 0)
-                                                               + (k_ctrl  ? hids::CTRL  : 0);
+                                                m.ctlstate = (k_shift ? hids::SHIFT : 0)
+                                                           + (k_alt   ? hids::ALT   : 0)
+                                                           + (k_ralt  ? hids::ALT   : 0)
+                                                           + (k_rctrl ? hids::RCTRL : 0)
+                                                           + (k_ctrl  ? hids::CTRL  : 0);
 
-                                                if (!mouse.shuffle)
+                                                if (!m.shuffle)
                                                 {
-                                                    mouse.update_buttons();
-                                                    notify(e2::conio::mouse, mouse);
+                                                    m.update_buttons();
+                                                    notify(e2::conio::mouse, m);
                                                 }
                                                 break;
                                             }
@@ -5073,17 +5078,21 @@ again:
                                             case ansi::dtvt::mouse_halt:
                                             {
                                                 si32 id = take();
-                                                mouse.mouseid = id ? id : owner->id;
-                                                mouse.status = sysmouse::stat::halt;
-                                                notify(e2::conio::mouse, mouse);
+                                                if (id == 0) id = owner->id;
+                                                auto& m = mouse[id];
+                                                m.mouseid = id;
+                                                m.status = sysmouse::stat::halt;
+                                                notify(e2::conio::mouse, m);
                                                 break;
                                             }
                                             case ansi::dtvt::mouse_stop:
                                             {
                                                 si32 id = take();
-                                                mouse.mouseid = id ? id : owner->id;
-                                                mouse.status = sysmouse::stat::die;
-                                                notify(e2::conio::mouse, mouse);
+                                                if (id == 0) id = owner->id;
+                                                auto& m = mouse[id];
+                                                m.mouseid = id;
+                                                m.status = sysmouse::stat::die;
+                                                notify(e2::conio::mouse, m);
                                                 break;
                                             }
                                             default:
