@@ -264,7 +264,7 @@ namespace netxs::ui
             }
             void release(hids& gear)
             {
-                if (gear.captured(owner.id)) gear.release(faux);
+                if (gear.captured(owner.id)) gear.setfree(faux);
                 gear.dismiss();
             }
             template<prot PROT>
@@ -6097,16 +6097,13 @@ namespace netxs::ui
                 auto data = console.selection_pickup(selmod);
                 if (data.size())
                 {
-                    if (auto gate_ptr = bell::getref(gear.id))
-                    {
-                        auto state = gear.state();
-                        gear.combine_focus = true;
-                        gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
-                        gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                        gate_ptr->SIGNAL(tier::release, e2::command::clipboard::layout, target->panel);
-                        gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, data);
-                        gear.state(state);
-                    }
+                    auto state = gear.state();
+                    gear.combine_focus = true;
+                    gear.owner.SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
+                    gear.owner.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                    gear.owner.SIGNAL(tier::release, e2::command::clipboard::layout, target->panel);
+                    gear.owner.SIGNAL(tier::release, e2::command::clipboard::set, data);
+                    gear.state(state);
                 }
                 if (gear.meta(hids::ANYCTRL) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
                 {
@@ -6120,16 +6117,13 @@ namespace netxs::ui
                     return;
                 #endif
 
-                if (auto gate_ptr = bell::getref(gear.id))
+                auto data = decltype(e2::command::clipboard::get)::type{};
+                gear.owner.SIGNAL(tier::release, e2::command::clipboard::get, data);
+                if (data.size())
                 {
-                    auto data = decltype(e2::command::clipboard::get)::type{};
-                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
-                    if (data.size())
-                    {
-                        follow[axis::X] = true;
-                        data_out(data);
-                        gear.dismiss();
-                    }
+                    follow[axis::X] = true;
+                    data_out(data);
+                    gear.dismiss();
                 }
             }
         }
@@ -6268,19 +6262,16 @@ namespace netxs::ui
             }
             else
             {
-                if (auto gate_ptr = bell::getref(gear.id))
+                auto data = decltype(e2::command::clipboard::get)::type{};
+                gear.owner.SIGNAL(tier::release, e2::command::clipboard::get, data);
+                if (data.size())
                 {
-                    auto data = decltype(e2::command::clipboard::get)::type{};
-                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
-                    if (data.size())
-                    {
-                        delta = console.selection_search(dir, data);
-                    }
-                    else // Page by page scrolling if nothing to search.
-                    {
-                        delta.y = fwd ? -console.arena
-                                      :  console.arena;
-                    }
+                    delta = console.selection_search(dir, data);
+                }
+                else // Page by page scrolling if nothing to search.
+                {
+                    delta.y = fwd ? -console.arena
+                                    :  console.arena;
                 }
             }
             SIGNAL(tier::release, ui::term::events::search::status, console.selection_button(delta));
@@ -6608,7 +6599,7 @@ namespace netxs::ui
             }
             void release(hids& gear)
             {
-                if (gear.captured(owner.id)) gear.release(faux);
+                if (gear.captured(owner.id)) gear.setfree(faux);
                 gear.dismiss();
             }
             void serialize(hids& gear)
@@ -6620,7 +6611,7 @@ namespace netxs::ui
                 auto flags =(gear.whldt ? (1 << 2) : 0)
                           | (gear.hzwhl ? (1 << 3) : 0);
                 queue.dtvt_begin()
-                     .dtvt_mouse(gear.id.sub,
+                     .dtvt_mouse(gear.id,
                                  bttns,
                                  ctrls,
                                  flags,
@@ -6636,7 +6627,7 @@ namespace netxs::ui
                 log("dtvt: mouse::die, ", gear.id);
                 release(gear);
                 queue.dtvt_begin()
-                     .dtvt_mouse_stop(gear.id.sub)
+                     .dtvt_mouse_stop(gear.id)
                      .dtvt_close();
                 //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
@@ -6645,7 +6636,7 @@ namespace netxs::ui
             {
                 log("dtvt: mouse::halt, ", gear.id);
                 queue.dtvt_begin()
-                     .dtvt_mouse_halt(gear.id.sub)
+                     .dtvt_mouse_halt(gear.id)
                      .dtvt_close();
                 //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
@@ -6653,7 +6644,7 @@ namespace netxs::ui
             void keybd(hids& gear)
             {
                 queue.dtvt_begin()
-                     .dtvt_keybd(gear.id.sub,
+                     .dtvt_keybd(gear.id,
                                  gear.virtcod,
                                  gear.scancod,
                                  gear.pressed,
@@ -6709,10 +6700,10 @@ namespace netxs::ui
                 owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                 {
                     bool moved; // It's valuable for the drag start in a multi user environment.
-                    auto mapit = coord.find(gear.id.sub);
+                    auto mapit = coord.find(gear.id);
                     if (mapit == coord.end())
                     {
-                        coord.try_emplace(gear.id.sub, gear.coord);
+                        coord.try_emplace(gear.id, gear.coord);
                         moved = true;
                     }
                     else moved = mapit->second(gear.coord);
@@ -6767,115 +6758,139 @@ namespace netxs::ui
             }
         }
         // dtvt: Proceed DirectVT input.
-        void ondata(view data)
+        void ondata(view base_data)
         {
-            auto frame = *reinterpret_cast<ansi::dtvt::header const*>(data.data());
-            auto length = frame.length.get();
-            auto square = frame.square.get();
-            auto surface_id = frame.id.get();
-            if (length > data.size())
+            while (base_data.size())
             {
-                log("dtvt: corrupted data");
-                return;
-            }
-            length -= sizeof(ansi::dtvt::header);
-            data.remove_prefix(sizeof(ansi::dtvt::header));
+                auto data = base_data;
 
-            auto lock = std::lock_guard{ access };
-
-            auto resized = square.size != canvas.size();
-            if (resized)
-            {
-                nodata = faux;
-                canvas.size(square.size);
-            }
-            auto iter = canvas.iter();
-            auto coor = dot_00;
-            auto limits = canvas.size();
-            while (data.size() > 0)
-            {
-                if (auto code = utf::cpit{ data })
+                auto frame = *reinterpret_cast<ansi::dtvt::frame const*>(data.data());
+                auto frame_size = frame.size.get();
+                auto frame_type = frame.type.get();
+                if (frame_size > data.size())
                 {
-                    auto cp = code.take();
-                    data.remove_prefix(cp.utf8len);
-                    auto type = cp.cdpoint;
-                    if (type == 0) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
+                    log("dtvt: corrupted data");
+                    return;
+                }
+                data.remove_prefix(sizeof(ansi::dtvt::frame));
+                switch (frame_type)
+                {
+                    case ansi::dtvt::frame::control:
                     {
-                        coor.x++;
-                        //++iter;
+                        auto control = *reinterpret_cast<ansi::dtvt::control const*>(data.data());
+                        auto command = control.command.get();
+                        data.remove_prefix(sizeof(ansi::dtvt::control));
+
+                        log("ansi::dtvt::frame::control command: ", command);
+                        break;
                     }
-                    else if (type <= 7) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                    case ansi::dtvt::frame::bitmap:
                     {
-                        auto size = type + 1;
-                        auto& glyph = marker.egc();
-                        ::memcpy(glyph, reinterpret_cast<void const*>(data.data()), size);
-                        if (limits.inside(coor))
+                        auto bitmap = *reinterpret_cast<ansi::dtvt::bitmap const*>(data.data());
+                        auto bitmap_id = bitmap.id.get();
+                        auto area = bitmap.area.get();
+                        data.remove_prefix(sizeof(ansi::dtvt::bitmap));
+
+                        auto lock = std::lock_guard{ access };
+
+                        auto resized = area.size != canvas.size();
+                        if (resized)
                         {
-                            canvas[coor] = marker;
+                            nodata = faux;
+                            canvas.size(area.size);
                         }
-                        data.remove_prefix(size);
-                        coor.x++;
-                    }
-                    else if (type == 8) //<= 8: cup: 8 bytes: si32 X + si32 Y
-                    {
-                        coor = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
-                        auto size = sizeof(twod);
-                        data.remove_prefix(size);
-                        //iter = canvas.begin() + 
-                    }
-                    else if (type == 9) //<= 9: bg color: 4 bytes: rgba
-                    {
-                        marker.bgc() = *reinterpret_cast<rgba const*>(data.data());
-                        auto size = sizeof(rgba);
-                        data.remove_prefix(size);
-                    }
-                    else if (type == 10) //<= 10: fg colors: 4 bytes: rgba
-                    {
-                        marker.fgc() = *reinterpret_cast<rgba const*>(data.data());
-                        auto size = sizeof(rgba);
-                        data.remove_prefix(size);
-                    }
-                    else if (type == 11) //<=11: style: token 4 bytes
-                    {
-                        auto& token = marker.stl();
-                        token = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                        auto size = sizeof(token);
-                        data.remove_prefix(size);
-                    }
-                    else if (type == 12) //<=12: wipe canvas
-                    {
-                        marker.txt('\0');
-                        canvas.wipe(marker);
-                    }
-                    else if (type == 13) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
-                    {
-                        //todo implement
-                        throw;
-                    }
-                    else if (type == 14) //<=14: Warping
-                    {
-                        auto warp = netxs::letoh(*reinterpret_cast<dent const*>(data.data()));
-                        auto size = sizeof(warp);
-                        data.remove_prefix(size);
-                        netxs::events::enqueue(This(), [&, warp](auto& boss)
+                        auto iter = canvas.iter();
+                        auto coor = dot_00;
+                        auto limits = canvas.size();
+                        while (data.size() > 0)
                         {
-                            this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
-                        });
-                    }
-                    else if (type == 100) //<=100: 4 b
-                    {
-                        auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                        auto vcmd = view(data.data() + sizeof(size), size);
-                        //todo implement
-                        log("dtvt: vt-data:\n", utf::debase(vcmd));
-                        data.remove_prefix(size + sizeof(size));
+                            if (auto code = utf::cpit{ data })
+                            {
+                                auto cp = code.take();
+                                data.remove_prefix(cp.utf8len);
+                                auto type = cp.cdpoint;
+                                if (type == ansi::dtvt::ngc) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
+                                {
+                                    coor.x++;
+                                    //++iter;
+                                }
+                                else if (type <= ansi::dtvt::gcl) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                                {
+                                    auto size = type + 1;
+                                    auto& glyph = marker.egc();
+                                    ::memcpy(glyph, reinterpret_cast<void const*>(data.data()), size);
+                                    if (limits.inside(coor))
+                                    {
+                                        canvas[coor] = marker;
+                                    }
+                                    data.remove_prefix(size);
+                                    coor.x++;
+                                }
+                                else if (type == ansi::dtvt::cup) //<= 8: cup: 8 bytes: si32 X + si32 Y
+                                {
+                                    coor = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
+                                    auto size = sizeof(twod);
+                                    data.remove_prefix(size);
+                                    //iter = canvas.begin() + 
+                                }
+                                else if (type == ansi::dtvt::bgc) //<= 9: bg color: 4 bytes: rgba
+                                {
+                                    marker.bgc() = *reinterpret_cast<rgba const*>(data.data());
+                                    auto size = sizeof(rgba);
+                                    data.remove_prefix(size);
+                                }
+                                else if (type == ansi::dtvt::fgc) //<= 10: fg colors: 4 bytes: rgba
+                                {
+                                    marker.fgc() = *reinterpret_cast<rgba const*>(data.data());
+                                    auto size = sizeof(rgba);
+                                    data.remove_prefix(size);
+                                }
+                                else if (type == ansi::dtvt::stl) //<=11: style: token 4 bytes
+                                {
+                                    auto& token = marker.stl();
+                                    token = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
+                                    auto size = sizeof(token);
+                                    data.remove_prefix(size);
+                                }
+                                else if (type == ansi::dtvt::rst) //<=12: wipe canvas
+                                {
+                                    marker.txt('\0');
+                                    canvas.wipe(marker);
+                                }
+                                //else if (type == 13) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
+                                //{
+                                //    //todo implement
+                                //    throw;
+                                //}
+                                //else if (type == 14) //<=14: Warping
+                                //{
+                                //    auto warp = netxs::letoh(*reinterpret_cast<dent const*>(data.data()));
+                                //    auto size = sizeof(warp);
+                                //    data.remove_prefix(size);
+                                //    netxs::events::enqueue(This(), [&, warp](auto& boss)
+                                //    {
+                                //        this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
+                                //    });
+                                //}
+                                else if (type == ansi::dtvt::cmd) //<=100: 4 b
+                                {
+                                    auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
+                                    auto vcmd = view(data.data() + sizeof(size), size);
+                                    //todo implement
+                                    log("dtvt: vt-data:\n", utf::debase(vcmd));
+                                    data.remove_prefix(size + sizeof(size));
+                                }
+                            }
+                        }
+
+                        //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
+                        base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
+                        syncxs.notify_one();
+                        break;
                     }
                 }
+                base_data.remove_prefix(frame_size);
             }
-
-            //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
-            base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
-            syncxs.notify_one();
         }
         // dtvt: Shutdown callback handler.
         void onexit(si32 code)
@@ -6911,6 +6926,11 @@ namespace netxs::ui
                 mtrack.disable();
             }
         }
+        // dtvt: Logs callback handler.
+        void atlogs(view utf8)
+        {
+            log("    ", ptycon.get_proc_id(), ": ", utf8, faux);
+        }
 
     public:
         // dtvt: Start a new process.
@@ -6926,6 +6946,7 @@ namespace netxs::ui
                     {
                         auto initsz = base::size();
                         ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                     [&](auto log_message) { atlogs(log_message); },
                                                      [&](auto exit_reason) { atexit(exit_reason); },
                                                      [&](auto exit_reason) { onexit(exit_reason); } );
                         unique = timer;

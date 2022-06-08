@@ -581,30 +581,27 @@ namespace netxs::app::tile
                             auto& boss = *boss_ptr;
                             if (auto deed = boss.bell::template protos<tier::release>())
                             {
-                                if (auto gate_ptr = bell::getref(gear.id))
-                                {
-                                    using type = decltype(e2::depth)::type;
-                                    auto depth = type{};
-                                    boss.base::template riseup<tier::request>(e2::depth, depth, true);
-                                    log(" depth=", depth);
-                                    if (depth > INHERITANCE_LIMIT) return;
+                                using type = decltype(e2::depth)::type;
+                                auto depth = type{};
+                                boss.base::template riseup<tier::request>(e2::depth, depth, true);
+                                log(" depth=", depth);
+                                if (depth > INHERITANCE_LIMIT) return;
 
-                                    auto heading = deed == app::tile::events::ui::split::vt.id;
-                                    auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
-                                    auto empty_1 = empty_slot(empty_slot);
-                                    auto empty_2 = empty_slot(empty_slot);
-                                    auto curitem = boss.pop_back(); // In order to preserve all foci.
-                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus,   empty_2);
-                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
-                                    if (boss.empty())
-                                    {
-                                        boss.attach(empty_pane());
-                                        empty_1->pop_back();
-                                    }
-                                    auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
-                                    auto slot_2 = newnode->attach(slot::_2, empty_2);
-                                    boss.attach(newnode);
+                                auto heading = deed == app::tile::events::ui::split::vt.id;
+                                auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
+                                auto empty_1 = empty_slot(empty_slot);
+                                auto empty_2 = empty_slot(empty_slot);
+                                auto curitem = boss.pop_back(); // In order to preserve all foci.
+                                gear.owner.SIGNAL(tier::preview, e2::form::proceed::focus,   empty_2);
+                                gear.owner.SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
+                                if (boss.empty())
+                                {
+                                    boss.attach(empty_pane());
+                                    empty_1->pop_back();
                                 }
+                                auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
+                                auto slot_2 = newnode->attach(slot::_2, empty_2);
+                                boss.attach(newnode);
                             }
                         }
                     };
@@ -669,55 +666,52 @@ namespace netxs::app::tile
                             }
                             else
                             {
-                                if (auto gate_ptr = bell::getref(gear.id))
+                                auto& gate = gear.owner;
+                                auto current_default = decltype(e2::data::changed)::type{};
+                                gate.SIGNAL(tier::request, e2::data::changed, current_default);
+                                auto config = app::shared::objs_config[current_default];
+
+                                auto& creator = app::shared::creator(config.group);
+                                auto host = creator(config.param);
+                                auto app = app_window(config.title, "", host, current_default);
+                                gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
+                                boss.attach(app);
+
+                                //todo unify, demo limits
                                 {
-                                    auto& gate = *gate_ptr;
-                                    auto current_default = decltype(e2::data::changed)::type{};
-                                    gate.SIGNAL(tier::request, e2::data::changed, current_default);
-                                    auto config = app::shared::objs_config[current_default];
-
-                                    auto& creator = app::shared::creator(config.group);
-                                    auto host = creator(config.param);
-                                    auto app = app_window(config.title, "", host, current_default);
-                                    gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
-                                    boss.attach(app);
-
-                                    //todo unify, demo limits
-                                    {
-                                        insts_count++;
-                                        #ifndef PROD
-                                            if (insts_count > APPS_MAX_COUNT)
-                                            {
-                                                log("tile: inst: max count reached");
-                                                auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
-                                                auto w_frame = ptr::shadow(host);
-                                                host->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
-                                                {
-                                                    if (timestamp > timeout)
-                                                    {
-                                                        log("tile: inst: timebomb");
-                                                        if (auto host = w_frame.lock())
-                                                        {
-                                                            host->riseup<tier::release>(e2::form::quit, host);
-                                                            //host->base::detach();
-                                                            log("tile: inst: frame detached: ", insts_count);
-                                                        }
-                                                    }
-                                                };
-                                            }
-                                        #endif
-                                        host->SUBMIT(tier::release, e2::dtor, id)
+                                    insts_count++;
+                                    #ifndef PROD
+                                        if (insts_count > APPS_MAX_COUNT)
                                         {
-                                            insts_count--;
-                                            log("tile: inst: detached: ", insts_count, " id=", id);
-                                        };
-                                    }
-                                    app->SIGNAL(tier::anycast, e2::form::upon::started, app);
-
-                                    //todo unify
-                                    gear.kb_focus_taken = faux;
-                                    host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                            log("tile: inst: max count reached");
+                                            auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
+                                            auto w_frame = ptr::shadow(host);
+                                            host->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
+                                            {
+                                                if (timestamp > timeout)
+                                                {
+                                                    log("tile: inst: timebomb");
+                                                    if (auto host = w_frame.lock())
+                                                    {
+                                                        host->riseup<tier::release>(e2::form::quit, host);
+                                                        //host->base::detach();
+                                                        log("tile: inst: frame detached: ", insts_count);
+                                                    }
+                                                }
+                                            };
+                                        }
+                                    #endif
+                                    host->SUBMIT(tier::release, e2::dtor, id)
+                                    {
+                                        insts_count--;
+                                        log("tile: inst: detached: ", insts_count, " id=", id);
+                                    };
                                 }
+                                app->SIGNAL(tier::anycast, e2::form::upon::started, app);
+
+                                //todo unify
+                                gear.kb_focus_taken = faux;
+                                host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                             }
                         }
                     };
@@ -869,19 +863,16 @@ namespace netxs::app::tile
                     auto objs_config_ptr = &app::shared::objs_config;
                     boss.SUBMIT_T_BYVAL(tier::anycast, e2::form::upon::created, *oneoff, gear)
                     {
-                        if (auto gate_ptr = bell::getref(gear.id))
+                        auto& gate = gear.owner;
+                        auto& objs_config = *objs_config_ptr;
+                        auto menu_item_id = decltype(e2::data::changed)::type{};
+                        gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
+                        //todo unify
+                        auto config = objs_config[menu_item_id];
+                        if (config.group == "Tile") // Reset the currently selected application to the previous one.
                         {
-                            auto& gate = *gate_ptr;
-                            auto& objs_config = *objs_config_ptr;
-                            auto menu_item_id = decltype(e2::data::changed)::type{};
-                            gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
-                            //todo unify
-                            auto config = objs_config[menu_item_id];
-                            if (config.group == "Tile") // Reset the currently selected application to the previous one.
-                            {
-                                gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
-                                gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
-                            }
+                            gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
+                            gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
                         }
                         oneoff.reset();
                     };

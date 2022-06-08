@@ -39,8 +39,8 @@ namespace netxs::console
 
     using namespace netxs::input;
     using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
-    using focus_test_t = std::pair<idid, si32>;
-    using gear_id_list_t = std::list<idid>;
+    using focus_test_t = std::pair<id_t, si32>;
+    using gear_id_list_t = std::list<id_t>;
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
     using os::xipc;
@@ -1289,9 +1289,9 @@ namespace netxs::console
             {
                 struct sock : public T
                 {
-                    idid    id; // sock: Hids ID.
+                    id_t    id; // sock: Hids ID.
                     si32 count; // sock: Clients count.
-                    sock(idid ctrl)
+                    sock(id_t ctrl)
                         :    id{ ctrl },
                           count{ 0    }
                     { }
@@ -1758,8 +1758,8 @@ namespace netxs::console
                             auto size = boss.base::size();
                             if (size.inside(gear.coord))
                             {
-                                if (seized(gear.id.top)) unbind();
-                                else                     follow(gear.id.top, dot_00);
+                                if (seized(gear.owner.id)) unbind();
+                                else                       follow(gear.owner.id, dot_00);
                             }
                         };
                     }
@@ -2198,7 +2198,7 @@ namespace netxs::console
 
             void check_modifiers(hids& gear)
             {
-                auto& data = slots[gear.id.sub];
+                auto& data = slots[gear.id];
                 auto state = !!gear.meta(hids::ANYCTRL);
                 if (data.ctrl != state)
                 {
@@ -2210,7 +2210,7 @@ namespace netxs::console
             {
                 if (gear.capture(boss.bell::id))
                 {
-                    auto& data = slots[gear.id.sub];
+                    auto& data = slots[gear.id];
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
@@ -2227,7 +2227,7 @@ namespace netxs::console
                 if (gear.captured(boss.bell::id))
                 {
                     check_modifiers(gear);
-                    auto& data = slots[gear.id.sub];
+                    auto& data = slots[gear.id];
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
@@ -2243,9 +2243,9 @@ namespace netxs::console
             {
                 if (gear.captured(boss.bell::id))
                 {
-                    slots.erase(gear.id.sub);
+                    slots.erase(gear.id);
                     gear.dismiss();
-                    gear.release();
+                    gear.setfree();
                 }
             }
             void handle_stop(hids& gear)
@@ -2253,15 +2253,15 @@ namespace netxs::console
                 if (gear.captured(boss.bell::id))
                 {
                     check_modifiers(gear);
-                    auto& data = slots[gear.id.sub];
+                    auto& data = slots[gear.id];
                     if (data.slot)
                     {
                         gear.slot = data.slot;
                         boss.SIGNAL(tier::preview, e2::form::proceed::createby, gear);
                     }
-                    slots.erase(gear.id.sub);
+                    slots.erase(gear.id);
                     gear.dismiss();
-                    gear.release();
+                    gear.setfree();
                 }
             }
 
@@ -3294,7 +3294,7 @@ namespace netxs::console
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
-                            gear.release();
+                            gear.setfree();
                             gear.dismiss();
                         }
                     };
@@ -3304,7 +3304,7 @@ namespace netxs::console
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
-                            gear.release();
+                            gear.setfree();
                             gear.dismiss();
                         }
                     };
@@ -3314,7 +3314,7 @@ namespace netxs::console
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::stop::_<BUTTON>, gear);
-                            gear.release();
+                            gear.setfree();
                             gear.dismiss();
                         }
                     };
@@ -3366,8 +3366,6 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, mousestate)
                 {
-                    log("input: ", mousestate.mouseid, " ", mousestate.coor);
-
                     auto gear_it = gears.find(mousestate.mouseid);
                     if (mousestate.control != sysmouse::stat::ok)
                     {
@@ -3388,7 +3386,7 @@ namespace netxs::console
                     else if (gear_it == gears.end())
                     {
                         auto id = mousestate.mouseid;
-                        gear_it = gears.try_emplace(id, boss, xmap, id).first;
+                        gear_it = gears.try_emplace(id, boss, xmap).first;
                         auto& [_id, gear] = *gear_it;
                         gear.set_single_instance(single_instance);
                         gear.hids::take(mousestate);
@@ -3406,7 +3404,7 @@ namespace netxs::console
                     if (gear_it == gears.end())
                     {
                         auto id = keybdstate.keybdid;
-                        gear_it = gears.try_emplace(id, boss, xmap, id).first;
+                        gear_it = gears.try_emplace(id, boss, xmap).first;
                         auto& [_id, gear] = *gear_it;
                         gear.set_single_instance(single_instance);
                         gear.hids::take(keybdstate);
@@ -4131,7 +4129,7 @@ namespace netxs::console
             {
                 if (gear.captured(bell::id))
                 {
-                    gear.release();
+                    gear.setfree();
                     gear.dismiss();
                 }
             };
@@ -4770,7 +4768,7 @@ namespace netxs::console
                         if (pos == len) // the only one esc
                         {
                             // Pass Esc.
-                            auto id = owner->id;
+                            auto id = 0;
                             auto& k = gears[id].keybd;
                             k.keybdid = id;
                             k.cluster = strv.substr(0, 1);
@@ -4781,7 +4779,7 @@ namespace netxs::console
                         else if (strv.at(pos) == '\x1b') // two consecutive escapes
                         {
                             // Pass Esc.
-                            auto id = owner->id;
+                            auto id = 0;
                             auto& k = gears[id].keybd;
                             k.keybdid = id;
                             k.cluster = strv.substr(0, 1);
@@ -4846,7 +4844,7 @@ namespace netxs::console
                                                         auto x = clamp(pos_x.value() - 1);
                                                         auto y = clamp(pos_y.value() - 1);
                                                         auto ctl = ctrl.value();
-                                                        auto id = owner->id;
+                                                        auto id = 0;
                                                         auto& m = gears[id].mouse;
 
                                                         // ks & 0x10 ? f + ";2" // shift
@@ -4983,7 +4981,7 @@ again:
                                         {
                                             case ansi::dtvt::mouse:
                                             {
-                                                auto id    = take(); if (id == 0) id = owner->id;
+                                                auto id    = take();
                                                 auto bttns = take();
                                                 auto ctrls = take();
                                                 auto flags = take();
@@ -5030,7 +5028,7 @@ again:
                                             }
                                             case ansi::dtvt::keybd:
                                             {
-                                                auto id = take(); if (id == 0) id = owner->id;
+                                                auto id = take();
                                                 auto& k = gears[id].keybd;
                                                 k.keybdid = id;
                                                 k.virtcod = take();
@@ -5068,7 +5066,6 @@ again:
                                             case ansi::dtvt::mouse_halt:
                                             {
                                                 auto id = take();
-                                                if (id == 0) id = owner->id;
                                                 auto& m = gears[id].mouse;
                                                 m.mouseid = id;
                                                 m.control = sysmouse::stat::halt;
@@ -5078,7 +5075,6 @@ again:
                                             case ansi::dtvt::mouse_stop:
                                             {
                                                 auto id = take();
-                                                if (id == 0) id = owner->id;
                                                 auto& m = gears[id].mouse;
                                                 m.mouseid = id;
                                                 m.control = sysmouse::stat::die;
@@ -5127,7 +5123,7 @@ again:
                                                 bool k_rctrl = ctrls & 0x4;
                                                 bool k_ctrl  = ctrls & 0x8;
                                                 bool k_shift = ctrls & 0x10;
-                                                auto id = owner->id;
+                                                auto id = 0;
                                                 auto& k = gears[id].keybd;
                                                 k.keybdid = id;
                                                 k.ctlstat = (k_shift ? hids::SHIFT : 0)
@@ -5245,7 +5241,7 @@ again:
 
                         if (i)
                         {
-                            auto id = owner->id;
+                            auto id = 0;
                             auto& k = gears[id].keybd;
                             k.keybdid = id;
                             k.cluster = strv.substr(0, i);
@@ -5334,10 +5330,12 @@ again:
 
                 if constexpr (VGAMODE == svga::directvt)
                 {
-                    auto header = netxs::ansi::dtvt::header{};
-                    header.square.set({ dot_00, field }); //todo set coor
-                    header.id.set(0xaabbccdd); //todo use it
-                    frame.add<VGAMODE>(header);
+                    auto frame_header = netxs::ansi::dtvt::frame{};
+                    auto bitmap_header = netxs::ansi::dtvt::bitmap{};
+                    frame_header.type.set(netxs::ansi::dtvt::frame::bitmap);
+                    bitmap_header.area.set({ dot_00, field }); //todo set coor
+                    bitmap_header.id.set(0xaabbccdd); //todo use it
+                    frame.add<VGAMODE>(frame_header, bitmap_header);
                 }
                 auto initial_size = static_cast<si32>(frame.size());
 

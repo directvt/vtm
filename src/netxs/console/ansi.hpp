@@ -266,15 +266,15 @@ namespace netxs::ansi
     namespace dtvt
     {
         // DirectVT record types.
-        static const byte NGC = 0x00; // Skip grapheme cluster. gc len = 0
-        static const byte GCL = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
-        static const byte CUP = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
-        static const byte BGC = 0x09; // BG rgba color. 4 bytes: rgba
-        static const byte FGC = 0x0A; // FG rgba color. 4 bytes: rgba
-        static const byte STL = 0x0B; // Grapheme style. token 4 bytes
-        static const byte RST = 0x0C; // Wipe canvas. Fill canvas using current brush.
-        static const byte JGC = 0x0D; // Jumbo Grapheme Cluster. gc.token + gc.view (send after terminal's request)
-        static const byte CMD = 0x64; // Arbitrary vt-command in UTF-8 format.
+        static const byte ngc = 0x00; // Skip grapheme cluster. gc len = 0
+        static const byte gcl = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
+        static const byte cup = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
+        static const byte bgc = 0x09; // BG rgba color. 4 bytes: rgba
+        static const byte fgc = 0x0A; // FG rgba color. 4 bytes: rgba
+        static const byte stl = 0x0B; // Grapheme style. token 4 bytes
+        static const byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
+        //static const byte JGC = 0x0D; // Jumbo Grapheme Cluster. gc.token + gc.view (send after terminal's request)
+        static const byte cmd = 0x64; // Arbitrary vt-command in UTF-8 format.
 
         static const si32 start = 10000; // https://github.com/microsoft/terminal/issues/8343.
         static const si32 keybd = 10010; // .
@@ -322,11 +322,33 @@ namespace netxs::ansi
                 else return faux;
             }
         };
-        struct header
+        struct frame
         {
-            le_t<ui32> length;
+            enum type_t : id_t
+            {
+                control,
+                bitmap,
+            };
+
+            le_t<ui32> size;
+            le_t<id_t> type;
+        };
+        struct control
+        {
+            enum commands : id_t
+            {
+                get_clipboard, // request main clipboard data
+                set_clipboard, // set main clipboard using following data
+                vt_command,    // parse following vt-sequences in UTF-8 format
+                jumbo_gc_list, // jumbo GC: gc.token + gc.view (response on terminal request)
+                warping,       // warping
+            };
+            le_t<id_t> command;
+        };
+        struct bitmap
+        {
             le_t<id_t> id;
-            le_t<rect> square;
+            le_t<rect> area;
         };
         #pragma pack(pop)
     }
@@ -383,7 +405,9 @@ namespace netxs::ansi
                     text::operator+=(v);
                 }
                 else if constexpr (std::is_integral_v<D>
-                                || std::is_same_v<D, dtvt::header>
+                                || std::is_same_v<D, dtvt::frame>
+                                || std::is_same_v<D, dtvt::control>
+                                || std::is_same_v<D, dtvt::bitmap>
                                 || std::is_same_v<D, rgba>)
                 {
                     auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
@@ -464,8 +488,8 @@ namespace netxs::ansi
             {
                 auto size = gc.state.count;
                 if (size > 0) add<VGAMODE>(size, gc.template get<VGAMODE>());
-                else          add<VGAMODE>(dtvt::NGC);
-                assert(size <= ansi::dtvt::GCL);
+                else          add<VGAMODE>(dtvt::ngc);
+                assert(size <= ansi::dtvt::gcl);
             }
             return *this;
         }
@@ -473,7 +497,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor, class T>
         esc& style(T token)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::STL, token);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::stl, token);
             else                                     return *this;
         }
         // esc: Focus and Mouse position reporting/tracking.
@@ -486,21 +510,21 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& locate(si32 x, si32 y)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::CUP, twod{ x,y } - dot_11);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::cup, twod{ x,y } - dot_11);
             else                                     return add("\033[", y, ';', x, 'H');
         }
          // esc: 0-Based caret position.
         template<svga VGAMODE = svga::truecolor>
         esc& locate(twod const& p)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::CUP, p);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::cup, p);
             else                                     return add("\033[", p.y+1, ';', p.x+1, 'H'       );
         }
         // esc: Extra command.
         template<svga VGAMODE = svga::truecolor>
         esc& extcmd(text const& extra_cached)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::CMD, (ui32)extra_cached.size(), extra_cached);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::cmd, (ui32)extra_cached.size(), extra_cached);
             else                                     return add(extra_cached);
         }
         esc& report(twod const& p)  { return add("\033[", p.y+1, ";", p.x+1, "R"       ); } // esc: Report 1-Based caret position (CPR).
@@ -510,7 +534,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& scroll_wipe()
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::RST);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::rst);
             else                                     return add("\033[2J");
         }
         esc& tag         (view t)   { return add("\033]2;", t, '\07'                   ); } // esc: Window title.
@@ -753,7 +777,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& fgc(rgba const& c)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::FGC, c);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::fgc, c);
             switch (VGAMODE)
             {
                 case svga::truecolor:
@@ -773,7 +797,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& bgc(rgba const& c)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::BGC, c);
+            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::bgc, c);
             switch (VGAMODE)
             {
                 case svga::truecolor:

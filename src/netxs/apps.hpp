@@ -17,7 +17,6 @@ namespace netxs::app
     using axes = ui::axes;
     using snap = ui::snap;
     using id_t = netxs::input::id_t;
-    using idid = netxs::input::idid;
 }
 
 namespace netxs::app::shared
@@ -369,7 +368,7 @@ namespace netxs::app::shared
                     if (!area.size.inside(gear.coord))
                     {
                         auto center = area.coor + (area.size / 2);
-                        bell::getref(gear.id)->SIGNAL(tier::release, e2::form::layout::shift, center);
+                        gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
                     }
                     boss.base::deface();
                 };
@@ -547,12 +546,9 @@ namespace netxs::app::shared
                         //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
                         //    if (actual_rect.hittest(gear.coord))
                         //    {
-                        //        if (auto gate_ptr = bell::getref(gear.id))
-                        //        {
-                        //            rect viewport;
-                        //            gate_ptr->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                        //            boss.base::extend(viewport);
-                        //        }
+                        //        rect viewport;
+                        //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                        //        boss.base::extend(viewport);
                         //        gear.dismiss();
                         //    }
                         //};
@@ -589,28 +585,25 @@ namespace netxs::app::shared
                             boss.base::template riseup<tier::preview>(e2::form::prop::zorder, Z_order::backmost);
                             parent.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                             {
-                                if (auto gate_ptr = bell::getref(gear.id))
+                                auto old_title = decltype(e2::form::prop::ui::header)::type{};
+                                boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
+
+                                auto data = decltype(e2::command::clipboard::get)::type{};
+                                gear.owner.SIGNAL(tier::release, e2::command::clipboard::get, data);
+
+                                if (utf::is_plain(data)) // Reset aligning to the center if text is plain.
                                 {
-                                    auto old_title = decltype(e2::form::prop::ui::header)::type{};
-                                    boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
+                                    auto align = ansi::jet(bias::center);
+                                    boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, align);
+                                }
+                                // Copy clipboard data to title.
+                                auto title = decltype(e2::form::prop::ui::header)::type{ data };
+                                boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                                gear.dismiss();
 
-                                    auto data = decltype(e2::command::clipboard::get)::type{};
-                                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
-
-                                    if (utf::is_plain(data)) // Reset aligning to the center if text is plain.
-                                    {
-                                        auto align = ansi::jet(bias::center);
-                                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, align);
-                                    }
-                                    // Copy clipboard data to title.
-                                    auto title = decltype(e2::form::prop::ui::header)::type{ data };
-                                    boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
-                                    gear.dismiss();
-
-                                    if (old_title.size()) // Copy old title to clipboard.
-                                    {
-                                        gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, old_title);
-                                    }
+                                if (old_title.size()) // Copy old title to clipboard.
+                                {
+                                    gear.owner.SIGNAL(tier::release, e2::command::clipboard::set, old_title);
                                 }
                             };
                         };
@@ -1100,68 +1093,65 @@ namespace netxs::app::shared
         world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
         {
             static si32 insts_count = 0;
-            if (auto gate_ptr = bell::getref(gear.id))
+            auto& gate = gear.owner;
+            auto location = gear.slot;
+            if (gear.meta(hids::ANYCTRL))
             {
-                auto& gate = *gate_ptr;
-                auto location = gear.slot;
-                if (gear.meta(hids::ANYCTRL))
+                log("host: area copied to clipboard ", location);
+                sptr<core> canvas_ptr;
+                gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
+                if (canvas_ptr)
                 {
-                    log("host: area copied to clipboard ", location);
-                    sptr<core> canvas_ptr;
-                    gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
-                    if (canvas_ptr)
+                    auto& canvas = *canvas_ptr;
+                    auto data = canvas.meta(location);
+                    if (data.length())
                     {
-                        auto& canvas = *canvas_ptr;
-                        auto data = canvas.meta(location);
-                        if (data.length())
-                        {
-                            gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                            gate.SIGNAL(tier::release, e2::command::clipboard::set, data);
-                        }
+                        gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                        gate.SIGNAL(tier::release, e2::command::clipboard::set, data);
                     }
                 }
-                else
+            }
+            else
+            {
+                auto what = decltype(e2::form::proceed::createat)::type{};
+                what.square = gear.slot;
+                auto data = decltype(e2::data::changed)::type{};
+                gate.SIGNAL(tier::request, e2::data::changed, data);
+                what.menuid = data;
+                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
+                if (auto& frame = what.object)
                 {
-                    auto what = decltype(e2::form::proceed::createat)::type{};
-                    what.square = gear.slot;
-                    auto data = decltype(e2::data::changed)::type{};
-                    gate.SIGNAL(tier::request, e2::data::changed, data);
-                    what.menuid = data;
-                    world->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                    if (auto& frame = what.object)
-                    {
-                        insts_count++;
-                        #ifndef PROD
-                            if (insts_count > APPS_MAX_COUNT)
-                            {
-                                log("inst: max count reached");
-                                auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
-                                auto w_frame = ptr::shadow(frame);
-                                frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
-                                {
-                                    if (timestamp > timeout)
-                                    {
-                                        log("inst: timebomb");
-                                        if (auto frame = w_frame.lock())
-                                        {
-                                            frame->base::detach();
-                                            log("inst: frame detached: ", insts_count);
-                                        }
-                                    }
-                                };
-                            }
-                        #endif
-
-                        frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
+                    insts_count++;
+                    #ifndef PROD
+                        if (insts_count > APPS_MAX_COUNT)
                         {
-                            insts_count--;
-                            log("inst: detached: ", insts_count);
-                        };
+                            log("inst: max count reached");
+                            auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
+                            auto w_frame = ptr::shadow(frame);
+                            frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
+                            {
+                                if (timestamp > timeout)
+                                {
+                                    log("inst: timebomb");
+                                    if (auto frame = w_frame.lock())
+                                    {
+                                        frame->base::detach();
+                                        log("inst: frame detached: ", insts_count);
+                                    }
+                                }
+                            };
+                        }
+                    #endif
 
-                        gear.kb_focus_taken = faux;
-                        frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                        frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // The Tile should change the menu item.
-                    }
+                    frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
+                    {
+                        insts_count--;
+                        log("inst: detached: ", insts_count);
+                    };
+
+                    gear.kb_focus_taken = faux;
+                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // The Tile should change the menu item.
                 }
             }
         };

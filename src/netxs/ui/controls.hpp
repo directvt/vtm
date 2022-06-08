@@ -1463,7 +1463,7 @@ namespace netxs::ui
                     //todo if (permit == xy(axes::ALL)) actify(quadratic{ speed, cycle, limit, start });
 
                     base::deface();
-                    gear.release();
+                    gear.setfree();
                     gear.dismiss();
                 }
             };
@@ -1511,7 +1511,7 @@ namespace netxs::ui
             cancel<X>();
             cancel<Y>();
             base::deface();
-            gear.release();
+            gear.setfree();
             gear.dismiss();
         }
         template<axis AXIS>
@@ -1847,7 +1847,7 @@ namespace netxs::ui
                         send<upon::scroll::cancel>();
                     }
                     base::deface();
-                    gear.release();
+                    gear.setfree();
                     gear.dismiss();
                 }
             }
@@ -1940,7 +1940,7 @@ namespace netxs::ui
                     if (this->form::template protos<tier::release>(button::up::left)
                      || this->form::template protos<tier::release>(button::up::right))
                     {
-                        gear.release();
+                        gear.setfree();
                         gear.dismiss();
                         on_pager = faux;
                         timer.pacify(activity::pager_first);
@@ -2013,7 +2013,7 @@ namespace netxs::ui
                             send<upon::scroll::cancel>();
                         }
                         base::deface();
-                        gear.release();
+                        gear.setfree();
                         gear.dismiss();
                     }
                 }
@@ -2233,7 +2233,7 @@ namespace netxs::ui
                         send<upon::scroll::cancel>();
                     }
                     base::deface();
-                    gear.release();
+                    gear.setfree();
                     gear.dismiss();
                 }
             }
@@ -2326,7 +2326,7 @@ namespace netxs::ui
                     if (this->form::template protos<tier::release>(bttn::up::left)
                      || this->form::template protos<tier::release>(bttn::up::right))
                     {
-                        gear.release();
+                        gear.setfree();
                         gear.dismiss();
                         on_pager = faux;
                         timer.pacify(activity::pager_first);
@@ -2399,7 +2399,7 @@ namespace netxs::ui
                             send<upon::scroll::cancel>();
                         }
                         base::deface();
-                        gear.release();
+                        gear.setfree();
                         gear.dismiss();
                     }
                 }
@@ -2821,7 +2821,7 @@ namespace netxs::ui
             {
                 deltas = 0;
                 move_grip(origin);
-                gear.release();
+                gear.setfree();
                 gear.dismiss();
             }
         }
@@ -2905,7 +2905,7 @@ namespace netxs::ui
                     if (gear.captured(grip_ctl->id))
                     {
                         deltas = 0;
-                        gear.release();
+                        gear.setfree();
                         base::deface();
                         robot.actify(bygone.fader<quadratic<si32>>(750ms), [&](auto& delta)
                             {

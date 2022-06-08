@@ -22,18 +22,6 @@ namespace netxs::events
     using type = unsigned int;
     using id_t = uint32_t;
 
-    // Two IDs: boss id and instance id.
-    struct idid
-    {
-        id_t top;
-        id_t sub;
-        bool operator == (idid const&) const = default;
-        friend auto& operator << (std::ostream& s, idid const& id)
-        {
-            return s << "{gate: " << id.top << ", inst: " << id.sub << '}';
-        }
-    };
-
     enum class execution_order
     {
         forward, // Execute concrete event  first. Forward means from particular to general: 1. event_group::item, 2. event_group::any
@@ -286,12 +274,6 @@ namespace netxs::events
         {
             sync lock;
             return netxs::get_or(store, id, empty).lock();
-        }
-        // indexer: Return shared_ptr of the object by its boss id.
-        static auto getref(idid id)
-        {
-            sync lock;
-            return netxs::get_or(store, id.top, empty).lock();
         }
         // indexer: Create a new object of the specified subtype and return its shared_ptr.
         template<class TT, class ...Args>

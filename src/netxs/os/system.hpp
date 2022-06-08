@@ -3544,6 +3544,7 @@ namespace netxs::os
             std::thread               stdwrite{};
             std::thread               stderror{};
             std::function<void(view)> receiver{};
+            std::function<void(view)> loggerfx{};
             std::function<void(si32)> shutdown{};
             std::function<void(si32)> preclose{};
             text                      writebuf{};
@@ -3551,6 +3552,11 @@ namespace netxs::os
             std::condition_variable   writesyn{};
 
         public:
+            auto get_proc_id()
+            {
+                return Proc_id;
+            }
+
             ~pty()
             {
                 log("dtvt: dtor started");
@@ -3580,10 +3586,12 @@ namespace netxs::os
             operator bool () { return termlink; }
 
             void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
+                                               , std::function<void(view)> logs_hndl
                                                , std::function<void(si32)> preclose_hndl
                                                , std::function<void(si32)> shutdown_hndl)
             {
                 receiver = input_hndl;
+                loggerfx = logs_hndl;
                 preclose = preclose_hndl;
                 shutdown = shutdown_hndl;
                 termsize(winsz);
@@ -3811,7 +3819,7 @@ namespace netxs::os
                     auto shot = termlink.rlog(buff.data(), buff.size());
                     if (shot && termlink)
                     {
-                        log("    ", Proc_id, ": ", shot, faux);
+                        loggerfx(shot);
                     }
                     else break;
                 }

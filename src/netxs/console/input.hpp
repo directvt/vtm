@@ -235,7 +235,6 @@ namespace netxs::input
     using netxs::events::tier;
     using netxs::events::hook;
     using netxs::events::id_t;
-    using netxs::events::idid;
 
     // console: Base mouse class.
     class sysmouse
@@ -668,7 +667,7 @@ namespace netxs::input
             return faux;
         }
         // mouse: Release specified mouse control.
-        void release(bool force = true)
+        void setfree(bool force = true)
         {
             force = force || index == mouse::none;
             locks = force ? 0
@@ -715,7 +714,8 @@ namespace netxs::input
     // console: Human interface device controller.
     class hids
         : public mouse,
-          public keybd
+          public keybd,
+          public bell
     {
     public:
         using events = netxs::events::userland::hids;
@@ -724,7 +724,6 @@ namespace netxs::input
         using list = std::list<wptr<bell>>;
         using xmap = netxs::console::core;
 
-        bell&       owner;
         id_t        relay; // hids: Mouse routing call stack initiator.
         xmap const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         list        kb_focus; // hids: Keyboard subscribers.
@@ -740,7 +739,7 @@ namespace netxs::input
         static constexpr auto die_event     = events::die                 .id;
 
     public:
-        idid const id; // hids: Instance ID and Owner/gear ID.
+        bell& owner;
         ui32 ctlstate = 0;
 
         //todo unify
@@ -782,13 +781,11 @@ namespace netxs::input
 
         auto meta(ui32 ctl_key = -1) { return hids::ctlstate & ctl_key; }
 
-        hids(bell& owner, xmap const& idmap, id_t ownid)
+        hids(bell& owner, xmap const& idmap)
             : relay{ 0     },
               owner{ owner },
               idmap{ idmap },
-              alive{ faux  },
-                 id{.top = owner.id,
-                    .sub = ownid }
+              alive{ faux  }
         { }
         ~hids()
         {
@@ -903,7 +900,7 @@ namespace netxs::input
                     take_mouse_focus(*next);
                     pass<tier::release>(next, offset, true);
                 }
-                else mouse::release();
+                else mouse::setfree();
             }
             else
             {
@@ -912,7 +909,7 @@ namespace netxs::input
                 if (!alive) return;
 
                 auto next = idmap.link(mouse::coord);
-                if (next != id.top)
+                if (next != owner.id)
                 {
                     relay = next;
                     pass<tier::preview>(bell::getref(next), offset, true);
