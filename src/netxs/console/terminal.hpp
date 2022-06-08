@@ -6927,7 +6927,7 @@ namespace netxs::ui
             }
         }
         // dtvt: Logs callback handler.
-        void atlogs(view utf8)
+        void onlogs(view utf8)
         {
             log("    ", ptycon.get_proc_id(), ": ", utf8, faux);
         }
@@ -6946,7 +6946,7 @@ namespace netxs::ui
                     {
                         auto initsz = base::size();
                         ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                     [&](auto log_message) { atlogs(log_message); },
+                                                     [&](auto log_message) { onlogs(log_message); },
                                                      [&](auto exit_reason) { atexit(exit_reason); },
                                                      [&](auto exit_reason) { onexit(exit_reason); } );
                         unique = timer;
