@@ -45,7 +45,7 @@ Text-based desktop environment inside your terminal*
 Build-time dependencies
  - `git`
  - `cmake`
- - Compiler support for C++20
+ - C++20 compiler
  - Minimal requirements to compile
    - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `3GB` of RAM
    - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `8GB` of RAM
@@ -92,6 +92,7 @@ Option       | Description
 No arguments | Run client (auto start server)
 ` -d `       | Run server in background
 ` -s `       | Run server in interactive mode
+` -r [<app>]`| Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
 
 # User Interface
 
@@ -142,6 +143,11 @@ No arguments | Run client (auto start server)
     <td></td>
     <td colspan="2">Maximize/restore app window</td>
     <td colspan="3"></td>
+  </tr>
+  <tr>
+    <th>triple Left+RightClick</th>
+    <td colspan="3">Show/hide sysstat overlay</td>
+    <td colspan="6"></td>
   </tr>
   <tr>
     <th>RightClick</th>
@@ -212,6 +218,7 @@ No arguments | Run client (auto start server)
 - `▀▄ Logs` Debug output console
 - `▀▄ View` Workspace navigation helper
 - `▀▄ Tile` Tiling window manager
+- `▀▄ Gems` Application manager (Demo)
 
 <details><summary>show details...</summary><p>
 
@@ -256,8 +263,7 @@ No arguments | Run client (auto start server)
      - `LeftClick` -- Set exclusive focus (highlighted by color)
      - `Ctrl+LeftClick` -- Set group focus (highlighted by color)
      - `double LeftClick` -- Maxixmize/restore
-     - `Left+Right or MiddleClick` -- Terminate application
-   - Tiling window manager preconfigurable using environment variable `VTM_PROFILE...`.  
+   - Configurable via environment variable `VTM_PROFILE...`.  
      ```
      # Configuration example:
 

@@ -79,12 +79,9 @@ namespace netxs::app::shop
                 appstore_head =
                 ansi::nil().eol().mgl(2).mgr(2)
                 .bld(faux).fgc(whitelt).jet(bias::left).wrp(wrap::on).add(
-                "A digital distribution platform, developed "
-                "and maintained by NetXS Group, for TUI/terminal "
-                "apps on its desktop environment. "
-                "The store allows users to browse and download "
-                "apps developed with Desktopio software "
-                "development kit.\n");
+                "Terminal Application Distribution Platform that allows "
+                "users to browse and download applications developed with "
+                "Desktopio Framework.\n\n");
 
                 text textancy_text = ansi::nil().add(
                 "Hello World!😎\n"
@@ -95,11 +92,11 @@ namespace netxs::app::shop
                 appstore_body =
                 {
                     item("Term", blackdk, "469", "Free ", "Get",
-                    "Terminal emulator."),
+                    "Virtual Terminal."),
 
                     item("Tile", bluedk, "3", "Free ", "Get",
-                    ansi::add("Meta object. Tiling window manager preconfigurable "
-                    "using environment variable ").
+                    ansi::add("Meta object. Tiling window manager configurable "
+                    "via environment variable ").
                     fgc(whitelt).bld(true).add("VTM_TILE").fgc().bld(faux).
                     add(".\n\nConfiguration example:\n\n").
                     mgl(2).fgc(whitelt).bgc(blacklt)
@@ -107,7 +104,7 @@ namespace netxs::app::shop
                         " VTM_PROFILE_2='\"Menu label 2\", \"Window Title 2\", h( v(\"bash -c htop\", \"bash -c mc\"), a(\"Calc\",\"\",\"\"))' ")),
 
                     item("Text", cyandk, "102", "Free ", "Get",
-                    "A simple text editor for Monotty environment "
+                    "A simple text editor for Monotty Desktopio environment "
                     "and a basic editing tool which enables "
                     "desktop users to create documents that "
                     "contain ANSI-formatted text."),
@@ -128,11 +125,11 @@ namespace netxs::app::shop
                     "An utility that allows browsing all Unicode "
                     "codepoints and inspecting their metadata."),
 
-                    item(ansi::fgc(0xff0000).add("File"), cyanlt, "4", "Free ", "Get",
-                    "An orthodox file manager for Monotty environment."),
+                    item(ansi::fgc(0xFFff0000).add("File"), cyanlt, "4", "Free ", "Get",
+                    "An orthodox file manager for Monotty Desktopio environment."),
 
                     item("Time", bluedk, "4", "Free ", "Get",
-                    "A calendar application made by NetXS Group for Monotty environment."),
+                    "A calendar application for Monotty Desktopio environment."),
 
                     item("Goto", bluedk, "4", "Free ", "Get",
                     "Internet/SSH browser."),
@@ -243,7 +240,7 @@ namespace netxs::app::shop
         };
     };
 
-    app::shared::initialize builder{ "Shop", build };
+    app::shared::initialize builder{ "Gems", build };
 }
 
 #endif // NETXS_APP_SHOP_HPP

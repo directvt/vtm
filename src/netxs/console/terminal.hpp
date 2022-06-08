@@ -120,7 +120,7 @@ namespace netxs::ui
         static constexpr auto def_cursor = commands::cursor::blinking_underline; // term: Default cursor style.
         static constexpr auto def_selclr = { bluelt,  whitelt }; // term: Default selection colors.
         static constexpr auto def_offclr = { blacklt, whitedk }; // term: Default inactive selection colors.
-        static constexpr auto def_dupclr = { rgba{ 0x5000FF00 }, rgba{ whitelt } }; // term: Default colors of selected text occurrences.
+        static constexpr auto def_dupclr = { rgba{ 0xFF007F00 }, rgba{ whitelt } }; // term: Default colors of selected text occurrences.
 
         // term: VT-buffer status.
         struct term_state

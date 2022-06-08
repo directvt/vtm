@@ -81,11 +81,11 @@
 
     #if defined(__linux__)
         #include <sys/vt.h> // ::console_ioctl()
-	    #ifdef __ANDROID__
-	        #include <linux/kd.h>   // ::console_ioctl()
+        #ifdef __ANDROID__
+            #include <linux/kd.h>   // ::console_ioctl()
         #else
             #include <sys/kd.h>     // ::console_ioctl()
-	    #endif
+        #endif
         #include <linux/keyboard.h> // ::keyb_ioctl()
     #endif
 
@@ -96,7 +96,7 @@
 namespace netxs::os
 {
     using list = std::vector<text>;
-    using xipc = std::shared_ptr<class ipc>;
+    using xipc = std::shared_ptr<class ipc_base>;
     using namespace std::chrono_literals;
     using namespace netxs::ui::atoms;
 
@@ -178,7 +178,9 @@ namespace netxs::os
             : argc{ argc }, argv{ argv }, iter{ 1 }
         { }
 
+        // args: Returns true if not end.
         operator bool () const { return iter < argc; }
+        // args: Return the next argument starting with '-' or '/' (skip others).
         auto next()
         {
             if (iter < argc)
@@ -190,6 +192,18 @@ namespace netxs::os
                 ++iter;
             }
             return '\0';
+        }
+        // args: Return the rest of the command line arguments.
+        auto tail()
+        {
+            auto crop = text{};
+            while (iter < argc)
+            {
+                crop += view{ argv[iter++] };
+                crop.push_back(' ');
+            }
+            if (!crop.empty()) crop.pop_back(); // Pop last space.
+            return crop;
         }
     };
     struct nothing
@@ -668,37 +682,40 @@ namespace netxs::os
 
         #endif
     }
-    static void start_log(view srv_name)
+    static void start_log(text srv_name)
     {
+        is_daemon = true;
+
         #if defined(_WIN32)
 
             //todo implement
 
         #else
 
-            ::openlog(srv_name.data(), LOG_NOWAIT | LOG_PID, LOG_USER);
-            is_daemon = true;
+            ::openlog(srv_name.c_str(), LOG_NOWAIT | LOG_PID, LOG_USER);
 
         #endif
     }
     static void syslog(view data)
     {
+        if (os::is_daemon)
+        {
+
         #if defined(_WIN32)
 
-            std::cout << data << std::flush;
+            //todo implement            
 
         #else
 
-            if (os::is_daemon)
-            {
-                auto copy = text{ data };
-                ::syslog(LOG_NOTICE, "%s", copy.c_str());
-            }
-            else std::cout << data << std::flush;
+            auto copy = text{ data };
+            ::syslog(LOG_NOTICE, "%s", copy.c_str());
 
         #endif
+
+        }
+        else std::cout << data << std::flush;
     }
-    static auto daemonize(view srv_name)
+    static auto daemonize(text srv_name)
     {
         #if defined(_WIN32)
 
@@ -1637,11 +1654,149 @@ namespace netxs::os
         #endif
     }
 
+    class ipc_base
+    {
+    protected:
+        using flux = std::ostream;
+
+        bool active = faux; // ipc: Used by the os::tty.
+
+    public:
+        virtual ~ipc_base()
+        { }
+        operator bool () { return active; }
+        virtual bool  send(view data)   = 0;
+        virtual qiew  recv()            = 0;
+        virtual bool  recv(char&)       = 0;
+        virtual void  shut()            = 0;
+        virtual void  stop()            = 0;
+        virtual flux& show(flux&) const = 0;
+
+        // ipc: Read until the delimeter appears.
+        auto line(char delim)
+        {
+            char c;
+            text crop;
+            while (recv(c) && c != delim)
+            {
+                crop.push_back(c);
+            }
+            return crop;
+        }
+        friend auto& operator << (flux& s, ipc_base const& sock)
+        {
+            return sock.show(s << "{ xipc: ") << " }";
+        }
+        friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
+        {
+            return s << *sock;
+        }
+    };
+
+    class fifo
+    {
+        bool                    alive;
+        text                    store;
+        std::mutex              mutex;
+        std::condition_variable synch;
+
+    public:
+        fifo()
+            : alive{ true }
+        { }
+        bool send(view data)
+        {
+            auto guard = std::lock_guard{ mutex };
+            store += data;
+            synch.notify_one();
+            return true;
+        }
+        bool read(text& data)
+        {
+            auto guard = std::unique_lock{ mutex };
+            if (store.size()
+             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
+            {
+                std::swap(data, store);
+                store.clear();
+                return true;
+            }
+            return faux;
+        }
+        bool read(char& c)
+        {
+            auto guard = std::unique_lock{ mutex };
+            if (store.size()
+             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
+            {
+                c = store.front();
+                store = store.substr(1);
+                return true;
+            }
+            return faux;
+        }
+        void stop()
+        {
+            auto guard = std::lock_guard{ mutex };
+            alive = faux;
+            synch.notify_one();
+        }
+    };
+
+    template<role ROLE>
+    class ipc_local
+        : public ipc_base
+    {
+        sptr<fifo> server;
+        sptr<fifo> client;
+        text       buffer;
+
+    public:
+        ipc_local(sptr<fifo> srv_queue, sptr<fifo> clt_queue)
+            : server{ srv_queue },
+              client{ clt_queue }
+        {
+            active = true;
+        }
+        void shut() override
+        {
+            active = faux;
+            server->stop();
+            client->stop();
+        }
+        qiew recv() override
+        {
+            buffer.clear();
+            if constexpr (ROLE == role::server) server->read(buffer);
+            else                                client->read(buffer);
+            return { buffer };
+        }
+        bool recv(char& c) override
+        {
+            if constexpr (ROLE == role::server) return server->read(c);
+            else                                return client->read(c);
+        }
+        bool send(view data) override
+        {
+            if constexpr (ROLE == role::server) return client->send(data);
+            else                                return server->send(data); 
+        }
+        flux& show(flux& s) const override
+        {
+            return s << "local pipe: server=" << server.get() << " client=" << client.get();
+        }
+        void stop() override
+        {
+            shut();
+        }
+    };
+
     class ipc
+        : public ipc_base
     {
         using vect = std::vector<char>;
 
-        bool active; // ipc: Used by the os::tty.
+    protected:
         file handle; // ipc: Socket file descriptor.
         vect buffer; // ipc: Receive buffer.
         bool sealed; // ipc: Provide autoclosing.
@@ -1653,8 +1808,7 @@ namespace netxs::os
     public:
         ipc(file descriptor = {}, bool sealed = faux)
             : handle{ std::move(descriptor) },
-              sealed{ sealed                },
-              active{ faux                  }
+              sealed{ sealed                }
         {
             if (handle) init();
         }
@@ -1670,8 +1824,6 @@ namespace netxs::os
             #endif
         }
 
-        operator bool () { return active; }
-
         void set(file h, bool s)
         {
             handle = std::move(h);
@@ -1681,10 +1833,6 @@ namespace netxs::os
         auto& get()
         {
             return handle;
-        }
-        void reset()
-        {
-            active = faux;
         }
         template<class T>
         auto cred(T id) const // Check peer cred.
@@ -1830,38 +1978,26 @@ namespace netxs::os
             //return result;
             return os::recv(handle, buff, size);
         }
-        auto recv() // It's not thread safe!
+        qiew recv() override // It's not thread safe!
         {
             return recv(buffer.data(), buffer.size());
         }
-        template<bool IS_TTY = faux>
-        auto send(char const* buff, size_t size)
+        bool recv(char& c) override
         {
-            return os::send<IS_TTY>(handle.get_w(), buff, size);
+            return recv(&c, sizeof(c));
         }
-        template<bool IS_TTY = faux, class T>
+        template<bool IS_TTY, class T>
         auto send(T const& buff)
         {
             auto data = buff.data();
             auto size = buff.size();
-            return send<IS_TTY>(data, size);
+            return os::send<IS_TTY>(handle.get_w(), data, size);
         }
-        auto send(char c)
+        bool send(view data) override
         {
-            return send(&c, 1);
+            return ipc::send<faux>(data);
         }
-        // ipc: Read until the delimeter appears.
-        auto line(char delim)
-        {
-            char c;
-            text crop;
-            while (recv(&c, sizeof(c)) && c != delim)
-            {
-                crop.push_back(c);
-            }
-            return crop;
-        }
-        void stop()
+        void shut() override
         {
             active = faux;
             #if defined(_WIN32)
@@ -1881,7 +2017,7 @@ namespace netxs::os
 
             #endif
         }
-        auto shut() -> bool
+        void stop() override
         {
             active = faux;
             #if defined(_WIN32)
@@ -1891,7 +2027,6 @@ namespace netxs::os
                     if (handle.get_w() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_w()));
                     if (handle.get_r() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_r()));
                 }
-                return true;
 
             #else
 
@@ -1909,15 +2044,14 @@ namespace netxs::os
                 {
                     switch (errno)
                     {
-                        case EBADF:    return os::fail("EBADF: The socket argument is not a valid file descriptor.");
-                        case EINVAL:   return os::fail("EINVAL: The how argument is invalid.");
-                        case ENOTCONN: return os::fail("ENOTCONN: The socket is not connected.");
-                        case ENOTSOCK: return os::fail("ENOTSOCK: The socket argument does not refer to a socket.");
-                        case ENOBUFS:  return os::fail("ENOBUFS: Insufficient resources were available in the system to perform the operation.");
-                        default:       return os::fail("unknown reason");
+                        case EBADF:    os::fail("EBADF: The socket argument is not a valid file descriptor.");                             break;
+                        case EINVAL:   os::fail("EINVAL: The how argument is invalid.");                                                   break;
+                        case ENOTCONN: os::fail("ENOTCONN: The socket is not connected.");                                                 break;
+                        case ENOTSOCK: os::fail("ENOTSOCK: The socket argument does not refer to a socket.");                              break;
+                        case ENOBUFS:  os::fail("ENOBUFS: Insufficient resources were available in the system to perform the operation."); break;
+                        default:       os::fail("unknown reason");                                                                         break;
                     }
                 }
-                else return true;
 
             #endif
         }
@@ -2109,13 +2243,18 @@ namespace netxs::os
             return sock_ptr;
         }
 
-        friend auto& operator << (std::ostream& s, netxs::os::ipc const& sock)
+        static auto local()
         {
-            return s << "{ xipc: " << sock.handle << " }";
+            auto squeue = std::make_shared<fifo>();
+            auto cqueue = std::make_shared<fifo>();
+            auto server = std::make_shared<ipc_local<os::server>>(squeue, cqueue);
+            auto client = std::make_shared<ipc_local<os::client>>(squeue, cqueue);
+            return std::make_pair( server, client );
         }
-        friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
+
+        flux& show(flux& s) const override
         {
-            return s << *sock;
+            return s << handle;
         }
     };
 
@@ -2160,7 +2299,7 @@ namespace netxs::os
 
                 if (winsz.test)
                 {
-                    ipcio->send<faux>(ansi::win(winsz.last));
+                    ipcio->send(ansi::win(winsz.last));
                 }
             }
 
@@ -2176,10 +2315,10 @@ namespace netxs::os
                     switch (signal)
                     {
                         case CTRL_C_EVENT:
-                            ipcio->send(ansi::C0_ETX);
+                            ipcio->send(view{ &ansi::C0_ETX, 1 });
                             break;
                         case CTRL_BREAK_EVENT:
-                            ipcio->send(ansi::C0_ETX);
+                            ipcio->send(view{ &ansi::C0_ETX, 1 });
                             break;
                         case CTRL_CLOSE_EVENT:
                             /**/
@@ -2204,7 +2343,7 @@ namespace netxs::os
                 }
                 static void shutdown_handler(int signal)
                 {
-                    ipcio->shut();
+                    ipcio->stop();
                     log(" tty: sock->xipc::shut called");
                     ::signal(signal, SIG_DFL);
                     ::raise(signal);
@@ -2444,24 +2583,22 @@ namespace netxs::os
                     {
                         char ack;
                         os::recv(fd, &ack, sizeof(ack));
-                        if (ack == '\xfa')
+                        micefd = file{ fd };
+                        auto tty_word = tty_name.find("tty", 0);
+                        if (tty_word != text::npos)
                         {
-                            micefd = file{ fd };
-                            auto tty_word = tty_name.find("tty", 0);
-                            if (tty_word != text::npos)
+                            tty_word += 3; /*skip tty letters*/
+                            auto tty_number = utf::to_view(buffer.data() + tty_word, buffer.size() - tty_word);
+                            if (auto cur_tty = utf::to_int(tty_number))
                             {
-                                tty_word += 3; /*skip tty letters*/
-                                auto tty_number = utf::to_view(buffer.data() + tty_word, buffer.size() - tty_word);
-                                if (auto cur_tty = utf::to_int(tty_number))
-                                {
-                                    ttynum = cur_tty.value();
-                                }
+                                ttynum = cur_tty.value();
                             }
-                            yield.show_mouse(true);
-                            ipcio.send<faux>(view(yield));
-                            yield.clear();
-                            log(" tty: mouse successfully connected, fd=", fd);
                         }
+                        yield.show_mouse(true);
+                        ipcio.send(view(yield));
+                        yield.clear();
+                        if (ack == '\xfa') log(" tty: ImPS/2 mouse connected, fd: ", fd);
+                        else               log(" tty: unknown PS/2 mouse connected, fd: ", fd, " ack: ", (int)ack);
                     }
                     if (!micefd)
                     {
@@ -2477,19 +2614,21 @@ namespace netxs::os
                         yield.meta_state(state.shift.last);
                         auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
                         yield.add(data);
-                        ipcio.send<faux>(yield);
+                        ipcio.send(yield);
                         yield.clear();
                     }
                     else
                     {
                         auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                        ipcio.send<faux>(data);
+                        ipcio.send(data);
                     }
                 };
                 auto m_proc = [&]()
                 {
                     auto data = os::recv(micefd, buffer.data(), buffer.size());
-                    if (data.size() == 4 /*ImPS only*/)
+                    auto size = data.size();
+                    if (size == 4 /* ImPS/2 */
+                     || size == 3 /* PS/2 compatibility mode */)
                     {
                     #if defined(__linux__)
                         vt_stat vt_state;
@@ -2500,7 +2639,7 @@ namespace netxs::os
                             auto bttns = data[0] & 7;
                             mcoor.x   += data[1];
                             mcoor.y   -= data[2];
-                            auto wheel =-data[3];
+                            auto wheel =-size == 4 ? data[3] : 0;
                             auto limit = _globals<void>::winsz.last * scale;
                             if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
                             state.flags = wheel ? 4 : 0;
@@ -2518,7 +2657,7 @@ namespace netxs::os
                                         state.coord.last.x,
                                         state.coord.last.y)
                                      .w32close();
-                                ipcio.send<faux>(view(yield));
+                                ipcio.send(view(yield));
                                 yield.clear();
                             }
                         }
@@ -2564,7 +2703,7 @@ namespace netxs::os
         {
             return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
-        bool ignite()
+        auto ignite()
         {
             auto& sig_hndl = _globals<void>::signal_handler;
 
@@ -2608,9 +2747,9 @@ namespace netxs::os
                 {
                     if (_globals<void>::ipcio)
                     {
-                        _globals<void>::ipcio->shut();
+                        _globals<void>::ipcio->stop();
                     }
-                    return os::fail("abort: check you are using the proper tty device, try `ssh -tt ...` option");
+                    os::fail("warning: check you are using the proper tty device, try `ssh -tt ...` option");
                 }
 
                 ok(::signal(SIGPIPE , SIG_IGN ), "set signal(SIGPIPE ) failed");
@@ -2623,7 +2762,7 @@ namespace netxs::os
             ::atexit(_globals<void>::default_mode);
             _globals<void>::resize_handler();
 
-            return true;
+            return _globals<void>::winsz;
         }
         void splice(si32 mode)
         {
@@ -2638,7 +2777,7 @@ namespace netxs::os
             { }
             os::rst_palette(mode);
 
-            ipcio.reset();
+            ipcio.stop();
             signal.reset();
 
             if (input.joinable())
@@ -2652,6 +2791,19 @@ namespace netxs::os
 
     class pty // Note: STA.
     {
+        struct ipc_pty
+            : public ipc
+        {
+            bool send(view data) override
+            {
+                return ipc::send<true>(data);
+            }
+            void stop() override
+            {
+                active = faux;
+            }
+        };
+
         #if defined(_WIN32)
 
             HPCON  hPC      { INVALID_FD };
@@ -2666,7 +2818,7 @@ namespace netxs::os
 
         #endif
 
-        os::ipc                   termlink{};
+        ipc_pty                   termlink{};
         testy<twod>               termsize{};
         std::thread               stdinput{};
         std::thread               stdwrite{};
@@ -2877,12 +3029,11 @@ namespace netxs::os
         {
             si32 exit_code = {};
             log("xpty: wait child process, tty=", termlink);
-            termlink.reset();
+            termlink.stop();
 
             #if defined(_WIN32)
 
                 ::ClosePseudoConsole(hPC);
-                termlink.shut();
                 DWORD code = 0;
                 if (::GetExitCodeProcess(hProcess, &code) == FALSE) log("xpty: GetExitCodeProcess() return code: ", ::GetLastError());
                 else if (code == STILL_ACTIVE)                      log("xpty: child process still running");
@@ -2948,8 +3099,8 @@ namespace netxs::os
                 std::swap(cache, writebuf);
                 guard.unlock();
 
-                if (termlink.send<true>(cache)) cache.clear();
-                else                            break;
+                if (termlink.send(cache)) cache.clear();
+                else                      break;
 
                 guard.lock();
             }
@@ -3037,15 +3188,16 @@ namespace netxs::os
         }
 
     public:
-        auto lock()
-        {
-            return std::lock_guard{ mutex };
-        }
         template<class PROC>
         void run(PROC process)
         {
             auto guard = std::lock_guard{ mutex };
-            auto session = std::thread([&, process]() { process(); checkout(); });
+            auto next_id = count++;
+            auto session = std::thread([&, process, next_id]()
+            {
+                process(next_id);
+                checkout();
+            });
             auto session_id = session.get_id();
             index[session_id] = { true, std::move(session) };
             log("pool: id: ", session_id, " session created");
@@ -3053,10 +3205,6 @@ namespace netxs::os
         auto size()
         {
             return index.size();
-        }
-        auto next()
-        {
-            return count++;
         }
 
         pool()

@@ -1407,6 +1407,12 @@ namespace netxs::utf
     {
         trim_front_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
     };
+    auto trim(view utf8, char space = ' ')
+    {
+        while (!utf8.empty() && utf8.front() == space) utf8.remove_prefix(1);
+        while (!utf8.empty() && utf8. back() == space) utf8.remove_suffix(1);
+        return utf8;
+    };
     auto get_quote(view& utf8, char delim, view skip = {})
     {
         auto head = utf8.begin();
@@ -1430,12 +1436,25 @@ namespace netxs::utf
         if (!skip.empty()) trim_front(utf8, skip);
         return str;
     };
-
     template<class TEXT_or_VIEW>
     auto is_plain(TEXT_or_VIEW&& utf8)
     {
         auto test = utf8.find('\033');
         return test == text::npos;
+    }
+    auto& to_low(text& utf8, size_t size = text::npos)
+    {
+        auto head = utf8.begin();
+        auto tail = head + std::min(utf8.size(), size);
+        std::transform(head, tail, head, [](unsigned char c) { return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c; });
+        return utf8;
+    }
+    auto& to_up(text& utf8, size_t size = text::npos)
+    {
+        auto head = utf8.begin();
+        auto tail = head + std::min(utf8.size(), size);
+        std::transform(head, tail, head, [](unsigned char c) { return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c; });
+        return utf8;
     }
 }
 

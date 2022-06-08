@@ -37,6 +37,7 @@
 #include <mutex>
 #include <functional>
 #include <unordered_map>
+#include <utility>
 
 #define AUTO_PROMPT const netxs::logger::prompt __func__##_auto_prompt(__func__)
 

@@ -395,6 +395,7 @@ namespace netxs::input
         id_t   start = 0;       // mouse: Initiator control ID.
         //hint   cause = e2::any; // mouse: Current event id.
         hint   cause = 0; // mouse: Current event id.
+        bool   debug = faux; // mouse: Trace mouse events.
 
         struct
         {
@@ -502,11 +503,12 @@ namespace netxs::input
                 }
 
                 coord = m.coor;
-#ifdef DEBUG_OVERLAY // Overlay needs current values for every frame
-                scrll = m.wheeled;
-                hzwhl = m.hzwheel;
-                whldt = m.wheeldt;
-#endif
+                if (debug) // Overlay needs current values for every frame
+                {
+                    scrll = m.wheeled;
+                    hzwhl = m.hzwheel;
+                    whldt = m.wheeldt;
+                }
                 // Double clicks is a win32 console only story.
                 // We catch them ourselves.
                 //if (m.doubled && pressed_list.size())
@@ -519,17 +521,20 @@ namespace netxs::input
                 //else if (m.wheeled)
                 if (m.wheeled)
                 {
-#ifndef DEBUG_OVERLAY
-                    scrll = m.wheeled;
-                    hzwhl = m.hzwheel;
-                    whldt = m.wheeldt;
-#endif
-                    action( m.wheeldt > 0 ? scrollup : scrolldn);
-#ifndef DEBUG_OVERLAY
-                    scrll = faux;
-                    hzwhl = faux;
-                    whldt = 0;
-#endif
+                    if (debug == faux)
+                    {
+                        scrll = m.wheeled;
+                        hzwhl = m.hzwheel;
+                        whldt = m.wheeldt;
+                        action( m.wheeldt > 0 ? scrollup : scrolldn);
+                        scrll = faux;
+                        hzwhl = faux;
+                        whldt = 0;
+                    }
+                    else
+                    {
+                        action( m.wheeldt > 0 ? scrollup : scrolldn);
+                    }
                 }
                 else
                 {
@@ -729,6 +734,7 @@ namespace netxs::input
         rect slot; // slot for pro::maker and e2::createby.
 
         //todo unify
+        bool single_instance = faux;
         bool kb_focus_taken = faux;
         bool force_group_focus = faux;
         bool combine_focus = faux;
@@ -972,10 +978,18 @@ namespace netxs::input
                 _add_kb_focus(item);
             }
         }
+        void set_single_instance(bool b = true)
+        {
+            single_instance = b;
+        }
+        auto get_single_instance()
+        {
+            return single_instance;
+        }
         void set_kb_focus(sptr<bell> item)
         {
             kb_focus_taken = true;
-            if (hids::meta(ANYCTRL) || force_group_focus)
+            if (!single_instance && (hids::meta(ANYCTRL) || force_group_focus))
             {
                 if (combine_focus)
                 {
