@@ -6585,12 +6585,12 @@ namespace netxs::ui
         : public ui::form<dtvt>
     {
         // dtvt: DTVT-style mouse tracking functionality.
-        class m_tracking
+        class events_t
         {
-            dtvt&                          owner; // m_tracking: Terminal object reference.
-            ansi::esc                      queue; // m_tracking: Buffer.
-            subs                           token; // m_tracking: Subscription token.
-            std::unordered_map<id_t, twod> coord; // m_tracking: Last coord of mouse cursor.
+            dtvt&                          owner; // events_t: Terminal object reference.
+            ansi::esc                      queue; // events_t: Buffer.
+            subs                           token; // events_t: Subscription token.
+            std::unordered_map<id_t, twod> coord; // events_t: Last coord of mouse cursor.
 
             void capture(hids& gear)
             {
@@ -6694,7 +6694,7 @@ namespace netxs::ui
                 token.clear();
             }
 
-            m_tracking(dtvt& owner)
+            events_t(dtvt& owner)
                 : owner{ owner }
             {
                 owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
@@ -6735,7 +6735,7 @@ namespace netxs::ui
 
         using sync = std::condition_variable;
 
-        m_tracking      mtrack; // dtvt: .
+        events_t        events; // dtvt: .
         os::direct::pty ptycon; // dtvt: PTY device.
         text            cmdarg; // dtvt: Startup command line arguments.
         bool            active; // dtvt: Terminal lifetime.
@@ -6780,7 +6780,29 @@ namespace netxs::ui
                         auto control = *reinterpret_cast<ansi::dtvt::control const*>(data.data());
                         auto command = control.command.get();
                         data.remove_prefix(sizeof(ansi::dtvt::control));
-
+                        switch (command)
+                        {
+                            case ansi::dtvt::control::set_clipboard:
+                            {
+                                auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
+                                data.remove_prefix(sizeof(gear_id));
+                                //SIGNAL_GLOBAL(set_clipboard, data);
+                                break;
+                            }
+                            case ansi::dtvt::control::get_clipboard:
+                            {
+                                auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
+                                data.remove_prefix(sizeof(gear_id));
+                                //SIGNAL_GLOBAL(get_clipboard, data);
+                                break;
+                            }
+                            case ansi::dtvt::control::jumbo_gc_list:
+                                break;
+                            case ansi::dtvt::control::warping:
+                                break;
+                            case ansi::dtvt::control::vt_command:
+                                break;
+                        }
                         log("ansi::dtvt::frame::control command: ", command);
                         break;
                     }
@@ -6923,7 +6945,7 @@ namespace netxs::ui
                 canvas.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
                 canvas.output(note);
                 this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
-                mtrack.disable();
+                events.disable();
             }
         }
         // dtvt: Logs callback handler.
@@ -6959,7 +6981,7 @@ namespace netxs::ui
 
         testy<twod> coord;
         dtvt(text command_line)
-            : mtrack{*this },
+            : events{*this },
               active{ true },
               nodata{ faux }
         {
