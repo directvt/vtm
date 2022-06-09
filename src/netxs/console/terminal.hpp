@@ -6715,7 +6715,7 @@ namespace netxs::ui
             //        }
             //    }
             //}
-            void replay(id_t gear_id, hint cause)
+            void replay(id_t gear_id, hint cause, twod const& coord)
             {
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(gear_id))
@@ -6723,9 +6723,9 @@ namespace netxs::ui
                 if (auto parent_ptr = owner.base::parent())
                 {
                     auto& gear = *gear_ptr;
-                    auto& parent = *parent_ptr;
                     release(gear);
-                    gear.replay(parent, cause);
+                    gear.replay(cause, coord);
+                    parent_ptr->template raw_riseup<tier::release>(cause, gear);
                 }
             }
             void disable()
@@ -6859,28 +6859,23 @@ namespace netxs::ui
                                 else if (type == ansi::dtvt::cup) //<= 8: cup: 8 bytes: si32 X + si32 Y
                                 {
                                     coor = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
-                                    auto size = sizeof(twod);
-                                    data.remove_prefix(size);
-                                    //iter = canvas.begin() + 
+                                    data.remove_prefix(sizeof(twod));
                                 }
                                 else if (type == ansi::dtvt::bgc) //<= 9: bg color: 4 bytes: rgba
                                 {
                                     marker.bgc() = *reinterpret_cast<rgba const*>(data.data());
-                                    auto size = sizeof(rgba);
-                                    data.remove_prefix(size);
+                                    data.remove_prefix(sizeof(rgba));
                                 }
                                 else if (type == ansi::dtvt::fgc) //<= 10: fg colors: 4 bytes: rgba
                                 {
                                     marker.fgc() = *reinterpret_cast<rgba const*>(data.data());
-                                    auto size = sizeof(rgba);
-                                    data.remove_prefix(size);
+                                    data.remove_prefix(sizeof(rgba));
                                 }
                                 else if (type == ansi::dtvt::stl) //<=11: style: token 4 bytes
                                 {
                                     auto& token = marker.stl();
                                     token = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                                    auto size = sizeof(token);
-                                    data.remove_prefix(size);
+                                    data.remove_prefix(sizeof(ui32));
                                 }
                                 else if (type == ansi::dtvt::rst) //<=12: wipe canvas
                                 {
@@ -6905,10 +6900,12 @@ namespace netxs::ui
                                 else if (type == ansi::dtvt::cmd) //<=100: 4 b
                                 {
                                     auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                                    auto vcmd = view(data.data() + sizeof(size), size);
+                                    data.remove_prefix(sizeof(ui32));
+                                    assert(size <= data.size() - sizeof(size));
+                                    auto vcmd = view(data.data(), size);
                                     //todo implement
                                     log("dtvt: vt-data:\n", utf::debase(vcmd));
-                                    data.remove_prefix(size + sizeof(size));
+                                    data.remove_prefix(size);
                                 }
                             }
                         }
@@ -6925,15 +6922,26 @@ namespace netxs::ui
                         data.remove_prefix(sizeof(ansi::dtvt::control));
                         switch (command)
                         {
-                            case ansi::dtvt::control::dragstart:
+                            case ansi::dtvt::control::mouse_events:
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
                                 data.remove_prefix(sizeof(gear_id));
                                 auto cause = netxs::letoh(*reinterpret_cast<hint const*>(data.data()));
                                 data.remove_prefix(sizeof(cause));
-                                events.replay(gear_id, cause);
+                                auto coord = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
+                                data.remove_prefix(sizeof(coord));
+                                events.replay(gear_id, cause, coord);
                                 break;
                             }
+                            //case ansi::dtvt::control::form_events:
+                            //{
+                            //    auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
+                            //    data.remove_prefix(sizeof(gear_id));
+                            //    auto cause = netxs::letoh(*reinterpret_cast<hint const*>(data.data()));
+                            //    data.remove_prefix(sizeof(cause));
+                            //    events.replay(gear_id, cause);
+                            //    break;
+                            //}
                             case ansi::dtvt::control::set_clipboard:
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));

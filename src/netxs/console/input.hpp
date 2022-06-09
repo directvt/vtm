@@ -754,18 +754,18 @@ namespace netxs::input
         si32 countdown = 0;
         si32 push = 0; // hids: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
-        void replay(bell& target, hint cause)
+        void replay(hint cause, twod const& coor)
         {
             alive = true;
+            coord = coor;
             mouse::cause = cause;
-            target.bell::template signal<tier::release>(mouse::cause, *this);
         }
         auto state()
         {
             return std::tuple{ force_group_focus, 
-                               kb_focus_taken,
-                               combine_focus,
-                               countdown };
+                                  kb_focus_taken,
+                                   combine_focus,
+                                       countdown };
         }
         template<class T>
         void state(T const& s)

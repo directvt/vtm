@@ -337,10 +337,8 @@ namespace netxs::ansi
         {
             enum commands : id_t
             {
-                click,         // .
-                tplclick,      // .
-                dblclick,      // .
-                dragstart,     // .
+                form_events,   // .
+                mouse_events,  // .
                 get_clipboard, // request main clipboard data
                 set_clipboard, // set main clipboard using following data
                 vt_command,    // parse following vt-sequences in UTF-8 format
@@ -492,7 +490,7 @@ namespace netxs::ansi
             {
                 auto size = gc.state.count;
                 if (size > 0) add<VGAMODE>(size, gc.template get<VGAMODE>());
-                else          add<VGAMODE>(dtvt::ngc);
+                else          add<VGAMODE>(ansi::dtvt::ngc);
                 assert(size <= ansi::dtvt::gcl);
             }
             return *this;

@@ -1189,6 +1189,32 @@ namespace netxs::console
                 }
             }
         }
+        // base: Fire an event on yourself and pass it parent if not handled.
+        // Warning: The parameter type is not checked/casted.
+        // Usage example:
+        //          base::raw_riseup<tier::preview, e2::form::prop::ui::header>(txt);
+        template<tier TIER, class T>
+        void raw_riseup(hint event_id, T&& param, bool forced = faux)
+        {
+            if (forced)
+            {
+                bell::template signal<TIER>(event_id, param);
+                base::toboss([&](auto& boss)
+                {
+                    boss.base::template raw_riseup<TIER>(event_id, std::forward<T>(param), forced);
+                });
+            }
+            else
+            {
+                if (!bell::template signal<TIER>(event_id, param))
+                {
+                    base::toboss([&](auto& boss)
+                    {
+                        boss.base::template raw_riseup<TIER>(event_id, std::forward<T>(param), forced);
+                    });
+                }
+            }
+        }
 
     protected:
         virtual ~base() = default;
@@ -4700,7 +4726,7 @@ namespace netxs::console
             {
                 //todo proceed title
                 //auto size = ui32{ 0 };
-                //auto data = ansi::esc{}.add<svga::directvt>(ansi::dtvt::CMD, size);
+                //auto data = ansi::esc{}.add<svga::directvt>(ansi::dtvt::cmd, size);
                 //data.ext(true);
                 //if (title.size()) data.tag(title);
                 //output(data);
@@ -5724,7 +5750,7 @@ again:
             auto lock = std::lock_guard{ mutex };
             extra += utf8;
         }
-        void forward(id_t gear_id, hint cause)
+        void forward(id_t gear_id, hint cause, twod const& coord)
         {
             auto frame_header = netxs::ansi::dtvt::frame{};
             auto control_header = netxs::ansi::dtvt::control{};
@@ -5732,9 +5758,14 @@ again:
             frame_header.size.set(sizeof(frame_header)
                                 + sizeof(control_header)
                                 + sizeof(gear_id)
-                                + sizeof(cause));
-            control_header.command.set(netxs::ansi::dtvt::control::dragstart);
-            frame2.add<svga::directvt>(frame_header, control_header, gear_id, cause);
+                                + sizeof(cause)
+                                + sizeof(coord));
+            control_header.command.set(netxs::ansi::dtvt::control::mouse_events);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                            gear_id,
+                                              cause,
+                                              coord);
             conio.output(frame2);
             frame2.clear();
         }
@@ -6238,11 +6269,16 @@ again:
                 {
                     auto deed = bell::protos<tier::release>();
                     auto ext_gear_id = input.get_foreign_gear_id(gear.id);
-                    paint.forward(ext_gear_id, deed);
+                    paint.forward(ext_gear_id, deed, gear.coord);
                     gear.dismiss();
                 };
                 if (direct) // Forward unhandled events outside.
                 {
+                    SUBMIT_T(tier::release, e2::form::maximize, token, gear)
+                    {
+                        log("e2::form::maximize");
+                        forward_event(gear);
+                    };
                     SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
                     {
                         log("button::tplclick::any");
