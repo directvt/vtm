@@ -6801,16 +6801,15 @@ namespace netxs::ui
         {
             while (base_data.size())
             {
-                auto data = base_data;
-
-                auto frame = *reinterpret_cast<ansi::dtvt::frame const*>(data.data());
+                auto frame = *reinterpret_cast<ansi::dtvt::frame const*>(base_data.data());
                 auto frame_size = frame.size.get();
                 auto frame_type = frame.type.get();
-                if (frame_size > data.size())
+                if (frame_size > base_data.size())
                 {
                     log("dtvt: corrupted data");
                     return;
                 }
+                auto data = base_data.substr(0, frame_size);
                 data.remove_prefix(sizeof(ansi::dtvt::frame));
                 switch (frame_type)
                 {
@@ -6925,11 +6924,11 @@ namespace netxs::ui
                             case ansi::dtvt::control::mouse_events:
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                                data.remove_prefix(sizeof(gear_id));
+                                data.remove_prefix(sizeof(id_t));
                                 auto cause = netxs::letoh(*reinterpret_cast<hint const*>(data.data()));
-                                data.remove_prefix(sizeof(cause));
+                                data.remove_prefix(sizeof(hint));
                                 auto coord = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
-                                data.remove_prefix(sizeof(coord));
+                                data.remove_prefix(sizeof(twod));
                                 events.replay(gear_id, cause, coord);
                                 break;
                             }
