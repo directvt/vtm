@@ -307,8 +307,14 @@ namespace netxs::events
     protected:
         indexer(indexer const&) = delete; // id is flushed out when a copy of the object is deleted.
                                           // Thus, the original object instance becomes invalid.
-        indexer() : id { _counter() } { }
-       ~indexer() { sync lock; store.erase(id); }
+        indexer()
+            : id{ _counter() }
+        { }
+       ~indexer()
+        {
+           sync lock;
+           store.erase(id);
+        }
     };
 
     template<class T> id_t                    indexer<T>::newid{};

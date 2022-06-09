@@ -326,8 +326,8 @@ namespace netxs::ansi
         {
             enum type_t : id_t
             {
-                control,
                 bitmap,
+                control,
             };
 
             le_t<ui32> size;
@@ -337,6 +337,10 @@ namespace netxs::ansi
         {
             enum commands : id_t
             {
+                click,         // .
+                tplclick,      // .
+                dblclick,      // .
+                dragstart,     // .
                 get_clipboard, // request main clipboard data
                 set_clipboard, // set main clipboard using following data
                 vt_command,    // parse following vt-sequences in UTF-8 format

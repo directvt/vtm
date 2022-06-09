@@ -3336,7 +3336,7 @@ namespace netxs::console
 
             };
 
-            using depo = std::unordered_map<id_t, hids>;
+            using depo = std::unordered_map<id_t, sptr<hids>>;
             using lock = std::recursive_mutex;
             using skill::boss,
                   skill::memo;
@@ -3375,7 +3375,7 @@ namespace netxs::console
                             switch (mousestate.control)
                             {
                                 case sysmouse::stat::halt:
-                                    gear_it->second.deactivate();
+                                    gear_it->second->deactivate();
                                     break;
                                 case sysmouse::stat::die:
                                     gears.erase(gear_it);
@@ -3386,14 +3386,16 @@ namespace netxs::console
                     else if (gear_it == gears.end())
                     {
                         auto id = mousestate.mouseid;
-                        gear_it = gears.try_emplace(id, boss, xmap).first;
-                        auto& [_id, gear] = *gear_it;
+                        gear_it = gears.try_emplace(id, bell::create<hids>(boss, xmap)).first;
+                        auto& [_id, gear_ptr] = *gear_it;
+                        auto& gear = *gear_ptr;
                         gear.set_single_instance(single_instance);
                         gear.hids::take(mousestate);
                     }
                     else
                     {
-                        auto& [_id, gear] = *gear_it;
+                        auto& [_id, gear_ptr] = *gear_it;
+                        auto& gear = *gear_ptr;
                         gear.hids::take(mousestate);
                     }
                     boss.strike();
@@ -3404,14 +3406,16 @@ namespace netxs::console
                     if (gear_it == gears.end())
                     {
                         auto id = keybdstate.keybdid;
-                        gear_it = gears.try_emplace(id, boss, xmap).first;
-                        auto& [_id, gear] = *gear_it;
+                        gear_it = gears.try_emplace(id, bell::create<hids>(boss, xmap)).first;
+                        auto& [_id, gear_ptr] = *gear_it;
+                        auto& gear = *gear_ptr;
                         gear.set_single_instance(single_instance);
                         gear.hids::take(keybdstate);
                     }
                     else
                     {
-                        auto& [_id, gear] = *gear_it;
+                        auto& [_id, gear_ptr] = *gear_it;
+                        auto& gear = *gear_ptr;
                         gear.hids::take(keybdstate);
                     }
                     boss.strike();
@@ -3420,9 +3424,9 @@ namespace netxs::console
             void set_single_instance(bool b)
             {
                 single_instance = b;
-                for (auto& [id, gear] : gears)
+                for (auto& [id, gear_ptr] : gears)
                 {
-                    gear.set_single_instance(b);
+                    gear_ptr->set_single_instance(b);
                 }
             }
             auto get_single_instance()
@@ -3431,10 +3435,18 @@ namespace netxs::console
             }
             void fire(events::id_t event_id)
             {
-                for (auto& [id, gear] : gears)
+                for (auto& [id, gear_ptr] : gears)
                 {
-                    gear.fire(event_id);
+                    gear_ptr->fire(event_id);
                 }
+            }
+            auto get_foreign_gear_id(id_t gear_id)
+            {
+                for (auto& [foreign_id, gear_ptr] : gears)
+                {
+                    if (gear_ptr->id == gear_id) return foreign_id;
+                }
+                return id_t{};
             }
         };
 
@@ -5293,6 +5305,7 @@ again:
         span  watch; // diff: Duration of the STDOUT rendering.
         si32  delta; // diff: Last ansi-rendered frame size.
         ansi  frame; // diff: Text screen representation.
+        ansi  frame2; // diff: .
         bool  alive; // diff: Working loop state.
         bool  ready; // diff: Conditional variable to avoid spurious wakeup.
         bool  abort; // diff: Abort building current frame.
@@ -5711,6 +5724,20 @@ again:
             auto lock = std::lock_guard{ mutex };
             extra += utf8;
         }
+        void forward(id_t gear_id, hint cause)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            frame_header.size.set(sizeof(frame_header)
+                                + sizeof(control_header)
+                                + sizeof(gear_id)
+                                + sizeof(cause));
+            control_header.command.set(netxs::ansi::dtvt::control::dragstart);
+            frame2.add<svga::directvt>(frame_header, control_header, gear_id, cause);
+            conio.output(frame2);
+            frame2.clear();
+        }
     };
 
     // console: Client properties.
@@ -5841,8 +5868,9 @@ again:
             auto& header = *uname.lyric;
             auto  basexy = base::coor();
             auto  half_x = (si32)header.size().x / 2;
-            for (auto& [id, gear] : input.gears)
+            for (auto& [id, gear_ptr] : input.gears)
             {
+                auto& gear = *gear_ptr;
                 auto coor = basexy;
                 coor += gear.coord;
                 coor.y--;
@@ -5858,8 +5886,9 @@ again:
             auto coor = base::coor();
             auto area = rect{ coor, dot_11 };
             auto base = canvas.core::coor();
-            for (auto& [id, gear] : input.gears)
+            for (auto& [id, gear_ptr] : input.gears)
             {
+                auto& gear = *gear_ptr;
                 area.coor = coor + gear.coord;
                 area.coor -= base;
                 if (gear.push) brush.txt(64 + gear.push).bgc(reddk).fgc(0xFFffffff);
@@ -5869,9 +5898,10 @@ again:
         }
         void draw_clip_preview(face& canvas)
         {
-            for (auto& [id, gear] : input.gears)
+            for (auto& [id, gear_ptr] : input.gears)
             {
                 //todo hids
+                //auto& gear = *gear_ptr;
                 //auto coor = gear.coord + dot_21 * 2;
                 //gear.clip_preview.move(coor);
                 //canvas.plot(gear.clip_preview, cell::shaders::lite);
@@ -6204,6 +6234,40 @@ again:
                     };
                 }
                 */
+                auto forward_event = [&](id_t gear_id)
+                {
+                    auto deed = bell::protos<tier::release>();
+                    auto ext_gear_id = input.get_foreign_gear_id(gear_id);
+                    paint.forward(ext_gear_id, deed);
+                };
+                if (direct) // Forward unhandled events outside.
+                {
+                    SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
+                    {
+                        log("button::tplclick::any");
+                        forward_event(gear.id);
+                    };
+                    SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::any, token, gear)
+                    {
+                        log("button::dblclick::any");
+                        forward_event(gear.id);
+                    };
+                    SUBMIT_T(tier::release, hids::events::mouse::button::click::any, token, gear)
+                    {
+                        log("button::click::any");
+                        forward_event(gear.id);
+                    };
+                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::any, token, gear)
+                    {
+                        log("button::drag::start::any");
+                        forward_event(gear.id);
+                    };
+                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, token, gear)
+                    {
+                        log("button::drag::pull::any");
+                        forward_event(gear.id);
+                    };
+                }
                 if (deskmenu)
                 {
                     attach(deskmenu); // Our size could be changed here during attaching.

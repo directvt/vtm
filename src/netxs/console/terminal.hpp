@@ -6689,6 +6689,45 @@ namespace netxs::ui
             }
 
         public:
+            //void dragstart(id_t gear_id, si32 buttons)
+            //{
+            //    auto lock = events::sync{};
+            //    if (auto ptr = bell::getref(gear_id))
+            //    if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+            //    if (auto parent_ptr = owner.base::parent())
+            //    {
+            //        auto& gear = *gear_ptr;
+            //        release(gear);
+            //        auto signal = [&](auto cause)
+            //        {
+            //            gear.mouse::cause = cause.id;
+            //            gear.alive = true;
+            //            parent_ptr->template riseup<tier::release>(cause, gear);
+            //        };
+            //        switch (buttons)
+            //        {
+            //            case sysmouse::bttns::left:      signal(hids::events::mouse::button::drag::start::left     ); break;
+            //            case sysmouse::bttns::right:     signal(hids::events::mouse::button::drag::start::right    ); break;
+            //            case sysmouse::bttns::leftright: signal(hids::events::mouse::button::drag::start::leftright); break;
+            //            case sysmouse::bttns::middle:    signal(hids::events::mouse::button::drag::start::middle   ); break;
+            //            case sysmouse::bttns::wheel:     signal(hids::events::mouse::button::drag::start::wheel    ); break;
+            //            case sysmouse::bttns::win:       signal(hids::events::mouse::button::drag::start::win      ); break;
+            //        }
+            //    }
+            //}
+            void replay(id_t gear_id, hint cause)
+            {
+                auto lock = events::sync{};
+                if (auto ptr = bell::getref(gear_id))
+                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto parent_ptr = owner.base::parent())
+                {
+                    auto& gear = *gear_ptr;
+                    auto& parent = *parent_ptr;
+                    release(gear);
+                    gear.replay(parent, cause);
+                }
+            }
             void disable()
             {
                 token.clear();
@@ -6775,37 +6814,6 @@ namespace netxs::ui
                 data.remove_prefix(sizeof(ansi::dtvt::frame));
                 switch (frame_type)
                 {
-                    case ansi::dtvt::frame::control:
-                    {
-                        auto control = *reinterpret_cast<ansi::dtvt::control const*>(data.data());
-                        auto command = control.command.get();
-                        data.remove_prefix(sizeof(ansi::dtvt::control));
-                        switch (command)
-                        {
-                            case ansi::dtvt::control::set_clipboard:
-                            {
-                                auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                                data.remove_prefix(sizeof(gear_id));
-                                //SIGNAL_GLOBAL(set_clipboard, data);
-                                break;
-                            }
-                            case ansi::dtvt::control::get_clipboard:
-                            {
-                                auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                                data.remove_prefix(sizeof(gear_id));
-                                //SIGNAL_GLOBAL(get_clipboard, data);
-                                break;
-                            }
-                            case ansi::dtvt::control::jumbo_gc_list:
-                                break;
-                            case ansi::dtvt::control::warping:
-                                break;
-                            case ansi::dtvt::control::vt_command:
-                                break;
-                        }
-                        log("ansi::dtvt::frame::control command: ", command);
-                        break;
-                    }
                     case ansi::dtvt::frame::bitmap:
                     {
                         auto bitmap = *reinterpret_cast<ansi::dtvt::bitmap const*>(data.data());
@@ -6908,6 +6916,46 @@ namespace netxs::ui
                         //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
                         base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
                         syncxs.notify_one();
+                        break;
+                    }
+                    case ansi::dtvt::frame::control:
+                    {
+                        auto control = *reinterpret_cast<ansi::dtvt::control const*>(data.data());
+                        auto command = control.command.get();
+                        data.remove_prefix(sizeof(ansi::dtvt::control));
+                        switch (command)
+                        {
+                            case ansi::dtvt::control::dragstart:
+                            {
+                                auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
+                                data.remove_prefix(sizeof(gear_id));
+                                auto cause = netxs::letoh(*reinterpret_cast<hint const*>(data.data()));
+                                data.remove_prefix(sizeof(cause));
+                                events.replay(gear_id, cause);
+                                break;
+                            }
+                            case ansi::dtvt::control::set_clipboard:
+                            {
+                                auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
+                                data.remove_prefix(sizeof(gear_id));
+                                //SIGNAL_GLOBAL(set_clipboard, data);
+                                break;
+                            }
+                            case ansi::dtvt::control::get_clipboard:
+                            {
+                                auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
+                                data.remove_prefix(sizeof(gear_id));
+                                //SIGNAL_GLOBAL(get_clipboard, data);
+                                break;
+                            }
+                            case ansi::dtvt::control::jumbo_gc_list:
+                                break;
+                            case ansi::dtvt::control::warping:
+                                break;
+                            case ansi::dtvt::control::vt_command:
+                                break;
+                        }
+                        log("ansi::dtvt::frame::control command: ", command);
                         break;
                     }
                 }
