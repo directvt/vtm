@@ -6234,38 +6234,39 @@ again:
                     };
                 }
                 */
-                auto forward_event = [&](id_t gear_id)
+                auto forward_event = [&](hids& gear)
                 {
                     auto deed = bell::protos<tier::release>();
-                    auto ext_gear_id = input.get_foreign_gear_id(gear_id);
+                    auto ext_gear_id = input.get_foreign_gear_id(gear.id);
                     paint.forward(ext_gear_id, deed);
+                    gear.dismiss();
                 };
                 if (direct) // Forward unhandled events outside.
                 {
                     SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
                     {
                         log("button::tplclick::any");
-                        forward_event(gear.id);
+                        forward_event(gear);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::any, token, gear)
                     {
                         log("button::dblclick::any");
-                        forward_event(gear.id);
+                        forward_event(gear);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::click::any, token, gear)
                     {
                         log("button::click::any");
-                        forward_event(gear.id);
+                        forward_event(gear);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::any, token, gear)
                     {
                         log("button::drag::start::any");
-                        forward_event(gear.id);
+                        forward_event(gear);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, token, gear)
                     {
                         log("button::drag::pull::any");
-                        forward_event(gear.id);
+                        forward_event(gear);
                     };
                 }
                 if (deskmenu)
