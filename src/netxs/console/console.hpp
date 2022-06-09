@@ -3946,7 +3946,7 @@ namespace netxs::console
                 {
                     if (keep)
                     {
-                        auto what = decltype(e2::form::proceed::d_n_d::drop)::type{};
+                        auto what = e2::form::proceed::d_n_d::drop.param();
                         what.object = object;
                         boss.SIGNAL(tier::preview, e2::form::proceed::d_n_d::drop, what);
                     }
@@ -4005,7 +4005,7 @@ namespace netxs::console
                         auto new_under = c.link();
                         if (under != new_under)
                         {
-                            auto object = decltype(e2::form::proceed::d_n_d::ask)::type{};
+                            auto object = e2::form::proceed::d_n_d::ask.param();
                             if (auto old_object = std::dynamic_pointer_cast<base>(bell::getref(under)))
                             {
                                 old_object->riseup<tier::release>(e2::form::proceed::d_n_d::abort, object);

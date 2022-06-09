@@ -110,7 +110,7 @@ namespace netxs::app::desk
                 {
                     boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                     {
-                        auto current_default = decltype(e2::data::changed)::type{};
+                        auto current_default = e2::data::changed.param();
                         boss.template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
                         boss.SIGNAL(tier::anycast, events::ui::selected, current_default);
                     };
@@ -144,7 +144,7 @@ namespace netxs::app::desk
                                              {
                                                  boss->SIGNAL(tier::anycast, events::ui::selected, inst_id);
                                              }
-                                             auto world_ptr = decltype(e2::config::whereami)::type{};
+                                             auto world_ptr = e2::config::whereami.param();
                                              SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                                              if (world_ptr)
                                              {
@@ -385,7 +385,7 @@ namespace netxs::app::desk
                             const static auto c6 = app::shared::c6;
                             const static auto x6 = app::shared::x6;
 
-                            auto world_ptr = decltype(e2::config::whereami)::type{};
+                            auto world_ptr = e2::config::whereami.param();
                             SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                             {
                                 auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,0 }, dent{}))

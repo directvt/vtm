@@ -334,8 +334,9 @@ namespace netxs::events
         using base = _parent_type;
         static constexpr auto id = _event_id;
         template<class ...Args> constexpr type_clue(Args&&...) { }
-        template<auto N> static constexpr auto group() { return events::subset<id, N>; }
-                         static constexpr auto index() { return events::number<id>;    }
+        template<class ...Args> static constexpr auto param(Args&&... args) { return type{ std::forward<Args>(args)... }; }
+        template<auto N>        static constexpr auto group()               { return events::subset<id, N>;               }
+                                static constexpr auto index()               { return events::number<id>;                  }
     };
 
     #define SUBMIT(        level, event,        param) bell::template submit<level, decltype( event )>()        = [&] (typename decltype( event )::type &&  param)

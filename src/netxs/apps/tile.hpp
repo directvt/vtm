@@ -94,7 +94,7 @@ namespace netxs::app::tile
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    auto state = decltype(e2::form::highlight::any)::type{};
+                                    auto state = e2::form::highlight::any.param();
                                     data_ptr->SIGNAL(tier::anycast, e2::form::highlight::any, state);
                                 }
                             };
@@ -153,7 +153,7 @@ namespace netxs::app::tile
             if (client)
             {
                 netxs::events::sync lock;
-                auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+                auto empty = e2::form::upon::vtree::detached.param();
                 client->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
@@ -168,7 +168,7 @@ namespace netxs::app::tile
                 auto parent_memo = std::make_shared<subs>();
                 parent->SUBMIT_T(tier::anycast, app::tile::events::ui::any, *parent_memo, gear)
                 {
-                    auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.id, 0 };
+                    auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
                     boss.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
                     if (gear_test.second)
                     {
@@ -272,10 +272,10 @@ namespace netxs::app::tile
                                 auto& branch = *branch_ptr;
 
                                 // Reset restoring callback.
-                                master.SIGNAL(tier::release, e2::form::restore, decltype(e2::form::restore)::type{});
+                                master.SIGNAL(tier::release, e2::form::restore, e2::form::restore.param());
 
                                 // Take current title.
-                                auto what = decltype(e2::form::proceed::createfrom)::type{};
+                                auto what = e2::form::proceed::createfrom.param();
                                 what.menuid = menu_item_id;
                                 master.SIGNAL(tier::request, e2::form::prop::ui::header, what.header);
                                 master.SIGNAL(tier::request, e2::form::prop::ui::footer, what.footer);
@@ -291,7 +291,7 @@ namespace netxs::app::tile
                                 branch.moveto(dot_00);
 
                                 // Attach to the world.
-                                auto world_ptr = decltype(e2::config::whereami)::type{};
+                                auto world_ptr = e2::config::whereami.param();
                                 SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                                 world_ptr->SIGNAL(tier::release, e2::form::proceed::createfrom, what);
 
@@ -538,7 +538,7 @@ namespace netxs::app::tile
                             }
                             if (oneoff)
                             {
-                                boss.template riseup<tier::release>(e2::form::proceed::attach, decltype(e2::form::proceed::attach)::type{}); //todo "template" is required by gcc
+                                boss.template riseup<tier::release>(e2::form::proceed::attach, e2::form::proceed::attach.param()); //todo "template" is required by gcc
                                 return;
                             }
                             if (count > 1) // Preventing the empty slot from maximizing.
@@ -581,8 +581,7 @@ namespace netxs::app::tile
                             auto& boss = *boss_ptr;
                             if (auto deed = boss.bell::template protos<tier::release>())
                             {
-                                using type = decltype(e2::depth)::type;
-                                auto depth = type{};
+                                auto depth = e2::depth.param();
                                 boss.base::template riseup<tier::request>(e2::depth, depth, true);
                                 log(" depth=", depth);
                                 if (depth > INHERITANCE_LIMIT) return;
@@ -610,8 +609,7 @@ namespace netxs::app::tile
                         if (nested_item_ptr)
                         {
                             auto& item = *nested_item_ptr;
-                            using type = decltype(e2::form::state::keybd::handover)::type;
-                            type gear_id_list;
+                            auto gear_id_list = e2::form::state::keybd::handover.param();
                             item.SIGNAL(tier::anycast, e2::form::state::keybd::handover, gear_id_list);
 
                             if (auto boss_ptr = shadow.lock())
@@ -630,8 +628,7 @@ namespace netxs::app::tile
                                 {
                                     if (auto parent = boss.base::parent())
                                     {
-                                        using type = decltype(e2::form::proceed::swap)::type;
-                                        type item_ptr = boss_ptr; // sptr must be of the same type as the event argument. Casting kills all intermediaries when return.
+                                        auto item_ptr = e2::form::proceed::swap.param(boss_ptr); // sptr must be of the same type as the event argument. Casting kills all intermediaries when return.
                                         parent->SIGNAL(tier::request, e2::form::proceed::swap, item_ptr);
                                         if (item_ptr)
                                         {
@@ -667,7 +664,7 @@ namespace netxs::app::tile
                             else
                             {
                                 auto& gate = gear.owner;
-                                auto current_default = decltype(e2::data::changed)::type{};
+                                auto current_default = e2::data::changed.param();
                                 gate.SIGNAL(tier::request, e2::data::changed, current_default);
                                 auto config = app::shared::objs_config[current_default];
 
@@ -865,7 +862,7 @@ namespace netxs::app::tile
                     {
                         auto& gate = gear.owner;
                         auto& objs_config = *objs_config_ptr;
-                        auto menu_item_id = decltype(e2::data::changed)::type{};
+                        auto menu_item_id = e2::data::changed.param();
                         gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
                         //todo unify
                         auto config = objs_config[menu_item_id];
@@ -1018,15 +1015,15 @@ namespace netxs::app::tile
                             if (deed == app::tile::events::ui::swap.id)
                             {
                                 backups empty_slot_list;
-                                auto proc = decltype(e2::form::proceed::functor)::type{[&](sptr<base> item_ptr)
+                                auto proc = e2::form::proceed::functor.param([&](sptr<base> item_ptr)
                                 {
-                                    auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.id, 0 };
+                                    auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
                                     item_ptr->SIGNAL(tier::request, e2::form::state::keybd::find, gear_test);
                                     if (gear_test.second)
                                     {
                                         item_ptr->riseup<tier::release>(events::backup, empty_slot_list);
                                     }
-                                }};
+                                });
                                 boss.SIGNAL(tier::general, e2::form::proceed::functor, proc);
                                 auto slots_count = empty_slot_list.size();
                                 log("tile: slots count=", slots_count);

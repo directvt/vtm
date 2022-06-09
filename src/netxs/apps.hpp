@@ -385,7 +385,7 @@ namespace netxs::app::shared
                 boss.SUBMIT(tier::release, e2::dtor, p)
                 {
                     auto start = tempus::now();
-                    auto counter = decltype(e2::cleanup)::type{};
+                    auto counter = e2::cleanup.param();
                     SIGNAL_GLOBAL(e2::cleanup, counter);
                     auto stop = tempus::now() - start;
                     log("host: garbage collection",
@@ -541,7 +541,7 @@ namespace netxs::app::shared
                         //todo reimplement (tiling/window)
                         //boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                         //{
-                        //    auto outer = decltype(e2::config::plugins::sizer::outer)::type{};
+                        //    auto outer = e2::config::plugins::sizer::outer.param();
                         //    boss.base::template riseup<tier::request>(e2::config::plugins::sizer::outer, outer);
                         //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
                         //    if (actual_rect.hittest(gear.coord))
@@ -585,10 +585,10 @@ namespace netxs::app::shared
                             boss.base::template riseup<tier::preview>(e2::form::prop::zorder, Z_order::backmost);
                             parent.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                             {
-                                auto old_title = decltype(e2::form::prop::ui::header)::type{};
+                                auto old_title = e2::form::prop::ui::header.param();
                                 boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
 
-                                auto data = decltype(e2::command::clipboard::get)::type{};
+                                auto data = e2::command::clipboard::get.param();
                                 gear.owner.SIGNAL(tier::release, e2::command::clipboard::get, data);
 
                                 if (utf::is_plain(data)) // Reset aligning to the center if text is plain.
@@ -597,7 +597,7 @@ namespace netxs::app::shared
                                     boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, align);
                                 }
                                 // Copy clipboard data to title.
-                                auto title = decltype(e2::form::prop::ui::header)::type{ data };
+                                auto title = e2::form::prop::ui::header.param(data);
                                 boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                                 gear.dismiss();
 
@@ -889,7 +889,7 @@ namespace netxs::app::shared
                     boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         //todo revise/unify
-                        auto world_ptr = decltype(e2::config::whereami)::type{};
+                        auto world_ptr = e2::config::whereami.param();
                         SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                         if (auto boss = shadow.lock())
                         if (world_ptr)
@@ -901,7 +901,7 @@ namespace netxs::app::shared
                             gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
                             gear.slot.size = viewport.size * 3 / 4;
 
-                            auto menu_list_ptr = decltype(e2::bindings::list::apps)::type{};
+                            auto menu_list_ptr = e2::bindings::list::apps.param();
                             world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
                             auto& menu_list = *menu_list_ptr;
                             
@@ -921,7 +921,7 @@ namespace netxs::app::shared
                             m.fixed = faux;
                             menu_list[name];
 
-                            auto current_default = decltype(e2::data::changed)::type{};
+                            auto current_default = e2::data::changed.param();
                             boss->template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
                             
                             if (auto gate = boss->parent())
@@ -969,7 +969,7 @@ namespace netxs::app::shared
 
     auto init_app_registry = [](auto& world)
     {
-        auto menu_list_ptr = decltype(e2::bindings::list::apps)::type{};
+        auto menu_list_ptr = e2::bindings::list::apps.param();
         world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
         auto& menu_list = *menu_list_ptr;
 
@@ -1113,9 +1113,9 @@ namespace netxs::app::shared
             }
             else
             {
-                auto what = decltype(e2::form::proceed::createat)::type{};
+                auto what = e2::form::proceed::createat.param();
                 what.square = gear.slot;
-                auto data = decltype(e2::data::changed)::type{};
+                auto data = e2::data::changed.param();
                 gate.SIGNAL(tier::request, e2::data::changed, data);
                 what.menuid = data;
                 world->SIGNAL(tier::release, e2::form::proceed::createat, what);
@@ -1186,7 +1186,7 @@ namespace netxs::app::shared
         #ifdef DEMO
             auto creator = [&](text const& menu_item_id, rect area)
             {
-                auto what = decltype(e2::form::proceed::createat)::type{};
+                auto what = e2::form::proceed::createat.param();
                 what.menuid = menu_item_id;
                 what.square = area;
                 world->SIGNAL(tier::release, e2::form::proceed::createat, what);

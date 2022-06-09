@@ -5724,7 +5724,7 @@ namespace netxs::ui
         {
             auto clip = ansi::setbuf<faux>(data); // Don't re encode data, foward it as is.
             // Take all foci.
-            auto gates = decltype(e2::form::state::keybd::enlist)::type{};
+            auto gates = e2::form::state::keybd::enlist.param();
             SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
             // Signal them to set the clipboard data.
             for (auto gate_id : gates)
@@ -6117,7 +6117,7 @@ namespace netxs::ui
                     return;
                 #endif
 
-                auto data = decltype(e2::command::clipboard::get)::type{};
+                auto data = e2::command::clipboard::get.param();
                 gear.owner.SIGNAL(tier::release, e2::command::clipboard::get, data);
                 if (data.size())
                 {
@@ -6262,7 +6262,7 @@ namespace netxs::ui
             }
             else
             {
-                auto data = decltype(e2::command::clipboard::get)::type{};
+                auto data = e2::command::clipboard::get.param();
                 gear.owner.SIGNAL(tier::release, e2::command::clipboard::get, data);
                 if (data.size())
                 {
@@ -6345,7 +6345,7 @@ namespace netxs::ui
         }
         void start()
         {
-            static auto unique = decltype(e2::timer::tick)::type{}; // Eliminate concurrent start actions.
+            static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions.
 
             if (!ptycon && !oneoff)
             {
@@ -6958,7 +6958,7 @@ namespace netxs::ui
         // dtvt: Start a new process.
         void start()
         {
-            static auto unique = decltype(e2::timer::tick)::type{}; // Eliminate concurrent start actions.
+            static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions.
 
             if (!ptycon && !oneoff)
             {
@@ -6995,7 +6995,7 @@ namespace netxs::ui
 
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
-            auto fps = decltype(e2::config::fps)::type{ -1 };
+            auto fps = e2::config::fps.param(-1);
             SIGNAL(tier::general, e2::config::fps, fps);
             maxoff = max_drops * period{ period::period::den / fps };
             SUBMIT(tier::general, e2::config::fps, fps)
