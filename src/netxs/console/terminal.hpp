@@ -6881,6 +6881,23 @@ namespace netxs::ui
                                     marker.txt('\0');
                                     canvas.wipe(marker);
                                 }
+                                else if (type == ansi::dtvt::tip)
+                                {
+                                    auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
+                                    data.remove_prefix(sizeof(id_t));
+                                    auto tip_size = netxs::letoh(*reinterpret_cast<size_t const*>(data.data()));
+                                    data.remove_prefix(sizeof(size_t));
+                                    auto tip_data = text{ data.data(), tip_size };
+                                    data.remove_prefix(tip_size);
+                                    netxs::events::enqueue(This(), [&, gear_id, tooltip = std::move(tip_data)](auto& boss)
+                                    {
+                                        if (auto ptr = bell::getref(gear_id))
+                                        if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                                        {
+                                            gear_ptr->set_tooltip(0, tooltip);
+                                        }
+                                    });
+                                }
                                 //else if (type == 13) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
                                 //{
                                 //    //todo implement

@@ -4093,13 +4093,13 @@ namespace netxs::console
                 : skill{ boss },
                   note { data }
             {
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
+                {
+                    gear.set_tooltip(boss.id, note);
+                };
                 boss.SUBMIT_T(tier::preview, e2::form::prop::ui::tooltip, memo, new_note)
                 {
                     note = new_note;
-                };
-                boss.SUBMIT_T(tier::request, e2::form::prop::ui::tooltip, memo, cur_note)
-                {
-                    cur_note = note;
                 };
             }
             void update(view new_note)
@@ -5339,8 +5339,9 @@ again:
         work  paint; // diff: Rendering thread.
         pair  debug; // diff: Debug info.
 
-        text  extra; // diff: Extra data to cout.
+        ansi  extra; // diff: Extra data to cout.
         text  extra_cached; // diff: Cached extra data to cout.
+        ansi  tooltips; // diff: .
 
         // diff: Render current buffer to the screen.
         template<svga VGAMODE = svga::truecolor>
@@ -5380,7 +5381,7 @@ again:
 
                 if (extra_cached.length())
                 {
-                    frame.extcmd<VGAMODE>(extra_cached);
+                    frame += extra_cached;
                     extra_cached.clear();
                 }
 
@@ -5665,6 +5666,11 @@ again:
                 if (rhash != dhash) front = cache; // Cache may be further resized before it rendered.
                 debug = { watch, delta };
 
+                //todo constexpr video
+                if (video == svga::directvt && tooltips.length())
+                {
+                    extra_cached += tooltips;
+                }
                 if (extra.length())
                 {
                     extra_cached += extra;
@@ -5748,7 +5754,12 @@ again:
         void append(view utf8)
         {
             auto lock = std::lock_guard{ mutex };
-            extra += utf8;
+            video == svga::directvt ? extra.extcmd<svga::directvt> (utf8)
+                                    : extra.extcmd<svga::truecolor>(utf8);
+        }
+        auto& get_tooltips()
+        {
+            return tooltips;
         }
         void forward(id_t gear_id, hint cause, twod const& coord)
         {
@@ -5886,7 +5897,7 @@ again:
 
         conf props; // gate: Client properties.
 
-        testy<twod> tooltip_coor = {}; // gate: Show tooltip or not.
+        testy<twod> tooltip_coor = {}; // gate: .
         moment tooltip_time = {}; // gate: The moment to show tooltip.
         bool   tooltip_show = faux; // gate: Show tooltip or not.
         bool   tooltip_stop = faux; // gate: Disable tooltip.
@@ -5938,7 +5949,39 @@ again:
                 //canvas.plot(gear.clip_preview, cell::shaders::lite);
             }
         }
-
+        void draw_tooltips(face& canvas)
+        {
+            static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
+            for (auto& [id, gear_ptr] : input.gears)
+            {
+                auto& gear = *gear_ptr;
+                auto full = canvas.full();
+                if (auto tooltip_data = gear.get_tooltip())
+                {
+                    auto tooltip_page = page{ tooltip_data };
+                    auto area = full;
+                    area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
+                    canvas.full(area);
+                    canvas.cup(dot_00);
+                    canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
+                    canvas.full(full);
+                }
+            }
+        }
+        void fill_tooltips(ansi::esc& tooltips)
+        {
+            tooltips.clear(); //todo use swap
+            for (auto& [id, gear_ptr] : input.gears)
+            {
+                auto& gear = *gear_ptr;
+                auto tooltip_data = gear.get_tooltip();
+                tooltips.add<svga::directvt>(ansi::dtvt::tip,
+                                                          id,
+                                         tooltip_data.size(),
+                                          (view)tooltip_data);
+            }
+        }
+                        
     public:
         sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
         sptr background; // gate: Local UI background.
@@ -6037,6 +6080,10 @@ again:
                         //    canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
                         //    canvas.full(full);
                         //}
+
+                        if (direct) fill_tooltips(paint.get_tooltips());
+                        else        draw_tooltips(canvas);
+
                         if (debug)
                         {
                             debug.output(canvas);

@@ -273,6 +273,7 @@ namespace netxs::ansi
         static const byte fgc = 0x0A; // FG rgba color. 4 bytes: rgba
         static const byte stl = 0x0B; // Grapheme style. token 4 bytes
         static const byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
+        static const byte tip = 0x0D; // Tooltip.
         //static const byte JGC = 0x0D; // Jumbo Grapheme Cluster. gc.token + gc.view (send after terminal's request)
         static const byte cmd = 0x64; // Arbitrary vt-command in UTF-8 format.
 
@@ -524,7 +525,7 @@ namespace netxs::ansi
         }
         // esc: Extra command.
         template<svga VGAMODE = svga::truecolor>
-        esc& extcmd(text const& extra_cached)
+        esc& extcmd(view extra_cached)
         {
             if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::cmd, (ui32)extra_cached.size(), extra_cached);
             else                                     return add(extra_cached);
