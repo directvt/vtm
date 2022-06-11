@@ -728,8 +728,10 @@ namespace netxs::input
         xmap const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
+
         text        tooltip_data; // hids: Tooltip data.
-        id_t        tooltip_from; // hids: Tooltip source id.
+        ui32        digest = 0; // hids: Tooltip digest.
+        testy<ui32> digest_tracker = 0; // hids: Tooltip changes tracker.
 
         static constexpr auto enter_event   = events::notify::mouse::enter.id;
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
@@ -755,13 +757,26 @@ namespace netxs::input
         si32 countdown = 0;
         si32 push = 0; // hids: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
+        auto tooltip_enabled()
+        {
+            return !push && !disabled && !mouse::captured();
+        }
         void set_tooltip(id_t src_id, view data)
         {
             if (src_id == 0 || tooltip_data.empty())
             {
-                tooltip_from = src_id;
                 tooltip_data = data;
+                digest++;
             }
+        }
+        void set_tooltip(view data, ui32 set_digest)
+        {
+            tooltip_data = data;
+            digest = set_digest;
+        }
+        auto is_tooltip_changed()
+        {
+            return digest_tracker(digest);
         }
         auto get_tooltip()
         {
@@ -876,8 +891,11 @@ namespace netxs::input
         {
             if (mouse::hover != boss.id) // The mouse cursor is over the new object.
             {
-                tooltip_from = 0;
-                tooltip_data.clear();
+                if (tooltip_data.size())
+                {
+                    digest++;
+                    tooltip_data.clear();
+                }
 
                 // Firing the leave event right after the enter allows us
                 // to avoid flickering the parent object state when focus

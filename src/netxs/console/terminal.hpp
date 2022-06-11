@@ -6894,25 +6894,11 @@ namespace netxs::ui
                                         if (auto ptr = bell::getref(gear_id))
                                         if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                                         {
+                                            log("tooltip: ", tooltip);
                                             gear_ptr->set_tooltip(0, tooltip);
                                         }
                                     });
                                 }
-                                //else if (type == 13) //<=12: jumbo GC: gc.token + gc.view (send after terminal request)
-                                //{
-                                //    //todo implement
-                                //    throw;
-                                //}
-                                //else if (type == 14) //<=14: Warping
-                                //{
-                                //    auto warp = netxs::letoh(*reinterpret_cast<dent const*>(data.data()));
-                                //    auto size = sizeof(warp);
-                                //    data.remove_prefix(size);
-                                //    netxs::events::enqueue(This(), [&, warp](auto& boss)
-                                //    {
-                                //        this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
-                                //    });
-                                //}
                                 else // Unknown type
                                 {
                                     auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
@@ -7000,12 +6986,21 @@ namespace netxs::ui
                                 });
                                 break;
                             }
-                            case ansi::dtvt::control::jumbo_gc_list:
+                            case ansi::dtvt::control::warp:
+                            {
+                                auto warp = netxs::letoh(*reinterpret_cast<dent const*>(data.data()));
+                                data.remove_prefix(sizeof(dent));
+                                netxs::events::enqueue(This(), [&, warp](auto& boss)
+                                {
+                                    this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
+                                });
                                 break;
-                            case ansi::dtvt::control::warping:
+                            }
+                            case ansi::dtvt::control::jumbo_gc_list:
                                 break;
                             case ansi::dtvt::control::vt_command:
                                 break;
+
                             default: // Unsupported command
                                 auto size = netxs::letoh(*reinterpret_cast<size_t const*>(data.data()));
                                 data.remove_prefix(sizeof(size_t));

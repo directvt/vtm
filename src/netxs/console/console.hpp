@@ -5951,33 +5951,41 @@ again:
         void draw_tooltips(face& canvas)
         {
             static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
+            auto full = canvas.full();
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                auto full = canvas.full();
-                if (auto tooltip_data = gear.get_tooltip())
+                if (gear.tooltip_enabled())
                 {
-                    auto tooltip_page = page{ tooltip_data };
-                    auto area = full;
-                    area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
-                    canvas.full(area);
-                    canvas.cup(dot_00);
-                    canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
-                    canvas.full(full);
+                    auto tooltip_data = gear.get_tooltip();
+                    if (tooltip_data)
+                    {
+                        //todo optimize
+                        auto tooltip_page = page{ tooltip_data };
+                        auto area = full;
+                        area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
+                        canvas.full(area);
+                        canvas.cup(dot_00);
+                        canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
+                        canvas.full(full);
+                    }
                 }
             }
         }
         void fill_tooltips(ansi::esc& tooltips)
         {
-            tooltips.clear(); //todo use swap
-            for (auto& [id, gear_ptr] : input.gears)
+            tooltips.clear(); //todo use dblbuffer
+            for (auto& [gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                auto tooltip_data = gear.get_tooltip();
-                tooltips.add<svga::directvt>(ansi::dtvt::tip,
-                                                          id,
-                                         tooltip_data.size(),
-                                          (view)tooltip_data);
+                if (gear.is_tooltip_changed())
+                {
+                    auto tooltip_data = gear.get_tooltip();
+                    tooltips.add<svga::directvt>(ansi::dtvt::tip,
+                                                         gear_id,
+                                             tooltip_data.size(),
+                                              (view)tooltip_data);
+                }
             }
         }
         ansi::esc header;
@@ -6109,8 +6117,11 @@ again:
                         //    canvas.full(full);
                         //}
 
-                        if (direct) fill_tooltips(paint.get_tooltips());
-                        else        draw_tooltips(canvas);
+                        if (props.tooltip_enabled)
+                        {
+                            if (direct) fill_tooltips(paint.get_tooltips());
+                            else        draw_tooltips(canvas);
+                        }
 
                         if (debug)
                         {

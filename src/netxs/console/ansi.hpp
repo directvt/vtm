@@ -343,7 +343,7 @@ namespace netxs::ansi
                 set_clipboard, // set main clipboard using following data
                 vt_command,    // parse following vt-sequences in UTF-8 format
                 jumbo_gc_list, // jumbo GC: gc.token + gc.view (response on terminal request)
-                warping,       // warping
+                warp,          // warping
             };
             le_t<byte> command;
         };
