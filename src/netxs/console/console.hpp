@@ -5754,8 +5754,7 @@ again:
         void append(view utf8)
         {
             auto lock = std::lock_guard{ mutex };
-            video == svga::directvt ? extra.extcmd<svga::directvt> (utf8)
-                                    : extra.extcmd<svga::truecolor>(utf8);
+            extra.add<svga::truecolor>(utf8);
         }
         auto& get_tooltips()
         {
@@ -5981,7 +5980,36 @@ again:
                                           (view)tooltip_data);
             }
         }
-                        
+        ansi::esc header;
+        void send_header(link& conio, view new_header)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            auto control_header = netxs::ansi::dtvt::control{};
+            control_header.command.set(netxs::ansi::dtvt::control::form_header);
+            header.add<svga::directvt>(frame_header,
+                                     control_header,
+                                  new_header.size(),
+                                         new_header);
+            header.add_at<svga::directvt>(0, (si32)header.size());
+            conio.output(header);
+            header.clear();
+        }
+        void send_footer(link& conio, view new_footer)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            auto control_header = netxs::ansi::dtvt::control{};
+            control_header.command.set(netxs::ansi::dtvt::control::form_footer);
+            header.add<svga::directvt>(frame_header,
+                                     control_header,
+                                  new_footer.size(),
+                                         new_footer);
+            header.add_at<svga::directvt>(0, (si32)header.size());
+            conio.output(header);
+            header.clear();
+        }
+
     public:
         sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
         sptr background; // gate: Local UI background.
@@ -6186,20 +6214,34 @@ again:
                 //    newheader.lyric->each([&](auto c) { title += c.txt(); });
                 //    conio.output(ansi::tag(title));
                 //};
+                SUBMIT_T(tier::release, e2::form::prop::ui::footer, token, newfooter)
+                {
+                    if (direct)
+                    {
+                        send_footer(conio, newfooter);
+                    }
+                };
                 SUBMIT_T(tier::release, e2::form::prop::ui::header, token, newheader)
                 {
-                    text temp;
-                    temp.reserve(newheader.length());
-                    if (native)
+                    if (direct)
                     {
-                        temp = newheader;
+                        send_header(conio, newheader);
                     }
                     else
                     {
-                        para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
+                        text temp;
+                        temp.reserve(newheader.length());
+                        if (native)
+                        {
+                            temp = newheader;
+                        }
+                        else
+                        {
+                            para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
+                        }
+                        log("gate: title changed to '", temp, ansi::nil().add("'"));
+                        paint.append(ansi::tag(temp));
                     }
-                    log("gate: title changed to '", temp, ansi::nil().add("'"));
-                    paint.append(ansi::tag(temp));
                 };
                 SUBMIT_T(tier::release, e2::command::cout, token, extra_data)
                 {

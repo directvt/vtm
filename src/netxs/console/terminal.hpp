@@ -6913,14 +6913,17 @@ namespace netxs::ui
                                 //        this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
                                 //    });
                                 //}
-                                else if (type == ansi::dtvt::cmd) //<=100: 4 b
+                                else // Unknown type
                                 {
                                     auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
                                     data.remove_prefix(sizeof(ui32));
-                                    assert(size <= data.size() - sizeof(size));
+                                    if (size > data.size() - sizeof(size))
+                                    {
+                                        log("dtvt: corrupted data of type: ", type);
+                                        break;
+                                    }
                                     auto vcmd = view(data.data(), size);
-                                    //todo implement
-                                    log("dtvt: vt-data:\n", utf::debase(vcmd));
+                                    log("dtvt: unknown data type: ", type, "\n", utf::debase(vcmd));
                                     data.remove_prefix(size);
                                 }
                             }
@@ -6933,6 +6936,7 @@ namespace netxs::ui
                     }
                     case ansi::dtvt::frame::control:
                     {
+                        //todo use utf-8 for the command id
                         auto control = *reinterpret_cast<ansi::dtvt::control const*>(data.data());
                         auto command = control.command.get();
                         data.remove_prefix(sizeof(ansi::dtvt::control));
@@ -6972,11 +6976,47 @@ namespace netxs::ui
                                 //SIGNAL_GLOBAL(get_clipboard, data);
                                 break;
                             }
+                            case ansi::dtvt::control::form_header:
+                            {
+                                auto header_size = netxs::letoh(*reinterpret_cast<size_t const*>(data.data()));
+                                data.remove_prefix(sizeof(size_t));
+                                auto new_header = text{ data.data(), header_size };
+                                data.remove_prefix(header_size);
+                                netxs::events::enqueue(This(), [&, header = std::move(new_header)](auto& boss) mutable
+                                {
+                                    this->base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
+                                });
+                                break;
+                            }
+                            case ansi::dtvt::control::form_footer:
+                            {
+                                auto footer_size = netxs::letoh(*reinterpret_cast<size_t const*>(data.data()));
+                                data.remove_prefix(sizeof(size_t));
+                                auto new_footer = text{ data.data(), footer_size };
+                                data.remove_prefix(footer_size);
+                                netxs::events::enqueue(This(), [&, footer = std::move(new_footer)](auto& boss) mutable
+                                {
+                                    this->base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
+                                });
+                                break;
+                            }
                             case ansi::dtvt::control::jumbo_gc_list:
                                 break;
                             case ansi::dtvt::control::warping:
                                 break;
                             case ansi::dtvt::control::vt_command:
+                                break;
+                            default: // Unsupported command
+                                auto size = netxs::letoh(*reinterpret_cast<size_t const*>(data.data()));
+                                data.remove_prefix(sizeof(size_t));
+                                if (size > data.size() - sizeof(size))
+                                {
+                                    log("dtvt: corrupted command: ", command);
+                                    break;
+                                }
+                                auto vcmd = view(data.data(), size);
+                                log("dtvt: unsupported command: ", command, "\n", utf::debase(vcmd));
+                                data.remove_prefix(size);
                                 break;
                         }
                         log("ansi::dtvt::frame::control command: ", command);

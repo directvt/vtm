@@ -274,8 +274,6 @@ namespace netxs::ansi
         static const byte stl = 0x0B; // Grapheme style. token 4 bytes
         static const byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
         static const byte tip = 0x0D; // Tooltip.
-        //static const byte JGC = 0x0D; // Jumbo Grapheme Cluster. gc.token + gc.view (send after terminal's request)
-        static const byte cmd = 0x64; // Arbitrary vt-command in UTF-8 format.
 
         static const si32 start = 10000; // https://github.com/microsoft/terminal/issues/8343.
         static const si32 keybd = 10010; // .
@@ -336,9 +334,10 @@ namespace netxs::ansi
         };
         struct control
         {
-            enum commands : id_t
+            enum commands : byte
             {
-                form_events,   // .
+                form_header,   // .
+                form_footer,   // .
                 mouse_events,  // .
                 get_clipboard, // request main clipboard data
                 set_clipboard, // set main clipboard using following data
@@ -346,7 +345,7 @@ namespace netxs::ansi
                 jumbo_gc_list, // jumbo GC: gc.token + gc.view (response on terminal request)
                 warping,       // warping
             };
-            le_t<id_t> command;
+            le_t<byte> command;
         };
         struct bitmap
         {
@@ -522,13 +521,6 @@ namespace netxs::ansi
         {
             if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::cup, p);
             else                                     return add("\033[", p.y+1, ';', p.x+1, 'H'       );
-        }
-        // esc: Extra command.
-        template<svga VGAMODE = svga::truecolor>
-        esc& extcmd(view extra_cached)
-        {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::cmd, (ui32)extra_cached.size(), extra_cached);
-            else                                     return add(extra_cached);
         }
         esc& report(twod const& p)  { return add("\033[", p.y+1, ";", p.x+1, "R"       ); } // esc: Report 1-Based caret position (CPR).
         esc& locate_wipe()          { return add("\033[r"                              ); } // esc: Enable scrolling for entire display (clear screen).
