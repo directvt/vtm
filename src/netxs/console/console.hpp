@@ -4683,6 +4683,40 @@ namespace netxs::console
         }
 
     public:
+        struct
+        {
+            using umap = std::unordered_map<id_t, text>;
+
+            lock mutex{};
+            cond synch{};
+            umap depot{};
+            bool ready{};
+
+            void set(id_t id, view utf8)
+            {
+                auto lock = std::lock_guard{ mutex };
+                depot[id] = utf8;
+                ready = true;
+                synch.notify_all();
+            }
+            void get(id_t id, text& out_utf8)
+            {
+                auto lock = std::lock_guard{ mutex };
+                out_utf8 = depot[id];
+            }
+            void reset()
+            {
+                auto lock = std::lock_guard{ mutex };
+                ready = faux;
+            }
+            void wait(id_t id, text& out_utf8)
+            {
+                auto lock = std::unique_lock{ mutex };
+                synch.wait(lock);
+            }
+        }
+        relay;
+
         link(sptr boss, xipc sock)
             : owner{ boss },
               canal{ sock },
@@ -5779,6 +5813,34 @@ again:
             conio.output(frame2);
             frame2.clear();
         }
+        void forward_clipboard(id_t gear_id, view clip_raw_data)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::set_clipboard);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                            gear_id,
+                               clip_raw_data.size(),
+                                     clip_raw_data);
+            frame2.add_at(0, (si32)frame2.size());
+            conio.output(frame2);
+            frame2.clear();
+        }
+        void request_clipboard(id_t gear_id)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::get_clipboard);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                            gear_id);
+            frame2.add_at(0, (si32)frame2.size());
+            conio.output(frame2);
+            frame2.clear();
+        }
     };
 
     // console: Client properties.
@@ -6296,8 +6358,23 @@ again:
                     paint.forward(ext_gear_id, deed, gear.coord);
                     gear.dismiss();
                 };
-                if (direct) // Forward unhandled events outside.
+                if (direct)
                 {
+                    // Clipboard relay.
+                    SUBMIT_T(tier::release, hids::events::clipbrd::set, token, gear)
+                    {
+                        auto ext_gear_id = input.get_foreign_gear_id(gear.id);
+                        paint.forward_clipboard(ext_gear_id, gear.clip_raw_data);
+                    };
+                    SUBMIT_T(tier::release, hids::events::clipbrd::get, token, gear)
+                    {
+                        auto ext_gear_id = input.get_foreign_gear_id(gear.id);
+                        paint.request_clipboard(ext_gear_id);
+                        //conio.relay.get(gear.id, gear.clip_raw_data);
+                        //...
+                    };
+
+                    // Forward unhandled events outside.
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
                         log("e2::form::maximize");

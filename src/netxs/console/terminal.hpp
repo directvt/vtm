@@ -6728,6 +6728,24 @@ namespace netxs::ui
                     parent_ptr->template raw_riseup<tier::release>(cause, gear);
                 }
             }
+            void set_clipboad(id_t gear_id, text const& clipdata)
+            {
+                auto lock = events::sync{};
+                if (auto ptr = bell::getref(gear_id))
+                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                {
+                    gear_ptr->set_clip_data(clipdata);
+                }
+            }
+            void get_clipboad(id_t gear_id, text& clipdata)
+            {
+                auto lock = events::sync{};
+                if (auto ptr = bell::getref(gear_id))
+                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                {
+                    gear_ptr->get_clip_data(clipdata);
+                }
+            }
             void disable()
             {
                 token.clear();
@@ -6952,14 +6970,26 @@ namespace netxs::ui
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
                                 data.remove_prefix(sizeof(gear_id));
-                                //SIGNAL_GLOBAL(set_clipboard, data);
+                                auto size = netxs::letoh(*reinterpret_cast<size_t const*>(data.data()));
+                                data.remove_prefix(sizeof(size_t));
+                                if (size > data.size() - sizeof(size))
+                                {
+                                    log("dtvt: corrupted clipboard");
+                                    break;
+                                }
+                                auto clipdata = text{ data.data(), size };
+                                data.remove_prefix(size);
+                                events.set_clipboad(gear_id, clipdata);
                                 break;
                             }
                             case ansi::dtvt::control::get_clipboard:
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
                                 data.remove_prefix(sizeof(gear_id));
-                                //SIGNAL_GLOBAL(get_clipboard, data);
+                                text clipdata; //todo use gear.raw_clip_data
+                                events.get_clipboad(gear_id, clipdata);
+                                //todo pass clipdata to the directvt app
+                                //...
                                 break;
                             }
                             case ansi::dtvt::control::form_header:

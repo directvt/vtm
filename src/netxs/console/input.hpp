@@ -19,11 +19,17 @@ namespace netxs::events::userland
             EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt   , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
+            GROUP_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
             GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
             GROUP_XS( upevent, input::hids ), // events streamed up (to children) of the visual tree by base::.
 
+            SUBSET_XS( clipbrd )
+            {
+                EVENT_XS( get, input::hids ), // release: Get clipboard data.
+                EVENT_XS( set, input::hids ), // release: Set clipboard data.
+            };
             SUBSET_XS( upevent )
             {
                 //todo make group keybd::...
@@ -763,6 +769,19 @@ namespace netxs::input
         bool combine_focus = faux;
         si32 countdown = 0;
         si32 push = 0; // hids: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
+
+        text clip_raw_data; // hids: .
+
+        void set_clip_data(view utf8)
+        {
+            clip_raw_data = utf8;
+            owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+        }
+        void get_clip_data(text& out_utf8)
+        {
+            owner.SIGNAL(tier::release, hids::events::clipbrd::get, *this);
+            out_utf8 = clip_raw_data;
+        }
 
         auto tooltip_enabled()
         {
