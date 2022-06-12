@@ -729,9 +729,16 @@ namespace netxs::input
         list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
 
+        //todo unify
         text        tooltip_data; // hids: Tooltip data.
         ui32        digest = 0; // hids: Tooltip digest.
         testy<ui32> digest_tracker = 0; // hids: Tooltip changes tracker.
+        ui32        tooltip_digest = 0; // hids: Tooltip digest.
+        moment      tooltip_time = {}; // hids: The moment to show tooltip.
+        bool        tooltip_show = faux; // hids: Show tooltip or not.
+        bool        tooltip_stop = faux; // hids: Disable tooltip.
+        testy<twod> tooltip_coor = {}; // hids: .
+        period      tooltip_timeout = 500ms; // hids: .
 
         static constexpr auto enter_event   = events::notify::mouse::enter.id;
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
@@ -759,7 +766,12 @@ namespace netxs::input
 
         auto tooltip_enabled()
         {
-            return !push && !disabled && !mouse::captured();
+            return !push
+                && !disabled
+                && !tooltip_stop
+                && tooltip_show
+                && tooltip_data.size()
+                && !captured();
         }
         void set_tooltip(id_t src_id, view data)
         {
@@ -782,6 +794,59 @@ namespace netxs::input
         {
             return qiew{ tooltip_data };
         }
+        void tooltip_recalc(hint deed)
+        {
+            if (tooltip_digest != digest) // Welcome new object.
+            {
+                tooltip_stop = faux;
+            }
+
+            if (!tooltip_stop)
+            {
+                if (deed == hids::events::mouse::move.id)
+                {
+                    if (tooltip_coor(mouse::coord) || (tooltip_show && tooltip_digest != digest)) // Do nothing on shuffle.
+                    {
+                        if (tooltip_show && tooltip_digest == digest) // Drop tooltip if moved.
+                        {
+                            tooltip_stop = true;
+                        }
+                        else
+                        {
+                            tooltip_time = tempus::now() + tooltip_timeout;
+                            tooltip_show = faux;
+                        }
+                    }
+                }
+                else // Drop tooltip on any other event.
+                {
+                    tooltip_stop = true;
+                    tooltip_digest = digest;
+                }
+            }
+        }
+        auto tooltip_check(moment now)
+        {
+            if (!tooltip_stop
+             && !tooltip_show
+             &&  tooltip_time < now
+             && !captured())
+            {
+                tooltip_show = true;
+                if (tooltip_digest != digest)
+                {
+                    tooltip_digest = digest;
+                    return true;
+                }
+            }
+            else if (tooltip_show == true && captured())
+            {
+                tooltip_show = faux;
+                tooltip_stop = faux;
+            }
+            return faux;
+        }
+
         void replay(hint cause, twod const& coor)
         {
             alive = true;
@@ -944,6 +1009,7 @@ namespace netxs::input
             }
             else
             {
+                tooltip_recalc(cause);
                 owner.bell::template signal<tier::preview>(cause, *this);
 
                 if (!alive) return;

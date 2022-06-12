@@ -5896,14 +5896,6 @@ again:
 
         conf props; // gate: Client properties.
 
-        testy<twod> tooltip_coor = {}; // gate: .
-        moment tooltip_time = {}; // gate: The moment to show tooltip.
-        bool   tooltip_show = faux; // gate: Show tooltip or not.
-        bool   tooltip_stop = faux; // gate: Disable tooltip.
-        text   tooltip_text; // gate: Tooltip data.
-        page   tooltip_page; // gate: Tooltip render.
-        id_t   tooltip_boss; // gate: Tooltip hover object.
-
         void draw_foreign_names(face& parent_canvas)
         {
             auto& header = *uname.lyric;
@@ -5988,6 +5980,17 @@ again:
                 }
             }
         }
+        void check_tooltips(moment now)
+        {
+            auto result = faux;
+            for (auto& [gear_id, gear_ptr] : input.gears)
+            {
+                auto& gear = *gear_ptr;
+                result |= gear.tooltip_check(now);
+            }
+            if (result) base::strike();
+        }
+
         ansi::esc header;
         void send_header(link& conio, view new_header)
         {
@@ -6102,19 +6105,6 @@ again:
                         //if (clip_rawtext.size()) // Render clipboard content preview.
                         //{
                         //    draw_clip_preview(canvas);
-                        //}
-
-                        //todo hids
-                        //if (!tooltip_stop && tooltip_show && tooltip_text.size() && !input.gear.captured()) // Render our tooltips.
-                        //{
-                        //    static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
-                        //    auto full = canvas.full();
-                        //    auto area = full;
-                        //    area.coor = std::max(dot_00, input.gear.coord - twod{ 4, tooltip_page.size() + 1 });
-                        //    canvas.full(area);
-                        //    canvas.cup(dot_00);
-                        //    canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
-                        //    canvas.full(full);
                         //}
 
                         if (props.tooltip_enabled)
@@ -6291,80 +6281,14 @@ again:
                     rebuild_scene(damaged);
                 };
 
-                //todo hids
-                /*
                 if (props.tooltip_enabled)
                 {
-                    SUBMIT_T(tier::preview, hids::events::mouse::any, token, gear)
+                    SUBMIT_T(tier::general, e2::timer::any, token, now)
                     {
-                        if (tooltip_boss != input.gear.hover) // Welcome new object.
-                        {
-                            tooltip_stop = faux;
-                        }
-
-                        if (!tooltip_stop)
-                        {
-                            auto deed = this->bell::template protos<tier::preview>();
-                            if (deed == hids::events::mouse::move.id)
-                            {
-                                if (tooltip_coor(gear.coord) || (tooltip_show && tooltip_boss != input.gear.hover)) // Do nothing on shuffle.
-                                {
-                                    if (tooltip_show && tooltip_boss == input.gear.hover) // Drop tooltip if moved.
-                                    {
-                                        tooltip_stop = true;
-                                    }
-                                    else
-                                    {
-                                        tooltip_time = tempus::now() + props.tooltip_timeout;
-                                        tooltip_show = faux;
-                                    }
-                                }
-                            }
-                            else // Drop tooltip on any other event.
-                            {
-                                tooltip_stop = true;
-                                tooltip_boss = input.gear.hover;
-                            }
-                        }
-                    };
-                    SUBMIT_T(tier::general, e2::timer::any, token, something)
-                    {
-                        if (!tooltip_stop
-                         && !tooltip_show
-                         &&  tooltip_time < tempus::now()
-                         && !input.gear.captured())
-                        {
-                            tooltip_show = true;
-                            if (tooltip_boss != input.gear.hover)
-                            {
-                                tooltip_boss = input.gear.hover;
-                                tooltip_text = {};
-                                if (auto boss_ptr = bell::getref(input.gear.hover))
-                                {
-                                    if (!boss_ptr->SIGNAL(tier::request, e2::form::prop::ui::tooltip, tooltip_text))
-                                    {
-                                        if (auto base_ptr = std::dynamic_pointer_cast<base>(boss_ptr))
-                                        {
-                                            base_ptr->base::template riseup<tier::request>(e2::form::prop::ui::tooltip, tooltip_text);
-                                        }
-                                    }
-                                    if (tooltip_text.size())
-                                    {
-                                        tooltip_page.style.rst().wrp(wrap::off);
-                                        tooltip_page = tooltip_text;
-                                        base::strike();
-                                    }
-                                }
-                            }
-                        }
-                        else if (tooltip_show == true && input.gear.captured())
-                        {
-                            tooltip_show = faux;
-                            tooltip_stop = faux;
-                        }
+                        check_tooltips(now);
                     };
                 }
-                */
+
                 auto forward_event = [&](hids& gear)
                 {
                     auto deed = bell::protos<tier::release>();
