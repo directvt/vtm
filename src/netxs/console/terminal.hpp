@@ -5729,10 +5729,13 @@ namespace netxs::ui
             // Signal them to set the clipboard data.
             for (auto gate_id : gates)
             {
-                if (auto gate_ptr = bell::getref(gate_id))
+                if (auto ptr = bell::getref(gate_id))
+                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, utf::unbase64(utf::remain(data, ';')));
-                    gate_ptr->SIGNAL(tier::release, e2::command::cout, clip);
+                    //todo OSC 52 forwarding
+                    //gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, utf::unbase64(utf::remain(data, ';')));
+                    //gate_ptr->SIGNAL(tier::release, e2::command::cout, clip);
+                    gear_ptr->set_clip_data(dot_00, clip);
                 }
             }
         }
@@ -6100,9 +6103,9 @@ namespace netxs::ui
                     auto state = gear.state();
                     gear.combine_focus = true;
                     gear.owner.SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
-                    gear.owner.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                    gear.owner.SIGNAL(tier::release, e2::command::clipboard::layout, target->panel);
-                    gear.owner.SIGNAL(tier::release, e2::command::clipboard::set, data);
+                    //todo OSC 52
+                    //gear.owner.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                    gear.set_clip_data(target->panel, data);
                     gear.state(state);
                 }
                 if (gear.meta(hids::ANYCTRL) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
@@ -6117,8 +6120,8 @@ namespace netxs::ui
                     return;
                 #endif
 
-                auto data = e2::command::clipboard::get.param();
-                gear.owner.SIGNAL(tier::release, e2::command::clipboard::get, data);
+                auto data = text{};
+                gear.get_clip_data(data);
                 if (data.size())
                 {
                     follow[axis::X] = true;
@@ -6262,8 +6265,8 @@ namespace netxs::ui
             }
             else
             {
-                auto data = e2::command::clipboard::get.param();
-                gear.owner.SIGNAL(tier::release, e2::command::clipboard::get, data);
+                auto data = text{};
+                gear.get_clip_data(data);
                 if (data.size())
                 {
                     delta = console.selection_search(dir, data);
@@ -6728,13 +6731,13 @@ namespace netxs::ui
                     parent_ptr->template raw_riseup<tier::release>(cause, gear);
                 }
             }
-            void set_clipboad(id_t gear_id, text const& clipdata)
+            void set_clipboad(id_t gear_id, twod const& clip_prev_size, text const& clipdata)
             {
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    gear_ptr->set_clip_data(clipdata);
+                    gear_ptr->set_clip_data(clip_prev_size, clipdata);
                 }
             }
             void get_clipboad(id_t gear_id, text& clipdata)
@@ -6804,6 +6807,7 @@ namespace netxs::ui
         std::mutex      access; // dtvt: Canvas accesss mutex.
         sync            syncxs; // dtvt: Canvas access condvar.
         period          maxoff; // dtvt: Max delay before showing "No signal".
+        ansi::esc       buffer; // dtvt: Clipboard buffer.
 
         // dtvt: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
@@ -6970,16 +6974,18 @@ namespace netxs::ui
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
                                 data.remove_prefix(sizeof(gear_id));
+                                auto clip_prev_size = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
+                                data.remove_prefix(sizeof(twod));
                                 auto size = netxs::letoh(*reinterpret_cast<size_t const*>(data.data()));
                                 data.remove_prefix(sizeof(size_t));
-                                if (size > data.size() - sizeof(size))
+                                if (size > data.size())
                                 {
                                     log("dtvt: corrupted clipboard");
                                     break;
                                 }
                                 auto clipdata = text{ data.data(), size };
                                 data.remove_prefix(size);
-                                events.set_clipboad(gear_id, clipdata);
+                                events.set_clipboad(gear_id, clip_prev_size, clipdata);
                                 break;
                             }
                             case ansi::dtvt::control::get_clipboard:
@@ -6988,8 +6994,8 @@ namespace netxs::ui
                                 data.remove_prefix(sizeof(gear_id));
                                 text clipdata; //todo use gear.raw_clip_data
                                 events.get_clipboad(gear_id, clipdata);
-                                //todo pass clipdata to the directvt app
-                                //...
+                                buffer = ansi::clipdata(gear_id, clipdata);
+                                answer(buffer);
                                 break;
                             }
                             case ansi::dtvt::control::form_header:
@@ -7044,7 +7050,7 @@ namespace netxs::ui
                                 data.remove_prefix(size);
                                 break;
                         }
-                        log("ansi::dtvt::frame::control command: ", command);
+                        log("ansi::dtvt::frame::control command: ", (si32)command);
                         break;
                     }
                 }

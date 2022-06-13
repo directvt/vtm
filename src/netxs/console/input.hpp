@@ -770,11 +770,21 @@ namespace netxs::input
         si32 countdown = 0;
         si32 push = 0; // hids: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
-        text clip_raw_data; // hids: .
+        text clip_raw_data; // hids: Raw clipboard data.
+        twod clip_raw_size; // hids: Clipboard preview size.
 
-        void set_clip_data(view utf8)
+        void clear_clip_data()
+        {
+            if (clip_raw_data.size())
+            {
+                clip_raw_data.clear();
+                owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+            }
+        }
+        void set_clip_data(twod const& size, view utf8)
         {
             clip_raw_data = utf8;
+            clip_raw_size = size;
             owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
         }
         void get_clip_data(text& out_utf8)

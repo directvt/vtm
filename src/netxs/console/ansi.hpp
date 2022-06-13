@@ -284,6 +284,8 @@ namespace netxs::ansi
         static const si32 focus = 10040; //todo deprecate - not used
         static const si32 final = 10050; // .
 
+        static const si32 clipboard = 10060; // OSC clipboard data.
+
         #pragma pack(push,1)
         static constexpr auto initial = char{ '\xFF' };
         union marker
@@ -471,7 +473,7 @@ namespace netxs::ansi
             return add<VGAMODE>(std::forward<Args>(data_list)...);
         }
         // esc: Replace bytes at specified position.
-        template<svga VGAMODE = svga::truecolor, class T>
+        template<svga VGAMODE, class T>
         inline auto& add_at(si32 at, T&& data)
         {
             if constexpr (VGAMODE == svga::directvt)
@@ -482,6 +484,15 @@ namespace netxs::ansi
             return *this;
         }
 
+        // esc: Send base64-encoded clipboard data (OSC).
+        esc& clipdata(id_t gear_id, view clipdata)
+        {
+            auto base64data = utf::base64(clipdata);
+            return add("\033]", dtvt::clipboard,
+                           ':', gear_id,
+                           ':', base64data.size(),
+                           ':', base64data, C0_BEL);
+        }
         // esc: Grapheme cluster.
         template<svga VGAMODE = svga::truecolor, class T>
         esc& gc(T const& gc)
@@ -860,7 +871,11 @@ namespace netxs::ansi
             return add(ESCOCS, cmd, ';', param, C0_BEL);
         }
     };
-
+    // ansi: Send OSC with 64-base encoded clipboard data.
+    static esc clipdata(id_t gear_id, view clipdata)
+    {
+        return esc{}.clipdata(gear_id, clipdata);
+    }
     static esc vmouse (bool b)       { return esc{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
     static esc locate(twod const& n) { return esc{}.locate(n);     } // ansi: 1-Based caret position.
     static esc locate_wipe ()        { return esc{}.locate_wipe(); } // ansi: Enable scrolling for entire display (clear screen).

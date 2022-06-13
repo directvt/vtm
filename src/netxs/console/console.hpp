@@ -180,14 +180,6 @@ namespace netxs::events::userland
                 EVENT_XS( quit     , const view ), // return bye msg, arg: errcode.
                 EVENT_XS( cout     , const text ), // Append extra data to output.
                 EVENT_XS( custom   , si32       ), // Custom command, arg: cmd_id.
-                GROUP_XS( clipboard, const view ),
-
-                SUBSET_XS( clipboard )
-                {
-                    EVENT_XS( set   , const view ), // Set data to clipboard.
-                    EVENT_XS( get   ,       view ), // Get data from clipboard.
-                    EVENT_XS( layout,       twod ), // Clipboard preview size.
-                };
             };
             SUBSET_XS( form )
             {
@@ -4685,35 +4677,41 @@ namespace netxs::console
     public:
         struct
         {
-            using umap = std::unordered_map<id_t, text>;
+            struct clip_t
+            {
+                lock mutex{};
+                cond synch{};
+                bool ready{};
+                twod block{};
+                text chars{};
+            };
+            using umap = std::unordered_map<id_t, clip_t>;
 
-            lock mutex{};
-            cond synch{};
             umap depot{};
-            bool ready{};
 
             void set(id_t id, view utf8)
             {
-                auto lock = std::lock_guard{ mutex };
-                depot[id] = utf8;
-                ready = true;
-                synch.notify_all();
+                auto& item = depot[id];
+                auto  lock = std::lock_guard{ item.mutex };
+                item.chars = utf8;
+                item.ready = true;
+                item.synch.notify_all();
             }
-            void get(id_t id, text& out_utf8)
-            {
-                auto lock = std::lock_guard{ mutex };
-                out_utf8 = depot[id];
-            }
-            void reset()
-            {
-                auto lock = std::lock_guard{ mutex };
-                ready = faux;
-            }
-            void wait(id_t id, text& out_utf8)
-            {
-                auto lock = std::unique_lock{ mutex };
-                synch.wait(lock);
-            }
+                //void get(id_t id, text& out_utf8)
+                //{
+                //    auto lock = std::lock_guard{ mutex };
+                //    out_utf8 = depot[id];
+                //}
+                //void reset()
+                //{
+                //    auto lock = std::lock_guard{ mutex };
+                //    ready = faux;
+                //}
+                //void wait(id_t id, text& out_utf8)
+                //{
+                //    auto lock = std::unique_lock{ mutex };
+                //    synch.wait(lock);
+                //}
         }
         relay;
 
@@ -4770,6 +4768,15 @@ namespace netxs::console
                 output(ansi::ext(true));
                 if (title.size()) output(ansi::tag(title));
             }
+
+            // The following sequences are processed here:
+            // ESC
+            // ESC ESC
+            // ESC [ I
+            // ESC [ O
+            // ESC [ < 0 ; x ; y M/m
+            // ESC [ 10000 ... - ESC [ 10050 ...
+            // ESC [ ansi:CCC_... : m p
 
             while ((void)synch.wait(guard, [&] { return accum.size() || !alive; }), alive)
             {
@@ -4877,7 +4884,7 @@ namespace netxs::console
                                 log("\t - focus off: ", canal);
                                 ++pos;
                             }
-                            else if (strv.at(pos) == '<') // "\033[<0;x;yM/m"
+                            else if (strv.at(pos) == '<') // \033[<0;x;yM/m
                             {
                                 if (++pos == len) { total = strv; break; }// incomlpete sequence
 
@@ -5017,7 +5024,7 @@ namespace netxs::console
                                     }
                                 }
                             }
-                            else if (digit(strv.at(pos)))
+                            else if (digit(strv.at(pos))) // ESC [ 10000 ... - ESC [ 10050 ...
                             {
 again:
                                 view tmp = strv.substr(pos);
@@ -5218,71 +5225,53 @@ again:
                                 pos = 0_sz;
                             }
                         }
-                        //else if (strv.at(pos) == ']')
-                        //{
-                        //    if (++pos == len) { total = strv; break; }//incomlpete
-                        //    auto tmp = strv.substr(pos);
-                        //    auto l = tmp.size();
-                        //    if (auto pos_x = utf::to_int(tmp))
-                        //    {
-                        //        pos += l - tmp.size();
-                        //        if (pos == len) { total = strv; break; }//incomlpete
-                        //        {
-                        //            if (++pos == len) { total = strv; break; }//incomlpete
-                        //            auto tmp = strv.substr(pos);
-                        //            auto l = tmp.size();
-                        //            if (auto pos_y = utf::to_int(tmp))
-                        //            {
-                        //                pos += l - tmp.size();
-                        //                if (pos == len) { total = strv; break; }//incomlpete
-                        //                {
-                        //                    auto x = pos_x.value();
-                        //                    auto y = pos_y.value();
-                        //                    if (strv.at(pos) == 'w')
-                        //                    {
-                        //                        auto winsz = twod{ x,y };
-                        //                        owner.SIGNAL(tier::release, e2::conio::size, winsz);
-                        //                        ++pos;
-                        //                    }
-                        //                    //else if (strv.at(pos) == ';')
-                        //                    //{
-                        //                    //    if (++pos == len) { total = strv; break; }//incomlpete
-                        //                    //    auto tmp = strv.substr(pos);
-                        //                    //    auto l = tmp.size();
-                        //                    //    if (auto pos_x = utf::to_int(tmp))
-                        //                    //    {
-                        //                    //        pos += l - tmp.size();
-                        //                    //        if (pos == len) { total = strv; break; }//incomlpete
-                        //                    //        {
-                        //                    //            if (++pos == len) { total = strv; break; }//incomlpete
-                        //                    //            auto tmp = strv.substr(pos);
-                        //                    //            auto l = tmp.size();
-                        //                    //            if (auto pos_y = utf::to_int(tmp))
-                        //                    //            {
-                        //                    //                pos += l - tmp.size();
-                        //                    //                if (pos == len) { total = strv; break; }//incomlpete
-                        //                    //                {
-                        //                    //                    auto head = pos_x.value();
-                        //                    //                    auto foot = pos_y.value();
-                        //                    //                    if (strv.at(pos) == 'x')
-                        //                    //                    {
-                        //                    //                        auto west = x;
-                        //                    //                        auto east = y;
-                        //                    //                        auto warp = dent{ west, east, head, foot };
-                        //                    //                        owner.SIGNAL(tier::release, e2::conio::swarp, warp);
-                        //                    //                        ++pos;
-                        //                    //                    }
-                        //                    //                }
-                        //                    //            }
-                        //                    //        }
-                        //                    //    }
-                        //                    //}
-                        //                    //++pos;
-                        //                }
-                        //            }
-                        //        }
-                        //    }
-                        //}
+                        else if (strv.at(pos) == ']') // ESC ] 10060 : _gear_id_ : _data-length_ : _base64-encoded-data_ BEL
+                        {
+                            if (++pos == len) { total = strv; break; }//incomlpete
+                            auto tmp = strv.substr(pos);
+                            auto l = tmp.size();
+                            if (auto osc_cmd = utf::to_int(tmp))
+                            {
+                                switch (osc_cmd.value())
+                                {
+                                    case ansi::dtvt::clipboard:
+                                    {
+                                        pos += l - tmp.size();
+                                        if (pos == len) { total = strv; break; }//incomlpete
+                                        {
+                                            if (++pos == len) { total = strv; break; }//incomlpete
+                                            auto tmp = strv.substr(pos);
+                                            auto l = tmp.size();
+                                            if (auto gear_id = utf::to_int(tmp))
+                                            {
+                                                pos += l - tmp.size();
+                                                if (pos == len) { total = strv; break; }//incomlpete
+                                                {
+                                                    if (++pos == len) { total = strv; break; }//incomlpete
+                                                    auto tmp = strv.substr(pos);
+                                                    auto l = tmp.size();
+                                                    if (auto data_len = utf::to_int(tmp))
+                                                    {
+                                                        pos += l - tmp.size();
+                                                        if (pos == len) { total = strv; break; }//incomlpete
+                                                        {
+                                                            if (++pos == len) { total = strv; break; }//incomlpete
+                                                            auto length = data_len.value();
+                                                            if (len - pos < length + 1/* +BEL */) { total = strv; break; }//incomlpete
+                                                            auto base64data = strv.substr(pos, length);
+                                                            pos += length + 1; // pop base64data + BEL
+                                                            auto id = gear_id.value();
+                                                            relay.set(id, utf::unbase64(base64data));
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                         else
                         {
                             unk = true;
@@ -5813,7 +5802,7 @@ again:
             conio.output(frame2);
             frame2.clear();
         }
-        void forward_clipboard(id_t gear_id, view clip_raw_data)
+        void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_raw_data)
         {
             auto frame_header = netxs::ansi::dtvt::frame{};
             auto control_header = netxs::ansi::dtvt::control{};
@@ -5822,9 +5811,10 @@ again:
             frame2.add<svga::directvt>(frame_header,
                                      control_header,
                                             gear_id,
+                                  clip_preview_size,
                                clip_raw_data.size(),
                                      clip_raw_data);
-            frame2.add_at(0, (si32)frame2.size());
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
             conio.output(frame2);
             frame2.clear();
         }
@@ -5837,7 +5827,7 @@ again:
             frame2.add<svga::directvt>(frame_header,
                                      control_header,
                                             gear_id);
-            frame2.add_at(0, (si32)frame2.size());
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
             conio.output(frame2);
             frame2.clear();
         }
@@ -6310,34 +6300,34 @@ again:
                 {
                     paint.append(extra_data);
                 };
-                SUBMIT_T(tier::release, e2::command::clipboard::set, token, clipbrd_data)
-                {
-                    //todo hids
-                    //clip_rawtext = clipbrd_data;
-                    //page block{ clipbrd_data };
-                    //clip_preview.mark(cell{});
-                    //clip_preview.wipe();
-                    //clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
-                };
-                SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
-                {
-                    //todo hids
-                    //clipbrd_data = clip_rawtext;
-                };
-                SUBMIT_T(tier::release, e2::command::clipboard::layout, token, clipbrd_size)
-                {
-                    //todo hids
-                    //clip_preview.size(clipbrd_size);
-                    //clip_preview.mark(cell{});
-                    //clip_preview.wipe();
-                    //page block{ clip_rawtext };
-                    //clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
-                };
-                SUBMIT_T(tier::request, e2::command::clipboard::layout, token, clipbrd_size)
-                {
-                    //todo hids
-                    //clipbrd_size = clip_preview.size();
-                };
+                //SUBMIT_T(tier::release, e2::command::clipboard::set, token, clipbrd_data)
+                //{
+                //    //todo hids
+                //    //clip_rawtext = clipbrd_data;
+                //    //page block{ clipbrd_data };
+                //    //clip_preview.mark(cell{});
+                //    //clip_preview.wipe();
+                //    //clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                //};
+                //SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
+                //{
+                //    //todo hids
+                //    //clipbrd_data = clip_rawtext;
+                //};
+                //SUBMIT_T(tier::release, e2::command::clipboard::layout, token, clipbrd_size)
+                //{
+                //    //todo hids
+                //    //clip_preview.size(clipbrd_size);
+                //    //clip_preview.mark(cell{});
+                //    //clip_preview.wipe();
+                //    //page block{ clip_rawtext };
+                //    //clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                //};
+                //SUBMIT_T(tier::request, e2::command::clipboard::layout, token, clipbrd_size)
+                //{
+                //    //todo hids
+                //    //clipbrd_size = clip_preview.size();
+                //};
                 SUBMIT_T(tier::general, e2::nextframe, token, damaged)
                 {
                     rebuild_scene(damaged);
@@ -6364,14 +6354,27 @@ again:
                     SUBMIT_T(tier::release, hids::events::clipbrd::set, token, gear)
                     {
                         auto ext_gear_id = input.get_foreign_gear_id(gear.id);
-                        paint.forward_clipboard(ext_gear_id, gear.clip_raw_data);
+                        paint.forward_clipboard(ext_gear_id, gear.clip_raw_size, gear.clip_raw_data);
                     };
                     SUBMIT_T(tier::release, hids::events::clipbrd::get, token, gear)
                     {
                         auto ext_gear_id = input.get_foreign_gear_id(gear.id);
+                        //conio.relay.mutex.lock();
+                        auto& depot = conio.relay.depot[ext_gear_id];
+                        //conio.relay.mutex.unlock();
+                        auto lock = std::unique_lock{ depot.mutex };
+                        depot.ready = faux;
                         paint.request_clipboard(ext_gear_id);
-                        //conio.relay.get(gear.id, gear.clip_raw_data);
-                        //...
+                        auto maxoff = 100ms;
+                        //depot.synch.wait(lock);
+                        if (std::cv_status::timeout != depot.synch.wait_for(lock, maxoff))
+                        {
+                            gear.clip_raw_data = depot.chars;
+                        }
+                        else
+                        {
+                            log("gate: timeout: no clipboard data reply");
+                        }
                     };
 
                     // Forward unhandled events outside.
@@ -6584,12 +6587,7 @@ again:
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
             {
-                //todo hids
-                //if (!clip_rawtext.empty())
-                //{
-                //    this->SIGNAL(tier::release, e2::command::clipboard::set, "");
-                //    gear.dismiss();
-                //}
+                gear.clear_clip_data();
             };
 
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)

@@ -855,7 +855,7 @@ namespace netxs::ui::atoms
             }
 
             template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
-            void get(clrs& base, T& dest)	const
+            void get(clrs& base, T& dest) const
             {
                 if (bg != base.bg)
                 {

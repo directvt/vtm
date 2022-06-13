@@ -588,8 +588,8 @@ namespace netxs::app::shared
                                 auto old_title = e2::form::prop::ui::header.param();
                                 boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
 
-                                auto data = e2::command::clipboard::get.param();
-                                gear.owner.SIGNAL(tier::release, e2::command::clipboard::get, data);
+                                auto data = text{};
+                                gear.get_clip_data(data);
 
                                 if (utf::is_plain(data)) // Reset aligning to the center if text is plain.
                                 {
@@ -603,7 +603,7 @@ namespace netxs::app::shared
 
                                 if (old_title.size()) // Copy old title to clipboard.
                                 {
-                                    gear.owner.SIGNAL(tier::release, e2::command::clipboard::set, old_title);
+                                    gear.set_clip_data(dot_00, old_title);
                                 }
                             };
                         };
@@ -1106,8 +1106,9 @@ namespace netxs::app::shared
                     auto data = canvas.meta(location);
                     if (data.length())
                     {
-                        gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                        gate.SIGNAL(tier::release, e2::command::clipboard::set, data);
+                        //todo OSC 52
+                        //gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                        gear.set_clip_data(location.size, data);
                     }
                 }
             }
