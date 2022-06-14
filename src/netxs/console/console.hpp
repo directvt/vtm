@@ -4901,6 +4901,7 @@ namespace netxs::console
                             auto id = 0;
                             auto& k = gears[id].keybd;
                             k.keybdid = id;
+                            k.pressed = true;
                             k.cluster = strv.substr(0, 1);
                             notify(e2::conio::keybd, k);
                             total.clear();
@@ -4912,6 +4913,7 @@ namespace netxs::console
                             auto id = 0;
                             auto& k = gears[id].keybd;
                             k.keybdid = id;
+                            k.pressed = true;
                             k.cluster = strv.substr(0, 1);
                             notify(e2::conio::keybd, k);
                             total = strv.substr(1);
@@ -5356,6 +5358,7 @@ again:
                             auto id = 0;
                             auto& k = gears[id].keybd;
                             k.keybdid = id;
+                            k.pressed = true;
                             k.cluster = strv.substr(0, i);
                             notify(e2::conio::keybd, k);
                             total = strv.substr(i);

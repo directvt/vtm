@@ -555,12 +555,7 @@ namespace netxs::ansi
         esc& load_title  ()         { return add("\033[23;0t"                          ); } // esc: Restore terminal window title.
         esc& save_palette()         { return add("\033[#P"                             ); } // esc: Push palette onto stack XTPUSHCOLORS.
         esc& load_palette()         { return add("\033[#Q"                             ); } // esc: Pop  palette from stack XTPOPCOLORS.
-        template<bool ENCODE = true>
-        esc& setbuf(view t) // esc: Set clipboard.
-        {
-            if constexpr (ENCODE) return add("\033]52;;", utf::base64(t), C0_BEL);
-            else                  return add("\033]52;" , t             , C0_BEL); // Forward as is. See ui::term.
-        }
+        esc& setbuf(view t)         { return add("\033]52;;", utf::base64(t), C0_BEL   ); } // esc: Set clipboard.
         esc& osc_palette(si32 i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
         {
             return add("\033]4;", i, ";rgb:", utf::to_hex(c.chan.r), '/',
@@ -885,8 +880,7 @@ namespace netxs::ansi
     static esc altbuf (bool b)       { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
     static esc cursor (bool b)       { return esc{}.cursor(b);     } // ansi: Caret visibility.
     static esc appkey (bool b)       { return esc{}.appkey(b);     } // ansi: Application Caret Keys (DECCKM).
-    template<bool ENCODE = true>
-    static esc setbuf (view t)       { return esc{}.setbuf<ENCODE>(t); } // ansi: Set clipboard.
+    static esc setbuf (view t)       { return esc{}.setbuf(t);     } // ansi: Set clipboard.
 
     template<class ...Args> static esc dtvt_keybd (Args&&... p){ return esc{}.dtvt_keybd(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (keyboard).
     template<class ...Args> static esc dtvt_mouse (Args&&... p){ return esc{}.dtvt_mouse(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (mouse).

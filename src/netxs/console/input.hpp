@@ -710,7 +710,6 @@ namespace netxs::input
             virtcod = k.virtcod;
             scancod = k.scancod;
             cluster = k.cluster;
-
             fire_keybd();
         }
 
