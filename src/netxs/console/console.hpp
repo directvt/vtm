@@ -4688,14 +4688,20 @@ namespace netxs::console
             using umap = std::unordered_map<id_t, clip_t>;
 
             umap depot{};
+            lock mutex{};
 
             void set(id_t id, view utf8)
             {
-                auto& item = depot[id];
-                auto  lock = std::lock_guard{ item.mutex };
-                item.chars = utf8;
-                item.ready = true;
-                item.synch.notify_all();
+                auto lock = std::lock_guard{ mutex };
+                auto iter = depot.find(id);
+                if (iter != depot.end())
+                {
+                    auto& item = iter->second;
+                    auto  lock = std::lock_guard{ item.mutex };
+                    item.chars = utf8;
+                    item.ready = true;
+                    item.synch.notify_all();
+                }
             }
                 //void get(id_t id, text& out_utf8)
                 //{
@@ -6359,9 +6365,9 @@ again:
                     SUBMIT_T(tier::release, hids::events::clipbrd::get, token, gear)
                     {
                         auto ext_gear_id = input.get_foreign_gear_id(gear.id);
-                        //conio.relay.mutex.lock();
-                        auto& depot = conio.relay.depot[ext_gear_id];
-                        //conio.relay.mutex.unlock();
+                        conio.relay.mutex.lock();
+                        auto& depot = conio.relay.depot[ext_gear_id]; // If rehashing occurs due to the insertion, all iterators are invalidated.
+                        conio.relay.mutex.unlock();
                         auto lock = std::unique_lock{ depot.mutex };
                         depot.ready = faux;
                         paint.request_clipboard(ext_gear_id);
