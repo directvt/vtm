@@ -1106,8 +1106,6 @@ namespace netxs::app::shared
                     auto data = canvas.meta(location);
                     if (data.length())
                     {
-                        //todo OSC 52
-                        //gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
                         gear.set_clip_data(location.size, data);
                     }
                 }

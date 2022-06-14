@@ -5722,7 +5722,6 @@ namespace netxs::ui
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
         {
-            auto clip = ansi::setbuf<faux>(data); // Don't re encode data, foward it as is.
             // Take all foci.
             auto gates = e2::form::state::keybd::enlist.param();
             SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
@@ -5732,10 +5731,7 @@ namespace netxs::ui
                 if (auto ptr = bell::getref(gate_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    //todo OSC 52 forwarding
-                    //gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, utf::unbase64(utf::remain(data, ';')));
-                    //gate_ptr->SIGNAL(tier::release, e2::command::cout, clip);
-                    gear_ptr->set_clip_data(dot_00, clip);
+                    gear_ptr->set_clip_data(target->panel, utf::unbase64(utf::remain(data, ';')));
                 }
             }
         }
@@ -6103,8 +6099,6 @@ namespace netxs::ui
                     auto state = gear.state();
                     gear.combine_focus = true;
                     gear.owner.SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
-                    //todo OSC 52
-                    //gear.owner.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
                     gear.set_clip_data(target->panel, data);
                     gear.state(state);
                 }

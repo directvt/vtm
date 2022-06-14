@@ -6346,10 +6346,6 @@ again:
                         paint.append(ansi::tag(temp));
                     }
                 };
-                SUBMIT_T(tier::release, e2::command::cout, token, extra_data)
-                {
-                    paint.append(extra_data);
-                };
                 SUBMIT_T(tier::general, e2::nextframe, token, damaged)
                 {
                     rebuild_scene(damaged);
@@ -6363,26 +6359,21 @@ again:
                     };
                 }
                 // Clipboard relay.
-                SUBMIT_T(tier::release, hids::events::clipbrd::set, token, gear)
+                SUBMIT_T(tier::release, hids::events::clipbrd::set, token, from_gear)
                 {
-                    auto myid = gear.id;
-                    if (direct)
-                    {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                        auto& gear =*gear_ptr;
-                        auto& data = gear.clip_rawdata;
-                        auto& size = gear.preview_size;
-                        paint.forward_clipboard(ext_gear_id, size, data);
-                    }
-                    else
-                    {
-                        // redraw clip preview
-                    }
+                    auto myid = from_gear.id;
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                    auto& gear =*gear_ptr;
+                    auto& data = gear.clip_rawdata;
+                    auto& size = gear.preview_size;
+                    if (direct) paint.forward_clipboard(ext_gear_id, size, data);
+                    else        paint.append(ansi::setbuf(data)); // OSC 52
                 };
-                SUBMIT_T(tier::release, hids::events::clipbrd::get, token, gear)
+                SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
                 {
                     if (!direct) return;
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto myid = from_gear.id;
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                     conio.relay.mutex.lock();
                     auto& depot = conio.relay.depot[ext_gear_id]; // If rehashing occurs due to the insertion, all iterators are invalidated.
                     conio.relay.mutex.unlock();
