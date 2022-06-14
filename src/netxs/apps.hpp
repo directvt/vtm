@@ -1150,7 +1150,7 @@ namespace netxs::app::shared
 
                     gear.kb_focus_taken = faux;
                     frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // The Tile should change the menu item.
+                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                 }
             }
         };

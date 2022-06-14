@@ -354,6 +354,14 @@ namespace netxs::input
         text cluster = {};
     };
 
+    // console: Base focus class.
+    class sysfocus
+    {
+    public:
+        id_t focusid = {};
+        bool enabled = {};
+    };
+
     // console: Mouse tracking.
     class mouse
     {
@@ -928,6 +936,11 @@ namespace netxs::input
         {
             ctlstate = k.ctlstat;
             keybd::update(k);
+        }
+        void take(sysfocus const& f)
+        {
+            //todo implement
+            //...
         }
 
         rect const& area() const { return idmap.area(); }

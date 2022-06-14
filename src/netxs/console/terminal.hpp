@@ -6802,6 +6802,7 @@ namespace netxs::ui
         sync            syncxs; // dtvt: Canvas access condvar.
         period          maxoff; // dtvt: Max delay before showing "No signal".
         ansi::esc       buffer; // dtvt: Clipboard buffer.
+        ansi::esc       outbuf; // dtvt: PTY output buffer.
 
         // dtvt: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
@@ -7148,6 +7149,18 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::size::any, new_size)
             {
                 if (ptycon) ptycon.resize(new_size);
+            };
+            SUBMIT(tier::release, hids::events::notify::keybd::got, gear)
+            {
+                log("dtvt: hids::events::notify::keybd::got ", gear.id);
+                outbuf.dtvt_focus(gear.id, true);
+                answer(outbuf);
+            };
+            SUBMIT(tier::release, hids::events::notify::keybd::lost, gear)
+            {
+                log("dtvt: hids::events::notify::keybd::lost ", gear.id);
+                outbuf.dtvt_focus(gear.id, faux);
+                answer(outbuf);
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {

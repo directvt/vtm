@@ -156,7 +156,7 @@ namespace netxs::events::userland
             {
                 EVENT_XS( unknown , const si32              ), // release: return platform unknown event code.
                 EVENT_XS( error   , const si32              ), // release: return error code.
-                EVENT_XS( focus   , const bool              ), // release: order to change focus.
+                EVENT_XS( focus   , const console::sysfocus ), // release: focus activity.
                 EVENT_XS( mouse   , const console::sysmouse ), // release: mouse activity.
                 EVENT_XS( keybd   , const console::syskeybd ), // release: keybd activity.
                 EVENT_XS( winsz   , const twod              ), // release: order to update terminal primary overlay.
@@ -2750,7 +2750,7 @@ namespace netxs::console
 
                 boss.SUBMIT_T(tier::release, e2::conio::focus, memo, focusstate)
                 {
-                    update(focusstate);
+                    update(focusstate.enabled);
                     boss.base::strike(); // to update debug info
                 };
                 boss.SUBMIT_T(tier::release, e2::size::any, memo, newsize)
@@ -3480,6 +3480,26 @@ namespace netxs::console
                         auto& [_id, gear_ptr] = *gear_it;
                         auto& gear = *gear_ptr;
                         gear.hids::take(keybdstate);
+                    }
+                    boss.strike();
+                };
+                boss.SUBMIT_T(tier::release, e2::conio::focus, memo, focusstate)
+                {
+                    auto id = focusstate.focusid;
+                    auto gear_it = gears.find(id);
+                    if (gear_it == gears.end())
+                    {
+                        gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
+                        auto& [_id, gear_ptr] = *gear_it;
+                        auto& gear = *gear_ptr;
+                        gear.set_single_instance(single_instance);
+                        gear.hids::take(focusstate);
+                    }
+                    else
+                    {
+                        auto& [_id, gear_ptr] = *gear_it;
+                        auto& gear = *gear_ptr;
+                        gear.hids::take(focusstate);
                     }
                     boss.strike();
                 };
@@ -4796,11 +4816,11 @@ namespace netxs::console
             {
                 sysmouse mouse = {};
                 syskeybd keybd = {};
+                sysfocus focus = {};
             };
 
             auto digit = [](auto c) { return c >= '0' && c <= '9'; };
             auto gears = std::unordered_map<id_t, sysgears>{};
-            auto focus = faux;
             auto total = text{};
             auto guard = std::unique_lock{ mutex };
             auto input = std::thread([&] { reader(); });
@@ -4925,15 +4945,21 @@ namespace netxs::console
                             if (++pos == len) { total = strv; break; }//incomlpete
                             if (strv.at(pos) == 'I')
                             {
-                                focus = true;
-                                notify(e2::conio::focus, focus);
+                                auto id = 0;
+                                auto& f = gears[id].focus;
+                                f.focusid = id;
+                                f.enabled = true;
+                                notify(e2::conio::focus, f);
                                 log("\t - focus on ", canal);
                                 ++pos;
                             }
                             else if (strv.at(pos) == 'O')
                             {
-                                focus = faux;
-                                notify(e2::conio::focus, focus);
+                                auto id = 0;
+                                auto& f = gears[id].focus;
+                                f.focusid = id;
+                                f.enabled = faux;
+                                notify(e2::conio::focus, f);
                                 log("\t - focus off: ", canal);
                                 ++pos;
                             }
@@ -5186,13 +5212,14 @@ again:
                                                 notify(e2::conio::winsz, winsz);
                                                 break;
                                             }
-                                            //todo deprecate
                                             case ansi::dtvt::focus:
                                             {
                                                 //todo clear pressed keys on lost focus
-                                                auto id    = take();
-                                                bool focus = take();
-                                                notify(e2::conio::focus, focus);
+                                                auto id = take();
+                                                auto& f = gears[id].focus;
+                                                f.focusid = id;
+                                                f.enabled = take();
+                                                notify(e2::conio::focus, f);
                                                 break;
                                             }
                                             case ansi::dtvt::mouse_halt:
@@ -6277,13 +6304,6 @@ again:
                 SUBMIT_T(tier::release, e2::conio::unknown, token, unkstate)
                 {
                 };
-                SUBMIT_T(tier::release, e2::conio::focus, token, unkstate)
-                {
-                };
-                //SUBMIT_T(tier::release, e2::conio::input, token, gear)
-                //{
-                //    log("gear.coord: ", gear.coord);
-                //};
                 SUBMIT_T(tier::release, e2::conio::native, token, extended)
                 {
                     native = extended;

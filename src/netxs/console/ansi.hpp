@@ -281,7 +281,7 @@ namespace netxs::ansi
         static const si32 mouse_stop = mouse + 1; // .
         static const si32 mouse_halt = mouse + 2; // .
         static const si32 winsz = 10030; // .
-        static const si32 focus = 10040; //todo deprecate - not used
+        static const si32 focus = 10040; // Focus notification. ESC [ 10040 : _gear_id_ : 0/1 _
         static const si32 final = 10050; // .
 
         static const si32 clipboard = 10060; // OSC clipboard data.
