@@ -3344,17 +3344,62 @@ namespace netxs::console
         class input
             : public skill
         {
-            struct hids2
+            struct topgear
                 : public hids
             {
-                text  clip_rawtext; // gate: Clipboard data.
-                face  clip_preview; // gate: Clipboard render.
+                text clip_rawdata{}; // topgear: Clipboard data.
+                face clip_preview{}; // topgear: Clipboard preview render.
+                twod preview_size{}; // topgear: Clipboard preview render size.
+                bool not_directvt{}; // topgear: Is it the top level gear (not directvt).
 
-                //using hids::hids;
+                template<class ...Args>
+                topgear(bool not_directvt, Args&&... args)
+                    : hids{ std::forward<Args>(args)... },
+                      not_directvt{ not_directvt }
+                { }
 
+                void clear_clip_data() override
+                {
+                    if (clip_rawdata.size())
+                    {
+                        preview_size = dot_00;
+                        clip_rawdata.clear();
+                        owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+                        if (not_directvt)
+                        {
+                            clip_preview.size(preview_size);
+                        }
+                    }
+                }
+                void set_clip_data(twod const& size, view utf8) override
+                {
+                    if (utf8.size())
+                    {
+                        preview_size = size != dot_00 ? size
+                                                      : preview_size == dot_00 ? twod{ 80,25 } //todo make it configurable
+                                                                               : preview_size;
+                    }
+                    else preview_size = dot_00;
+                    clip_rawdata = utf8;
+                    if (not_directvt)
+                    {
+                        page block{ utf8 };
+                        clip_preview.mark(cell{});
+                        clip_preview.size(preview_size);
+                        clip_preview.wipe();
+                        clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                    }
+                    owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+                }
+                void get_clip_data(text& out_utf8) override
+                {
+                    owner.SIGNAL(tier::release, hids::events::clipbrd::get, *this);
+                    if (not_directvt) out_utf8 = clip_rawdata;
+                    else              out_utf8 = std::move(clip_rawdata);
+                }
             };
 
-            using depo = std::unordered_map<id_t, sptr<hids>>;
+            using depo = std::unordered_map<id_t, sptr<topgear>>;
             using lock = std::recursive_mutex;
             using skill::boss,
                   skill::memo;
@@ -3384,7 +3429,8 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, mousestate)
                 {
-                    auto gear_it = gears.find(mousestate.mouseid);
+                    auto id = mousestate.mouseid;
+                    auto gear_it = gears.find(id);
                     if (mousestate.control != sysmouse::stat::ok)
                     {
                         log("input: mousestate.status: ", (si32)mousestate.control);
@@ -3403,8 +3449,7 @@ namespace netxs::console
                     }
                     else if (gear_it == gears.end())
                     {
-                        auto id = mousestate.mouseid;
-                        gear_it = gears.try_emplace(id, bell::create<hids>(boss, xmap)).first;
+                        gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
                         auto& [_id, gear_ptr] = *gear_it;
                         auto& gear = *gear_ptr;
                         gear.set_single_instance(single_instance);
@@ -3420,11 +3465,11 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, keybdstate)
                 {
-                    auto gear_it = gears.find(keybdstate.keybdid);
+                    auto id = keybdstate.keybdid;
+                    auto gear_it = gears.find(id);
                     if (gear_it == gears.end())
                     {
-                        auto id = keybdstate.keybdid;
-                        gear_it = gears.try_emplace(id, bell::create<hids>(boss, xmap)).first;
+                        gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
                         auto& [_id, gear_ptr] = *gear_it;
                         auto& gear = *gear_ptr;
                         gear.set_single_instance(single_instance);
@@ -3462,9 +3507,9 @@ namespace netxs::console
             {
                 for (auto& [foreign_id, gear_ptr] : gears)
                 {
-                    if (gear_ptr->id == gear_id) return foreign_id;
+                    if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
                 }
-                return id_t{};
+                return std::pair{ id_t{}, sptr<topgear>{} };
             }
         };
 
@@ -5808,7 +5853,7 @@ again:
             conio.output(frame2);
             frame2.clear();
         }
-        void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_raw_data)
+        void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
         {
             auto frame_header = netxs::ansi::dtvt::frame{};
             auto control_header = netxs::ansi::dtvt::control{};
@@ -5818,8 +5863,8 @@ again:
                                      control_header,
                                             gear_id,
                                   clip_preview_size,
-                               clip_raw_data.size(),
-                                     clip_raw_data);
+                                clip_rawdata.size(),
+                                       clip_rawdata);
             frame2.add_at<svga::directvt>(0, (si32)frame2.size());
             conio.output(frame2);
             frame2.clear();
@@ -5991,11 +6036,10 @@ again:
         {
             for (auto& [id, gear_ptr] : input.gears)
             {
-                //todo hids
-                //auto& gear = *gear_ptr;
-                //auto coor = gear.coord + dot_21 * 2;
-                //gear.clip_preview.move(coor);
-                //canvas.plot(gear.clip_preview, cell::shaders::lite);
+                auto& gear = *gear_ptr;
+                auto coor = gear.coord + dot_21 * 2;
+                gear.clip_preview.move(coor);
+                canvas.plot(gear.clip_preview, cell::shaders::lite);
             }
         }
         void draw_tooltips(face& canvas)
@@ -6159,11 +6203,11 @@ again:
                         {
                             draw_mouse_pointer(canvas);
                         }
-                        //todo hids
-                        //if (clip_rawtext.size()) // Render clipboard content preview.
-                        //{
-                        //    draw_clip_preview(canvas);
-                        //}
+
+                        if (!direct)
+                        {
+                            draw_clip_preview(canvas);
+                        }
 
                         if (props.tooltip_enabled)
                         {
@@ -6306,34 +6350,6 @@ again:
                 {
                     paint.append(extra_data);
                 };
-                //SUBMIT_T(tier::release, e2::command::clipboard::set, token, clipbrd_data)
-                //{
-                //    //todo hids
-                //    //clip_rawtext = clipbrd_data;
-                //    //page block{ clipbrd_data };
-                //    //clip_preview.mark(cell{});
-                //    //clip_preview.wipe();
-                //    //clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
-                //};
-                //SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
-                //{
-                //    //todo hids
-                //    //clipbrd_data = clip_rawtext;
-                //};
-                //SUBMIT_T(tier::release, e2::command::clipboard::layout, token, clipbrd_size)
-                //{
-                //    //todo hids
-                //    //clip_preview.size(clipbrd_size);
-                //    //clip_preview.mark(cell{});
-                //    //clip_preview.wipe();
-                //    //page block{ clip_rawtext };
-                //    //clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
-                //};
-                //SUBMIT_T(tier::request, e2::command::clipboard::layout, token, clipbrd_size)
-                //{
-                //    //todo hids
-                //    //clipbrd_size = clip_preview.size();
-                //};
                 SUBMIT_T(tier::general, e2::nextframe, token, damaged)
                 {
                     rebuild_scene(damaged);
@@ -6346,44 +6362,53 @@ again:
                         check_tooltips(now);
                     };
                 }
+                // Clipboard relay.
+                SUBMIT_T(tier::release, hids::events::clipbrd::set, token, gear)
+                {
+                    auto myid = gear.id;
+                    if (direct)
+                    {
+                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                        auto& gear =*gear_ptr;
+                        auto& data = gear.clip_rawdata;
+                        auto& size = gear.preview_size;
+                        paint.forward_clipboard(ext_gear_id, size, data);
+                    }
+                    else
+                    {
+                        // redraw clip preview
+                    }
+                };
+                SUBMIT_T(tier::release, hids::events::clipbrd::get, token, gear)
+                {
+                    if (!direct) return;
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    conio.relay.mutex.lock();
+                    auto& depot = conio.relay.depot[ext_gear_id]; // If rehashing occurs due to the insertion, all iterators are invalidated.
+                    conio.relay.mutex.unlock();
+                    auto lock = std::unique_lock{ depot.mutex };
+                    depot.ready = faux;
+                    paint.request_clipboard(ext_gear_id);
+                    auto maxoff = 100ms;
+                    if (std::cv_status::timeout != depot.synch.wait_for(lock, maxoff))
+                    {
+                        gear_ptr->clip_rawdata = depot.chars;
+                    }
+                    else
+                    {
+                        log("gate: timeout: no clipboard data reply");
+                    }
+                };
 
                 auto forward_event = [&](hids& gear)
                 {
                     auto deed = bell::protos<tier::release>();
-                    auto ext_gear_id = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                     paint.forward(ext_gear_id, deed, gear.coord);
                     gear.dismiss();
                 };
-                if (direct)
+                if (direct) // Forward unhandled events outside.
                 {
-                    // Clipboard relay.
-                    SUBMIT_T(tier::release, hids::events::clipbrd::set, token, gear)
-                    {
-                        auto ext_gear_id = input.get_foreign_gear_id(gear.id);
-                        paint.forward_clipboard(ext_gear_id, gear.clip_raw_size, gear.clip_raw_data);
-                    };
-                    SUBMIT_T(tier::release, hids::events::clipbrd::get, token, gear)
-                    {
-                        auto ext_gear_id = input.get_foreign_gear_id(gear.id);
-                        conio.relay.mutex.lock();
-                        auto& depot = conio.relay.depot[ext_gear_id]; // If rehashing occurs due to the insertion, all iterators are invalidated.
-                        conio.relay.mutex.unlock();
-                        auto lock = std::unique_lock{ depot.mutex };
-                        depot.ready = faux;
-                        paint.request_clipboard(ext_gear_id);
-                        auto maxoff = 100ms;
-                        //depot.synch.wait(lock);
-                        if (std::cv_status::timeout != depot.synch.wait_for(lock, maxoff))
-                        {
-                            gear.clip_raw_data = depot.chars;
-                        }
-                        else
-                        {
-                            log("gate: timeout: no clipboard data reply");
-                        }
-                    };
-
-                    // Forward unhandled events outside.
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
                         log("e2::form::maximize");
