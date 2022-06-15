@@ -3501,6 +3501,15 @@ namespace netxs::console
                     boss.strike();
                 };
             }
+            void check_focus()
+            {
+                if (single_instance)
+                {
+                    auto focusstate = sysfocus{ .focusid = 0, .enabled = true };
+                    boss.SIGNAL(tier::release, e2::conio::focus, focusstate);
+                    gears[focusstate.focusid]->set_single_instance(true);
+                }
+            }
             void set_single_instance(bool b)
             {
                 single_instance = b;
@@ -6490,6 +6499,8 @@ again:
                         forward_event(gear);
                     };
                 }
+                else input.check_focus();
+
                 if (deskmenu)
                 {
                     attach(deskmenu); // Our size could be changed here during attaching.

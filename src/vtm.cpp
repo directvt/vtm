@@ -283,9 +283,7 @@ int main(int argc, char* argv[])
             {
                 auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
                 auto window = ground->invite<gate>(true);
-                applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
-                //todo set focus
-                //window->SIGNAL(tier::preview, e2::form::proceed::focus, applet);
+                if (!direct) applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
                 window->resize(size);
                 window->launch(tunnel.first, config, applet);
                 window.reset();
