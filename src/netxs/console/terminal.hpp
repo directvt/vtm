@@ -6728,7 +6728,7 @@ namespace netxs::ui
             //        }
             //    }
             //}
-            void replay(id_t gear_id, hint cause, twod const& coord)
+            void replay(id_t gear_id, hint cause, twod coord)
             {
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(gear_id))
@@ -6737,6 +6737,9 @@ namespace netxs::ui
                 {
                     auto& gear = *gear_ptr;
                     release(gear);
+                    auto temp = dot_00;
+                    owner.global(temp);
+                    coord -= temp; // Restore mouse global position.
                     gear.replay(cause, coord);
                     parent_ptr->template raw_riseup<tier::release>(cause, gear);
                 }
