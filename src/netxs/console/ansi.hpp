@@ -341,6 +341,7 @@ namespace netxs::ansi
                 form_header,   // .
                 form_footer,   // .
                 mouse_events,  // .
+                set_focus,     // request to set focus
                 get_clipboard, // request main clipboard data
                 set_clipboard, // set main clipboard using following data
                 vt_command,    // parse following vt-sequences in UTF-8 format

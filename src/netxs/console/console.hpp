@@ -322,7 +322,7 @@ namespace netxs::events::userland
                     EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf, console::proc       ), // exec functor on behalf (see gate).
                     GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
-                    //EVENT_XS( focus      , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
+                    //EVENT_XS( focus      , sptr<console::base>      ), // order to set focus to the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , si32                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face                     ), // ????  order to render itself to the canvas.
@@ -5912,6 +5912,19 @@ again:
             conio.output(frame2);
             frame2.clear();
         }
+        void set_focus(id_t gear_id)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::set_focus);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                            gear_id);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            conio.output(frame2);
+            frame2.clear();
+        }
     };
 
     // console: Client properties.
@@ -6444,6 +6457,11 @@ again:
                 };
                 if (direct) // Forward unhandled events outside.
                 {
+                    SUBMIT_T(tier::release, hids::events::focus::set, token, from_gear)
+                    {
+                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
+                        paint.set_focus(ext_gear_id);
+                    };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
                         log("e2::form::maximize");

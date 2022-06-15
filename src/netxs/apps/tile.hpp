@@ -349,10 +349,10 @@ namespace netxs::app::tile
             {
                 for (auto gear_id : gear_id_list)
                 {
-                    if (auto gear_ptr = bell::getref(gear_id))
+                    if (auto ptr = bell::getref(gear_id))
+                    if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                     {
-                        //todo set focus
-                        //gear_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, item_ptr);
+                        gear_ptr->offer_kb_focus(item_ptr);
                     }
                 }
             }
@@ -592,9 +592,8 @@ namespace netxs::app::tile
                                 auto empty_1 = empty_slot(empty_slot);
                                 auto empty_2 = empty_slot(empty_slot);
                                 auto curitem = boss.pop_back(); // In order to preserve all foci.
-                                //todo set focus
-                                //gear.owner.SIGNAL(tier::preview, e2::form::proceed::focus,   empty_2);
-                                //gear.owner.SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
+                                gear.offer_kb_focus(empty_2);
+                                gear.annul_kb_focus(curitem);
                                 if (boss.empty())
                                 {
                                     boss.attach(empty_pane());

@@ -6096,10 +6096,10 @@ namespace netxs::ui
                 auto data = console.selection_pickup(selmod);
                 if (data.size())
                 {
+                    //todo unify (hids)
                     auto state = gear.state();
-                    gear.combine_focus = true;
-                    //todo set focus
-                    //gear.owner.SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
+                    gear.combine_focus = true; // Preserve all selected panes.
+                    gear.offer_kb_focus(this->This());
                     gear.set_clip_data(target->panel, data);
                     gear.state(state);
                 }
@@ -6114,6 +6114,12 @@ namespace netxs::ui
                 #ifndef PROD
                     return;
                 #endif
+
+                //todo unify (hids)
+                auto state = gear.state();
+                gear.combine_focus = true; // Preserve all selected panes.
+                gear.offer_kb_focus(this->This());
+                gear.state(state);
 
                 auto data = text{};
                 gear.get_clip_data(data);
@@ -6753,6 +6759,20 @@ namespace netxs::ui
                     gear_ptr->get_clip_data(clipdata);
                 }
             }
+            void set_focus(id_t gear_id)
+            {
+                auto lock = events::sync{};
+                if (auto ptr = bell::getref(gear_id))
+                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                {
+                    auto& gear = *gear_ptr;
+                    //todo unify (hids)
+                    auto state = gear.state();
+                    gear.combine_focus = true; // Preserve all selected panes.
+                    gear.offer_kb_focus(owner.This());
+                    gear.state(state);
+                }
+            }
             void disable()
             {
                 token.clear();
@@ -7011,6 +7031,17 @@ namespace netxs::ui
                                 events.get_clipboad(gear_id, clipdata);
                                 buffer = ansi::clipdata(gear_id, clipdata);
                                 answer(buffer);
+                                break;
+                            }
+                            case ansi::dtvt::control::set_focus:
+                            {
+                                auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
+                                data.remove_prefix(sizeof(gear_id));
+                                events.set_focus(gear_id);
+                                //netxs::events::enqueue(This(), [&, gear_id](auto& boss)
+                                //{
+                                //    events.set_focus(gear_id);
+                                //});
                                 break;
                             }
                             case ansi::dtvt::control::form_header:

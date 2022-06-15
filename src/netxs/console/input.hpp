@@ -233,6 +233,11 @@ namespace netxs::events::userland
                     };
                 };
             };
+            SUBSET_XS( focus )
+            {
+                EVENT_XS( set, input::hids ), // release: Set keybd focus.
+                EVENT_XS( off, input::hids ), // release: Off keybd focus.
+            };
         };
     };
 }
@@ -766,6 +771,9 @@ namespace netxs::input
         static constexpr auto focus_take    = events::notify::focus::got  .id;
         static constexpr auto focus_lost    = events::notify::focus::lost .id;
         static constexpr auto kboffer_event = events::upevent::kboffer    .id;
+        static constexpr auto kbannul_event = events::upevent::kbannul    .id;
+        static constexpr auto focus_set     = events::focus::set          .id;
+        static constexpr auto focus_off     = events::focus::off          .id;
         static constexpr auto halt_event    = events::halt                .id;
         static constexpr auto die_event     = events::die                 .id;
 
@@ -1183,6 +1191,21 @@ namespace netxs::input
             clear_kb_focus();
             kb_focus_taken = faux;
             inst.bell::template signal<tier::release>(kboffer_event, *this);
+        }
+        void offer_kb_focus(sptr<bell> inst_ptr)
+        {
+            //todo signal to the owner to do a focus relay
+            force_group_focus = true;
+            kb_focus_taken = faux;
+            inst_ptr->bell::template signal<tier::release>(kboffer_event, *this);
+            force_group_focus = faux;
+            owner.bell::template signal<tier::release>(focus_set, *this);
+        }
+        void annul_kb_focus(sptr<bell> inst_ptr)
+        {
+            kb_focus_taken = faux; //todo used in base::upevent handler
+            inst_ptr->bell::template signal<tier::release>(kbannul_event, *this);
+            //owner.bell::template signal<tier::release>(focus_off, *this);
         }
 
         auto interpret()
