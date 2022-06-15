@@ -3360,15 +3360,12 @@ namespace netxs::console
 
                 void clear_clip_data() override
                 {
-                    if (clip_rawdata.size())
+                    preview_size = dot_00;
+                    clip_rawdata.clear();
+                    owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+                    if (not_directvt)
                     {
-                        preview_size = dot_00;
-                        clip_rawdata.clear();
-                        owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
-                        if (not_directvt)
-                        {
-                            clip_preview.size(preview_size);
-                        }
+                        clip_preview.size(preview_size);
                     }
                 }
                 void set_clip_data(twod const& size, view utf8) override

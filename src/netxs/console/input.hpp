@@ -772,6 +772,7 @@ namespace netxs::input
         static constexpr auto focus_lost    = events::notify::focus::lost .id;
         static constexpr auto kboffer_event = events::upevent::kboffer    .id;
         static constexpr auto kbannul_event = events::upevent::kbannul    .id;
+        //todo revise (focus_set/off)
         static constexpr auto focus_set     = events::focus::set          .id;
         static constexpr auto focus_off     = events::focus::off          .id;
         static constexpr auto halt_event    = events::halt                .id;
