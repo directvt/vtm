@@ -317,12 +317,12 @@ namespace netxs::events::userland
                     EVENT_XS( render  , bool                ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
                     EVENT_XS( attach  , sptr<console::base> ), // order to attach a child, arg is a parent base_sptr.
                     EVENT_XS( detach  , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
-                    EVENT_XS( focus   , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
                     EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
                     EVENT_XS( swap    , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
                     EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf, console::proc       ), // exec functor on behalf (see gate).
                     GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+                    //EVENT_XS( focus      , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , si32                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face                     ), // ????  order to render itself to the canvas.
@@ -6381,6 +6381,27 @@ again:
                         check_tooltips(now);
                     };
                 }
+
+                // Focus relay.
+                SUBMIT_T(tier::release, hids::events::notify::focus::got, token, from_gear)
+                {
+                    auto myid = from_gear.id;
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                    auto& gear = *gear_ptr;
+                    gear.force_group_focus = true;
+                    gear.kb_focus_taken = faux;
+                    if (deskmenu) deskmenu->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    if (gear.focus_taken()) gear.dismiss();
+                };
+                SUBMIT_T(tier::release, hids::events::notify::focus::lost, token, from_gear)
+                {
+                    auto myid = from_gear.id;
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                    auto& gear = *gear_ptr;
+                    gear.kb_focus_taken = faux;
+                    if (deskmenu) deskmenu->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
+                };
+
                 // Clipboard relay.
                 SUBMIT_T(tier::release, hids::events::clipbrd::set, token, from_gear)
                 {
@@ -6545,30 +6566,30 @@ again:
                 gear.slot.coor += base::coor();
                 world.SIGNAL(tier::release, e2::form::proceed::createby, gear);
             };
-            SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr) //todo use e2::form::proceed::onbehalf
-            {
-                //todo hids
-                //if (item_ptr)
-                //{
-                //    auto& gear = input.gear;
-                //    //todo unify
-                //    gear.force_group_focus = true;
-                //    gear.kb_focus_taken = faux;
-                //    item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                //    gear.force_group_focus = faux;
-                //}
-            };
-            SUBMIT(tier::preview, e2::form::proceed::unfocus, item_ptr) //todo use e2::form::proceed::onbehalf
-            {
-                //todo hids
-                //if (item_ptr)
-                //{
-                //    auto& gear = input.gear;
-                //    //todo unify
-                //    gear.kb_focus_taken = faux; //todo used in base::upevent handler
-                //    item_ptr->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
-                //}
-            };
+            //SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr) //todo use e2::form::proceed::onbehalf
+            //{
+            //    //todo hids
+            //    //if (item_ptr)
+            //    //{
+            //    //    auto& gear = input.gear;
+            //    //    //todo unify
+            //    //    gear.force_group_focus = true;
+            //    //    gear.kb_focus_taken = faux;
+            //    //    item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+            //    //    gear.force_group_focus = faux;
+            //    //}
+            //};
+            //SUBMIT(tier::preview, e2::form::proceed::unfocus, item_ptr) //todo use e2::form::proceed::onbehalf
+            //{
+            //    //todo hids
+            //    //if (item_ptr)
+            //    //{
+            //    //    auto& gear = input.gear;
+            //    //    //todo unify
+            //    //    gear.kb_focus_taken = faux; //todo used in base::upevent handler
+            //    //    item_ptr->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
+            //    //}
+            //};
             SUBMIT(tier::release, e2::form::proceed::onbehalf, proc)
             {
                 //todo hids

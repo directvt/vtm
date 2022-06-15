@@ -6098,7 +6098,8 @@ namespace netxs::ui
                 {
                     auto state = gear.state();
                     gear.combine_focus = true;
-                    gear.owner.SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
+                    //todo set focus
+                    //gear.owner.SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
                     gear.set_clip_data(target->panel, data);
                     gear.state(state);
                 }
@@ -6652,6 +6653,15 @@ namespace netxs::ui
                 //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
+            void focus(hids& gear, si32 focus)
+            {
+                queue.dtvt_begin()
+                     .dtvt_focus(gear.id,
+                                   focus)
+                     .dtvt_close();
+                //log("dtvt: ", utf::debase(queue));
+                owner.answer(queue);
+            }
             void proceed(hids& gear, id_t cause, bool moved)
             {
                 using m = hids::events::mouse;
@@ -6783,6 +6793,16 @@ namespace netxs::ui
                 {
                     log("dtvt: keybd: ", gear.id);
                     keybd(gear);
+                };
+                owner.SUBMIT_T(tier::release, hids::events::notify::keybd::got, token, gear)
+                {
+                    log("dtvt: keybd focus got ", gear.id);
+                    focus(gear, true);
+                };
+                owner.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, gear)
+                {
+                    log("dtvt: keybd focus lost ", gear.id);
+                    focus(gear, faux);
                 };
             }
         };
@@ -7149,18 +7169,6 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::size::any, new_size)
             {
                 if (ptycon) ptycon.resize(new_size);
-            };
-            SUBMIT(tier::release, hids::events::notify::keybd::got, gear)
-            {
-                log("dtvt: hids::events::notify::keybd::got ", gear.id);
-                outbuf.dtvt_focus(gear.id, true);
-                answer(outbuf);
-            };
-            SUBMIT(tier::release, hids::events::notify::keybd::lost, gear)
-            {
-                log("dtvt: hids::events::notify::keybd::lost ", gear.id);
-                outbuf.dtvt_focus(gear.id, faux);
-                answer(outbuf);
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {

@@ -22,6 +22,7 @@ namespace netxs::events::userland
             GROUP_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
+            GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
             GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
             GROUP_XS( upevent, input::hids ), // events streamed up (to children) of the visual tree by base::.
 
@@ -47,6 +48,11 @@ namespace netxs::events::userland
                     EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
                 };
                 SUBSET_XS( keybd )
+                {
+                    EVENT_XS( got , input::hids ),
+                    EVENT_XS( lost, input::hids ),
+                };
+                SUBSET_XS( focus )
                 {
                     EVENT_XS( got , input::hids ),
                     EVENT_XS( lost, input::hids ),
@@ -755,8 +761,10 @@ namespace netxs::input
 
         static constexpr auto enter_event   = events::notify::mouse::enter.id;
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
-        static constexpr auto focus_take    = events::notify::keybd::got  .id;
-        static constexpr auto focus_lost    = events::notify::keybd::lost .id;
+        static constexpr auto keybd_take    = events::notify::keybd::got  .id;
+        static constexpr auto keybd_lost    = events::notify::keybd::lost .id;
+        static constexpr auto focus_take    = events::notify::focus::got  .id;
+        static constexpr auto focus_lost    = events::notify::focus::lost .id;
         static constexpr auto kboffer_event = events::upevent::kboffer    .id;
         static constexpr auto halt_event    = events::halt                .id;
         static constexpr auto die_event     = events::die                 .id;
@@ -939,8 +947,8 @@ namespace netxs::input
         }
         void take(sysfocus const& f)
         {
-            //todo implement
-            //...
+            if (f.enabled) owner.bell::template signal<tier::release>(focus_take, *this);
+            else           owner.bell::template signal<tier::release>(focus_lost, *this);
         }
 
         rect const& area() const { return idmap.area(); }
@@ -1085,14 +1093,14 @@ namespace netxs::input
         void _add_kb_focus(sptr<bell> item)
         {
             kb_focus.push_back(item);
-            item->bell::template signal<tier::release>(focus_take, *this);
+            item->bell::template signal<tier::release>(keybd_take, *this);
         }
         bool remove_from_kb_focus(sptr<bell> item)
         {
             return _check_kb_focus(item, [&](auto iter)
             {
                 auto next = iter->lock();
-                next->bell::template signal<tier::release>(focus_lost, *this);
+                next->bell::template signal<tier::release>(keybd_lost, *this);
                 kb_focus.erase(iter);
             });
         }
@@ -1110,7 +1118,7 @@ namespace netxs::input
                         iter++;
                         continue;
                     }
-                    next->bell::template signal<tier::release>(focus_lost, *this);
+                    next->bell::template signal<tier::release>(keybd_lost, *this);
                 }
                 iter++;
                 kb_focus.erase(std::prev(iter));
@@ -1159,7 +1167,7 @@ namespace netxs::input
             {
                 if (auto next = iter->lock())
                 {
-                    next->bell::template signal<tier::release>(focus_lost, *this);
+                    next->bell::template signal<tier::release>(keybd_lost, *this);
                 }
                 iter++;
                 kb_focus.erase(std::prev(iter));
