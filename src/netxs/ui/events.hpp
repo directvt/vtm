@@ -585,7 +585,7 @@ namespace netxs::events
         }
        ~bell() { SIGNAL(tier::release, userland::root::dtor, id); }
 
-        virtual void  global(twod& coor) { } // bell: Recursively calculate global coordinate.
+        virtual void global(twod& coor) { } // bell: Recursively calculate global coordinate.
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
 

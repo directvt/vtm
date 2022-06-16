@@ -98,11 +98,11 @@ namespace netxs::events::userland
             };
             SUBSET_XS( size ) // preview: checking by pro::limit.
             {
-                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object.
+                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object; request: request object size.
             };
             SUBSET_XS( coor ) // preview any: checking by pro::limit.
             {
-                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object.
+                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object; request: request object coor.
             };
             SUBSET_XS( bindings )
             {
@@ -3290,16 +3290,17 @@ namespace netxs::console
                     //using bttn = hids::events::mouse::button; //MSVC 16.9.4 don't get it
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
-                        log("captured");
+                        log("try to capture... boss.bell::id=", boss.bell::id);
                         if (gear.capture(boss.bell::id))
                         {
+                            log("captured boss.bell::id=", boss.bell::id);
                             boss.SIGNAL(tier::release, e2::form::drag::start::_<BUTTON>, gear);
                             gear.dismiss();
                         }
                     };
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
-                        log("pull delta: ", gear.delta.get());
+                        log("pull delta:  boss.bell::id=", boss.bell::id, " ", gear.delta.get());
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::pull::_<BUTTON>, gear);
@@ -3308,7 +3309,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
-                        log("pull cancel");
+                        log("pull cancel boss.bell::id=", boss.bell::id);
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
@@ -3318,7 +3319,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::general, hids::events::halt, dragmemo[BUTTON], gear)
                     {
-                        log("pull halt");
+                        log("pull halt boss.bell::id=", boss.bell::id);
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
@@ -3328,7 +3329,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
-                        log("drag stop");
+                        log("drag stop boss.bell::id=", boss.bell::id);
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::stop::_<BUTTON>, gear);
@@ -6542,27 +6543,48 @@ again:
         {
             //todo unify
             title.live = faux;
-            mouse.draggable<sysmouse::leftright>(true);
-            mouse.draggable<sysmouse::left>(true);
             input.set_single_instance(is_standalone_app);
-            SUBMIT(tier::release, e2::form::drag::start::any, gear)
+            if (!is_standalone_app)
             {
-                robot.pacify();
-            };
-            SUBMIT(tier::release, e2::form::drag::pull::any, gear)
-            {
-                base::moveby(-gear.delta.get());
-                base::deface();
-            };
-            SUBMIT(tier::release, e2::form::drag::stop::any, gear)
-            {
-                robot.pacify();
-                robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto& x)
-                             {
-                                base::moveby(-x);
-                                base::deface();
-                             });
-            };
+                mouse.draggable<sysmouse::leftright>(true);
+                mouse.draggable<sysmouse::left>(true);
+                SUBMIT(tier::release, e2::form::drag::start::any, gear)
+                {
+                    robot.pacify();
+                };
+                SUBMIT(tier::release, e2::form::drag::pull::any, gear)
+                {
+                    base::moveby(-gear.delta.get());
+                    base::deface();
+                };
+                SUBMIT(tier::release, e2::form::drag::stop::any, gear)
+                {
+                    robot.pacify();
+                    robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto& x)
+                                {
+                                    base::moveby(-x);
+                                    base::deface();
+                                });
+                };
+                SUBMIT(tier::release, e2::form::layout::shift, newpos)
+                {
+                    auto viewport = e2::form::prop::viewport.param();
+                    this->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                    auto oldpos = viewport.coor + (viewport.size / 2);
+
+                    auto path = oldpos - newpos;
+                    auto time = SWITCHING_TIME;
+                    auto init = 0;
+                    auto func = constlinearAtoB<twod>(path, time, init);
+
+                    robot.pacify();
+                    robot.actify(func, [&](auto& x)
+                                       {
+                                        base::moveby(-x);
+                                        base::strike();
+                                       });
+                };
+            }
             SUBMIT(tier::release, e2::form::prop::fullscreen, state)
             {
                 fullscreen = state;
@@ -6579,6 +6601,7 @@ again:
             {
                 this->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
                 viewport.coor += base::coor();
+                log("base::coor(): ", base::coor());
             };
             //todo unify creation (delete simple create wo gear)
             SUBMIT(tier::preview, e2::form::proceed::create, region)
@@ -6655,23 +6678,6 @@ again:
                         gear.dismiss();
                     }
                 }
-            };
-            SUBMIT(tier::release, e2::form::layout::shift, newpos)
-            {
-                rect viewport;
-                this->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                auto oldpos = viewport.coor + (viewport.size / 2);
-
-                auto path = oldpos - newpos;
-                auto time = SWITCHING_TIME;
-                auto init = 0;
-                auto func = constlinearAtoB<twod>(path, time, init);
-
-                robot.pacify();
-                robot.actify(func, [&](auto& x) {
-                                     base::moveby(-x);
-                                     base::strike();
-                                 });
             };
             SUBMIT(tier::release, e2::form::prop::brush, brush)
             {

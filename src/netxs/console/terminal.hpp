@@ -6714,10 +6714,15 @@ namespace netxs::ui
                     gear.replay(cause, coord);
                     parent_ptr->template raw_riseup<tier::release>(cause, gear);
                     //todo unify
-                    // Restore global mouse position.
-                    auto basis = owner.coor();
+                    auto basis = e2::coor::set.param();
+                    gear.owner.SIGNAL(tier::request, e2::coor::set, basis);
+                    basis += owner.coor();
                     owner.global(basis);
-                    gear.coord -= basis;
+                    gear.coord -= basis; // Restore gate mouse position.
+                    if (gear) // Forward the event to the gate as if it was initiated there.
+                    {
+                        gear.owner.bell::template signal<tier::release>(cause, gear);
+                    }
                 }
             }
             void set_clipboad(id_t gear_id, twod const& clip_prev_size, text const& clipdata)
