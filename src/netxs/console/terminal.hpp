@@ -6715,9 +6715,9 @@ namespace netxs::ui
                     parent_ptr->template raw_riseup<tier::release>(cause, gear);
                     //todo unify
                     // Restore global mouse position.
-                    auto temp = dot_00;
-                    owner.global(temp);
-                    gear.coord -= temp;
+                    auto basis = owner.coor();
+                    owner.global(basis);
+                    gear.coord -= basis;
                 }
             }
             void set_clipboad(id_t gear_id, twod const& clip_prev_size, text const& clipdata)
