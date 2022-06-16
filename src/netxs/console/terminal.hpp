@@ -6728,7 +6728,7 @@ namespace netxs::ui
             //        }
             //    }
             //}
-            void replay(id_t gear_id, hint cause, twod coord)
+            void replay(id_t gear_id, hint cause, twod const& coord)
             {
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(gear_id))
@@ -6737,11 +6737,13 @@ namespace netxs::ui
                 {
                     auto& gear = *gear_ptr;
                     release(gear);
-                    auto temp = dot_00;
-                    owner.global(temp);
-                    coord -= temp; // Restore mouse global position.
                     gear.replay(cause, coord);
                     parent_ptr->template raw_riseup<tier::release>(cause, gear);
+                    //todo unify
+                    // Restore mouse global position.
+                    auto temp = dot_00;
+                    owner.global(temp);
+                    gear.coord -= temp;
                 }
             }
             void set_clipboad(id_t gear_id, twod const& clip_prev_size, text const& clipdata)
@@ -7204,6 +7206,10 @@ namespace netxs::ui
             {
                 if (ptycon) ptycon.resize(new_size);
             };
+            //SUBMIT(tier::release, hids::events::mouse::button::click::any, gear)
+            //{
+            //    this->base::template riseup<tier::release>(e2::form::layout::expose, *this);
+            //};
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
                 //this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
