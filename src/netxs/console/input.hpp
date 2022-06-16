@@ -905,10 +905,10 @@ namespace netxs::input
 
         enum modifiers : ui32
         {
-            SHIFT = 1 << 2,
-            ALT   = 1 << 3,
-            CTRL  = 1 << 4,
-            RCTRL = 1 << 5,
+            SHIFT   = 1 << 2,
+            ALT     = 1 << 3,
+            CTRL    = 1 << 4,
+            RCTRL   = 1 << 5,
             ANYCTRL = CTRL | RCTRL,
         };
 

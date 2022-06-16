@@ -4,7 +4,6 @@
 #ifndef NETXS_CONSOLE_HPP
 #define NETXS_CONSOLE_HPP
 
-#include "input.hpp"
 #include "../abstract/iterator.hpp"
 #include "../os/system.hpp"
 
@@ -5158,31 +5157,20 @@ again:
                                                 auto& m = gears[id].mouse;
 
                                                 m.buttons[0] = bttns & (1 << 0); // FROM_LEFT_1ST_BUTTON_PRESSED
-                                                m.buttons[1] = bttns & (1 << 1); // RIGHTMOST_BUTTON_PRESSED;
-                                                m.buttons[3] = bttns & (1 << 2); // FROM_LEFT_2ND_BUTTON_PRESSED;
-                                                m.buttons[2] = bttns & (1 << 3); // FROM_LEFT_3RD_BUTTON_PRESSED;
-                                                m.buttons[4] = bttns & (1 << 4); // FROM_LEFT_4TH_BUTTON_PRESSED;
+                                                m.buttons[1] = bttns & (1 << 1); // RIGHTMOST_BUTTON_PRESSED
+                                                m.buttons[3] = bttns & (1 << 2); // FROM_LEFT_2ND_BUTTON_PRESSED
+                                                m.buttons[2] = bttns & (1 << 3); // FROM_LEFT_3RD_BUTTON_PRESSED
+                                                m.buttons[4] = bttns & (1 << 4); // FROM_LEFT_4TH_BUTTON_PRESSED
 
                                                 m.mouseid = id;
                                                 m.control = sysmouse::stat::ok;
                                                 m.ismoved = m.coor(coord);
                                                 m.shuffle = !m.ismoved && (flags & (1 << 0)); // MOUSE_MOVED
-                                                // Makes no sense (ignored)
-                                                m.doubled = flags & (1 << 1); // DOUBLE_CLICK;
-                                                m.wheeled = flags & (1 << 2); // MOUSE_WHEELED;
-                                                m.hzwheel = flags & (1 << 3); // MOUSE_HWHEELED;
+                                                m.doubled = flags & (1 << 1); // DOUBLE_CLICK -- Makes no sense (ignored)
+                                                m.wheeled = flags & (1 << 2); // MOUSE_WHEELED
+                                                m.hzwheel = flags & (1 << 3); // MOUSE_HWHEELED
                                                 m.wheeldt = wheel;
-
-                                                bool k_ralt  = ctrls & 0x1;
-                                                bool k_alt   = ctrls & 0x2;
-                                                bool k_rctrl = ctrls & 0x4;
-                                                bool k_ctrl  = ctrls & 0x8;
-                                                bool k_shift = ctrls & 0x10;
-                                                m.ctlstat = (k_shift ? hids::SHIFT : 0)
-                                                          + (k_alt   ? hids::ALT   : 0)
-                                                          + (k_ralt  ? hids::ALT   : 0)
-                                                          + (k_rctrl ? hids::RCTRL : 0)
-                                                          + (k_ctrl  ? hids::CTRL  : 0);
+                                                m.ctlstat = ctrls;
 
                                                 if (!m.shuffle)
                                                 {
@@ -5199,7 +5187,7 @@ again:
                                                 k.virtcod = take();
                                                 k.scancod = take();
                                                 k.pressed = take();
-                                                k.ctlstat = take() & 0x1f; // only modifiers
+                                                k.ctlstat = take();
                                                 k.imitate = take();
                                                 k.cluster = "";
                                                 do

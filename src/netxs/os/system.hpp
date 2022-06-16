@@ -19,7 +19,7 @@
 
 #include "file_system.hpp"
 #include "../text/logger.hpp"
-#include "../datetime/quartz.hpp"
+#include "../console/input.hpp"
 #include "../abstract/ptr.hpp"
 #include "../console/ansi.hpp"
 #include "../ui/layout.hpp"
@@ -121,6 +121,22 @@ namespace netxs::os
         static const si32 PIPE_BUF = 65536;
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
+
+        template<class T>
+        auto kbstate(T ctrls)
+        {
+            bool k_ralt  = ctrls & 0x1;
+            bool k_alt   = ctrls & 0x2;
+            bool k_rctrl = ctrls & 0x4;
+            bool k_ctrl  = ctrls & 0x8;
+            bool k_shift = ctrls & 0x10;
+            auto ctlstat = (k_shift ? input::hids::SHIFT : 0)
+                         + (k_alt   ? input::hids::ALT   : 0)
+                         + (k_ralt  ? input::hids::ALT   : 0)
+                         + (k_rctrl ? input::hids::RCTRL : 0)
+                         + (k_ctrl  ? input::hids::CTRL  : 0);
+            return ctlstat;
+        }
 
         //static constexpr char* security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -2807,14 +2823,14 @@ namespace netxs::os
                                         reply.Event.KeyEvent.wVirtualKeyCode,
                                         reply.Event.KeyEvent.wVirtualScanCode,
                                         reply.Event.KeyEvent.bKeyDown,
-                                        reply.Event.KeyEvent.dwControlKeyState,
+                                        os::kbstate(reply.Event.KeyEvent.dwControlKeyState),
                                         reply.Event.KeyEvent.wRepeatCount,
                                         utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar));
                                     break;
                                 case MOUSE_EVENT:
                                     yield.dtvt_mouse(0,
                                         reply.Event.MouseEvent.dwButtonState & 0xFFFF,
-                                        reply.Event.MouseEvent.dwControlKeyState,
+                                        os::kbstate(reply.Event.MouseEvent.dwControlKeyState),
                                         reply.Event.MouseEvent.dwEventFlags,
                                         static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
                                         reply.Event.MouseEvent.dwMousePosition.X,
