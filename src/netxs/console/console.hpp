@@ -2118,7 +2118,7 @@ namespace netxs::console
             /*
             // pro::frame: Search for a non-overlapping form position in
             //             the visual tree along a specified direction.
-            rect bounce (rect const& block, twod const& dir)
+            rect bounce(rect const& block, twod const& dir)
             {
                 rect result = block.rotate(dir);
                 auto parity = std::abs(dir.x) > std::abs(dir.y);
@@ -2152,7 +2152,7 @@ namespace netxs::console
             }
             */
             // pro::frame: Move the form no further than the parent canvas.
-            void convey (twod const& delta, rect const& boundary)//, bool notify = true)
+            void convey(twod const& delta, rect const& boundary)//, bool notify = true)
             {
                 auto& r0 = boss.base::area();
                 if (delta && r0.clip(boundary))
@@ -2178,7 +2178,7 @@ namespace netxs::console
             }
             // pro::frame: Check if it is under the rest, and moves it to the top of the visual tree.
             //             Return "true" if it is NOT under the rest.
-            void expose (bool subsequent = faux)
+            void expose(bool subsequent = faux)
             {
                 if (auto parent_ptr = boss.parent())
                 {
@@ -2187,7 +2187,7 @@ namespace netxs::console
                 //return boss.status.exposed;
             }
             // pro::frame: Place the form in front of the visual tree among neighbors.
-            void bubble ()
+            void bubble()
             {
                 if (auto parent_ptr = boss.parent())
                 {
@@ -5932,6 +5932,18 @@ again:
             conio.output(frame2);
             frame2.clear();
         }
+        void expose()
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::expose);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            conio.output(frame2);
+            frame2.clear();
+        }
     };
 
     // console: Client properties.
@@ -6466,15 +6478,20 @@ again:
                 };
                 if (direct) // Forward unhandled events outside.
                 {
-                    SUBMIT_T(tier::release, hids::events::focus::set, token, from_gear)
+                    SUBMIT_T(tier::preview, hids::events::mouse::button::click::any, token, gear)
                     {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                        paint.set_focus(ext_gear_id);
+                        log("e2::form::layout::expose");
+                        paint.expose();
                     };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
                         log("e2::form::maximize");
                         forward_event(gear);
+                    };
+                    SUBMIT_T(tier::release, hids::events::focus::set, token, from_gear)
+                    {
+                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
+                        paint.set_focus(ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
                     {

@@ -281,7 +281,7 @@ int main(int argc, char* argv[])
             auto ground = base::create<host>(tunnel.first, maxfps);
             auto runapp = [&]()
             {
-                auto applet = app::shared::creator(params)("!"); // ! - means simple (w/o plugins)
+                auto applet = app::shared::creator(params)(direct ? "" : "!"); // ! - means simple (w/o plugins)
                 auto window = ground->invite<gate>(true);
                 if (!direct) applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
                 window->resize(size);

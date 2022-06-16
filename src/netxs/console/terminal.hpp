@@ -6980,15 +6980,14 @@ namespace netxs::ui
                                 events.replay(gear_id, cause, coord);
                                 break;
                             }
-                            //case ansi::dtvt::control::form_events:
-                            //{
-                            //    auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                            //    data.remove_prefix(sizeof(gear_id));
-                            //    auto cause = netxs::letoh(*reinterpret_cast<hint const*>(data.data()));
-                            //    data.remove_prefix(sizeof(cause));
-                            //    events.replay(gear_id, cause);
-                            //    break;
-                            //}
+                            case ansi::dtvt::control::expose:
+                            {
+                                netxs::events::enqueue(This(), [&](auto& boss)
+                                {
+                                    this->base::template riseup<tier::preview>(e2::form::layout::expose, *this);
+                                });
+                                break;
+                            }
                             case ansi::dtvt::control::set_clipboard:
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
