@@ -6408,10 +6408,12 @@ again:
                     auto myid = from_gear.id;
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                     auto& gear = *gear_ptr;
+                    auto state = gear.state();
                     gear.force_group_focus = true;
                     gear.kb_focus_taken = faux;
                     if (deskmenu) deskmenu->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                     if (gear.focus_taken()) gear.dismiss();
+                    gear.state(state);
                 };
                 SUBMIT_T(tier::release, hids::events::notify::focus::lost, token, from_gear)
                 {
@@ -6615,30 +6617,6 @@ again:
                 gear.slot.coor += base::coor();
                 world.SIGNAL(tier::release, e2::form::proceed::createby, gear);
             };
-            //SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr) //todo use e2::form::proceed::onbehalf
-            //{
-            //    //todo hids
-            //    //if (item_ptr)
-            //    //{
-            //    //    auto& gear = input.gear;
-            //    //    //todo unify
-            //    //    gear.force_group_focus = true;
-            //    //    gear.kb_focus_taken = faux;
-            //    //    item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-            //    //    gear.force_group_focus = faux;
-            //    //}
-            //};
-            //SUBMIT(tier::preview, e2::form::proceed::unfocus, item_ptr) //todo use e2::form::proceed::onbehalf
-            //{
-            //    //todo hids
-            //    //if (item_ptr)
-            //    //{
-            //    //    auto& gear = input.gear;
-            //    //    //todo unify
-            //    //    gear.kb_focus_taken = faux; //todo used in base::upevent handler
-            //    //    item_ptr->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
-            //    //}
-            //};
             SUBMIT(tier::release, e2::form::proceed::onbehalf, proc)
             {
                 //todo hids
