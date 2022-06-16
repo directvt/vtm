@@ -6702,32 +6702,6 @@ namespace netxs::ui
             }
 
         public:
-            //void dragstart(id_t gear_id, si32 buttons)
-            //{
-            //    auto lock = events::sync{};
-            //    if (auto ptr = bell::getref(gear_id))
-            //    if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
-            //    if (auto parent_ptr = owner.base::parent())
-            //    {
-            //        auto& gear = *gear_ptr;
-            //        release(gear);
-            //        auto signal = [&](auto cause)
-            //        {
-            //            gear.mouse::cause = cause.id;
-            //            gear.alive = true;
-            //            parent_ptr->template riseup<tier::release>(cause, gear);
-            //        };
-            //        switch (buttons)
-            //        {
-            //            case sysmouse::bttns::left:      signal(hids::events::mouse::button::drag::start::left     ); break;
-            //            case sysmouse::bttns::right:     signal(hids::events::mouse::button::drag::start::right    ); break;
-            //            case sysmouse::bttns::leftright: signal(hids::events::mouse::button::drag::start::leftright); break;
-            //            case sysmouse::bttns::middle:    signal(hids::events::mouse::button::drag::start::middle   ); break;
-            //            case sysmouse::bttns::wheel:     signal(hids::events::mouse::button::drag::start::wheel    ); break;
-            //            case sysmouse::bttns::win:       signal(hids::events::mouse::button::drag::start::win      ); break;
-            //        }
-            //    }
-            //}
             void replay(id_t gear_id, hint cause, twod const& coord)
             {
                 auto lock = events::sync{};
@@ -6740,7 +6714,7 @@ namespace netxs::ui
                     gear.replay(cause, coord);
                     parent_ptr->template raw_riseup<tier::release>(cause, gear);
                     //todo unify
-                    // Restore mouse global position.
+                    // Restore global mouse position.
                     auto temp = dot_00;
                     owner.global(temp);
                     gear.coord -= temp;
