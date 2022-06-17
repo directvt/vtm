@@ -6827,7 +6827,7 @@ namespace netxs::ui
         period          maxoff; // dtvt: Max delay before showing "No signal".
         ansi::esc       buffer; // dtvt: Clipboard buffer.
         ansi::esc       outbuf; // dtvt: PTY output buffer.
-        subs            debugs; // dtvt: One-shot token for debug output subcription.
+        subs            debugs; // dtvt: Tokens for debug output subcriptions.
 
         // dtvt: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
