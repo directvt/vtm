@@ -7152,6 +7152,7 @@ namespace netxs::ui
        ~dtvt(){ active = faux; }
 
         testy<twod> coord;
+        byte lucidity = 0xFF;
         dtvt(text command_line)
             : events{*this },
               active{ true },
@@ -7174,7 +7175,11 @@ namespace netxs::ui
             {
                 maxoff = max_drops * period{ period::period::den / fps };
             };
-
+            SUBMIT(tier::anycast, e2::form::prop::lucidity, value)
+            {
+                if (value == -1) value = lucidity;
+                else             lucidity = value;
+            };
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 if (ptycon) ptycon.stop();
@@ -7219,7 +7224,7 @@ namespace netxs::ui
                 }
                 else if (size == canvas.size())
                 {
-                    parent_canvas.fill(canvas, cell::shaders::full);
+                    fill(parent_canvas, canvas);
                 }
                 else if (canvas.size())
                 {
@@ -7234,7 +7239,7 @@ namespace netxs::ui
                             return;
                         }
                     }
-                    parent_canvas.fill(canvas, cell::shaders::full);
+                    fill(parent_canvas, canvas);
                 }
             };
         }
@@ -7253,7 +7258,12 @@ namespace netxs::ui
                 splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
                 splash.output(note);
             }
-            parent_canvas.fill(splash, cell::shaders::full);
+            fill(parent_canvas, splash);
+        }
+        void fill(face& parent_canvas, face& canvas)
+        {
+            if (lucidity == 0xFF) parent_canvas.fill(canvas, cell::shaders::full);
+            else                  parent_canvas.fill(canvas, cell::shaders::transparent(lucidity));
         }
     };
 }
