@@ -172,6 +172,7 @@ namespace netxs::app::logs
         {
             caret.show();
             caret.coor(dot_01);
+            keybd.accept(true);
 
             #ifndef PROD
             topic.maxlen(400);
@@ -232,6 +233,26 @@ namespace netxs::app::logs
                 topic += utf8;
                 update();
             };
+            SUBMIT(tier::release, hids::events::keybd::any, gear)
+            {
+                #ifndef PROD
+                    return;
+                #endif
+                auto utf8 = gear.interpret();
+                topic += utf8;
+                update();
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+            {
+                auto data = text{};
+                gear.get_clip_data(data);
+                if (data.size())
+                {
+                    topic += data;
+                    update();
+                    gear.dismiss();
+                }
+            };
             worker->SUBMIT_T(tier::release, events::codepoints::release, token, status)
             {
                 this->SIGNAL(tier::anycast, events::codepoints::release, status);
@@ -257,7 +278,6 @@ namespace netxs::app::logs
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
                   {
-                        boss.keybd.accept(true);
                         boss.SUBMIT(tier::anycast, e2::form::quit, item)
                         {
                             boss.base::riseup<tier::release>(e2::form::quit, item);
@@ -297,14 +317,14 @@ namespace netxs::app::logs
                     auto scroll = layers->attach(ui::rail::ctor());
                     #ifndef PROD
                     scroll->attach(ui::post::ctor())
-                            ->colors(whitelt, blackdk)
-                            ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                            + "\n\nLogs is not availabe in DEMO mode\n\n"
-                            + ansi::nil().wrp(wrap::on)
-                            + "Use the full version of vtm to run Logs.");
+                          ->colors(whitelt, blackdk)
+                          ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                          + "\n\nLogs is not availabe in DEMO mode\n\n"
+                          + ansi::nil().wrp(wrap::on)
+                          + "Use the full version of vtm to run Logs.");
                     #else
                     scroll->attach(base::create<post_logs>())
-                            ->colors(whitelt, blackdk);
+                          ->colors(whitelt, blackdk);
                     #endif
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;

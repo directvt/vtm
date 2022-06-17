@@ -5344,6 +5344,35 @@ again:
                                         }
                                         break;
                                     }
+                                    case ansi::dtvt::debug_out:
+                                    {
+                                        pos += l - tmp.size();
+                                        if (pos == len) { total = strv; break; }//incomlpete
+                                        {
+                                            if (++pos == len) { total = strv; break; }//incomlpete
+                                            auto tmp = strv.substr(pos);
+                                            auto l = tmp.size();
+                                            if (auto data_len = utf::to_int(tmp))
+                                            {
+                                                pos += l - tmp.size();
+                                                if (pos == len) { total = strv; break; }//incomlpete
+                                                {
+                                                    if (++pos == len) { total = strv; break; }//incomlpete
+                                                    auto length = data_len.value();
+                                                    if (len - pos < length + 1/* +BEL */) { total = strv; break; }//incomlpete
+                                                    auto base64data = strv.substr(pos, length);
+                                                    pos += length + 1; // pop base64data + BEL
+                                                    auto data = utf::unbase64(base64data);
+                                                    netxs::events::enqueue(owner, [d = std::move(data)](auto& boss)
+                                                    {
+                                                        auto shadow = e2::debug::output.param(d);
+                                                        SIGNAL_GLOBAL(e2::debug::output, shadow);
+                                                    });
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -5932,6 +5961,18 @@ again:
             conio.output(frame2);
             frame2.clear();
         }
+        void request_debug()
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::request_debug);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            conio.output(frame2);
+            frame2.clear();
+        }
     };
 
     // console: Client properties.
@@ -6466,6 +6507,22 @@ again:
                 };
                 if (direct) // Forward unhandled events outside.
                 {
+                    auto debug_console = e2::debug::count::set.param();
+                    SIGNAL_GLOBAL(e2::debug::count::set, debug_console);
+                    if (debug_console) // For Logs only.
+                    {
+                        log("e2::debug::count::set ", debug_console);
+                        paint.request_debug();
+                        SUBMIT_T(tier::release, e2::conio::keybd, token, keybdstate)
+                        {
+                            if (keybdstate.keybdid == 0
+                             && keybdstate.cluster.size())
+                            {
+                                auto shadow = view{ keybdstate.cluster };
+                                SIGNAL_GLOBAL(e2::debug::logs, shadow);
+                            }
+                        };
+                    }
                     SUBMIT_T(tier::preview, hids::events::mouse::button::click::any, token, gear)
                     {
                         log("e2::form::layout::expose");

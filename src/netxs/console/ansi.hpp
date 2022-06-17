@@ -285,6 +285,7 @@ namespace netxs::ansi
         static const si32 final = 10050; // .
 
         static const si32 clipboard = 10060; // OSC clipboard data.
+        static const si32 debug_out = 10070; // OSC Debug output. ESC [ 10050 : _data-len_ : _base64-data_ _
 
         #pragma pack(push,1)
         static constexpr auto initial = char{ '\xFF' };
@@ -343,6 +344,7 @@ namespace netxs::ansi
                 mouse_events,  // .
                 set_focus,     // request to set focus
                 expose,        // bring the form to the front
+                request_debug, // request debug output redirection to stdin
                 get_clipboard, // request main clipboard data
                 set_clipboard, // set main clipboard using following data
                 vt_command,    // parse following vt-sequences in UTF-8 format
@@ -492,6 +494,14 @@ namespace netxs::ansi
             auto base64data = utf::base64(clipdata);
             return add("\033]", dtvt::clipboard,
                            ':', gear_id,
+                           ':', base64data.size(),
+                           ':', base64data, C0_BEL);
+        }
+        // esc: Send base64-encoded clipboard data (OSC).
+        esc& debugdata(view utf8)
+        {
+            auto base64data = utf::base64(utf8);
+            return add("\033]", dtvt::debug_out,
                            ':', base64data.size(),
                            ':', base64data, C0_BEL);
         }
@@ -872,6 +882,11 @@ namespace netxs::ansi
     static esc clipdata(id_t gear_id, view clipdata)
     {
         return esc{}.clipdata(gear_id, clipdata);
+    }
+    // ansi: Send OSC with 64-base encoded debug data.
+    static esc debugdata(view utf8)
+    {
+        return esc{}.debugdata(utf8);
     }
     static esc vmouse (bool b)       { return esc{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
     static esc locate(twod const& n) { return esc{}.locate(n);     } // ansi: 1-Based caret position.

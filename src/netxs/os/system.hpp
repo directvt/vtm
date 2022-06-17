@@ -3901,6 +3901,7 @@ namespace netxs::os
 
                     guard.lock();
                 }
+                guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
                 log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");
             }
             void resize(twod const& newsize)

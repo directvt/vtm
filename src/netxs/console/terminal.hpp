@@ -6827,6 +6827,7 @@ namespace netxs::ui
         period          maxoff; // dtvt: Max delay before showing "No signal".
         ansi::esc       buffer; // dtvt: Clipboard buffer.
         ansi::esc       outbuf; // dtvt: PTY output buffer.
+        subs            debugs; // dtvt: One-shot token for debug output subcription.
 
         // dtvt: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
@@ -6988,6 +6989,14 @@ namespace netxs::ui
                                 });
                                 break;
                             }
+                            case ansi::dtvt::control::request_debug:
+                            {
+                                netxs::events::enqueue(This(), [&](auto& boss)
+                                {
+                                    request_debug();
+                                });
+                                break;
+                            }
                             case ansi::dtvt::control::set_clipboard:
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
@@ -7125,6 +7134,26 @@ namespace netxs::ui
         {
             log("    ", ptycon.get_proc_id(), ": ", utf8, faux);
         }
+        // dtvt: Logs callback handler.
+        void request_debug()
+        {
+            log("dtvt: debug out redirection request");
+            SIGNAL_GLOBAL(e2::debug::count::set, 1);
+            SUBMIT_T(tier::general, e2::debug::count::set, debugs, count)
+            {
+                count++;
+            };
+            SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
+            {
+                outbuf += shadow;
+                answer(outbuf);
+            };
+            SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
+            {
+                outbuf = ansi::debugdata(shadow);
+                answer(outbuf);
+            };
+        }
 
     public:
         // dtvt: Start a new process.
@@ -7149,7 +7178,11 @@ namespace netxs::ui
                 };
             }
         }
-       ~dtvt(){ active = faux; }
+       ~dtvt()
+        {
+            if (debugs.count()/* for Logs only */) SIGNAL_GLOBAL(e2::debug::count::set, -1);
+            active = faux;
+        }
 
         testy<twod> coord;
         byte lucidity = 0xFF;
