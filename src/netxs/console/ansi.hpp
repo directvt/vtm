@@ -282,10 +282,11 @@ namespace netxs::ansi
         static const si32 mouse_halt = mouse + 2; // .
         static const si32 winsz = 10030; // .
         static const si32 focus = 10040; // Focus notification. ESC [ 10040 : _gear_id_ : 0/1 _
-        static const si32 final = 10050; // .
+        static const si32 debug_count_out = 10050; // OSC Debug count output. ESC [ 10050 : _count_ _
+        static const si32 final = 10060; // .
 
-        static const si32 clipboard = 10060; // OSC clipboard data.
-        static const si32 debug_out = 10070; // OSC Debug output. ESC [ 10070 : _data-len_ : _base64-data_ _
+        static const si32 clipboard = 10100; // OSC clipboard data.
+        static const si32 debug_out = 10110; // OSC Debug output. ESC ] 10110 : _data-len_ : _base64-data_ _
 
         #pragma pack(push,1)
         static constexpr auto initial = char{ '\xFF' };
@@ -345,6 +346,7 @@ namespace netxs::ansi
                 set_focus,     // request to set focus
                 expose,        // bring the form to the front
                 request_debug, // request debug output redirection to stdin
+                request_debug_count,
                 get_clipboard, // request main clipboard data
                 set_clipboard, // set main clipboard using following data
                 vt_command,    // parse following vt-sequences in UTF-8 format
@@ -650,6 +652,12 @@ namespace netxs::ansi
             return add(dtvt::focus, ':',
                                 id, ':',
                              focus, ';');
+        }
+        // esc: DTVT-input-mode sequence (debug count).
+        esc& dtvt_debug_count(si32 count)
+        {
+            return add(dtvt::debug_count_out, ':',
+                                       count, ';');
         }
         // esc: DTVT-input-mode sequence (window resize).
         esc& dtvt_winsz(twod size)

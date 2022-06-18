@@ -6668,6 +6668,14 @@ namespace netxs::ui
                 //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
+            void debug_count(si32 count)
+            {
+                queue.dtvt_begin()
+                     .dtvt_debug_count(count)
+                     .dtvt_close();
+                //log("dtvt: ", utf::debase(queue));
+                owner.answer(queue);
+            }
             void proceed(hids& gear, id_t cause, bool moved)
             {
                 using m = hids::events::mouse;
@@ -6807,6 +6815,11 @@ namespace netxs::ui
                 {
                     log("dtvt: keybd focus lost ", gear.id);
                     focus(gear, faux);
+                };
+                owner.SUBMIT_T(tier::general, e2::debug::count::any, token, count)
+                {
+                    log("dtvt: debug count ", count);
+                    debug_count(count);
                 };
             }
         };
@@ -6997,10 +7010,20 @@ namespace netxs::ui
                                 });
                                 break;
                             }
+                            case ansi::dtvt::control::request_debug_count:
+                            {
+                                auto count = netxs::letoh(*reinterpret_cast<si32 const*>(data.data()));
+                                data.remove_prefix(sizeof(si32));
+                                netxs::events::enqueue(This(), [&, count](auto& boss) mutable
+                                {
+                                    this->SIGNAL(tier::general, e2::debug::count::set, count);
+                                });
+                                break;
+                            }
                             case ansi::dtvt::control::set_clipboard:
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                                data.remove_prefix(sizeof(gear_id));
+                                data.remove_prefix(sizeof(id_t));
                                 auto clip_prev_size = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
                                 data.remove_prefix(sizeof(twod));
                                 auto size = netxs::letoh(*reinterpret_cast<size_t const*>(data.data()));

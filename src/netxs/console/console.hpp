@@ -4791,6 +4791,13 @@ namespace netxs::console
                 //}
         }
         relay;
+        struct
+        {
+            lock mutex{};
+            cond synch{};
+            si32 count{};
+        }
+        debug_count_relay;
 
         link(sptr boss, xipc sock)
             : owner{ boss },
@@ -5233,6 +5240,14 @@ again:
                                                 m.mouseid = id;
                                                 m.control = sysmouse::stat::die;
                                                 notify(e2::conio::mouse, m);
+                                                break;
+                                            }
+                                            case ansi::dtvt::debug_count_out:
+                                            {
+                                                auto count = take();
+                                                auto lock = std::lock_guard{ debug_count_relay.mutex };
+                                                debug_count_relay.count = count;
+                                                debug_count_relay.synch.notify_all();
                                                 break;
                                             }
                                             default:
@@ -5973,6 +5988,19 @@ again:
             conio.output(frame2);
             frame2.clear();
         }
+        void request_debug_count(si32 count)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::request_debug_count);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                              count);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            conio.output(frame2);
+            frame2.clear();
+        }
     };
 
     // console: Client properties.
@@ -6507,6 +6535,22 @@ again:
                 };
                 if (direct) // Forward unhandled events outside.
                 {
+                    SUBMIT_T(tier::general, e2::debug::count::any, token, count)
+                    {
+                        auto lock = std::unique_lock{ conio.debug_count_relay.mutex };
+                        paint.request_debug_count(count);
+                        auto maxoff = 100ms;
+                        //conio.debug_count_relay.synch.wait(lock);
+                        if (std::cv_status::timeout != conio.debug_count_relay.synch.wait_for(lock, maxoff))
+                        {
+                            count += conio.debug_count_relay.count;
+                            conio.debug_count_relay.count = 0;
+                        }
+                        else
+                        {
+                            log("gate: timeout: no debug count reply");
+                        }
+                    };
                     auto debug_console = e2::debug::count::set.param();
                     SIGNAL_GLOBAL(e2::debug::count::set, debug_console);
                     if (debug_console) // For Logs only.
