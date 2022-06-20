@@ -255,7 +255,7 @@ namespace netxs::ui
             testy<twod> coord; // m_tracking: Last coord of mouse cursor.
             ansi::esc   queue; // m_tracking: Buffer.
             subs        token; // m_tracking: Subscription token.
-            bool        moved = faux;
+            bool        moved = faux; // m_tracking: .
             si32        proto = prot::x11;
             si32        state = mode::none;
             si32        smode = xsgr::disabled; // m_tracking: Selection mode state backup.
@@ -1906,7 +1906,7 @@ namespace netxs::ui
             // bufferbase: Update terminal status.
             bool update_status(term_state& status) const
             {
-                bool changed = faux;
+                auto changed = faux;
                 if (auto v = get_size(); status.size != v) { changed = true; status.size = v; }
                 if (auto v = get_peak(); status.peak != v) { changed = true; status.peak = v; }
                 if (auto v = get_step(); status.step != v) { changed = true; status.step = v; }

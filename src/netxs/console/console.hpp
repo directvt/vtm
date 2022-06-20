@@ -2217,10 +2217,10 @@ namespace netxs::console
 
             struct slot_t
             {
-                rect slot;
-                twod step;
-                twod init;
-                bool ctrl = faux;
+                rect slot{};
+                twod step{};
+                twod init{};
+                bool ctrl{};
             };
             std::unordered_map<id_t, slot_t> slots;
             ansi::esc coder;
@@ -4588,7 +4588,7 @@ namespace netxs::console
 
             auto remove(sptr<base> item_ptr)
             {
-                bool found = faux;
+                auto found = faux;
                 // Remove from active app registry.
                 for (auto& [class_id, fxd_app_list] : app)
                 {
@@ -5079,7 +5079,7 @@ namespace netxs::console
                 while (auto len = strv.size())
                 {
                     auto pos = 0_sz;
-                    bool unk = faux;
+                    auto unk = faux;
 
                     if (strv.at(0) == '\x1b')
                     {
@@ -5213,7 +5213,7 @@ namespace netxs::console
                                                         m.wheeled = faux;
                                                         m.wheeldt = 0;
 
-                                                        bool fire = true;
+                                                        auto fire = true;
 
                                                         constexpr static int total = sysmouse::numofbutton;
                                                         constexpr static int first = sysmouse::left;

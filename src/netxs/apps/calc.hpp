@@ -281,7 +281,7 @@ namespace netxs::app::calc
                 auto base = topclr - 0x1f1f1f;// 0xe0e0e0;// 0xe4e4e4;
                 auto c1 = ansi::bgc(base); //ansi::bgc(0xFFf0f0f0);
                 auto c2 = ansi::bgc(base);
-                for (int i = 1; i < 100; i++)
+                for (auto i = 1; i < 100; i++)
                 {
                     auto label = utf::adjust(std::to_string(i), 3, " ", true) + " ";
                     if (!(i % 2))
