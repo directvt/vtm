@@ -1,6 +1,15 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
+auto DirectVT = R"==(DESKTOPIO_MENU
+"Term", "Tooltip Message", a("Direct", "Term Title", "-r term")
+"Logs", "Tooltip Message", a("Direct", "Logs Title", "-r logs")
+"Gems", "Tooltip Message", a("Direct", "Gems Title", "-r gems")
+"Text", "Tooltip Message", a("Direct", "Text Title", "-r text")
+"Calc", "Tooltip Message", a("Direct", "Calc Title", "-r calc")
+"Test", "Tooltip Message", a("Direct", "Test Title", "-r test")
+)==";
+
 #define DESKTOP_VER "v0.7.6"
 #define MONOTTY_VER "Monotty Desktopio " DESKTOP_VER
 #define MONOTTY_PREFIX "monotty_"
@@ -20,15 +29,6 @@
 
 #include "netxs/apps.hpp"
 #include <fstream> // Get current config from vtm.conf.
-
-extern auto menu_item_list = R"(DESKTOPIO_ITEM_LIST
-"Term", "Tooltip Message", a("Direct", "Term Title", "-r term")
-"Gems", "Tooltip Message", a("Direct", "Gems Title", "-r gems")
-"Text", "Tooltip Message", a("Direct", "Text Title", "-r text")
-"Calc", "Tooltip Message", a("Direct", "Calc Title", "-r calc")
-"Test", "Tooltip Message", a("Direct", "Test Title", "-r test")
-"Logs", "Tooltip Message", a("Direct", "Logs Title", "-r logs")
-)";
 
 using namespace netxs;
 using namespace netxs::console;

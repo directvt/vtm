@@ -1,6 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
+auto DirectVT = R"==(DESKTOPIO_MENU
+"App Term", "Tooltip Message", a("Direct", "App Term Title", "")
+)==";
+
 #define DESKTOP_VER "v0.7.6"
 #define MONOTTY_VER "Monotty Desktopio " DESKTOP_VER
 #define MONOTTY_MYNAME "vtm/term"
@@ -13,10 +17,6 @@
 
 using namespace netxs;
 using namespace netxs::console;
-
-extern auto menu_item_list = R"(DESKTOPIO_ITEM_LIST
-"App Term", "Tooltip Message", a("Direct", "App Term Title", "")
-)";
 
 int main(int argc, char* argv[])
 {
