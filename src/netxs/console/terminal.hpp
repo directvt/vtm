@@ -125,12 +125,14 @@ namespace netxs::ui
         struct term_state
         {
             using buff = ansi::esc;
+
             enum type
             {
                 empty,
                 lines,
                 block,
             };
+
             si32 size{}; // term_state: Terminal scrollback current size.
             si32 peak{}; // term_state: Terminal scrollback limit.
             si32 step{}; // term_state: Terminal scrollback increase step.
@@ -140,6 +142,7 @@ namespace netxs::ui
             twod coor{}; // term_state: Selection coor.
             ui64 body{}; // term_state: Selection rough volume.
             ui64 hash{}; // term_state: Selection update indicator.
+
             template<class bufferbase>
             auto update(bufferbase const& scroll)
             {
@@ -285,6 +288,7 @@ namespace netxs::ui
             {
                 using m = hids::events::mouse;
                 using b = hids::events::mouse::button;
+
                 constexpr static si32 left = 0;
                 constexpr static si32 mddl = 1;
                 constexpr static si32 rght = 2;
@@ -365,6 +369,7 @@ namespace netxs::ui
                 }
                 else token.reset();
             }
+
         private:
             term&       owner; // f_tracking: Terminal object reference.
             hook        token; // f_tracking: Subscription token.
@@ -456,7 +461,7 @@ namespace netxs::ui
                         break;
                     case set_winsz:
                     {
-                        twod winsz;
+                        auto winsz = twod{};
                         winsz.y = q(-1);
                         winsz.x = q(-1);
                         owner.window_resize(winsz);
@@ -466,7 +471,8 @@ namespace netxs::ui
                     case get_title: owner.answer(queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
                     case put_stack:
                     {
-                        auto push = [&](auto const& property){
+                        auto push = [&](auto const& property)
+                        {
                             stack[property].push_back(props[property]);
                         };
                         switch (q(all_title))
@@ -481,7 +487,8 @@ namespace netxs::ui
                     }
                     case pop_stack:
                     {
-                        auto pop = [&](auto const& property){
+                        auto pop = [&](auto const& property)
+                        {
                             auto& s = stack[property];
                             if (s.size())
                             {
@@ -892,7 +899,7 @@ namespace netxs::ui
                 }
                 auto to_txt() // For debug.
                 {
-                    utf::text utf8;
+                    auto utf8 = utf::text{};
                     each([&](cell& c){ utf8 += c.txt(); });
                     return utf8;
                 }
@@ -1159,7 +1166,7 @@ namespace netxs::ui
             }
             void not_implemented_CSI(si32 i, fifo& q)
             {
-                text params;
+                auto params = text{};
                 while (q)
                 {
                     params += std::to_string(q(0));
@@ -1321,7 +1328,7 @@ namespace netxs::ui
             void msg(si32 c, qiew& q)
             {
                 parser::flush();
-                text data;
+                auto data = text{};
                 while (q)
                 {
                     auto c = q.front();
@@ -2223,7 +2230,7 @@ namespace netxs::ui
             // alt_screen: Take selected data.
             text selection_pickup(si32 selmod) override
             {
-                ansi::esc data;
+                auto data = ansi::esc{};
                 if (selection_active())
                 {
                     auto selbox = selection_selbox();
@@ -3240,7 +3247,7 @@ namespace netxs::ui
                 assert(query > 0);
 
                 auto stash = batch.vsize - batch.basis - index.size;
-                si32 avail;
+                auto avail = si32{};
                 if (stash > 0)
                 {
                     avail = std::min(stash, query);
@@ -3439,7 +3446,7 @@ namespace netxs::ui
                     auto size = block.size();
                     if (size.y <= 0) return;
 
-                    si32 start;
+                    auto start = si32{};
                     if (at_bottom)
                     {
                         auto stash = batch.vsize - batch.basis - arena;
@@ -3647,8 +3654,8 @@ namespace netxs::ui
                 auto blank = brush.nul();
                 if (auto ctx = get_context(coord))
                 {
-                    si32  start;
-                    si32  count;
+                    auto  start = si32{};
+                    auto  count = si32{};
                     auto  caret = std::max(0, batch.caret);
                     auto& curln = batch.current();
                     auto  width = curln.length();
@@ -5083,7 +5090,7 @@ namespace netxs::ui
 
                 if (selection_selbox())
                 {
-                    face dest;
+                    auto dest = face{};
                     auto mark = cell{};
                     auto coor = dot_00;
                     auto view = rect{{ std::min(upcur.coor.x,  dncur.coor.x), upcur.coor.y },
@@ -5162,8 +5169,8 @@ namespace netxs::ui
             // scroll_buf: Materialize selection.
             text selection_pickup(si32 selmod) override
             {
-                ansi::esc yield;
-                testy<si64> len;
+                auto yield = ansi::esc{};
+                auto len = testy<si64>{};
                 auto selbox = selection_selbox();
                 if (!selection_active()) return yield;
                 if (selmod == xsgr::ansitext) yield.nil();
@@ -5334,7 +5341,7 @@ namespace netxs::ui
                 {
                     auto calc = [&](auto top, auto end)
                     {
-                        twod dt;
+                        auto dt = twod{};
                         top.x = std::clamp(top.x, 0, panel.x - 1);
                         end.x = std::clamp(end.x, 0, panel.x - 1);
                         if (top.y == end.y)
@@ -5706,7 +5713,6 @@ namespace netxs::ui
         scroll_buf normal; // term: Normal    screen buffer.
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
-        os::pty    ptycon; // term: PTY device.
         text       cmdarg; // term: Startup command line arguments.
         hook       oneoff; // term: One-shot token for start and shutdown events.
         twod       origin; // term: Viewport position.
@@ -5718,6 +5724,7 @@ namespace netxs::ui
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
         si32       selmod; // term: Selection mode (ui::term::xsgr).
+        os::pty    ptycon; // term: PTY device. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
@@ -5959,7 +5966,7 @@ namespace netxs::ui
         {
             while (active)
             {
-                netxs::events::try_sync guard;
+                auto guard = netxs::events::try_sync{};
                 if (guard)
                 {
                     if (onlogs) SIGNAL_GLOBAL(e2::debug::output, data); // Post data for Logs.
@@ -5990,7 +5997,7 @@ namespace netxs::ui
             log("term: exit code ", code);
             if (code)
             {
-                text error = ansi::bgc(reddk).fgc(whitelt).add("\r\nterm: exit code ", code, " ");
+                auto error = ansi::bgc(reddk).fgc(whitelt).add("\r\nterm: exit code ", code, " ");
                 ondata(error);
             }
             else
@@ -6028,7 +6035,7 @@ namespace netxs::ui
             };
             static ansi::csi_t<marker, true> parser;
 
-            marker mark;
+            auto mark = marker{};
             mark.brush = base::color();
             auto param = queue.front(ansi::SGR_RST);
             if (queue.issub(param))
@@ -6494,8 +6501,8 @@ namespace netxs::ui
                 ptycon.write(data);
 
                 #ifdef KEYLOG
-                    std::stringstream d;
-                    view v = gear.keystrokes;
+                    auto d = std::stringstream{};
+                    auto v = view{ gear.keystrokes };
                     log("key strokes raw: ", utf::debase(v));
                     while (v.size())
                     {
@@ -6828,7 +6835,6 @@ namespace netxs::ui
         using sync = std::condition_variable;
 
         events_t        events; // dtvt: .
-        os::direct::pty ptycon; // dtvt: PTY device.
         text            cmdarg; // dtvt: Startup command line arguments.
         bool            active; // dtvt: Terminal lifetime.
         bool            nodata; // dtvt: Show splash "No signal".
@@ -6843,6 +6849,7 @@ namespace netxs::ui
         ansi::esc       outbuf; // dtvt: PTY output buffer.
         subs            debugs; // dtvt: Tokens for debug output subcriptions.
         std::unordered_map<ui64, text> unknown_gc_list; // dtvt: Unknown grapheme cluster list.
+        os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
 
         // dtvt: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
@@ -7295,8 +7302,8 @@ namespace netxs::ui
                 #endif
 
                 #ifdef KEYLOG
-                    std::stringstream d;
-                    view v = gear.keystrokes;
+                    auto d = std::stringstream{};
+                    auto v = view{ gear.keystrokes };
                     log("key strokes raw: ", utf::debase(v));
                     while (v.size())
                     {

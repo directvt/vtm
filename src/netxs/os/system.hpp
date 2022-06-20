@@ -409,6 +409,7 @@ namespace netxs::os
         fifo()
             : alive{ true }
         { }
+
         bool send(view data)
         {
             auto guard = std::lock_guard{ mutex };
@@ -991,7 +992,7 @@ namespace netxs::os
     {
         auto args = std::vector<text>{};
         auto mark = '\0';
-        text temp;
+        auto temp = text{};
         temp.reserve(cmdline.length());
 
         auto push = [&]()

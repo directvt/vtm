@@ -770,9 +770,9 @@ namespace netxs::app::tile
                 // add split
                 utf8.remove_prefix(1);
                 utf::trim_front(utf8, " ");
-                si32 s1 = 1;
-                si32 s2 = 1;
-                si32 w = -1;
+                auto s1 = si32{ 1 };
+                auto s2 = si32{ 1 };
+                auto w  = si32{-1 };
                 if (auto param = utf::to_int(utf8))
                 {
                     s1 = std::abs(param.value());
@@ -807,8 +807,8 @@ namespace netxs::app::tile
         };
         auto build_inst = [](view data) -> sptr<base>
         {
-            view envvar_data;
-            text window_title;
+            auto envvar_data = view{};
+            auto window_title = text{};
             auto a = data.find('=');
             if (a != text::npos)
             {
@@ -1015,7 +1015,7 @@ namespace netxs::app::tile
 
                             if (deed == app::tile::events::ui::swap.id)
                             {
-                                backups empty_slot_list;
+                                auto empty_slot_list = backups{};
                                 auto proc = e2::form::proceed::functor.param([&](sptr<base> item_ptr)
                                 {
                                     auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
@@ -1033,10 +1033,10 @@ namespace netxs::app::tile
                                     using slot = sptr<base>;
                                     log("tile: Swap slots cyclically");
                                     auto i = 0;
-                                    slot emp_slot;
-                                    slot app_slot;
-                                    slot emp_next;
-                                    slot app_next;
+                                    auto emp_slot = slot{};
+                                    auto app_slot = slot{};
+                                    auto emp_next = slot{};
+                                    auto app_next = slot{};
                                     for (auto& s : empty_slot_list)
                                     {
                                         if (s->count() == 1) // empty only

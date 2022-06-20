@@ -388,7 +388,7 @@ namespace netxs::utf
         // Pop front a sequence of the same control points and return their count + 1.
         auto pop_all(ctrl cmd)
         {
-            si32 n = 1;
+            auto n = si32{ 1 };
             auto next = utf::letter(*this);
             while (next.attr.control == cmd)
             {
@@ -401,7 +401,7 @@ namespace netxs::utf
         // Pop front a sequence of the same control points and return their count + 1.
         auto pop_all(char c)
         {
-            si32 n = 1;
+            auto n = si32{ 1 };
             while (length() && view::front() == c)
             {
                 view::remove_prefix(1);
@@ -435,7 +435,7 @@ namespace netxs::utf
     template<class A = si32, class VIEW, class = std::enable_if_t<std::is_base_of<view, VIEW>::value == true, VIEW>>
     inline std::optional<A> to_int(VIEW& ascii)
     {
-        A num;
+        auto num = A{};
         auto top = ascii.data();
         auto end = ascii.length() + top;
 
@@ -615,7 +615,7 @@ namespace netxs::utf
     template<auto cp_table, class TEXT_OR_VIEW>
     auto cp_convert(TEXT_OR_VIEW const& utf8_text, char invalid_char)
     {
-        text crop;
+        auto crop = text{};
         auto count = sizeof(cp_table) / sizeof(letter_sync);
         auto data = utf8_text.data();
         auto size = utf8_text.size();
@@ -630,7 +630,7 @@ namespace netxs::utf
             else if ((~c) & 0x20 && ++i < size)
             {
                 auto next = data[i];
-                utfx code = ((c & 0x1F) << 6) + (next & 0x3F);
+                auto code = utfx{ ((c & 0x1F) << 6) + (next & 0x3F) };
                 c = invalid_char;
                 for (auto j = 0UL; j < count; ++j)
                 {
@@ -677,9 +677,9 @@ namespace netxs::utf
         // and U+2029 PARAGRAPH SEPARATOR.
         //  c̳̻͚̻̩̻͉̯̄̏͑̋͆̎͐ͬ͑͌́͢h̵͔͈͍͇̪̯͇̞͖͇̜͉̪̪̤̙ͧͣ̓̐̓ͤ͋͒ͥ͑̆͒̓͋̑́͞ǎ̡̮̤̤̬͚̝͙̞͎̇ͧ͆͊ͅo̴̲̺͓̖͖͉̜̟̗̮̳͉̻͉̫̯̫̍̋̿̒͌̃̂͊̏̈̏̿ͧ́ͬ̌ͥ̇̓̀͢͜s̵̵̘̹̜̝̘̺̙̻̠̱͚̤͓͚̠͙̝͕͆̿̽ͥ̃͠͡
 
-        wide wide_text;
+        auto wide_text = wide{};
         wide_text.reserve(size);
-        utfx code = {};
+        auto code = utfx{};
         auto tail = utf8 + size;
         while (utf8 < tail)
         {
@@ -757,7 +757,7 @@ namespace netxs::utf
     }
     static auto to_utf_from_code(utfx code)
     {
-        text utf8;
+        auto utf8 = text{};
         _to_utf(utf8, code);
         return utf8;
     }
@@ -767,9 +767,9 @@ namespace netxs::utf
     }
     static text to_utf(wchar_t const* wide_text, size_t size)
     {
-        text utf8;
+        auto utf8 = text{};
         utf8.reserve(size << 2);
-        utfx code = 0;
+        auto code = utfx{ 0 };
         auto tail = wide_text + size;
         while (wide_text < tail)
         {
@@ -811,7 +811,7 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW>
     auto length(TEXT_OR_VIEW&& utf8)
     {
-        si32 length = 0;
+        auto length = si32{ 0 };
         for (auto c : utf8)
         {
             length += (c & 0xc0) != 0x80;
@@ -825,7 +825,7 @@ namespace netxs::utf
         if (auto size = utf8.size())
         {
             auto is_first = [](auto c) { return (c & 0xc0) != 0x80; };
-            bool first;
+            auto first = faux;
 
             while (size && !(first = is_first(utf8[--size]))) // Find first byte.
             { }
@@ -847,7 +847,7 @@ namespace netxs::utf
     //todo deprecate cus too specific
     static si32 shrink(view& utf8)
     {
-        si32 length = 0;
+        auto length = si32{ 0 };
         auto size = utf8.size();
         auto i = 0_sz;
 
@@ -902,8 +902,8 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW>
     auto repeat(TEXT_OR_VIEW&& utf8, size_t count)
     {
-        view what{ utf8 };
-        text result;
+        auto what = view{ utf8 };
+        auto result = text{};
         result.reserve(what.length() * count);
         while (count--)
         {
@@ -919,7 +919,7 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW, class C>
     auto remove(TEXT_OR_VIEW&& from, C&& what)
     {
-        view _what{ what };
+        auto _what = view{ what };
         auto s_size = from.size();
         auto c_size =_what.size();
         if (c_size)
@@ -935,8 +935,8 @@ namespace netxs::utf
     template<class W, class R>
     static void change(text& utf8, W const& what, R const& replace)
     {
-        view frag{ what };
-        view fill{ replace };
+        auto frag = view{ what };
+        auto fill = view{ replace };
 
         auto const& npos = text::npos;
         auto spot = 0_sz;
@@ -959,7 +959,7 @@ namespace netxs::utf
             auto last = 0_sz;
             if (what_sz < repl_sz)
             {
-                text temp;
+                auto temp = text{};
                 temp.reserve((line_sz / what_sz + 1) * repl_sz); // In order to avoid allocations.
                 auto shadow = view{ utf8 };
                 while ((spot = utf8.find(frag, last)) != npos)
@@ -1004,10 +1004,8 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW, class T>
     auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter)
     {
-        using type = std::remove_cvref_t<TEXT_OR_VIEW>;
-
-        view what{ delimiter };
-        type crop;
+        auto crop = std::remove_cvref_t<TEXT_OR_VIEW>{};
+        auto what = view{ delimiter };
         auto coor = utf8.find(what);
         if (coor != text::npos)
         {
@@ -1019,7 +1017,7 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW>
     auto remain(TEXT_OR_VIEW&& utf8, char delimiter = '.')
     {
-        view what{ &delimiter, 1 };
+        auto what = view{ &delimiter, 1 };
         return remain(std::move(utf8), what);
     }
 
@@ -1038,7 +1036,7 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW, class F>
     auto adjust(TEXT_OR_VIEW&& utf8, size_t required_width, F const& fill_char, bool right_aligned = faux)
     {
-        text crop;
+        auto crop = text{};
         auto data = view{ utf8 };
         if (data.empty())
         {
@@ -1086,7 +1084,7 @@ namespace netxs::utf
     {
         static constexpr auto nums = UCASE ? "0123456789ABCDEF"
                                            : "0123456789abcdef";
-        text crop(width, filler);
+        auto crop = text(width, filler);
         auto head = crop.begin();
         auto tail = head + width;
         auto part = -4 + 4*width;
@@ -1118,7 +1116,7 @@ namespace netxs::utf
         {
             auto size = buffer.size();
             auto addr = 0_sz;
-            text crop;
+            auto crop = text{};
 
             while (addr < size)
             {
@@ -1156,7 +1154,7 @@ namespace netxs::utf
                                                : "0123456789abcdef";
             auto size = buffer.size() << 1;
             auto buff = buffer.begin();
-            text crop(size, '0');
+            auto crop = text(size, '0');
             auto head = crop.begin();
             auto tail = head + size;
             while (head != tail)
@@ -1172,9 +1170,8 @@ namespace netxs::utf
     template<class V1, class V2>
     auto divide(V1 const& utf8, V2 const& delimiter)
     {
-        using list = std::vector<view>;
-        text mark(delimiter);
-        list crop;
+        auto mark = text(delimiter);
+        auto crop = std::vector<view>{};
 
         if (auto len = mark.size())
         {
@@ -1246,7 +1243,7 @@ namespace netxs::utf
     template<class ...Args>
     auto concat(Args&&... args)
     {
-        flux s;
+        auto s = flux{};
         _concat(s, std::forward<Args>(args)...);
         return s.str();
     }
@@ -1254,7 +1251,8 @@ namespace netxs::utf
     auto base64(view utf8)
     {
         static constexpr auto code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        text data;
+
+        auto data = text{};
         if (auto size = utf8.size())
         {
             data.resize(((size + 2) / 3) << 2);
@@ -1305,8 +1303,8 @@ namespace netxs::utf
                                      || (c > 0x40 && c < 0x5B) // Uppercase letters
                                      || (c > 0x60 && c < 0x7B) // Lowercase letters
                                      || (c == 0x2B); };        // '+'
-        text data;
-        view look{ code };
+        auto data = text{};
+        auto look = view{ code };
         //todo reserv data
         if (auto size = bs64.size())
         {
@@ -1346,7 +1344,7 @@ namespace netxs::utf
     template<bool SPLIT = true>
     auto debase(view utf8)
     {
-        text buff;
+        auto buff = text{};
         auto size = utf8.size();
         buff.reserve(size * 2);
         auto head  = size - 1; // Begining with ESC is a special case.
@@ -1450,7 +1448,7 @@ namespace netxs::utf
             return text{};
         }
         utf8.remove_prefix(std::distance(head, stop) + 1);
-        text str{ coor, stop }; 
+        auto str = text{ coor, stop }; 
         change(str, text{ "\\" } + delim, text{ 1, delim });
         if (!skip.empty()) trim_front(utf8, skip);
         return str;

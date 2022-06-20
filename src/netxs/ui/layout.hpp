@@ -1773,7 +1773,7 @@ namespace netxs::ui::atoms
         // dent: Return inner area rectangle.
         constexpr auto area(rect const& content) const
         {
-            rect field = area(content.size.x, content.size.y);
+            auto field = area(content.size.x, content.size.y);
             field.coor += content.coor;
             return field;
         }

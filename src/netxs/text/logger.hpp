@@ -78,7 +78,7 @@ namespace netxs
                 }
                 else
                 {
-                    text result;
+                    auto result = text{};
                     if (prompt.size())
                     {
                         result = prompt.back() + '>' + ' ';

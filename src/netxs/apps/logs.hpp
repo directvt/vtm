@@ -82,7 +82,7 @@ namespace netxs::app::logs
                 while (alive)
                 {
                     auto utf8 = queue.pop();
-                    bool processed = faux;
+                    auto processed = faux;
                     while (!processed && alive)
                     {
                         if (auto lock = netxs::events::try_sync())

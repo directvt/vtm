@@ -29,7 +29,7 @@ namespace netxs::datetime
 
     text padded_to_string(long number, size_t padding)
     {
-        text txt = std::to_string(number);
+        auto txt = std::to_string(number);
         auto len = txt.length() > padding ? 0_sz : padding - txt.length();
         return text(len, '0') + txt;
     }
@@ -84,12 +84,12 @@ namespace netxs::datetime
     }
     text elapsed_time_to_string(time_t some_time)
     {
-        text elapsed;
+        auto elapsed = text{};
         const int cseconds_in_day = 86400;
         const int cseconds_in_hour = 3600;
         const int cseconds_in_minute = 60;
 
-        time_t elapsed_seconds = elapsed_time_sec(some_time);
+        auto elapsed_seconds = elapsed_time_sec(some_time);
 
         long long days = elapsed_seconds / cseconds_in_day;
         long hours = (elapsed_seconds % cseconds_in_day) / cseconds_in_hour;

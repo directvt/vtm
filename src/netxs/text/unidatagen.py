@@ -434,7 +434,7 @@ namespace netxs::{module}
     template<class T, class D>
     auto unpack(D const& pack, size_t size)
     {{
-        std::vector<T> data;
+        auto data = std::vector<T>{};
         data.reserve(size);
         auto iter = pack;
         auto tail = pack + std::size(pack);

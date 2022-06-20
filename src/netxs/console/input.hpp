@@ -291,10 +291,10 @@ namespace netxs::input
 
         bool operator != (sysmouse const& m) const
         {
-            bool result;
-            if ((result = coor == m.coor))
+            auto result = coor == m.coor;
+            if (result)
             {
-                for (int i = 0; i < numofbutton && result; i++)
+                for (auto i = 0; i < numofbutton && result; i++)
                 {
                     result &= buttons[i] == m.buttons[i];
                 }
@@ -922,7 +922,7 @@ namespace netxs::input
         { }
         ~hids()
         {
-            netxs::events::sync lock;
+            auto lock = netxs::events::sync{};
             log("hids: mouse leave, ", id);
             mouse_leave(mouse::hover, mouse::start);
             clear_kb_focus();
@@ -960,7 +960,7 @@ namespace netxs::input
             else           owner.bell::template signal<tier::release>(focus_lost, *this);
         }
 
-        rect const& area() const { return idmap.area(); }
+        auto& area() const { return idmap.area(); }
 
         template<tier TIER, class T>
         void pass(sptr<T> object, twod const& offset, bool relative = faux)

@@ -150,7 +150,7 @@ namespace netxs::console
         template<bool BOTTOM_ANCHORED = faux>
         void crop(twod const& newsize) // core: Resize while saving the bitmap.
         {
-            core block{ region.coor, newsize };
+            auto block = core{ region.coor, newsize };
             if constexpr (BOTTOM_ANCHORED) block.step({ 0, region.size.y - newsize.y });
 
             netxs::onbody(block, *this, cell::shaders::full);
@@ -162,7 +162,7 @@ namespace netxs::console
         template<bool BOTTOM_ANCHORED = faux>
         void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
         {
-            core block{ region.coor, newsize, c };
+            auto block = core{ region.coor, newsize, c };
             if constexpr (BOTTOM_ANCHORED) block.step({ 0, region.size.y - newsize.y });
                 
             netxs::onbody(block, *this, cell::shaders::full);
@@ -262,7 +262,8 @@ namespace netxs::console
             auto da = (c2.chan.a - c1.chan.a) / len;
 
             si32 x = 0, y = 0, yy = 0;
-            auto allfx = [&](cell& c) {
+            auto allfx = [&](cell& c)
+            {
                 auto dt = std::sqrt(x * x + yy);
                 auto& chan = c.bgc().chan;
                 chan.r = (uint8_t)((float)c1.chan.r + dr * dt);
@@ -271,7 +272,8 @@ namespace netxs::console
                 chan.a = (uint8_t)((float)c1.chan.a + da * dt);
                 ++x;
             };
-            auto eolfx = [&]() {
+            auto eolfx = [&]()
+            {
                 x = 0;
                 ++y;
                 yy = y * y * 4;
@@ -291,7 +293,7 @@ namespace netxs::console
         template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
         auto meta(rect region, cell& state) // core: Ansify/textify content of specified region.
         {
-            ansi::esc yield;
+            auto yield = ansi::esc{};
             auto badfx = [&](auto& state, auto& frame)
             {
                 frame.add(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
@@ -371,7 +373,7 @@ namespace netxs::console
         template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
         auto meta(rect region) // core: Ansify/textify content of specified region.
         {
-            cell state;
+            auto state = cell{};
             return meta<USESGR, INITIAL, FINALISE>(region, state);
         }
         template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
@@ -596,7 +598,7 @@ namespace netxs::console
             auto a_size = size();
             auto b_size = src.size();
             auto new_sz = twod{ a_size.x + b_size.x, std::max(a_size.y, b_size.y) };
-            core block{ region.coor, new_sz, marker };
+            auto block = core{ region.coor, new_sz, marker };
 
             auto region = rect{ twod{ 0, new_sz.y - a_size.y }, a_size };
             netxs::inbody<faux>(block, *this, region, dot_00, cell::shaders::full);
@@ -685,8 +687,8 @@ namespace netxs::console
         {
             textline.coor = caretpos;
 
-            rect printout;
-            si32 outwidth;
+            auto printout = rect{};
+            auto outwidth = si32{};
             if constexpr (WRAP)
             {
                 printout = textline.trunc(viewrect.size);
@@ -868,8 +870,7 @@ namespace netxs::console
         template<bool USE_LOCUS = true, class T, class P = noop>
         auto print(T const& block, core& canvas, P printfx = P())
         {
-            using type = std::invoke_result_t<decltype(&flow::cp), flow>;
-            type coor;
+            auto coor = std::invoke_result_t<decltype(&flow::cp), flow>{};
 
             if constexpr (USE_LOCUS) coor = forward(block);
             else                     coor = flow::cp();
@@ -880,8 +881,7 @@ namespace netxs::console
         template<bool USE_LOCUS = true, class T>
         auto print(T const& block)
         {
-            using type = std::invoke_result_t<decltype(&flow::cp), flow>;
-            type coor;
+            auto coor = std::invoke_result_t<decltype(&flow::cp), flow>{};
 
             if constexpr (USE_LOCUS) coor = forward(block);
             else                     coor = flow::cp();
@@ -912,7 +912,7 @@ namespace netxs::console
         }
         twod cp () const // flow: Return absolute cursor position.
         {
-            twod coor{ caretpos };
+            auto coor = twod{ caretpos };
             if (arighted) coor.x = textpads.width (size_x) - 1 - coor.x;
             if (isrlfeed) coor.y = textpads.height(size_y) - 1 - coor.y;
             coor += textpads.corner();
@@ -1024,7 +1024,7 @@ namespace netxs::console
             //todo place is wrong if RtoL==true
             //rect place{ pos, { RtoL ? width, basis.size().y } };
             //auto joint = canvas.view().clip(place);
-            rect place{ pos, { width, basis.size().y } };
+            auto place = rect{ pos, { width, basis.size().y } };
             auto joint = canvas.view().clip(place);
             //auto joint = canvas.area().clip(place);
 
@@ -1775,7 +1775,7 @@ namespace netxs::console
         template<class F>
         void stream(F publish) const
         {
-            twod next;
+            auto next = twod{};
             auto last = batch.begin();
             auto tail = batch.end();
             while (last != tail)

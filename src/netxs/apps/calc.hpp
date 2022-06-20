@@ -139,7 +139,7 @@ namespace netxs::console
                     recalc();
                     gear.dismiss();
                 };
-                boss.SUBMIT_T(tier::general, hids::events::halt, memo, gear)
+                boss.SUBMIT_T(tier::general, hids::events::die, memo, gear)
                 {
                     recalc();
                     boss.deface();
@@ -162,7 +162,7 @@ namespace netxs::console
             }
             void recalc()
             {
-                text data;
+                auto data = text{};
                 auto step = twod{ 5, 1 };
                 auto size = boss.size();
                 size.x += boss.oversz.r;

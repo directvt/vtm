@@ -277,7 +277,7 @@ namespace netxs
 
         auto operator () (type timer) const
         {
-            std::optional<twod> delta;
+            auto delta = std::optional<twod>{};
 
             if (auto t = timer - start; t >= 0)
             {
@@ -333,7 +333,7 @@ namespace netxs
 
         auto operator () (type timer) const
         {
-            std::optional<twod> delta;
+            auto delta = std::optional<twod>{};
 
             if (auto t = timer - start; t >= 0)
             {
@@ -378,7 +378,7 @@ namespace netxs
 
         auto operator () (type timer) const
         {
-            std::optional<twod> delta;
+            auto delta = std::optional<twod>{};
 
             if (auto t = timer - start; t >= 0)
             {

@@ -41,21 +41,21 @@ namespace netxs::app::shop
 
             if (appstore_head.empty())
             {
-                text monotty_logo  = ansi::bgc(blackdk  ).add("▀▄");
-                text textancy_logo = ansi::bgc(cyandk   ).add("▀▄");
-                text cellatix_logo = ansi::bgc(greendk  ).add("▀▄");
-                text informio_logo = ansi::bgc(magentadk).add("▀▄");
-                text ansiplex_logo = ansi::bgc(reddk    ).add("▀▄");
-                text unicodex_logo = ansi::bgc(yellowdk ).add("▀▄");
-                text appstore_logo = ansi::bgc(blacklt  ).add("▀▄");
+                auto monotty_logo  = ansi::bgc(blackdk  ).add("▀▄");
+                auto textancy_logo = ansi::bgc(cyandk   ).add("▀▄");
+                auto cellatix_logo = ansi::bgc(greendk  ).add("▀▄");
+                auto informio_logo = ansi::bgc(magentadk).add("▀▄");
+                auto ansiplex_logo = ansi::bgc(reddk    ).add("▀▄");
+                auto unicodex_logo = ansi::bgc(yellowdk ).add("▀▄");
+                auto appstore_logo = ansi::bgc(blacklt  ).add("▀▄");
 
-                text line = ansi::wrp(wrap::off).add("──────────────────────────────────────────────────────────────────────────────────────").wrp(wrap::on).eol();
+                auto line = ansi::wrp(wrap::off).add("──────────────────────────────────────────────────────────────────────────────────────").wrp(wrap::on).eol();
                 auto item = [](auto app, auto clr, auto rating, auto price, auto buy, auto desc)
                 {
                     auto clr_light = rgba{ clr };
                     clr_light.mix(0xa7ffffff);
 
-                    text lot = ansi::nil()
+                    auto lot = ansi::nil()
                         .jet(bias::left)
                         .mgl(2).mgr(1).eol()
                         .fgc().jet(bias::left).wrp(wrap::off)
@@ -83,7 +83,7 @@ namespace netxs::app::shop
                 "users to browse and download applications developed with "
                 "Desktopio Framework.\n\n");
 
-                text textancy_text = ansi::nil().add(
+                auto textancy_text = ansi::nil().add(
                 "Hello World!😎\n"
                 "絵文字:\n"
                 "English: /ɪˈmoʊdʒiː/;\n"
@@ -154,7 +154,7 @@ namespace netxs::app::shop
                     "Meta object. Desktop location marker."),
                 };
 
-                text qr = ansi::esc(
+                auto qr = ansi::esc(
                 "\033[107m                                 \n"
                 "  \033[40m \033[97m▄▄▄▄▄ \033[107m \033[30m▄\033[40;97m▄\033[107m \033[30m▄\033[40m \033[107m  \033[40m \033[97m▄\033[107;30m▄\033[40;97m▄▄\033[107m  \033[40m ▄▄▄▄▄ \033[107m  \n"
                 "  \033[40m \033[107m \033[40m   \033[107m \033[40m \033[107m \033[40m▄   ▄\033[107m \033[40m \033[107;30m▄ \033[40m \033[107m▄\033[40;97m▄\033[107m  \033[40m \033[107m \033[40m   \033[107m \033[40m \033[107m  \n"

@@ -156,8 +156,8 @@ namespace netxs::events
 
         void cleanup(ui64& ref_count, ui64& del_count)
         {
-            ui64 lref{};
-            ui64 ldel{};
+            auto lref = ui64{};
+            auto ldel = ui64{};
             for (auto& [event, subs] : stock)
             {
                 auto refs = subs.size();
@@ -182,7 +182,7 @@ namespace netxs::events
         {
             auto proc_ptr = std::make_shared<wrapper<F>>(std::move(proc));
 
-            sync lock;
+            auto lock = sync{};
             stock[event].push_back(proc_ptr);
 
             return proc_ptr;
@@ -195,7 +195,7 @@ namespace netxs::events
         template<class F>
         auto notify(type event, F&& param)
         {
-            sync lock;
+            auto lock = sync{};
 
             alive = branch::proceed;
             queue.push_back(event);
@@ -203,8 +203,8 @@ namespace netxs::events
 
             if constexpr (ORDER == execution_order::forward)
             {
-                type itermask = events::level_mask(event);
-                type subgroup = event;
+                auto itermask = events::level_mask(event);
+                auto subgroup = event;
                 _refreshandcopy(stock[subgroup]);
                 while (itermask > 1 << events::block) // Skip root event block.
                 {
@@ -216,8 +216,8 @@ namespace netxs::events
             else
             {
                 static constexpr type mask = (1 << events::block) - 1;
-                type itermask = mask; // Skip root event block.
-                type subgroup;
+                auto itermask = mask; // Skip root event block.
+                auto subgroup = type{};
                 do
                 {
                     itermask = itermask << events::block | mask;
@@ -272,12 +272,12 @@ namespace netxs::events
         // indexer: Return shared_ptr of the object by its id.
         static auto getref(id_t id)
         {
-            sync lock;
+            auto lock = sync{};
             return netxs::get_or(store, id, empty).lock();
         }
         // indexer: Create a new object of the specified subtype and return its shared_ptr.
         template<class TT, class ...Args>
-        static auto create(Args&&... args)
+        static auto create(Args&&... args) -> sptr<TT>
         {
             // Enables the use of a protected ctor by std::make_shared<TT>.
             struct make_shared_enabler : public TT
@@ -287,8 +287,8 @@ namespace netxs::events
                 { }
             };
 
-            sync lock;
-            sptr<TT> inst = std::make_shared<make_shared_enabler>(std::forward<Args>(args)...);
+            auto lock = sync{};
+            auto inst = std::make_shared<make_shared_enabler>(std::forward<Args>(args)...);
 
             store[inst->id] = inst;
             //sptr<T>  item = inst;
@@ -299,8 +299,9 @@ namespace netxs::events
     private:
         static inline auto _counter()
         {
-            sync lock;
-            while (netxs::on_key(store, ++newid)) { }
+            auto lock = sync{};
+            while (netxs::on_key(store, ++newid))
+            { }
             return newid;
         }
 
@@ -312,7 +313,7 @@ namespace netxs::events
         { }
        ~indexer()
         {
-           sync lock;
+           auto lock = sync{};
            store.erase(id);
         }
     };

@@ -784,7 +784,7 @@ namespace netxs::ansi
         // esc: SGR Background color (16-color mode).
         esc& bgc16(rgba const& c)
         {
-            si32 clr = 40;
+            auto clr = si32{ 40 };
             switch (c.token)
             {
                 case 0xFF000000: clr += 0; break;
@@ -1543,7 +1543,7 @@ namespace netxs::ansi
                 }
                 else
                 {
-                    fifo queue{ CCC_NOP }; // Reserve for the command type.
+                    auto queue = fifo{ CCC_NOP }; // Reserve for the command type.
                     if (pars(c))
                     {
                         ascii.pop_front();
@@ -1598,7 +1598,7 @@ namespace netxs::ansi
                 if (c == 'P') // OSC_LINUX_COLOR  Set linux console 16 colors palette.
                 {
                     assert(ascii.length() >= 8);
-                    text cmd = OSC_LINUX_COLOR;
+                    auto cmd = text{ OSC_LINUX_COLOR };
                     if (auto it = oscer.find(cmd); it != oscer.end())
                     {
                         auto size = 7; // Nrrggbb
@@ -1611,7 +1611,7 @@ namespace netxs::ansi
                 }
                 else if (c == 'R') // OSC_LINUX_RESET  Reset linux console 16/256 colors palette.
                 {
-                    text cmd = OSC_LINUX_RESET;
+                    auto cmd = text{ OSC_LINUX_RESET };
                     if (auto it = oscer.find(cmd); it != oscer.end())
                     {
                         auto data = view{};
@@ -1628,7 +1628,7 @@ namespace netxs::ansi
                 auto delm = tail; // Semicolon ';' position
                 auto exec = [&](auto pad)
                 {
-                    text cmd(base, delm);
+                    auto cmd = text(base, delm);
                     ++delm;
                     auto size = head - delm;
                     if (auto it = oscer.find(cmd); it != oscer.end())

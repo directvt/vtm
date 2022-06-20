@@ -695,7 +695,7 @@ namespace netxs::console
             //todo if cursor is visible when tie to the cursor position
             //     else tie to the first visible text line.
 
-            bool done = faux;
+            auto done = faux;
             // Get vertical position of the nearest paragraph to the top.
             auto gain = [&](auto const& combo)
             {
@@ -1120,7 +1120,7 @@ namespace netxs::console
         // base: Remove visual tree branch.
         void destroy()
         {
-            events::sync lock;
+            auto lock = events::sync{};
             auto shadow = This();
             if (auto parent_ptr = parent())
             {
@@ -1297,6 +1297,7 @@ namespace netxs::console
         {
             base& boss;
             subs  memo;
+
             skill(base&&) = delete;
             skill(base& boss) : boss{ boss } { }
             virtual ~skill() = default; // In order to allow man derived class via base ptr.
@@ -1308,10 +1309,12 @@ namespace netxs::console
                 {
                     id_t    id; // sock: Hids ID.
                     si32 count; // sock: Clients count.
+
                     sock(id_t ctrl)
                         :    id{ ctrl },
                           count{ 0    }
                     { }
+
                     operator bool () { return T::operator bool(); }
                 };
 
@@ -1320,7 +1323,7 @@ namespace netxs::console
 
                 socks()
                 {
-                    SUBMIT_GLOBAL(hids::events::halt, token, gear)
+                    SUBMIT_GLOBAL(hids::events::die, token, gear)
                     {
                         del(gear);
                     };
@@ -1399,6 +1402,7 @@ namespace netxs::console
                     : inside{ faux },
                       seized{ faux }
                 { }
+
                 operator bool () { return inside || seized; }
                 auto corner(twod const& length)
                 {
@@ -1469,6 +1473,7 @@ namespace netxs::console
             using list = socks<sock>;
             using skill::boss,
                   skill::memo;
+
             list items;
             dent outer;
             dent inner;
@@ -1486,6 +1491,7 @@ namespace netxs::console
             {
                 return std::pair{ outer, inner };
             }
+
             sizer(base&&) = delete;
             sizer(base& boss, dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
                 : skill{ boss          },
@@ -1594,7 +1600,7 @@ namespace netxs::console
         {
             struct sock
             {
-                twod  origin; // sock: Grab's initial coord info.
+                twod origin; // sock: Grab's initial coord info.
                 void grab(base const& master, twod const& curpos)
                 {
                     auto center = master.base::size() / 2;
@@ -1612,6 +1618,7 @@ namespace netxs::console
             using list = socks<sock>;
             using skill::boss,
                   skill::memo;
+
             list       items;
             wptr<base> dest_shadow;
             sptr<base> dest_object;
@@ -1684,8 +1691,9 @@ namespace netxs::console
         {
             struct sock
             {
-                twod cursor;        // sock: Coordinates of the active cursor.
-                bool inside = faux; // sock: Is active.
+                twod cursor{}; // sock: Coordinates of the active cursor.
+                bool inside{}; // sock: Is active.
+
                 operator bool () { return inside; }
                 auto calc(base const& master, twod curpos)
                 {
@@ -1745,15 +1753,16 @@ namespace netxs::console
         class align
             : public skill
         {
+            using gptr = wptr<bell>;
             using skill::boss,
                   skill::memo;
-            using gptr = wptr<bell>;
-            rect last; // pro::align: Window size before the fullscreen has applied.
-            text head; // pro::align: Main window title the fullscreen has applied.
-            id_t weak; // pro::align: Master id.
-            rect body; // pro::align: For current coor/size tracking.
-            twod pads; // pro::align: Owner's borders.
-            hook maxs; // pro::align: Maximize on dblclick token.
+
+            rect last{}; // pro::align: Window size before the fullscreen has applied.
+            text head{}; // pro::align: Main window title the fullscreen has applied.
+            id_t weak{}; // pro::align: Master id.
+            rect body{}; // pro::align: For current coor/size tracking.
+            twod pads{}; // pro::align: Owner's borders.
+            hook maxs{}; // pro::align: Maximize on dblclick token.
 
             auto seized(id_t master)
             {
@@ -1763,8 +1772,7 @@ namespace netxs::console
         public:
             align(base&&) = delete;
             align(base& boss, bool maximize = true)
-                : skill{ boss },
-                   weak{}
+                : skill{ boss }
             {
                 boss.SUBMIT_T(tier::release, e2::config::plugins::align, memo, set)
                 {
@@ -1794,7 +1802,7 @@ namespace netxs::console
                 {
                     auto& gate = *gate_ptr;
 
-                    rect area;
+                    auto area = rect{};
                     gate.SIGNAL(tier::request, e2::size::set, area.size);
                     gate.SIGNAL(tier::request, e2::coor::set, area.coor);
                     last = boss.base::area();
@@ -1804,7 +1812,7 @@ namespace netxs::console
                     boss.base::extend(area);
                     body = area;
 
-                    text newhead;
+                    auto newhead = text{};
                     gate.SIGNAL(tier::request, e2::form::prop::ui::header, head);
                     boss.SIGNAL(tier::request, e2::form::prop::ui::header, newhead);
                     gate.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
@@ -1864,8 +1872,9 @@ namespace netxs::console
         class robot
             : public skill
         {
-            using skill::boss;
             using subs = std::map<id_t, hook>;
+            using skill::boss;
+
             subs memo;
 
         public:
@@ -1940,8 +1949,9 @@ namespace netxs::console
         class timer
             : public skill
         {
-            using skill::boss;
             using subs = std::map<id_t, hook>;
+            using skill::boss;
+
             subs memo;
 
         public:
@@ -1993,6 +2003,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
             subs  link;
             robot robo;
             si32  seat;
@@ -2072,10 +2083,10 @@ namespace netxs::console
                     if (gear.meta(hids::ANYCTRL))
                     {
                         robo.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
-                            {
-                                boss.base::moveby(x);
-                                boss.strike();
-                            });
+                        {
+                            boss.base::moveby(x);
+                            boss.strike();
+                        });
                     }
                     else
                     {
@@ -2119,7 +2130,7 @@ namespace netxs::console
             //             the visual tree along a specified direction.
             rect bounce(rect const& block, twod const& dir)
             {
-                rect result = block.rotate(dir);
+                auto result = block.rotate(dir);
                 auto parity = std::abs(dir.x) > std::abs(dir.y);
 
                 for (auto xy : { parity, !parity })
@@ -2201,6 +2212,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
             cell mark;
 
             struct slot_t
@@ -2284,8 +2296,9 @@ namespace netxs::console
 
         public:
             maker(base&&) = delete;
-            maker(base& boss) : skill{ boss },
-                mark{ skin::color(tone::selector) }
+            maker(base& boss)
+                : skill{ boss },
+                   mark{ skin::color(tone::selector) }
             {
                 using drag = hids::events::mouse::button::drag;
 
@@ -2393,6 +2406,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
             subs   conf; // caret: Configuration subscriptions.
             bool   live; // caret: Should the caret be drawn.
             bool   done; // caret: Is the caret already drawn.
@@ -2548,7 +2562,8 @@ namespace netxs::console
                             {
                                 if (form)
                                 {
-                                    canvas.fill(area, [](cell& c) {
+                                    canvas.fill(area, [](cell& c)
+                                    {
                                         auto b = c.bgc();
                                         auto f = c.fgc();
                                         if (c.inv()) c.bgc(f).fgc(cell::shaders::contrast.invert(f));
@@ -2589,6 +2604,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
             #define PROP_LIST                     \
             X(total_size   , "total sent"       ) \
             X(proceed_ns   , "rendering time"   ) \
@@ -2643,7 +2659,7 @@ namespace netxs::console
 
             void shadow()
             {
-                for (int i = 0; i < prop::count; i++)
+                for (auto i = 0; i < prop::count; i++)
                 {
                     status[i].ease();
                 }
@@ -2655,6 +2671,7 @@ namespace netxs::console
             debug(base&&) = delete;
             debug(base& boss) : skill{ boss }
             { }
+
             operator bool () const { return memo.count(); }
 
             void update(bool focus_state)
@@ -2718,7 +2735,7 @@ namespace netxs::console
                 {
                     maxlen = std::max(maxlen, desc.size());
                 }
-                si32 attr = 0;
+                auto attr = si32{ 0 };
                 for (auto& desc : description)
                 {
                     status += coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
@@ -2767,7 +2784,7 @@ namespace netxs::console
                         (m.coord.x < 10000 ? std::to_string(m.coord.x) : "-") + " : " +
                         (m.coord.y < 10000 ? std::to_string(m.coord.y) : "-") ;
 
-                    for (int btn = 0; btn < sysmouse::numofbutton; btn++)
+                    for (auto btn = 0; btn < sysmouse::numofbutton; btn++)
                     {
                         auto& state = status[prop::mouse_btn_1 + btn].set(stress);
 
@@ -2848,6 +2865,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
             page head_page; // title: Owner's caption header.
             page foot_page; // title: Owner's caption footer.
             text head_text; // title: Preserve original header.
@@ -2997,6 +3015,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
             constexpr static auto QUIT_MSG = e2::conio::quit;
             constexpr static si32 ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
 
@@ -3038,6 +3057,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
             constexpr static auto EXCUSE_MSG = hids::events::mouse::any;
             constexpr static auto QUIT_MSG   = e2::shutdown;
             //todo unify
@@ -3078,6 +3098,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+            
             subs kb_subs;
             si32 clients = 0;
 
@@ -3178,6 +3199,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
             sptr<base> soul; // mouse: Boss cannot be removed while it has active gears.
             si32       rent; // mouse: Active gears count.
             si32       full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
@@ -3264,7 +3286,7 @@ namespace netxs::console
             }
             void reset()
             {
-                events::sync lock;
+                auto lock = events::sync{};
                 if (full)
                 {
                     full = 0;
@@ -3380,7 +3402,7 @@ namespace netxs::console
                     clip_rawdata = utf8;
                     if (not_directvt)
                     {
-                        page block{ utf8 };
+                        auto block = page{ utf8 };
                         clip_preview.mark(cell{});
                         clip_preview.size(preview_size);
                         clip_preview.wipe();
@@ -3545,14 +3567,15 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
         public:
             grade(base&&) = delete;
             grade(base& boss) : skill{ boss }
             {
                 boss.SUBMIT_T(tier::release, e2::postrender, memo, parent_canvas)
                 {
-                    si32 size = 5; // grade: Vertical gradient size.
-                    si32 step = 2; // grade: Vertical gradient step.
+                    auto size = si32{ 5 }; // grade: Vertical gradient size.
+                    auto step = si32{ 2 }; // grade: Vertical gradient step.
                     //cell shadow{ cell{}.vis(cell::highlighter) };
                     //cell bright{ cell{}.vis(cell::darklighter) };
                     auto shadow = rgba{0xFF000000};
@@ -3569,7 +3592,7 @@ namespace netxs::console
                     head.coor.y = area.coor.y + n - 2;
                     foot.coor.y = area.coor.y + area.size.y - n + 1;
 
-                    for (int i = 1; i < n; i++)
+                    for (auto i = 1; i < n; i++)
                     {
                         bright.alpha(i * step);
                         shadow.alpha(i * step);
@@ -3590,6 +3613,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+
             robot  robo;   // fader: .
             period fade;
             si32 transit;
@@ -3668,8 +3692,10 @@ namespace netxs::console
             : public skill
         {
             static constexpr auto min_value = dot_00;
+
             using skill::boss,
                   skill::memo;
+
             struct lims_t
             {
                 twod min = min_value;
@@ -3892,10 +3918,9 @@ namespace netxs::console
         class focus
             : public skill
         {
+            using list = gear_id_list_t;
             using skill::boss,
                   skill::memo;
-
-            using list = gear_id_list_t;
 
             list pool; // focus: List of active input devices.
 
@@ -3990,7 +4015,7 @@ namespace netxs::console
                 {
                     //todo revise, too many fillings (mold's artifacts)
                     auto normal = boss.base::color();
-                    rgba title_fg_color = 0xFFffffff;
+                    auto title_fg_color = rgba{ 0xFFffffff };
                     if (!pool.empty())
                     {
                         auto bright = skin::color(tone::brighter);
@@ -4030,9 +4055,9 @@ namespace netxs::console
         class d_n_d
             : public skill
         {
+            using wptr = netxs::wptr<base>;
             using skill::boss,
                   skill::memo;
-            using wptr = netxs::wptr<base>;
 
             id_t under;
             bool drags;
@@ -4271,14 +4296,14 @@ namespace netxs::console
             root->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
 
             //todo unify
-            tone color{ tone::brighter, tone::shadow};
+            auto color = tone{ tone::brighter, tone::shadow};
             root->SIGNAL(tier::preview, e2::form::state::color, color);
             return root;
         }
         // host: Shutdown.
         void shutdown()
         {
-            events::sync lock;
+            auto lock = events::sync{};
             mouse.reset();
         }
     };
@@ -4331,7 +4356,7 @@ namespace netxs::console
 
                     brush[unused_usable].bga(brush[unused_usable].bga() << 1);
 
-                    int i = 0;
+                    auto i = 0;
                     for (auto& label : title)
                     {
                         auto& c = brush[i++];
@@ -4487,7 +4512,7 @@ namespace netxs::console
             }
             rect remove(id_t id)
             {
-                rect area;
+                auto area = rect{};
                 auto head = items.begin();
                 auto tail = items.end();
                 auto item = search(head, tail, id);
@@ -4675,7 +4700,7 @@ namespace netxs::console
     public:
        ~hall()
         {
-            events::sync lock;
+            auto lock = events::sync{};
             regis.reset();
             items.reset();
         }
@@ -6332,7 +6357,7 @@ again:
         }
         void draw_mouse_pointer(face& canvas)
         {
-            cell brush;
+            auto brush = cell{};
             auto coor = base::coor();
             auto area = rect{ coor, dot_11 };
             auto base = canvas.core::coor();
@@ -6568,7 +6593,7 @@ again:
                 };
                 SUBMIT_T(tier::release, e2::conio::error, token, errcode)
                 {
-                    text msg = "\n\rgate: Term error: " + std::to_string(errcode) + "\r\n";
+                    auto msg = text{ "\n\rgate: Term error: " } + std::to_string(errcode) + "\r\n";
                     log("gate: error byemsg: ", msg);
                     conio.shutdown();
                 };
@@ -6609,7 +6634,7 @@ again:
                     }
                     else
                     {
-                        text temp;
+                        auto temp = text{};
                         temp.reserve(newheader.length());
                         if (native)
                         {
@@ -6911,7 +6936,7 @@ again:
                             || (keystrokes == "\033[6~"s && gear.meta(hids::CTRL | hids::RCTRL));
                     if (pgup || pgdn)
                     {
-                        sptr item_ptr;
+                        auto item_ptr = e2::form::layout::goprev.param();
                         if (pgdn) world.SIGNAL(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
                         else      world.SIGNAL(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
 

@@ -171,8 +171,7 @@ namespace netxs::ui
         template<class PROPERTY, class SPTR, class P>
         auto attach_element(PROPERTY, SPTR data_src_sptr, P item_template)
         {
-            using type = typename PROPERTY::type;
-            type arg_value = {};
+            auto arg_value = typename PROPERTY::type{};
 
             auto backup = This();
             data_src_sptr->SIGNAL(tier::request, PROPERTY{}, arg_value);
@@ -218,8 +217,7 @@ namespace netxs::ui
         template<class BACKEND_PROP, class FRONTEND_PROP>
         auto attach_property(BACKEND_PROP, FRONTEND_PROP)
         {
-            using type = typename BACKEND_PROP::type;
-            type property_value = {};
+            auto property_value = typename BACKEND_PROP::type{};
 
             auto backup = This();
             SIGNAL(tier::request, BACKEND_PROP{},  property_value);
@@ -306,7 +304,7 @@ namespace netxs::ui
 
         ~fork()
         {
-            events::sync lock;
+            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             if (client_1)
             {
@@ -569,7 +567,7 @@ namespace netxs::ui
         }
         ~list()
         {
-            events::sync lock;
+            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
@@ -584,7 +582,7 @@ namespace netxs::ui
         {
             SUBMIT(tier::preview, e2::size::set, new_sz)
             {
-                si32  height;
+                auto  height = si32{};
                 auto& y_size = updown ? new_sz.y : new_sz.x;
                 auto& x_size = updown ? new_sz.x : new_sz.y;
                 auto  x_temp = x_size;
@@ -610,11 +608,11 @@ namespace netxs::ui
             {
                 auto& y_size = updown ? new_sz.y : new_sz.x;
                 auto& x_size = updown ? new_sz.x : new_sz.y;
-                twod  new_xy;
+                auto  new_xy = twod{};
                 auto& y_coor = updown ? new_xy.y : new_xy.x;
                 auto& x_coor = updown ? new_xy.x : new_xy.y;
 
-                auto  found = faux;
+                auto found = faux;
                 for (auto& client : subset)
                 {
                     y_size = client.second.y;
@@ -713,7 +711,7 @@ namespace netxs::ui
     public:
         ~cake()
         {
-            events::sync lock;
+            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
@@ -828,7 +826,7 @@ namespace netxs::ui
     public:
         ~park()
         {
-            events::sync lock;
+            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
@@ -930,7 +928,7 @@ namespace netxs::ui
     public:
         ~veer()
         {
-            events::sync lock;
+            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
@@ -1040,9 +1038,9 @@ namespace netxs::ui
         auto get_entry(twod const& anchor)
         {
             auto& anker = anchor.y;
-            item pred = { 0, twod{ 0, std::numeric_limits<si32>::max() } };
-            item minp = { 0, twod{ 0, std::numeric_limits<si32>::max() } };
-            si32 mindist = std::numeric_limits<si32>::max();
+            auto pred = item{ 0, twod{ 0, std::numeric_limits<si32>::max() } };
+            auto minp = item{ 0, twod{ 0, std::numeric_limits<si32>::max() } };
+            auto mindist = std::numeric_limits<si32>::max();
 
             //todo optimize, use binary search
             //start from the end
@@ -2662,7 +2660,7 @@ namespace netxs::ui
         }
         void recalc()
         {
-            text cur_str = std::to_string(cur_val);
+            auto cur_str = std::to_string(cur_val);
             auto cur_len = utf::length(cur_str);
             auto pin_pos = std::max(cur_len, sfx_len) + 1;
             box_len.x = 1 + 2 * pin_pos;
@@ -2775,7 +2773,7 @@ namespace netxs::ui
             bar_len = std::max(0, base::size().x - (pad + 1) * 2);
             auto pin_abs = netxs::divround((bar_len + 1) * (cur_val - min_val),
                 (max_val - min_val));
-            text pin_str;
+            auto pin_str = text{};
                  if (pin_abs == 0)           pin_str = "├";
             else if (pin_abs == bar_len + 1) pin_str = "┤";
             else                             pin_str = "┼";
