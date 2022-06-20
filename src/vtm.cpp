@@ -257,6 +257,7 @@ int main(int argc, char* argv[])
                  if (params == "Text") log("Desktopio Text Editor (DEMO) " DESKTOP_VER);
             else if (params == "Calc") log("Desktopio Spreadsheet (DEMO) " DESKTOP_VER);
             else if (params == "Gems") log("Desktopio App Manager (DEMO) " DESKTOP_VER);
+            else if (params == "Test") log("Desktopio App Testing (DEMO) " DESKTOP_VER);
             else if (params == "Logs") log("Desktopio Log Console "        DESKTOP_VER);
             else
             {

@@ -432,10 +432,10 @@ namespace netxs::utf
         }
     };
 
-    template<class VIEW, class = std::enable_if_t<std::is_base_of<view, VIEW>::value == true, VIEW>>
-    inline std::optional<si32> to_int(VIEW& ascii)
+    template<class A = si32, class VIEW, class = std::enable_if_t<std::is_base_of<view, VIEW>::value == true, VIEW>>
+    inline std::optional<A> to_int(VIEW& ascii)
     {
-        si32 num;
+        A num;
         auto top = ascii.data();
         auto end = ascii.length() + top;
 
@@ -446,16 +446,16 @@ namespace netxs::utf
         }
         else return std::nullopt;
     }
-    template<class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
+    template<class A = si32, class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
     inline auto to_int(T&& utf8)
     {
         auto shadow = view{ std::forward<T>(utf8) };
-        return to_int(shadow);
+        return to_int<A>(shadow);
     }
     template<class T, class A>
     inline auto to_int(T&& utf8, A fallback)
     {
-        auto result = to_int(std::forward<T>(utf8));
+        auto result = to_int<A>(std::forward<T>(utf8));
         return result ? result.value() : fallback;
     }
     enum codepage

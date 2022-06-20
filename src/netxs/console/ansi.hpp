@@ -283,7 +283,8 @@ namespace netxs::ansi
         static const si32 winsz = 10030; // .
         static const si32 focus = 10040; // Focus notification. ESC [ 10040 : _gear_id_ : 0/1 _
         static const si32 debug_count_out = 10050; // OSC Debug count output. ESC [ 10050 : _count_ _
-        static const si32 final = 10060; // .
+        static const si32 requestgc = 10060; // OSC request jumbo clusters. ESC [ 10060 : _token_1_ : ... : _token_n_ _
+        static const si32 final = 10070; // .
 
         static const si32 clipboard = 10100; // OSC clipboard data.
         static const si32 debug_out = 10110; // OSC Debug output. ESC ] 10110 : _data-len_ : _base64-data_ _
@@ -507,13 +508,31 @@ namespace netxs::ansi
                            ':', base64data.size(),
                            ':', base64data, C0_BEL);
         }
+        // esc: Request jumbo grapheme cluster.
+        template<class T>
+        esc& request_gc(T const& unknown_gc_list)
+        {
+            add("\033[", dtvt::requestgc);
+            for (auto& gc_map : unknown_gc_list)
+            {
+                add(':', netxs::letoh(gc_map.first));
+            }
+            return add('_');
+        }
+        // esc: Reply jumbo grapheme cluster data.
+        //template<class T>
+        //esc& reply_gc(T token, view data)
+        //{
+        //    return add<svga::directvt>(token, data.size(), data);
+        //}
         // esc: Grapheme cluster.
         template<svga VGAMODE = svga::truecolor, class T>
         esc& gc(T const& gc)
         {
             if constexpr (VGAMODE == svga::directvt)
             {
-                auto size = gc.state.count;
+                byte size = gc.state.jumbo ? sizeof(gc.glyph) - 1
+                                           : gc.state.count;
                 if (size > 0) add<VGAMODE>(size, gc.template get<VGAMODE>());
                 else          add<VGAMODE>(ansi::dtvt::ngc);
                 assert(size <= ansi::dtvt::gcl);

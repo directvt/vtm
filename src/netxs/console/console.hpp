@@ -4791,6 +4791,7 @@ namespace netxs::console
                 //}
         }
         relay;
+        //todo reimplement Logs
         struct
         {
             lock mutex{};
@@ -4798,6 +4799,8 @@ namespace netxs::console
             si32 count{};
         }
         debug_count_relay;
+
+        ansi::esc frame2;
 
         link(sptr boss, xipc sock)
             : owner{ boss },
@@ -4811,6 +4814,152 @@ namespace netxs::console
         {
             canal->send(buffer);
         }
+        void forward(id_t gear_id, hint cause, twod const& coord)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            frame_header.size.set(sizeof(frame_header)
+                                + sizeof(control_header)
+                                + sizeof(gear_id)
+                                + sizeof(cause)
+                                + sizeof(coord));
+            control_header.command.set(netxs::ansi::dtvt::control::mouse_events);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                            gear_id,
+                                              cause,
+                                              coord);
+            output(frame2);
+            frame2.clear();
+        }
+        void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::set_clipboard);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                            gear_id,
+                                  clip_preview_size,
+                                clip_rawdata.size(),
+                                       clip_rawdata);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            output(frame2);
+            frame2.clear();
+        }
+        void request_clipboard(id_t gear_id)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::get_clipboard);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                            gear_id);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            output(frame2);
+            frame2.clear();
+        }
+        void set_focus(id_t gear_id)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::set_focus);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                            gear_id);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            output(frame2);
+            frame2.clear();
+        }
+        void expose()
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::expose);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            output(frame2);
+            frame2.clear();
+        }
+        void request_debug()
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::request_debug);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            output(frame2);
+            frame2.clear();
+        }
+        void request_debug_count(si32 count)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::request_debug_count);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                              count);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            output(frame2);
+            frame2.clear();
+        }
+        void send_header(view new_header)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            auto control_header = netxs::ansi::dtvt::control{};
+            control_header.command.set(netxs::ansi::dtvt::control::form_header);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                  new_header.size(),
+                                         new_header);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            output(frame2);
+            frame2.clear();
+        }
+        void send_footer(view new_footer)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            auto control_header = netxs::ansi::dtvt::control{};
+            control_header.command.set(netxs::ansi::dtvt::control::form_footer);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                  new_footer.size(),
+                                         new_footer);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            output(frame2);
+            frame2.clear();
+        }
+        //void jgc_reply(si32 count)
+        //{
+        //    auto frame_header = netxs::ansi::dtvt::frame{};
+        //    auto control_header = netxs::ansi::dtvt::control{};
+        //    frame_header.type.set(netxs::ansi::dtvt::frame::control);
+        //    control_header.command.set(netxs::ansi::dtvt::control::jumbo_gc_list);
+        //    frame2.add<svga::directvt>(frame_header,
+        //                             control_header);
+        //    auto count_pos = (si32)frame2.size();
+        //    frame2.add<svga::directvt>(count);
+        //    // loop:
+        //        // token
+        //        // view_len
+        //        // view_data
+        //        // count++;
+        //    frame2.add_at<svga::directvt>(count_pos, count);
+        //    frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+        //    output(frame2);
+        //    frame2.clear();
+        //}
         template<class E, class T>
         void notify(E, T& data)
         {
@@ -4989,7 +5138,7 @@ namespace netxs::console
                                     {
                                         if (++pos == len) { total = strv; break; }// incomlpete sequence
 
-                                        view tmp = strv.substr(pos);
+                                        auto tmp = strv.substr(pos);
                                         auto l = tmp.size();
                                         if (auto pos_x = utf::to_int(tmp))
                                         {
@@ -4998,7 +5147,7 @@ namespace netxs::console
                                             {
                                                 if (++pos == len) { total = strv; break; }// incomlpete sequence
 
-                                                view tmp = strv.substr(pos);
+                                                auto tmp = strv.substr(pos);
                                                 auto l = tmp.size();
                                                 if (auto pos_y = utf::to_int(tmp))
                                                 {
@@ -5119,7 +5268,7 @@ namespace netxs::console
                             else if (digit(strv.at(pos))) // ESC [ 10000 ... - ESC [ 10050 ...
                             {
 again:
-                                view tmp = strv.substr(pos);
+                                auto tmp = strv.substr(pos);
                                 auto l = tmp.size();
                                 auto event_id = utf::to_int(tmp).value();
                                 if (event_id > ansi::dtvt::start
@@ -5130,20 +5279,44 @@ again:
                                     {
                                         auto take = [&]() -> si32
                                         {
-                                            view tmp = strv.substr(pos);
+                                            auto tmp = strv.substr(pos);
                                             if (auto l = tmp.size())
                                             {
                                                 tmp.remove_prefix(1); // pop ':'
                                                 if (tmp.size())
                                                 {
-                                                    if (tmp.at(0) == ':')
+                                                    if (auto p = utf::to_int(tmp))
+                                                    {
+                                                        pos += l - tmp.size();
+                                                        return p.value();
+                                                    }
+                                                    else // c == ':' || ';' || '_' || bad vt
                                                     {
                                                         pos++;
                                                         return 0;
                                                     }
-                                                    auto p = utf::to_int(tmp).value();
-                                                    pos += l - tmp.size();
-                                                    return p;
+                                                }
+                                            }
+                                            return 0;
+                                        };
+                                        auto take64 = [&]() -> ui64
+                                        {
+                                            auto tmp = strv.substr(pos);
+                                            if (auto l = tmp.size())
+                                            {
+                                                tmp.remove_prefix(1); // pop ':'
+                                                if (tmp.size())
+                                                {
+                                                    if (auto p = utf::to_int<ui64>(tmp))
+                                                    {
+                                                        pos += l - tmp.size();
+                                                        return p.value();
+                                                    }
+                                                    else // c == ':' || ';' || '_' || bad vt
+                                                    {
+                                                        pos++;
+                                                        return 0;
+                                                    }
                                                 }
                                             }
                                             return 0;
@@ -5242,12 +5415,47 @@ again:
                                                 notify(e2::conio::mouse, m);
                                                 break;
                                             }
+                                            //todo reimplement Logs
                                             case ansi::dtvt::debug_count_out:
                                             {
                                                 auto count = take();
                                                 auto lock = std::lock_guard{ debug_count_relay.mutex };
                                                 debug_count_relay.count = count;
                                                 debug_count_relay.synch.notify_all();
+                                                break;
+                                            }
+                                            case ansi::dtvt::requestgc:
+                                            {
+                                                //todo unify (from ::diff)
+                                                auto frame_header = netxs::ansi::dtvt::frame{};
+                                                auto control_header = netxs::ansi::dtvt::control{};
+                                                frame_header.type.set(netxs::ansi::dtvt::frame::control);
+                                                control_header.command.set(netxs::ansi::dtvt::control::jumbo_gc_list);
+                                                frame2.add<svga::directvt>(frame_header,
+                                                                        control_header);
+                                                auto count_pos = (si32)frame2.size();
+                                                auto count = si32{ 0 };
+                                                frame2.add<svga::directvt>(count);
+                                                // loop:
+                                                    // token
+                                                    // view_len
+                                                    // view_data
+                                                    // count++;
+                                                do
+                                                {
+                                                    auto token = netxs::letoh(take64());
+                                                    //frame2.reply_gc(token, cell::gc_view(token));
+                                                    auto data = cell::gc_get_data(token);
+                                                    frame2.add<svga::directvt>(token, data.size(), data);
+                                                    log("token ", token, " data.size ", data.size());
+                                                    count++;
+                                                }
+                                                while (strv.at(pos) == ':');
+
+                                                frame2.add_at<svga::directvt>(count_pos, count);
+                                                frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+                                                output(frame2);
+                                                frame2.clear();
                                                 break;
                                             }
                                             default:
@@ -5359,6 +5567,7 @@ again:
                                         }
                                         break;
                                     }
+                                    //todo reimplement Logs
                                     case ansi::dtvt::debug_out:
                                     {
                                         pos += l - tmp.size();
@@ -5490,8 +5699,6 @@ again:
         template<svga VGAMODE = svga::truecolor>
         void render()
         {
-            using time = moment;
-
             auto fallback = [&](auto& c, auto& state, auto& frame)
             {
                 auto dumb = c;
@@ -5499,27 +5706,16 @@ again:
                 dumb.template scan<VGAMODE>(state, frame);
             };
 
+            auto state = cell{};
+            auto start = moment{};
             auto guard = std::unique_lock{ mutex };
-            cell state;
-            time start;
 
-            //todo unify (it is just a proof of concept)
-            //todo switch VGAMODE on fly
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
                 ready = faux;
                 abort = faux;
                 start = tempus::now();
 
-                if constexpr (VGAMODE == svga::directvt)
-                {
-                    auto frame_header = netxs::ansi::dtvt::frame{};
-                    auto bitmap_header = netxs::ansi::dtvt::bitmap{};
-                    frame_header.type.set(netxs::ansi::dtvt::frame::bitmap);
-                    bitmap_header.area.set({ dot_00, field }); //todo set coor
-                    bitmap_header.id.set(0xaabbccdd); //todo use it
-                    frame.add<VGAMODE>(frame_header, bitmap_header);
-                }
                 auto initial_size = static_cast<si32>(frame.size());
 
                 if (extra_cached.length())
@@ -5533,7 +5729,7 @@ again:
                     rhash = dhash;
                     auto src = front.data();
                     auto end = src + front.size();
-                    auto row = 0;
+                    auto row = si32{};
                     frame.scroll_wipe<VGAMODE>();
                     while (row++ < field.y)
                     {
@@ -5587,7 +5783,7 @@ again:
                     auto dst = front.data();
                     auto beg = src;
                     auto end = src;
-                    si32 row = 0;
+                    auto row = si32{};
 
                     while (row++ < field.y)
                     {
@@ -5784,10 +5980,108 @@ again:
                 if (!abort && size != initial_size)
                 {
                     guard.unlock();
-                    if constexpr (VGAMODE == svga::directvt)
+                    conio.output(frame);
+                    guard.lock();
+                }
+                frame.clear();
+                delta = size;
+                watch = tempus::now() - start;
+            }
+        }
+        // diff: Render current buffer in DTVT-node.
+        void render_dtvt()
+        {
+            auto state = cell{};
+            auto start = moment{};
+            auto guard = std::unique_lock{ mutex };
+
+            while ((void)synch.wait(guard, [&]{ return ready; }), alive)
+            {
+                ready = faux;
+                abort = faux;
+                start = tempus::now();
+
+                auto frame_header = netxs::ansi::dtvt::frame{};
+                auto bitmap_header = netxs::ansi::dtvt::bitmap{};
+                frame_header.type.set(netxs::ansi::dtvt::frame::bitmap);
+                bitmap_header.area.set({ dot_00, field }); //todo set coor
+                bitmap_header.id.set(0xaabbccdd); //todo use it
+                frame.add<svga::directvt>(frame_header, bitmap_header);
+
+                auto initial_size = static_cast<si32>(frame.size());
+
+                if (extra_cached.length())
+                {
+                    frame += extra_cached;
+                    extra_cached.clear();
+                }
+
+                if (rhash != dhash)
+                {
+                    rhash = dhash;
+                    auto src = front.data();
+                    auto end = src + front.size();
+                    auto row = si32{};
+                    frame.scroll_wipe<svga::directvt>();
+                    while (row++ < field.y)
                     {
-                        frame.add_at<VGAMODE>(0, size); // Write total frame size.
+                        if (abort) break;
+                        frame.locate<svga::directvt>(1, row);
+                        auto end_line = src + field.x;
+                        while (src != end_line)
+                        {
+                            auto& c = *(src++);
+                            c.scan<svga::directvt>(state, frame);
+                        }
                     }
+                }
+                else
+                {
+                    auto src = cache.data();
+                    auto dst = front.data();
+                    auto beg = src;
+                    auto end = src;
+                    auto row = si32{};
+
+                    while (row++ < field.y)
+                    {
+                        if (abort) break;
+                        end += field.x;
+
+                        while (src != end)
+                        {
+                            auto& fore = *src++;
+                            auto& back = *dst++;
+                            if (back != fore)
+                            {
+                                auto col = static_cast<si32>(src - beg);
+                                frame.locate<svga::directvt>(col, row);
+
+                                back = fore;
+                                fore.scan<svga::directvt>(state, frame);
+
+                                while (src != end)
+                                {
+                                    auto& fore = *src++;
+                                    auto& back = *dst++;
+                                    if (back == fore) break;
+                                    else
+                                    {
+                                        back = fore;
+                                        fore.scan<svga::directvt>(state, frame);
+                                    }
+                                }
+                            }
+                        }
+                        beg += field.x;
+                    }
+                }
+
+                auto size = static_cast<si32>(frame.size());
+                if (!abort && size != initial_size)
+                {
+                    guard.unlock();
+                    frame.add_at<svga::directvt>(0, size); // Write total frame size.
                     conio.output(frame);
                     guard.lock();
                 }
@@ -5809,7 +6103,6 @@ again:
                 if (rhash != dhash) front = cache; // Cache may be further resized before it rendered.
                 debug = { watch, delta };
 
-                //todo constexpr video
                 if (video == svga::directvt && tooltips.length())
                 {
                     extra_cached += tooltips;
@@ -5866,18 +6159,18 @@ again:
               cache{ input.xmap.pick() }
         {
             paint = work([&]
-                { 
-                    log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
-                    switch (video)
-                    {
-                        case svga::truecolor: render<svga::truecolor>(); break;
-                        case svga::directvt:  render<svga::directvt >(); break;
-                        case svga::vga16:     render<svga::vga16    >(); break;
-                        case svga::vga256:    render<svga::vga256   >(); break;
-                        default: break;
-                    }
-                    log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
-                });
+            { 
+                log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
+                switch (video)
+                {
+                    case svga::truecolor: render<svga::truecolor>(); break;
+                    case svga::directvt:  render_dtvt            (); break;
+                    case svga::vga16:     render<svga::vga16    >(); break;
+                    case svga::vga256:    render<svga::vga256   >(); break;
+                    default: break;
+                }
+                log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
+            });
         }
         ~diff()
         {
@@ -5902,104 +6195,6 @@ again:
         auto& get_tooltips()
         {
             return tooltips;
-        }
-        void forward(id_t gear_id, hint cause, twod const& coord)
-        {
-            auto frame_header = netxs::ansi::dtvt::frame{};
-            auto control_header = netxs::ansi::dtvt::control{};
-            frame_header.type.set(netxs::ansi::dtvt::frame::control);
-            frame_header.size.set(sizeof(frame_header)
-                                + sizeof(control_header)
-                                + sizeof(gear_id)
-                                + sizeof(cause)
-                                + sizeof(coord));
-            control_header.command.set(netxs::ansi::dtvt::control::mouse_events);
-            frame2.add<svga::directvt>(frame_header,
-                                     control_header,
-                                            gear_id,
-                                              cause,
-                                              coord);
-            conio.output(frame2);
-            frame2.clear();
-        }
-        void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
-        {
-            auto frame_header = netxs::ansi::dtvt::frame{};
-            auto control_header = netxs::ansi::dtvt::control{};
-            frame_header.type.set(netxs::ansi::dtvt::frame::control);
-            control_header.command.set(netxs::ansi::dtvt::control::set_clipboard);
-            frame2.add<svga::directvt>(frame_header,
-                                     control_header,
-                                            gear_id,
-                                  clip_preview_size,
-                                clip_rawdata.size(),
-                                       clip_rawdata);
-            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
-            conio.output(frame2);
-            frame2.clear();
-        }
-        void request_clipboard(id_t gear_id)
-        {
-            auto frame_header = netxs::ansi::dtvt::frame{};
-            auto control_header = netxs::ansi::dtvt::control{};
-            frame_header.type.set(netxs::ansi::dtvt::frame::control);
-            control_header.command.set(netxs::ansi::dtvt::control::get_clipboard);
-            frame2.add<svga::directvt>(frame_header,
-                                     control_header,
-                                            gear_id);
-            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
-            conio.output(frame2);
-            frame2.clear();
-        }
-        void set_focus(id_t gear_id)
-        {
-            auto frame_header = netxs::ansi::dtvt::frame{};
-            auto control_header = netxs::ansi::dtvt::control{};
-            frame_header.type.set(netxs::ansi::dtvt::frame::control);
-            control_header.command.set(netxs::ansi::dtvt::control::set_focus);
-            frame2.add<svga::directvt>(frame_header,
-                                     control_header,
-                                            gear_id);
-            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
-            conio.output(frame2);
-            frame2.clear();
-        }
-        void expose()
-        {
-            auto frame_header = netxs::ansi::dtvt::frame{};
-            auto control_header = netxs::ansi::dtvt::control{};
-            frame_header.type.set(netxs::ansi::dtvt::frame::control);
-            control_header.command.set(netxs::ansi::dtvt::control::expose);
-            frame2.add<svga::directvt>(frame_header,
-                                     control_header);
-            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
-            conio.output(frame2);
-            frame2.clear();
-        }
-        void request_debug()
-        {
-            auto frame_header = netxs::ansi::dtvt::frame{};
-            auto control_header = netxs::ansi::dtvt::control{};
-            frame_header.type.set(netxs::ansi::dtvt::frame::control);
-            control_header.command.set(netxs::ansi::dtvt::control::request_debug);
-            frame2.add<svga::directvt>(frame_header,
-                                     control_header);
-            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
-            conio.output(frame2);
-            frame2.clear();
-        }
-        void request_debug_count(si32 count)
-        {
-            auto frame_header = netxs::ansi::dtvt::frame{};
-            auto control_header = netxs::ansi::dtvt::control{};
-            frame_header.type.set(netxs::ansi::dtvt::frame::control);
-            control_header.command.set(netxs::ansi::dtvt::control::request_debug_count);
-            frame2.add<svga::directvt>(frame_header,
-                                     control_header,
-                                              count);
-            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
-            conio.output(frame2);
-            frame2.clear();
         }
     };
 
@@ -6212,36 +6407,6 @@ again:
             if (result) base::strike();
         }
 
-        ansi::esc header;
-        void send_header(link& conio, view new_header)
-        {
-            auto frame_header = netxs::ansi::dtvt::frame{};
-            frame_header.type.set(netxs::ansi::dtvt::frame::control);
-            auto control_header = netxs::ansi::dtvt::control{};
-            control_header.command.set(netxs::ansi::dtvt::control::form_header);
-            header.add<svga::directvt>(frame_header,
-                                     control_header,
-                                  new_header.size(),
-                                         new_header);
-            header.add_at<svga::directvt>(0, (si32)header.size());
-            conio.output(header);
-            header.clear();
-        }
-        void send_footer(link& conio, view new_footer)
-        {
-            auto frame_header = netxs::ansi::dtvt::frame{};
-            frame_header.type.set(netxs::ansi::dtvt::frame::control);
-            auto control_header = netxs::ansi::dtvt::control{};
-            control_header.command.set(netxs::ansi::dtvt::control::form_footer);
-            header.add<svga::directvt>(frame_header,
-                                     control_header,
-                                  new_footer.size(),
-                                         new_footer);
-            header.add_at<svga::directvt>(0, (si32)header.size());
-            conio.output(header);
-            header.clear();
-        }
-
     public:
         sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
         sptr background; // gate: Local UI background.
@@ -6433,14 +6598,14 @@ again:
                 {
                     if (direct)
                     {
-                        send_footer(conio, newfooter);
+                        conio.send_footer(newfooter);
                     }
                 };
                 SUBMIT_T(tier::release, e2::form::prop::ui::header, token, newheader)
                 {
                     if (direct)
                     {
-                        send_header(conio, newheader);
+                        conio.send_header(newheader);
                     }
                     else
                     {
@@ -6501,7 +6666,7 @@ again:
                     auto& gear =*gear_ptr;
                     auto& data = gear.clip_rawdata;
                     auto& size = gear.preview_size;
-                    if (direct) paint.forward_clipboard(ext_gear_id, size, data);
+                    if (direct) conio.forward_clipboard(ext_gear_id, size, data);
                     else        paint.append(ansi::setbuf(data)); // OSC 52
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
@@ -6514,7 +6679,7 @@ again:
                     conio.relay.mutex.unlock();
                     auto lock = std::unique_lock{ depot.mutex };
                     depot.ready = faux;
-                    paint.request_clipboard(ext_gear_id);
+                    conio.request_clipboard(ext_gear_id);
                     auto maxoff = 100ms;
                     if (std::cv_status::timeout != depot.synch.wait_for(lock, maxoff))
                     {
@@ -6530,15 +6695,16 @@ again:
                 {
                     auto deed = bell::protos<tier::release>();
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    paint.forward(ext_gear_id, deed, gear.coord);
+                    conio.forward(ext_gear_id, deed, gear.coord);
                     gear.dismiss();
                 };
                 if (direct) // Forward unhandled events outside.
                 {
+                    //todo reimplement Logs
                     SUBMIT_T(tier::general, e2::debug::count::any, token, count)
                     {
                         auto lock = std::unique_lock{ conio.debug_count_relay.mutex };
-                        paint.request_debug_count(count);
+                        conio.request_debug_count(count);
                         auto maxoff = 100ms;
                         //conio.debug_count_relay.synch.wait(lock);
                         if (std::cv_status::timeout != conio.debug_count_relay.synch.wait_for(lock, maxoff))
@@ -6551,26 +6717,24 @@ again:
                             log("gate: timeout: no debug count reply");
                         }
                     };
-                    auto debug_console = e2::debug::count::set.param();
-                    SIGNAL_GLOBAL(e2::debug::count::set, debug_console);
-                    if (debug_console) // For Logs only.
-                    {
-                        log("e2::debug::count::set ", debug_console);
-                        paint.request_debug();
-                        SUBMIT_T(tier::release, e2::conio::keybd, token, keybdstate)
-                        {
-                            if (keybdstate.keybdid == 0
-                             && keybdstate.cluster.size())
-                            {
-                                auto shadow = view{ keybdstate.cluster };
-                                SIGNAL_GLOBAL(e2::debug::logs, shadow);
-                            }
-                        };
-                    }
+                    //if (debug_console) // For Logs only.
+                    //{
+                    //    log("e2::debug::count::set ", debug_console);
+                    //    paint.request_debug();
+                    //    SUBMIT_T(tier::release, e2::conio::keybd, token, keybdstate)
+                    //    {
+                    //        if (keybdstate.keybdid == 0
+                    //         && keybdstate.cluster.size())
+                    //        {
+                    //            auto shadow = view{ keybdstate.cluster };
+                    //            SIGNAL_GLOBAL(e2::debug::logs, shadow);
+                    //        }
+                    //    };
+                    //}
                     SUBMIT_T(tier::preview, hids::events::mouse::button::click::any, token, gear)
                     {
                         log("e2::form::layout::expose");
-                        paint.expose();
+                        conio.expose();
                     };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
@@ -6580,7 +6744,7 @@ again:
                     SUBMIT_T(tier::release, hids::events::focus::set, token, from_gear)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                        paint.set_focus(ext_gear_id);
+                        conio.set_focus(ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
                     {

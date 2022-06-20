@@ -529,18 +529,20 @@ namespace netxs::ui::atoms
         {
             struct mode
             {
-                unsigned char count : CLUSTER_FIELD_SIZE; // grapheme cluster length (utf-8 encoded) (max GRAPHEME_CLUSTER_LIMIT)
+                byte jumbo : 1;                  // grapheme cluster length overflow bit
                 //todo unify with CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-                unsigned char width : WCWIDTH_FIELD_SIZE; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
-                unsigned char jumbo : 1;                  // grapheme cluster length overflow bit
+                byte width : WCWIDTH_FIELD_SIZE; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
+                byte count : CLUSTER_FIELD_SIZE; // grapheme cluster length (utf-8 encoded) (max GRAPHEME_CLUSTER_LIMIT)
             };
 
             // There is no need to reset/clear/flush the map because
             // count of different grapheme clusters is finite.
-            static constexpr size_t     limit = sizeof(ui64);
-            static std::hash<view>      coder;
-            static text                 empty;
-            static std::map<ui64, text> jumbo;
+            static constexpr ui64                 asset = netxs::letoh(~(ui64)0x07 /*jumbo:1 + width:2*/);
+            static constexpr size_t               limit = sizeof(ui64);
+            static std::hash<view>                coder;
+            static text                           empty;
+            static std::unordered_map<ui64, text> jumbo;
+            static std::mutex                     mutex;
 
             ui64 token;
             mode state;
@@ -571,8 +573,7 @@ namespace netxs::ui::atoms
             // Check grapheme clusters equality.
             bool same(glyf const& c) const
             {
-                static constexpr auto mask = netxs::letoh(~(decltype(token))0xFF);
-                return (token & mask) == (c.token & mask); // Compare excluding glyph[0].
+                return (token & asset) == (c.token & asset); // Compare excluding the first three bits.
             }
 
             void wipe()
@@ -621,7 +622,9 @@ namespace netxs::ui::atoms
                     token = coder(utf8);
                     state.jumbo = true;
                     state.width = cwidth;
-                    jumbo.insert(std::pair{ token, utf8 }); // silently ignore if it exists
+                    log("jumbo token ", token, " utf8 size ", utf8.size());
+                    auto lock = std::lock_guard{ mutex };
+                    jumbo.insert(std::pair{ token & asset, utf8 }); // silently ignore if it exists
                 }
                 else
                 {
@@ -641,17 +644,35 @@ namespace netxs::ui::atoms
             {
                 if constexpr (VGAMODE == svga::directvt)
                 {
-                    return view(glyph, state.count + 1);
+                    if (state.jumbo) return view(glyph, 8);
+                    else             return view(glyph, state.count + 1);
                 }
                 else
                 {
-                    if (state.jumbo) return netxs::get_or(jumbo, token, empty);
-                    else             return view(glyph + 1, state.count);
+                    if (state.jumbo)
+                    {
+                        auto lock = std::lock_guard{ mutex };
+                        return netxs::get_or(jumbo, token & asset, empty);
+                    }
+                    else return view(glyph + 1, state.count);
                 }
+            }
+            auto is_registered() const
+            {
+                auto lock = std::lock_guard{ mutex };
+                return jumbo.find(token & asset) != jumbo.end();
             }
             auto is_space() const
             {
                 return static_cast<byte>(glyph[1]) <= whitespace;
+            }
+            auto tkn() const
+            {
+                return token & asset;
+            }
+            bool jgc() const
+            {
+                return !state.jumbo || is_registered();
             }
             void rst()
             {
@@ -1145,7 +1166,22 @@ namespace netxs::ui::atoms
         void isepar (bool b) { st.param.unique.var.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
         void inplus (bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
         void zwnbsp (bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
-
+        //todo unify
+        // cell: Get grapheme cluster data by token.
+        static auto gc_get_data(ui64 token)
+        {
+            auto lock = std::lock_guard{ cell::glyf<>::mutex };
+            return netxs::get_or(cell::glyf<>::jumbo, token & cell::glyf<>::asset, cell::glyf<>::empty);
+        }
+        // cell: Set grapheme cluster data by token.
+        static auto gc_set_data(ui64 token, view data)
+        {
+            auto lock = std::lock_guard{ cell::glyf<>::mutex };
+            auto& map = cell::glyf<>::jumbo;
+            map[token & cell::glyf<>::asset] = data;
+        }
+        auto  tkn () const { return gc.tkn();      } // cell: Return grapheme cluster token.
+        bool  jgc () const { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
         si32  len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
         si32  wdt () const { return gc.state.width;} // cell: Return Grapheme cluster screen width.
         auto  txt () const { return gc.get();      } // cell: Return Grapheme cluster.
@@ -1339,9 +1375,10 @@ namespace netxs::ui::atoms
     };
 
     // Extern link statics.
-    template<class T> std::hash<view>      cell::glyf<T>::coder;
-    template<class T> text                 cell::glyf<T>::empty;
-    template<class T> std::map<ui64, text> cell::glyf<T>::jumbo;
+    template<class T> std::hash<view>                cell::glyf<T>::coder;
+    template<class T> text                           cell::glyf<T>::empty;
+    template<class T> std::unordered_map<ui64, text> cell::glyf<T>::jumbo;
+    template<class T> std::mutex                     cell::glyf<T>::mutex;
 
     enum class bias : unsigned char { none, left, right, center, };
     enum class wrap : unsigned char { none, on,  off,            };

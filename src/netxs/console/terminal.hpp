@@ -6816,6 +6816,7 @@ namespace netxs::ui
                     log("dtvt: keybd focus lost ", gear.id);
                     focus(gear, faux);
                 };
+                //todo reimplement Logs
                 owner.SUBMIT_T(tier::general, e2::debug::count::any, token, count)
                 {
                     log("dtvt: debug count ", count);
@@ -6841,6 +6842,7 @@ namespace netxs::ui
         ansi::esc       buffer; // dtvt: Clipboard buffer.
         ansi::esc       outbuf; // dtvt: PTY output buffer.
         subs            debugs; // dtvt: Tokens for debug output subcriptions.
+        std::unordered_map<ui64, text> unknown_gc_list; // dtvt: Unknown grapheme cluster list.
 
         // dtvt: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
@@ -6903,6 +6905,11 @@ namespace netxs::ui
                                     auto size = type + 1;
                                     auto& glyph = marker.egc();
                                     ::memcpy(glyph, reinterpret_cast<void const*>(data.data()), size);
+                                    if (marker.jgc() == faux) // Checking grapheme cluster registration.
+                                    {
+                                        unknown_gc_list[marker.tkn()];
+                                        log("token size ", size);
+                                    }
                                     if (limits.inside(coor))
                                     {
                                         canvas[coor] = marker;
@@ -6970,6 +6977,13 @@ namespace netxs::ui
                             }
                         }
 
+                        if (unknown_gc_list.size())
+                        {
+                            buffer.request_gc(unknown_gc_list);
+                            unknown_gc_list.clear();
+                            log("request tokens: ", utf::debase(buffer));
+                            answer(buffer);
+                        }
                         //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
                         base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
                         syncxs.notify_one();
@@ -7002,6 +7016,7 @@ namespace netxs::ui
                                 });
                                 break;
                             }
+                            //todo reimplement Logs
                             case ansi::dtvt::control::request_debug:
                             {
                                 netxs::events::enqueue(This(), [&](auto& boss)
@@ -7010,6 +7025,7 @@ namespace netxs::ui
                                 });
                                 break;
                             }
+                            //todo reimplement Logs
                             case ansi::dtvt::control::request_debug_count:
                             {
                                 auto count = netxs::letoh(*reinterpret_cast<si32 const*>(data.data()));
@@ -7094,7 +7110,28 @@ namespace netxs::ui
                                 break;
                             }
                             case ansi::dtvt::control::jumbo_gc_list:
+                            {
+                                // si32 count
+                                    // ui64 token
+                                    // size_t data_len
+                                    // view data
+                                //todo check sanity
+                                auto count = netxs::letoh(*reinterpret_cast<si32 const*>(data.data()));
+                                data.remove_prefix(sizeof(si32));
+                                for (auto i = 0; i < count; i++)
+                                {
+                                    auto token = netxs::letoh(*reinterpret_cast<ui64 const*>(data.data()));
+                                    data.remove_prefix(sizeof(ui64));
+                                    auto size = netxs::letoh(*reinterpret_cast<size_t const*>(data.data()));
+                                    data.remove_prefix(sizeof(size_t));
+                                    auto cluster = text{ data.data(), size };
+                                    data.remove_prefix(size);
+                                    cell::gc_set_data(token, cluster);
+                                    log("new gc token: ", token, " cluster size ", cluster.size(), " data: ", cluster);
+                                }
+                                //todo full strike to redraw with new clusters
                                 break;
+                            }
                             case ansi::dtvt::control::vt_command:
                                 break;
 
