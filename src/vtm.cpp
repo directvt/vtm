@@ -21,6 +21,15 @@
 #include "netxs/apps.hpp"
 #include <fstream> // Get current config from vtm.conf.
 
+extern auto menu_item_list = R"(DESKTOPIO_ITEM_LIST
+"Term", "Tooltip Message", a("Direct", "Term Title", "-r term")
+"Gems", "Tooltip Message", a("Direct", "Gems Title", "-r gems")
+"Text", "Tooltip Message", a("Direct", "Text Title", "-r text")
+"Calc", "Tooltip Message", a("Direct", "Calc Title", "-r calc")
+"Test", "Tooltip Message", a("Direct", "Test Title", "-r test")
+"Logs", "Tooltip Message", a("Direct", "Logs Title", "-r logs")
+)";
+
 using namespace netxs;
 using namespace netxs::console;
 

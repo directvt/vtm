@@ -14,6 +14,10 @@
 using namespace netxs;
 using namespace netxs::console;
 
+extern auto menu_item_list = R"(DESKTOPIO_ITEM_LIST
+"App Term", "Tooltip Message", a("Direct", "App Term Title", "")
+)";
+
 int main(int argc, char* argv[])
 {
     auto vtmode = os::vt_mode();
