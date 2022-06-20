@@ -4,6 +4,14 @@
 #ifndef NETXS_APP_TILE_HPP
 #define NETXS_APP_TILE_HPP
 
+// Tiling limits.
+#ifndef PROD
+    #define INHERITANCE_LIMIT 12
+    #define TILE_MAX_COUNT    2
+#else
+    #define INHERITANCE_LIMIT 30
+#endif
+
 namespace netxs::app::tile
 {
     using backups = std::list<sptr<ui::veer>>;

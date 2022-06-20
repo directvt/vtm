@@ -2654,6 +2654,30 @@ namespace netxs::os
                 return std::make_pair( server, client );
             }
         }
+        template<class G>
+        auto splice(G& gate, si32 vtmode)
+        {
+            gate.output(ansi::esc{}.save_title()
+                                   .altbuf(true)
+                                   .vmouse(true)
+                                   .cursor(faux)
+                                   .bpmode(true)
+                                   .setutf(true));
+            gate.splice(vtmode);
+            gate.output(ansi::esc{}.scrn_reset()
+                                   .vmouse(faux)
+                                   .cursor(true)
+                                   .altbuf(faux)
+                                   .bpmode(faux)
+                                   .load_title());
+            std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
+        }
+        auto logger(si32 vtmode)
+        {
+            auto direct = !!(vtmode & os::legacy::direct);
+            return direct ? netxs::logger([](auto data) { os::stdlog(data); })
+                          : netxs::logger([](auto data) { os::syslog(data); });
+        }
     }
 
     class tty

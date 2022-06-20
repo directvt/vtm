@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 3.8)
 
 project ("vtm")
+project ("term")
 
 OPTION(DEMO "Demo mode" OFF)
 
@@ -27,6 +28,7 @@ if (DEMO)
 endif ()
 
 add_executable (vtm  "vtm.cpp")
+add_executable (term "netxs/apps/term.cpp")
 
 if (NOT WIN32)
     install (TARGETS vtm  DESTINATION bin)

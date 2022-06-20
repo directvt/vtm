@@ -4,6 +4,11 @@
 #ifndef NETXS_APPS_HPP
 #define NETXS_APPS_HPP
 
+#ifndef PROD
+    #define APPS_MAX_COUNT 20
+#endif
+#define APPS_DEL_TIMEOUT 1s
+
 #include "ui/controls.hpp"
 
 namespace netxs::app
@@ -432,6 +437,42 @@ namespace netxs::app::shared
             app::shared::get_creator()[text{ app_typename }] = builder;
         }
     };
+    
+    auto start(text app_name, text log_title, si32 vtmode, si32 maxfps, si32 menusz)
+    {
+
+        auto direct = !!(vtmode & os::legacy::direct);
+        if (!direct) os::start_log(log_title);
+
+        auto config = console::conf(vtmode);
+        auto tunnel = os::ipc::local(vtmode);
+
+        auto cons = os::tty::proxy(tunnel.second);
+        auto size = cons.ignite(vtmode);
+        if (!size.last) return faux;
+
+        auto ground = base::create<host>(tunnel.first, maxfps);
+        auto runapp = [&]()
+        {
+            auto applet = app::shared::creator(app_name)(direct ? "" : "!"); // ! - means simple (w/o plugins)
+            auto window = ground->invite<gate>(true);
+            if (!direct) applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
+            window->resize(size);
+            window->launch(tunnel.first, config, applet);
+            window.reset();
+            applet.reset();
+            ground->shutdown();
+        };
+
+        if (direct) runapp();
+        else
+        {
+            auto thread = std::thread{ [&](){ os::ipc::splice(cons, vtmode); }};
+            runapp();
+            thread.join();
+        }
+        return true;
+    }
 }
 
 #include "apps/term.hpp"

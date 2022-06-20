@@ -18,21 +18,11 @@
 // Enable to show all terminal input (keyboard/mouse etc).
 //#define KEYLOG
 
-// Tiling limits.
-#ifndef PROD
-    #define INHERITANCE_LIMIT 12
-    #define APPS_MAX_COUNT    20
-    #define TILE_MAX_COUNT    2
-#else
-    #define INHERITANCE_LIMIT 30
-#endif
-#define APPS_DEL_TIMEOUT  1s
-
 #include "netxs/apps.hpp"
 #include <fstream> // Get current config from vtm.conf.
 
-using namespace netxs::console;
 using namespace netxs;
+using namespace netxs::console;
 
 enum class type
 {
@@ -44,9 +34,7 @@ enum class type
 int main(int argc, char* argv[])
 {
     auto vtmode = os::vt_mode();
-    auto direct = !!(vtmode & os::legacy::direct);
-    auto syslog = direct ? logger([](auto data) { os::stdlog(data); })
-                         : logger([](auto data) { os::syslog(data); });
+    auto syslog = os::ipc::logger(vtmode);
     auto banner = [&]() { log(MONOTTY_VER); };
     auto whoami = type::client;
     auto region = text{};
@@ -199,27 +187,10 @@ int main(int argc, char* argv[])
     }
     else
     {
-        auto splice = [&](auto& gate)
-        {
-            gate.output(ansi::esc{}.save_title()
-                                   .altbuf(true)
-                                   .vmouse(true)
-                                   .cursor(faux)
-                                   .bpmode(true)
-                                   .setutf(true));
-            gate.splice(vtmode);
-            gate.output(ansi::esc{}.scrn_reset()
-                                   .vmouse(faux)
-                                   .cursor(true)
-                                   .altbuf(faux)
-                                   .bpmode(faux)
-                                   .load_title());
-            std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
-        };
-
         if (whoami == type::client)
         {
             banner();
+            auto direct = !!(vtmode & os::legacy::direct);
             if (!direct) os::start_log(MONOTTY_MYNAME);
             auto userid = os::user();
             auto usernm = os::get_env("USER");
@@ -246,7 +217,7 @@ int main(int argc, char* argv[])
             auto size = cons.ignite(vtmode);
             if (size.last)
             {
-                splice(cons);
+                os::ipc::splice(cons, vtmode);
             }
         }
         else if (whoami == type::runapp)
@@ -266,39 +237,13 @@ int main(int argc, char* argv[])
                 log(MONOTTY_APPINF);
             }
 
-            if (!direct) os::start_log(MONOTTY_MYNAME);
-
             skin::setup(tone::brighter, 0);
-            auto config = console::conf(vtmode);
-            auto tunnel = os::ipc::local(vtmode);
 
-            auto cons = os::tty::proxy(tunnel.second);
-            auto size = cons.ignite(vtmode);
-            if (!size.last)
+            auto success = app::shared::start(params, MONOTTY_MYNAME, vtmode, maxfps, menusz);
+            if (!success)
             {
                 log("main: console initialization error");
                 return 1;
-            }
-
-            auto ground = base::create<host>(tunnel.first, maxfps);
-            auto runapp = [&]()
-            {
-                auto applet = app::shared::creator(params)(direct ? "" : "!"); // ! - means simple (w/o plugins)
-                auto window = ground->invite<gate>(true);
-                if (!direct) applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
-                window->resize(size);
-                window->launch(tunnel.first, config, applet);
-                window.reset();
-                applet.reset();
-                ground->shutdown();
-            };
-
-            if (direct) runapp();
-            else
-            {
-                auto thread = std::thread{ [&](){ splice(cons); }};
-                runapp();
-                thread.join();
             }
         }
     }
