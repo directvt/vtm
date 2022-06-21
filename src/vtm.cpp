@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = R"==(DESKTOPIO_MENU
+auto DirectVT = "\7\77\377" R"==(DESKTOPIO_MENU
 "Term", "Tooltip Message", a("Direct", "Term Title", "-r term")
 "Logs", "Tooltip Message", a("Direct", "Logs Title", "-r logs")
 "Gems", "Tooltip Message", a("Direct", "Gems Title", "-r gems")
@@ -15,6 +15,7 @@ auto DirectVT = R"==(DESKTOPIO_MENU
 #define MONOTTY_PREFIX "monotty_"
 #define MONOTTY_MYNAME "vtm"
 #define MONOTTY_FOLDER "/.config/" MONOTTY_MYNAME "/"
+#define MONOTTY_APPDIR "/.config/" MONOTTY_MYNAME "/apps"
 #define MONOTTY_DEFAPP "Term"
 #define MONOTTY_APPINF "Desktopio Terminal " DESKTOP_VER
 

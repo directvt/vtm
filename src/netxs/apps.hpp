@@ -1023,25 +1023,64 @@ namespace netxs::app::shared
             #endif
 
             for (auto& [menu_item_id, app_data] : app::shared::objs_config)
+            {
                 menu_list[menu_item_id];
+            }
         #else
-            #ifdef _WIN32
-                menu_list[objs_lookup["Term"]];
-                menu_list[objs_lookup["PowerShell"]];
-                menu_list[objs_lookup["Tile"]];
-                menu_list[objs_lookup["Logs"]];
-                menu_list[objs_lookup["View"]];
-                menu_list[objs_lookup["Gems"]];
-                menu_list[objs_lookup["Settings"]];
-            #else
-                menu_list[objs_lookup["Term"]];
-                menu_list[objs_lookup["Tile"]];
-                menu_list[objs_lookup["Logs"]];
-                menu_list[objs_lookup["View"]];
-                menu_list[objs_lookup["Gems"]];
-                menu_list[objs_lookup["Settings"]];
-            #endif
 
+            namespace fs = std::filesystem;
+            auto apps = os::homepath() + MONOTTY_APPDIR;
+            auto test = std::vector<std::pair<fs::path, text>>{};
+            if (fs::exists(apps))
+            {
+                auto data = view{ ::DirectVT };
+                auto crop = text{};
+                auto skip = data.find('\n') + 1;
+                auto what = data.substr(0, skip);
+                //auto buff = std::vector<char>(1 << 20 /* 1M */);
+                for (auto const& name : fs::directory_iterator(apps))
+                {
+                    auto file = std::ifstream(name.path(), std::ios::binary | std::ios::in);
+                    file.seekg(0, std::ios::end);
+                    auto size = file.tellg();
+                    auto buff = std::vector<char>(size);
+                    file.seekg(0, std::ios::beg);
+                    file.read(buff.data(), size);
+                    auto iter = std::search(buff.begin(), buff.end(), what.begin(), what.end());
+                    iter += skip;
+                    netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
+                    test.emplace_back(name.path(), crop);
+                    crop.clear();
+
+                    auto& m = app::shared::objs_config["Term"];
+                    m.group = "Direct";
+                    m.label = "Term";
+                    m.title = "Term";
+                    //m.notes = "Tooltip message";
+                    m.param = name.path().string();
+                    menu_list["Term"];
+                }
+            }
+            if (test.empty())
+            {
+                log("main: no apps at ", apps);
+                #ifdef _WIN32
+                    menu_list[objs_lookup["Term"]];
+                    menu_list[objs_lookup["PowerShell"]];
+                    menu_list[objs_lookup["Tile"]];
+                    menu_list[objs_lookup["Logs"]];
+                    menu_list[objs_lookup["View"]];
+                    menu_list[objs_lookup["Gems"]];
+                    menu_list[objs_lookup["Settings"]];
+                #else
+                    menu_list[objs_lookup["Term"]];
+                    menu_list[objs_lookup["Tile"]];
+                    menu_list[objs_lookup["Logs"]];
+                    menu_list[objs_lookup["View"]];
+                    menu_list[objs_lookup["Gems"]];
+                    menu_list[objs_lookup["Settings"]];
+                #endif
+            }
             // Add custom commands to the menu.
             // vtm: Get user defined tiling layouts.
             auto tiling_profiles = os::get_envars("VTM_PROFILE");
