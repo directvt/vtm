@@ -4,11 +4,22 @@
 auto DirectVT = "\3\33\333DESKTOPIO\7"
 R"==(
 ="Term", "Tooltip Message", a("Direct", "Term Title", "-r term")
+)=="
+#ifdef _WIN32
+R"==(
+="PowerShell", "Tooltip Message", a("Direct", "Term Title", "-r powershell")
+)=="
+#endif
+R"==(
+="Tile", "Tiling Window Manager", h(a("Direct", "Term Title", "vtm -r term"), a("Direct", "Term Title", "vtm -r term"))
+="View", "Tooltip Message", a("View", "View: Region 1", "")
+="Settings", "Tooltip Message", a("Settings", "Settings: Frame Rate Limit", "")
 ="Logs", "Tooltip Message", a("Direct", "Logs Title", "-r logs")
-="Gems", "Tooltip Message", a("Direct", "Gems Title", "-r gems")
-="Text", "Tooltip Message", a("Direct", "Text Title", "-r text")
-="Calc", "Tooltip Message", a("Direct", "Calc Title", "-r calc")
-="Test", "Tooltip Message", a("Direct", "Test Title", "-r test")
+="Gems [DEMO]", "Tooltip Message", a("Direct", "Gems Title", "-r gems")
+="Text [DEMO]", "Tooltip Message", a("Direct", "Text Title", "-r text")
+="Calc [DEMO]", "Tooltip Message", a("Direct", "Calc Title", "-r calc")
+="Test [DEMO]", "Tooltip Message", a("Direct", "Test Title", "-r test")
+="Truecolor [DEMO]", "Tooltip Message", a("Direct", "Test Title", "-r truecolor")
 )==";
 
 #define DESKTOP_VER "v0.7.6"
@@ -241,6 +252,8 @@ int main(int argc, char* argv[])
             else if (params == "Gems") log("Desktopio App Manager (DEMO) " DESKTOP_VER);
             else if (params == "Test") log("Desktopio App Testing (DEMO) " DESKTOP_VER);
             else if (params == "Logs") log("Desktopio Log Console "        DESKTOP_VER);
+            else if (params == "Powershell") log("Desktopio Powershell "   DESKTOP_VER);
+            else if (params == "Truecolor")  log("Desktopio ANSI Art "     DESKTOP_VER);
             else
             {
                 menusz = 1;

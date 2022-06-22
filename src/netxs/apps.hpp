@@ -35,7 +35,7 @@ namespace netxs::app::shared
     X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
     X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"Term\" ,\"\"), a(\"Term\" ,\"Term\" ,\"\"))" ) \
     X(Settings     , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
-    X(PowerShell   , "PowerShell"            , ("Term \nPowerShell")                                           , "" ) \
+    X(PowerShell   , "Powershell"            , ("Term \nPowerShell")                                           , "" ) \
     X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
     X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
     X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
@@ -875,7 +875,7 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_PowerShell    = [](view v)
+        auto build_Powershell    = [](view v)
         {
             auto window = app::term::build("powershell");
             //todo unify
@@ -1002,7 +1002,7 @@ namespace netxs::app::shared
         app::shared::initialize builder_Truecolor    { "Truecolor"    , build_Truecolor     };
         app::shared::initialize builder_VTM          { "VTM"          , build_VTM           };
         app::shared::initialize builder_MC           { "MC"           , build_MC            };
-        app::shared::initialize builder_PowerShell   { "PowerShell"   , build_PowerShell    };
+        app::shared::initialize builder_Powershell   { "Powershell"   , build_Powershell    };
         app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
         app::shared::initialize builder_HeadlessTerm { "HeadlessTerm" , build_HeadlessTerm  };
         app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
@@ -1084,15 +1084,51 @@ namespace netxs::app::shared
                     result.app_cmdline = utf::get_quote(envvar_data, '\"', ") ");
                     result.count = 1;
                 }
+                else if (tag == 'h'
+                      || tag == 'v')
+                {
+                    // add app
+                    envvar_data.remove_prefix(1);
+                    utf::trim_front(envvar_data, " ");
+                    if (envvar_data.empty() || envvar_data.front() != '(') return result;
+                    envvar_data.remove_prefix(1);
+                    result.app_name = result.tooltip;//utf::get_quote(envvar_data, '\"', ", ");
+                    result.count = 2;
+                }
                 return result;
             };
-
+            auto apply_params = [&](auto& profile_data, auto&& file_name)
+            {
+                auto profiles = utf::divide(profile_data, "\n");
+                for (auto& p : profiles)
+                {
+                    auto r = parse_params(p);
+                    auto& m = app::shared::objs_config[r.app_name];
+                    if (r.count == 1)
+                    {
+                        m.group = r.group;
+                        m.label = r.menu_name;
+                        m.notes = r.tooltip;
+                        m.title = r.app_name;
+                        m.param = file_name + " " + r.app_cmdline;
+                        menu_list[r.app_name];
+                    }
+                    else if (r.count == 2)
+                    {
+                        m.group = "Tile";
+                        m.label = r.menu_name;
+                        m.title = r.app_name;
+                        m.param = text{ p };
+                        menu_list[r.app_name];
+                    }
+                }
+            };
             namespace fs = std::filesystem;
             auto apps = os::homepath() + MONOTTY_APPDIR;
-            auto test = std::vector<std::pair<fs::directory_entry, text>>{};
+            auto list = std::vector<std::pair<fs::directory_entry, text>>{};
+            auto data = view{ ::DirectVT };
             if (fs::exists(apps))
             {
-                auto data = view{ ::DirectVT };
                 auto crop = text{};
                 auto skip = data.find('\007') + 1;
                 auto what = data.substr(0, skip);
@@ -1112,52 +1148,39 @@ namespace netxs::app::shared
                     {
                         iter += skip;
                         netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
-                        test.emplace_back(name, std::move(crop));
+                        list.emplace_back(name, std::move(crop));
                     }
                 }
 
-                std::sort(test.begin(), test.end(), [](auto& a, auto& b)
+                std::sort(list.begin(), list.end(), [](auto& a, auto& b)
                 {
-                    return a.first.last_write_time() > b.first.last_write_time();
+                    return a.first.last_write_time() < b.first.last_write_time();
                 });
-                for (auto& file : test)
+                for (auto& file : list)
                 {
-                    auto profiles = utf::divide(file.second, "\n");
-                    for (auto& p : profiles)
-                    {
-                        auto r = parse_params(p);
-                        if (r.count == 1)
-                        {
-                            auto& m = app::shared::objs_config[r.app_name];
-                            m.group = r.group;
-                            m.label = r.menu_name;
-                            m.notes = r.tooltip;
-                            m.title = r.app_name;
-                            m.param = file.first.path().string() + " " + r.app_cmdline;
-                            menu_list[r.app_name];
-                        }
-                    }
+                    apply_params(file.second, file.first.path().string());
                 }
             }
-            if (test.empty())
+            if (list.empty())
             {
-                log("main: no apps at ", apps);
-                #ifdef _WIN32
-                    menu_list[objs_lookup["Term"]];
-                    menu_list[objs_lookup["PowerShell"]];
-                    menu_list[objs_lookup["Tile"]];
-                    menu_list[objs_lookup["Logs"]];
-                    menu_list[objs_lookup["View"]];
-                    menu_list[objs_lookup["Gems"]];
-                    menu_list[objs_lookup["Settings"]];
-                #else
-                    menu_list[objs_lookup["Term"]];
-                    menu_list[objs_lookup["Tile"]];
-                    menu_list[objs_lookup["Logs"]];
-                    menu_list[objs_lookup["View"]];
-                    menu_list[objs_lookup["Gems"]];
-                    menu_list[objs_lookup["Settings"]];
-                #endif
+                apply_params(data, os::current_module_file());
+                //log("main: no apps at ", apps);
+                //#ifdef _WIN32
+                //    menu_list[objs_lookup["Term"]];
+                //    menu_list[objs_lookup["Powershell"]];
+                //    menu_list[objs_lookup["Tile"]];
+                //    menu_list[objs_lookup["Logs"]];
+                //    menu_list[objs_lookup["View"]];
+                //    menu_list[objs_lookup["Gems"]];
+                //    menu_list[objs_lookup["Settings"]];
+                //#else
+                //    menu_list[objs_lookup["Term"]];
+                //    menu_list[objs_lookup["Tile"]];
+                //    menu_list[objs_lookup["Logs"]];
+                //    menu_list[objs_lookup["View"]];
+                //    menu_list[objs_lookup["Gems"]];
+                //    menu_list[objs_lookup["Settings"]];
+                //#endif
             }
             // Add custom commands to the menu.
             // vtm: Get user defined tiling layouts.

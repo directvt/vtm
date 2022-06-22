@@ -3,7 +3,7 @@
 
 auto DirectVT = "\3\33\333DESKTOPIO\7"
 R"==(
-="App Term", "Tooltip Message", a("Direct", "App Term Title", "cmdline args")
+="Term", "Term Tooltip Message", a("Direct", "Term App Title", "cmdline args")
 )==";
 
 #define DESKTOP_VER "v0.7.6"

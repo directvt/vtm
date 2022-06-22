@@ -265,7 +265,7 @@ namespace netxs::app::desk
                     {
                         //#ifdef _WIN32
                         //    auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["CommandPrompt"]);
-                        //    //auto current_default = app::shared::objs_lookup["PowerShell"];
+                        //    //auto current_default = app::shared::objs_lookup["Powershell"];
                         //#else
                             auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["Term"]);
                         //#endif
