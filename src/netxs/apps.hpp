@@ -46,10 +46,11 @@ namespace netxs::app::shared
 
     struct menu_item
     {
-        text group;
-        text label;
-        text title;
-        text param;
+        text group; //menu_item: Application group.
+        text label; //menu_item: Menu item label.
+        text title; //menu_item: Window title.
+        text param; //menu_item: Command line.
+        text notes; //menu_item: Tooltip.
         bool fixed = true;
     };
 
@@ -1028,18 +1029,78 @@ namespace netxs::app::shared
             }
         #else
 
+            auto parse_params = [](view data)
+            {
+                struct
+                {
+                    text group;
+                    text app_name;
+                    text app_cmdline;
+                    text menu_name;
+                    text tooltip;
+                    si32 count = 0;
+                }
+                result;
+                auto envvar_data = view{};
+                auto window_title = text{};
+                auto a = data.find('=');
+                if (a != text::npos)
+                {
+                    auto b = data.begin();
+                    auto e = data.end();
+                    auto t = b + a;
+                    auto envvar_name = view{ &(*b), (size_t)(t - b) };
+                    b = t + 1;
+                    if (b != e)
+                    {
+                        envvar_data = view{ &(*b), (size_t)(e - b) };
+                        result.menu_name = utf::get_quote(envvar_data, '\"');
+                        result.tooltip = utf::get_quote(envvar_data, '\"', ", ");
+                    }
+                }
+                else return result;
+                utf::trim_front(envvar_data, ", ");
+                if (envvar_data.empty()) return result;
+                auto tag = envvar_data.front();
+                if (tag == '\"') //todo deprecated - use a("Term"...
+                {
+                    // add term
+                    result.app_cmdline = utf::get_quote(envvar_data, '\"');
+                    if (result.app_cmdline.empty()) return result;
+                    result.group = "Term"s;
+                    result.app_name = result.group;
+                    result.count = 1;
+                }
+                else if (tag == 'a')
+                {
+                    // add app
+                    envvar_data.remove_prefix(1);
+                    utf::trim_front(envvar_data, " ");
+                    if (envvar_data.empty() || envvar_data.front() != '(') return result;
+                    envvar_data.remove_prefix(1);
+                    result.group = utf::get_quote(envvar_data, '\"', ", ");
+                    if (result.group.empty()) return result;
+                    result.app_name = utf::get_quote(envvar_data, '\"', ", ");
+                    result.app_cmdline = utf::get_quote(envvar_data, '\"', ") ");
+                    result.count = 1;
+                }
+                return result;
+            };
+
             namespace fs = std::filesystem;
             auto apps = os::homepath() + MONOTTY_APPDIR;
-            auto test = std::vector<std::pair<fs::path, text>>{};
+            auto test = std::vector<std::pair<fs::directory_entry, text>>{};
             if (fs::exists(apps))
             {
                 auto data = view{ ::DirectVT };
                 auto crop = text{};
-                auto skip = data.find('\n') + 1;
+                auto skip = data.find('\007') + 1;
                 auto what = data.substr(0, skip);
                 //auto buff = std::vector<char>(1 << 20 /* 1M */);
                 for (auto const& name : fs::directory_iterator(apps))
                 {
+                    if (!(name.is_regular_file()
+                       || name.is_symlink())) continue;
                     auto file = std::ifstream(name.path(), std::ios::binary | std::ios::in);
                     file.seekg(0, std::ios::end);
                     auto size = file.tellg();
@@ -1047,18 +1108,35 @@ namespace netxs::app::shared
                     file.seekg(0, std::ios::beg);
                     file.read(buff.data(), size);
                     auto iter = std::search(buff.begin(), buff.end(), what.begin(), what.end());
-                    iter += skip;
-                    netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
-                    test.emplace_back(name.path(), crop);
-                    crop.clear();
+                    if (iter != buff.end())
+                    {
+                        iter += skip;
+                        netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
+                        test.emplace_back(name, std::move(crop));
+                    }
+                }
 
-                    auto& m = app::shared::objs_config["Term"];
-                    m.group = "Direct";
-                    m.label = "Term";
-                    m.title = "Term";
-                    //m.notes = "Tooltip message";
-                    m.param = name.path().string();
-                    menu_list["Term"];
+                std::sort(test.begin(), test.end(), [](auto& a, auto& b)
+                {
+                    return a.first.last_write_time() > b.first.last_write_time();
+                });
+                for (auto& file : test)
+                {
+                    auto profiles = utf::divide(file.second, "\n");
+                    for (auto& p : profiles)
+                    {
+                        auto r = parse_params(p);
+                        if (r.count == 1)
+                        {
+                            auto& m = app::shared::objs_config[r.app_name];
+                            m.group = r.group;
+                            m.label = r.menu_name;
+                            m.notes = r.tooltip;
+                            m.title = r.app_name;
+                            m.param = file.first.path().string() + " " + r.app_cmdline;
+                            menu_list[r.app_name];
+                        }
+                    }
                 }
             }
             if (test.empty())
@@ -1096,65 +1174,14 @@ namespace netxs::app::shared
                     auto name = utf::get_quote(v, '\"');
                     if (!name.empty())
                     {
-                        auto group = ""s;
-                        auto app_name = ""s;
-                        auto app_cmdline = ""s;
-                        auto menu_name = ""s;
-                        auto apps_count = [&](view data)
-                        {
-                            auto count = 0;
-                            auto envvar_data = view{};
-                            auto window_title = text{};
-                            auto a = data.find('=');
-                            if (a != text::npos)
-                            {
-                                auto b = data.begin();
-                                auto e = data.end();
-                                auto t = b + a;
-                                auto envvar_name = view{ &(*b), (size_t)(t - b) };
-                                b = t + 1;
-                                if (b != e)
-                                {
-                                    envvar_data = view{ &(*b), (size_t)(e - b) };
-                                    menu_name = utf::get_quote(envvar_data, '\"');
-                                    window_title   = utf::get_quote(envvar_data, '\"', ", ");
-                                }
-                            }
-                            else return count;
-                            utf::trim_front(envvar_data, ", ");
-                            if (envvar_data.empty()) return count;
-                            auto tag = envvar_data.front();
-                            if (tag == '\"') //todo deprecated - use a("Term"...
-                            {
-                                // add term
-                                app_cmdline = utf::get_quote(envvar_data, '\"');
-                                if (app_cmdline.empty()) return count;
-                                group = "Term"s;
-                                app_name = group;
-                                count = 1;
-                            }
-                            else if (tag == 'a')
-                            {
-                                // add app
-                                envvar_data.remove_prefix(1);
-                                utf::trim_front(envvar_data, " ");
-                                if (envvar_data.empty() || envvar_data.front() != '(') return count;
-                                envvar_data.remove_prefix(1);
-                                group  = utf::get_quote(envvar_data, '\"', ", ");
-                                if (group.empty()) return count;
-                                app_name = utf::get_quote(envvar_data, '\"', ", ");
-                                app_cmdline = utf::get_quote(envvar_data, '\"', ") ");
-                                count = 1;
-                            }
-                            return count;
-                        };
                         auto& m = app::shared::objs_config[name];
-                        if (apps_count(p) == 1)
+                        auto r = parse_params(p);
+                        if (r.count == 1)
                         {
-                            m.group = group;
-                            m.label = menu_name;
-                            m.title = app_name; // Use the same title as the menu label.
-                            m.param = app_cmdline;
+                            m.group = r.group;
+                            m.label = r.menu_name;
+                            m.title = r.app_name; // Use the same title as the menu label.
+                            m.param = r.app_cmdline;
                         }
                         else
                         {

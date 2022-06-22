@@ -187,11 +187,12 @@ namespace netxs::app::logs
                 .fgc().bgc();
             topic += label;
 
-            SUBMIT(tier::release, hids::events::mouse::button::dblclick::right, gear)
-            {
-                clear();
-                gear.dismiss();
-            };
+            //too dangerous
+            //SUBMIT(tier::release, hids::events::mouse::button::dblclick::right, gear)
+            //{
+            //    clear();
+            //    gear.dismiss();
+            //};
             SUBMIT(tier::anycast, events::codepoints::request, status)
             {
                 switch (status)

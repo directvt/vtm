@@ -1,8 +1,9 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = "\7\77\377" R"==(DESKTOPIO_MENU
-"App Term", "Tooltip Message", a("Direct", "App Term Title", "cmdline args")
+auto DirectVT = "\3\33\333DESKTOPIO\7"
+R"==(
+="App Term", "Tooltip Message", a("Direct", "App Term Title", "cmdline args")
 )==";
 
 #define DESKTOP_VER "v0.7.6"

@@ -1,13 +1,14 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = "\7\77\377" R"==(DESKTOPIO_MENU
-"Term", "Tooltip Message", a("Direct", "Term Title", "-r term")
-"Logs", "Tooltip Message", a("Direct", "Logs Title", "-r logs")
-"Gems", "Tooltip Message", a("Direct", "Gems Title", "-r gems")
-"Text", "Tooltip Message", a("Direct", "Text Title", "-r text")
-"Calc", "Tooltip Message", a("Direct", "Calc Title", "-r calc")
-"Test", "Tooltip Message", a("Direct", "Test Title", "-r test")
+auto DirectVT = "\3\33\333DESKTOPIO\7"
+R"==(
+="Term", "Tooltip Message", a("Direct", "Term Title", "-r term")
+="Logs", "Tooltip Message", a("Direct", "Logs Title", "-r logs")
+="Gems", "Tooltip Message", a("Direct", "Gems Title", "-r gems")
+="Text", "Tooltip Message", a("Direct", "Text Title", "-r text")
+="Calc", "Tooltip Message", a("Direct", "Calc Title", "-r calc")
+="Test", "Tooltip Message", a("Direct", "Test Title", "-r test")
 )==";
 
 #define DESKTOP_VER "v0.7.6"

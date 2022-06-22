@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.8)
 
 project ("vtm")
 project ("term")
+project ("calc")
 
 OPTION(DEMO "Demo mode" OFF)
 
@@ -29,6 +30,7 @@ endif ()
 
 add_executable (vtm  "vtm.cpp")
 add_executable (term "netxs/apps/term.cpp")
+add_executable (calc "netxs/apps/calc.cpp")
 
 if (NOT WIN32)
     install (TARGETS vtm  DESTINATION bin)
