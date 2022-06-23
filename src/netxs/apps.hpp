@@ -1130,7 +1130,7 @@ namespace netxs::app::shared
             if (fs::exists(apps))
             {
                 auto crop = text{};
-                auto skip = data.find('\007') + 1;
+                auto skip = data.find('\007') + 1; //todo magic numbers
                 auto what = data.substr(0, skip);
                 //auto buff = std::vector<char>(1 << 20 /* 1M */);
                 for (auto const& name : fs::directory_iterator(apps))

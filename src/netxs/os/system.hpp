@@ -2811,6 +2811,17 @@ namespace netxs::os
 
             #ifdef VTM_USE_CLASSICAL_WIN32_INPUT
 
+            auto xlate_bttns = [](auto bttns)
+            {
+                auto b = si32{};
+                b |= bttns & FROM_LEFT_1ST_BUTTON_PRESSED ? (1 << input::sysmouse::left  ) : 0;
+                b |= bttns & RIGHTMOST_BUTTON_PRESSED     ? (1 << input::sysmouse::right ) : 0;
+                b |= bttns & FROM_LEFT_2ND_BUTTON_PRESSED ? (1 << input::sysmouse::middle) : 0;
+                b |= bttns & FROM_LEFT_3RD_BUTTON_PRESSED ? (1 << input::sysmouse::wheel ) : 0;
+                b |= bttns & FROM_LEFT_4TH_BUTTON_PRESSED ? (1 << input::sysmouse::win   ) : 0;
+                return b;
+            };
+
             while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
             {
                 if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
@@ -2854,7 +2865,7 @@ namespace netxs::os
                                     break;
                                 case MOUSE_EVENT:
                                     yield.dtvt_mouse(0,
-                                        reply.Event.MouseEvent.dwButtonState & 0xFFFF,
+                                        xlate_bttns(reply.Event.MouseEvent.dwButtonState),
                                         os::kbstate(reply.Event.MouseEvent.dwControlKeyState),
                                         reply.Event.MouseEvent.dwEventFlags,
                                         static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls

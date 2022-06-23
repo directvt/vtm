@@ -12,7 +12,11 @@ R"==(
 #endif
 R"==(
 ="Tile", "Tiling Window Manager", h(a("Direct", "Term Title", "vtm -r term"), a("Direct", "Term Title", "vtm -r term"))
-="View", "Tooltip Message", a("View", "View: Region 1", "")
+)=="
+
+"=\"View\", \"Tooltip Message\", a(\"View\", \"\033[11:3pView: Region 1\", \"\")"
+
+R"==(
 ="Settings", "Tooltip Message", a("Settings", "Settings: Frame Rate Limit", "")
 ="Logs", "Tooltip Message", a("Direct", "Logs Title", "-r logs")
 ="Gems [DEMO]", "Tooltip Message", a("Direct", "Gems Title", "-r gems")

@@ -315,6 +315,25 @@ namespace netxs::input
                               || (buttons[leftright] && buttons[left ])
                               || (buttons[leftright] && buttons[right]);
         }
+        // sysmouse: Set buttons using bit field.
+        void set_buttons(si32 bitfield)
+        {
+            for (auto i = 0; i < numofbutton; i++)
+            {
+                buttons[i] = bitfield & (1 << i);
+            }
+        }
+        // sysmouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
+        template<class T>
+        static si32 get_buttons(T& buttons)
+        {
+            si32 bitfield = 0;
+            for (auto i = 0; i < numofbutton; i++)
+            {
+                if (buttons[i].pressed) bitfield |= 1 << i;
+            }
+            return bitfield;
+        }
     };
 
     // console: Base keybd class.
@@ -702,12 +721,7 @@ namespace netxs::input
         // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
         si32 get_buttons()
         {
-            si32 bitfield = 0;
-            for (auto i = 0; i < sysmouse::numofbutton; i++)
-            {
-                if (mouse::buttons[i].pressed) bitfield |= 1 << i;
-            }
-            return bitfield;
+            return sysmouse::get_buttons(mouse::buttons);
         }
     };
 
@@ -794,7 +808,7 @@ namespace netxs::input
         si32 countdown = 0;
         si32 push = 0; // hids: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
-        virtual void clear_clip_data()                          = 0;
+        virtual bool clear_clip_data()                          = 0;
         virtual void set_clip_data(twod const& size, view utf8) = 0;
         virtual void get_clip_data(text& out_utf8)              = 0;
 

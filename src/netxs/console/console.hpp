@@ -3380,8 +3380,9 @@ namespace netxs::console
                       not_directvt{ not_directvt }
                 { }
 
-                void clear_clip_data() override
+                bool clear_clip_data() override
                 {
+                    auto not_empty = !!clip_rawdata.size();
                     preview_size = dot_00;
                     clip_rawdata.clear();
                     owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
@@ -3389,6 +3390,7 @@ namespace netxs::console
                     {
                         clip_preview.size(preview_size);
                     }
+                    return not_empty;
                 }
                 void set_clip_data(twod const& size, view utf8) override
                 {
@@ -5215,24 +5217,16 @@ namespace netxs::console
 
                                                         auto fire = true;
 
-                                                        constexpr static int total = sysmouse::numofbutton;
-                                                        constexpr static int first = sysmouse::left;
-                                                        constexpr static int midst = sysmouse::middle;
-                                                        constexpr static int other = sysmouse::right;
-                                                        constexpr static int winbt = sysmouse::win;
-                                                        constexpr static int wheel = sysmouse::wheel;
-                                                        constexpr static int joint = sysmouse::leftright;
-
-                                                        if (ctl == 35 &&(m.buttons[first]
-                                                                      || m.buttons[midst]
-                                                                      || m.buttons[other]
-                                                                      || m.buttons[winbt]))
+                                                        if (ctl == 35 &&(m.buttons[sysmouse::left  ]
+                                                                      || m.buttons[sysmouse::middle]
+                                                                      || m.buttons[sysmouse::right ]
+                                                                      || m.buttons[sysmouse::win   ]))
                                                         {
                                                             // Moving without buttons (case when second release not fired: apple's terminal.app)
-                                                            m.buttons[first] = faux;
-                                                            m.buttons[midst] = faux;
-                                                            m.buttons[other] = faux;
-                                                            m.buttons[winbt] = faux;
+                                                            m.buttons[sysmouse::left  ] = faux;
+                                                            m.buttons[sysmouse::middle] = faux;
+                                                            m.buttons[sysmouse::right ] = faux;
+                                                            m.buttons[sysmouse::win   ] = faux;
                                                             m.update_buttons();
                                                             notify(e2::conio::mouse, m);
                                                         }
@@ -5243,27 +5237,19 @@ namespace netxs::console
                                                             notify(e2::conio::mouse, m);
                                                             m.ismoved = faux;
                                                         }
-
                                                         switch (ctl)
                                                         {
-                                                            case 0:
-                                                                m.buttons[first] = ispressed;
-                                                                break;
-                                                            case 1:
-                                                                m.buttons[midst] = ispressed;
-                                                                break;
-                                                            case 2:
-                                                                m.buttons[other] = ispressed;
-                                                                break;
-                                                            case 3:
-                                                                m.buttons[winbt] = ispressed;
+                                                            case 0: m.buttons[sysmouse::left  ] = ispressed; break;
+                                                            case 1: m.buttons[sysmouse::middle] = ispressed; break;
+                                                            case 2: m.buttons[sysmouse::right ] = ispressed; break;
+                                                            case 3: m.buttons[sysmouse::win   ] = ispressed; break;
                                                                 //if (!ispressed) // WinSrv2019 vtmouse bug workaround
                                                                 //{               //  - release any button always fires winbt release
-                                                                //	m.button[first] = ispressed;
-                                                                //	m.button[midst] = ispressed;
-                                                                //	m.button[other] = ispressed;
+                                                                //	m.button[sysmouse::left  ] = ispressed;
+                                                                //	m.button[sysmouse::middle] = ispressed;
+                                                                //	m.button[sysmouse::right ] = ispressed;
                                                                 //}
-                                                                break;
+                                                                //break;
                                                             case 64:
                                                                 m.wheeled = true;
                                                                 m.wheeldt = 1;
@@ -5361,12 +5347,7 @@ again:
                                                 auto coord = twod{ xcoor, ycoor };
                                                 auto& m = gears[id].mouse;
 
-                                                m.buttons[0] = bttns & (1 << 0); // FROM_LEFT_1ST_BUTTON_PRESSED
-                                                m.buttons[1] = bttns & (1 << 1); // RIGHTMOST_BUTTON_PRESSED
-                                                m.buttons[3] = bttns & (1 << 2); // FROM_LEFT_2ND_BUTTON_PRESSED
-                                                m.buttons[2] = bttns & (1 << 3); // FROM_LEFT_3RD_BUTTON_PRESSED
-                                                m.buttons[4] = bttns & (1 << 4); // FROM_LEFT_4TH_BUTTON_PRESSED
-
+                                                m.set_buttons(bttns);
                                                 m.mouseid = id;
                                                 m.control = sysmouse::stat::ok;
                                                 m.ismoved = m.coor(coord);
@@ -6958,7 +6939,11 @@ again:
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
             {
-                gear.clear_clip_data();
+                if (gear.clear_clip_data())
+                {
+                    bell::template expire<tier::release>();
+                    gear.dismiss();
+                }
             };
 
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
