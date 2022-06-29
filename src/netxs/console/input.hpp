@@ -1254,9 +1254,9 @@ namespace netxs::input
             auto textline = text{};
             auto ctrl = [ks = ctlstate](text f, auto e)
             {
-                auto b = ks & 0x10 ? f + ";2" // shift
-                       : ks & 0x02 || ks & 0x01 ? f + ";3" // alt
-                       : ks & 0x04 || ks & 0x08 ? f + ";5" // ctrl
+                auto b = ks & hids::SHIFT   ? f + ";2"
+                       : ks & hids::ALT     ? f + ";3"
+                       : ks & hids::ANYCTRL ? f + ";5"
                        : f;
                 return "\033[" + b + e;
             };
