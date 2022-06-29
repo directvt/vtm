@@ -282,8 +282,9 @@ namespace netxs::ansi
         static const si32 mouse_halt = mouse + 2; // .
         static const si32 winsz = 10030; // .
         static const si32 focus = 10040; // Keybd offer. ESC [ 10040 : _gear_id_ : _focus_ : _combine_focus_ : _force_group_focus_ _
-        static const si32 debug_count_out = 10050; // OSC Debug count output. ESC [ 10050 : _count_ _
-        static const si32 requestgc = 10060; // OSC request jumbo clusters. ESC [ 10060 : _token_1_ : ... : _token_n_ _
+        static const si32 debug_count_out = 10050; // Debug count output. ESC [ 10050 : _count_ _
+        static const si32 requestgc = 10060; // Request jumbo clusters. ESC [ 10060 : _token_1_ : ... : _token_n_ _
+        static const si32 fps = 10070; // .
         static const si32 final = 10080; // .
 
         static const si32 clipboard = 10100; // OSC clipboard data.
@@ -674,6 +675,12 @@ namespace netxs::ansi
                              focus, ':',
                      combine_focus, ':',
                  force_group_focus, ';');
+        }
+        // esc: DTVT-input-mode sequence (set fps).
+        esc& dtvt_fps(si32 fps)
+        {
+            return add(dtvt::fps, ':',
+                             fps, ';');
         }
         // esc: DTVT-input-mode sequence (debug count).
         esc& dtvt_debug_count(si32 count)

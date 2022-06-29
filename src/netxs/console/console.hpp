@@ -2610,6 +2610,7 @@ namespace netxs::console
             X(proceed_ns   , "rendering time"   ) \
             X(render_ns    , "stdout time"      ) \
             X(frame_size   , "frame size"       ) \
+            X(frame_rate   , "frame rate"       ) \
             X(focused      , "focus"            ) \
             X(win_size     , "win size"         ) \
             X(key_code     , "key virt"         ) \
@@ -2764,6 +2765,15 @@ namespace netxs::console
                 //		std::to_string(newsize.y);
                 //});
 
+                boss.SUBMIT_T(tier::general, e2::config::fps, memo, fps)
+                {
+                    status[prop::frame_rate].set(stress) = std::to_string(fps);
+                    boss.base::strike(); // to update debug info
+                };
+                {
+                    auto fps = e2::config::fps.param(-1);
+                    boss.SIGNAL(tier::general, e2::config::fps, fps);
+                }
                 boss.SUBMIT_T(tier::release, e2::conio::focus, memo, focusstate)
                 {
                     update(focusstate.enabled);
@@ -5025,8 +5035,7 @@ namespace netxs::console
         template<class E, class T>
         void notify(E, T& data)
         {
-            //owner->SIGNAL(tier::release, E{}, data);
-            netxs::events::enqueue(owner, [d = data](auto& boss)
+            netxs::events::enqueue(owner, [d = data](auto& boss) mutable
             {
                 boss.SIGNAL(tier::release, E{}, d);
             });
@@ -5426,6 +5435,12 @@ again:
                                                 auto ysize = take();
                                                 auto winsz = twod{ xsize,ysize };
                                                 notify(e2::conio::winsz, winsz);
+                                                break;
+                                            }
+                                            case ansi::dtvt::fps:
+                                            {
+                                                auto fps = take();
+                                                notify(e2::config::fps, fps);
                                                 break;
                                             }
                                             case ansi::dtvt::focus:
@@ -6801,6 +6816,13 @@ again:
                     //        }
                     //    };
                     //}
+                    SUBMIT_T(tier::release, e2::config::fps, token, fps)
+                    {
+                        if (fps > 0)
+                        {
+                            SIGNAL_GLOBAL(e2::config::fps, fps);
+                        }
+                    };
                     SUBMIT_T(tier::preview, hids::events::mouse::button::click::any, token, gear)
                     {
                         log("e2::form::layout::expose");

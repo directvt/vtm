@@ -6677,6 +6677,14 @@ namespace netxs::ui
                 //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
+            void frame_rate(si32 fps)
+            {
+                queue.dtvt_begin()
+                       .dtvt_fps(fps)
+                     .dtvt_close();
+                //log("dtvt: ", utf::debase(queue));
+                owner.answer(queue);
+            }
             void debug_count(si32 count)
             {
                 queue.dtvt_begin()
@@ -6851,6 +6859,13 @@ namespace netxs::ui
                 {
                     log("dtvt: debug count ", count);
                     debug_count(count);
+                };
+                owner.SUBMIT_T(tier::general, e2::config::fps, token, fps)
+                {
+                    if (fps > 0)
+                    {
+                        frame_rate(fps);
+                    }
                 };
             }
         };
