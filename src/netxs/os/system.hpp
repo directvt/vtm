@@ -3584,6 +3584,7 @@ namespace netxs::os
                 HANDLE hProcess { INVALID_FD };
                 HANDLE hThread  { INVALID_FD };
                 DWORD  Proc_id  { 0          };
+
             #else
 
                 pid_t Proc_id = 0;
@@ -3604,11 +3605,6 @@ namespace netxs::os
             std::condition_variable   writesyn{};
 
         public:
-            auto get_proc_id()
-            {
-                return Proc_id;
-            }
-
             ~pty()
             {
                 log("dtvt: dtor started");
@@ -3637,7 +3633,7 @@ namespace netxs::os
             
             operator bool () { return termlink; }
 
-            void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
+            auto start(text cmdline, twod winsz, std::function<void(view)> input_hndl
                                                , std::function<void(view)> logs_hndl
                                                , std::function<void(si32)> preclose_hndl
                                                , std::function<void(si32)> shutdown_hndl)
@@ -3799,6 +3795,8 @@ namespace netxs::os
                 stderror = std::thread([&] { logs_socket_thread(); });
 
                 writesyn.notify_one(); // Flush temp buffer.
+
+                return Proc_id;
             }
 
             void stop()

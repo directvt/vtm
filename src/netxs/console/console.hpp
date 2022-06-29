@@ -1242,7 +1242,7 @@ namespace netxs::console
                 {
                     if (auto parent_ptr = parent_shadow.lock())
                     {
-                        if (gear.focus_taken()) //todo unify, upevent::kbannul using it
+                        if (gear.focus_changed()) //todo unify, upevent::kbannul using it
                         {
                             parent_ptr->bell::expire<tier::release>();
                         }
@@ -3099,28 +3099,13 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
             
-            subs kb_subs;
-            si32 clients = 0;
+            subs kb_subs{};
+            si32 clients{};
 
         public:
-            bool focusable = true;
-
             keybd(base&&) = delete;
             keybd(base& boss) : skill{ boss }
             {
-                //todo unify
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, memo, gear)
-                {
-                    auto deed = boss.bell::protos<tier::release>();
-                    if (deed == hids::events::mouse::button::click::left.id)
-                    {
-                        // Propagate throughout nested objects by base::
-                        gear.kb_focus_taken = faux;
-                        boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                        if (gear.focus_taken()) gear.dismiss();
-                    }
-                };
-
                 // pro::keybd: Notify form::state::kbfocus when the number of clients is positive.
                 boss.SUBMIT_T(tier::release, hids::events::notify::keybd::got, memo, gear)
                 {
@@ -3168,22 +3153,54 @@ namespace netxs::console
                 //};
             };
 
+            // pro::keybd: Keybd offers promoter.
+            void active()
+            {
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, kb_subs, gear)
+                {
+                    if (!gear) return;
+                    auto deed = boss.bell::protos<tier::release>();
+                    if (deed == hids::events::mouse::button::click::left.id) //todo make it configurable (left click)
+                    {
+                        log("pro::keybd: hids::events::mouse::button::click::left ", gear.id, " boss.id ", boss.id);
+                        // Propagate throughout nested objects by base::
+                        gear.kb_focus_changed = faux;
+                        boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        gear.dismiss();
+                    }
+                    else if (deed == hids::events::mouse::button::click::right.id) //todo make it configurable (left click)
+                    {
+                        log("pro::keybd: hids::events::mouse::button::click::right ", gear.id, " boss.id ", boss.id);
+                        // Propagate throughout nested objects by base::
+                        auto state = gear.state();
+                        gear.kb_focus_changed = faux;
+                        gear.force_group_focus = true;
+                        gear.combine_focus = faux;
+                        boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        gear.state(state);
+                        gear.dismiss();
+                    }
+                };
+            }
             // pro::keybd: Subscribe on keybd offers.
             void accept(bool value)
             {
                 if (value)
                 {
+                    active();
                     boss.SUBMIT_T(tier::release, hids::events::upevent::kboffer, kb_subs, gear)
                     {
-                        if (!gear.focus_taken())
+                        if (!gear.focus_changed())
                         {
                             gear.set_kb_focus(boss.This());
                             boss.bell::expire<tier::release>();
+                            log("pro::keybd: hids::events::upevent::kboffer ", gear.id, " boss.id ", boss.id);
                         }
                     };
                     boss.SUBMIT_T(tier::release, hids::events::upevent::kbannul, kb_subs, gear)
                     {
                         gear.remove_from_kb_focus(boss.This());
+                        log("pro::keybd: hids::events::upevent::kbannul ", gear.id, " boss.id ", boss.id);
                     };
                 }
                 else
@@ -3209,11 +3226,12 @@ namespace netxs::console
 
         public:
             mouse(base&&) = delete;
-            mouse(base& boss, bool take_all_events = true) : skill{ boss },
-                omni{ take_all_events },
-                rent{ 0               },
-                full{ 0               },
-                drag{ 0               }
+            mouse(base& boss, bool take_all_events = true)
+                : skill{ boss            },
+                   omni{ take_all_events },
+                   rent{ 0               },
+                   full{ 0               },
+                   drag{ 0               }
             {
                 auto brush = boss.base::color();
                 boss.base::color(brush.link(boss.bell::id));
@@ -3321,7 +3339,6 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
-                        log("pull delta:  boss.bell::id=", boss.bell::id, " ", gear.delta.get());
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::pull::_<BUTTON>, gear);
@@ -3425,7 +3442,8 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            bool single_instance;
+            bool simple_instance;
+            bool standalone_instance;
 
         public:
             core xmap;
@@ -3435,7 +3453,8 @@ namespace netxs::console
             input(base&&) = delete;
             input(base& boss)
                 : skill{ boss },
-                  single_instance{ faux }
+                  simple_instance{ faux },
+                  standalone_instance{ faux }
             {
                 xmap.move(boss.base::coor());
                 xmap.size(boss.base::size());
@@ -3473,7 +3492,7 @@ namespace netxs::console
                         gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
                         auto& [_id, gear_ptr] = *gear_it;
                         auto& gear = *gear_ptr;
-                        gear.set_single_instance(single_instance);
+                        gear.set_simple_instance(simple_instance);
                         gear.hids::take(mousestate);
                     }
                     else
@@ -3493,7 +3512,7 @@ namespace netxs::console
                         gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
                         auto& [_id, gear_ptr] = *gear_it;
                         auto& gear = *gear_ptr;
-                        gear.set_single_instance(single_instance);
+                        gear.set_simple_instance(simple_instance);
                         gear.hids::take(keybdstate);
                     }
                     else
@@ -3513,7 +3532,7 @@ namespace netxs::console
                         gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
                         auto& [_id, gear_ptr] = *gear_it;
                         auto& gear = *gear_ptr;
-                        gear.set_single_instance(single_instance);
+                        gear.set_simple_instance(simple_instance);
                         gear.hids::take(focusstate);
                     }
                     else
@@ -3527,24 +3546,25 @@ namespace netxs::console
             }
             void check_focus()
             {
-                if (single_instance)
+                if (simple_instance)
                 {
                     auto focusstate = sysfocus{ .focusid = 0, .enabled = true };
                     boss.SIGNAL(tier::release, e2::conio::focus, focusstate);
-                    gears[focusstate.focusid]->set_single_instance(true);
+                    gears[focusstate.focusid]->set_simple_instance(true);
                 }
             }
-            void set_single_instance(bool b)
+            void set_instance_type(bool simple, bool standalone)
             {
-                single_instance = b;
+                simple_instance = simple;
+                standalone_instance = standalone;
                 for (auto& [id, gear_ptr] : gears)
                 {
-                    gear_ptr->set_single_instance(b);
+                    gear_ptr->set_simple_instance(simple);
                 }
             }
-            auto get_single_instance()
+            auto is_not_standalone_instance()
             {
-                return single_instance;
+                return !standalone_instance;
             }
             void fire(events::id_t event_id)
             {
@@ -3915,7 +3935,7 @@ namespace netxs::console
                 };
             }
         };
-   
+
         // pro: Keyboard focus highlighter.
         class focus
             : public skill
@@ -4889,12 +4909,27 @@ namespace netxs::console
             output(frame2);
             frame2.clear();
         }
-        void set_focus(id_t gear_id)
+        void set_focus(id_t gear_id, bool combine_focus, bool force_group_focus)
         {
             auto frame_header = netxs::ansi::dtvt::frame{};
             auto control_header = netxs::ansi::dtvt::control{};
             frame_header.type.set(netxs::ansi::dtvt::frame::control);
             control_header.command.set(netxs::ansi::dtvt::control::set_focus);
+            frame2.add<svga::directvt>(frame_header,
+                                     control_header,
+                                            gear_id,
+                                      combine_focus,
+                                  force_group_focus);
+            frame2.add_at<svga::directvt>(0, (si32)frame2.size());
+            output(frame2);
+            frame2.clear();
+        }
+        void off_focus(id_t gear_id)
+        {
+            auto frame_header = netxs::ansi::dtvt::frame{};
+            auto control_header = netxs::ansi::dtvt::control{};
+            frame_header.type.set(netxs::ansi::dtvt::frame::control);
+            control_header.command.set(netxs::ansi::dtvt::control::off_focus);
             frame2.add<svga::directvt>(frame_header,
                                      control_header,
                                             gear_id);
@@ -5400,6 +5435,8 @@ again:
                                                 auto& f = gears[id].focus;
                                                 f.focusid = id;
                                                 f.enabled = take();
+                                                f.combine_focus = take();
+                                                f.force_group_focus = take();
                                                 notify(e2::conio::focus, f);
                                                 break;
                                             }
@@ -6226,6 +6263,8 @@ again:
         bool debug_overlay; // conf: Enable to show debug overlay.
         text debug_toggle; // conf: Debug toggle shortcut.
         bool show_regions; // conf: Highlight region ownership.
+        bool simple; // conf: Isn't it a directvt app.
+        bool is_standalone_app; // conf: .
 
         conf()            = default;
         conf(conf const&) = default;
@@ -6244,6 +6283,8 @@ again:
             debug_overlay     = faux;
             debug_toggle      = "🐞";
             show_regions      = faux;
+            simple            = !(legacy_mode & os::legacy::direct);
+            is_standalone_app = true;
         }
         conf(xipc peer, si32 session_id)
             : session_id{ session_id }
@@ -6278,6 +6319,8 @@ again:
             debug_overlay     = faux;
             debug_toggle      = "🐞";
             show_regions      = faux;
+            simple            = faux;
+            is_standalone_app = faux;
         }
 
         friend auto& operator << (std::ostream& s, conf const& c)
@@ -6440,11 +6483,10 @@ again:
             return item;
         }
         // Main loop.
-        void launch(xipc media /*session socket*/, conf const& client_props, sptr deskmenu, sptr bkground = {})
+        void launch(xipc media, sptr deskmenu, sptr bkground = {})
         {
             auto lock = events::unique_lock();
 
-                props = client_props;
                 legacy |= props.legacy_mode;
 
                 auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
@@ -6474,7 +6516,7 @@ again:
                     {
                         auto& canvas = cache.canvas;
                         canvas.wipe(world.bell::id);
-                        if (input.get_single_instance() == faux)
+                        if (input.is_not_standalone_instance())
                         {
                             if (background) // Render active wallpaper.
                             {
@@ -6650,9 +6692,9 @@ again:
                     auto& gear = *gear_ptr;
                     auto state = gear.state();
                     gear.force_group_focus = true;
-                    gear.kb_focus_taken = faux;
+                    gear.kb_focus_changed = faux;
                     if (deskmenu) deskmenu->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                    if (gear.focus_taken()) gear.dismiss();
+                    if (gear.focus_changed()) gear.dismiss();
                     gear.state(state);
                 };
                 SUBMIT_T(tier::release, hids::events::notify::focus::lost, token, from_gear)
@@ -6660,7 +6702,7 @@ again:
                     auto myid = from_gear.id;
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                     auto& gear = *gear_ptr;
-                    gear.kb_focus_taken = faux;
+                    gear.kb_focus_changed = faux;
                     if (deskmenu) deskmenu->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
                 };
 
@@ -6696,6 +6738,28 @@ again:
                         log("gate: timeout: no clipboard data reply");
                     }
                 };
+
+                if (deskmenu)
+                {
+                    attach(deskmenu); // Our size could be changed here during attaching.
+                    deskmenu->SUBMIT_T(tier::preview, hids::events::mouse::button::tplclick::leftright, token, gear)
+                    {
+                        if (debug)
+                        {
+                            props.show_regions = true;
+                            debug.stop();
+                        }
+                        else
+                        {
+                            if (props.show_regions) props.show_regions = faux;
+                            else                    debug.start();
+                        }
+                    };
+                }
+                if (bkground)
+                {
+                    ground(bkground);
+                }
 
                 auto forward_event = [&](hids& gear)
                 {
@@ -6747,60 +6811,41 @@ again:
                         log("e2::form::maximize");
                         forward_event(gear);
                     };
-                    SUBMIT_T(tier::release, hids::events::focus::set, token, from_gear)
+                    SUBMIT_T(tier::release, hids::events::notify::keybd::test, token, from_gear)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                        conio.set_focus(ext_gear_id);
+                        log("gate: hids::events::notify::keybd::test ", ext_gear_id, " from_gear.kb_focus_set=", from_gear.kb_focus_set?"1":"0", " !!gear=", !!from_gear?"1":"0");
+                        from_gear.kb_focus_set ? conio.set_focus(ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus)
+                                               : conio.off_focus(ext_gear_id);
+                    };
+                    SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, from_gear)
+                    {
+                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
+                        log("gate: hids::events::notify::keybd::lost ", ext_gear_id);
+                        conio.off_focus(ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
                     {
-                        log("button::tplclick::any");
                         forward_event(gear);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::any, token, gear)
                     {
-                        log("button::dblclick::any");
                         forward_event(gear);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::click::any, token, gear)
                     {
-                        log("button::click::any");
                         forward_event(gear);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::any, token, gear)
                     {
-                        log("button::drag::start::any");
                         forward_event(gear);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, token, gear)
                     {
-                        log("button::drag::pull::any");
                         forward_event(gear);
                     };
                 }
                 else input.check_focus();
-
-                if (deskmenu)
-                {
-                    attach(deskmenu); // Our size could be changed here during attaching.
-                    deskmenu->SUBMIT_T(tier::preview, hids::events::mouse::button::tplclick::leftright, token, gear)
-                    {
-                        if (debug)
-                        {
-                            props.show_regions = true;
-                            debug.stop();
-                        }
-                        else
-                        {
-                            if (props.show_regions) props.show_regions = faux;
-                            else                    debug.start();
-                        }
-                    };
-                }
-                if (bkground)
-                {
-                    ground(bkground);
-                }
 
                 SIGNAL(tier::anycast, e2::form::upon::started, This());
 
@@ -6816,13 +6861,14 @@ again:
         }
 
     protected:
-        gate(host& world, bool is_standalone_app = faux)
+        gate(host& world, conf const& client_props)//, bool is_standalone_app = faux)
             : world{ world }
         {
+            props = client_props;
             //todo unify
             title.live = faux;
-            input.set_single_instance(is_standalone_app);
-            if (!is_standalone_app)
+            input.set_instance_type(props.simple, props.is_standalone_app);
+            if (!props.is_standalone_app)
             {
                 mouse.draggable<sysmouse::leftright>(true);
                 mouse.draggable<sysmouse::left>(true);

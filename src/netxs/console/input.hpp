@@ -51,6 +51,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( got , input::hids ),
                     EVENT_XS( lost, input::hids ),
+                    EVENT_XS( test, input::hids ),
                 };
                 SUBSET_XS( focus )
                 {
@@ -318,7 +319,11 @@ namespace netxs::input
         // sysmouse: Set buttons using bit field.
         void set_buttons(si32 bitfield)
         {
-            for (auto i = 0; i < numofbutton; i++)
+            for (auto i = 0; i < leftright; i++) // Skip LeftRight. LeftRight is set by sysmouse::update_buttons().
+            {
+                buttons[i] = bitfield & (1 << i);
+            }
+            for (auto i = leftright + 1; i < numofbutton; i++)
             {
                 buttons[i] = bitfield & (1 << i);
             }
@@ -390,6 +395,8 @@ namespace netxs::input
     public:
         id_t focusid = {};
         bool enabled = {};
+        bool combine_focus = {};
+        bool force_group_focus = {};
     };
 
     // console: Mouse tracking.
@@ -549,7 +556,8 @@ namespace netxs::input
                     auto& genbtn = *genptr++;
                     auto& sysbtn = *sysptr++;
 
-                    if ((genbtn.flipped = genbtn.pressed(sysbtn)))
+                    genbtn.flipped = genbtn.pressed(sysbtn);
+                    if (genbtn.flipped)
                     {
                         flipped_list.push_back(i);
                     }
@@ -782,6 +790,7 @@ namespace netxs::input
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
         static constexpr auto keybd_take    = events::notify::keybd::got  .id;
         static constexpr auto keybd_lost    = events::notify::keybd::lost .id;
+        static constexpr auto keybd_test    = events::notify::keybd::test .id;
         static constexpr auto focus_take    = events::notify::focus::got  .id;
         static constexpr auto focus_lost    = events::notify::focus::lost .id;
         static constexpr auto kboffer_event = events::upevent::kboffer    .id;
@@ -801,10 +810,11 @@ namespace netxs::input
 
         //todo unify
         bool disabled = faux;
-        bool single_instance = faux;
-        bool kb_focus_taken = faux;
+        bool simple_instance = faux;
+        bool kb_focus_changed = faux;
         bool force_group_focus = faux;
         bool combine_focus = faux;
+        bool kb_focus_set = faux;
         si32 countdown = 0;
         si32 push = 0; // hids: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
@@ -904,7 +914,7 @@ namespace netxs::input
         auto state()
         {
             return std::tuple{ force_group_focus, 
-                                  kb_focus_taken,
+                                kb_focus_changed,
                                    combine_focus,
                                        countdown };
         }
@@ -912,7 +922,7 @@ namespace netxs::input
         void state(T const& s)
         {
             force_group_focus = std::get<0>(s);
-            kb_focus_taken    = std::get<1>(s);
+            kb_focus_changed  = std::get<1>(s);
             combine_focus     = std::get<2>(s);
             countdown         = std::get<3>(s);
         }
@@ -970,8 +980,20 @@ namespace netxs::input
         }
         void take(sysfocus const& f)
         {
-            if (f.enabled) owner.bell::template signal<tier::release>(focus_take, *this);
-            else           owner.bell::template signal<tier::release>(focus_lost, *this);
+            if (f.enabled)
+            {
+                auto s = state();
+                force_group_focus = f.force_group_focus;
+                combine_focus     = f.combine_focus    ;
+                owner.bell::template signal<tier::release>(kboffer_event, *this);
+                state(s);
+            }
+            else
+            {
+                //todo unify, see base::upevent handler
+                kb_focus_changed = faux;
+                owner.bell::template signal<tier::release>(kbannul_event, *this);
+            }
         }
 
         auto& area() const { return idmap.area(); }
@@ -1149,25 +1171,28 @@ namespace netxs::input
 
             if (keep) _add_kb_focus(item);
         }
-        void add_group_kb_focus_or_release_captured(sptr<bell> item)
+        auto add_group_kb_focus_or_release_captured(sptr<bell> item)
         {
             if (!remove_from_kb_focus(item))
             {
                 _add_kb_focus(item);
+                return true;
             }
+            else return faux;
         }
-        void set_single_instance(bool b = true)
+        void set_simple_instance(bool b = true)
         {
-            single_instance = b;
+            simple_instance = b;
         }
-        auto get_single_instance()
+        auto get_simple_instance()
         {
-            return single_instance;
+            return simple_instance;
         }
         void set_kb_focus(sptr<bell> item)
         {
-            kb_focus_taken = true;
-            if (!single_instance && (hids::meta(ANYCTRL) || force_group_focus))
+            kb_focus_changed = true;
+            kb_focus_set = true;
+            if (!simple_instance && (hids::meta(ANYCTRL) || force_group_focus))
             {
                 if (combine_focus)
                 {
@@ -1175,13 +1200,14 @@ namespace netxs::input
                 }
                 else
                 {
-                    add_group_kb_focus_or_release_captured(item);
+                    kb_focus_set = add_group_kb_focus_or_release_captured(item);
                 }
             }
             else
             {
                 add_single_kb_focus(item);
             }
+            item->bell::template signal<tier::release>(keybd_test, *this);
         }
         void clear_kb_focus()
         {
@@ -1197,30 +1223,30 @@ namespace netxs::input
                 //kb_focus.erase(iter);
             }
         }
-        bool focus_taken()
+        bool focus_changed()
         {
-            return kb_focus_taken;
+            return kb_focus_changed;
         }
         void pass_kb_focus(bell& inst)
         {
             clear_kb_focus();
-            kb_focus_taken = faux;
+            kb_focus_changed = faux;
             inst.bell::template signal<tier::release>(kboffer_event, *this);
         }
         void offer_kb_focus(sptr<bell> inst_ptr)
         {
             //todo signal to the owner to do a focus relay
             force_group_focus = true;
-            kb_focus_taken = faux;
+            kb_focus_changed = faux;
             inst_ptr->bell::template signal<tier::release>(kboffer_event, *this);
             force_group_focus = faux;
             owner.bell::template signal<tier::release>(focus_set, *this);
         }
         void annul_kb_focus(sptr<bell> inst_ptr)
         {
-            kb_focus_taken = faux; //todo used in base::upevent handler
+            kb_focus_changed = faux; //todo used in base::upevent handler
             inst_ptr->bell::template signal<tier::release>(kbannul_event, *this);
-            //owner.bell::template signal<tier::release>(focus_off, *this);
+            owner.bell::template signal<tier::release>(focus_off, *this);
         }
 
         auto interpret()

@@ -9,7 +9,6 @@ R"==(
 #define DESKTOP_VER "v0.7.6"
 #define MONOTTY_VER "Monotty Desktopio " DESKTOP_VER
 #define MONOTTY_MYNAME "vtm/calc"
-#define MONOTTY_FOLDER "/.config/" MONOTTY_MYNAME "/"
 #define MONOTTY_DEFAPP "Calc"
 #define MONOTTY_APPINF "Desktopio Terminal " DESKTOP_VER
 #define PROD

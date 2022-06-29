@@ -6122,16 +6122,16 @@ namespace netxs::ui
                     return;
                 #endif
 
-                //todo unify (hids)
-                auto state = gear.state();
-                gear.combine_focus = true; // Preserve all selected panes.
-                gear.offer_kb_focus(this->This());
-                gear.state(state);
-
                 auto data = text{};
                 gear.get_clip_data(data);
                 if (data.size())
                 {
+                    //todo unify (hids)
+                    auto state = gear.state();
+                    gear.combine_focus = true; // Preserve all selected panes.
+                    gear.offer_kb_focus(this->This());
+                    gear.state(state);
+
                     follow[axis::X] = true;
                     data_out(data);
                     gear.dismiss();
@@ -6670,7 +6670,9 @@ namespace netxs::ui
             {
                 queue.dtvt_begin()
                      .dtvt_focus(gear.id,
-                                   focus)
+                                 focus,
+                                 gear.combine_focus,
+                                 gear.force_group_focus)
                      .dtvt_close();
                 //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
@@ -6719,6 +6721,7 @@ namespace netxs::ui
         public:
             void replay(id_t gear_id, hint cause, twod const& coord)
             {
+                log("replay: ", cause);
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
@@ -6758,7 +6761,7 @@ namespace netxs::ui
                     gear_ptr->get_clip_data(clipdata);
                 }
             }
-            void set_focus(id_t gear_id)
+            void set_focus(id_t gear_id, bool combine_focus, bool force_group_focus)
             {
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(gear_id))
@@ -6767,9 +6770,22 @@ namespace netxs::ui
                     auto& gear = *gear_ptr;
                     //todo unify (hids)
                     auto state = gear.state();
-                    gear.combine_focus = true; // Preserve all selected panes.
-                    gear.offer_kb_focus(owner.This());
+                    gear.force_group_focus = force_group_focus;
+                    gear.combine_focus = combine_focus;
+                    gear.set_kb_focus(owner.This());
                     gear.state(state);
+                    log("dtvt: events: set_kb_focus");
+                }
+            }
+            void off_focus(id_t gear_id)
+            {
+                auto lock = events::sync{};
+                if (auto ptr = bell::getref(gear_id))
+                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                {
+                    auto& gear = *gear_ptr;
+                    gear.remove_from_kb_focus(owner.This());
+                    log("dtvt: events: remove_from_kb_focus ", gear.id);
                 }
             }
             void disable()
@@ -6792,6 +6808,7 @@ namespace netxs::ui
                     else moved = mapit->second(gear.coord);
                     auto cause = owner.bell::protos<tier::release>();
                     proceed(gear, cause, moved);
+                    owner.bell::template expire<tier::release>();
                 };
                 owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                 {
@@ -6813,10 +6830,16 @@ namespace netxs::ui
                     log("dtvt: keybd: ", gear.id);
                     keybd(gear);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::notify::keybd::got, token, gear)
+                owner.SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
                 {
-                    log("dtvt: keybd focus got ", gear.id);
+                    log("dtvt: events: hids::events::upevent::kboffer ", gear.id);
                     focus(gear, true);
+                };
+                owner.SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
+                {
+                    log("dtvt: events: hids::events::upevent::kbannul ", gear.id);
+                    gear.remove_from_kb_focus(owner.This());
+                    focus(gear, faux);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, gear)
                 {
@@ -6850,6 +6873,7 @@ namespace netxs::ui
         subs            debugs; // dtvt: Tokens for debug output subcriptions.
         std::unordered_map<ui64, text> unknown_gc_list; // dtvt: Unknown grapheme cluster list.
         os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
+        ansi::esc       prompt; // dtvt: PTY logger prompt.
 
         // dtvt: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
@@ -7075,11 +7099,23 @@ namespace netxs::ui
                             {
                                 auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
                                 data.remove_prefix(sizeof(gear_id));
-                                events.set_focus(gear_id);
+                                auto combine_focus = netxs::letoh(*reinterpret_cast<bool const*>(data.data()));
+                                data.remove_prefix(sizeof(bool));
+                                auto force_group_focus = netxs::letoh(*reinterpret_cast<bool const*>(data.data()));
+                                data.remove_prefix(sizeof(bool));
+                                events.set_focus(gear_id, combine_focus, force_group_focus);
+                                //todo revise
                                 //netxs::events::enqueue(This(), [&, gear_id](auto& boss)
                                 //{
                                 //    events.set_focus(gear_id);
                                 //});
+                                break;
+                            }
+                            case ansi::dtvt::control::off_focus:
+                            {
+                                auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
+                                data.remove_prefix(sizeof(gear_id));
+                                events.off_focus(gear_id);
                                 break;
                             }
                             case ansi::dtvt::control::form_header:
@@ -7199,7 +7235,11 @@ namespace netxs::ui
         // dtvt: Logs callback handler.
         void onlogs(view utf8)
         {
-            log("    ", ptycon.get_proc_id(), ": ", utf8, faux);
+            if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
+            utf::divide(utf8, '\n', [&](auto line)
+            {
+                log(prompt, line);
+            });
         }
         // dtvt: Logs callback handler.
         void request_debug()
@@ -7235,12 +7275,13 @@ namespace netxs::ui
                     if (unique != timer)
                     {
                         auto initsz = base::size();
-                        ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                     [&](auto log_message) { onlogs(log_message); },
-                                                     [&](auto exit_reason) { atexit(exit_reason); },
-                                                     [&](auto exit_reason) { onexit(exit_reason); } );
+                        auto procid = ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                   [&](auto log_message) { onlogs(log_message); },
+                                                                   [&](auto exit_reason) { atexit(exit_reason); },
+                                                                   [&](auto exit_reason) { onexit(exit_reason); } );
                         unique = timer;
                         oneoff.reset();
+                        prompt.add("    ", procid, ": ");
                     }
                 };
             }
@@ -7260,7 +7301,7 @@ namespace netxs::ui
         {
             marker.link(base::id);
             cmdarg = command_line;
-            form::keybd.accept(true); // Subscribe on keybd offers.
+
             //SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             //{
             //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));

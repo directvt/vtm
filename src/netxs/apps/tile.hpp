@@ -200,7 +200,7 @@ namespace netxs::app::tile
                                         gear.countdown--;
                                         // Removing multifocus - The only one can be maximized if several are selected.
                                         gear.force_group_focus = faux;
-                                        gear.kb_focus_taken = faux;
+                                        gear.kb_focus_changed = faux;
                                         boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                                         boss.template riseup<tier::release>(e2::form::maximize, gear);
                                         //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
@@ -306,10 +306,12 @@ namespace netxs::app::tile
                                 // Pass unique focus.
                                 auto& object = *what.object;
                                 //todo unify
-                                gear.kb_focus_taken = faux;
+                                gear.kb_focus_changed = faux;
                                 gear.force_group_focus = faux;
                                 gear.combine_focus = true;
                                 object.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                gear.combine_focus = faux;
+                                gear.force_group_focus = faux;
 
                                 // Destroy placeholder.
                                 master.base::template riseup<tier::release>(e2::form::quit, master_ptr);
@@ -424,6 +426,10 @@ namespace netxs::app::tile
                 ->invoke([&](auto& boss)
                 {
                     auto shadow = ptr::shadow(boss.This());
+                    boss.SUBMIT(tier::release, e2::config::plugins::sizer::alive, state)
+                    {
+                        // Block rising up this event: DTVT object fires this event on exit.
+                    };
                     boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::abort, target)
                     {
                         auto count = boss.count();
@@ -524,7 +530,7 @@ namespace netxs::app::tile
                         {
                             //todo unify
                             gear.force_group_focus = true;
-                            gear.kb_focus_taken = faux;
+                            gear.kb_focus_changed = faux;
                             gear.combine_focus = true;
                             item.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                             gear.combine_focus = faux;
@@ -558,7 +564,7 @@ namespace netxs::app::tile
                                     // Pass the focus to the maximized window.
                                     //todo unify
                                     gear.force_group_focus = faux;
-                                    gear.kb_focus_taken = faux;
+                                    gear.kb_focus_changed = faux;
                                     gear.combine_focus = true;
                                     boss.back()->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                                     gear.combine_focus = faux;
@@ -716,7 +722,7 @@ namespace netxs::app::tile
                                 app->SIGNAL(tier::anycast, e2::form::upon::started, app);
 
                                 //todo unify
-                                gear.kb_focus_taken = faux;
+                                gear.kb_focus_changed = faux;
                                 host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                             }
                         }
@@ -986,7 +992,7 @@ namespace netxs::app::tile
                     ->plugin<pro::acryl>()
                     ->invoke([](auto& boss)
                     {
-                        boss.keybd.accept(true);
+                        boss.keybd.active();
                         boss.SUBMIT(tier::anycast, e2::form::quit, item)
                         {
                             boss.base::riseup<tier::release>(e2::form::quit, item);
@@ -1085,6 +1091,12 @@ namespace netxs::app::tile
                                 }
                             }
                         }
+                    };
+                    boss.SUBMIT(tier::release, hids::events::upevent::kboffer, gear)
+                    {
+                        // Set focus to all panes.
+                        boss.SIGNAL(tier::anycast, app::tile::events::ui::select, gear);
+                        gear.dismiss(true);
                     };
                 });
             return object;

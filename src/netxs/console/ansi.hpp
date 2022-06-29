@@ -281,10 +281,10 @@ namespace netxs::ansi
         static const si32 mouse_stop = mouse + 1; // .
         static const si32 mouse_halt = mouse + 2; // .
         static const si32 winsz = 10030; // .
-        static const si32 focus = 10040; // Focus notification. ESC [ 10040 : _gear_id_ : 0/1 _
+        static const si32 focus = 10040; // Keybd offer. ESC [ 10040 : _gear_id_ : _focus_ : _combine_focus_ : _force_group_focus_ _
         static const si32 debug_count_out = 10050; // OSC Debug count output. ESC [ 10050 : _count_ _
         static const si32 requestgc = 10060; // OSC request jumbo clusters. ESC [ 10060 : _token_1_ : ... : _token_n_ _
-        static const si32 final = 10070; // .
+        static const si32 final = 10080; // .
 
         static const si32 clipboard = 10100; // OSC clipboard data.
         static const si32 debug_out = 10110; // OSC Debug output. ESC ] 10110 : _data-len_ : _base64-data_ _
@@ -345,6 +345,7 @@ namespace netxs::ansi
                 form_footer,   // .
                 mouse_events,  // .
                 set_focus,     // request to set focus
+                off_focus,     // request to remove focus
                 expose,        // bring the form to the front
                 request_debug, // request debug output redirection to stdin
                 request_debug_count,
@@ -665,12 +666,14 @@ namespace netxs::ansi
         // esc: DTVT-input-mode sequences.
         esc& dtvt_mouse_stop(si32 id) { return add(dtvt::mouse_stop, ':', id, ';'); }
         esc& dtvt_mouse_halt(si32 id) { return add(dtvt::mouse_halt, ':', id, ';'); }
-        // esc: DTVT-input-mode sequence (focus).
-        esc& dtvt_focus(si32 id, si32 focus)
+        // esc: DTVT-input-mode sequence (keybd focus).
+        esc& dtvt_focus(si32 id, si32 focus, si32 combine_focus = 0, si32 force_group_focus = 0)
         {
             return add(dtvt::focus, ':',
                                 id, ':',
-                             focus, ';');
+                             focus, ':',
+                     combine_focus, ':',
+                 force_group_focus, ';');
         }
         // esc: DTVT-input-mode sequence (debug count).
         esc& dtvt_debug_count(si32 count)

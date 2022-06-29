@@ -30,8 +30,6 @@ R"==(
 #define MONOTTY_VER "Monotty Desktopio " DESKTOP_VER
 #define MONOTTY_PREFIX "monotty_"
 #define MONOTTY_MYNAME "vtm"
-#define MONOTTY_FOLDER "/.config/" MONOTTY_MYNAME "/"
-#define MONOTTY_APPDIR "/.config/" MONOTTY_MYNAME "/apps"
 #define MONOTTY_DEFAPP "Term"
 #define MONOTTY_APPINF "Desktopio Terminal " DESKTOP_VER
 
@@ -45,7 +43,6 @@ R"==(
 //#define KEYLOG
 
 #include "netxs/apps.hpp"
-#include <fstream> // Get current config from vtm.conf.
 
 using namespace netxs;
 using namespace netxs::console;
@@ -197,12 +194,12 @@ int main(int argc, char* argv[])
                 config.background_color = app::shared::background_color; //todo unify
                 log("user: incoming connection:", config);
 
-                if (auto window = ground->invite<gate>())
+                if (auto window = ground->invite<gate>(config))
                 {
                     log("user: new gate for ", client);
                     auto deskmenu = app::shared::creator("Desk")(utf::concat(window->id, ";", config.os_user_id));
                     auto bkground = app::shared::creator("Fone")("Gems;Demo;");
-                    window->launch(client, config, deskmenu, bkground);
+                    window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }
             });

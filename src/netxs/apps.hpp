@@ -4,6 +4,9 @@
 #ifndef NETXS_APPS_HPP
 #define NETXS_APPS_HPP
 
+#define MONOTTY_FOLDER "/.config/vtm/"
+#define MONOTTY_APPDIR "/.config/vtm/apps"
+
 #ifndef PROD
     #define APPS_MAX_COUNT 20
 #endif
@@ -345,7 +348,8 @@ namespace netxs::app::shared
             ->template plugin<pro::align>()
             ->invoke([&](auto& boss)
             {
-                boss.kind(base::reflow_root); //todo unify -- See base::reflow()
+                boss.keybd.active();
+                boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
                 auto shadow = ptr::shadow(boss.This());
                 boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
                 {
@@ -456,10 +460,10 @@ namespace netxs::app::shared
         auto runapp = [&]()
         {
             auto applet = app::shared::creator(app_name)(direct ? "" : "!"); // ! - means simple (w/o plugins)
-            auto window = ground->invite<gate>(true);
+            auto window = ground->invite<gate>(config);
             if (!direct) applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
             window->resize(size);
-            window->launch(tunnel.first, config, applet);
+            window->launch(tunnel.first, applet);
             window.reset();
             applet.reset();
             ground->shutdown();
@@ -484,6 +488,8 @@ namespace netxs::app::shared
 #include "apps/logs.hpp"
 #include "apps/test.hpp"
 #include "apps/desk.hpp"
+
+#include <fstream>
 
 namespace netxs::app::shared
 {
@@ -1278,7 +1284,7 @@ namespace netxs::app::shared
                         log("inst: detached: ", insts_count);
                     };
 
-                    gear.kb_focus_taken = faux;
+                    gear.kb_focus_changed = faux;
                     frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                     frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                 }

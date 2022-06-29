@@ -1167,6 +1167,19 @@ namespace netxs::utf
         }
     }
 
+    template<class V1, class P>
+    auto divide(V1 const& utf8, char delimiter, P proc)
+    {
+        auto cur = 0_sz;
+        auto pos = 0_sz;
+        while ((pos = utf8.find(delimiter, cur)) != V1::npos)
+        {
+            proc(view{ utf8.data() + cur, pos - cur });
+            cur = pos + 1;
+        }
+        auto end = view{ utf8.data() + cur, utf8.size() - cur };
+        proc(end);
+    }
     template<class V1, class V2>
     auto divide(V1 const& utf8, V2 const& delimiter)
     {
