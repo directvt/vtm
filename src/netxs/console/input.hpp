@@ -929,14 +929,27 @@ namespace netxs::input
 
         enum modifiers : ui32
         {
-            SHIFT   = 1 << 2,
-            ALT     = 1 << 3,
-            CTRL    = 1 << 4,
-            RCTRL   = 1 << 5,
-            ANYCTRL = CTRL | RCTRL,
+            LShift   = 1 <<  0, // ⇧ Shift, Left  Shift
+            RShift   = 1 <<  1, //          Right Shift
+            LAlt     = 1 <<  2, // ⎇ Alt, ⌥ Option,   Left  Alt
+            RAlt     = 1 <<  3, // ⇮ AltGr, Alt Graph, Right Alt
+            LCtrl    = 1 <<  4, // ⌃ Ctrl, Left  Ctrl
+            RCtrl    = 1 <<  5, //         Right Ctrl
+            Meta     = 1 <<  6, // ◆ Meta, ⊞ Win, ⌘ Cmd (Apple key), ❖ Super
+            Fn       = 1 <<  7, //
+            CapsLock = 1 <<  8, // ⇪ Caps Lock
+            NumLock  = 1 <<  9, // ⇭ Num Lock
+            ScrlLock = 1 << 10, // ⇳ Scroll Lock (⤓) 
+            anyCtrl  = LCtrl  | RCtrl,
+            anyAlt   = LAlt   | RAlt,
+            anyShift = LShift | RShift,
         };
 
         auto meta(ui32 ctl_key = -1) { return hids::ctlstate & ctl_key; }
+        auto kbmod()
+        {
+            return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift);
+        }
 
         hids(bell& owner, xmap const& idmap)
             : relay{ 0     },
@@ -1192,7 +1205,7 @@ namespace netxs::input
         {
             kb_focus_changed = true;
             kb_focus_set = true;
-            if (!simple_instance && (hids::meta(ANYCTRL) || force_group_focus))
+            if (!simple_instance && (hids::meta(anyCtrl) || force_group_focus))
             {
                 if (combine_focus)
                 {
@@ -1254,9 +1267,9 @@ namespace netxs::input
             auto textline = text{};
             auto ctrl = [ks = ctlstate](text f, auto e)
             {
-                auto b = ks & hids::SHIFT   ? f + ";2"
-                       : ks & hids::ALT     ? f + ";3"
-                       : ks & hids::ANYCTRL ? f + ";5"
+                auto b = ks & hids::anyShift ? f + ";2"
+                       : ks & hids::anyAlt   ? f + ";3"
+                       : ks & hids::anyCtrl  ? f + ";5"
                        : f;
                 return "\033[" + b + e;
             };

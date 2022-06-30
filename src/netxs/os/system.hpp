@@ -122,20 +122,29 @@ namespace netxs::os
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
 
-        template<class T>
-        auto kbstate(T ctrls)
+        template<class T1, class T2 = si32>
+        auto kbstate(T1 ctrls, T2 scancode = {})
         {
-            bool k_ralt  = ctrls & 0x1;
-            bool k_alt   = ctrls & 0x2;
-            bool k_rctrl = ctrls & 0x4;
-            bool k_ctrl  = ctrls & 0x8;
-            bool k_shift = ctrls & 0x10;
-            auto ctlstat = (k_shift ? input::hids::SHIFT : 0)
-                         + (k_alt   ? input::hids::ALT   : 0)
-                         + (k_ralt  ? input::hids::ALT   : 0)
-                         + (k_rctrl ? input::hids::RCTRL : 0)
-                         + (k_ctrl  ? input::hids::CTRL  : 0);
-            return ctlstat;
+            bool ralt   = ctrls & RIGHT_ALT_PRESSED;
+            bool lalt   = ctrls & LEFT_ALT_PRESSED;
+            bool rctrl  = ctrls & RIGHT_CTRL_PRESSED;
+            bool lctrl  = ctrls & LEFT_CTRL_PRESSED;
+            bool lshift = ctrls & SHIFT_PRESSED && scancode == 0x2a;
+            bool rshift = ctrls & SHIFT_PRESSED && scancode == 0x36;
+            bool nums   = ctrls & NUMLOCK_ON;
+            bool scrl   = ctrls & SCROLLLOCK_ON;
+            bool caps   = ctrls & CAPSLOCK_ON;
+            auto state  = si32{};
+            if (lshift) state |= input::hids::LShift;
+            if (rshift) state |= input::hids::RShift;
+            if (lalt  ) state |= input::hids::LAlt;
+            if (ralt  ) state |= input::hids::RAlt;
+            if (lctrl ) state |= input::hids::LCtrl;
+            if (rctrl ) state |= input::hids::RCtrl;
+            if (nums  ) state |= input::hids::NumLock;
+            if (caps  ) state |= input::hids::CapsLock;
+            if (scrl  ) state |= input::hids::ScrlLock;
+            return state;
         }
 
         //static constexpr char* security_descriptor_string =
@@ -2859,7 +2868,7 @@ namespace netxs::os
                                         reply.Event.KeyEvent.wVirtualKeyCode,
                                         reply.Event.KeyEvent.wVirtualScanCode,
                                         reply.Event.KeyEvent.bKeyDown,
-                                        os::kbstate(reply.Event.KeyEvent.dwControlKeyState),
+                                        os::kbstate(reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode),
                                         reply.Event.KeyEvent.wRepeatCount,
                                         utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar));
                                     break;

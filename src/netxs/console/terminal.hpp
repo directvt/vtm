@@ -213,6 +213,13 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
+                    owner.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, token, gear)
+                    {
+                        if (owner.selmod == xsgr::disabled)
+                        {
+                            gear.dismiss();
+                        }
+                    };
                     owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                     {
                         if (owner.selmod != xsgr::disabled)
@@ -273,8 +280,10 @@ namespace netxs::ui
             template<prot PROT>
             void proceed(hids& gear, si32 meta, bool ispressed = faux)
             {
-                meta |= gear.meta(hids::SHIFT | hids::ALT | hids::CTRL);
-                meta |= gear.meta(hids::RCTRL) ? hids::CTRL : 0;
+                auto m = gear.meta();
+                if (m & hids::anyShift) meta |= 0x04;
+                if (m & hids::anyAlt  ) meta |= 0x08;
+                if (m & hids::anyCtrl ) meta |= 0x10;
                 switch (PROT)
                 {
                     case prot::x11: queue.mouse_x11(meta, coord);            break;
@@ -6110,7 +6119,7 @@ namespace netxs::ui
                     gear.set_clip_data(target->panel, data);
                     gear.state(state);
                 }
-                if (gear.meta(hids::ANYCTRL) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
+                if (gear.meta(hids::anyCtrl) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
                 {
                     base::expire<tier::release>();
                     gear.dismiss();
@@ -6141,7 +6150,7 @@ namespace netxs::ui
         void selection_lclick(hids& gear)
         {
             auto& console = *target;
-            auto go_on = gear.meta(hids::ANYCTRL);
+            auto go_on = gear.meta(hids::anyCtrl);
             if (go_on && console.selection_active())
             {
                 console.selection_follow(gear.coord, go_on);
@@ -6168,8 +6177,8 @@ namespace netxs::ui
         void selection_create(hids& gear)
         {
             auto& console = *target;
-            auto boxed = gear.meta(hids::ALT);
-            auto go_on = gear.meta(hids::ANYCTRL);
+            auto boxed = gear.meta(hids::anyAlt);
+            auto go_on = gear.meta(hids::anyCtrl);
             console.selection_follow(gear.coord, go_on);
             if (go_on) console.selection_extend(gear.coord, boxed);
             else       console.selection_create(gear.coord, boxed);
@@ -6196,7 +6205,7 @@ namespace netxs::ui
         {
             // Check bounds and scroll if needed.
             auto& console = *target;
-            auto boxed = gear.meta(hids::ALT);
+            auto boxed = gear.meta(hids::anyAlt);
             auto coord = gear.coord;
             auto vport = rect{ -origin, target->panel };
             auto delta = dot_00;
@@ -6502,7 +6511,7 @@ namespace netxs::ui
 
                 #ifdef KEYLOG
                     auto d = std::stringstream{};
-                    auto v = view{ gear.keystrokes };
+                    auto v = view{ data };
                     log("key strokes raw: ", utf::debase(v));
                     while (v.size())
                     {
@@ -7359,14 +7368,14 @@ namespace netxs::ui
 
                 #ifdef KEYLOG
                     auto d = std::stringstream{};
-                    auto v = view{ gear.keystrokes };
-                    log("key strokes raw: ", utf::debase(v));
+                    auto v = view{ gear.cluster };
+                    log("dtvt: key strokes raw: ", utf::debase(v));
                     while (v.size())
                     {
                         d << (int)v.front() << " ";
                         v.remove_prefix(1);
                     }
-                    log("key strokes bin: ", d.str());
+                    log("dtvt: key strokes bin: ", d.str());
                 #endif
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)

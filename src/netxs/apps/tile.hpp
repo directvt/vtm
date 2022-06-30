@@ -672,7 +672,7 @@ namespace netxs::app::tile
                         static auto insts_count = 0;
                         if (boss.count() == 1) // Create new apps at the empty slots only.
                         {
-                            if (gear.meta(hids::ANYCTRL))
+                            if (gear.meta(hids::anyCtrl))
                             {
                                 //todo ...
                             }

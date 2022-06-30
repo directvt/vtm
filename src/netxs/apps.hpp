@@ -1231,7 +1231,7 @@ namespace netxs::app::shared
             static si32 insts_count = 0;
             auto& gate = gear.owner;
             auto location = gear.slot;
-            if (gear.meta(hids::ANYCTRL))
+            if (gear.meta(hids::anyCtrl))
             {
                 log("host: area copied to clipboard ", location);
                 sptr<core> canvas_ptr;

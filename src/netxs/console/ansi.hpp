@@ -256,8 +256,6 @@ namespace netxs::ansi
     static const si32 CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
     static const si32 CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
     static const si32 CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
-    //todo deprecate - reason: no gear.id
-    static const si32 CCC_KBD    = 27 ; // CSI 27: n       p  - Set keyboard modifiers.
     
     static const si32 CCC_SGR    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
     static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
@@ -1334,8 +1332,6 @@ namespace netxs::ansi
                     csi_ccc[CCC_SBS] = nullptr;
                     csi_ccc[CCC_EXT] = nullptr;
                     csi_ccc[CCC_SMS] = nullptr;
-                    csi_ccc[CCC_KBD] = nullptr;
-
                     csi_ccc[CCC_SGR] = nullptr;
                     csi_ccc[CCC_SEL] = nullptr;
                     csi_ccc[CCC_PAD] = nullptr;

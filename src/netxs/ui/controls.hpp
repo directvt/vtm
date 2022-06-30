@@ -1399,7 +1399,7 @@ namespace netxs::ui
             {
                 auto dt = gear.whldt > 0;
                 auto hz = permit == xy(axes::X_ONLY)
-                      || (permit == xy(axes::ALL) && gear.meta(hids::ANYCTRL | hids::SHIFT));
+                      || (permit == xy(axes::ALL) && gear.meta(hids::anyCtrl | hids::anyShift));
                 if (hz) wheels<X>(dt);
                 else    wheels<Y>(dt);
                 gear.dismiss();

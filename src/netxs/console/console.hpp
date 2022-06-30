@@ -2080,7 +2080,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::upon::dragged, memo, gear)
                 {
-                    if (gear.meta(hids::ANYCTRL))
+                    if (gear.meta(hids::anyCtrl))
                     {
                         robo.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
                         {
@@ -2228,7 +2228,7 @@ namespace netxs::console
             void check_modifiers(hids& gear)
             {
                 auto& data = slots[gear.id];
-                auto state = !!gear.meta(hids::ANYCTRL);
+                auto state = !!gear.meta(hids::anyCtrl);
                 if (data.ctrl != state)
                 {
                     data.ctrl = state;
@@ -2244,7 +2244,7 @@ namespace netxs::console
                     auto& init = data.init;
                     auto& step = data.step;
 
-                    data.ctrl = gear.meta(hids::ANYCTRL);
+                    data.ctrl = gear.meta(hids::anyCtrl);
                     slot.coor = init = step = gear.coord;
                     slot.size = dot_00;
                     boss.deface(slot);
@@ -2830,7 +2830,7 @@ namespace netxs::console
                     auto& k = gear;
 
                     #ifdef KEYLOG
-                        log("debug fired ", utf::to_utf(&k.character, 1));
+                        log("debug fired ", utf::debase(k.cluster));
                     #endif
 
                     status[prop::last_event   ].set(stress) = "keybd";
@@ -3145,8 +3145,8 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::preview, hids::events::keybd::any, memo, gear)
                 {
                     #ifdef KEYLOG
-                    log("keybd fired virtcode: ", gear.virtcode,
-                                      " chars: ", utf::debase(gear.keystrokes),
+                    log("keybd fired virtcode: ", gear.virtcod,
+                                      " chars: ", utf::debase(gear.cluster),
                                        " meta: ", gear.meta());
                     #endif
 
@@ -3166,7 +3166,7 @@ namespace netxs::console
             // pro::keybd: Keybd offers promoter.
             void active()
             {
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, kb_subs, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::any, kb_subs, gear)
                 {
                     if (!gear) return;
                     auto deed = boss.bell::protos<tier::release>();
@@ -4124,7 +4124,7 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::left, memo, gear)
                 {
                     if (boss.size().inside(gear.coord)
-                    && !gear.meta())
+                    && !gear.kbmod())
                     {
                         drags = true;
                         coord = gear.coord;
@@ -4134,22 +4134,22 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::left, memo, gear)
                 {
                     if (!drags) return;
-                    if (gear.meta()) proceed(faux);
-                    else             coord = gear.coord - gear.delta.get();
+                    if (gear.kbmod()) proceed(faux);
+                    else              coord = gear.coord - gear.delta.get();
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::left, memo, gear)
                 {
                     if (!drags) return;
-                    if (gear.meta()) proceed(faux);
-                    else             proceed(true);
+                    if (gear.kbmod()) proceed(faux);
+                    else              proceed(true);
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::left, memo, gear)
                 {
                     if (!drags) return;
                     //todo revise (panoramic scrolling with left + right)
                     //proceed(faux);
-                    if (gear.meta()) proceed(faux);
-                    else             proceed(true);
+                    if (gear.kbmod()) proceed(faux);
+                    else              proceed(true);
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
@@ -5238,20 +5238,14 @@ namespace netxs::console
                                                         auto id = 0;
                                                         auto& m = gears[id].mouse;
 
-                                                        // ks & 0x10 ? f + ";2" // shift
-                                                        // ks & 0x02 || ks & 0x01 ? f + ";3" // alt
-                                                        // ks & 0x04 || ks & 0x08 ? f + ";5" // ctrl
                                                         // 00000 000
                                                         //   ||| |||
                                                         //   ||| |------ btn state
                                                         //   |---------- ctl state
-                                                        bool k_shift = ctl & 0x4;
-                                                        bool k_alt   = ctl & 0x8;
-                                                        bool k_ctrl  = ctl & 0x10;
-                                                        m.ctlstat = (k_shift ? hids::SHIFT : 0)
-                                                                  + (k_alt   ? hids::ALT   : 0)
-                                                                  + (k_ctrl  ? hids::CTRL  : 0);
-                                                        //if (m.ctlstat) log(" m.ctlstat =", m.ctlstat);
+                                                        m.ctlstat = {};
+                                                        if (ctl & 0x04) m.ctlstat |= hids::LShift;
+                                                        if (ctl & 0x08) m.ctlstat |= hids::LAlt;
+                                                        if (ctl & 0x10) m.ctlstat |= hids::LCtrl;
                                                         ctl = ctl & ~0b00011100;
 
                                                         m.mouseid = id;
@@ -5541,33 +5535,6 @@ again:
                                     pos += 5 /* 26:1p */;
                                     auto pointer = tmp.at(1) == '1';
                                     notify(e2::conio::pointer, pointer);
-                                }
-                                else if (event_id == ansi::CCC_KBD && l > 2
-                                    && tmp.at(0) == ':')
-                                {
-                                    tmp.remove_prefix(1); // pop ':'
-                                    if (auto v = utf::to_int(tmp))
-                                    {
-                                        if (tmp.size() && tmp.at(0) == 'p')
-                                        {
-                                            tmp.remove_prefix(1); // pop 'p'
-                                            pos += l - tmp.size();
-                                            auto ctrls = v.value();
-                                                bool k_ralt  = ctrls & 0x1;
-                                                bool k_alt   = ctrls & 0x2;
-                                                bool k_rctrl = ctrls & 0x4;
-                                                bool k_ctrl  = ctrls & 0x8;
-                                                bool k_shift = ctrls & 0x10;
-                                                auto id = 0;
-                                                auto& k = gears[id].keybd;
-                                                k.keybdid = id;
-                                                k.ctlstat = (k_shift ? hids::SHIFT : 0)
-                                                          + (k_alt   ? hids::ALT   : 0)
-                                                          + (k_ralt  ? hids::ALT   : 0)
-                                                          + (k_rctrl ? hids::RCTRL : 0)
-                                                          + (k_ctrl  ? hids::CTRL  : 0);
-                                        }
-                                    }
                                 }
                                 else
                                 {
@@ -6980,9 +6947,9 @@ again:
                 {
                     //todo unify
                     auto pgup = keystrokes == "\033[5;5~"s
-                            || (keystrokes == "\033[5~"s && gear.meta(hids::CTRL | hids::RCTRL));
+                            || (keystrokes == "\033[5~"s && gear.meta(hids::anyCtrl));
                     auto pgdn = keystrokes == "\033[6;5~"s
-                            || (keystrokes == "\033[6~"s && gear.meta(hids::CTRL | hids::RCTRL));
+                            || (keystrokes == "\033[6~"s && gear.meta(hids::anyCtrl));
                     if (pgup || pgdn)
                     {
                         auto item_ptr = e2::form::layout::goprev.param();

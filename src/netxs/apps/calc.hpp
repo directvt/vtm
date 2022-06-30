@@ -124,7 +124,7 @@ namespace netxs::console
                     auto& item = items.take(gear);
                     if (item.region.size)
                     {
-                        if (gear.meta(hids::ANYCTRL)) item.region.size = gear.coord - item.region.coor;
+                        if (gear.meta(hids::anyCtrl)) item.region.size = gear.coord - item.region.coor;
                         else                          item.region.size = dot_00;
                     }
                     recalc();
@@ -205,7 +205,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::drag::start::_<BUTTON>, memo, gear)
                 {
-                    if (items.take(gear).grab(gear.coord, gear.meta(hids::ANYCTRL)))
+                    if (items.take(gear).grab(gear.coord, gear.meta(hids::anyCtrl)))
                     {
                         gear.dismiss();
                     }
