@@ -764,7 +764,7 @@ namespace netxs::ui::atoms
                 {
                     if constexpr (VGAMODE == svga::directvt)
                     {
-                        dest.template style<VGAMODE>(token);
+                        dest.style(token);
                         base.token = token;
                     }
                     else
@@ -1054,7 +1054,7 @@ namespace netxs::ui::atoms
 
             if constexpr (VGAMODE == svga::directvt)
             {
-                dest.template gc<VGAMODE>(gc);
+                dest.gc(gc);
             }
             else
             {
@@ -1074,7 +1074,7 @@ namespace netxs::ui::atoms
                     uv.get<VGAMODE, USESGR>(base.uv, dest);
                     st.get<VGAMODE, USESGR>(base.st, dest);
                 }
-                if constexpr (VGAMODE == svga::directvt) dest.template gc<VGAMODE>(gc);
+                if constexpr (VGAMODE == svga::directvt) dest.gc(gc);
                 else                                     dest += gc.get();
                 return true;
             }

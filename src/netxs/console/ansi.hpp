@@ -325,43 +325,371 @@ namespace netxs::ansi
                 else return faux;
             }
         };
-        struct frame
+        #pragma pack(pop)
+
+        enum frame_type : byte
         {
-            enum type_t : id_t
+            bitmap,            // Canvas data.
+            mouse_event,       // Mouse events.
+            jgc_list,          // jumbo GC: gc.token + gc.view (response on terminal request)
+            form_header,       // .
+            form_footer,       // .
+            request_clipboard, // request main clipboard data
+            set_clipboard,     // set main clipboard using following data
+            set_focus,         // request to set focus
+            off_focus,         // request to remove focus
+            expose,            // bring the form to the front
+            request_debug,     // request debug output redirection to stdin
+            request_debug_count,
+            vt_command,        // parse following vt-sequences in UTF-8 format
+            warp,              // warping
+        };
+
+        template<frame_type Type, class... Fields>
+        class header_t
+        {
+    public:
+            using Tuple = std::tuple<Fields...>;
+            template<std::size_t N>
+            using Element = typename std::tuple_element<N, Tuple>::type;
+            static constexpr auto FieldsCount = std::tuple_size<Tuple>::value;
+
+            template<std::size_t... Ints>
+            static constexpr auto summ(std::index_sequence<Ints...>)
             {
-                bitmap,
-                control,
+                if constexpr (!!sizeof...(Ints)) return (sizeof(Element<Ints>) + ...);
+                else                             return 0_sz;
+            }
+            template<std::size_t N, class Ints = std::make_index_sequence<N>>
+            static constexpr auto subtuple_len()
+            {
+                return summ(Ints{});
+            }
+
+            static constexpr auto size_len = sizeof(ui32);
+            static constexpr auto kind_len = sizeof(frame_type);
+            static constexpr auto size_pos = 0;
+            static constexpr auto kind_pos = size_pos + size_len;
+            static constexpr auto data_pos = kind_pos + kind_len;
+            static constexpr auto head_len = data_pos + subtuple_len<FieldsCount>();
+
+            text block; // header_t: Continuous block of data.
+
+            // header_t: .
+            template<class T>
+            inline void fuse(T&& data)
+            {
+                using D = std::remove_cv_t<std::remove_reference_t<T>>;
+                if constexpr (std::is_same_v<D, char>
+                           || std::is_same_v<D, byte>)
+                {
+                    block.text::push_back(static_cast<char>(data));
+                }
+                else if constexpr (std::is_integral_v<D>
+                                || std::is_same_v<D, twod>
+                                || std::is_same_v<D, rect>)
+                {
+                    auto le_data = netxs::letoh(data);
+                    auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
+                    block += v;
+                }
+                else if constexpr (std::is_same_v<D, rgba>)
+                {
+                    auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
+                    block += v;
+                }
+                else if constexpr (std::is_same_v<D, view>
+                                || std::is_same_v<D, text>)
+                {
+                    block += data;
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            // header_t: Replace bytes at specified position.
+            template<class T>
+            inline auto& add_at(ui32 at, T&& data)
+            {
+                auto le_data = netxs::letoh(std::forward<T>(data));
+                ::memcpy(block.text::data() + at, reinterpret_cast<void const*>(&le_data), sizeof(le_data));
+                return *this;
+            }
+
+            auto block_size() const
+            {
+                return static_cast<ui32>(block.text::size());
+            }
+
+        protected:
+            template<std::size_t N>
+            void set(Element<N> const& value)
+            {
+                static constexpr auto offset = data_pos + subtuple_len<N>();
+                add_at(offset, value);
+            }
+            template<std::size_t N>
+            auto get() const
+            {
+                auto value = Element<N>{};
+                return value;
+            }
+
+        public:
+            // header_t: .
+            template<class T>
+            inline auto& add(T&& data)
+            {
+                fuse(std::forward<T>(data));
+                return *this;
+            }
+            // header_t: .
+            template<class T, class ...Args>
+            inline auto& add(T&& data, Args&&... data_list)
+            {
+                fuse(std::forward<T>(data));
+                return add(std::forward<Args>(data_list)...);
+            }
+
+            header_t()
+                : block(head_len, 0)
+            {
+                add_at(size_pos, block_size());
+                add_at(kind_pos, Type);
+            }
+
+            explicit operator bool () const
+            {
+                return block_size() > head_len;
+            }
+            // header_t: .
+            operator view ()
+            {
+                add_at(size_pos, block_size());
+                return block;
+            }
+            // header_t: .
+            void clear()
+            {
+                block.resize(head_len);
+            }
+        };
+
+        class bitmap_t
+            : public header_t<frame_type::bitmap
+            , id_t, rect>
+        {
+            enum
+            {
+                _id,
+                _area,
             };
 
-            le_t<ui32> size;
-            le_t<id_t> type;
-        };
-        struct control
-        {
-            enum commands : byte
+        public:
+            auto   id() const           { return header_t::get<_id>  ();     }
+            auto area() const           { return header_t::get<_area>();     }
+            void   id(id_t id)          {        header_t::set<_id>  (id);   }
+            void area(rect const& area) {        header_t::set<_area>(area); }
+            void scroll_wipe()
             {
-                form_header,   // .
-                form_footer,   // .
-                mouse_events,  // .
-                set_focus,     // request to set focus
-                off_focus,     // request to remove focus
-                expose,        // bring the form to the front
-                request_debug, // request debug output redirection to stdin
-                request_debug_count,
-                get_clipboard, // request main clipboard data
-                set_clipboard, // set main clipboard using following data
-                vt_command,    // parse following vt-sequences in UTF-8 format
-                jumbo_gc_list, // jumbo GC: gc.token + gc.view (response on terminal request)
-                warp,          // warping
+                add(ansi::dtvt::rst);
+            }
+            void locate(si32 x, si32 y)
+            {
+                //todo use twod
+                add(ansi::dtvt::cup, twod{ x,y } - dot_11);
+            }
+            template<class T>
+            void gc(T const& gc)
+            {
+                byte size = gc.state.jumbo ? sizeof(gc.glyph) - 1
+                                           : gc.state.count;
+                if (size > 0) add(size, gc.template get<svga::directvt>());
+                else          add(ansi::dtvt::ngc);
+                assert(size <= ansi::dtvt::gcl);
+            }
+            template<class T>
+            void style(T token)
+            {
+                add(ansi::dtvt::stl, token);
+            }
+            template<svga VGAMODE = svga::directvt>
+            void fgc(rgba const& c)
+            {
+                add(ansi::dtvt::fgc, c);
             };
-            le_t<byte> command;
+            template<svga VGAMODE = svga::directvt>
+            void bgc(rgba const& c)
+            {
+                add(ansi::dtvt::bgc, c);
+            };
         };
-        struct bitmap
+
+        using hint = netxs::events::type;
+        class mouse_t
+            : public header_t<frame_type::mouse_event
+            , id_t, hint, twod>
         {
-            le_t<id_t> id;
-            le_t<rect> area;
+            enum
+            {
+                _gear_id,
+                _cause,
+                _coord,
+            };
+
+        public:
+            auto gear_id() const           { return header_t::get<_gear_id>();     }
+            auto   cause() const           { return header_t::get<_cause>  ();     }
+            auto   coord() const           { return header_t::get<_coord>  ();     }
+            void gear_id(id_t id)          {        header_t::set<_gear_id>(id);   }
+            void   cause(hint const& deed) {        header_t::set<_cause>  (deed); }
+            void   coord(twod const& coor) {        header_t::set<_coord>  (coor); }
         };
-        #pragma pack(pop)
+
+        class jgc_list_t
+            : public header_t<frame_type::jgc_list
+            , ui32>
+        {
+            enum
+            {
+                _count,
+            };
+
+            //text data; // { token64, data_view.size(), data_view) }
+
+        public:
+            auto count() const            { return header_t::get<_count>();                         }
+            void count(std::size_t count) {        header_t::set<_count>(static_cast<ui32>(count)); }
+        };
+
+        class form_header_t
+            : public header_t<frame_type::form_header
+            , ui32>
+        {
+            enum
+            {
+                _size,  // data_view.size()
+            };
+
+            //text data; // { data_view }
+
+        public:
+            auto size() const        { return header_t::get<_size>();                     }
+            void size(std::size_t s) {        header_t::set<_size>(static_cast<ui32>(s)); }
+        };
+
+        class form_footer_t
+            : public header_t<frame_type::form_footer
+            , ui32>
+        {
+            enum
+            {
+                _size,  // data_view.size()
+            };
+
+            //text data; // { data_view }
+
+        public:
+            auto size() const        { return header_t::get<_size>();                     }
+            void size(std::size_t s) {        header_t::set<_size>(static_cast<ui32>(s)); }
+        };
+
+        class get_clipboard_t
+            : public header_t<frame_type::request_clipboard
+            , id_t>
+        {
+            enum
+            {
+                _gear_id,
+            };
+
+        public:
+            auto gear_id() const  { return header_t::get<_gear_id>();   }
+            void gear_id(id_t id) {        header_t::set<_gear_id>(id); }
+        };
+
+        class set_clipboard_t
+            : public header_t<frame_type::set_clipboard
+            , id_t, twod, ui32>
+        {
+            enum
+            {
+                _gear_id,
+                _clip_preview_size,
+                _clip_rawdata_size,
+            };
+
+            //text raw_data;
+
+        public:
+            auto gear_id() const                  { return header_t::get<_gear_id>();            }
+            auto clip_preview_size() const        { return header_t::get<_clip_preview_size>();  }
+            auto clip_rawdata_size() const        { return header_t::get<_clip_rawdata_size>();  }
+            void gear_id(id_t id)                 {        header_t::set<_gear_id>(id);          }
+            void clip_preview_size(twod const& p) {        header_t::set<_clip_preview_size>(p); }
+            void clip_rawdata_size(std::size_t s) {        header_t::set<_clip_rawdata_size>(static_cast<ui32>(s)); }
+        };
+
+        class set_focus_t
+            : public header_t<frame_type::set_focus
+            , id_t, bool, bool>
+        {
+            enum
+            {
+                _gear_id,
+                _combine_focus,
+                _force_group_focus,
+            };
+
+        public:
+            auto gear_id() const           { return header_t::get<_gear_id>();            }
+            auto combine_focus() const     { return header_t::get<_combine_focus>();      }
+            auto force_group_focus() const { return header_t::get<_force_group_focus>();  }
+            void gear_id(id_t id)          {        header_t::set<_gear_id>(id);          }
+            void combine_focus(bool b)     {        header_t::set<_combine_focus>(b);     }
+            void force_group_focus(bool b) {        header_t::set<_force_group_focus>(b); }
+        };
+
+        class off_focus_t
+            : public header_t<frame_type::off_focus
+            , id_t>
+        {
+            enum
+            {
+                _gear_id,
+            };
+
+        public:
+            auto gear_id() const  { return header_t::get<_gear_id>();            }
+            void gear_id(id_t id) {        header_t::set<_gear_id>(id);          }
+        };
+
+        class expose_t
+            : public header_t<frame_type::expose>
+        {
+           // Empty packet.
+        };
+
+        class request_debug_t
+            : public header_t<frame_type::request_debug>
+        {
+            // Empty packet.
+        };
+
+        class request_debug_count_t
+            : public header_t<frame_type::request_debug_count
+            , si32>
+        {
+            enum
+            {
+                _count,
+            };
+
+        public:
+            auto count() const { return header_t::get<_count>();  }
+            void count(si32 c) {        header_t::set<_count>(c); }
+        };
     }
 
     // ansi: Escaped sequences accumulator.
@@ -400,65 +728,33 @@ namespace netxs::ansi
         inline void fuse(T&& data)
         {
             using D = std::remove_cv_t<std::remove_reference_t<T>>;
-            if constexpr (VGAMODE == svga::directvt)
+
+            if constexpr (std::is_same_v<D, char>)
             {
-                if constexpr (std::is_same_v<D, char>
-                           || std::is_same_v<D, byte>)
-                {
-                    text::push_back(static_cast<char>(data));
-                }
-                else if constexpr (std::is_integral_v<D>
-                                || std::is_same_v<D, twod>
-                                || std::is_same_v<D, rect>)
-                {
-                    auto le_data = netxs::letoh(data);
-                    auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
-                    text::operator+=(v);
-                }
-                else if constexpr (std::is_integral_v<D>
-                                || std::is_same_v<D, dtvt::frame>
-                                || std::is_same_v<D, dtvt::control>
-                                || std::is_same_v<D, dtvt::bitmap>
-                                || std::is_same_v<D, rgba>)
-                {
-                    auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
-                    text::operator+=(v);
-                }
-                else if constexpr (std::is_same_v<D, view>
-                                || std::is_same_v<D, text>)
-                {
-                    text::operator+=(data);
-                }
+                text::push_back(data);
             }
-            else
+            else if constexpr (std::is_integral_v<D>)
             {
-                if constexpr (std::is_same_v<D, char>)
-                {
-                    text::push_back(data);
-                }
-                else if constexpr (std::is_integral_v<D>)
-                {
-                    itos(data);
-                }
-                else if constexpr (std::is_same_v<D, bias>
-                                || std::is_same_v<D, wrap>
-                                || std::is_same_v<D, rtol>
-                                || std::is_same_v<D, feed>)
-                {
-                    itos(static_cast<si32>(data));
-                }
-                else if constexpr (std::is_same_v<D, twod>)
-                {
-                    text::operator+=("{ "); itos(data.x); text::operator+=(", ");
-                                            itos(data.y); text::operator+=(" }");
-                }
-                else if constexpr (std::is_same_v<D, rect>)
-                {
-                    text::operator+=("{"); fuse(data.coor); text::operator+=(",");
-                                           fuse(data.size); text::operator+=("}");
-                }
-                else text::operator+=(std::forward<T>(data));
+                itos(data);
             }
+            else if constexpr (std::is_same_v<D, bias>
+                            || std::is_same_v<D, wrap>
+                            || std::is_same_v<D, rtol>
+                            || std::is_same_v<D, feed>)
+            {
+                itos(static_cast<si32>(data));
+            }
+            else if constexpr (std::is_same_v<D, twod>)
+            {
+                text::operator+=("{ "); itos(data.x); text::operator+=(", ");
+                                        itos(data.y); text::operator+=(" }");
+            }
+            else if constexpr (std::is_same_v<D, rect>)
+            {
+                text::operator+=("{"); fuse(data.coor); text::operator+=(",");
+                                       fuse(data.size); text::operator+=("}");
+            }
+            else text::operator+=(std::forward<T>(data));
         }
 
     public:
@@ -479,17 +775,7 @@ namespace netxs::ansi
             fuse<VGAMODE>(std::forward<T>(data));
             return add<VGAMODE>(std::forward<Args>(data_list)...);
         }
-        // esc: Replace bytes at specified position.
-        template<svga VGAMODE, class T>
-        inline auto& add_at(si32 at, T&& data)
-        {
-            if constexpr (VGAMODE == svga::directvt)
-            {
-                auto le_data = netxs::letoh(data);
-                ::memcpy(at + text::data(), reinterpret_cast<void const*>(&le_data), sizeof(le_data));
-            }
-            return *this;
-        }
+
 
         // esc: Send base64-encoded clipboard data (OSC).
         esc& clipdata(id_t gear_id, view clipdata)
@@ -519,33 +805,6 @@ namespace netxs::ansi
             }
             return add('_');
         }
-        // esc: Reply jumbo grapheme cluster data.
-        //template<class T>
-        //esc& reply_gc(T token, view data)
-        //{
-        //    return add<svga::directvt>(token, data.size(), data);
-        //}
-        // esc: Grapheme cluster.
-        template<svga VGAMODE = svga::truecolor, class T>
-        esc& gc(T const& gc)
-        {
-            if constexpr (VGAMODE == svga::directvt)
-            {
-                byte size = gc.state.jumbo ? sizeof(gc.glyph) - 1
-                                           : gc.state.count;
-                if (size > 0) add<VGAMODE>(size, gc.template get<VGAMODE>());
-                else          add<VGAMODE>(ansi::dtvt::ngc);
-                assert(size <= ansi::dtvt::gcl);
-            }
-            return *this;
-        }
-        // esc: Text style.
-        template<svga VGAMODE = svga::truecolor, class T>
-        esc& style(T token)
-        {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::stl, token);
-            else                                     return *this;
-        }
         // esc: Focus and Mouse position reporting/tracking.
         esc& vmouse(bool b)
         {
@@ -556,15 +815,13 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& locate(si32 x, si32 y)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::cup, twod{ x,y } - dot_11);
-            else                                     return add("\033[", y, ';', x, 'H');
+            return add("\033[", y, ';', x, 'H');
         }
          // esc: 0-Based caret position.
         template<svga VGAMODE = svga::truecolor>
         esc& locate(twod const& p)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::cup, p);
-            else                                     return add("\033[", p.y+1, ';', p.x+1, 'H'       );
+            return add("\033[", p.y+1, ';', p.x+1, 'H'       );
         }
         esc& report(twod const& p)  { return add("\033[", p.y+1, ";", p.x+1, "R"       ); } // esc: Report 1-Based caret position (CPR).
         esc& locate_wipe()          { return add("\033[r"                              ); } // esc: Enable scrolling for entire display (clear screen).
@@ -573,8 +830,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& scroll_wipe()
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::rst);
-            else                                     return add("\033[2J");
+            return add("\033[2J");
         }
         esc& tag         (view t)   { return add("\033]2;", t, '\07'                   ); } // esc: Window title.
         esc& setutf      (bool b)   { return add(b ? "\033%G"      : "\033%@"          ); } // esc: Select UTF-8 character set (true) or default (faux).
@@ -825,7 +1081,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& fgc(rgba const& c)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::fgc, c);
+            if constexpr (VGAMODE == svga::directvt) return *this;
             switch (VGAMODE)
             {
                 case svga::truecolor:
@@ -845,7 +1101,7 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& bgc(rgba const& c)
         {
-            if constexpr (VGAMODE == svga::directvt) return add<VGAMODE>(ansi::dtvt::bgc, c);
+            if constexpr (VGAMODE == svga::directvt) return *this;
             switch (VGAMODE)
             {
                 case svga::truecolor:
