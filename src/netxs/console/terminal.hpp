@@ -217,7 +217,7 @@ namespace netxs::ui
                     {
                         if (owner.selmod == xsgr::disabled)
                         {
-                            gear.dismiss();
+                            gear.dismiss(); // To prevent kboffer from being sent at pro::keybd::active().
                         }
                     };
                     owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)

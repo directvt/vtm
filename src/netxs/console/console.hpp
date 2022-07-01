@@ -5417,7 +5417,7 @@ again:
                                                 do
                                                 {
                                                     auto cpoint = take();
-                                                    utf::to_utf_from_code(cpoint, k.cluster);
+                                                    if (cpoint) utf::to_utf_from_code(cpoint, k.cluster);
                                                 }
                                                 while (strv.at(pos) == ':');
                                                 notify(e2::conio::keybd, k);
