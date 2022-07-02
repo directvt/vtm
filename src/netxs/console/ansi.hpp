@@ -591,7 +591,7 @@ namespace netxs::ansi
                     iter += step;
                 }
 
-                auto crop = view(head, iter - head);
+                auto crop = qiew(head, iter - head);
                 return crop;
             }
         };

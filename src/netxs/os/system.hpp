@@ -3897,8 +3897,7 @@ namespace netxs::os
                     if (shot && termlink)
                     {
                         flow += shot;
-                        auto crop = frame_t::intergity(flow);
-                        if (crop.size())
+                        if (auto crop = frame_t::intergity(flow))
                         {
                             receiver(crop);
                             flow.erase(0, crop.size()); // Delete processed data.
