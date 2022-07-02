@@ -345,37 +345,12 @@ namespace netxs::ansi
             warp,              // warping
         };
 
-        template<frame_type Type, class... Fields>
-        class header_t
+        class binary_t
         {
-    public:
-            using Tuple = std::tuple<Fields...>;
-            template<std::size_t N>
-            using Element = typename std::tuple_element<N, Tuple>::type;
-            static constexpr auto FieldsCount = std::tuple_size<Tuple>::value;
+        protected:
+            text block; // binary_t: Continuous block of data.
 
-            template<std::size_t... Ints>
-            static constexpr auto summ(std::index_sequence<Ints...>)
-            {
-                if constexpr (!!sizeof...(Ints)) return (sizeof(Element<Ints>) + ...);
-                else                             return 0_sz;
-            }
-            template<std::size_t N, class Ints = std::make_index_sequence<N>>
-            static constexpr auto subtuple_len()
-            {
-                return summ(Ints{});
-            }
-
-            static constexpr auto size_len = sizeof(ui32);
-            static constexpr auto kind_len = sizeof(frame_type);
-            static constexpr auto size_pos = 0;
-            static constexpr auto kind_pos = size_pos + size_len;
-            static constexpr auto data_pos = kind_pos + kind_len;
-            static constexpr auto head_len = data_pos + subtuple_len<FieldsCount>();
-
-            text block; // header_t: Continuous block of data.
-
-            // header_t: .
+            // binary_t: .
             template<class T>
             inline void fuse(T&& data)
             {
@@ -408,7 +383,7 @@ namespace netxs::ansi
                     throw;
                 }
             }
-            // header_t: Replace bytes at specified position.
+            // binary_t: Replace bytes at specified position.
             template<class T>
             inline auto& add_at(ui32 at, T&& data)
             {
@@ -416,11 +391,76 @@ namespace netxs::ansi
                 ::memcpy(block.text::data() + at, reinterpret_cast<void const*>(&le_data), sizeof(le_data));
                 return *this;
             }
-
+            // binary_t: .
             auto block_size() const
             {
                 return static_cast<ui32>(block.text::size());
             }
+
+        public:
+            binary_t() = default;
+            binary_t(ui32 reserv)
+                : block(reserv, 0)
+            { }
+
+            // binary_t: .
+            template<class T>
+            inline auto& add(T&& data)
+            {
+                fuse(std::forward<T>(data));
+                return *this;
+            }
+            // binary_t: .
+            template<class T, class ...Args>
+            inline auto& add(T&& data, Args&&... data_list)
+            {
+                fuse(std::forward<T>(data));
+                return add(std::forward<Args>(data_list)...);
+            }
+            // binary_t: .
+            void clear()
+            {
+                block.clear();
+            }
+            // binary_t: .
+            auto length()
+            {
+                return block.length();
+            }
+            // binary_t: .
+            auto& str()
+            {
+                return block;
+            }
+        };
+
+        template<frame_type Type, class... Fields>
+        class header_t
+            : public binary_t
+        {
+            using Tuple = std::tuple<Fields...>;
+            template<std::size_t N>
+            using Element = typename std::tuple_element<N, Tuple>::type;
+            static constexpr auto FieldsCount = std::tuple_size<Tuple>::value;
+
+            template<std::size_t... Ints>
+            static constexpr auto summ(std::index_sequence<Ints...>)
+            {
+                if constexpr (!!sizeof...(Ints)) return (sizeof(Element<Ints>) + ...);
+                else                             return 0_sz;
+            }
+            template<std::size_t N, class Ints = std::make_index_sequence<N>>
+            static constexpr auto subtuple_len()
+            {
+                return summ(Ints{});
+            }
+
+            static constexpr auto size_len = sizeof(ui32);
+            static constexpr auto kind_len = sizeof(frame_type);
+            static constexpr auto size_pos = 0;
+            static constexpr auto kind_pos = size_pos + size_len;
+            static constexpr auto data_pos = kind_pos + kind_len;
+            static constexpr auto head_len = data_pos + subtuple_len<FieldsCount>();
 
         protected:
             template<std::size_t N>
@@ -437,23 +477,8 @@ namespace netxs::ansi
             }
 
         public:
-            // header_t: .
-            template<class T>
-            inline auto& add(T&& data)
-            {
-                fuse(std::forward<T>(data));
-                return *this;
-            }
-            // header_t: .
-            template<class T, class ...Args>
-            inline auto& add(T&& data, Args&&... data_list)
-            {
-                fuse(std::forward<T>(data));
-                return add(std::forward<Args>(data_list)...);
-            }
-
             header_t()
-                : block(head_len, 0)
+                : binary_t{ head_len }
             {
                 add_at(size_pos, block_size());
                 add_at(kind_pos, Type);
@@ -775,7 +800,6 @@ namespace netxs::ansi
             fuse<VGAMODE>(std::forward<T>(data));
             return add<VGAMODE>(std::forward<Args>(data_list)...);
         }
-
 
         // esc: Send base64-encoded clipboard data (OSC).
         esc& clipdata(id_t gear_id, view clipdata)

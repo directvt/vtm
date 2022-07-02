@@ -5613,10 +5613,10 @@ again:
 
         ansi  extra; // diff: Extra data to cout.
         text  extra_cached; // diff: Cached extra data to cout.
-        ansi  tooltips; // diff: .
 
         //todo unify
-        netxs::ansi::dtvt::bitmap_t p_bitmap;
+        netxs::ansi::dtvt::bitmap_t  p_bitmap;
+        netxs::ansi::dtvt::binary_t  tooltips; // diff: .
 
         // diff: Render current buffer to the screen.
         template<svga VGAMODE = svga::truecolor>
@@ -6021,7 +6021,7 @@ again:
 
                 if (video == svga::directvt && tooltips.length())
                 {
-                    extra_cached += tooltips;
+                    extra_cached += tooltips.str();
                 }
                 if (extra.length())
                 {
@@ -6302,7 +6302,7 @@ again:
                 }
             }
         }
-        void fill_tooltips(ansi::esc& tooltips)
+        void fill_tooltips(ansi::dtvt::binary_t& tooltips)
         {
             tooltips.clear(); //todo use dblbuffer
             for (auto& [gear_id, gear_ptr] : input.gears)
@@ -6311,10 +6311,10 @@ again:
                 if (gear.is_tooltip_changed())
                 {
                     auto tooltip_data = gear.get_tooltip();
-                    tooltips.add<svga::directvt>(ansi::dtvt::tip,
-                                                         gear_id,
-                                       (ui32)tooltip_data.size(),
-                                              (view)tooltip_data);
+                    tooltips.add(ansi::dtvt::tip,
+                                         gear_id,
+                       (ui32)tooltip_data.size(),
+                             (view)tooltip_data);
                 }
             }
         }
