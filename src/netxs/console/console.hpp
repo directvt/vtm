@@ -4954,7 +4954,7 @@ namespace netxs::console
                 if (gear.is_tooltip_changed())
                 {
                     auto tooltip_data = gear.get_tooltip();
-                    p_tooltips.add_tooltip(gear_id, tooltip_data);
+                    p_tooltips.add(gear_id, tooltip_data);
                 }
             }
         }
@@ -5936,8 +5936,7 @@ again:
                 abort = faux;
                 start = tempus::now();
 
-                p_bitmap.id(0xaabbccdd); //todo use it
-                p_bitmap.area({ dot_00, field });
+                p_bitmap.set(0xaabbccdd, { dot_00, field });
 
                 if (extra_cached.length())
                 {

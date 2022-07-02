@@ -329,6 +329,7 @@ namespace netxs::ansi
 
         enum frame_type : byte
         {
+            any,
             bitmap,            // Canvas data.
             mouse_event,       // Mouse events.
             jgc_list,          // jumbo GC: gc.token + gc.view (response on terminal request)
@@ -432,6 +433,61 @@ namespace netxs::ansi
             {
                 return block;
             }
+            template<class T>
+            static auto _take_item(view& data)
+            {
+                using D = std::remove_cv_t<std::remove_reference_t<T>>;
+                if constexpr (std::is_same_v<D, view>)
+                {
+                    auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
+                    if (size > data.size() - sizeof(size))
+                    {
+                        log("dtvt: corrupted data");
+                        return view{};
+                    }
+                    data.remove_prefix(sizeof(ui32));
+                    auto crop = view{ data.data(), (size_t)size };
+                    data.remove_prefix(size);
+                    return crop;
+                }
+                else
+                {
+                    auto crop = netxs::letoh(*reinterpret_cast<D const*>(data.data()));
+                    data.remove_prefix(sizeof(D));
+                    return crop;
+                }
+            }
+            template<class... Fields>
+            static auto _take(std::tuple<Fields...>, view& data)
+            {
+                return std::tuple{ _take_item<Fields>(data)..., };
+            }
+            template<class... Fields>
+            static auto take(view& data)
+            {
+                return std::tuple{ _take_item<Fields>(data)..., };
+            }
+            template<class T>
+            static void take(T&& dest, view& data)
+            {
+                dest = _take_item<T>(data);
+            }
+            static void take(void *dest, size_t size, view& data)
+            {
+                ::memcpy(dest, reinterpret_cast<void const*>(data.data()), size);
+                data.remove_prefix(size);
+            }
+            static auto take_substr(size_t size, view& data)
+            {
+                if (size > data.size())
+                {
+                    log("dtvt: wrong data size");
+                    return view{};
+                }
+                auto crop = data.substr(0, size);
+                data.remove_prefix(size);
+                return crop;
+            }
         };
 
         template<frame_type Type, class... Fields>
@@ -462,6 +518,13 @@ namespace netxs::ansi
             static constexpr auto data_pos = kind_pos + kind_len;
             static constexpr auto head_len = data_pos + subtuple_len<FieldsCount>();
 
+            struct frame
+            {
+                ui32 size;
+                byte type;
+                view data;
+            };
+
         protected:
             template<std::size_t N>
             void set(Element<N> const& value)
@@ -477,6 +540,14 @@ namespace netxs::ansi
             }
 
         public:
+            static auto get(view& data)
+            {
+                auto f = frame{};
+                std::tie(f.size, f.type) = binary_t::take<ui32, byte>(data);
+                f.data = binary_t::take_substr(f.size - sizeof(ui32) - sizeof(byte), data);
+                return f;
+            }
+
             header_t()
                 : binary_t{ head_len }
             {
@@ -510,28 +581,46 @@ namespace netxs::ansi
                 _id,
                 _area,
             };
+            struct bitmap
+            {
+                id_t bitmap_id;
+                rect area;
+            };
 
         public:
             struct tooltips_t
                 : public binary_t
             {
-                void add_tooltip(id_t gear_id, view tooltip_data)
+                struct tooltip
                 {
-                    add(ansi::dtvt::tip,
-                                gear_id,
-                                (ui32)tooltip_data.size(),
-                                      tooltip_data);
+                    id_t gear_id;
+                    view tooltip_data;
+                };
+                
+                void add(id_t gear_id, view tooltip_data)
+                {
+                    binary_t::add(ansi::dtvt::tip,
+                                gear_id, (ui32)tooltip_data.size(), tooltip_data);
                 }
-                auto get_tooltip()
+                static auto get(view& data)
                 {
-                    //...
+                    auto v = tooltip{};
+                    std::tie(v.gear_id, v.tooltip_data) = binary_t::take<id_t, view>(data);
+                    return v;
                 }
             };
 
-            auto   id() const           { return header_t::get<_id>  ();     }
-            auto area() const           { return header_t::get<_area>();     }
-            void   id(id_t id)          {        header_t::set<_id>  (id);   }
-            void area(rect const& area) {        header_t::set<_area>(area); }
+            static auto get(view& data)
+            {
+                auto v = bitmap{};
+                std::tie(v.bitmap_id, v.area) = binary_t::take<id_t, rect>(data);
+                return v;
+            }
+            void set(id_t bitmap_id, rect const& area)
+            {
+                header_t::set<_id>  (bitmap_id);
+                header_t::set<_area>(area);
+            }
             void scroll_wipe()
             {
                 add(ansi::dtvt::rst);

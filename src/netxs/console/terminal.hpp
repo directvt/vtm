@@ -6914,32 +6914,26 @@ namespace netxs::ui
             while (base_data.size())
             {
                 auto data = base_data;
-                auto frame_size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                data.remove_prefix(sizeof(ui32));
-                auto frame_type = netxs::letoh(*reinterpret_cast<byte const*>(data.data()));
-                data.remove_prefix(sizeof(byte));
-                if (frame_size > base_data.size())
+                auto frame = ansi::dtvt::header_t<ansi::dtvt::frame_type::any>::get(data);
+                if (frame.data.empty())
                 {
                     log("dtvt: corrupted data");
                     return;
                 }
-                data = data.substr(0, frame_size - sizeof(ui32) - sizeof(byte));
-                switch (frame_type)
+                data = frame.data;
+                switch (frame.type)
                 {
                     case ansi::dtvt::frame_type::bitmap:
                     {
-                        auto bitmap_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                        data.remove_prefix(sizeof(id_t));
-                        auto area = netxs::letoh(*reinterpret_cast<rect const*>(data.data()));
-                        data.remove_prefix(sizeof(rect));
+                        auto b = ansi::dtvt::bitmap_t::get(data);
 
                         auto lock = std::lock_guard{ access };
 
-                        auto resized = area.size != canvas.size();
+                        auto resized = b.area.size != canvas.size();
                         if (resized)
                         {
                             nodata = faux;
-                            canvas.size(area.size);
+                            canvas.size(b.area.size);
                         }
                         auto iter = canvas.iter();
                         auto coor = dot_00;
@@ -6954,45 +6948,36 @@ namespace netxs::ui
                                 if (type == ansi::dtvt::ngc) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
                                 {
                                     coor.x++;
-                                    //++iter;
                                 }
                                 else if (type <= ansi::dtvt::gcl) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
                                 {
-                                    auto size = type + 1;
-                                    auto& glyph = marker.egc();
-                                    ::memcpy(glyph, reinterpret_cast<void const*>(data.data()), size);
+                                    ansi::dtvt::bitmap_t::take(marker.egc(), type + 1, data);
                                     if (marker.jgc() == faux) // Checking grapheme cluster registration.
                                     {
                                         unknown_gc_list[marker.tkn()];
-                                        log("token size ", size);
+                                        log("token size ", type + 1);
                                     }
                                     if (limits.inside(coor))
                                     {
                                         canvas[coor] = marker;
                                     }
-                                    data.remove_prefix(size);
                                     coor.x++;
                                 }
                                 else if (type == ansi::dtvt::cup) //<= 8: cup: 8 bytes: si32 X + si32 Y
                                 {
-                                    coor = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
-                                    data.remove_prefix(sizeof(twod));
+                                    ansi::dtvt::bitmap_t::take(coor, data);
                                 }
                                 else if (type == ansi::dtvt::bgc) //<= 9: bg color: 4 bytes: rgba
                                 {
-                                    marker.bgc() = *reinterpret_cast<rgba const*>(data.data());
-                                    data.remove_prefix(sizeof(rgba));
+                                    ansi::dtvt::bitmap_t::take(marker.bgc(), data);
                                 }
                                 else if (type == ansi::dtvt::fgc) //<= 10: fg colors: 4 bytes: rgba
                                 {
-                                    marker.fgc() = *reinterpret_cast<rgba const*>(data.data());
-                                    data.remove_prefix(sizeof(rgba));
+                                    ansi::dtvt::bitmap_t::take(marker.fgc(), data);
                                 }
                                 else if (type == ansi::dtvt::stl) //<=11: style: token 4 bytes
                                 {
-                                    auto& token = marker.stl();
-                                    token = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                                    data.remove_prefix(sizeof(ui32));
+                                    ansi::dtvt::bitmap_t::take(marker.stl(), data);
                                 }
                                 else if (type == ansi::dtvt::rst) //<=12: wipe canvas
                                 {
@@ -7001,13 +6986,8 @@ namespace netxs::ui
                                 }
                                 else if (type == ansi::dtvt::tip)
                                 {
-                                    auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                                    data.remove_prefix(sizeof(id_t));
-                                    auto tip_size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                                    data.remove_prefix(sizeof(ui32));
-                                    auto tip_data = text{ data.data(), (size_t)tip_size };
-                                    data.remove_prefix(tip_size);
-                                    netxs::events::enqueue(This(), [&, gear_id, tooltip = std::move(tip_data)](auto& boss)
+                                    auto tip = ansi::dtvt::bitmap_t::tooltips_t::get(data);
+                                    netxs::events::enqueue(This(), [&, gear_id = tip.gear_id, tooltip = text{ tip.tooltip_data }](auto& boss)
                                     {
                                         if (auto ptr = bell::getref(gear_id))
                                         if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
@@ -7019,16 +6999,8 @@ namespace netxs::ui
                                 }
                                 else // Unknown type
                                 {
-                                    auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                                    data.remove_prefix(sizeof(ui32));
-                                    if (size > data.size() - sizeof(size))
-                                    {
-                                        log("dtvt: corrupted data of type: ", type);
-                                        break;
-                                    }
-                                    auto vcmd = view(data.data(), size);
+                                    auto [vcmd] = ansi::dtvt::bitmap_t::take<view>(data);
                                     log("dtvt: unknown data type: ", type, "\n", utf::debase(vcmd));
-                                    data.remove_prefix(size);
                                 }
                             }
                         }
@@ -7197,12 +7169,11 @@ namespace netxs::ui
 
                     default: // Unsupported command
                     {
-                        auto vcmd = view(data.data(), frame_size);
-                        log("dtvt: unsupported command: ", frame_type, "\n", utf::debase(vcmd));
+                        log("dtvt: unsupported command: ", frame.type, "\n", utf::debase(data));
                         break;
                     }
                 }
-                base_data.remove_prefix(frame_size);
+                base_data.remove_prefix(frame.size);
             }
         }
         // dtvt: Shutdown callback handler.
