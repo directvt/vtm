@@ -518,13 +518,6 @@ namespace netxs::ansi
             static constexpr auto data_pos = kind_pos + kind_len;
             static constexpr auto head_len = data_pos + subtuple_len<FieldsCount>();
 
-            struct frame
-            {
-                ui32 size;
-                byte type;
-                view data;
-            };
-
         protected:
             template<std::size_t N>
             void set(Element<N> const& value)
@@ -540,6 +533,13 @@ namespace netxs::ansi
             }
 
         public:
+            struct frame
+            {
+                ui32 size;
+                byte type;
+                view data;
+            };
+
             static auto get(view& data)
             {
                 auto f = frame{};
