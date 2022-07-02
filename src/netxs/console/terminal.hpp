@@ -6984,19 +6984,6 @@ namespace netxs::ui
                                     marker.txt('\0');
                                     canvas.wipe(marker);
                                 }
-                                else if (type == ansi::dtvt::tip)
-                                {
-                                    auto tip = ansi::dtvt::bitmap_t::tooltips_t::get(data);
-                                    netxs::events::enqueue(This(), [&, gear_id = tip.gear_id, tooltip = text{ tip.tooltip_data }](auto& boss)
-                                    {
-                                        if (auto ptr = bell::getref(gear_id))
-                                        if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
-                                        {
-                                            log("tooltip: ", tooltip);
-                                            gear_ptr->set_tooltip(0, tooltip);
-                                        }
-                                    });
-                                }
                                 else // Unknown type
                                 {
                                     auto [vcmd] = ansi::dtvt::bitmap_t::take<view>(data);
@@ -7027,6 +7014,22 @@ namespace netxs::ui
                         data.remove_prefix(sizeof(twod));
                         events.replay(gear_id, cause, coord);
                         break;
+                    }
+                    case ansi::dtvt::frame_type::tooltips:
+                    {
+                        auto tooltips = ansi::dtvt::tooltips_t::get(data);
+                        netxs::events::enqueue(This(), [&, list = std::move(tooltips)](auto& boss)
+                        {
+                            for (auto& tooltip : list)
+                            {
+                                if (auto ptr = bell::getref(tooltip.gear_id))
+                                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                                {
+                                    log("tooltip: ", tooltip.data);
+                                    gear_ptr->set_tooltip(0, tooltip.data);
+                                }
+                            }
+                        });
                     }
                     case ansi::dtvt::frame_type::expose:
                     {

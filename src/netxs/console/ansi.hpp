@@ -332,6 +332,7 @@ namespace netxs::ansi
             any,
             bitmap,            // Canvas data.
             mouse_event,       // Mouse events.
+            tooltips,          // Tooltip list.
             jgc_list,          // jumbo GC: gc.token + gc.view (response on terminal request)
             form_header,       // .
             form_footer,       // .
@@ -588,28 +589,6 @@ namespace netxs::ansi
             };
 
         public:
-            struct tooltips_t
-                : public binary_t
-            {
-                struct tooltip
-                {
-                    id_t gear_id;
-                    view tooltip_data;
-                };
-                
-                void add(id_t gear_id, view tooltip_data)
-                {
-                    binary_t::add(ansi::dtvt::tip,
-                                gear_id, (ui32)tooltip_data.size(), tooltip_data);
-                }
-                static auto get(view& data)
-                {
-                    auto v = tooltip{};
-                    std::tie(v.gear_id, v.tooltip_data) = binary_t::take<id_t, view>(data);
-                    return v;
-                }
-            };
-
             static auto get(view& data)
             {
                 auto v = bitmap{};
@@ -819,6 +798,61 @@ namespace netxs::ansi
         public:
             auto count() const { return header_t::get<_count>();  }
             void count(si32 c) {        header_t::set<_count>(c); }
+        };
+
+        class tooltips_t
+            : public header_t<frame_type::tooltips>
+        {
+            struct tooltip_list
+            {
+                struct iter_t
+                {
+                    view rest;
+                    view data;
+                    bool stop;
+                    id_t gear_id;
+
+                    iter_t(view data)
+                        : rest{ data },
+                          stop{ faux }
+                    {
+                        operator++();
+                    }
+                    template<class T>
+                    bool  operator == (T&&) const { return  stop; }
+                    auto& operator  * ()    const { return *this; }
+                    void  operator ++ ()
+                    {
+                        if (rest.size())
+                        {
+                            std::tie(gear_id, data) = binary_t::take<id_t, view>(rest);
+                        }
+                        else stop = true;
+                    }
+                };
+
+                text data;
+
+                tooltip_list(tooltip_list const&) = default;
+                tooltip_list(tooltip_list&&)      = default;
+                tooltip_list(view& data_src)
+                    : data{ data_src }
+                {
+                    data_src = {};
+                }
+                auto begin() const { return iter_t{ data }; }
+                auto   end() const { return text::npos;     }
+            };
+
+        public:
+            void add(id_t gear_id, view tooltip_data)
+            {
+                header_t::add(gear_id, (ui32)tooltip_data.size(), tooltip_data);
+            }
+            static auto get(view& data)
+            {
+                return tooltip_list{ data };
+            }
         };
     }
 

@@ -4857,6 +4857,7 @@ namespace netxs::console
         }
         debug_count_relay;
 
+        ansi::dtvt::bitmap_t                p_bitmap;
         ansi::dtvt::mouse_t                 p_mouse;
         ansi::dtvt::jgc_list_t              p_jgc_list;
         ansi::dtvt::form_header_t           p_form_header;
@@ -4868,9 +4869,7 @@ namespace netxs::console
         ansi::dtvt::expose_t                p_expose;
         ansi::dtvt::request_debug_t         p_request_debug;
         ansi::dtvt::request_debug_count_t   p_request_debug_count;
-
-        ansi::dtvt::bitmap_t                p_bitmap;
-        ansi::dtvt::bitmap_t::tooltips_t    p_tooltips;
+        ansi::dtvt::tooltips_t              p_tooltips;
 
         link(sptr boss, xipc sock)
             : owner{ boss },
@@ -4945,7 +4944,7 @@ namespace netxs::console
             output(p_form_footer);
         }
         template<class T>
-        void pass_tooltips(T& gears)
+        void send_tooltips(T& gears)
         {
             p_tooltips.clear(); //todo use dblbuffer
             for (auto& [gear_id, gear_ptr] : gears)
@@ -4957,6 +4956,7 @@ namespace netxs::console
                     p_tooltips.add(gear_id, tooltip_data);
                 }
             }
+            if (p_tooltips) output(p_tooltips); //todo make it lazy out (do not send immediately)
         }
 
         template<class E, class T>
@@ -6030,10 +6030,6 @@ again:
                 if (rhash != dhash) front = cache; // Cache may be further resized before it rendered.
                 debug = { watch, delta };
 
-                if (video == svga::directvt && conio.p_tooltips.length())
-                {
-                    extra_cached += conio.p_tooltips.str();
-                }
                 if (extra.length())
                 {
                     extra_cached += extra;
@@ -6407,7 +6403,7 @@ again:
 
                         if (props.tooltip_enabled)
                         {
-                            if (direct) conio.pass_tooltips(input.gears);
+                            if (direct) conio.send_tooltips(input.gears);
                             else        draw_tooltips(canvas);
                         }
 
