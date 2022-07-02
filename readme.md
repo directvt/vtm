@@ -1,4 +1,4 @@
-# Monotty Desktopio
+# vtm
 
 Text-based desktop environment inside your terminal*
 
@@ -251,17 +251,17 @@ No arguments | Run client (auto start server)
       Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets the background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
 
  - `▀▄ Logs`
-   - Debug output console. Use double `RightClick` to clear scrollback.
+   - Debug output console.
 
  - `▀▄ View`
-   - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
+   - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
 
  - `▀▄ Tile`
    - Supports Drag and Drop for panes (like tabs in a browser).
    - Use any modifier (`Ctrl` or `Alt`) while pane dragging to disable drag&drop mode.
    - List of panes (outside the right side of the window)
-     - `LeftClick` -- Set exclusive focus (highlighted by color)
-     - `Ctrl+LeftClick` -- Set group focus (highlighted by color)
+     - `LeftClick` -- Set exclusive focus
+     - `Ctrl+LeftClick`/`RightClick` -- Set/Unset group focus
      - `double LeftClick` -- Maxixmize/restore
    - Configurable via environment variable `VTM_PROFILE...`.  
      ```
@@ -269,6 +269,9 @@ No arguments | Run client (auto start server)
 
      VTM_PROFILE_1='"Menu label 1", "Window Title 1", h1:2( v1:1("bash -c htop", "bash -c mc"), "bash")'
      VTM_PROFILE_2='"Menu label 2", "Window Title 2", h( v("bash -c htop", "bash -c mc"), "bash")'
+
+     # Single DirectVT application
+     VTM_PROFILE_3='"DTVT Term", "Notes", a("Direct", "DTVT Term title", "vtm -r term")'
      ```
 
 
