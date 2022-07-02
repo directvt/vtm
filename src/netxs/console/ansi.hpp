@@ -512,6 +512,22 @@ namespace netxs::ansi
             };
 
         public:
+            struct tooltips_t
+                : public binary_t
+            {
+                void add_tooltip(id_t gear_id, view tooltip_data)
+                {
+                    add(ansi::dtvt::tip,
+                                gear_id,
+                                (ui32)tooltip_data.size(),
+                                      tooltip_data);
+                }
+                auto get_tooltip()
+                {
+                    //...
+                }
+            };
+
             auto   id() const           { return header_t::get<_id>  ();     }
             auto area() const           { return header_t::get<_area>();     }
             void   id(id_t id)          {        header_t::set<_id>  (id);   }

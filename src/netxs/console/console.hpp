@@ -4857,8 +4857,6 @@ namespace netxs::console
         }
         debug_count_relay;
 
-        ansi::esc frame2;
-        //ansi::dtvt::bitmap_t                p_bitmap;
         ansi::dtvt::mouse_t                 p_mouse;
         ansi::dtvt::jgc_list_t              p_jgc_list;
         ansi::dtvt::form_header_t           p_form_header;
@@ -4870,6 +4868,9 @@ namespace netxs::console
         ansi::dtvt::expose_t                p_expose;
         ansi::dtvt::request_debug_t         p_request_debug;
         ansi::dtvt::request_debug_count_t   p_request_debug_count;
+
+        ansi::dtvt::bitmap_t                p_bitmap;
+        ansi::dtvt::bitmap_t::tooltips_t    p_tooltips;
 
         link(sptr boss, xipc sock)
             : owner{ boss },
@@ -4942,6 +4943,20 @@ namespace netxs::console
             p_form_footer.clear();
             p_form_footer.add(new_footer);
             output(p_form_footer);
+        }
+        template<class T>
+        void pass_tooltips(T& gears)
+        {
+            p_tooltips.clear(); //todo use dblbuffer
+            for (auto& [gear_id, gear_ptr] : gears)
+            {
+                auto& gear = *gear_ptr;
+                if (gear.is_tooltip_changed())
+                {
+                    auto tooltip_data = gear.get_tooltip();
+                    p_tooltips.add_tooltip(gear_id, tooltip_data);
+                }
+            }
         }
 
         template<class E, class T>
@@ -5603,7 +5618,6 @@ again:
         span  watch; // diff: Duration of the STDOUT rendering.
         si32  delta; // diff: Last ansi-rendered frame size.
         ansi  frame; // diff: Text screen representation.
-        ansi  frame2; // diff: .
         bool  alive; // diff: Working loop state.
         bool  ready; // diff: Conditional variable to avoid spurious wakeup.
         bool  abort; // diff: Abort building current frame.
@@ -5613,10 +5627,6 @@ again:
 
         ansi  extra; // diff: Extra data to cout.
         text  extra_cached; // diff: Cached extra data to cout.
-
-        //todo unify
-        netxs::ansi::dtvt::bitmap_t  p_bitmap;
-        netxs::ansi::dtvt::binary_t  tooltips; // diff: .
 
         // diff: Render current buffer to the screen.
         template<svga VGAMODE = svga::truecolor>
@@ -5918,6 +5928,8 @@ again:
             auto start = moment{};
             auto guard = std::unique_lock{ mutex };
 
+            auto& p_bitmap = conio.p_bitmap;
+
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
                 ready = faux;
@@ -6019,9 +6031,9 @@ again:
                 if (rhash != dhash) front = cache; // Cache may be further resized before it rendered.
                 debug = { watch, delta };
 
-                if (video == svga::directvt && tooltips.length())
+                if (video == svga::directvt && conio.p_tooltips.length())
                 {
-                    extra_cached += tooltips.str();
+                    extra_cached += conio.p_tooltips.str();
                 }
                 if (extra.length())
                 {
@@ -6107,10 +6119,6 @@ again:
         {
             auto lock = std::lock_guard{ mutex };
             extra.add<svga::truecolor>(utf8);
-        }
-        auto& get_tooltips()
-        {
-            return tooltips;
         }
     };
 
@@ -6302,22 +6310,6 @@ again:
                 }
             }
         }
-        void fill_tooltips(ansi::dtvt::binary_t& tooltips)
-        {
-            tooltips.clear(); //todo use dblbuffer
-            for (auto& [gear_id, gear_ptr] : input.gears)
-            {
-                auto& gear = *gear_ptr;
-                if (gear.is_tooltip_changed())
-                {
-                    auto tooltip_data = gear.get_tooltip();
-                    tooltips.add(ansi::dtvt::tip,
-                                         gear_id,
-                       (ui32)tooltip_data.size(),
-                             (view)tooltip_data);
-                }
-            }
-        }
         void check_tooltips(moment now)
         {
             auto result = faux;
@@ -6416,7 +6408,7 @@ again:
 
                         if (props.tooltip_enabled)
                         {
-                            if (direct) fill_tooltips(paint.get_tooltips());
+                            if (direct) conio.pass_tooltips(input.gears);
                             else        draw_tooltips(canvas);
                         }
 
