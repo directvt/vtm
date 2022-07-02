@@ -571,6 +571,29 @@ namespace netxs::ansi
             {
                 block.resize(head_len);
             }
+            // header_t: Check DirectVT frame integrity.
+            static auto intergity(text const& flow)
+            {
+                using size_type = decltype(frame::size);
+                auto size = flow.length();
+                auto head = flow.data();
+                auto iter = head;
+                while (size >= sizeof(size_type))
+                {
+                    auto step = *reinterpret_cast<size_type const*>(iter); // Stored with same endianness.
+                    if (step < sizeof(size_type))
+                    {
+                        log("dtvt: stream corrupted, frame size: ", step);
+                        break;
+                    }
+                    if (size < step) break;
+                    size -= step;
+                    iter += step;
+                }
+
+                auto crop = view(head, iter - head);
+                return crop;
+            }
         };
 
         class bitmap_t
@@ -825,7 +848,7 @@ namespace netxs::ansi
                     {
                         if (rest.size())
                         {
-                            std::tie(gear_id, data) = binary_t::take<id_t, view>(rest);
+                            std::tie(gear_id, data) = header_t::take<id_t, view>(rest);
                         }
                         else stop = true;
                     }

@@ -3886,9 +3886,9 @@ namespace netxs::os
             }
             void read_socket_thread()
             {
-                log("dtvt: id: ", stdinput.get_id(), " reading thread started");
                 using frame_t = ansi::dtvt::header_t<ansi::dtvt::frame_type::any>;
-                using size_type = decltype(frame_t::frame::size);
+
+                log("dtvt: id: ", stdinput.get_id(), " reading thread started");
 
                 auto flow = text{};
                 while (termlink)
@@ -3897,26 +3897,9 @@ namespace netxs::os
                     if (shot && termlink)
                     {
                         flow += shot;
-                        // Check DirectVT frame integrity.
-                        auto size = flow.length();
-                        auto head = flow.data();
-                        auto iter = head;
-                        while (size >= sizeof(size_type))
+                        auto crop = frame_t::intergity(flow);
+                        if (crop.size())
                         {
-                            auto step = *reinterpret_cast<size_type*>(iter); // Stored with same endianness.
-                            if (step < sizeof(size_type))
-                            {
-                                log("dtvt: stream corrupted, frame size: ", step);
-                                break;
-                            }
-                            if (size < step) break;
-                            size -= step;
-                            iter += step;
-                        }
-
-                        if (iter != head)
-                        {
-                            auto crop = view(head, iter - head);
                             receiver(crop);
                             flow.erase(0, crop.size()); // Delete processed data.
                         }
