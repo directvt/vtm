@@ -345,6 +345,45 @@ namespace netxs::ansi
         protected:
             text block; // binary_t: Continuous block of data.
 
+            template<class T, class I>
+            struct generic_list_t
+            {
+                T data;
+
+                template<class Type>
+                struct iter_t
+                {
+                    view rest;
+                    bool stop;
+                    Type prop;
+
+                    iter_t(view data)
+                        : rest{ data },
+                          stop{ faux }
+                    {
+                        operator++();
+                    }
+                    template<class A>
+                    auto  operator == (A&&) const { return stop; }
+                    auto& operator  * ()    const { return prop; }
+                    auto& operator  * ()          { return prop; }
+                    auto  operator ++ () { stop = prop.next(rest); }
+                };
+                using Iter = iter_t<I>;
+
+                generic_list_t(generic_list_t const&) = default;
+                generic_list_t(generic_list_t&&)      = default;
+                generic_list_t(view& data_src)
+                    : data{ data_src }
+                {
+                    data_src = {};
+                }
+                auto begin() const { return Iter{ data }; }
+                auto begin()       { return Iter{ data }; }
+                auto   end() const { return text::npos;   }
+                auto   end()       { return text::npos;   }
+            };
+
             // binary_t: .
             template<class T>
             inline void fuse(T&& data)
@@ -513,6 +552,27 @@ namespace netxs::ansi
             static constexpr auto data_pos = kind_pos + kind_len;
             static constexpr auto head_len = data_pos + subtuple_len<FieldsCount>();
 
+            struct frame_iter
+            {
+                byte type;
+                view data;
+
+                auto next(view& rest)
+                {
+                    auto head = sizeof(sz_t) + sizeof(byte);
+                    auto stop = rest.size() < head;
+                    if (!stop)
+                    {
+                        auto size = sz_t{};
+                        std::tie(size, type) = binary_t::take<sz_t, byte>(rest);
+                        stop = size > rest.size() + head;
+                        if (stop) log("dtvt: corrupted data");
+                        else      data = binary_t::take_substr(size - head, rest);
+                    }
+                    return stop;
+                }
+            };
+
         protected:
             template<std::size_t N>
             void set(Element<N> const& value)
@@ -520,67 +580,11 @@ namespace netxs::ansi
                 static constexpr auto offset = data_pos + subtuple_len<N>();
                 add_at(offset, value);
             }
-            template<std::size_t N>
-            auto get() const
-            {
-                auto value = Element<N>{};
-                return value;
-            }
 
         public:
-            struct frame_list
-            {
-                struct iter_t
-                {
-                    view rest;
-                    bool stop;
-
-                    byte type;
-                    view data;
-
-                    iter_t(view data)
-                        : rest{ data },
-                          stop{ faux }
-                    {
-                        operator++();
-                    }
-                    template<class T>
-                    bool  operator == (T&&) const { return  stop; }
-                    auto& operator  * ()          { return *this; }
-                    void  operator ++ ()
-                    {
-                        auto head = sizeof(sz_t) + sizeof(byte);
-                        if (rest.size() >= head)
-                        {
-                            auto size = sz_t{};
-                            std::tie(size, type) = binary_t::take<sz_t, byte>(rest);
-                            if (size > rest.size() + head)
-                            {
-                                log("dtvt: corrupted data");
-                                stop = true;
-                            }
-                            else data = binary_t::take_substr(size - head, rest);
-                        }
-                        else stop = true;
-                    }
-                };
-
-                view data;
-
-                frame_list(frame_list const&) = default;
-                frame_list(frame_list&&)      = default;
-                frame_list(view& data_src)
-                    : data{ data_src }
-                {
-                    data_src = {};
-                }
-                auto begin() { return iter_t{ data }; }
-                auto   end() { return text::npos;     }
-            };
-
             static auto get(view& data)
             {
-                return frame_list{ data };
+                return generic_list_t<view, frame_iter>{ data };
             }
 
             header_t()
@@ -732,12 +736,9 @@ namespace netxs::ansi
             };
 
         public:
-            auto gear_id() const           { return header_t::get<_gear_id>();     }
-            auto   cause() const           { return header_t::get<_cause>  ();     }
-            auto   coord() const           { return header_t::get<_coord>  ();     }
-            void gear_id(id_t id)          {        header_t::set<_gear_id>(id);   }
-            void   cause(hint const& deed) {        header_t::set<_cause>  (deed); }
-            void   coord(twod const& coor) {        header_t::set<_coord>  (coor); }
+            void gear_id(id_t id)          { header_t::set<_gear_id>(id);   }
+            void   cause(hint const& deed) { header_t::set<_cause>  (deed); }
+            void   coord(twod const& coor) { header_t::set<_coord>  (coor); }
         };
 
         class jgc_list_t
@@ -752,8 +753,7 @@ namespace netxs::ansi
             //text data; // { token64, data_view.size(), data_view) }
 
         public:
-            auto count() const            { return header_t::get<_count>();                         }
-            void count(std::size_t count) {        header_t::set<_count>(static_cast<sz_t>(count)); }
+            void count(std::size_t count) { header_t::set<_count>(static_cast<sz_t>(count)); }
         };
 
         class form_header_t
@@ -768,8 +768,7 @@ namespace netxs::ansi
             //text data; // { data_view }
 
         public:
-            auto size() const        { return header_t::get<_size>();                     }
-            void size(std::size_t s) {        header_t::set<_size>(static_cast<sz_t>(s)); }
+            void size(std::size_t s) { header_t::set<_size>(static_cast<sz_t>(s)); }
         };
 
         class form_footer_t
@@ -784,8 +783,7 @@ namespace netxs::ansi
             //text data; // { data_view }
 
         public:
-            auto size() const        { return header_t::get<_size>();                     }
-            void size(std::size_t s) {        header_t::set<_size>(static_cast<sz_t>(s)); }
+            void size(std::size_t s) { header_t::set<_size>(static_cast<sz_t>(s)); }
         };
 
         class get_clipboard_t
@@ -798,8 +796,7 @@ namespace netxs::ansi
             };
 
         public:
-            auto gear_id() const  { return header_t::get<_gear_id>();   }
-            void gear_id(id_t id) {        header_t::set<_gear_id>(id); }
+            void gear_id(id_t id) { header_t::set<_gear_id>(id); }
         };
 
         class set_clipboard_t
@@ -816,12 +813,9 @@ namespace netxs::ansi
             //text raw_data;
 
         public:
-            auto gear_id() const                  { return header_t::get<_gear_id>();            }
-            auto clip_preview_size() const        { return header_t::get<_clip_preview_size>();  }
-            auto clip_rawdata_size() const        { return header_t::get<_clip_rawdata_size>();  }
-            void gear_id(id_t id)                 {        header_t::set<_gear_id>(id);          }
-            void clip_preview_size(twod const& p) {        header_t::set<_clip_preview_size>(p); }
-            void clip_rawdata_size(std::size_t s) {        header_t::set<_clip_rawdata_size>(static_cast<sz_t>(s)); }
+            void gear_id(id_t id)                 { header_t::set<_gear_id>(id);          }
+            void clip_preview_size(twod const& p) { header_t::set<_clip_preview_size>(p); }
+            void clip_rawdata_size(std::size_t s) { header_t::set<_clip_rawdata_size>(static_cast<sz_t>(s)); }
         };
 
         class set_focus_t
@@ -836,12 +830,9 @@ namespace netxs::ansi
             };
 
         public:
-            auto gear_id() const           { return header_t::get<_gear_id>();            }
-            auto combine_focus() const     { return header_t::get<_combine_focus>();      }
-            auto force_group_focus() const { return header_t::get<_force_group_focus>();  }
-            void gear_id(id_t id)          {        header_t::set<_gear_id>(id);          }
-            void combine_focus(bool b)     {        header_t::set<_combine_focus>(b);     }
-            void force_group_focus(bool b) {        header_t::set<_force_group_focus>(b); }
+            void gear_id(id_t id)          { header_t::set<_gear_id>(id);          }
+            void combine_focus(bool b)     { header_t::set<_combine_focus>(b);     }
+            void force_group_focus(bool b) { header_t::set<_force_group_focus>(b); }
         };
 
         class off_focus_t
@@ -854,8 +845,7 @@ namespace netxs::ansi
             };
 
         public:
-            auto gear_id() const  { return header_t::get<_gear_id>();            }
-            void gear_id(id_t id) {        header_t::set<_gear_id>(id);          }
+            void gear_id(id_t id) { header_t::set<_gear_id>(id); }
         };
 
         class expose_t
@@ -880,52 +870,26 @@ namespace netxs::ansi
             };
 
         public:
-            auto count() const { return header_t::get<_count>();  }
-            void count(sz_t c) {        header_t::set<_count>(c); }
+            void count(sz_t c) { header_t::set<_count>(c); }
         };
 
         class tooltips_t
             : public header_t<frame_type::tooltips>
         {
-            struct tooltip_list
+            struct tooltip_iter
             {
-                struct iter_t
+                id_t gear_id;
+                view data;
+
+                auto next(view& rest)
                 {
-                    view rest;
-                    view data;
-                    bool stop;
-                    id_t gear_id;
-
-                    iter_t(view data)
-                        : rest{ data },
-                          stop{ faux }
+                    auto stop = rest.empty();
+                    if (!stop)
                     {
-                        operator++();
+                        std::tie(gear_id, data) = header_t::take<id_t, view>(rest);
                     }
-                    template<class T>
-                    bool  operator == (T&&) const { return  stop; }
-                    auto& operator  * ()    const { return *this; }
-                    void  operator ++ ()
-                    {
-                        if (rest.size())
-                        {
-                            std::tie(gear_id, data) = header_t::take<id_t, view>(rest);
-                        }
-                        else stop = true;
-                    }
-                };
-
-                text data;
-
-                tooltip_list(tooltip_list const&) = default;
-                tooltip_list(tooltip_list&&)      = default;
-                tooltip_list(view& data_src)
-                    : data{ data_src }
-                {
-                    data_src = {};
+                    return stop;
                 }
-                auto begin() const { return iter_t{ data }; }
-                auto   end() const { return text::npos;     }
             };
 
         public:
@@ -935,7 +899,7 @@ namespace netxs::ansi
             }
             static auto get(view& data)
             {
-                return tooltip_list{ data };
+                return generic_list_t<text, tooltip_iter>{ data };
             }
         };
     }
