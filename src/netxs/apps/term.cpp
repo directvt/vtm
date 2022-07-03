@@ -7,10 +7,9 @@ R"==(
 )==";
 
 #define DESKTOP_VER "v0.7.6"
-#define MONOTTY_VER "Monotty Desktopio " DESKTOP_VER
+#define MONOTTY_VER "Desktopio Terminal " DESKTOP_VER
 #define MONOTTY_MYNAME "vtm/term"
 #define MONOTTY_DEFAPP "Term"
-#define MONOTTY_APPINF "Desktopio Terminal " DESKTOP_VER
 #define PROD
 
 #include "../apps.hpp"
@@ -35,7 +34,7 @@ int main(int argc, char* argv[])
     skin::setup(tone::bordersz, dot_11);
 
     //todo unify
-    log(MONOTTY_APPINF);
+    log(MONOTTY_VER);
 
     auto success = app::shared::start(MONOTTY_DEFAPP, MONOTTY_MYNAME, vtmode, maxfps, menusz);
 

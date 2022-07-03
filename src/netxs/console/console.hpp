@@ -4857,7 +4857,6 @@ namespace netxs::console
         }
         debug_count_relay;
 
-        ansi::dtvt::bitmap_t                p_bitmap;
         ansi::dtvt::mouse_t                 p_mouse;
         ansi::dtvt::jgc_list_t              p_jgc_list;
         ansi::dtvt::form_header_t           p_form_header;
@@ -5924,70 +5923,59 @@ again:
         // diff: Render current buffer in DTVT-node.
         void render_dtvt()
         {
+            auto frame = netxs::ansi::dtvt::bitmap_t{};
+            auto coord = twod{};
             auto state = cell{};
             auto start = moment{};
             auto guard = std::unique_lock{ mutex };
-
-            auto& p_bitmap = conio.p_bitmap;
 
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
                 ready = faux;
                 abort = faux;
+                coord = dot_00;
                 start = tempus::now();
-
-                p_bitmap.set(0xaabbccdd, { dot_00, field });
-
-                if (extra_cached.length())
-                {
-                    p_bitmap.add(extra_cached);
-                    extra_cached.clear();
-                }
+                frame.set(0xaabbccdd, { dot_00, field });
 
                 if (rhash != dhash)
                 {
                     rhash = dhash;
+                    frame.scroll_wipe();
                     auto src = front.data();
-                    auto end = src + front.size();
-                    auto row = si32{};
-                    p_bitmap.scroll_wipe();
-                    while (row++ < field.y)
+                    auto end = src;
+                    while (coord.y < field.y
+                       && !abort)
                     {
-                        if (abort) break;
-                        p_bitmap.locate(1, row);
-                        auto end_line = src + field.x;
-                        while (src != end_line)
+                        frame.locate(coord);
+                        end += field.x;
+                        while (src != end)
                         {
-                            auto& c = *(src++);
-                            c.scan<svga::directvt>(state, p_bitmap);
+                            auto& c = *src++;
+                            c.scan<svga::directvt>(state, frame);
                         }
+                        ++coord.y;
                     }
                 }
                 else
                 {
                     auto src = cache.data();
                     auto dst = front.data();
-                    auto beg = src;
+                    auto beg = src + 1;
                     auto end = src;
-                    auto row = si32{};
-
-                    while (row++ < field.y)
+                    while (coord.y < field.y
+                       && !abort)
                     {
-                        if (abort) break;
                         end += field.x;
-
                         while (src != end)
                         {
                             auto& fore = *src++;
                             auto& back = *dst++;
                             if (back != fore)
                             {
-                                auto col = static_cast<si32>(src - beg);
-                                p_bitmap.locate(col, row);
-
+                                coord.x = static_cast<si32>(src - beg);
+                                frame.locate(coord);
                                 back = fore;
-                                fore.scan<svga::directvt>(state, p_bitmap);
-
+                                fore.scan<svga::directvt>(state, frame);
                                 while (src != end)
                                 {
                                     auto& fore = *src++;
@@ -5996,25 +5984,25 @@ again:
                                     else
                                     {
                                         back = fore;
-                                        fore.scan<svga::directvt>(state, p_bitmap);
+                                        fore.scan<svga::directvt>(state, frame);
                                     }
                                 }
                             }
                         }
                         beg += field.x;
+                        ++coord.y;
                     }
                 }
 
-                auto size = static_cast<si32>(frame.size());
-                if (!abort && !!p_bitmap)
+                if (!abort && !!frame)
                 {
                     guard.unlock();
-                    conio.output(p_bitmap);
+                    conio.output(frame);
                     guard.lock();
                 }
-                p_bitmap.clear();
-                delta = size;
+                delta = frame.length();
                 watch = tempus::now() - start;
+                frame.clear();
             }
         }
 

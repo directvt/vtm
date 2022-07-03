@@ -27,7 +27,7 @@ R"==(
 )==";
 
 #define DESKTOP_VER "v0.7.6"
-#define MONOTTY_VER "Monotty Desktopio " DESKTOP_VER
+#define MONOTTY_VER "vtm " DESKTOP_VER
 #define MONOTTY_PREFIX "monotty_"
 #define MONOTTY_MYNAME "vtm"
 #define MONOTTY_DEFAPP "Term"

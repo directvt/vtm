@@ -327,6 +327,8 @@ namespace netxs::ansi
         };
         #pragma pack(pop)
 
+        using hint = netxs::events::type;
+
         enum frame_type : byte
         {
             any,
@@ -393,11 +395,6 @@ namespace netxs::ansi
                 ::memcpy(block.text::data() + at, reinterpret_cast<void const*>(&le_data), sizeof(le_data));
                 return *this;
             }
-            // binary_t: .
-            auto block_size() const
-            {
-                return static_cast<ui32>(block.text::size());
-            }
 
         public:
             binary_t() = default;
@@ -425,15 +422,16 @@ namespace netxs::ansi
                 block.clear();
             }
             // binary_t: .
-            auto length()
+            auto length() const
             {
-                return block.length();
+                return static_cast<ui32>(block.length());
             }
             // binary_t: .
             auto& str()
             {
                 return block;
             }
+            // binary_t: .
             template<class T>
             static auto _take_item(view& data)
             {
@@ -458,26 +456,31 @@ namespace netxs::ansi
                     return crop;
                 }
             }
+            // binary_t: .
             template<class... Fields>
             static auto _take(std::tuple<Fields...>, view& data)
             {
                 return std::tuple{ _take_item<Fields>(data)..., };
             }
+            // binary_t: .
             template<class... Fields>
             static auto take(view& data)
             {
                 return std::tuple{ _take_item<Fields>(data)..., };
             }
+            // binary_t: .
             template<class T>
             static void take(T&& dest, view& data)
             {
                 dest = _take_item<T>(data);
             }
+            // binary_t: .
             static void take(void *dest, size_t size, view& data)
             {
                 ::memcpy(dest, reinterpret_cast<void const*>(data.data()), size);
                 data.remove_prefix(size);
             }
+            // binary_t: .
             static auto take_substr(size_t size, view& data)
             {
                 if (size > data.size())
@@ -552,18 +555,18 @@ namespace netxs::ansi
             header_t()
                 : binary_t{ head_len }
             {
-                add_at(size_pos, block_size());
+                add_at(size_pos, binary_t::length());
                 add_at(kind_pos, Type);
             }
 
             explicit operator bool () const
             {
-                return block_size() > head_len;
+                return binary_t::length() > head_len;
             }
             // header_t: .
             operator view ()
             {
-                add_at(size_pos, block_size());
+                add_at(size_pos, binary_t::length());
                 return block;
             }
             // header_t: .
@@ -572,7 +575,7 @@ namespace netxs::ansi
                 block.resize(head_len);
             }
             // header_t: Check DirectVT frame integrity.
-            static auto intergity(text const& flow)
+            static auto purify(text const& flow)
             {
                 using size_type = decltype(frame::size);
                 auto size = flow.length();
@@ -627,10 +630,9 @@ namespace netxs::ansi
             {
                 add(ansi::dtvt::rst);
             }
-            void locate(si32 x, si32 y)
+            void locate(twod const& p)
             {
-                //todo use twod
-                add(ansi::dtvt::cup, twod{ x,y } - dot_11);
+                add(ansi::dtvt::cup, p);
             }
             template<class T>
             void gc(T const& gc)
@@ -658,7 +660,6 @@ namespace netxs::ansi
             };
         };
 
-        using hint = netxs::events::type;
         class mouse_t
             : public header_t<frame_type::mouse_event
             , id_t, hint, twod>
