@@ -7075,23 +7075,11 @@ namespace netxs::ui
                     }
                     case ansi::dtvt::frame_type::jgc_list:
                     {
-                        // si32 count
-                            // ui64 token
-                            // size_t data_len
-                            // view data
-                        //todo check sanity
-                        auto count = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(ui32));
-                        for (auto i = 0_sz; i < count; i++)
+                        auto jgc_list = ansi::dtvt::jgc_list_t::get(frame.data);
+                        for (auto& jgc : jgc_list)
                         {
-                            auto token = netxs::letoh(*reinterpret_cast<ui64 const*>(frame.data.data()));
-                            frame.data.remove_prefix(sizeof(ui64));
-                            auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
-                            frame.data.remove_prefix(sizeof(ui32));
-                            auto cluster = text{ frame.data.data(), (size_t)size };
-                            frame.data.remove_prefix(size);
-                            cell::gc_set_data(token, cluster);
-                            log("new gc token: ", token, " cluster size ", cluster.size(), " data: ", cluster);
+                            cell::gc_set_data(jgc.token, jgc.cluster);
+                            log("new gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                         }
                         //todo full strike to redraw with new clusters
                         break;

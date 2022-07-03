@@ -550,7 +550,7 @@ namespace netxs::ansi
             static constexpr auto data_pos = kind_pos + kind_len;
             static constexpr auto head_len = data_pos + subtuple_len<FieldsCount>();
 
-            struct frame_iter
+            struct frame_iterator
             {
                 byte type;
                 view data;
@@ -582,7 +582,7 @@ namespace netxs::ansi
         public:
             static auto get(view& data)
             {
-                return generic_list_t<view, frame_iter>{ data };
+                return generic_list_t<view, frame_iterator>{ data };
             }
 
             header_t()
@@ -734,24 +734,43 @@ namespace netxs::ansi
             };
 
         public:
-            void gear_id(id_t id)          { header_t::set<_gear_id>(id);   }
-            void   cause(hint const& deed) { header_t::set<_cause>  (deed); }
-            void   coord(twod const& coor) { header_t::set<_coord>  (coor); }
+            void set(id_t id, hint const& deed, twod const& coor)
+            {
+                header_t::set<_gear_id>(id);
+                header_t::set<_cause>  (deed);
+                header_t::set<_coord>  (coor);
+            }
         };
 
         class jgc_list_t
-            : public header_t<frame_type::jgc_list
-            , sz_t>
+            : public header_t<frame_type::jgc_list>
         {
-            enum
+            struct jgc_iterator
             {
-                _count,
+                ui64 token;
+                view cluster;
+
+                auto next(view& rest)
+                {
+                    auto stop = rest.empty();
+                    if (!stop)
+                    {
+                        std::tie(token, cluster) = header_t::take<ui64, view>(rest);
+                    }
+                    return stop;
+                }
             };
 
-            //text data; // { token64, data_view.size(), data_view) }
-
         public:
-            void count(std::size_t count) { header_t::set<_count>(static_cast<sz_t>(count)); }
+            template<class T>
+            void add(T token, view cluster)
+            {
+                header_t::add(token, static_cast<sz_t>(cluster.size()), cluster);
+            }
+            static auto get(view& data)
+            {
+                return generic_list_t<view, jgc_iterator>{ data };
+            }
         };
 
         class form_header_t
@@ -766,7 +785,12 @@ namespace netxs::ansi
             //text data; // { data_view }
 
         public:
-            void size(std::size_t s) { header_t::set<_size>(static_cast<sz_t>(s)); }
+            void set(view new_header)
+            {
+                header_t::set<_size>(static_cast<sz_t>(new_header.size()));
+                clear();
+                add(new_header);
+            }
         };
 
         class form_footer_t
@@ -781,7 +805,12 @@ namespace netxs::ansi
             //text data; // { data_view }
 
         public:
-            void size(std::size_t s) { header_t::set<_size>(static_cast<sz_t>(s)); }
+            void set(view new_footer)
+            {
+                header_t::set<_size>(static_cast<sz_t>(new_footer.size()));
+                clear();
+                add(new_footer);
+            }
         };
 
         class get_clipboard_t
@@ -794,7 +823,10 @@ namespace netxs::ansi
             };
 
         public:
-            void gear_id(id_t id) { header_t::set<_gear_id>(id); }
+            void set(id_t gear_id)
+            {
+                header_t::set<_gear_id>(gear_id);
+            }
         };
 
         class set_clipboard_t
@@ -811,9 +843,14 @@ namespace netxs::ansi
             //text raw_data;
 
         public:
-            void gear_id(id_t id)                 { header_t::set<_gear_id>(id);          }
-            void clip_preview_size(twod const& p) { header_t::set<_clip_preview_size>(p); }
-            void clip_rawdata_size(std::size_t s) { header_t::set<_clip_rawdata_size>(static_cast<sz_t>(s)); }
+            void set(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
+            {
+                header_t::set<_gear_id>(gear_id);
+                header_t::set<_clip_preview_size>(clip_preview_size);
+                header_t::set<_clip_rawdata_size>(static_cast<sz_t>(clip_rawdata.size()));
+                clear();
+                add(clip_rawdata);
+            }
         };
 
         class set_focus_t
@@ -828,9 +865,12 @@ namespace netxs::ansi
             };
 
         public:
-            void gear_id(id_t id)          { header_t::set<_gear_id>(id);          }
-            void combine_focus(bool b)     { header_t::set<_combine_focus>(b);     }
-            void force_group_focus(bool b) { header_t::set<_force_group_focus>(b); }
+            void set(id_t gear_id, bool combine_focus, bool force_group_focus)
+            {
+                header_t::set<_gear_id>(gear_id);
+                header_t::set<_combine_focus>(combine_focus);
+                header_t::set<_force_group_focus>(force_group_focus);
+            }
         };
 
         class off_focus_t
@@ -843,7 +883,10 @@ namespace netxs::ansi
             };
 
         public:
-            void gear_id(id_t id) { header_t::set<_gear_id>(id); }
+            void set(id_t gear_id)
+            {
+                header_t::set<_gear_id>(gear_id);
+            }
         };
 
         class expose_t
@@ -868,13 +911,13 @@ namespace netxs::ansi
             };
 
         public:
-            void count(sz_t c) { header_t::set<_count>(c); }
+            void set(sz_t c) { header_t::set<_count>(c); }
         };
 
         class tooltips_t
             : public header_t<frame_type::tooltips>
         {
-            struct tooltip_iter
+            struct tooltip_iterator
             {
                 id_t gear_id;
                 view data;
@@ -897,7 +940,7 @@ namespace netxs::ansi
             }
             static auto get(view& data)
             {
-                return generic_list_t<text, tooltip_iter>{ data };
+                return generic_list_t<text, tooltip_iterator>{ data };
             }
         };
     }

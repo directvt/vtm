@@ -4884,35 +4884,27 @@ namespace netxs::console
         }
         void forward(id_t gear_id, hint cause, twod const& coord)
         {
-            p_mouse.gear_id(gear_id);
-            p_mouse.cause(cause);
-            p_mouse.coord(coord);
+            p_mouse.set(gear_id, cause, coord);
             output(p_mouse);
         }
         void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
         {
-            p_set_clipboard.gear_id(gear_id);
-            p_set_clipboard.clip_preview_size(clip_preview_size);
-            p_set_clipboard.clip_rawdata_size(clip_rawdata.size());
-            p_set_clipboard.clear();
-            p_set_clipboard.add(clip_rawdata);
+            p_set_clipboard.set(gear_id, clip_preview_size, clip_rawdata);
             output(p_set_clipboard);
         }
         void request_clipboard(id_t gear_id)
         {
-            p_request_clipboard.gear_id(gear_id);
+            p_request_clipboard.set(gear_id);
             output(p_request_clipboard);
         }
         void set_focus(id_t gear_id, bool combine_focus, bool force_group_focus)
         {
-            p_set_focus.gear_id(gear_id);
-            p_set_focus.combine_focus(combine_focus);
-            p_set_focus.force_group_focus(force_group_focus);
+            p_set_focus.set(gear_id, combine_focus, force_group_focus);
             output(p_set_focus);
         }
         void off_focus(id_t gear_id)
         {
-            p_off_focus.gear_id(gear_id);
+            p_off_focus.set(gear_id);
             output(p_off_focus);
         }
         void expose()
@@ -4925,21 +4917,17 @@ namespace netxs::console
         }
         void request_debug_count(si32 count)
         {
-            p_request_debug_count.count(count);
+            p_request_debug_count.set(count);
             output(p_request_debug_count);
         }
         void send_header(view new_header)
         {
-            p_form_header.size(new_header.size());
-            p_form_header.clear();
-            p_form_header.add(new_header);
+            p_form_header.set(new_header);
             output(p_form_header);
         }
         void send_footer(view new_footer)
         {
-            p_form_footer.size(new_footer.size());
-            p_form_footer.clear();
-            p_form_footer.add(new_footer);
+            p_form_footer.set(new_footer);
             output(p_form_footer);
         }
         template<class T>
@@ -4955,7 +4943,7 @@ namespace netxs::console
                     p_tooltips.add(gear_id, tooltip_data);
                 }
             }
-            if (p_tooltips) output(p_tooltips); //todo make it lazy out (do not send immediately)
+            if (p_tooltips) output(p_tooltips);
         }
 
         template<class E, class T>
@@ -5027,7 +5015,7 @@ namespace netxs::console
                 //	              └----- Ctrl
                 // - cursor
 
-                view strv = total;
+                auto strv = view{ total };
 
                 #ifdef KEYLOG
                     log("link: input data (", total.size(), " bytes):\n", utf::debase(total));
@@ -5404,18 +5392,15 @@ again:
                                             }
                                             case ansi::dtvt::requestgc:
                                             {
-                                                auto count = si32{ 0 };
                                                 p_jgc_list.clear();
                                                 do
                                                 {
                                                     auto token = netxs::letoh(take64());
-                                                    auto data = cell::gc_get_data(token);
-                                                    p_jgc_list.add(token, (ui32)data.size(), data);
-                                                    log("token ", token, " data.size ", data.size());
-                                                    count++;
+                                                    auto cluster = cell::gc_get_data(token);
+                                                    p_jgc_list.add(token, cluster);
+                                                    log("token ", token, " cluster.size ", cluster.size());
                                                 }
                                                 while (strv.at(pos) == ':');
-                                                p_jgc_list.count(count);
                                                 output(p_jgc_list);
                                                 break;
                                             }
