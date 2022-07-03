@@ -345,19 +345,18 @@ namespace netxs::ansi
         protected:
             text block; // binary_t: Continuous block of data.
 
-            template<class T, class I>
+            template<class T, class Type>
             struct generic_list_t
             {
-                T data;
+                T copy;
 
-                template<class Type>
-                struct iter_t
+                struct iter
                 {
                     view rest;
                     bool stop;
                     Type prop;
 
-                    iter_t(view data)
+                    iter(view data)
                         : rest{ data },
                           stop{ faux }
                     {
@@ -369,19 +368,18 @@ namespace netxs::ansi
                     auto& operator  * ()          { return prop; }
                     auto  operator ++ () { stop = prop.next(rest); }
                 };
-                using Iter = iter_t<I>;
 
                 generic_list_t(generic_list_t const&) = default;
                 generic_list_t(generic_list_t&&)      = default;
-                generic_list_t(view& data_src)
-                    : data{ data_src }
+                generic_list_t(view& data)
+                    : copy{ data }
                 {
-                    data_src = {};
+                    data = {};
                 }
-                auto begin() const { return Iter{ data }; }
-                auto begin()       { return Iter{ data }; }
-                auto   end() const { return text::npos;   }
-                auto   end()       { return text::npos;   }
+                auto begin() const { return iter{copy}; }
+                auto begin()       { return iter{copy}; }
+                auto   end() const { return text::npos; }
+                auto   end()       { return text::npos; }
             };
 
             // binary_t: .

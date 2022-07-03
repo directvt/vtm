@@ -6958,6 +6958,7 @@ namespace netxs::ui
                                 }
                             }
                         });
+                        break;
                     }
                     case ansi::dtvt::frame_type::expose:
                     {
@@ -7096,8 +7097,9 @@ namespace netxs::ui
                         break;
                     }
                     case ansi::dtvt::frame_type::vt_command:
+                    {
                         break;
-
+                    }
                     default: // Unsupported command
                     {
                         log("dtvt: unsupported command: ", frame.type, "\n", utf::debase(frame.data));
