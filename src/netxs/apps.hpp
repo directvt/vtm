@@ -4,8 +4,8 @@
 #ifndef NETXS_APPS_HPP
 #define NETXS_APPS_HPP
 
-#define MONOTTY_FOLDER "/.config/vtm/"
-#define MONOTTY_APPDIR "/.config/vtm/apps"
+#define DESKTOPIO_FOLDER "/.config/vtm/"
+#define DESKTOPIO_APPDIR "/.config/vtm/apps"
 
 #ifndef PROD
     #define APPS_MAX_COUNT 20
@@ -924,7 +924,7 @@ namespace netxs::app::shared
         auto build_Fone          = [](view v)
         {
             return ui::park::ctor()
-                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(MONOTTY_VER)
+                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(DESKTOPIO_MYNAME)
                 ->template plugin<pro::fader>(x8, c8, 0ms))
                 ->template plugin<pro::notes>(" About Environment ")
                 ->invoke([&](auto& boss)
@@ -1130,7 +1130,7 @@ namespace netxs::app::shared
                 }
             };
             namespace fs = std::filesystem;
-            auto apps = os::homepath() + MONOTTY_APPDIR;
+            auto apps = os::homepath() + DESKTOPIO_APPDIR;
             auto list = std::vector<std::pair<fs::directory_entry, text>>{};
             auto data = view{ ::DirectVT };
             if (fs::exists(apps))

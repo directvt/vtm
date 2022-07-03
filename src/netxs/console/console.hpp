@@ -4340,7 +4340,7 @@ namespace netxs::console
         }
     };
 
-    // console: Desktop Virtual Environment.
+    // console: Desktopio Workspace.
     class hall
         : public host
     {

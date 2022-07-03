@@ -26,12 +26,12 @@ R"==(
 ="Truecolor [DEMO]", "Tooltip Message", a("Direct", "Test Title", "-r truecolor")
 )==";
 
-#define DESKTOP_VER "v0.7.6"
-#define MONOTTY_VER "vtm " DESKTOP_VER
-#define MONOTTY_PREFIX "monotty_"
-#define MONOTTY_MYNAME "vtm"
-#define MONOTTY_DEFAPP "Term"
-#define MONOTTY_APPINF "Desktopio Terminal " DESKTOP_VER
+#define DESKTOPIO_VER "v0.7.6"
+#define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
+#define DESKTOPIO_PREFIX "desktopio_"
+#define DESKTOPIO_MYPATH "vtm"
+#define DESKTOPIO_DEFAPP "Term"
+#define DESKTOPIO_APPINF "Desktopio Terminal " DESKTOPIO_VER
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 {
     auto vtmode = os::vt_mode();
     auto syslog = os::ipc::logger(vtmode);
-    auto banner = [&]() { log(MONOTTY_VER); };
+    auto banner = [&]() { log(DESKTOPIO_MYNAME); };
     auto whoami = type::client;
     auto region = text{};
     auto params = text{};
@@ -73,14 +73,14 @@ int main(int argc, char* argv[])
                 case 'r':
                     whoami = type::runapp;
                     params = getopt ? getopt.tail()
-                                    : text{ MONOTTY_DEFAPP };
+                                    : text{ DESKTOPIO_DEFAPP };
                     break;
                 case 's': whoami = type::server; break;
                 case 'd': daemon = true; break;
                 default:
                     #ifndef PROD
 
-                        if (os::get_env("SHELL").ends_with(MONOTTY_MYNAME))
+                        if (os::get_env("SHELL").ends_with(DESKTOPIO_MYPATH))
                         {
                             auto error = utf::text{ "main: interactive server is not allowed in demo mode" };
                             if (argc > 1)
@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
                                     error += utf::text(argv[i]);
                                 }
                             }
-                            os::start_log(MONOTTY_MYNAME);
+                            os::start_log(DESKTOPIO_MYPATH);
                             log(error);
                             return 1;
                         }
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
     {
         //todo mutex
         auto config = std::ifstream{};
-        config.open(os::homepath() + MONOTTY_FOLDER "settings.ini");
+        config.open(os::homepath() + DESKTOPIO_FOLDER "settings.ini");
 
         if (config.is_open())
         {
@@ -164,11 +164,11 @@ int main(int argc, char* argv[])
         auto userid = os::user();
         auto usernm = os::get_env("USER");
         auto hostip = os::get_env("SSH_CLIENT");
-        auto prefix = utf::concat(MONOTTY_PREFIX, userid);
+        auto prefix = utf::concat(DESKTOPIO_PREFIX, userid);
         auto server = os::ipc::open<os::server>(prefix);
         if (!server)
         {
-            log("main: error: can't start desktop server");
+            log("main: error: can't start desktopio server");
             return 1;
         }
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
@@ -214,21 +214,21 @@ int main(int argc, char* argv[])
         {
             banner();
             auto direct = !!(vtmode & os::legacy::direct);
-            if (!direct) os::start_log(MONOTTY_MYNAME);
+            if (!direct) os::start_log(DESKTOPIO_MYPATH);
             auto userid = os::user();
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
-            auto prefix = utf::concat(MONOTTY_PREFIX, userid);
+            auto prefix = utf::concat(DESKTOPIO_PREFIX, userid);
             auto client = os::ipc::open<os::client>(prefix, 10s, [&]()
                         {
-                            log("main: new desktop environment for user ", userid);
+                            log("main: new desktopio environment for user ", userid);
                             auto binary = view{ argv[0] };
                             utf::trim_front(binary, "-"); // Sometimes "-" appears before executable.
                             return os::exec(text{ binary }, "-d");
                         });
             if (!client)
             {
-                log("main: error: no desktop server connection");
+                log("main: error: no desktopio server connection");
                 return 1;
             }
             client->send(utf::concat(region, ";",
@@ -248,23 +248,23 @@ int main(int argc, char* argv[])
             //todo unify
             auto menusz = 3;
             utf::to_up(utf::to_low(params), 1);
-                 if (params == "Text") log("Desktopio Text Editor (DEMO) " DESKTOP_VER);
-            else if (params == "Calc") log("Desktopio Spreadsheet (DEMO) " DESKTOP_VER);
-            else if (params == "Gems") log("Desktopio App Manager (DEMO) " DESKTOP_VER);
-            else if (params == "Test") log("Desktopio App Testing (DEMO) " DESKTOP_VER);
-            else if (params == "Logs") log("Desktopio Log Console "        DESKTOP_VER);
-            else if (params == "Powershell") log("Desktopio Powershell "   DESKTOP_VER);
-            else if (params == "Truecolor")  log("Desktopio ANSI Art "     DESKTOP_VER);
+                 if (params == "Text") log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
+            else if (params == "Calc") log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
+            else if (params == "Gems") log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
+            else if (params == "Test") log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
+            else if (params == "Logs") log("Desktopio Log Console "        DESKTOPIO_VER);
+            else if (params == "Powershell") log("Desktopio Powershell "   DESKTOPIO_VER);
+            else if (params == "Truecolor")  log("Desktopio ANSI Art "     DESKTOPIO_VER);
             else
             {
                 menusz = 1;
-                params = MONOTTY_DEFAPP;
-                log(MONOTTY_APPINF);
+                params = DESKTOPIO_DEFAPP;
+                log(DESKTOPIO_APPINF);
             }
 
             skin::setup(tone::brighter, 0);
 
-            auto success = app::shared::start(params, MONOTTY_MYNAME, vtmode, maxfps, menusz);
+            auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, maxfps, menusz);
             if (!success)
             {
                 log("main: console initialization error");

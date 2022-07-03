@@ -41,7 +41,6 @@ namespace netxs::app::shop
 
             if (appstore_head.empty())
             {
-                auto monotty_logo  = ansi::bgc(blackdk  ).add("▀▄");
                 auto textancy_logo = ansi::bgc(cyandk   ).add("▀▄");
                 auto cellatix_logo = ansi::bgc(greendk  ).add("▀▄");
                 auto informio_logo = ansi::bgc(magentadk).add("▀▄");
@@ -104,7 +103,7 @@ namespace netxs::app::shop
                         " VTM_PROFILE_2='\"Menu label 2\", \"Window Title 2\", h( v(\"bash -c htop\", \"bash -c mc\"), a(\"Calc\",\"\",\"\"))' ")),
 
                     item("Text", cyandk, "102", "Free ", "Get",
-                    "A simple text editor for Monotty Desktopio environment "
+                    "A simple text editor for Desktopio environment "
                     "and a basic editing tool which enables "
                     "desktop users to create documents that "
                     "contain ANSI-formatted text."),
@@ -126,10 +125,10 @@ namespace netxs::app::shop
                     "codepoints and inspecting their metadata."),
 
                     item(ansi::fgc(0xFFff0000).add("File"), cyanlt, "4", "Free ", "Get",
-                    "An orthodox file manager for Monotty Desktopio environment."),
+                    "An orthodox file manager for Desktopio environment."),
 
                     item("Time", bluedk, "4", "Free ", "Get",
-                    "A calendar application for Monotty Desktopio environment."),
+                    "A calendar application for Desktopio environment."),
 
                     item("Goto", bluedk, "4", "Free ", "Get",
                     "Internet/SSH browser."),
@@ -148,10 +147,10 @@ namespace netxs::app::shop
                     "Software documentation browser."),
 
                     item("Hood", reddk, "1", "Free ", "Get",
-                    "Desktop environment settings configurator."),
+                    "Environment settings configurator."),
 
                     item("View", cyandk, "1", "Free ", "Get",
-                    "Meta object. Desktop location marker."),
+                    "Meta object. Workspace location marker."),
                 };
 
                 auto qr = ansi::esc(
@@ -177,16 +176,16 @@ namespace netxs::app::shop
                 .mgl(2).mgr(2).wrp(wrap::off)
                 .fgc(bluedk).jet(bias::left)
                 .bgc(bluedk).fgc(0xFFFFFFFF)
-                .add(" Monotty Desktopio "
+                .add(" Desktopio Environment "
                 "\n\n")
                 .fgc().bgc().jet(bias::left).wrp(wrap::on).add(
-                "Monotty Desktopio is a cross-platform, full-featured desktop environment."
+                "Desktopio Environment is a cross-platform, full-featured desktop environment."
                 " A user interface where by all output is presented in the form of text.\n"
-                "The first biggest advantage of this desktop environment concept that "
+                "The first biggest advantage of this concept that "
                 "it can be used directly over SSH connections, no additional protocol needed.\n"
                 "The second is the flexible multi-user interface "
                 "that serves several users engaged in collaborative applications and enables "
-                "users to view a collaborating user’s workspace.\n"
+                "users to view a collaborating user's workspace.\n"
                 "\n"
                 "If you like the way we think and would like to support the project "
                 "in the spirit of Bitcoin, you can donate at the following public "

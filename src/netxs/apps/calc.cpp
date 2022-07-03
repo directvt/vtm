@@ -6,10 +6,10 @@ R"==(
 ="Calc DEMO", "Calc Tooltip Message", a("Direct", "Calc App Title", "cmdline args")
 )==";
 
-#define DESKTOP_VER "v0.7.6"
-#define MONOTTY_VER "Desktopio Calc " DESKTOP_VER
-#define MONOTTY_MYNAME "vtm/calc"
-#define MONOTTY_DEFAPP "Calc"
+#define DESKTOPIO_VER "v0.7.6"
+#define DESKTOPIO_MYNAME "Desktopio Calc " DESKTOPIO_VER
+#define DESKTOPIO_MYPATH "vtm/calc"
+#define DESKTOPIO_DEFAPP "Calc"
 #define PROD
 
 #include "../apps.hpp"
@@ -34,9 +34,9 @@ int main(int argc, char* argv[])
     skin::setup(tone::bordersz, dot_11);
 
     //todo unify
-    log(MONOTTY_VER);
+    log(DESKTOPIO_MYNAME);
 
-    auto success = app::shared::start(MONOTTY_DEFAPP, MONOTTY_MYNAME, vtmode, maxfps, menusz);
+    auto success = app::shared::start(DESKTOPIO_DEFAPP, DESKTOPIO_MYPATH, vtmode, maxfps, menusz);
 
     if (success) return 0;
     else

@@ -2570,7 +2570,7 @@ namespace netxs::os
                 auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
 
                 #if defined(__BSD__)
-                    auto home = os::homepath() + MONOTTY_FOLDER;
+                    auto home = os::homepath() + DESKTOPIO_FOLDER;
                     if (!std::filesystem::exists(home))
                     {
                         log("path: create home directory ", home);

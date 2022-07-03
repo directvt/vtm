@@ -83,7 +83,7 @@ namespace netxs::app::test
                     .jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(0).mgr(0).eol()
                     .fgc(c1).bgc(c2).add("▄")
                     .fgc(c2).bgc(c1).add("▄")
-                    .fgc(clr).bgc().add("  Monotty Desktopio\n")
+                    .fgc(clr).bgc().add("  Desktopio Environment\n")
                     .fgc().bgc().add("Test Page    \n\n")
 
                     .nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)

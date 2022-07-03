@@ -254,7 +254,7 @@ No arguments | Run client (auto start server)
    - Debug output console.
 
  - `▀▄ View`
-   - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
+   - Serves for quick navigation through the workspace using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
 
  - `▀▄ Tile`
    - Supports Drag and Drop for panes (like tabs in a browser).
