@@ -5940,13 +5940,13 @@ again:
                 if (rhash != dhash)
                 {
                     rhash = dhash;
-                    frame.scroll_wipe();
+                    frame.rst();
                     auto src = front.data();
                     auto end = src;
                     while (coord.y < field.y
                        && !abort)
                     {
-                        frame.locate(coord);
+                        frame.cup(coord);
                         end += field.x;
                         while (src != end)
                         {
@@ -5973,7 +5973,7 @@ again:
                             if (back != fore)
                             {
                                 coord.x = static_cast<si32>(src - beg);
-                                frame.locate(coord);
+                                frame.cup(coord);
                                 back = fore;
                                 fore.scan<svga::directvt>(state, frame);
                                 while (src != end)

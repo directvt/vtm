@@ -6879,24 +6879,24 @@ namespace netxs::ui
         };
 
         using sync = std::condition_variable;
+        using list = std::unordered_map<ui64, text>;
 
         events_t        events; // dtvt: .
         text            cmdarg; // dtvt: Startup command line arguments.
         bool            active; // dtvt: Terminal lifetime.
-        bool            nodata; // dtvt: Show splash "No signal".
-        face            canvas; // dtvt:
+        si32            nodata; // dtvt: Show splash "No signal".
+        face            canvas; // dtvt: Application bitmap.
         face            splash; // dtvt: "No signal" splash.
         hook            oneoff; // dtvt: One-shot token for start and shutdown events.
-        cell            marker; // dtvt: Current brush.
         std::mutex      access; // dtvt: Canvas accesss mutex.
         sync            syncxs; // dtvt: Canvas access condvar.
         period          maxoff; // dtvt: Max delay before showing "No signal".
         ansi::esc       buffer; // dtvt: Clipboard buffer.
         ansi::esc       outbuf; // dtvt: PTY output buffer.
         subs            debugs; // dtvt: Tokens for debug output subcriptions.
-        std::unordered_map<ui64, text> unknown_gc_list; // dtvt: Unknown grapheme cluster list.
-        os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
+        list            gclist; // dtvt: Unknown grapheme cluster list.
         ansi::esc       prompt; // dtvt: PTY logger prompt.
+        os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
 
         // dtvt: Write tty data and flush the queue.
         //todo deprecated: use binary stream
@@ -6909,93 +6909,21 @@ namespace netxs::ui
             }
         }
         // dtvt: Proceed DirectVT input.
-        void ondata(view base_data)
+        void ondata(view data)
         {
-            while (base_data.size())
+            auto frames = ansi::dtvt::header_t<ansi::dtvt::frame_type::any>::get(data);
+            for(auto& frame : frames)
             {
-                auto data = base_data;
-                auto frame = ansi::dtvt::header_t<ansi::dtvt::frame_type::any>::get(data);
-                if (frame.data.empty())
-                {
-                    log("dtvt: corrupted data");
-                    return;
-                }
-                data = frame.data;
                 switch (frame.type)
                 {
                     case ansi::dtvt::frame_type::bitmap:
                     {
-                        auto b = ansi::dtvt::bitmap_t::get(data);
-
                         auto lock = std::lock_guard{ access };
-
-                        auto resized = b.area.size != canvas.size();
-                        if (resized)
+                        ansi::dtvt::bitmap_t::get(canvas, gclist, frame.data);
+                        if (gclist.size())
                         {
-                            nodata = faux;
-                            canvas.size(b.area.size);
-                        }
-                        auto iter = canvas.iter();
-                        auto coor = dot_00;
-                        auto limits = canvas.size();
-                        while (data.size() > 0)
-                        {
-                            if (auto code = utf::cpit{ data })
-                            {
-                                auto cp = code.take();
-                                data.remove_prefix(cp.utf8len);
-                                auto type = cp.cdpoint;
-                                if (type == ansi::dtvt::ngc) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
-                                {
-                                    coor.x++;
-                                }
-                                else if (type <= ansi::dtvt::gcl) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
-                                {
-                                    ansi::dtvt::bitmap_t::take(marker.egc(), type + 1, data);
-                                    if (marker.jgc() == faux) // Checking grapheme cluster registration.
-                                    {
-                                        unknown_gc_list[marker.tkn()];
-                                        log("token size ", type + 1);
-                                    }
-                                    if (limits.inside(coor))
-                                    {
-                                        canvas[coor] = marker;
-                                    }
-                                    coor.x++;
-                                }
-                                else if (type == ansi::dtvt::cup) //<= 8: cup: 8 bytes: si32 X + si32 Y
-                                {
-                                    ansi::dtvt::bitmap_t::take(coor, data);
-                                }
-                                else if (type == ansi::dtvt::bgc) //<= 9: bg color: 4 bytes: rgba
-                                {
-                                    ansi::dtvt::bitmap_t::take(marker.bgc(), data);
-                                }
-                                else if (type == ansi::dtvt::fgc) //<= 10: fg colors: 4 bytes: rgba
-                                {
-                                    ansi::dtvt::bitmap_t::take(marker.fgc(), data);
-                                }
-                                else if (type == ansi::dtvt::stl) //<=11: style: token 4 bytes
-                                {
-                                    ansi::dtvt::bitmap_t::take(marker.stl(), data);
-                                }
-                                else if (type == ansi::dtvt::rst) //<=12: wipe canvas
-                                {
-                                    marker.txt('\0');
-                                    canvas.wipe(marker);
-                                }
-                                else // Unknown type
-                                {
-                                    auto [vcmd] = ansi::dtvt::bitmap_t::take<view>(data);
-                                    log("dtvt: unknown data type: ", type, "\n", utf::debase(vcmd));
-                                }
-                            }
-                        }
-
-                        if (unknown_gc_list.size())
-                        {
-                            buffer.request_gc(unknown_gc_list);
-                            unknown_gc_list.clear();
+                            buffer.request_gc(gclist);
+                            gclist.clear();
                             log("request tokens: ", utf::debase(buffer));
                             answer(buffer);
                         }
@@ -7006,21 +6934,21 @@ namespace netxs::ui
                     }
                     case ansi::dtvt::frame_type::mouse_event:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                        data.remove_prefix(sizeof(id_t));
-                        auto cause = netxs::letoh(*reinterpret_cast<hint const*>(data.data()));
-                        data.remove_prefix(sizeof(hint));
-                        auto coord = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
-                        data.remove_prefix(sizeof(twod));
+                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(id_t));
+                        auto cause = netxs::letoh(*reinterpret_cast<hint const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(hint));
+                        auto coord = netxs::letoh(*reinterpret_cast<twod const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(twod));
                         events.replay(gear_id, cause, coord);
                         break;
                     }
                     case ansi::dtvt::frame_type::tooltips:
                     {
-                        auto tooltips = ansi::dtvt::tooltips_t::get(data);
-                        netxs::events::enqueue(This(), [&, list = std::move(tooltips)](auto& boss)
+                        auto tooltips = ansi::dtvt::tooltips_t::get(frame.data);
+                        netxs::events::enqueue(This(), [&, tooltips = std::move(tooltips)](auto& boss)
                         {
-                            for (auto& tooltip : list)
+                            for (auto& tooltip : tooltips)
                             {
                                 if (auto ptr = bell::getref(tooltip.gear_id))
                                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
@@ -7051,8 +6979,8 @@ namespace netxs::ui
                     //todo reimplement Logs
                     case ansi::dtvt::frame_type::request_debug_count:
                     {
-                        auto count = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                        data.remove_prefix(sizeof(ui32));
+                        auto count = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(ui32));
                         netxs::events::enqueue(This(), [&, count](auto& boss) mutable
                         {
                             this->SIGNAL(tier::general, e2::debug::count::set, count);
@@ -7061,26 +6989,26 @@ namespace netxs::ui
                     }
                     case ansi::dtvt::frame_type::set_clipboard:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                        data.remove_prefix(sizeof(id_t));
-                        auto clip_prev_size = netxs::letoh(*reinterpret_cast<twod const*>(data.data()));
-                        data.remove_prefix(sizeof(twod));
-                        auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                        data.remove_prefix(sizeof(ui32));
-                        if (size > data.size())
+                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(id_t));
+                        auto clip_prev_size = netxs::letoh(*reinterpret_cast<twod const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(twod));
+                        auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(ui32));
+                        if (size > frame.data.size())
                         {
                             log("dtvt: corrupted clipboard");
                             break;
                         }
-                        auto clipdata = text{ data.data(), (ui32)size };
-                        data.remove_prefix(size);
+                        auto clipdata = text{ frame.data.data(), (ui32)size };
+                        frame.data.remove_prefix(size);
                         events.set_clipboad(gear_id, clip_prev_size, clipdata);
                         break;
                     }
                     case ansi::dtvt::frame_type::request_clipboard:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                        data.remove_prefix(sizeof(gear_id));
+                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(gear_id));
                         text clipdata; //todo use gear.raw_clip_data
                         events.get_clipboad(gear_id, clipdata);
                         buffer = ansi::clipdata(gear_id, clipdata);
@@ -7089,12 +7017,12 @@ namespace netxs::ui
                     }
                     case ansi::dtvt::frame_type::set_focus:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                        data.remove_prefix(sizeof(gear_id));
-                        auto combine_focus = netxs::letoh(*reinterpret_cast<bool const*>(data.data()));
-                        data.remove_prefix(sizeof(bool));
-                        auto force_group_focus = netxs::letoh(*reinterpret_cast<bool const*>(data.data()));
-                        data.remove_prefix(sizeof(bool));
+                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(gear_id));
+                        auto combine_focus = netxs::letoh(*reinterpret_cast<bool const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(bool));
+                        auto force_group_focus = netxs::letoh(*reinterpret_cast<bool const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(bool));
                         events.set_focus(gear_id, combine_focus, force_group_focus);
                         //todo revise
                         //netxs::events::enqueue(This(), [&, gear_id](auto& boss)
@@ -7105,17 +7033,17 @@ namespace netxs::ui
                     }
                     case ansi::dtvt::frame_type::off_focus:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(data.data()));
-                        data.remove_prefix(sizeof(gear_id));
+                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(gear_id));
                         events.off_focus(gear_id);
                         break;
                     }
                     case ansi::dtvt::frame_type::form_header:
                     {
-                        auto header_size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                        data.remove_prefix(sizeof(ui32));
-                        auto new_header = text{ data.data(), (size_t)header_size };
-                        data.remove_prefix(header_size);
+                        auto header_size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(ui32));
+                        auto new_header = text{ frame.data.data(), (size_t)header_size };
+                        frame.data.remove_prefix(header_size);
                         netxs::events::enqueue(This(), [&, header = std::move(new_header)](auto& boss) mutable
                         {
                             this->base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
@@ -7124,10 +7052,10 @@ namespace netxs::ui
                     }
                     case ansi::dtvt::frame_type::form_footer:
                     {
-                        auto footer_size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                        data.remove_prefix(sizeof(ui32));
-                        auto new_footer = text{ data.data(), (size_t)footer_size };
-                        data.remove_prefix(footer_size);
+                        auto footer_size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(ui32));
+                        auto new_footer = text{ frame.data.data(), (size_t)footer_size };
+                        frame.data.remove_prefix(footer_size);
                         netxs::events::enqueue(This(), [&, footer = std::move(new_footer)](auto& boss) mutable
                         {
                             this->base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
@@ -7136,8 +7064,8 @@ namespace netxs::ui
                     }
                     case ansi::dtvt::frame_type::warp:
                     {
-                        auto warp = netxs::letoh(*reinterpret_cast<dent const*>(data.data()));
-                        data.remove_prefix(sizeof(dent));
+                        auto warp = netxs::letoh(*reinterpret_cast<dent const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(dent));
                         netxs::events::enqueue(This(), [&, warp](auto& boss)
                         {
                             this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
@@ -7151,16 +7079,16 @@ namespace netxs::ui
                             // size_t data_len
                             // view data
                         //todo check sanity
-                        auto count = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                        data.remove_prefix(sizeof(ui32));
+                        auto count = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
+                        frame.data.remove_prefix(sizeof(ui32));
                         for (auto i = 0_sz; i < count; i++)
                         {
-                            auto token = netxs::letoh(*reinterpret_cast<ui64 const*>(data.data()));
-                            data.remove_prefix(sizeof(ui64));
-                            auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
-                            data.remove_prefix(sizeof(ui32));
-                            auto cluster = text{ data.data(), (size_t)size };
-                            data.remove_prefix(size);
+                            auto token = netxs::letoh(*reinterpret_cast<ui64 const*>(frame.data.data()));
+                            frame.data.remove_prefix(sizeof(ui64));
+                            auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
+                            frame.data.remove_prefix(sizeof(ui32));
+                            auto cluster = text{ frame.data.data(), (size_t)size };
+                            frame.data.remove_prefix(size);
                             cell::gc_set_data(token, cluster);
                             log("new gc token: ", token, " cluster size ", cluster.size(), " data: ", cluster);
                         }
@@ -7172,11 +7100,10 @@ namespace netxs::ui
 
                     default: // Unsupported command
                     {
-                        log("dtvt: unsupported command: ", frame.type, "\n", utf::debase(data));
+                        log("dtvt: unsupported command: ", frame.type, "\n", utf::debase(frame.data));
                         break;
                     }
                 }
-                base_data.remove_prefix(frame.size);
             }
         }
         // dtvt: Shutdown callback handler.
@@ -7278,9 +7205,9 @@ namespace netxs::ui
         dtvt(text command_line)
             : events{*this },
               active{ true },
-              nodata{ faux }
+              nodata{      }
         {
-            marker.link(base::id);
+            canvas.link(base::id);
             cmdarg = command_line;
 
             //SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
@@ -7339,7 +7266,7 @@ namespace netxs::ui
             {
                 auto size = base::size();
                 auto lock = std::unique_lock{ access };
-                if (nodata) // " No signal " on timeout > 1/60s
+                if (nodata == canvas.hash()) // " No signal " on timeout > 1/60s
                 {
                     fallback(parent_canvas);
                     return;
@@ -7356,7 +7283,7 @@ namespace netxs::ui
                         if (std::cv_status::timeout == syncxs.wait_for(lock, maxoff)
                          && size != canvas.size())
                         {
-                            nodata = true;
+                            nodata = canvas.hash();
                             fallback(parent_canvas);
                             return;
                         }

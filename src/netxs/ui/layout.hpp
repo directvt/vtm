@@ -764,7 +764,7 @@ namespace netxs::ui::atoms
                 {
                     if constexpr (VGAMODE == svga::directvt)
                     {
-                        dest.style(token);
+                        dest.stl(token);
                         base.token = token;
                     }
                     else
@@ -881,12 +881,20 @@ namespace netxs::ui::atoms
                 if (bg != base.bg)
                 {
                     base.bg = bg;
-                    if constexpr (USESGR) dest.template bgc<VGAMODE>(bg);
+                    if constexpr (USESGR)
+                    {
+                        if constexpr (VGAMODE == svga::directvt) dest.bgc(bg);
+                        else                                     dest.template bgc<VGAMODE>(bg);
+                    }
                 }
                 if (fg != base.fg)
                 {
                     base.fg = fg;
-                    if constexpr (USESGR) dest.template fgc<VGAMODE>(fg);
+                    if constexpr (USESGR)
+                    {
+                        if constexpr (VGAMODE == svga::directvt) dest.fgc(fg);
+                        else                                     dest.template fgc<VGAMODE>(fg);
+                    }
                 }
             }
             void wipe()

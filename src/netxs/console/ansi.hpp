@@ -263,16 +263,6 @@ namespace netxs::ansi
 
     namespace dtvt
     {
-        // DirectVT record types.
-        static const byte ngc = 0x00; // Skip grapheme cluster. gc len = 0
-        static const byte gcl = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
-        static const byte cup = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
-        static const byte bgc = 0x09; // BG rgba color. 4 bytes: rgba
-        static const byte fgc = 0x0A; // FG rgba color. 4 bytes: rgba
-        static const byte stl = 0x0B; // Grapheme style. token 4 bytes
-        static const byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
-        static const byte tip = 0x0D; // Tooltip.
-
         static const si32 start = 10000; // https://github.com/microsoft/terminal/issues/8343.
         static const si32 keybd = 10010; // .
         static const si32 mouse = 10020; // .
@@ -328,6 +318,7 @@ namespace netxs::ansi
         #pragma pack(pop)
 
         using hint = netxs::events::type;
+        using sz_t = ui32;
 
         enum frame_type : byte
         {
@@ -389,7 +380,7 @@ namespace netxs::ansi
             }
             // binary_t: Replace bytes at specified position.
             template<class T>
-            inline auto& add_at(ui32 at, T&& data)
+            inline auto& add_at(sz_t at, T&& data)
             {
                 auto le_data = netxs::letoh(std::forward<T>(data));
                 ::memcpy(block.text::data() + at, reinterpret_cast<void const*>(&le_data), sizeof(le_data));
@@ -398,7 +389,7 @@ namespace netxs::ansi
 
         public:
             binary_t() = default;
-            binary_t(ui32 reserv)
+            binary_t(sz_t reserv)
                 : block(reserv, 0)
             { }
 
@@ -424,7 +415,7 @@ namespace netxs::ansi
             // binary_t: .
             auto length() const
             {
-                return static_cast<ui32>(block.length());
+                return static_cast<sz_t>(block.length());
             }
             // binary_t: .
             auto& str()
@@ -438,13 +429,13 @@ namespace netxs::ansi
                 using D = std::remove_cv_t<std::remove_reference_t<T>>;
                 if constexpr (std::is_same_v<D, view>)
                 {
-                    auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(data.data()));
+                    auto size = netxs::letoh(*reinterpret_cast<sz_t const*>(data.data()));
                     if (size > data.size() - sizeof(size))
                     {
                         log("dtvt: corrupted data");
                         return view{};
                     }
-                    data.remove_prefix(sizeof(ui32));
+                    data.remove_prefix(sizeof(sz_t));
                     auto crop = view{ data.data(), (size_t)size };
                     data.remove_prefix(size);
                     return crop;
@@ -515,7 +506,7 @@ namespace netxs::ansi
                 return summ(Ints{});
             }
 
-            static constexpr auto size_len = sizeof(ui32);
+            static constexpr auto size_len = sizeof(sz_t);
             static constexpr auto kind_len = sizeof(frame_type);
             static constexpr auto size_pos = 0;
             static constexpr auto kind_pos = size_pos + size_len;
@@ -537,19 +528,59 @@ namespace netxs::ansi
             }
 
         public:
-            struct frame
+            struct frame_list
             {
-                ui32 size;
-                byte type;
+                struct iter_t
+                {
+                    view rest;
+                    bool stop;
+
+                    byte type;
+                    view data;
+
+                    iter_t(view data)
+                        : rest{ data },
+                          stop{ faux }
+                    {
+                        operator++();
+                    }
+                    template<class T>
+                    bool  operator == (T&&) const { return  stop; }
+                    auto& operator  * ()          { return *this; }
+                    void  operator ++ ()
+                    {
+                        auto head = sizeof(sz_t) + sizeof(byte);
+                        if (rest.size() >= head)
+                        {
+                            auto size = sz_t{};
+                            std::tie(size, type) = binary_t::take<sz_t, byte>(rest);
+                            if (size > rest.size() + head)
+                            {
+                                log("dtvt: corrupted data");
+                                stop = true;
+                            }
+                            else data = binary_t::take_substr(size - head, rest);
+                        }
+                        else stop = true;
+                    }
+                };
+
                 view data;
+
+                frame_list(frame_list const&) = default;
+                frame_list(frame_list&&)      = default;
+                frame_list(view& data_src)
+                    : data{ data_src }
+                {
+                    data_src = {};
+                }
+                auto begin() { return iter_t{ data }; }
+                auto   end() { return text::npos;     }
             };
 
             static auto get(view& data)
             {
-                auto f = frame{};
-                std::tie(f.size, f.type) = binary_t::take<ui32, byte>(data);
-                f.data = binary_t::take_substr(f.size - sizeof(ui32) - sizeof(byte), data);
-                return f;
+                return frame_list{ data };
             }
 
             header_t()
@@ -575,16 +606,15 @@ namespace netxs::ansi
                 block.resize(head_len);
             }
             // header_t: Check DirectVT frame integrity.
-            static auto purify(text const& flow)
+            static auto purify(view flow)
             {
-                using size_type = decltype(frame::size);
-                auto size = flow.length();
+                auto size = flow.size();
                 auto head = flow.data();
                 auto iter = head;
-                while (size >= sizeof(size_type))
+                while (size >= sizeof(sz_t))
                 {
-                    auto step = *reinterpret_cast<size_type const*>(iter); // Stored with same endianness.
-                    if (step < sizeof(size_type))
+                    auto step = *reinterpret_cast<sz_t const*>(iter); // Stored with same endianness.
+                    if (step < sizeof(sz_t))
                     {
                         log("dtvt: stream corrupted, frame size: ", step);
                         break;
@@ -605,34 +635,73 @@ namespace netxs::ansi
         {
             enum
             {
-                _id,
+                _myid,
                 _area,
             };
-            struct bitmap
+
+            struct type
             {
-                id_t bitmap_id;
-                rect area;
+                static constexpr byte ngc = 0x00; // Skip grapheme cluster. gc len = 0
+                static constexpr byte gcl = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                static constexpr byte cup = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
+                static constexpr byte bgc = 0x09; // BG rgba color. 4 bytes: rgba
+                static constexpr byte fgc = 0x0A; // FG rgba color. 4 bytes: rgba
+                static constexpr byte stl = 0x0B; // Grapheme style. token 4 bytes
+                static constexpr byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
             };
 
         public:
-            static auto get(view& data)
+            void set(id_t myid, rect const& area)
             {
-                auto v = bitmap{};
-                std::tie(v.bitmap_id, v.area) = binary_t::take<id_t, rect>(data);
-                return v;
-            }
-            void set(id_t bitmap_id, rect const& area)
-            {
-                header_t::set<_id>  (bitmap_id);
+                header_t::set<_myid>(myid);
                 header_t::set<_area>(area);
             }
-            void scroll_wipe()
+            template<class F, class L>
+            static auto get(F&& canvas, L&& gclist, view& data)
             {
-                add(ansi::dtvt::rst);
-            }
-            void locate(twod const& p)
-            {
-                add(ansi::dtvt::cup, p);
+                auto [myid, area] = binary_t::take<id_t, rect>(data);
+                //todo head.myid
+                canvas.size(area.size);
+                auto& mark = canvas.mark();
+                auto  iter = canvas.iter();
+                auto  coor = dot_00;
+                while (data.size() > 0)
+                {
+                    auto [what] = binary_t::take<byte>(data);
+                    if (what == type::ngc) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
+                    {
+                        coor.x++;
+                    }
+                    else if (what <= type::gcl) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                    {
+                        binary_t::take(mark.egc(), what + 1, data);
+                        if (mark.jgc() == faux) // Checking grapheme cluster registration.
+                        {
+                            gclist[mark.tkn()];
+                            log("token size ", what + 1);
+                        }
+                        if (canvas.test(coor))
+                        {
+                            canvas[coor] = mark;
+                        }
+                        coor.x++;
+                    }
+                    else switch (what)
+                    {
+                        case type::bgc: binary_t::take(mark.bgc(), data); break;
+                        case type::fgc: binary_t::take(mark.fgc(), data); break;
+                        case type::stl: binary_t::take(mark.stl(), data); break;
+                        case type::cup: binary_t::take(coor,       data); break;
+                        case type::rst: canvas.wipe(mark.txt('\0'));      break;
+                        default: // Unknown type.
+                        {
+                            auto [vcmd] = binary_t::take<view>(data);
+                            log("dtvt: unknown data type: ", what, "\n", utf::debase(vcmd));
+                            break;
+                        }
+                    }
+                }
+
             }
             template<class T>
             void gc(T const& gc)
@@ -640,24 +709,15 @@ namespace netxs::ansi
                 byte size = gc.state.jumbo ? sizeof(gc.glyph) - 1
                                            : gc.state.count;
                 if (size > 0) add(size, gc.template get<svga::directvt>());
-                else          add(ansi::dtvt::ngc);
-                assert(size <= ansi::dtvt::gcl);
+                else          add(type::ngc);
+                assert(size <= type::gcl);
             }
             template<class T>
-            void style(T token)
-            {
-                add(ansi::dtvt::stl, token);
-            }
-            template<svga VGAMODE = svga::directvt>
-            void fgc(rgba const& c)
-            {
-                add(ansi::dtvt::fgc, c);
-            };
-            template<svga VGAMODE = svga::directvt>
-            void bgc(rgba const& c)
-            {
-                add(ansi::dtvt::bgc, c);
-            };
+            void stl(T           token) { add(type::stl, token); }
+            void cup(twod const& coord) { add(type::cup, coord); }
+            void fgc(rgba const& color) { add(type::fgc, color); }
+            void bgc(rgba const& color) { add(type::bgc, color); }
+            void rst()                  { add(type::rst);        }
         };
 
         class mouse_t
@@ -682,7 +742,7 @@ namespace netxs::ansi
 
         class jgc_list_t
             : public header_t<frame_type::jgc_list
-            , ui32>
+            , sz_t>
         {
             enum
             {
@@ -693,12 +753,12 @@ namespace netxs::ansi
 
         public:
             auto count() const            { return header_t::get<_count>();                         }
-            void count(std::size_t count) {        header_t::set<_count>(static_cast<ui32>(count)); }
+            void count(std::size_t count) {        header_t::set<_count>(static_cast<sz_t>(count)); }
         };
 
         class form_header_t
             : public header_t<frame_type::form_header
-            , ui32>
+            , sz_t>
         {
             enum
             {
@@ -709,12 +769,12 @@ namespace netxs::ansi
 
         public:
             auto size() const        { return header_t::get<_size>();                     }
-            void size(std::size_t s) {        header_t::set<_size>(static_cast<ui32>(s)); }
+            void size(std::size_t s) {        header_t::set<_size>(static_cast<sz_t>(s)); }
         };
 
         class form_footer_t
             : public header_t<frame_type::form_footer
-            , ui32>
+            , sz_t>
         {
             enum
             {
@@ -725,7 +785,7 @@ namespace netxs::ansi
 
         public:
             auto size() const        { return header_t::get<_size>();                     }
-            void size(std::size_t s) {        header_t::set<_size>(static_cast<ui32>(s)); }
+            void size(std::size_t s) {        header_t::set<_size>(static_cast<sz_t>(s)); }
         };
 
         class get_clipboard_t
@@ -744,7 +804,7 @@ namespace netxs::ansi
 
         class set_clipboard_t
             : public header_t<frame_type::set_clipboard
-            , id_t, twod, ui32>
+            , id_t, twod, sz_t>
         {
             enum
             {
@@ -761,7 +821,7 @@ namespace netxs::ansi
             auto clip_rawdata_size() const        { return header_t::get<_clip_rawdata_size>();  }
             void gear_id(id_t id)                 {        header_t::set<_gear_id>(id);          }
             void clip_preview_size(twod const& p) {        header_t::set<_clip_preview_size>(p); }
-            void clip_rawdata_size(std::size_t s) {        header_t::set<_clip_rawdata_size>(static_cast<ui32>(s)); }
+            void clip_rawdata_size(std::size_t s) {        header_t::set<_clip_rawdata_size>(static_cast<sz_t>(s)); }
         };
 
         class set_focus_t
@@ -812,7 +872,7 @@ namespace netxs::ansi
 
         class request_debug_count_t
             : public header_t<frame_type::request_debug_count
-            , si32>
+            , sz_t>
         {
             enum
             {
@@ -821,7 +881,7 @@ namespace netxs::ansi
 
         public:
             auto count() const { return header_t::get<_count>();  }
-            void count(si32 c) {        header_t::set<_count>(c); }
+            void count(sz_t c) {        header_t::set<_count>(c); }
         };
 
         class tooltips_t
@@ -871,7 +931,7 @@ namespace netxs::ansi
         public:
             void add(id_t gear_id, view tooltip_data)
             {
-                header_t::add(gear_id, (ui32)tooltip_data.size(), tooltip_data);
+                header_t::add(gear_id, (sz_t)tooltip_data.size(), tooltip_data);
             }
             static auto get(view& data)
             {

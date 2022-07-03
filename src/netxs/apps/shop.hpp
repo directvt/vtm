@@ -147,7 +147,7 @@ namespace netxs::app::shop
                     "Software documentation browser."),
 
                     item("Hood", reddk, "1", "Free ", "Get",
-                    "Environment settings configurator."),
+                    "Workspace settings configurator."),
 
                     item("View", cyandk, "1", "Free ", "Get",
                     "Meta object. Workspace location marker."),
