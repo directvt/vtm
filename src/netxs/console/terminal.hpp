@@ -6911,15 +6911,17 @@ namespace netxs::ui
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
         {
-            auto frames = ansi::dtvt::header_t<ansi::dtvt::frame_type::any>::get(data);
+            using namespace ansi::dtvt;
+
+            auto frames = binary::frames::get(data);
             for(auto& frame : frames)
             {
-                switch (frame.type)
+                switch (frame.kind)
                 {
-                    case ansi::dtvt::frame_type::bitmap:
+                    case binary::type::bitmap:
                     {
                         auto lock = std::lock_guard{ access };
-                        ansi::dtvt::binary::bitmap::get(canvas, gclist, frame.data);
+                        binary::bitmap::get(canvas, gclist, frame.data);
                         if (gclist.size())
                         {
                             buffer.request_gc(gclist);
@@ -6932,7 +6934,7 @@ namespace netxs::ui
                         syncxs.notify_one();
                         break;
                     }
-                    case ansi::dtvt::frame_type::mouse_event:
+                    case binary::type::mouse_event:
                     {
                         auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(id_t));
@@ -6943,9 +6945,9 @@ namespace netxs::ui
                         events.replay(gear_id, cause, coord);
                         break;
                     }
-                    case ansi::dtvt::frame_type::tooltips:
+                    case binary::type::tooltips:
                     {
-                        auto tooltips = ansi::dtvt::binary::tooltips::get(frame.data);
+                        auto tooltips = binary::tooltips::get(frame.data);
                         netxs::events::enqueue(This(), [&, tooltips = std::move(tooltips)](auto& boss)
                         {
                             for (auto& tooltip : tooltips)
@@ -6960,7 +6962,7 @@ namespace netxs::ui
                         });
                         break;
                     }
-                    case ansi::dtvt::frame_type::expose:
+                    case binary::type::expose:
                     {
                         netxs::events::enqueue(This(), [&](auto& boss)
                         {
@@ -6969,7 +6971,7 @@ namespace netxs::ui
                         break;
                     }
                     //todo reimplement Logs
-                    case ansi::dtvt::frame_type::request_debug:
+                    case binary::type::request_debug:
                     {
                         netxs::events::enqueue(This(), [&](auto& boss)
                         {
@@ -6978,7 +6980,7 @@ namespace netxs::ui
                         break;
                     }
                     //todo reimplement Logs
-                    case ansi::dtvt::frame_type::request_debug_count:
+                    case binary::type::request_debug_count:
                     {
                         auto count = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(ui32));
@@ -6988,7 +6990,7 @@ namespace netxs::ui
                         });
                         break;
                     }
-                    case ansi::dtvt::frame_type::set_clipboard:
+                    case binary::type::set_clipboard:
                     {
                         auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(id_t));
@@ -7006,7 +7008,7 @@ namespace netxs::ui
                         events.set_clipboad(gear_id, clip_prev_size, clipdata);
                         break;
                     }
-                    case ansi::dtvt::frame_type::request_clipboard:
+                    case binary::type::request_clipboard:
                     {
                         auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(gear_id));
@@ -7016,7 +7018,7 @@ namespace netxs::ui
                         answer(buffer);
                         break;
                     }
-                    case ansi::dtvt::frame_type::set_focus:
+                    case binary::type::set_focus:
                     {
                         auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(gear_id));
@@ -7032,14 +7034,14 @@ namespace netxs::ui
                         //});
                         break;
                     }
-                    case ansi::dtvt::frame_type::off_focus:
+                    case binary::type::off_focus:
                     {
                         auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(gear_id));
                         events.off_focus(gear_id);
                         break;
                     }
-                    case ansi::dtvt::frame_type::form_header:
+                    case binary::type::form_header:
                     {
                         auto header_size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(ui32));
@@ -7051,7 +7053,7 @@ namespace netxs::ui
                         });
                         break;
                     }
-                    case ansi::dtvt::frame_type::form_footer:
+                    case binary::type::form_footer:
                     {
                         auto footer_size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(ui32));
@@ -7063,7 +7065,7 @@ namespace netxs::ui
                         });
                         break;
                     }
-                    case ansi::dtvt::frame_type::warp:
+                    case binary::type::warp:
                     {
                         auto warp = netxs::letoh(*reinterpret_cast<dent const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(dent));
@@ -7073,9 +7075,9 @@ namespace netxs::ui
                         });
                         break;
                     }
-                    case ansi::dtvt::frame_type::jgc_list:
+                    case binary::type::jgc_list:
                     {
-                        auto jgc_list = ansi::dtvt::jgc_list_t::get(frame.data);
+                        auto jgc_list = binary::jgc_list::get(frame.data);
                         for (auto& jgc : jgc_list)
                         {
                             cell::gc_set_data(jgc.token, jgc.cluster);
@@ -7084,13 +7086,13 @@ namespace netxs::ui
                         //todo full strike to redraw with new clusters
                         break;
                     }
-                    case ansi::dtvt::frame_type::vt_command:
+                    case binary::type::vt_command:
                     {
                         break;
                     }
                     default: // Unsupported command
                     {
-                        log("dtvt: unsupported command: ", frame.type, "\n", utf::debase(frame.data));
+                        log("dtvt: unsupported command: ", (byte)frame.kind, "\n", utf::debase(frame.data));
                         break;
                     }
                 }

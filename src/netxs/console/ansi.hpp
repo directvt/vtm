@@ -520,295 +520,6 @@ namespace netxs::ansi
             }
         };
 
-        namespace binary
-        {
-            class stream
-            {
-                static constexpr sz_t head_size = sizeof(sz_t) + sizeof(frame_type); 
-
-                text& block;
-                sz_t  start;
-                bool  alive;
-
-                // stream: .
-                template<class T>
-                inline void fuse(T&& data)
-                {
-                    using D = std::remove_cv_t<std::remove_reference_t<T>>;
-                    if constexpr (std::is_same_v<D, char>
-                               || std::is_same_v<D, byte>
-                               || std::is_same_v<D, frame_type>)
-                    {
-                        block.text::push_back(static_cast<char>(data));
-                    }
-                    else if constexpr (std::is_integral_v<D>
-                                    || std::is_same_v<D, twod>
-                                    || std::is_same_v<D, rect>)
-                    {
-                        auto le_data = netxs::letoh(data);
-                        auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
-                        block += v;
-                    }
-                    else if constexpr (std::is_same_v<D, rgba>)
-                    {
-                        auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
-                        block += v;
-                    }
-                    else if constexpr (std::is_same_v<D, view>
-                                    || std::is_same_v<D, text>)
-                    {
-                        block += data;
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                // stream: Replace bytes at specified position.
-                template<class T>
-                inline auto& add_at(sz_t at, T&& data)
-                {
-                    auto le_data = netxs::letoh(std::forward<T>(data));
-                    ::memcpy(block.text::data() + at, reinterpret_cast<void const*>(&le_data), sizeof(le_data));
-                    return *this;
-                }
-                // stream: .
-                template<class T>
-                static auto _take_item(view& data)
-                {
-                    using D = std::remove_cv_t<std::remove_reference_t<T>>;
-                    if constexpr (std::is_same_v<D, view>)
-                    {
-                        auto size = netxs::letoh(*reinterpret_cast<sz_t const*>(data.data()));
-                        if (size > data.size() - sizeof(size))
-                        {
-                            log("dtvt: corrupted data");
-                            return view{};
-                        }
-                        data.remove_prefix(sizeof(sz_t));
-                        auto crop = view{ data.data(), (size_t)size };
-                        data.remove_prefix(size);
-                        return crop;
-                    }
-                    else
-                    {
-                        auto crop = netxs::letoh(*reinterpret_cast<D const*>(data.data()));
-                        data.remove_prefix(sizeof(D));
-                        return crop;
-                    }
-                }
-                // stream: .
-                template<class... Fields>
-                static auto _take(std::tuple<Fields...>, view& data)
-                {
-                    return std::tuple{ _take_item<Fields>(data)..., };
-                }
-
-            public:
-                // stream: .
-                template<class T>
-                inline auto& add(T&& data)
-                {
-                    fuse(std::forward<T>(data));
-                    return *this;
-                }
-                // stream: .
-                template<class T, class ...Args>
-                inline auto& add(T&& data, Args&&... data_list)
-                {
-                    fuse(std::forward<T>(data));
-                    return add(std::forward<Args>(data_list)...);
-                }
-                // stream: .
-                template<class... Fields>
-                static auto take(view& data)
-                {
-                    return std::tuple{ _take_item<Fields>(data)..., };
-                }
-                // stream: .
-                template<class T>
-                static void take(T&& dest, view& data)
-                {
-                    dest = _take_item<T>(data);
-                }
-                // stream: .
-                static void take(void *dest, size_t size, view& data)
-                {
-                    ::memcpy(dest, reinterpret_cast<void const*>(data.data()), size);
-                    data.remove_prefix(size);
-                }
-                // stream: .
-                static auto take_substr(size_t size, view& data)
-                {
-                    if (size > data.size())
-                    {
-                        log("dtvt: wrong data size");
-                        return view{};
-                    }
-                    auto crop = data.substr(0, size);
-                    data.remove_prefix(size);
-                    return crop;
-                }
-
-                // stream: .
-                void clear()
-                {
-                    block.clear();
-                }
-                // stream: .
-                auto length() const
-                {
-                    return static_cast<sz_t>(block.length());
-                }
-                // stream: .
-                auto close()
-                {
-                    alive = faux;
-                    auto size = length();
-                    stream::add_at(start, size - start);
-                    return size;
-                }
-
-                // stream: .
-                operator view ()
-                {
-                    return block;
-                }
-                stream(text& data, frame_type type)
-                    : block{ data },
-                      alive{ true },
-                      start{ static_cast<sz_t>(data.size()) }
-                {
-                    stream::add(head_size, type);
-                }
-               ~stream()
-                {
-                    if (alive) close();
-                }
-            };
-
-            class bitmap
-                : public stream
-            {
-                struct type
-                {
-                    static constexpr byte ngc = 0x00; // Skip grapheme cluster. gc len = 0
-                    static constexpr byte gcl = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
-                    static constexpr byte cup = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
-                    static constexpr byte bgc = 0x09; // BG rgba color. 4 bytes: rgba
-                    static constexpr byte fgc = 0x0A; // FG rgba color. 4 bytes: rgba
-                    static constexpr byte stl = 0x0B; // Grapheme style. token 4 bytes
-                    static constexpr byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
-                };
-
-            public:
-                bitmap(text& data)
-                    : stream{ data, frame_type::bitmap }
-                { }
-
-                void init(id_t myid, rect const& area)
-                {
-                    stream::add(myid);
-                    stream::add(area);
-                }
-                template<class F, class L>
-                static auto get(F&& canvas, L&& gclist, view& data)
-                {
-                    auto [myid, area] = stream::take<id_t, rect>(data);
-                    //todo head.myid
-                    canvas.size(area.size);
-                    auto& mark = canvas.mark();
-                    auto  iter = canvas.iter();
-                    auto  coor = dot_00;
-                    while (data.size() > 0)
-                    {
-                        auto [what] = stream::take<byte>(data);
-                        if (what == type::ngc) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
-                        {
-                            coor.x++;
-                        }
-                        else if (what <= type::gcl) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
-                        {
-                            stream::take(mark.egc(), what + 1, data);
-                            if (mark.jgc() == faux) // Checking grapheme cluster registration.
-                            {
-                                gclist[mark.tkn()];
-                                log("token size ", what + 1);
-                            }
-                            if (canvas.test(coor))
-                            {
-                                canvas[coor] = mark;
-                            }
-                            coor.x++;
-                        }
-                        else switch (what)
-                        {
-                            case type::bgc: stream::take(mark.bgc(), data); break;
-                            case type::fgc: stream::take(mark.fgc(), data); break;
-                            case type::stl: stream::take(mark.stl(), data); break;
-                            case type::cup: stream::take(coor,       data); break;
-                            case type::rst: canvas.wipe(mark.txt('\0'));    break;
-                            default: // Unknown type.
-                            {
-                                auto [vcmd] = stream::take<view>(data);
-                                log("dtvt: unknown data type: ", what, "\n", utf::debase(vcmd));
-                                break;
-                            }
-                        }
-                    }
-                }
-                template<class T>
-                void gc(T const& gc)
-                {
-                    byte size = gc.state.jumbo ? sizeof(gc.glyph) - 1
-                                               : gc.state.count;
-                    if (size > 0) add(size, gc.template get<svga::directvt>());
-                    else          add(type::ngc);
-                    assert(size <= type::gcl);
-                }
-                template<class T>
-                void stl(T           token) { add(type::stl, token); }
-                void cup(twod const& coord) { add(type::cup, coord); }
-                void fgc(rgba const& color) { add(type::fgc, color); }
-                void bgc(rgba const& color) { add(type::bgc, color); }
-                void rst()                  { add(type::rst);        }
-            };
-
-            class tooltips
-                : public stream
-            {
-                struct tooltip_iterator
-                {
-                    id_t gear_id;
-                    view data;
-
-                    auto next(view& rest)
-                    {
-                        auto stop = rest.empty();
-                        if (!stop)
-                        {
-                            std::tie(gear_id, data) = stream::take<id_t, view>(rest);
-                        }
-                        return stop;
-                    }
-                };
-
-            public:
-                tooltips(text& data)
-                    : stream{ data, frame_type::tooltips }
-                { }
-
-                void add(id_t gear_id, view tooltip_data)
-                {
-                    stream::add(gear_id, (sz_t)tooltip_data.size(), tooltip_data);
-                }
-                static auto get(view& data)
-                {
-                    return generic_list_t<text, tooltip_iterator>{ data };
-                }
-            };
-        }
-
         template<frame_type Type, class... Fields>
         class header_t
             : public binary_t
@@ -837,27 +548,6 @@ namespace netxs::ansi
             static constexpr auto data_pos = kind_pos + kind_len;
             static constexpr auto head_len = data_pos + subtuple_len<FieldsCount>();
 
-            struct frame_iterator
-            {
-                byte type;
-                view data;
-
-                auto next(view& rest)
-                {
-                    auto head = sizeof(sz_t) + sizeof(byte);
-                    auto stop = rest.size() < head;
-                    if (!stop)
-                    {
-                        auto size = sz_t{};
-                        std::tie(size, type) = binary_t::take<sz_t, byte>(rest);
-                        stop = size > rest.size() + head;
-                        if (stop) log("dtvt: corrupted data");
-                        else      data = binary_t::take_substr(size - head, rest);
-                    }
-                    return stop;
-                }
-            };
-
         protected:
             template<std::size_t N>
             void set(Element<N> const& value)
@@ -867,11 +557,6 @@ namespace netxs::ansi
             }
 
         public:
-            static auto get(view& data)
-            {
-                return generic_list_t<view, frame_iterator>{ data };
-            }
-
             header_t()
                 : binary_t{ head_len }
             {
@@ -935,37 +620,6 @@ namespace netxs::ansi
                 header_t::set<_gear_id>(id);
                 header_t::set<_cause>  (deed);
                 header_t::set<_coord>  (coor);
-            }
-        };
-
-        class jgc_list_t
-            : public header_t<frame_type::jgc_list>
-        {
-            struct jgc_iterator
-            {
-                ui64 token;
-                view cluster;
-
-                auto next(view& rest)
-                {
-                    auto stop = rest.empty();
-                    if (!stop)
-                    {
-                        std::tie(token, cluster) = header_t::take<ui64, view>(rest);
-                    }
-                    return stop;
-                }
-            };
-
-        public:
-            template<class T>
-            void add(T token, view cluster)
-            {
-                header_t::add(token, static_cast<sz_t>(cluster.size()), cluster);
-            }
-            static auto get(view& data)
-            {
-                return generic_list_t<view, jgc_iterator>{ data };
             }
         };
 
@@ -2679,6 +2333,430 @@ namespace netxs::ansi
 
         utf::purify(utf8);
         return utf8;
+    }
+
+    namespace dtvt
+    {
+        namespace binary
+        {
+            enum class type : byte
+            {
+                any,
+                bitmap,            // Canvas data.
+                mouse_event,       // Mouse events.
+                tooltips,          // Tooltip list.
+                jgc_list,          // jumbo GC: gc.token + gc.view (response on terminal request)
+                form_header,       // .
+                form_footer,       // .
+                request_clipboard, // request main clipboard data
+                set_clipboard,     // set main clipboard using following data
+                set_focus,         // request to set focus
+                off_focus,         // request to remove focus
+                expose,            // bring the form to the front
+                request_debug,     // request debug output redirection to stdin
+                request_debug_count,
+                vt_command,        // parse following vt-sequences in UTF-8 format
+                warp,              // warping
+            };
+
+            struct buff
+            {
+                ansi::esc        accum{}; // buff: .
+                ansi::esc        cache{}; // buff: .
+                std::mutex       mutex{}; // buff: .
+                std::atomic<int> count{}; // buff: .
+                auto lock()
+                {
+                    struct counter
+                    {
+                        std::lock_guard<std::mutex> guard;
+                        counter(std::mutex& mutex, std::atomic<int>& count)
+                            : guard{ mutex }
+                        {
+                            --count;
+                        }
+                    };
+                    ++count;
+                    return counter{ mutex, count };
+                }
+                auto solo()
+                {
+                    return !count;
+                }
+                void swap()
+                {
+                    auto guard = lock();
+                    std::swap(accum, cache);
+                }
+                template<class T>
+                void sendby(T&& sender)
+                {
+                    if (solo())
+                    {
+                        sender.output(accum);
+                        accum.clear();
+                    }
+                }
+            };
+
+            class stream
+            {
+                static constexpr sz_t head = sizeof(sz_t) + sizeof(type); 
+
+                text& block;
+                sz_t  start;
+                sz_t  basis;
+                bool  alive;
+
+                // stream: .
+                template<class T>
+                inline void fuse(T&& data)
+                {
+                    using D = std::remove_cv_t<std::remove_reference_t<T>>;
+                    if constexpr (std::is_same_v<D, char>
+                               || std::is_same_v<D, byte>
+                               || std::is_same_v<D, type>)
+                    {
+                        block.text::push_back(static_cast<char>(data));
+                    }
+                    else if constexpr (std::is_integral_v<D>
+                                    || std::is_same_v<D, twod>
+                                    || std::is_same_v<D, rect>)
+                    {
+                        auto le_data = netxs::letoh(data);
+                        auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
+                        block += v;
+                    }
+                    else if constexpr (std::is_same_v<D, rgba>)
+                    {
+                        auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
+                        block += v;
+                    }
+                    else if constexpr (std::is_same_v<D, view>
+                                    || std::is_same_v<D, text>)
+                    {
+                        block += data;
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                // stream: Replace bytes at specified position.
+                template<class T>
+                inline auto& add_at(sz_t at, T&& data)
+                {
+                    auto le_data = netxs::letoh(std::forward<T>(data));
+                    ::memcpy(block.text::data() + at, reinterpret_cast<void const*>(&le_data), sizeof(le_data));
+                    return *this;
+                }
+                // stream: .
+                template<class T>
+                static auto _take_item(view& data)
+                {
+                    using D = std::remove_cv_t<std::remove_reference_t<T>>;
+                    if constexpr (std::is_same_v<D, view>)
+                    {
+                        auto size = netxs::letoh(*reinterpret_cast<sz_t const*>(data.data()));
+                        if (size > data.size() - sizeof(size))
+                        {
+                            log("dtvt: corrupted data");
+                            return view{};
+                        }
+                        data.remove_prefix(sizeof(sz_t));
+                        auto crop = view{ data.data(), (size_t)size };
+                        data.remove_prefix(size);
+                        return crop;
+                    }
+                    else
+                    {
+                        auto crop = netxs::letoh(*reinterpret_cast<D const*>(data.data()));
+                        data.remove_prefix(sizeof(D));
+                        return crop;
+                    }
+                }
+                // stream: .
+                template<class... Fields>
+                static auto _take(std::tuple<Fields...>, view& data)
+                {
+                    return std::tuple{ _take_item<Fields>(data)..., };
+                }
+
+            public:
+                // stream: .
+                template<class T>
+                inline auto& add(T&& data)
+                {
+                    fuse(std::forward<T>(data));
+                    return *this;
+                }
+                // stream: .
+                template<class T, class ...Args>
+                inline auto& add(T&& data, Args&&... data_list)
+                {
+                    fuse(std::forward<T>(data));
+                    return add(std::forward<Args>(data_list)...);
+                }
+                // stream: .
+                template<class... Fields>
+                static auto take(view& data)
+                {
+                    return std::tuple{ _take_item<Fields>(data)..., };
+                }
+                // stream: .
+                template<class T>
+                static void take(T&& dest, view& data)
+                {
+                    dest = _take_item<T>(data);
+                }
+                // stream: .
+                static void take(void *dest, size_t size, view& data)
+                {
+                    ::memcpy(dest, reinterpret_cast<void const*>(data.data()), size);
+                    data.remove_prefix(size);
+                }
+                // stream: .
+                static auto take_substr(size_t size, view& data)
+                {
+                    if (size > data.size())
+                    {
+                        log("dtvt: wrong data size");
+                        return view{};
+                    }
+                    auto crop = data.substr(0, size);
+                    data.remove_prefix(size);
+                    return crop;
+                }
+
+                // stream: .
+                void clear()
+                {
+                    block.clear();
+                }
+                // stream: .
+                auto length() const
+                {
+                    return static_cast<sz_t>(block.length());
+                }
+                // stream: .
+                auto close(bool discard_empty = faux)
+                {
+                    alive = faux;
+                    auto size = length();
+                    if (discard_empty
+                     && size == basis)
+                    {
+                        block.resize(start);
+                        return start;
+                    }
+                    else
+                    {
+                        stream::add_at(start, size - start);
+                        return size;
+                    }
+                }
+
+                // stream: .
+                operator view ()
+                {
+                    return block;
+                }
+                template<class... Args>
+                stream(text& data, type kind, Args&& ...args)
+                    : block{ data },
+                      alive{ true },
+                      start{ length() }
+                {
+                    stream::add(head, kind, std::forward<Args>(args)...);
+                    basis = length();
+                }
+               ~stream()
+                {
+                    if (alive) close();
+                }
+            };
+
+            class frames
+                : public stream
+            {
+                struct iterator
+                {
+                    type kind;
+                    view data;
+
+                    auto next(view& rest)
+                    {
+                        auto head = sizeof(sz_t) + sizeof(type);
+                        auto stop = rest.size() < head;
+                        if (!stop)
+                        {
+                            auto size = sz_t{};
+                            std::tie(size, kind) = stream::take<sz_t, type>(rest);
+                            stop = size > rest.size() + head;
+                            if (stop) log("dtvt: corrupted data");
+                            else      data = stream::take_substr(size - head, rest);
+                        }
+                        return stop;
+                    }
+                };
+            public:
+                static auto get(view& data)
+                {
+                    return generic_list_t<view, iterator>{ data };
+                }
+            };
+
+            class bitmap
+                : public stream
+            {
+                struct subtype
+                {
+                    static constexpr byte ngc = 0x00; // Skip grapheme cluster. gc len = 0
+                    static constexpr byte gcl = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                    static constexpr byte cup = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
+                    static constexpr byte bgc = 0x09; // BG rgba color. 4 bytes: rgba
+                    static constexpr byte fgc = 0x0A; // FG rgba color. 4 bytes: rgba
+                    static constexpr byte stl = 0x0B; // Grapheme style. token 4 bytes
+                    static constexpr byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
+                };
+
+            public:
+                bitmap(text& data, id_t myid, rect const& area)
+                    : stream{ data, type::bitmap, myid, area }
+                { }
+
+                template<class F, class L>
+                static auto get(F&& canvas, L&& gclist, view& data)
+                {
+                    auto [myid, area] = stream::take<id_t, rect>(data);
+                    //todo head.myid
+                    canvas.size(area.size);
+                    auto& mark = canvas.mark();
+                    auto  iter = canvas.iter();
+                    auto  coor = dot_00;
+                    while (data.size() > 0)
+                    {
+                        auto [what] = stream::take<byte>(data);
+                        if (what == subtype::ngc) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
+                        {
+                            coor.x++;
+                        }
+                        else if (what <= subtype::gcl) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                        {
+                            stream::take(mark.egc(), what + 1, data);
+                            if (mark.jgc() == faux) // Checking grapheme cluster registration.
+                            {
+                                gclist[mark.tkn()];
+                                log("token size ", what + 1);
+                            }
+                            if (canvas.test(coor))
+                            {
+                                canvas[coor] = mark;
+                            }
+                            coor.x++;
+                        }
+                        else switch (what)
+                        {
+                            case subtype::bgc: stream::take(mark.bgc(), data); break;
+                            case subtype::fgc: stream::take(mark.fgc(), data); break;
+                            case subtype::stl: stream::take(mark.stl(), data); break;
+                            case subtype::cup: stream::take(coor,       data); break;
+                            case subtype::rst: canvas.wipe(mark.txt('\0'));    break;
+                            default: // Unknown subtype.
+                            {
+                                auto [vcmd] = stream::take<view>(data);
+                                log("dtvt: unknown data subtype: ", what, "\n", utf::debase(vcmd));
+                                break;
+                            }
+                        }
+                    }
+                }
+                template<class T>
+                void gc(T const& gc)
+                {
+                    byte size = gc.state.jumbo ? sizeof(gc.glyph) - 1
+                                               : gc.state.count;
+                    if (size > 0) add(size, gc.template get<svga::directvt>());
+                    else          add(subtype::ngc);
+                    assert(size <= subtype::gcl);
+                }
+                template<class T>
+                void stl(T           token) { add(subtype::stl, token); }
+                void cup(twod const& coord) { add(subtype::cup, coord); }
+                void fgc(rgba const& color) { add(subtype::fgc, color); }
+                void bgc(rgba const& color) { add(subtype::bgc, color); }
+                void rst()                  { add(subtype::rst);        }
+            };
+
+            class tooltips
+                : public stream
+            {
+                struct tooltip_iterator
+                {
+                    id_t gear_id;
+                    view data;
+
+                    auto next(view& rest)
+                    {
+                        auto stop = rest.empty();
+                        if (!stop)
+                        {
+                            std::tie(gear_id, data) = stream::take<id_t, view>(rest);
+                        }
+                        return stop;
+                    }
+                };
+
+            public:
+                tooltips(text& data)
+                    : stream{ data, type::tooltips }
+                { }
+
+                void add(id_t gear_id, view tooltip_data)
+                {
+                    stream::add(gear_id, (sz_t)tooltip_data.size(), tooltip_data);
+                }
+                static auto get(view& data)
+                {
+                    return generic_list_t<text, tooltip_iterator>{ data };
+                }
+            };
+
+            class jgc_list
+                : public stream
+            {
+                struct jgc_iterator
+                {
+                    ui64 token;
+                    view cluster;
+
+                    auto next(view& rest)
+                    {
+                        auto stop = rest.empty();
+                        if (!stop)
+                        {
+                            std::tie(token, cluster) = stream::take<ui64, view>(rest);
+                        }
+                        return stop;
+                    }
+                };
+
+            public:
+                jgc_list(text& data)
+                    : stream{ data, type::jgc_list }
+                { }
+
+                template<class T>
+                void add(T token, view cluster)
+                {
+                    stream::add(token, static_cast<sz_t>(cluster.size()), cluster);
+                }
+                static auto get(view& data)
+                {
+                    return generic_list_t<view, jgc_iterator>{ data };
+                }
+            };
+        }
     }
 }
 
