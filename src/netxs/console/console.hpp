@@ -5968,8 +5968,8 @@ again:
                     }
                 }
 
-                delta = image.length();
-                if (!abort && image.close())
+                delta = image.close();
+                if (!abort)
                 {
                     guard.unlock();
                     conio.output(frame.cache);

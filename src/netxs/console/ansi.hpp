@@ -664,9 +664,9 @@ namespace netxs::ansi
                 auto close()
                 {
                     alive = faux;
-                    auto size = static_cast<sz_t>(block.size());
+                    auto size = length();
                     stream::add_at(start, size - start);
-                    return start > 0 || size > head_size;
+                    return size;
                 }
 
                 // stream: .
