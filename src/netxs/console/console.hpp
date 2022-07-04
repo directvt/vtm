@@ -5377,8 +5377,7 @@ again:
                                             }
                                             case ansi::dtvt::requestgc:
                                             {
-                                                auto guard = frame.lock();
-                                                auto jgc_list = ansi::dtvt::binary::jgc_list{ frame.accum };
+                                                auto jgc_list = ansi::dtvt::binary::jgc_list{ frame };
                                                 do
                                                 {
                                                     auto token = netxs::letoh(take64());
@@ -5387,8 +5386,7 @@ again:
                                                     log("token ", token, " cluster.size ", cluster.size());
                                                 }
                                                 while (strv.at(pos) == ':');
-                                                jgc_list.close();
-                                                frame.sendby(*this);
+                                                jgc_list.sendby(*this);
                                                 break;
                                             }
                                             default:
@@ -5892,13 +5890,11 @@ again:
 
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
-                frame.swap();
                 start = tempus::now();
                 ready = faux;
                 abort = faux;
                 coord = dot_00;
-
-                auto image = binary::bitmap{ frame.cache, 0xaabbccdd, { dot_00, field } };
+                auto image = binary::bitmap{ frame, 0xaabbccdd, { dot_00, field } };
                 if (rhash != dhash)
                 {
                     rhash = dhash;
@@ -5956,12 +5952,11 @@ again:
                     }
                 }
 
-                delta = image.close(true);
+                delta = image.commit(true);
                 if (!abort && delta)
                 {
                     guard.unlock();
-                    conio.output(frame.cache);
-                    frame.cache.clear();
+                    image.sendby(conio);
                     guard.lock();
                 }
                 watch = tempus::now() - start;
@@ -6062,9 +6057,8 @@ again:
         void send_tooltips(T& gears)
         {
             using namespace netxs::ansi::dtvt;
-            auto guard = frame.lock();
 
-            auto tooltips = binary::tooltips{ frame.accum };
+            auto tooltips = binary::tooltips{ frame };
             for (auto& [gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
@@ -6074,6 +6068,7 @@ again:
                     tooltips.add(gear_id, tooltip_data);
                 }
             }
+            tooltips.commit(true);
         }
     };
 

@@ -2365,44 +2365,42 @@ namespace netxs::ansi
                 ansi::esc        cache{}; // buff: .
                 std::mutex       mutex{}; // buff: .
                 std::atomic<int> count{}; // buff: .
+
+                struct counter
+                {
+                    std::lock_guard<std::mutex> guard;
+                    std::atomic<int>&           count;
+
+                    counter(std::mutex& mutex, std::atomic<int>& count)
+                        : guard{ mutex },
+                          count{ count }
+                    {
+                        --count;
+                    }
+                    auto solo()
+                    {
+                        return !count;
+                    }
+                };
+
                 auto lock()
                 {
-                    struct counter
-                    {
-                        std::lock_guard<std::mutex> guard;
-                        counter(std::mutex& mutex, std::atomic<int>& count)
-                            : guard{ mutex }
-                        {
-                            --count;
-                        }
-                    };
                     ++count;
                     return counter{ mutex, count };
-                }
-                auto solo()
-                {
-                    return !count;
                 }
                 void swap()
                 {
                     auto guard = lock();
                     std::swap(accum, cache);
                 }
-                template<class T>
-                void sendby(T&& sender)
-                {
-                    if (solo())
-                    {
-                        sender.output(accum);
-                        accum.clear();
-                    }
-                }
             };
 
             class stream
             {
+                using lock = buff::counter;
                 static constexpr sz_t head = sizeof(sz_t) + sizeof(type); 
 
+                lock  guard;
                 text& block;
                 sz_t  start;
                 sz_t  basis;
@@ -2539,7 +2537,7 @@ namespace netxs::ansi
                     return static_cast<sz_t>(block.length());
                 }
                 // stream: .
-                auto close(bool discard_empty = faux)
+                auto commit(bool discard_empty = faux)
                 {
                     alive = faux;
                     auto size = length();
@@ -2555,6 +2553,16 @@ namespace netxs::ansi
                         return size;
                     }
                 }
+                template<class T>
+                void sendby(T&& sender)
+                {
+                    if (alive) commit();
+                    if (guard.solo())
+                    {
+                        sender.output(block);
+                        block.clear();
+                    }
+                }
 
                 // stream: .
                 operator view ()
@@ -2562,17 +2570,18 @@ namespace netxs::ansi
                     return block;
                 }
                 template<class... Args>
-                stream(text& data, type kind, Args&& ...args)
-                    : block{ data },
-                      alive{ true },
-                      start{ length() }
+                stream(buff& data, type kind, Args&& ...args)
+                    : guard{ data.lock()},
+                      block{ data.accum },
+                      alive{ true       },
+                      start{ length()   }
                 {
                     stream::add(head, kind, std::forward<Args>(args)...);
                     basis = length();
                 }
                ~stream()
                 {
-                    if (alive) close();
+                    if (alive) commit();
                 }
             };
 
@@ -2621,7 +2630,7 @@ namespace netxs::ansi
                 };
 
             public:
-                bitmap(text& data, id_t myid, rect const& area)
+                bitmap(buff& data, id_t myid, rect const& area)
                     : stream{ data, type::bitmap, myid, area }
                 { }
 
@@ -2708,7 +2717,7 @@ namespace netxs::ansi
                 };
 
             public:
-                tooltips(text& data)
+                tooltips(buff& data)
                     : stream{ data, type::tooltips }
                 { }
 
@@ -2742,7 +2751,7 @@ namespace netxs::ansi
                 };
 
             public:
-                jgc_list(text& data)
+                jgc_list(buff& data)
                     : stream{ data, type::jgc_list }
                 { }
 
