@@ -768,12 +768,12 @@ namespace netxs::ansi
         };
     }
 
-    // ansi: Escaped sequences accumulator.
-    class esc
-        : public text
+    template<class Base>
+    class itos_t
     {
         char  heap[32];
         char* tail = heap + sizeof(heap);
+        Base& block;
 
         template<class T>
         inline void itos(T data)
@@ -795,19 +795,18 @@ namespace netxs::ansi
             }
             else bake(data);
             auto gain = tail - cptr;
-            auto size = text::size();
-            text::resize(size + gain);
-            ::memcpy(size + text::data(), cptr, gain);
+            auto size = block.size();
+            block.resize(size + gain);
+            ::memcpy(size + block.data(), cptr, gain);
         }
-
-        template<svga VGAMODE = svga::truecolor, class T>
+        template<class T>
         inline void fuse(T&& data)
         {
             using D = std::remove_cv_t<std::remove_reference_t<T>>;
 
             if constexpr (std::is_same_v<D, char>)
             {
-                text::push_back(data);
+                block.push_back(data);
             }
             else if constexpr (std::is_integral_v<D>)
             {
@@ -822,34 +821,57 @@ namespace netxs::ansi
             }
             else if constexpr (std::is_same_v<D, twod>)
             {
-                text::operator+=("{ "); itos(data.x); text::operator+=(", ");
-                                        itos(data.y); text::operator+=(" }");
+                block += "{ "; itos(data.x); block += ", ";
+                               itos(data.y); block += " }";
             }
             else if constexpr (std::is_same_v<D, rect>)
             {
-                text::operator+=("{"); fuse(data.coor); text::operator+=(",");
-                                       fuse(data.size); text::operator+=("}");
+                block += "{"; fuse(data.coor); block += ",";
+                              fuse(data.size); block += "}";
             }
-            else text::operator+=(std::forward<T>(data));
+            else block += std::forward<T>(data);
         }
 
     public:
-        esc() = default;
-
-        template<svga VGAMODE = svga::truecolor, class T>
-        esc(T&& data) { fuse<VGAMODE>(std::forward<T>(data)); }
-
-        template<svga VGAMODE = svga::truecolor, class T>
+        template<class T>
         inline auto& add(T&& data)
         {
-            fuse<VGAMODE>(std::forward<T>(data));
-            return *this;
+            fuse(std::forward<T>(data));
+            return block;
         }
-        template<svga VGAMODE = svga::truecolor, class T, class ...Args>
+        template<class T, class ...Args>
         inline auto& add(T&& data, Args&&... data_list)
         {
-            fuse<VGAMODE>(std::forward<T>(data));
-            return add<VGAMODE>(std::forward<Args>(data_list)...);
+            fuse(std::forward<T>(data));
+            return add(std::forward<Args>(data_list)...);
+        }
+
+        itos_t(Base& block)
+            : block{ block }
+        { }
+    };
+
+    // ansi: Escaped sequences accumulator.
+    class esc
+        : public text,
+          public itos_t<esc>
+    {
+    public:
+        esc()
+            : itos_t{ *this }
+        { }
+
+        template<class T>
+        esc(T&& data)
+            : itos_t{ *this }
+        {
+            add(std::forward<T>(data));
+        }
+
+        auto& operator = (esc const& e)
+        {
+            text::clear();
+            return add(e);;
         }
 
         // esc: Send base64-encoded clipboard data (OSC).
@@ -1079,7 +1101,7 @@ namespace netxs::ansi
         // esc: SGR Foreground color (16-color mode).
         esc& fgc16(rgba const& c)
         {
-            si32 clr = 30;
+            auto clr = si32{ 30 };
             switch (c.token)
             {
                 case 0xFF000000: clr += 0;
@@ -2337,6 +2359,42 @@ namespace netxs::ansi
 
     namespace dtvt
     {
+        struct buff
+        {
+            ansi::esc        accum{}; // buff: .
+            ansi::esc        cache{}; // buff: .
+            std::mutex       mutex{}; // buff: .
+            std::atomic<int> count{}; // buff: .
+
+            struct counter
+            {
+                std::lock_guard<std::mutex> guard;
+                std::atomic<int>&           count;
+
+                counter(std::mutex& mutex, std::atomic<int>& count)
+                    : guard{ mutex },
+                      count{ count }
+                {
+                    --count;
+                }
+                auto solo()
+                {
+                    return !count;
+                }
+            };
+
+            auto lock()
+            {
+                ++count;
+                return counter{ mutex, count };
+            }
+            void swap()
+            {
+                auto guard = lock();
+                std::swap(accum, cache);
+            }
+        };
+
         namespace binary
         {
             enum class type : byte
@@ -2357,42 +2415,6 @@ namespace netxs::ansi
                 request_debug_count,
                 vt_command,        // parse following vt-sequences in UTF-8 format
                 warp,              // warping
-            };
-
-            struct buff
-            {
-                ansi::esc        accum{}; // buff: .
-                ansi::esc        cache{}; // buff: .
-                std::mutex       mutex{}; // buff: .
-                std::atomic<int> count{}; // buff: .
-
-                struct counter
-                {
-                    std::lock_guard<std::mutex> guard;
-                    std::atomic<int>&           count;
-
-                    counter(std::mutex& mutex, std::atomic<int>& count)
-                        : guard{ mutex },
-                          count{ count }
-                    {
-                        --count;
-                    }
-                    auto solo()
-                    {
-                        return !count;
-                    }
-                };
-
-                auto lock()
-                {
-                    ++count;
-                    return counter{ mutex, count };
-                }
-                void swap()
-                {
-                    auto guard = lock();
-                    std::swap(accum, cache);
-                }
             };
 
             class stream
@@ -2527,10 +2549,10 @@ namespace netxs::ansi
                 }
 
                 // stream: .
-                void clear()
-                {
-                    block.clear();
-                }
+                //void clear()
+                //{
+                //    block.resize(start);
+                //}
                 // stream: .
                 auto length() const
                 {
@@ -2553,11 +2575,13 @@ namespace netxs::ansi
                         return size;
                     }
                 }
+                // stream: .
                 template<class T>
-                void sendby(T&& sender)
+                void sendby(T&& sender, bool discard_empty = faux)
                 {
-                    if (alive) commit();
-                    if (guard.solo())
+                    if (alive) commit(discard_empty);
+                    if (block.size()
+                     && guard.solo())
                     {
                         sender.output(block);
                         block.clear();
@@ -2764,6 +2788,220 @@ namespace netxs::ansi
                 {
                     return generic_list_t<view, jgc_iterator>{ data };
                 }
+            };
+        }
+
+        namespace ascii
+        {
+            class bitmap
+                : public itos_t<text>
+            {
+                using lock = buff::counter;
+
+                lock  guard; // ascii::bitmap: .
+                text& block; // ascii::bitmap: .
+                bool  alive; // ascii::bitmap: .
+                sz_t  start; // ascii::bitmap: .
+
+            public:
+                // ascii::bitmap: .
+                //void clear()
+                //{
+                //    block.resize(start);
+                //}
+                // ascii::bitmap: .
+                auto length() const
+                {
+                    return static_cast<sz_t>(block.length());
+                }
+                // ascii::bitmap: .
+                template<class T>
+                void sendby(T&& sender, bool discard_empty = faux)
+                {
+                    if (alive) commit(discard_empty);
+                    if (block.size()
+                     && guard.solo())
+                    {
+                        sender.output(block);
+                        block.clear();
+                    }
+                }
+                // ascii::bitmap: .
+                auto commit(bool discard_empty = faux)
+                {
+                    alive = faux;
+                    auto size = length();
+                    return size;
+                }
+
+                bitmap(buff& data)
+                    : itos_t{data.accum },
+                      guard{ data.lock()},
+                      block{ data.accum },
+                      alive{ true       },
+                      start{ length()   }
+                { }
+
+                // esc: 0-Based caret position.
+                void locate(twod const& p)
+                {
+                    add("\033[", p.y + 1, ';',
+                                 p.x + 1, 'H');
+                }
+                // esc: Erase scrollback.
+                void scroll_wipe()
+                {
+                    add("\033[2J");
+                }
+                template<class T>
+                void operator += (T&& str)
+                {
+                    block += std::forward<T>(str);
+                }
+                // esc: SGR Foreground color (256-color mode).
+                void fgc256(rgba const& c)
+                {
+                    add("\033[38;5;", c.to256cube(), 'm');
+                }
+                // esc: SGR Background color (256-color mode).
+                void bgc256(rgba const& c)
+                {
+                    add("\033[48;5;", c.to256cube(), 'm');
+                }
+                // esc: SGR Foreground color (16-color mode).
+                void fgc16(rgba const& c)
+                {
+                    auto clr = si32{ 30 };
+                    switch (c.token)
+                    {
+                        case 0xFF000000: clr += 0;
+                            add("\033[22;", clr, 'm');
+                            return;
+                        case 0xFFffffff: clr += 5;
+                            add("\033[22;", clr, 'm');
+                            return;
+                        case 0xFF00ff00:
+                        case rgba{ rgba::color256[tint::greenlt  ] }.token: clr += 60 + 0; break;
+                        case 0xFF00ffff:
+                        case rgba{ rgba::color256[tint::yellowlt ] }.token: clr += 60 + 1; break;
+                        case 0xFFff00ff:
+                        case rgba{ rgba::color256[tint::magentalt] }.token: clr += 60 + 2; break;
+                        case rgba{ rgba::color256[tint::reddk    ] }.token: clr += 60 + 3; break;
+                        case rgba{ rgba::color256[tint::bluedk   ] }.token: clr += 60 + 4; break;
+                        case rgba{ rgba::color256[tint::greendk  ] }.token: clr += 60 + 5; break;
+                        case rgba{ rgba::color256[tint::yellowdk ] }.token: clr += 60 + 6; break;
+                        case 0xFFffff00:
+                        case rgba{ rgba::color256[tint::cyanlt   ] }.token: clr += 60 + 7; break;
+                        case 0xFF0000ff:
+                        case rgba{ rgba::color256[tint::redlt    ] }.token:
+                            clr += 6;
+                            add("\033[22;", clr, 'm');
+                            return;
+                        case rgba{ rgba::color256[tint::blacklt  ] }.token:
+                            clr += 4;
+                            add("\033[22;", clr, 'm');
+                            return;
+                        case 0xFFff0000:
+                        case rgba{ rgba::color256[tint::bluelt   ] }.token:
+                            clr += 7;
+                            add("\033[22;", clr, 'm');
+                            return;
+                        default: // grayscale
+                            auto l = c.luma();
+                                 if (l < 42)  clr += 1;
+                            else if (l < 90)  clr += 2;
+                            else if (l < 170) clr += 3;
+                            else if (l < 240) clr += 4;
+                            else              clr += 5;
+                            add("\033[22;", clr, 'm');
+                            return;
+                    }
+                    add("\033[", clr, 'm');
+                    return;
+                }
+                // esc: SGR Background color (16-color mode).
+                void bgc16(rgba const& c)
+                {
+                    auto clr = si32{ 40 };
+                    switch (c.token)
+                    {
+                        case 0xFF000000: clr += 0; break;
+                        case 0xFFffffff: clr += 5; break;
+                        case 0xFF0000ff:
+                        case rgba{ rgba::color256[tint::reddk ] }.token: clr += 6; break;
+                        case rgba{ rgba::color256[tint::redlt ] }.token: clr += 6; break;
+                        case 0xFFff0000:
+                        case rgba{ rgba::color256[tint::bluelt] }.token: clr += 7; break;
+                        default:
+                            if (c.chan.b > 0xE0
+                            && c.chan.r > 0x30 && c.chan.r < 0x50
+                            && c.chan.g > 0x70 && c.chan.g < 0xd0)
+                            {
+                                clr += 7;
+                            }
+                            else // grayscale
+                            {
+                                auto l = c.luma();
+                                     if (l < 42)  clr += 1;
+                                else if (l < 90)  clr += 2;
+                                else if (l < 170) clr += 3;
+                                else if (l < 240) clr += 4;
+                                else              clr += 5;
+                            }
+                    }
+                    add("\033[", clr, 'm');
+                    return;
+                }
+                // esc: SGR Foreground color. RGB: red, green, blue.
+                template<svga VGAMODE = svga::truecolor>
+                void fgc(rgba const& c)
+                {
+                    if constexpr (VGAMODE == svga::directvt) return;
+                    switch (VGAMODE)
+                    {
+                        case svga::truecolor:
+                            if (c.chan.a)
+                            {
+                                add("\033[38;2;", c.chan.r, ';',
+                                                  c.chan.g, ';',
+                                                  c.chan.b, 'm');
+                            }
+                            else add("\033[39m");
+                            break;
+                        case svga::vga16:  fgc16(c);  break;
+                        case svga::vga256: fgc256(c); break;
+                        default:                      break;
+                    }
+                }
+                // esc: SGR Background color. RGB: red, green, blue.
+                template<svga VGAMODE = svga::truecolor>
+                void bgc(rgba const& c)
+                {
+                    if constexpr (VGAMODE == svga::directvt) return;
+                    switch (VGAMODE)
+                    {
+                        case svga::truecolor:
+                            if (c.chan.a)
+                            {
+                                add("\033[48;2;", c.chan.r, ';',
+                                                  c.chan.g, ';',
+                                                  c.chan.b, 'm');
+                            }
+                            else add("\033[49m");
+                            break;
+                        case svga::vga16:  bgc16(c);  break;
+                        case svga::vga256: bgc256(c); break;
+                        default:                      break;
+                    }
+                }
+                void bld(bool b) { add(b ? "\033[1m" : "\033[22m"); } // esc: SGR 𝗕𝗼𝗹𝗱 attribute.
+                void und(bool b) { add(b ? "\033[4m" : "\033[24m"); } // esc: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+                void blk(bool b) { add(b ? "\033[5m" : "\033[25m"); } // esc: SGR Blink attribute.
+                void inv(bool b) { add(b ? "\033[7m" : "\033[27m"); } // esc: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
+                void itc(bool b) { add(b ? "\033[3m" : "\033[23m"); } // esc: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
+                void stk(bool b) { add(b ? "\033[9m" : "\033[29m"); } // esc: SGR Strikethrough attribute.
+                void dnl(bool b) { add(b ? "\033[21m": "\033[24m"); } // esc: SGR Double underline attribute.
+                void ovr(bool b) { add(b ? "\033[53m": "\033[55m"); } // esc: SGR Overline attribute.
             };
         }
     }

@@ -4773,7 +4773,7 @@ namespace netxs::console
         using lock = std::recursive_mutex;
         using cond = std::condition_variable_any;
         using sptr = netxs::sptr<bell>;
-        using buff = netxs::ansi::dtvt::binary::buff;
+        using buff = netxs::ansi::dtvt::buff;
 
         sptr owner; // link: Boss.
         xipc canal; // link: Data highway.
@@ -4929,6 +4929,29 @@ namespace netxs::console
         {
             p_form_footer.set(new_footer);
             output(p_form_footer);
+        }
+        template<class T>
+        void send_tooltips(T& gears)
+        {
+            using namespace netxs::ansi::dtvt;
+            auto tooltips = binary::tooltips{ frame };
+            for (auto& [gear_id, gear_ptr] : gears)
+            {
+                auto& gear = *gear_ptr;
+                if (gear.is_tooltip_changed())
+                {
+                    auto tooltip_data = gear.get_tooltip();
+                    tooltips.add(gear_id, tooltip_data);
+                }
+            }
+            tooltips.sendby(*this, true);
+        }
+        void append(view utf8)
+        {
+            using namespace netxs::ansi::dtvt;
+            auto extra = ascii::bitmap{ frame };
+            extra.add(utf8);
+            extra.sendby(*this, true);
         }
 
         template<class E, class T>
@@ -5572,7 +5595,7 @@ again:
         using cond = std::condition_variable_any;
         using span = period;
         using pair = std::optional<std::pair<span, si32>>;
-        using buff = netxs::ansi::dtvt::binary::buff;
+        using buff = netxs::ansi::dtvt::buff;
 
         link& conio;
         lock& mutex; // diff: Mutex between renderer and committer threads.
@@ -5603,30 +5626,29 @@ again:
                 dumb.template scan<VGAMODE>(state, frame);
             };
 
-            auto guard = std::unique_lock{ mutex };
+            using namespace netxs::ansi::dtvt;
+            auto coord = twod{};
             auto state = cell{};
             auto start = moment{};
+            auto guard = std::unique_lock{ mutex };
 
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
+                start = tempus::now();
                 ready = faux;
                 abort = faux;
-                start = tempus::now();
-
-                frame.swap();
-                auto image = frame.cache;
-
+                coord = dot_00;
+                auto image = ascii::bitmap{ frame };
                 if (rhash != dhash)
                 {
                     rhash = dhash;
                     auto src = front.data();
                     auto end = src + front.size();
-                    auto row = si32{};
-                    image.scroll_wipe<VGAMODE>();
-                    while (row++ < field.y)
+                    image.scroll_wipe();
+                    while (coord.y < field.y)
                     {
                         if (abort) break;
-                        image.locate<VGAMODE>(1, row);
+                        image.locate(coord);
                         auto end_line = src + field.x;
                         while (src != end_line)
                         {
@@ -5667,17 +5689,16 @@ again:
                                 }
                             }
                         }
+                        ++coord.y;
                     }
                 }
                 else
                 {
                     auto src = cache.data();
                     auto dst = front.data();
-                    auto beg = src;
+                    auto beg = src + 1;
                     auto end = src;
-                    auto row = si32{};
-
-                    while (row++ < field.y)
+                    while (coord.y < field.y)
                     {
                         if (abort) break;
                         end += field.x;
@@ -5692,8 +5713,8 @@ again:
                             {
                                 if (back != fore)
                                 {
-                                    auto col = static_cast<si32>(src - beg);
-                                    image.locate<VGAMODE>(col, row);
+                                    coord.x = static_cast<si32>(src - beg);
+                                    image.locate(coord);
 
                                     back = fore;
                                     fore.scan<VGAMODE>(state, image);
@@ -5788,8 +5809,8 @@ again:
                                     {
                                         back = fore;
 
-                                        auto col = static_cast<si32>(src - beg);
-                                        image.locate<VGAMODE>(col, row);
+                                        coord.x = static_cast<si32>(src - beg);
+                                        image.locate(coord);
 
                                         if (src != end)
                                         {
@@ -5825,8 +5846,9 @@ again:
                                             auto& g = *(dst++);
                                             if (d.wdt() < 3)
                                             {
-                                                auto col = static_cast<si32>(src - beg - 1);
-                                                image.locate<VGAMODE>(col, row);
+                                                coord.x = static_cast<si32>(src - beg - 1);
+                                                image.locate(coord);
+
                                                 fallback(fore, state, image); // Left part alone.
                                                 src--; // Repeat all for d again.
                                                 dst--; // Repeat all for g again.
@@ -5836,9 +5858,8 @@ again:
                                                 if (g != d)
                                                 {
                                                     g = d;
-                                                    auto col = static_cast<si32>(src - beg - 1);
-                                                    image.locate<VGAMODE>(col, row);
-
+                                                    coord.x = static_cast<si32>(src - beg - 1);
+                                                    image.locate(coord);
                                                     if (!fore.scan<VGAMODE>(d, state, image))
                                                     {
                                                         fallback(fore, state, image); // Left part alone.
@@ -5849,31 +5870,31 @@ again:
                                         }
                                         else
                                         {
-                                            auto col = static_cast<si32>(src - beg);
-                                            image.locate<VGAMODE>(col, row);
+                                            coord.x = static_cast<si32>(src - beg);
+                                            image.locate(coord);
                                             fallback(fore, state, image); // Left part alone.
                                         }
                                     }
                                 }
                                 else // w == 3 // Right part has changed.
                                 {
-                                    auto col = static_cast<si32>(src - beg);
-                                    image.locate<VGAMODE>(col, row);
+                                    coord.x = static_cast<si32>(src - beg);
+                                    image.locate(coord);
                                     back = fore;
                                     fallback(fore, state, image); // Right part alone.
                                 }
                             }
                         }
                         beg += field.x;
+                        ++coord.y;
                     }
                 }
 
-                delta = static_cast<sz_t>(image.size());
+                delta = image.commit(true);
                 if (!abort && delta)
                 {
                     guard.unlock();
-                    conio.output(image);
-                    image.clear();
+                    image.sendby(conio);
                     guard.lock();
                 }
                 watch = tempus::now() - start;
@@ -6046,29 +6067,6 @@ again:
                 paint.join();
                 log("diff: id: ", id, " rendering thread joined");
             }
-        }
-
-        void append(view utf8)
-        {
-            auto guard = frame.lock();
-            frame.accum.add<svga::truecolor>(utf8);
-        }
-        template<class T>
-        void send_tooltips(T& gears)
-        {
-            using namespace netxs::ansi::dtvt;
-
-            auto tooltips = binary::tooltips{ frame };
-            for (auto& [gear_id, gear_ptr] : gears)
-            {
-                auto& gear = *gear_ptr;
-                if (gear.is_tooltip_changed())
-                {
-                    auto tooltip_data = gear.get_tooltip();
-                    tooltips.add(gear_id, tooltip_data);
-                }
-            }
-            tooltips.commit(true);
         }
     };
 
@@ -6358,7 +6356,7 @@ again:
 
                         if (props.tooltip_enabled)
                         {
-                            if (direct) paint.send_tooltips(input.gears);
+                            if (direct) conio.send_tooltips(input.gears);
                             else        draw_tooltips(canvas);
                         }
 
@@ -6483,7 +6481,7 @@ again:
                             para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
                         }
                         log("gate: title changed to '", temp, ansi::nil().add("'"));
-                        paint.append(ansi::tag(temp));
+                        conio.append(ansi::tag(temp));
                     }
                 };
                 SUBMIT_T(tier::general, e2::nextframe, token, damaged)
@@ -6530,7 +6528,7 @@ again:
                     auto& data = gear.clip_rawdata;
                     auto& size = gear.preview_size;
                     if (direct) conio.forward_clipboard(ext_gear_id, size, data);
-                    else        paint.append(ansi::setbuf(data)); // OSC 52
+                    else        conio.append(ansi::setbuf(data)); // OSC 52
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
                 {
