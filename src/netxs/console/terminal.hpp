@@ -6919,7 +6919,7 @@ namespace netxs::ui
                     case ansi::dtvt::frame_type::bitmap:
                     {
                         auto lock = std::lock_guard{ access };
-                        ansi::dtvt::bitmap_t::get(canvas, gclist, frame.data);
+                        ansi::dtvt::binary::bitmap::get(canvas, gclist, frame.data);
                         if (gclist.size())
                         {
                             buffer.request_gc(gclist);
@@ -6945,7 +6945,7 @@ namespace netxs::ui
                     }
                     case ansi::dtvt::frame_type::tooltips:
                     {
-                        auto tooltips = ansi::dtvt::tooltips_t::get(frame.data);
+                        auto tooltips = ansi::dtvt::binary::tooltips::get(frame.data);
                         netxs::events::enqueue(This(), [&, tooltips = std::move(tooltips)](auto& boss)
                         {
                             for (auto& tooltip : tooltips)

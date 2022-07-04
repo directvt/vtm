@@ -4868,7 +4868,6 @@ namespace netxs::console
         ansi::dtvt::expose_t                p_expose;
         ansi::dtvt::request_debug_t         p_request_debug;
         ansi::dtvt::request_debug_count_t   p_request_debug_count;
-        ansi::dtvt::tooltips_t              p_tooltips;
 
         link(sptr boss, xipc sock)
             : owner{ boss },
@@ -4929,21 +4928,6 @@ namespace netxs::console
         {
             p_form_footer.set(new_footer);
             output(p_form_footer);
-        }
-        template<class T>
-        void send_tooltips(T& gears)
-        {
-            p_tooltips.clear(); //todo use dblbuffer
-            for (auto& [gear_id, gear_ptr] : gears)
-            {
-                auto& gear = *gear_ptr;
-                if (gear.is_tooltip_changed())
-                {
-                    auto tooltip_data = gear.get_tooltip();
-                    p_tooltips.add(gear_id, tooltip_data);
-                }
-            }
-            if (p_tooltips) output(p_tooltips);
         }
 
         template<class E, class T>
@@ -5589,28 +5573,35 @@ again:
         using span = period;
         using pair = std::optional<std::pair<span, si32>>;
 
+        struct buff
+        {
+            ansi input; // buff: .
+            ansi cache; // buff: .
+            lock mutex; // buff: .
+            void swap()
+            {
+                auto lock = std::lock_guard(mutex);
+                std::swap(input, cache);
+            }
+        };
+
         link& conio;
         lock& mutex; // diff: Mutex between renderer and committer threads.
         cond  synch; // diff: Synchronization between renderer and committer.
-
         grid& cache; // diff: The current content buffer which going to be checked and processed.
         grid  front; // diff: The Shadow copy of the terminal/screen.
-
         si32  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
         si32  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
         twod  field; // diff: Current terminal/screen window size.
         span  watch; // diff: Duration of the STDOUT rendering.
-        si32  delta; // diff: Last ansi-rendered frame size.
-        ansi  frame; // diff: Text screen representation.
+        sz_t  delta; // diff: Last ansi-rendered frame size.
+        buff  frame; // diff: Text screen representation.
         bool  alive; // diff: Working loop state.
         bool  ready; // diff: Conditional variable to avoid spurious wakeup.
         bool  abort; // diff: Abort building current frame.
         svga  video; // diff: VGA 16/256-color compatibility mode.
         work  paint; // diff: Rendering thread.
         pair  debug; // diff: Debug info.
-
-        ansi  extra; // diff: Extra data to cout.
-        text  extra_cached; // diff: Cached extra data to cout.
 
         // diff: Render current buffer to the screen.
         template<svga VGAMODE = svga::truecolor>
@@ -5623,9 +5614,9 @@ again:
                 dumb.template scan<VGAMODE>(state, frame);
             };
 
+            auto guard = std::unique_lock{ mutex };
             auto state = cell{};
             auto start = moment{};
-            auto guard = std::unique_lock{ mutex };
 
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
@@ -5633,13 +5624,9 @@ again:
                 abort = faux;
                 start = tempus::now();
 
-                auto initial_size = static_cast<si32>(frame.size());
-
-                if (extra_cached.length())
-                {
-                    frame += extra_cached;
-                    extra_cached.clear();
-                }
+                //todo unify
+                this->frame.swap();
+                auto frame = this->frame.cache;
 
                 if (rhash != dhash)
                 {
@@ -5893,22 +5880,21 @@ again:
                     }
                 }
 
-                auto size = static_cast<si32>(frame.size());
-                if (!abort && size != initial_size)
+                delta = static_cast<sz_t>(frame.size());
+                if (!abort && delta)
                 {
                     guard.unlock();
                     conio.output(frame);
+                    frame.clear();
                     guard.lock();
                 }
-                frame.clear();
-                delta = size;
                 watch = tempus::now() - start;
             }
         }
         // diff: Render current buffer in DTVT-node.
         void render_dtvt()
         {
-            auto frame = netxs::ansi::dtvt::bitmap_t{};
+            using namespace netxs::ansi::dtvt;
             auto coord = twod{};
             auto state = cell{};
             auto start = moment{};
@@ -5916,27 +5902,30 @@ again:
 
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
+                frame.swap();
+
+                auto image = binary::bitmap{ frame.cache };
                 ready = faux;
                 abort = faux;
                 coord = dot_00;
                 start = tempus::now();
-                frame.set(0xaabbccdd, { dot_00, field });
+                image.init(0xaabbccdd, { dot_00, field });
 
                 if (rhash != dhash)
                 {
                     rhash = dhash;
-                    frame.rst();
+                    image.rst();
                     auto src = front.data();
                     auto end = src;
                     while (coord.y < field.y
                        && !abort)
                     {
-                        frame.cup(coord);
+                        image.cup(coord);
                         end += field.x;
                         while (src != end)
                         {
                             auto& c = *src++;
-                            c.scan<svga::directvt>(state, frame);
+                            c.scan<svga::directvt>(state, image);
                         }
                         ++coord.y;
                     }
@@ -5958,9 +5947,9 @@ again:
                             if (back != fore)
                             {
                                 coord.x = static_cast<si32>(src - beg);
-                                frame.cup(coord);
+                                image.cup(coord);
                                 back = fore;
-                                fore.scan<svga::directvt>(state, frame);
+                                fore.scan<svga::directvt>(state, image);
                                 while (src != end)
                                 {
                                     auto& fore = *src++;
@@ -5969,7 +5958,7 @@ again:
                                     else
                                     {
                                         back = fore;
-                                        fore.scan<svga::directvt>(state, frame);
+                                        fore.scan<svga::directvt>(state, image);
                                     }
                                 }
                             }
@@ -5979,15 +5968,15 @@ again:
                     }
                 }
 
-                if (!abort && !!frame)
+                delta = image.length();
+                if (!abort && image.close())
                 {
                     guard.unlock();
-                    conio.output(frame);
+                    conio.output(frame.cache);
+                    frame.cache.clear();
                     guard.lock();
                 }
-                delta = frame.length();
                 watch = tempus::now() - start;
-                frame.clear();
             }
         }
 
@@ -6002,13 +5991,6 @@ again:
                 //field = canvas.copy(cache);
                 if (rhash != dhash) front = cache; // Cache may be further resized before it rendered.
                 debug = { watch, delta };
-
-                if (extra.length())
-                {
-                    extra_cached += extra;
-                    extra.clear();
-                }
-
                 ready = true;
                 synch.notify_one();
                 return debug;
@@ -6085,8 +6067,25 @@ again:
 
         void append(view utf8)
         {
-            auto lock = std::lock_guard{ mutex };
-            extra.add<svga::truecolor>(utf8);
+            auto lock = std::lock_guard{ frame.mutex };
+            frame.input.add<svga::truecolor>(utf8);
+        }
+        template<class T>
+        void send_tooltips(T& gears)
+        {
+            using namespace netxs::ansi::dtvt;
+            auto lock = std::lock_guard{ frame.mutex };
+
+            auto tooltips = binary::tooltips{ frame.input };
+            for (auto& [gear_id, gear_ptr] : gears)
+            {
+                auto& gear = *gear_ptr;
+                if (gear.is_tooltip_changed())
+                {
+                    auto tooltip_data = gear.get_tooltip();
+                    tooltips.add(gear_id, tooltip_data);
+                }
+            }
         }
     };
 
@@ -6376,7 +6375,7 @@ again:
 
                         if (props.tooltip_enabled)
                         {
-                            if (direct) conio.send_tooltips(input.gears);
+                            if (direct) paint.send_tooltips(input.gears);
                             else        draw_tooltips(canvas);
                         }
 

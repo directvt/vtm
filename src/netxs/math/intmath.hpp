@@ -25,6 +25,7 @@ namespace netxs
     using si16 = int16_t;
     using si32 = int32_t;
     using si64 = int64_t;
+    using sz_t = ui32;
 
     static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
 

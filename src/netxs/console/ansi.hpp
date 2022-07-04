@@ -5,7 +5,6 @@
 #define NETXS_ANSI_HPP
 
 #include "../ui/layout.hpp"
-#include "../text/utf.hpp"
 #include "../abstract/tree.hpp"
 
 #include <mutex>
@@ -318,7 +317,6 @@ namespace netxs::ansi
         #pragma pack(pop)
 
         using hint = netxs::events::type;
-        using sz_t = ui32;
 
         enum frame_type : byte
         {
@@ -340,47 +338,47 @@ namespace netxs::ansi
             warp,              // warping
         };
 
+        template<class T, class Type>
+        struct generic_list_t
+        {
+            T copy;
+
+            struct iter
+            {
+                view rest;
+                bool stop;
+                Type prop;
+
+                iter(view data)
+                    : rest{ data },
+                      stop{ faux }
+                {
+                    operator++();
+                }
+                template<class A>
+                auto  operator == (A&&) const { return stop; }
+                auto& operator  * ()    const { return prop; }
+                auto& operator  * ()          { return prop; }
+                auto  operator ++ () { stop = prop.next(rest); }
+            };
+
+            generic_list_t(generic_list_t const&) = default;
+            generic_list_t(generic_list_t&&)      = default;
+            generic_list_t(view& data)
+                : copy{ data }
+            {
+                data = {};
+            }
+            auto begin() const { return iter{copy}; }
+            auto begin()       { return iter{copy}; }
+            auto   end() const { return text::npos; }
+            auto   end()       { return text::npos; }
+        };
+
         class binary_t
         {
         protected:
             text block; // binary_t: Continuous block of data.
-
-            template<class T, class Type>
-            struct generic_list_t
-            {
-                T copy;
-
-                struct iter
-                {
-                    view rest;
-                    bool stop;
-                    Type prop;
-
-                    iter(view data)
-                        : rest{ data },
-                          stop{ faux }
-                    {
-                        operator++();
-                    }
-                    template<class A>
-                    auto  operator == (A&&) const { return stop; }
-                    auto& operator  * ()    const { return prop; }
-                    auto& operator  * ()          { return prop; }
-                    auto  operator ++ () { stop = prop.next(rest); }
-                };
-
-                generic_list_t(generic_list_t const&) = default;
-                generic_list_t(generic_list_t&&)      = default;
-                generic_list_t(view& data)
-                    : copy{ data }
-                {
-                    data = {};
-                }
-                auto begin() const { return iter{copy}; }
-                auto begin()       { return iter{copy}; }
-                auto   end() const { return text::npos; }
-                auto   end()       { return text::npos; }
-            };
 
             // binary_t: .
             template<class T>
@@ -522,6 +520,295 @@ namespace netxs::ansi
             }
         };
 
+        namespace binary
+        {
+            class stream
+            {
+                static constexpr sz_t head_size = sizeof(sz_t) + sizeof(frame_type); 
+
+                text& block;
+                sz_t  start;
+                bool  alive;
+
+                // stream: .
+                template<class T>
+                inline void fuse(T&& data)
+                {
+                    using D = std::remove_cv_t<std::remove_reference_t<T>>;
+                    if constexpr (std::is_same_v<D, char>
+                               || std::is_same_v<D, byte>
+                               || std::is_same_v<D, frame_type>)
+                    {
+                        block.text::push_back(static_cast<char>(data));
+                    }
+                    else if constexpr (std::is_integral_v<D>
+                                    || std::is_same_v<D, twod>
+                                    || std::is_same_v<D, rect>)
+                    {
+                        auto le_data = netxs::letoh(data);
+                        auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
+                        block += v;
+                    }
+                    else if constexpr (std::is_same_v<D, rgba>)
+                    {
+                        auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
+                        block += v;
+                    }
+                    else if constexpr (std::is_same_v<D, view>
+                                    || std::is_same_v<D, text>)
+                    {
+                        block += data;
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                // stream: Replace bytes at specified position.
+                template<class T>
+                inline auto& add_at(sz_t at, T&& data)
+                {
+                    auto le_data = netxs::letoh(std::forward<T>(data));
+                    ::memcpy(block.text::data() + at, reinterpret_cast<void const*>(&le_data), sizeof(le_data));
+                    return *this;
+                }
+                // stream: .
+                template<class T>
+                static auto _take_item(view& data)
+                {
+                    using D = std::remove_cv_t<std::remove_reference_t<T>>;
+                    if constexpr (std::is_same_v<D, view>)
+                    {
+                        auto size = netxs::letoh(*reinterpret_cast<sz_t const*>(data.data()));
+                        if (size > data.size() - sizeof(size))
+                        {
+                            log("dtvt: corrupted data");
+                            return view{};
+                        }
+                        data.remove_prefix(sizeof(sz_t));
+                        auto crop = view{ data.data(), (size_t)size };
+                        data.remove_prefix(size);
+                        return crop;
+                    }
+                    else
+                    {
+                        auto crop = netxs::letoh(*reinterpret_cast<D const*>(data.data()));
+                        data.remove_prefix(sizeof(D));
+                        return crop;
+                    }
+                }
+                // stream: .
+                template<class... Fields>
+                static auto _take(std::tuple<Fields...>, view& data)
+                {
+                    return std::tuple{ _take_item<Fields>(data)..., };
+                }
+
+            public:
+                // stream: .
+                template<class T>
+                inline auto& add(T&& data)
+                {
+                    fuse(std::forward<T>(data));
+                    return *this;
+                }
+                // stream: .
+                template<class T, class ...Args>
+                inline auto& add(T&& data, Args&&... data_list)
+                {
+                    fuse(std::forward<T>(data));
+                    return add(std::forward<Args>(data_list)...);
+                }
+                // stream: .
+                template<class... Fields>
+                static auto take(view& data)
+                {
+                    return std::tuple{ _take_item<Fields>(data)..., };
+                }
+                // stream: .
+                template<class T>
+                static void take(T&& dest, view& data)
+                {
+                    dest = _take_item<T>(data);
+                }
+                // stream: .
+                static void take(void *dest, size_t size, view& data)
+                {
+                    ::memcpy(dest, reinterpret_cast<void const*>(data.data()), size);
+                    data.remove_prefix(size);
+                }
+                // stream: .
+                static auto take_substr(size_t size, view& data)
+                {
+                    if (size > data.size())
+                    {
+                        log("dtvt: wrong data size");
+                        return view{};
+                    }
+                    auto crop = data.substr(0, size);
+                    data.remove_prefix(size);
+                    return crop;
+                }
+
+                // stream: .
+                void clear()
+                {
+                    block.clear();
+                }
+                // stream: .
+                auto length() const
+                {
+                    return static_cast<sz_t>(block.length());
+                }
+                // stream: .
+                auto close()
+                {
+                    alive = faux;
+                    auto size = static_cast<sz_t>(block.size());
+                    stream::add_at(start, size - start);
+                    return start > 0 || size > head_size;
+                }
+
+                // stream: .
+                operator view ()
+                {
+                    return block;
+                }
+                stream(text& data, frame_type type)
+                    : block{ data },
+                      alive{ true },
+                      start{ static_cast<sz_t>(data.size()) }
+                {
+                    stream::add(head_size, type);
+                }
+               ~stream()
+                {
+                    if (alive) close();
+                }
+            };
+
+            class bitmap
+                : public stream
+            {
+                struct type
+                {
+                    static constexpr byte ngc = 0x00; // Skip grapheme cluster. gc len = 0
+                    static constexpr byte gcl = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                    static constexpr byte cup = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
+                    static constexpr byte bgc = 0x09; // BG rgba color. 4 bytes: rgba
+                    static constexpr byte fgc = 0x0A; // FG rgba color. 4 bytes: rgba
+                    static constexpr byte stl = 0x0B; // Grapheme style. token 4 bytes
+                    static constexpr byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
+                };
+
+            public:
+                bitmap(text& data)
+                    : stream{ data, frame_type::bitmap }
+                { }
+
+                void init(id_t myid, rect const& area)
+                {
+                    stream::add(myid);
+                    stream::add(area);
+                }
+                template<class F, class L>
+                static auto get(F&& canvas, L&& gclist, view& data)
+                {
+                    auto [myid, area] = stream::take<id_t, rect>(data);
+                    //todo head.myid
+                    canvas.size(area.size);
+                    auto& mark = canvas.mark();
+                    auto  iter = canvas.iter();
+                    auto  coor = dot_00;
+                    while (data.size() > 0)
+                    {
+                        auto [what] = stream::take<byte>(data);
+                        if (what == type::ngc) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
+                        {
+                            coor.x++;
+                        }
+                        else if (what <= type::gcl) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
+                        {
+                            stream::take(mark.egc(), what + 1, data);
+                            if (mark.jgc() == faux) // Checking grapheme cluster registration.
+                            {
+                                gclist[mark.tkn()];
+                                log("token size ", what + 1);
+                            }
+                            if (canvas.test(coor))
+                            {
+                                canvas[coor] = mark;
+                            }
+                            coor.x++;
+                        }
+                        else switch (what)
+                        {
+                            case type::bgc: stream::take(mark.bgc(), data); break;
+                            case type::fgc: stream::take(mark.fgc(), data); break;
+                            case type::stl: stream::take(mark.stl(), data); break;
+                            case type::cup: stream::take(coor,       data); break;
+                            case type::rst: canvas.wipe(mark.txt('\0'));    break;
+                            default: // Unknown type.
+                            {
+                                auto [vcmd] = stream::take<view>(data);
+                                log("dtvt: unknown data type: ", what, "\n", utf::debase(vcmd));
+                                break;
+                            }
+                        }
+                    }
+                }
+                template<class T>
+                void gc(T const& gc)
+                {
+                    byte size = gc.state.jumbo ? sizeof(gc.glyph) - 1
+                                               : gc.state.count;
+                    if (size > 0) add(size, gc.template get<svga::directvt>());
+                    else          add(type::ngc);
+                    assert(size <= type::gcl);
+                }
+                template<class T>
+                void stl(T           token) { add(type::stl, token); }
+                void cup(twod const& coord) { add(type::cup, coord); }
+                void fgc(rgba const& color) { add(type::fgc, color); }
+                void bgc(rgba const& color) { add(type::bgc, color); }
+                void rst()                  { add(type::rst);        }
+            };
+
+            class tooltips
+                : public stream
+            {
+                struct tooltip_iterator
+                {
+                    id_t gear_id;
+                    view data;
+
+                    auto next(view& rest)
+                    {
+                        auto stop = rest.empty();
+                        if (!stop)
+                        {
+                            std::tie(gear_id, data) = stream::take<id_t, view>(rest);
+                        }
+                        return stop;
+                    }
+                };
+
+            public:
+                tooltips(text& data)
+                    : stream{ data, frame_type::tooltips }
+                { }
+
+                void add(id_t gear_id, view tooltip_data)
+                {
+                    stream::add(gear_id, (sz_t)tooltip_data.size(), tooltip_data);
+                }
+                static auto get(view& data)
+                {
+                    return generic_list_t<text, tooltip_iterator>{ data };
+                }
+            };
+        }
+
         template<frame_type Type, class... Fields>
         class header_t
             : public binary_t
@@ -629,97 +916,6 @@ namespace netxs::ansi
                 auto crop = qiew(head, iter - head);
                 return crop;
             }
-        };
-
-        class bitmap_t
-            : public header_t<frame_type::bitmap
-            , id_t, rect>
-        {
-            enum
-            {
-                _myid,
-                _area,
-            };
-
-            struct type
-            {
-                static constexpr byte ngc = 0x00; // Skip grapheme cluster. gc len = 0
-                static constexpr byte gcl = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
-                static constexpr byte cup = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
-                static constexpr byte bgc = 0x09; // BG rgba color. 4 bytes: rgba
-                static constexpr byte fgc = 0x0A; // FG rgba color. 4 bytes: rgba
-                static constexpr byte stl = 0x0B; // Grapheme style. token 4 bytes
-                static constexpr byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
-            };
-
-        public:
-            void set(id_t myid, rect const& area)
-            {
-                header_t::set<_myid>(myid);
-                header_t::set<_area>(area);
-            }
-            template<class F, class L>
-            static auto get(F&& canvas, L&& gclist, view& data)
-            {
-                auto [myid, area] = binary_t::take<id_t, rect>(data);
-                //todo head.myid
-                canvas.size(area.size);
-                auto& mark = canvas.mark();
-                auto  iter = canvas.iter();
-                auto  coor = dot_00;
-                while (data.size() > 0)
-                {
-                    auto [what] = binary_t::take<byte>(data);
-                    if (what == type::ngc) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
-                    {
-                        coor.x++;
-                    }
-                    else if (what <= type::gcl) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
-                    {
-                        binary_t::take(mark.egc(), what + 1, data);
-                        if (mark.jgc() == faux) // Checking grapheme cluster registration.
-                        {
-                            gclist[mark.tkn()];
-                            log("token size ", what + 1);
-                        }
-                        if (canvas.test(coor))
-                        {
-                            canvas[coor] = mark;
-                        }
-                        coor.x++;
-                    }
-                    else switch (what)
-                    {
-                        case type::bgc: binary_t::take(mark.bgc(), data); break;
-                        case type::fgc: binary_t::take(mark.fgc(), data); break;
-                        case type::stl: binary_t::take(mark.stl(), data); break;
-                        case type::cup: binary_t::take(coor,       data); break;
-                        case type::rst: canvas.wipe(mark.txt('\0'));      break;
-                        default: // Unknown type.
-                        {
-                            auto [vcmd] = binary_t::take<view>(data);
-                            log("dtvt: unknown data type: ", what, "\n", utf::debase(vcmd));
-                            break;
-                        }
-                    }
-                }
-
-            }
-            template<class T>
-            void gc(T const& gc)
-            {
-                byte size = gc.state.jumbo ? sizeof(gc.glyph) - 1
-                                           : gc.state.count;
-                if (size > 0) add(size, gc.template get<svga::directvt>());
-                else          add(type::ngc);
-                assert(size <= type::gcl);
-            }
-            template<class T>
-            void stl(T           token) { add(type::stl, token); }
-            void cup(twod const& coord) { add(type::cup, coord); }
-            void fgc(rgba const& color) { add(type::fgc, color); }
-            void bgc(rgba const& color) { add(type::bgc, color); }
-            void rst()                  { add(type::rst);        }
         };
 
         class mouse_t
@@ -911,36 +1107,9 @@ namespace netxs::ansi
             };
 
         public:
-            void set(sz_t c) { header_t::set<_count>(c); }
-        };
-
-        class tooltips_t
-            : public header_t<frame_type::tooltips>
-        {
-            struct tooltip_iterator
+            void set(sz_t c)
             {
-                id_t gear_id;
-                view data;
-
-                auto next(view& rest)
-                {
-                    auto stop = rest.empty();
-                    if (!stop)
-                    {
-                        std::tie(gear_id, data) = header_t::take<id_t, view>(rest);
-                    }
-                    return stop;
-                }
-            };
-
-        public:
-            void add(id_t gear_id, view tooltip_data)
-            {
-                header_t::add(gear_id, (sz_t)tooltip_data.size(), tooltip_data);
-            }
-            static auto get(view& data)
-            {
-                return generic_list_t<text, tooltip_iterator>{ data };
+                header_t::set<_count>(c);
             }
         };
     }
