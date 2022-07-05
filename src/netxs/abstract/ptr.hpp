@@ -94,7 +94,7 @@ namespace netxs
     template<template<class...> class C, class... ARGS>
     struct change_value_type_helper<C<ARGS...>>
     {
-        template<class... NEW_ARGS>
+        template<class ...NEW_ARGS>
         using new_type = C<NEW_ARGS...>;
     };
     template<class C, class T>

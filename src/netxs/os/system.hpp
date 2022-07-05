@@ -688,7 +688,7 @@ namespace netxs::os
         }
         static void send_dmd(fd_t m_pipe_w, twod const& winsz)
         {
-            auto buffer = ansi::dtvt::marker{ winsz };
+            auto buffer = ansi::dtvt::binary::marker{ winsz };
             os::send<true>(m_pipe_w, buffer.data, buffer.size);
         }
         static auto peek_dmd(fd_t stdin_fd)
@@ -702,7 +702,7 @@ namespace netxs::os
 
             #if defined(_WIN32)
                 // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
-                auto buffer = ansi::dtvt::marker{};
+                auto buffer = ansi::dtvt::binary::marker{};
                 auto length = DWORD{ 0 };
                 if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
                                     &buffer,        // lpBuffer
@@ -724,7 +724,7 @@ namespace netxs::os
             #else
                 os::select<true>(stdin_fd, [&]()
                 {
-                    auto buffer = ansi::dtvt::marker{};
+                    auto buffer = ansi::dtvt::binary::marker{};
                     auto header = os::recv(stdin_fd, buffer.data, buffer.size);
                     auto length = header.length();
                     if (length)

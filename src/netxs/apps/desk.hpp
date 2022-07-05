@@ -79,7 +79,7 @@ namespace netxs::app::desk
                 auto label_area = item_area->attach(ui::fork::ctor());
                     auto mark_app = label_area->attach(slot::_1, ui::fork::ctor());
                         auto mark = mark_app->attach(slot::_1, ui::pads::ctor(dent{ 2,1,0,0 }, dent{ 0,0,0,0 }))
-                                            ->attach(ui::item::ctor(ansi::fgc4(0xFF00ff00).add("‣"), faux));
+                                            ->attach(ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣"), faux));
                         auto app_label = mark_app->attach(slot::_2,
                                     ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left), true, true));
                     auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }))
@@ -203,7 +203,7 @@ namespace netxs::app::desk
                                     auto selected = inst_id == data;
                                     if (auto boss = boss_shadow.lock())
                                     {
-                                        boss->set(ansi::fgc4(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
+                                        boss->set(ansi::fgx(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
                                         boss->deface();
                                     }
                                 };
@@ -251,7 +251,7 @@ namespace netxs::app::desk
                     auto item_area = ui::pads::ctor(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                             ->plugin<pro::fader>(x3, c3, 150ms);
                         auto user = item_area->attach(ui::item::ctor(ansi::esc(" &").nil().add(" ")
-                                    .fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
+                                    .fgx(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
                     return item_area;
                 };
                 auto branch_template = [user_template](auto& data_src, auto& usr_list)

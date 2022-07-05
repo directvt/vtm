@@ -6980,7 +6980,7 @@ namespace netxs::ui
                         break;
                     }
                     //todo reimplement Logs
-                    case binary::type::request_debug_count:
+                    case binary::type::request_dbg_count:
                     {
                         auto count = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
                         frame.data.remove_prefix(sizeof(ui32));

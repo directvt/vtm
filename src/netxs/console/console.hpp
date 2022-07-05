@@ -4915,7 +4915,7 @@ namespace netxs::console
         {
             output(p_request_debug);
         }
-        void request_debug_count(si32 count)
+        void request_dbg_count(si32 count)
         {
             p_request_debug_count.set(count);
             output(p_request_debug_count);
@@ -4986,13 +4986,13 @@ namespace netxs::console
                 //auto size = ui32{ 0 };
                 //auto data = ansi::esc{}.add<svga::directvt>(ansi::dtvt::cmd, size);
                 //data.ext(true);
-                //if (title.size()) data.tag(title);
+                //if (title.size()) data.header(title);
                 //output(data);
             }
             else
             {
                 output(ansi::ext(true));
-                if (title.size()) output(ansi::tag(title));
+                if (title.size()) output(ansi::header(title));
             }
 
             // The following sequences are processed here:
@@ -6453,7 +6453,7 @@ again:
                 //{
                 //    text title;
                 //    newheader.lyric->each([&](auto c) { title += c.txt(); });
-                //    conio.output(ansi::tag(title));
+                //    conio.output(ansi::header(title));
                 //};
                 SUBMIT_T(tier::release, e2::form::prop::ui::footer, token, newfooter)
                 {
@@ -6481,7 +6481,7 @@ again:
                             para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
                         }
                         log("gate: title changed to '", temp, ansi::nil().add("'"));
-                        conio.append(ansi::tag(temp));
+                        conio.append(ansi::header(temp));
                     }
                 };
                 SUBMIT_T(tier::general, e2::nextframe, token, damaged)
@@ -6587,7 +6587,7 @@ again:
                     SUBMIT_T(tier::general, e2::debug::count::any, token, count)
                     {
                         auto lock = std::unique_lock{ conio.debug_count_relay.mutex };
-                        conio.request_debug_count(count);
+                        conio.request_dbg_count(count);
                         auto maxoff = 100ms;
                         //conio.debug_count_relay.synch.wait(lock);
                         if (std::cv_status::timeout != conio.debug_count_relay.synch.wait_for(lock, maxoff))
