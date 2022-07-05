@@ -4859,17 +4859,6 @@ namespace netxs::console
         }
         debug_count_relay;
 
-        ansi::dtvt::mouse_t                 p_mouse;
-        ansi::dtvt::form_header_t           p_form_header;
-        ansi::dtvt::form_footer_t           p_form_footer;
-        ansi::dtvt::get_clipboard_t         p_request_clipboard;
-        ansi::dtvt::set_clipboard_t         p_set_clipboard;
-        ansi::dtvt::set_focus_t             p_set_focus;
-        ansi::dtvt::off_focus_t             p_off_focus;
-        ansi::dtvt::expose_t                p_expose;
-        ansi::dtvt::request_debug_t         p_request_debug;
-        ansi::dtvt::request_debug_count_t   p_request_debug_count;
-
         link(sptr boss, xipc sock)
             : owner{ boss },
               canal{ sock },
@@ -4884,57 +4873,66 @@ namespace netxs::console
         }
         void forward(id_t gear_id, hint cause, twod const& coord)
         {
-            p_mouse.set(gear_id, cause, coord);
-            output(p_mouse);
+            auto mouse_event = ansi::dtvt::binary::mouse_event{ frame };
+            mouse_event.set(gear_id, cause, coord);
+            mouse_event.sendby(*this);
         }
         void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
         {
-            p_set_clipboard.set(gear_id, clip_preview_size, clip_rawdata);
-            output(p_set_clipboard);
+            auto set_clipboard = ansi::dtvt::binary::set_clipboard{ frame };
+            set_clipboard.set(gear_id, clip_preview_size, clip_rawdata);
+            set_clipboard.sendby(*this);
         }
         void request_clipboard(id_t gear_id)
         {
-            p_request_clipboard.set(gear_id);
-            output(p_request_clipboard);
+            auto request_clipboard = ansi::dtvt::binary::request_clipboard{ frame };
+            request_clipboard.set(gear_id);
+            request_clipboard.sendby(*this);
         }
         void set_focus(id_t gear_id, bool combine_focus, bool force_group_focus)
         {
-            p_set_focus.set(gear_id, combine_focus, force_group_focus);
-            output(p_set_focus);
+            auto set_focus = ansi::dtvt::binary::set_focus{ frame };
+            set_focus.set(gear_id, combine_focus, force_group_focus);
+            set_focus.sendby(*this);
         }
         void off_focus(id_t gear_id)
         {
-            p_off_focus.set(gear_id);
-            output(p_off_focus);
+            auto off_focus = ansi::dtvt::binary::off_focus{ frame };
+            off_focus.set(gear_id);
+            off_focus.sendby(*this);
         }
         void expose()
         {
-            output(p_expose);
+            auto pack = ansi::dtvt::binary::expose{ frame };
+            pack.sendby(*this);
         }
         void request_debug()
         {
-            output(p_request_debug);
+            auto request_dbg = ansi::dtvt::binary::request_debug{ frame };
+            request_dbg.sendby(*this);
         }
-        void request_dbg_count(si32 count)
+        void request_dbg_count(sz_t count)
         {
-            p_request_debug_count.set(count);
-            output(p_request_debug_count);
+            auto request_count = ansi::dtvt::binary::request_dbg_count{ frame };
+            request_count.set(count);
+            request_count.sendby(*this);
         }
-        void send_header(view new_header)
+        void send_header(id_t window_id, view new_header)
         {
-            p_form_header.set(new_header);
-            output(p_form_header);
+            auto form_header = ansi::dtvt::binary::form_header{ frame };
+            form_header.set(window_id, new_header);
+            form_header.sendby(*this);
         }
-        void send_footer(view new_footer)
+        void send_footer(id_t window_id, view new_footer)
         {
-            p_form_footer.set(new_footer);
-            output(p_form_footer);
+            auto form_footer = ansi::dtvt::binary::form_footer{ frame };
+            form_footer.set(window_id, new_footer);
+            form_footer.sendby(*this);
         }
         template<class T>
-        void send_tooltips(T& gears)
+        void send_tooltips(T&& gears)
         {
-            using namespace netxs::ansi::dtvt;
-            auto tooltips = binary::tooltips{ frame };
+            auto tooltips = ansi::dtvt::binary::tooltips{ frame };
             for (auto& [gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
@@ -4946,12 +4944,22 @@ namespace netxs::console
             }
             tooltips.sendby(*this, true);
         }
+        template<class T>
+        void send_gclist(T&& gclist)
+        {
+            auto jgc_list = ansi::dtvt::binary::jgc_list{ frame };
+            for (auto& [token, cluster] : gclist)
+            {
+                jgc_list.add(token, cluster);
+                log("token ", token, " cluster.size ", cluster.size());
+            }
+            jgc_list.sendby(*this);
+        }
         void append(view utf8)
         {
-            using namespace netxs::ansi::dtvt;
-            auto extra = ascii::bitmap{ frame };
+            auto extra = ansi::dtvt::ascii::bitmap{ frame };
             extra.add(utf8);
-            extra.sendby(*this, true);
+            extra.sendby(*this);
         }
 
         template<class E, class T>
@@ -5400,16 +5408,15 @@ again:
                                             }
                                             case ansi::dtvt::requestgc:
                                             {
-                                                auto jgc_list = ansi::dtvt::binary::jgc_list{ frame };
+                                                auto jgclist = std::vector<std::pair<ui64, text>>{};
                                                 do
                                                 {
                                                     auto token = netxs::letoh(take64());
                                                     auto cluster = cell::gc_get_data(token);
-                                                    jgc_list.add(token, cluster);
-                                                    log("token ", token, " cluster.size ", cluster.size());
+                                                    jgclist.emplace_back(token, cluster);
                                                 }
                                                 while (strv.at(pos) == ':');
-                                                jgc_list.sendby(*this);
+                                                send_gclist(jgclist);
                                                 break;
                                             }
                                             default:
@@ -5890,7 +5897,7 @@ again:
                     }
                 }
 
-                delta = image.commit(true);
+                delta = image.commit();
                 if (!abort && delta)
                 {
                     guard.unlock();
@@ -6459,14 +6466,14 @@ again:
                 {
                     if (direct)
                     {
-                        conio.send_footer(newfooter);
+                        conio.send_footer(0, newfooter);
                     }
                 };
                 SUBMIT_T(tier::release, e2::form::prop::ui::header, token, newheader)
                 {
                     if (direct)
                     {
-                        conio.send_header(newheader);
+                        conio.send_header(0, newheader);
                     }
                     else
                     {

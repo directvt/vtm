@@ -3886,8 +3886,6 @@ namespace netxs::os
             }
             void read_socket_thread()
             {
-                using frame_t = ansi::dtvt::header_t<ansi::dtvt::frame_type::any>;
-
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
 
                 auto flow = text{};
@@ -3897,7 +3895,7 @@ namespace netxs::os
                     if (shot && termlink)
                     {
                         flow += shot;
-                        if (auto crop = frame_t::purify(flow))
+                        if (auto crop = ansi::dtvt::binary::stream::purify(flow))
                         {
                             receiver(crop);
                             flow.erase(0, crop.size()); // Delete processed data.

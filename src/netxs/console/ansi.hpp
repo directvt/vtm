@@ -277,459 +277,6 @@ namespace netxs::ansi
         static const si32 final = 10080; // .
         static const si32 clipboard = 10100; // OSC clipboard data.
         static const si32 debug_out = 10110; // OSC Debug output. ESC ] 10110 : _data-len_ : _base64-data_ _
-
-        using hint = netxs::events::type;
-
-        enum frame_type : byte
-        {
-            any,
-            bitmap,            // Canvas data.
-            mouse_event,       // Mouse events.
-            tooltips,          // Tooltip list.
-            jgc_list,          // jumbo GC: gc.token + gc.view (response on terminal request)
-            form_header,       // .
-            form_footer,       // .
-            request_clipboard, // request main clipboard data
-            set_clipboard,     // set main clipboard using following data
-            set_focus,         // request to set focus
-            off_focus,         // request to remove focus
-            expose,            // bring the form to the front
-            request_debug,     // request debug output redirection to stdin
-            request_dbg_count,
-            vt_command,        // parse following vt-sequences in UTF-8 format
-            warp,              // warping
-        };
-
-        template<class T, class Type>
-        struct generic_list_t
-        {
-            T copy;
-
-            struct iter
-            {
-                view rest;
-                bool stop;
-                Type prop;
-
-                iter(view data)
-                    : rest{ data },
-                      stop{ faux }
-                {
-                    operator++();
-                }
-                template<class A>
-                auto  operator == (A&&) const { return stop; }
-                auto& operator  * ()    const { return prop; }
-                auto& operator  * ()          { return prop; }
-                auto  operator ++ () { stop = prop.next(rest); }
-            };
-
-            generic_list_t(generic_list_t const&) = default;
-            generic_list_t(generic_list_t&&)      = default;
-            generic_list_t(view& data)
-                : copy{ data }
-            {
-                data = {};
-            }
-            auto begin() const { return iter{copy}; }
-            auto begin()       { return iter{copy}; }
-            auto   end() const { return text::npos; }
-            auto   end()       { return text::npos; }
-        };
-
-        //todo deprecated
-        class binary_t
-        {
-        protected:
-            text block; // binary_t: Continuous block of data.
-
-            // binary_t: .
-            template<class T>
-            inline void fuse(T&& data)
-            {
-                using D = std::remove_cv_t<std::remove_reference_t<T>>;
-                if constexpr (std::is_same_v<D, char>
-                           || std::is_same_v<D, byte>)
-                {
-                    block.text::push_back(static_cast<char>(data));
-                }
-                else if constexpr (std::is_integral_v<D>
-                                || std::is_same_v<D, twod>
-                                || std::is_same_v<D, rect>)
-                {
-                    auto le_data = netxs::letoh(data);
-                    auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
-                    block += v;
-                }
-                else if constexpr (std::is_same_v<D, rgba>)
-                {
-                    auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
-                    block += v;
-                }
-                else if constexpr (std::is_same_v<D, view>
-                                || std::is_same_v<D, text>)
-                {
-                    block += data;
-                }
-                else
-                {
-                    throw;
-                }
-            }
-            // binary_t: Replace bytes at specified position.
-            template<class T>
-            inline auto& add_at(sz_t at, T&& data)
-            {
-                auto le_data = netxs::letoh(std::forward<T>(data));
-                ::memcpy(block.text::data() + at, reinterpret_cast<void const*>(&le_data), sizeof(le_data));
-                return *this;
-            }
-
-        public:
-            binary_t() = default;
-            binary_t(sz_t reserv)
-                : block(reserv, 0)
-            { }
-
-            // binary_t: .
-            template<class T>
-            inline auto& add(T&& data)
-            {
-                fuse(std::forward<T>(data));
-                return *this;
-            }
-            // binary_t: .
-            template<class T, class ...Args>
-            inline auto& add(T&& data, Args&&... data_list)
-            {
-                fuse(std::forward<T>(data));
-                return add(std::forward<Args>(data_list)...);
-            }
-            // binary_t: .
-            void clear()
-            {
-                block.clear();
-            }
-            // binary_t: .
-            auto length() const
-            {
-                return static_cast<sz_t>(block.length());
-            }
-            // binary_t: .
-            auto& str()
-            {
-                return block;
-            }
-            // binary_t: .
-            template<class T>
-            static auto _take_item(view& data)
-            {
-                using D = std::remove_cv_t<std::remove_reference_t<T>>;
-                if constexpr (std::is_same_v<D, view>)
-                {
-                    auto size = netxs::letoh(*reinterpret_cast<sz_t const*>(data.data()));
-                    if (size > data.size() - sizeof(size))
-                    {
-                        log("dtvt: corrupted data");
-                        return view{};
-                    }
-                    data.remove_prefix(sizeof(sz_t));
-                    auto crop = view{ data.data(), (size_t)size };
-                    data.remove_prefix(size);
-                    return crop;
-                }
-                else
-                {
-                    auto crop = netxs::letoh(*reinterpret_cast<D const*>(data.data()));
-                    data.remove_prefix(sizeof(D));
-                    return crop;
-                }
-            }
-            // binary_t: .
-            template<class ...Fields>
-            static auto _take(std::tuple<Fields...>, view& data)
-            {
-                return std::tuple{ _take_item<Fields>(data)..., };
-            }
-            // binary_t: .
-            template<class ...Fields>
-            static auto take(view& data)
-            {
-                return std::tuple{ _take_item<Fields>(data)..., };
-            }
-            // binary_t: .
-            template<class T>
-            static void take(T&& dest, view& data)
-            {
-                dest = _take_item<T>(data);
-            }
-            // binary_t: .
-            static void take(void *dest, size_t size, view& data)
-            {
-                ::memcpy(dest, reinterpret_cast<void const*>(data.data()), size);
-                data.remove_prefix(size);
-            }
-            // binary_t: .
-            static auto take_substr(size_t size, view& data)
-            {
-                if (size > data.size())
-                {
-                    log("dtvt: wrong data size");
-                    return view{};
-                }
-                auto crop = data.substr(0, size);
-                data.remove_prefix(size);
-                return crop;
-            }
-        };
-
-        //todo deprecated
-        template<frame_type Type, class... Fields>
-        class header_t
-            : public binary_t
-        {
-            using Tuple = std::tuple<Fields...>;
-            template<std::size_t N>
-            using Element = typename std::tuple_element<N, Tuple>::type;
-            static constexpr auto FieldsCount = std::tuple_size<Tuple>::value;
-
-            template<std::size_t... Ints>
-            static constexpr auto summ(std::index_sequence<Ints...>)
-            {
-                if constexpr (!!sizeof...(Ints)) return (sizeof(Element<Ints>) + ...);
-                else                             return 0_sz;
-            }
-            template<std::size_t N, class Ints = std::make_index_sequence<N>>
-            static constexpr auto subtuple_len()
-            {
-                return summ(Ints{});
-            }
-
-            static constexpr auto size_len = sizeof(sz_t);
-            static constexpr auto kind_len = sizeof(frame_type);
-            static constexpr auto size_pos = 0;
-            static constexpr auto kind_pos = size_pos + size_len;
-            static constexpr auto data_pos = kind_pos + kind_len;
-            static constexpr auto head_len = data_pos + subtuple_len<FieldsCount>();
-
-        protected:
-            template<std::size_t N>
-            void set(Element<N> const& value)
-            {
-                static constexpr auto offset = data_pos + subtuple_len<N>();
-                add_at(offset, value);
-            }
-
-        public:
-            header_t()
-                : binary_t{ head_len }
-            {
-                add_at(size_pos, binary_t::length());
-                add_at(kind_pos, Type);
-            }
-
-            explicit operator bool () const
-            {
-                return binary_t::length() > head_len;
-            }
-            // header_t: .
-            operator view ()
-            {
-                add_at(size_pos, binary_t::length());
-                return block;
-            }
-            // header_t: .
-            void clear()
-            {
-                block.resize(head_len);
-            }
-            // header_t: Check DirectVT frame integrity.
-            static auto purify(view flow)
-            {
-                auto size = flow.size();
-                auto head = flow.data();
-                auto iter = head;
-                while (size >= sizeof(sz_t))
-                {
-                    auto step = *reinterpret_cast<sz_t const*>(iter); // Stored with same endianness.
-                    if (step < sizeof(sz_t))
-                    {
-                        log("dtvt: stream corrupted, frame size: ", step);
-                        break;
-                    }
-                    if (size < step) break;
-                    size -= step;
-                    iter += step;
-                }
-
-                auto crop = qiew(head, iter - head);
-                return crop;
-            }
-        };
-
-        class mouse_t
-            : public header_t<frame_type::mouse_event
-            , id_t, hint, twod>
-        {
-            enum
-            {
-                _gear_id,
-                _cause,
-                _coord,
-            };
-
-        public:
-            void set(id_t id, hint const& deed, twod const& coor)
-            {
-                header_t::set<_gear_id>(id);
-                header_t::set<_cause>  (deed);
-                header_t::set<_coord>  (coor);
-            }
-        };
-
-        class form_header_t
-            : public header_t<frame_type::form_header
-            , sz_t>
-        {
-            enum
-            {
-                _size,  // data_view.size()
-            };
-
-            //text data; // { data_view }
-
-        public:
-            void set(view new_header)
-            {
-                header_t::set<_size>(static_cast<sz_t>(new_header.size()));
-                clear();
-                add(new_header);
-            }
-        };
-
-        class form_footer_t
-            : public header_t<frame_type::form_footer
-            , sz_t>
-        {
-            enum
-            {
-                _size,  // data_view.size()
-            };
-
-            //text data; // { data_view }
-
-        public:
-            void set(view new_footer)
-            {
-                header_t::set<_size>(static_cast<sz_t>(new_footer.size()));
-                clear();
-                add(new_footer);
-            }
-        };
-
-        class get_clipboard_t
-            : public header_t<frame_type::request_clipboard
-            , id_t>
-        {
-            enum
-            {
-                _gear_id,
-            };
-
-        public:
-            void set(id_t gear_id)
-            {
-                header_t::set<_gear_id>(gear_id);
-            }
-        };
-
-        class set_clipboard_t
-            : public header_t<frame_type::set_clipboard
-            , id_t, twod, sz_t>
-        {
-            enum
-            {
-                _gear_id,
-                _clip_preview_size,
-                _clip_rawdata_size,
-            };
-
-            //text raw_data;
-
-        public:
-            void set(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
-            {
-                header_t::set<_gear_id>(gear_id);
-                header_t::set<_clip_preview_size>(clip_preview_size);
-                header_t::set<_clip_rawdata_size>(static_cast<sz_t>(clip_rawdata.size()));
-                clear();
-                add(clip_rawdata);
-            }
-        };
-
-        class set_focus_t
-            : public header_t<frame_type::set_focus
-            , id_t, bool, bool>
-        {
-            enum
-            {
-                _gear_id,
-                _combine_focus,
-                _force_group_focus,
-            };
-
-        public:
-            void set(id_t gear_id, bool combine_focus, bool force_group_focus)
-            {
-                header_t::set<_gear_id>(gear_id);
-                header_t::set<_combine_focus>(combine_focus);
-                header_t::set<_force_group_focus>(force_group_focus);
-            }
-        };
-
-        class off_focus_t
-            : public header_t<frame_type::off_focus
-            , id_t>
-        {
-            enum
-            {
-                _gear_id,
-            };
-
-        public:
-            void set(id_t gear_id)
-            {
-                header_t::set<_gear_id>(gear_id);
-            }
-        };
-
-        class expose_t
-            : public header_t<frame_type::expose>
-        {
-           // Empty packet.
-        };
-
-        class request_debug_t
-            : public header_t<frame_type::request_debug>
-        {
-            // Empty packet.
-        };
-
-        class request_debug_count_t
-            : public header_t<frame_type::request_dbg_count
-            , sz_t>
-        {
-            enum
-            {
-                _count,
-            };
-
-        public:
-            void set(sz_t c)
-            {
-                header_t::set<_count>(c);
-            }
-        };
     }
 
     template<class Base>
@@ -2249,6 +1796,45 @@ namespace netxs::ansi
 
     namespace dtvt
     {
+        using hint = netxs::events::type;
+
+        template<class T, class Type>
+        struct generic_list_t
+        {
+            T copy;
+
+            struct iter
+            {
+                view rest;
+                bool stop;
+                Type prop;
+
+                iter(view data)
+                    : rest{ data },
+                      stop{ faux }
+                {
+                    operator++();
+                }
+                template<class A>
+                auto  operator == (A&&) const { return stop; }
+                auto& operator  * ()    const { return prop; }
+                auto& operator  * ()          { return prop; }
+                auto  operator ++ () { stop = prop.next(rest); }
+            };
+
+            generic_list_t(generic_list_t const&) = default;
+            generic_list_t(generic_list_t&&)      = default;
+            generic_list_t(view& data)
+                : copy{ data }
+            {
+                data = {};
+            }
+            auto begin() const { return iter{copy}; }
+            auto begin()       { return iter{copy}; }
+            auto   end() const { return text::npos; }
+            auto   end()       { return text::npos; }
+        };
+
         struct buff
         {
             ansi::esc        accum{}; // buff: .
@@ -2298,7 +1884,7 @@ namespace netxs::ansi
                 request_debug,     // request debug output redirection to stdin
                 request_dbg_count, // .
                 vt_command,        // parse following vt-sequences in UTF-8 format
-                warp,              // warping
+                warping,           // warping
             };
 
             #pragma pack(push,1)
@@ -2394,7 +1980,7 @@ namespace netxs::ansi
                     return *this;
                 }
                 // stream: .
-                template<class T>
+                template<class T, bool PeekOnly = faux>
                 static auto _take_item(view& data)
                 {
                     using D = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -2406,15 +1992,20 @@ namespace netxs::ansi
                             log("dtvt: corrupted data");
                             return view{};
                         }
-                        data.remove_prefix(sizeof(sz_t));
-                        auto crop = view{ data.data(), (size_t)size };
-                        data.remove_prefix(size);
+                        auto crop = view{ data.data() + sizeof(sz_t), (size_t)size };
+                        if constexpr (!PeekOnly)
+                        {
+                            data.remove_prefix(sizeof(sz_t) + size);
+                        }
                         return crop;
                     }
                     else
                     {
                         auto crop = netxs::letoh(*reinterpret_cast<D const*>(data.data()));
-                        data.remove_prefix(sizeof(D));
+                        if constexpr (!PeekOnly)
+                        {
+                            data.remove_prefix(sizeof(D));
+                        }
                         return crop;
                     }
                 }
@@ -2439,6 +2030,12 @@ namespace netxs::ansi
                 {
                     fuse(std::forward<T>(data));
                     return add(std::forward<Args>(data_list)...);
+                }
+                // stream: .
+                template<class T>
+                static void peek(T&& dest, view& data)
+                {
+                    dest = _take_item<T, true>(data);
                 }
                 // stream: .
                 template<class ...Fields>
@@ -2504,6 +2101,27 @@ namespace netxs::ansi
                         sender.output(block);
                         block.clear();
                     }
+                }
+                // stream: Check DirectVT frame integrity.
+                static auto purify(view flow)
+                {
+                    auto size = flow.size();
+                    auto head = flow.data();
+                    auto iter = head;
+                    while (size >= sizeof(sz_t))
+                    {
+                        auto step = *reinterpret_cast<sz_t const*>(iter);
+                        if (step < sizeof(sz_t))
+                        {
+                            log("dtvt: stream corrupted, frame size: ", step);
+                            break;
+                        }
+                        if (size < step) break;
+                        size -= step;
+                        iter += step;
+                    }
+                    auto crop = qiew(head, iter - head);
+                    return crop;
                 }
 
                 // stream: .
@@ -2707,6 +2325,228 @@ namespace netxs::ansi
                     return generic_list_t<view, jgc_iterator>{ data };
                 }
             };
+
+            class mouse_event
+                : public stream
+            {
+            public:
+                mouse_event(buff& data)
+                    : stream{ data, type::mouse_event }
+                { }
+
+                void set(id_t gear_id, hint cause, twod const& coord)
+                {
+                    stream::add(gear_id, cause, coord);
+                }
+                static auto get(view& data)
+                {
+                    struct
+                    {
+                        id_t gear_id;
+                        hint cause;
+                        twod coord;
+                    } m;
+                    std::tie(m.gear_id, m.cause, m.coord) = stream::take<id_t, hint, twod>(data);
+                    return m;
+                }
+            };
+
+            class request_debug
+                : public stream
+            {
+            public:
+                request_debug(buff& data)
+                    : stream{ data, type::request_debug }
+                { }
+            };
+
+            class request_dbg_count
+                : public stream
+            {
+            public:
+                request_dbg_count(buff& data)
+                    : stream{ data, type::request_dbg_count }
+                { }
+
+                void set(sz_t count)
+                {
+                    stream::add(count);
+                }
+                static auto get(view& data)
+                {
+                    auto [count] = stream::take<sz_t>(data);
+                    return count;
+                }
+            };
+
+            class set_clipboard
+                : public stream
+            {
+            public:
+                set_clipboard(buff& data)
+                    : stream{ data, type::set_clipboard }
+                { }
+
+                void set(id_t gear_id, twod const& clip_prev_size, view clipdata)
+                {
+                    stream::add(gear_id, clip_prev_size, static_cast<sz_t>(clipdata.size()), clipdata);
+                }
+                static auto get(view& data)
+                {
+                    struct
+                    {
+                        id_t gear_id;
+                        twod clip_prev_size;
+                        view clipdata;
+                    } c;
+                    std::tie(c.gear_id, c.clip_prev_size, c.clipdata) = stream::take<id_t, twod, view>(data);
+                    return c;
+                }
+            };
+
+            class request_clipboard
+                : public stream
+            {
+            public:
+                request_clipboard(buff& data)
+                    : stream{ data, type::request_clipboard }
+                { }
+
+                void set(id_t gear_id)
+                {
+                    stream::add(gear_id);
+                }
+                static auto get(view& data)
+                {
+                    auto [gear_id] = stream::take<id_t>(data);
+                    return gear_id;
+                }
+            };
+
+            class set_focus
+                : public stream
+            {
+            public:
+                set_focus(buff& data)
+                    : stream{ data, type::set_focus }
+                { }
+
+                void set(id_t gear_id, bool combine_focus, bool force_group_focus)
+                {
+                    stream::add(gear_id, combine_focus, force_group_focus);
+                }
+                static auto get(view& data)
+                {
+                    struct
+                    {
+                        id_t gear_id;
+                        bool combine_focus;
+                        bool force_group_focus;
+                    } f;
+                    std::tie(f.gear_id, f.combine_focus, f.force_group_focus) = stream::take<id_t, bool, bool>(data);
+                    return f;
+                }
+            };
+
+            class off_focus
+                : public stream
+            {
+            public:
+                off_focus(buff& data)
+                    : stream{ data, type::off_focus }
+                { }
+
+                void set(id_t gear_id)
+                {
+                    stream::add(gear_id);
+                }
+                static auto get(view& data)
+                {
+                    auto [gear_id] = stream::take<id_t>(data);
+                    return gear_id;
+                }
+            };
+
+            class form_header
+                : public stream
+            {
+            public:
+                form_header(buff& data)
+                    : stream{ data, type::form_header }
+                { }
+
+                void set(id_t window_id, view new_header)
+                {
+                    stream::add(window_id, static_cast<sz_t>(new_header.size()), new_header);
+                }
+                static auto get(view& data)
+                {
+                    struct
+                    {
+                        id_t window_id;
+                        view new_header;
+                    } h;
+                    std::tie(h.window_id, h.new_header) = stream::take<id_t, view>(data);
+                    return h;
+                }
+            };
+
+            class form_footer
+                : public stream
+            {
+            public:
+                form_footer(buff& data)
+                    : stream{ data, type::form_footer }
+                { }
+
+                void set(id_t window_id, view new_footer)
+                {
+                    stream::add(window_id, static_cast<sz_t>(new_footer.size()), new_footer);
+                }
+                static auto get(view& data)
+                {
+                    struct
+                    {
+                        id_t window_id;
+                        view new_footer;
+                    } f;
+                    std::tie(f.window_id, f.new_footer) = stream::take<id_t, view>(data);
+                    return f;
+                }
+            };
+
+            class warping
+                : public stream
+            {
+            public:
+                warping(buff& data)
+                    : stream{ data, type::warping }
+                { }
+
+                void set(id_t window_id, dent const& warpdata)
+                {
+                    stream::add(window_id, warpdata);
+                }
+                static auto get(view& data)
+                {
+                    struct
+                    {
+                        id_t window_id;
+                        dent warpdata;
+                    } w;
+                    std::tie(w.window_id, w.warpdata) = stream::take<id_t, dent>(data);
+                    return w;
+                }
+            };
+
+            class expose
+                : public stream
+            {
+            public:
+                expose(buff& data)
+                    : stream{ data, type::expose }
+                { }
+            };
         }
 
         namespace ascii
@@ -2729,9 +2569,9 @@ namespace netxs::ansi
                 }
                 // ascii::bitmap: .
                 template<class T>
-                void sendby(T&& sender, bool discard_empty = faux)
+                void sendby(T&& sender)
                 {
-                    if (alive) commit(discard_empty);
+                    if (alive) commit();
                     if (block.size()
                      && guard.solo())
                     {
@@ -2740,7 +2580,7 @@ namespace netxs::ansi
                     }
                 }
                 // ascii::bitmap: .
-                auto commit(bool discard_empty = faux)
+                auto commit()
                 {
                     alive = faux;
                     auto size = length();

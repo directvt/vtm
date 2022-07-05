@@ -6756,7 +6756,7 @@ namespace netxs::ui
                     }
                 }
             }
-            void set_clipboad(id_t gear_id, twod const& clip_prev_size, text const& clipdata)
+            void set_clipboad(id_t gear_id, twod const& clip_prev_size, view clipdata)
             {
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(gear_id))
@@ -6932,13 +6932,8 @@ namespace netxs::ui
                     }
                     case binary::type::mouse_event:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(id_t));
-                        auto cause = netxs::letoh(*reinterpret_cast<hint const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(hint));
-                        auto coord = netxs::letoh(*reinterpret_cast<twod const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(twod));
-                        events.replay(gear_id, cause, coord);
+                        auto m = binary::mouse_event::get(frame.data);
+                        events.replay(m.gear_id, m.cause, m.coord);
                         break;
                     }
                     case binary::type::tooltips:
@@ -6978,8 +6973,7 @@ namespace netxs::ui
                     //todo reimplement Logs
                     case binary::type::request_dbg_count:
                     {
-                        auto count = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(ui32));
+                        auto count = binary::request_dbg_count::get(frame.data);
                         netxs::events::enqueue(This(), [&, count](auto& boss) mutable
                         {
                             this->SIGNAL(tier::general, e2::debug::count::set, count);
@@ -6988,26 +6982,13 @@ namespace netxs::ui
                     }
                     case binary::type::set_clipboard:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(id_t));
-                        auto clip_prev_size = netxs::letoh(*reinterpret_cast<twod const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(twod));
-                        auto size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(ui32));
-                        if (size > frame.data.size())
-                        {
-                            log("dtvt: corrupted clipboard");
-                            break;
-                        }
-                        auto clipdata = text{ frame.data.data(), (ui32)size };
-                        frame.data.remove_prefix(size);
-                        events.set_clipboad(gear_id, clip_prev_size, clipdata);
+                        auto c = binary::set_clipboard::get(frame.data);
+                        events.set_clipboad(c.gear_id, c.clip_prev_size, c.clipdata);
                         break;
                     }
                     case binary::type::request_clipboard:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(gear_id));
+                        auto gear_id = binary::request_clipboard::get(frame.data);
                         text clipdata; //todo use gear.raw_clip_data
                         events.get_clipboad(gear_id, clipdata);
                         buffer = ansi::clipdata(gear_id, clipdata);
@@ -7016,13 +6997,8 @@ namespace netxs::ui
                     }
                     case binary::type::set_focus:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(gear_id));
-                        auto combine_focus = netxs::letoh(*reinterpret_cast<bool const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(bool));
-                        auto force_group_focus = netxs::letoh(*reinterpret_cast<bool const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(bool));
-                        events.set_focus(gear_id, combine_focus, force_group_focus);
+                        auto f = binary::set_focus::get(frame.data);
+                        events.set_focus(f.gear_id, f.combine_focus, f.force_group_focus);
                         //todo revise
                         //netxs::events::enqueue(This(), [&, gear_id](auto& boss)
                         //{
@@ -7032,41 +7008,36 @@ namespace netxs::ui
                     }
                     case binary::type::off_focus:
                     {
-                        auto gear_id = netxs::letoh(*reinterpret_cast<id_t const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(gear_id));
+                        auto gear_id = binary::off_focus::get(frame.data);
                         events.off_focus(gear_id);
                         break;
                     }
                     case binary::type::form_header:
                     {
-                        auto header_size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(ui32));
-                        auto new_header = text{ frame.data.data(), (size_t)header_size };
-                        frame.data.remove_prefix(header_size);
-                        netxs::events::enqueue(This(), [&, header = std::move(new_header)](auto& boss) mutable
+                        auto h = binary::form_header::get(frame.data);
+                        netxs::events::enqueue(This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
                         {
+                            //todo use window_id
                             this->base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
                         });
                         break;
                     }
                     case binary::type::form_footer:
                     {
-                        auto footer_size = netxs::letoh(*reinterpret_cast<ui32 const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(ui32));
-                        auto new_footer = text{ frame.data.data(), (size_t)footer_size };
-                        frame.data.remove_prefix(footer_size);
-                        netxs::events::enqueue(This(), [&, footer = std::move(new_footer)](auto& boss) mutable
+                        auto f = binary::form_footer::get(frame.data);
+                        netxs::events::enqueue(This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
                         {
+                            //todo use window_id
                             this->base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
                         });
                         break;
                     }
-                    case binary::type::warp:
+                    case binary::type::warping:
                     {
-                        auto warp = netxs::letoh(*reinterpret_cast<dent const*>(frame.data.data()));
-                        frame.data.remove_prefix(sizeof(dent));
-                        netxs::events::enqueue(This(), [&, warp](auto& boss)
+                        auto w = binary::warping::get(frame.data);
+                        netxs::events::enqueue(This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
                         {
+                            //todo use window_id
                             this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
                         });
                         break;
