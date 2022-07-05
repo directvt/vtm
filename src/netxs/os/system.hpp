@@ -834,7 +834,7 @@ namespace netxs::os
             "rxvt-unicode-256color",
         };
 
-        si32 mode = legacy::clean;
+        auto mode = si32{ legacy::clean };
 
         if (os::legacy::peek_dmd(STDIN_FD))
         {

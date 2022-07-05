@@ -6387,6 +6387,7 @@ namespace netxs::ui
         {
             base::riseup<tier::preview>(e2::form::prop::window::size, winsz);
         }
+        bool linux_console{};
        ~term(){ active = faux; }
         term(text command_line, si32 max_scrollback_size = def_length, si32 grow_step = def_growup)
             : normal{ *this, max_scrollback_size, grow_step },
@@ -6407,6 +6408,7 @@ namespace netxs::ui
               invert{  faux },
               selmod{ def_selmod }
         {
+            linux_console = os::local_mode();
             cmdarg = command_line;
             target = &normal;
             //cursor.style(commands::cursor::def_style); // default=blinking_box
@@ -6465,6 +6467,7 @@ namespace netxs::ui
                 #ifndef PROD
                     return;
                 #endif
+
                 //todo optimize/unify
                 auto data = gear.interpret();
                 if (!bpmode)
@@ -6474,38 +6477,31 @@ namespace netxs::ui
                 }
                 if (decckm)
                 {
-                    utf::change(data, "\033[A", "\033OA");
-                    utf::change(data, "\033[B", "\033OB");
-                    utf::change(data, "\033[C", "\033OC");
-                    utf::change(data, "\033[D", "\033OD");
+                    utf::change(data, "\033[A",  "\033OA");
+                    utf::change(data, "\033[B",  "\033OB");
+                    utf::change(data, "\033[C",  "\033OC");
+                    utf::change(data, "\033[D",  "\033OD");
                     utf::change(data, "\033[1A", "\033OA");
                     utf::change(data, "\033[1B", "\033OB");
                     utf::change(data, "\033[1C", "\033OC");
                     utf::change(data, "\033[1D", "\033OD");
                 }
-                else // Issue with arrow keys in WSL under cmd.exe.
+                if (linux_console)
                 {
-                    #if defined(_WIN32)
-                    utf::change(data, "\033[1A", "\033[A");
-                    utf::change(data, "\033[1B", "\033[B");
-                    utf::change(data, "\033[1C", "\033[C");
-                    utf::change(data, "\033[1D", "\033[D");
-                    #endif
+                    utf::change(data, "\033[[A",  "\033OP");     // F1
+                    utf::change(data, "\033[[B",  "\033OQ");     // F2
+                    utf::change(data, "\033[[C",  "\033OR");     // F3
+                    utf::change(data, "\033[[D",  "\033OS");     // F4
+                    utf::change(data, "\033[[E",  "\033[15~");   // F5
+                    utf::change(data, "\033[25~", "\033[1;2P");  // Shift+F1
+                    utf::change(data, "\033[26~", "\033[1;2Q");  // Shift+F2
+                    utf::change(data, "\033[28~", "\033[1;2R");  // Shift+F3
+                    utf::change(data, "\033[29~", "\033[1;2S");  // Shift+F4
+                    utf::change(data, "\033[31~", "\033[15;2~"); // Shift+F5
+                    utf::change(data, "\033[32~", "\033[17;2~"); // Shift+F6
+                    utf::change(data, "\033[33~", "\033[18;2~"); // Shift+F7
+                    utf::change(data, "\033[34~", "\033[19;2~"); // Shift+F8
                 }
-                // Linux console specific.
-                utf::change(data, "\033[[A", "\033OP");      // F1
-                utf::change(data, "\033[[B", "\033OQ");      // F2
-                utf::change(data, "\033[[C", "\033OR");      // F3
-                utf::change(data, "\033[[D", "\033OS");      // F4
-                utf::change(data, "\033[[E", "\033[15~");    // F5
-                utf::change(data, "\033[25~", "\033[1;2P");  // Shift+F1
-                utf::change(data, "\033[26~", "\033[1;2Q");  // Shift+F2
-                utf::change(data, "\033[28~", "\033[1;2R");  // Shift+F3
-                utf::change(data, "\033[29~", "\033[1;2S");  // Shift+F4
-                utf::change(data, "\033[31~", "\033[15;2~"); // Shift+F5
-                utf::change(data, "\033[32~", "\033[17;2~"); // Shift+F6
-                utf::change(data, "\033[33~", "\033[18;2~"); // Shift+F7
-                utf::change(data, "\033[34~", "\033[19;2~"); // Shift+F8
 
                 ptycon.write(data);
 
