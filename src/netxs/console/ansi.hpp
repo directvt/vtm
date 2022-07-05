@@ -2180,19 +2180,23 @@ namespace netxs::ansi
             {
                 struct subtype
                 {
-                    static constexpr byte ngc = 0x00; // Skip grapheme cluster. gc len = 0
-                    static constexpr byte gcl = 0x07; // Grapheme cluster. gc length + 1: 1 byte=gc_state n-1 bytes: gc
-                    static constexpr byte cup = 0x08; // Set insertion point. 8 bytes: si32 X + si32 Y
-                    static constexpr byte bgc = 0x09; // BG rgba color. 4 bytes: rgba
-                    static constexpr byte fgc = 0x0A; // FG rgba color. 4 bytes: rgba
-                    static constexpr byte stl = 0x0B; // Grapheme style. token 4 bytes
-                    static constexpr byte rst = 0x0C; // Wipe canvas. Fill canvas using current brush.
+                    static constexpr byte dif = 0x10; // Cell dif.
+                    static constexpr byte cup = 0xFE; // Set insertion point. 8 bytes: si32 X + si32 Y
+                    static constexpr byte rst = 0xFF; // Wipe canvas. Fill canvas using current brush.
                 };
 
             public:
                 bitmap(buff& data, id_t myid, rect const& area)
                     : stream{ data, type::bitmap, myid, area }
                 { }
+
+                enum : byte
+                {
+                    bgclr = 1 << 0,
+                    fgclr = 1 << 1,
+                    style = 1 << 2,
+                    glyph = 1 << 3,
+                };
 
                 template<class F, class L>
                 static auto get(F&& canvas, L&& gclist, view& data)
@@ -2206,54 +2210,50 @@ namespace netxs::ansi
                     while (data.size() > 0)
                     {
                         auto [what] = stream::take<byte>(data);
-                        if (what == subtype::ngc) //== 0 - next grapheme cluster (gc), i.e. current gc len = 0
+                        if (what < subtype::dif)
                         {
-                            coor.x++;
-                        }
-                        else if (what <= subtype::gcl) //<= 7: - gc length + 1: 1 byte=gc_state n-1 bytes: gc
-                        {
-                            stream::take(mark.egc(), what + 1, data);
-                            if (mark.jgc() == faux) // Checking grapheme cluster registration.
+                            if (what & bgclr) stream::take(mark.bgc(), data);
+                            if (what & fgclr) stream::take(mark.fgc(), data);
+                            if (what & style) stream::take(mark.stl(), data);
+                            if (what & glyph) 
                             {
-                                gclist[mark.tkn()];
-                                log("token size ", what + 1);
+                                auto [size] = stream::take<byte>(data);
+                                stream::take(mark.egc(), size, data);
+                                if (mark.jgc() == faux) // Checking grapheme cluster registration.
+                                {
+                                    gclist[mark.tkn()];
+                                    log("token size ", size);
+                                }
                             }
-                            if (canvas.test(coor))
-                            {
-                                canvas[coor] = mark;
-                            }
-                            coor.x++;
+                            if (canvas.test(coor)) canvas[coor] = mark;
+                            ++coor.x;
                         }
                         else switch (what)
                         {
-                            case subtype::bgc: stream::take(mark.bgc(), data); break;
-                            case subtype::fgc: stream::take(mark.fgc(), data); break;
-                            case subtype::stl: stream::take(mark.stl(), data); break;
-                            case subtype::cup: stream::take(coor,       data); break;
-                            case subtype::rst: canvas.wipe(mark.txt('\0'));    break;
+                            case subtype::cup: stream::take(coor, data); break;
+                            case subtype::rst: canvas.wipe();            break;
                             default: // Unknown subtype.
                             {
-                                auto [vcmd] = stream::take<view>(data);
-                                log("dtvt: unknown data subtype: ", what, "\n", utf::debase(vcmd));
-                                break;
+                                log("dtvt: bitmap: unknown data subtype: ", what);
+                                return;
                             }
                         }
                     }
                 }
-                template<class T>
-                void gc(T const& gc)
+                void dif(cell const src, cell& dst)
                 {
-                    byte size = gc.state.jumbo ? sizeof(gc.glyph) - 1
-                                               : gc.state.count;
-                    if (size > 0) add(size, gc.template get<svga::directvt>());
-                    else          add(subtype::ngc);
-                    assert(size <= subtype::gcl);
+                    //...
                 }
-                template<class T>
-                void stl(T           token) { add(subtype::stl, token); }
+                //void gc(view cluster)
+                //{
+                //    auto size = static_cast<byte>(cluster.size());
+                //    add(size, cluster);
+                //}
+                //template<class T>
+                //void stl(T           token) { add(subtype::stl, token); }
                 void cup(twod const& coord) { add(subtype::cup, coord); }
-                void fgc(rgba const& color) { add(subtype::fgc, color); }
-                void bgc(rgba const& color) { add(subtype::bgc, color); }
+                //void fgc(rgba const& color) { add(subtype::fgc, color); }
+                //void bgc(rgba const& color) { add(subtype::bgc, color); }
                 void rst()                  { add(subtype::rst);        }
             };
 

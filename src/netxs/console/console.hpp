@@ -4938,8 +4938,7 @@ namespace netxs::console
                 auto& gear = *gear_ptr;
                 if (gear.is_tooltip_changed())
                 {
-                    auto tooltip_data = gear.get_tooltip();
-                    tooltips.add(gear_id, tooltip_data);
+                    tooltips.add(gear_id, gear.get_tooltip());
                 }
             }
             tooltips.sendby(*this, true);

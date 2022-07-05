@@ -764,6 +764,7 @@ namespace netxs::ui::atoms
                 {
                     if constexpr (VGAMODE == svga::directvt)
                     {
+                        //todo deprecated
                         dest.stl(token);
                         base.token = token;
                     }
@@ -1053,20 +1054,42 @@ namespace netxs::ui::atoms
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         void scan(cell& base, T& dest) const
         {
-            if (!like(base))
-            {
-                //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get<VGAMODE, USESGR>(base.uv, dest);
-                st.get<VGAMODE, USESGR>(base.st, dest);
-            }
-
             if constexpr (VGAMODE == svga::directvt)
             {
-                dest.gc(gc);
+                enum : byte
+                {
+                    bgclr = 1 << 0,
+                    fgclr = 1 << 1,
+                    style = 1 << 2,
+                    glyph = 1 << 3,
+                };
+                auto changed = byte{ 0 };
+                if (uv.bg != base.uv.bg) changed |= bgclr;
+                if (uv.fg != base.uv.fg) changed |= fgclr;
+                if (st    != base.st   ) changed |= style;
+                if (gc    != base.gc   ) changed |= glyph;
+                dest.add(changed);
+                if (changed & bgclr) dest.add(base.uv.bg = uv.bg);
+                if (changed & fgclr) dest.add(base.uv.fg = uv.fg);
+                if (changed & style) dest.add(base.st.token = st.token);
+                if (changed & glyph) 
+                {
+                    base.gc = gc;
+                    byte size = gc.state.jumbo ? 8
+                                               : gc.state.count + 1;
+                    dest.add(size, view{ gc.glyph, size });
+                }
+                sizeof(cell);
             }
             else
             {
-                if (wdt() && !gc.is_space()) dest += gc.get();
+                if (!like(base))
+                {
+                    //todo additionally consider UNIQUE ATTRIBUTES
+                    uv.get<VGAMODE, USESGR>(base.uv, dest);
+                    st.get<VGAMODE, USESGR>(base.st, dest);
+                }
+                if (wdt() && !gc.is_space()) dest += gc.get<VGAMODE>();
                 else                         dest += whitespace;
             }
         }
@@ -1082,8 +1105,8 @@ namespace netxs::ui::atoms
                     uv.get<VGAMODE, USESGR>(base.uv, dest);
                     st.get<VGAMODE, USESGR>(base.st, dest);
                 }
-                if constexpr (VGAMODE == svga::directvt) dest.gc(gc);
-                else                                     dest += gc.get();
+                if constexpr (VGAMODE == svga::directvt) dest.gc(gc.get<VGAMODE>());
+                else                                     dest += gc.get<VGAMODE>();
                 return true;
             }
             else
