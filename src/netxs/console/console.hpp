@@ -5916,7 +5916,6 @@ again:
         void render_dtvt()
         {
             using namespace netxs::ansi::dtvt;
-            auto coord = twod{};
             auto state = cell{};
             auto saved = cell{};
             auto start = moment{};
@@ -5928,52 +5927,49 @@ again:
                 ready = faux;
                 abort = faux;
                 saved = state;
-                coord = dot_00;
 
-                if (cache.hash() != front.hash())
-                {
-                    //todo optimize
-                    front.crop(cache.size());
-                    front.hash(cache.hash());
-                }
-                auto image = binary::bitmap{ frame, 0xaabbccdd, { dot_00, cache.size() } };
+                auto csize = cache.size();
+                auto fsize = front.size();
+                auto minsz = std::min(csize, fsize);
+                auto diffx = fsize.x - csize.x;
+                auto image = binary::bitmap{ frame, 0xaabbccdd, { dot_00, csize } };
+                bool isnew = true;
+                auto dst = front.iter();
                 auto src = cache.iter();
                 auto end = cache.iend();
-                auto dst = front.iter();
                 auto beg = src + 1;
-                while (src != end)
+                auto mid = src + csize.x * minsz.y;
+                auto dif = [&](auto& fore, auto& back)
                 {
-                    if (abort) break;
-                    auto& fore = *src++;
-                    auto& back = *dst++;
-                    if (back != fore)
+                    if (fore != back)
                     {
-                        auto pos = static_cast<sz_t>(src - beg);
-                        image.cup(pos);
-                        fore.scan<svga::directvt>(state, image);
-                        while (src != end)
+                        if (isnew)
                         {
-                            auto& fore = *src++;
-                            auto& back = *dst++;
-                            if (back != fore) fore.scan<svga::directvt>(state, image);
-                            else break;
+                            auto offset = static_cast<sz_t>(src - beg);
+                            image.cup(offset);
+                            isnew = faux;
                         }
+                        fore.scan<svga::directvt>(state, image);
+                    }
+                    else isnew = true;
+                };
+
+                while (src != mid && !abort)
+                {
+                    auto end = src + minsz.x;
+                    while (src != end) dif(*src++, *dst++);
+
+                    if (diffx >= 0) dst += diffx;
+                    else
+                    {
+                        end += -diffx;
+                        while (src != end) dif(*src++, saved);
                     }
                 }
-/*
-                    while (coord.y < field.y
-                       && !abort)
-                    {
-                        image.cup(coord);
-                        end += field.x;
-                        while (src != end)
-                        {
-                            auto& c = *src++;
-                            c.scan<svga::directvt>(state, image);
-                        }
-                        ++coord.y;
-                    }
-*/
+                if (csize.y > fsize.y)
+                {
+                    while (src != end && !abort) dif(*src++, saved);
+                }
 
                 if (abort)
                 {
