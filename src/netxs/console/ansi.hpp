@@ -2185,8 +2185,8 @@ namespace netxs::ansi
             {
                 struct subtype
                 {
-                    static constexpr byte dif = 0x10; // Cell dif.
-                    static constexpr byte cup = 0xFE; // Set insertion point. 8 bytes: si32 X + si32 Y
+                    static constexpr byte dif = 0x20; // Cell dif.
+                    static constexpr byte mov = 0xFE; // Set insertion point. 8 bytes: si32 X + si32 Y
                 };
 
             public:
@@ -2196,12 +2196,94 @@ namespace netxs::ansi
 
                 enum : byte
                 {
-                    bgclr = 1 << 0,
-                    fgclr = 1 << 1,
-                    style = 1 << 2,
-                    glyph = 1 << 3,
+                    refer = 1 << 0, // 0 - Dif with base, 1 - dif with mark.
+                    bgclr = 1 << 1,
+                    fgclr = 1 << 2,
+                    style = 1 << 3,
+                    glyph = 1 << 4,
                 };
 
+                void dif(cell const& next, cell& base)
+                {
+                    auto& base_bg = base.bgc();
+                    auto& base_fg = base.fgc();
+                    auto& base_st = base.stl();
+                    auto& base_gc = base.egc();
+                    auto& next_bg = next.bgc();
+                    auto& next_fg = next.fgc();
+                    auto& next_st = next.stl();
+                    auto& next_gc = next.egc();
+                    auto  meaning = 0;
+                    auto  cluster = byte{ 0 };
+                    auto  changed = byte{ 0 };
+                    if (base_bg != next_bg) meaning += sizeof(base_bg), changed |= bgclr;
+                    if (base_fg != next_fg) meaning += sizeof(base_fg), changed |= fgclr;
+                    if (base_st != next_st) meaning += sizeof(base_st), changed |= style;
+                    if (base_gc != next_gc)
+                    {
+                        cluster = next_gc.state.jumbo ? 8
+                                                      : next_gc.state.count + 1;
+                        meaning += cluster + 1;
+                        changed |= glyph;
+                    }
+                    add(changed);
+                    if (changed & bgclr) add(base_bg = next_bg);
+                    if (changed & fgclr) add(base_fg = next_fg);
+                    if (changed & style) add(base_st = next_st);
+                    if (changed & glyph) 
+                    {
+                        base_gc = next_gc;
+                        add(cluster, view{ next_gc.glyph, cluster });
+                    }
+                    sizeof(cell);
+                }
+                void mov(sz_t offset) { add(subtype::mov, offset); }
+                template<class Core>
+                auto set(Core& cache, Core& front, cell& state, bool& abort)
+                {
+                    auto pen = state;
+                    auto src = cache.iter();
+                    auto end = cache.iend();
+                    auto csz = cache.size();
+                    auto fsz = front.size();
+                    auto dst = front.iter();
+                    auto dtx = fsz.x - csz.x;
+                    auto min = std::min(csz, fsz);
+                    auto beg = src + 1;
+                    auto mid = src + csz.x * min.y;
+                    bool bad = true;
+                    auto map = [&](auto& next, auto& base)
+                    {
+                        if (next != base)
+                        {
+                            if (bad)
+                            {
+                                auto offset = static_cast<sz_t>(src - beg);
+                                mov(offset);
+                                bad = faux;
+                            }
+                            dif(next, state);
+                        }
+                        else bad = true;
+                    };
+
+                    while (src != mid && !abort)
+                    {
+                        auto end = src + min.x;
+                        while (src != end) map(*src++, *dst++);
+
+                        if (dtx >= 0) dst += dtx;
+                        else
+                        {
+                            end += -dtx;
+                            while (src != end) map(*src++, pen);
+                        }
+                    }
+                    if (csz.y > fsz.y)
+                    {
+                        while (src != end && !abort) map(*src++, pen);
+                    }
+                }
                 template<class F, class L>
                 static auto get(F&& canvas, L&& gclist, view& data)
                 {
@@ -2211,11 +2293,11 @@ namespace netxs::ansi
                     {
                         canvas.crop(area.size);
                     }
-                    auto& mark = canvas.mark();
-                    auto  head = canvas.iter();
-                    auto  tail = canvas.iend();
-                    auto  iter = head;
-                    auto  size = tail - head;
+                    auto mark = canvas.mark();
+                    auto head = canvas.iter();
+                    auto tail = canvas.iend();
+                    auto iter = head;
+                    auto size = tail - head;
                     while (data.size() > 0)
                     {
                         auto [what] = stream::take<byte>(data);
@@ -2227,7 +2309,7 @@ namespace netxs::ansi
                             if (what & glyph) 
                             {
                                 auto [size] = stream::take<byte>(data);
-                                stream::take(mark.egc(), size, data);
+                                stream::take(mark.egc().glyph, size, data);
                                 if (mark.jgc() == faux) // Checking grapheme cluster registration.
                                 {
                                     gclist[mark.tkn()];
@@ -2236,49 +2318,23 @@ namespace netxs::ansi
                             }
                             *iter++ = mark;
                         }
-                        else switch (what)
+                        else if (what == subtype::mov)
                         {
-                            case subtype::cup:
+                            auto [offset] = stream::take<sz_t>(data);
+                            if (offset >= size)
                             {
-                                auto [offset] = stream::take<sz_t>(data);
-                                if (offset >= size)
-                                {
-                                    log("dtvt: bitmap: corrupted data");
-                                    return;
-                                }
-                                iter = head + offset;
-                                break;
-                            }
-                            default: // Unknown subtype.
-                            {
-                                log("dtvt: bitmap: unknown data subtype: ", what);
+                                log("dtvt: bitmap: corrupted data");
                                 return;
                             }
+                            iter = head + offset;
+                        }
+                        else // Unknown subtype.
+                        {
+                            log("dtvt: bitmap: unknown data subtype: ", what);
+                            return;
                         }
                     }
-                }
-                void cup(sz_t offset) { add(subtype::cup, offset); }
-                template<class UV, class ST, class GC>
-                void dif(UV&  base_uv, ST&  base_st, GC&  base_gc,
-                         UV const& uv, ST const& st, GC const& gc)
-                {
-                    auto changed = byte{ 0 };
-                    if (uv.bg != base_uv.bg) changed |= bgclr;
-                    if (uv.fg != base_uv.fg) changed |= fgclr;
-                    if (st    != base_st   ) changed |= style;
-                    if (gc    != base_gc   ) changed |= glyph;
-                    add(changed);
-                    if (changed & bgclr) add(base_uv.bg = uv.bg);
-                    if (changed & fgclr) add(base_uv.fg = uv.fg);
-                    if (changed & style) add(base_st.token = st.token);
-                    if (changed & glyph) 
-                    {
-                        base_gc = gc;
-                        byte size = gc.state.jumbo ? 8
-                                                   : gc.state.count + 1;
-                        add(size, view{ gc.glyph, size });
-                    }
-                    sizeof(cell);
+                    canvas.mark(mark);
                 }
             };
 

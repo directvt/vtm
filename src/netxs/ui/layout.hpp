@@ -642,11 +642,7 @@ namespace netxs::ui::atoms
             template<svga VGAMODE = svga::truecolor>
             view get() const
             {
-                if constexpr (VGAMODE == svga::directvt)
-                {
-                    if (state.jumbo) return view(glyph, 8);
-                    else             return view(glyph, state.count + 1);
-                }
+                if constexpr (VGAMODE == svga::directvt) return {};
                 else
                 {
                     if (state.jumbo)
@@ -760,56 +756,48 @@ namespace netxs::ui::atoms
             template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
             void get(body& base, T& dest) const
             {
+                if constexpr (VGAMODE == svga::directvt) return;
                 if (!like(base))
                 {
-                    if constexpr (VGAMODE == svga::directvt)
+                    auto& cvar =      param.shared.var;
+                    auto& bvar = base.param.shared.var;
+                    if constexpr (USESGR)
                     {
-                        //todo deprecated
-                        dest.stl(token);
-                        base.token = token;
-                    }
-                    else
-                    {
-                        auto& cvar =      param.shared.var;
-                        auto& bvar = base.param.shared.var;
-                        if constexpr (USESGR)
+                        if (cvar.bolded != bvar.bolded)
                         {
-                            if (cvar.bolded != bvar.bolded)
-                            {
-                                dest.bld(cvar.bolded);
-                            }
-                            if (cvar.italic != bvar.italic)
-                            {
-                                dest.itc(cvar.italic);
-                            }
-                            if (cvar.unline != bvar.unline)
-                            {
-                                if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
-                                else                                  dest.und(cvar.unline);
-                            }
-                            if (cvar.invert != bvar.invert)
-                            {
-                                dest.inv(cvar.invert);
-                            }
-                            if (cvar.strike != bvar.strike)
-                            {
-                                dest.stk(cvar.strike);
-                            }
-                            if (cvar.overln != bvar.overln)
-                            {
-                                dest.ovr(cvar.overln);
-                            }
-                            if (cvar.r_to_l != bvar.r_to_l)
-                            {
-                                //todo implement RTL
-                            }
-                            if (cvar.blinks != bvar.blinks)
-                            {
-                                dest.blk(cvar.blinks);
-                            }
+                            dest.bld(cvar.bolded);
                         }
-                        bvar = cvar;
+                        if (cvar.italic != bvar.italic)
+                        {
+                            dest.itc(cvar.italic);
+                        }
+                        if (cvar.unline != bvar.unline)
+                        {
+                            if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
+                            else                                  dest.und(cvar.unline);
+                        }
+                        if (cvar.invert != bvar.invert)
+                        {
+                            dest.inv(cvar.invert);
+                        }
+                        if (cvar.strike != bvar.strike)
+                        {
+                            dest.stk(cvar.strike);
+                        }
+                        if (cvar.overln != bvar.overln)
+                        {
+                            dest.ovr(cvar.overln);
+                        }
+                        if (cvar.r_to_l != bvar.r_to_l)
+                        {
+                            //todo implement RTL
+                        }
+                        if (cvar.blinks != bvar.blinks)
+                        {
+                            dest.blk(cvar.blinks);
+                        }
                     }
+                    bvar = cvar;
                 }
             }
             void wipe()
@@ -879,13 +867,13 @@ namespace netxs::ui::atoms
             template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
             void get(clrs& base, T& dest) const
             {
+                if constexpr (VGAMODE == svga::directvt) return;
                 if (bg != base.bg)
                 {
                     base.bg = bg;
                     if constexpr (USESGR)
                     {
-                        if constexpr (VGAMODE == svga::directvt) dest.bgc(bg);
-                        else                                     dest.template bgc<VGAMODE>(bg);
+                        dest.template bgc<VGAMODE>(bg);
                     }
                 }
                 if (fg != base.fg)
@@ -893,8 +881,7 @@ namespace netxs::ui::atoms
                     base.fg = fg;
                     if constexpr (USESGR)
                     {
-                        if constexpr (VGAMODE == svga::directvt) dest.fgc(fg);
-                        else                                     dest.template fgc<VGAMODE>(fg);
+                        dest.template fgc<VGAMODE>(fg);
                     }
                 }
             }
@@ -1054,11 +1041,7 @@ namespace netxs::ui::atoms
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         void scan(cell& base, T& dest) const
         {
-            if constexpr (VGAMODE == svga::directvt)
-            {
-                dest.dif(base.uv, base.st, base.gc, uv, st, gc);
-            }
-            else
+            if constexpr (VGAMODE != svga::directvt)
             {
                 if (!like(base))
                 {
@@ -1074,6 +1057,7 @@ namespace netxs::ui::atoms
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         bool scan(cell& next, cell& base, T& dest) const
         {
+            if constexpr (VGAMODE == svga::directvt) return {};
             if (gc.same(next.gc) && like(next))
             {
                 if (!like(base))
@@ -1082,8 +1066,7 @@ namespace netxs::ui::atoms
                     uv.get<VGAMODE, USESGR>(base.uv, dest);
                     st.get<VGAMODE, USESGR>(base.st, dest);
                 }
-                if constexpr (VGAMODE == svga::directvt) dest.gc(gc.get<VGAMODE>());
-                else                                     dest += gc.get<VGAMODE>();
+                dest += gc.get<VGAMODE>();
                 return true;
             }
             else
@@ -1188,28 +1171,30 @@ namespace netxs::ui::atoms
             auto& map = cell::glyf<>::jumbo;
             map[token & cell::glyf<>::asset] = data;
         }
-        auto  tkn () const { return gc.tkn();      } // cell: Return grapheme cluster token.
-        bool  jgc () const { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
-        si32  len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
-        si32  wdt () const { return gc.state.width;} // cell: Return Grapheme cluster screen width.
-        auto  txt () const { return gc.get();      } // cell: Return Grapheme cluster.
-        auto& egc ()       { return gc.glyph;      } // cell: Get Grapheme cluster token.
-        auto  bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
-        auto  fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
-        auto& bgc ()       { return uv.bg;         } // cell: Return Background color.
-        auto& fgc ()       { return uv.fg;         } // cell: Return Foreground color.
-        auto& bgc () const { return uv.bg;         } // cell: Return Background color.
-        auto& fgc () const { return uv.fg;         } // cell: Return Foreground color.
-        auto  bld () const { return st.bld();      } // cell: Return Bold attribute.
-        auto  itc () const { return st.itc();      } // cell: Return Italic attribute.
-        auto  und () const { return st.und() == 1; } // cell: Return Underline/Underscore attribute.
-        auto  dnl () const { return st.und() == 2; } // cell: Return Underline/Underscore attribute.
-        auto  ovr () const { return st.ovr();      } // cell: Return Underline/Underscore attribute.
-        auto  inv () const { return st.inv();      } // cell: Return Negative attribute.
-        auto  stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
-        auto  blk () const { return st.blk();      } // cell: Return Blink attribute.
-        auto& stl ()       { return st.token;      } // cell: Return style token.
-        auto link () const { return id;            } // cell: Return link object ID.
+        auto  tkn() const  { return gc.tkn();      } // cell: Return grapheme cluster token.
+        bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
+        si32  len() const  { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
+        si32  wdt() const  { return gc.state.width;} // cell: Return Grapheme cluster screen width.
+        auto  txt() const  { return gc.get();      } // cell: Return Grapheme cluster.
+        auto& egc()        { return gc;            } // cell: Get Grapheme cluster token.
+        auto& egc() const  { return gc;            } // cell: Get Grapheme cluster token.
+        auto  bga() const  { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
+        auto  fga() const  { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
+        auto& bgc()        { return uv.bg;         } // cell: Return Background color.
+        auto& fgc()        { return uv.fg;         } // cell: Return Foreground color.
+        auto& bgc() const  { return uv.bg;         } // cell: Return Background color.
+        auto& fgc() const  { return uv.fg;         } // cell: Return Foreground color.
+        auto  bld() const  { return st.bld();      } // cell: Return Bold attribute.
+        auto  itc() const  { return st.itc();      } // cell: Return Italic attribute.
+        auto  und() const  { return st.und() == 1; } // cell: Return Underline/Underscore attribute.
+        auto  dnl() const  { return st.und() == 2; } // cell: Return Underline/Underscore attribute.
+        auto  ovr() const  { return st.ovr();      } // cell: Return Underline/Underscore attribute.
+        auto  inv() const  { return st.inv();      } // cell: Return Negative attribute.
+        auto  stk() const  { return st.stk();      } // cell: Return Strikethrough attribute.
+        auto  blk() const  { return st.blk();      } // cell: Return Blink attribute.
+        auto& stl()        { return st.token;      } // cell: Return style token.
+        auto& stl() const  { return st.token;      } // cell: Return style token.
+        auto link() const  { return id;            } // cell: Return link object ID.
         auto iswide()const { return wdt() > 1;     } // cell: Return true if char is wide.
         auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
         auto issame_visual(cell const& c) const // cell: Is the cell visually identical.

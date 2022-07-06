@@ -5928,48 +5928,8 @@ again:
                 abort = faux;
                 saved = state;
 
-                auto csize = cache.size();
-                auto fsize = front.size();
-                auto minsz = std::min(csize, fsize);
-                auto diffx = fsize.x - csize.x;
-                auto image = binary::bitmap{ frame, 0xaabbccdd, { dot_00, csize } };
-                bool isnew = true;
-                auto dst = front.iter();
-                auto src = cache.iter();
-                auto end = cache.iend();
-                auto beg = src + 1;
-                auto mid = src + csize.x * minsz.y;
-                auto dif = [&](auto& fore, auto& back)
-                {
-                    if (fore != back)
-                    {
-                        if (isnew)
-                        {
-                            auto offset = static_cast<sz_t>(src - beg);
-                            image.cup(offset);
-                            isnew = faux;
-                        }
-                        fore.scan<svga::directvt>(state, image);
-                    }
-                    else isnew = true;
-                };
-
-                while (src != mid && !abort)
-                {
-                    auto end = src + minsz.x;
-                    while (src != end) dif(*src++, *dst++);
-
-                    if (diffx >= 0) dst += diffx;
-                    else
-                    {
-                        end += -diffx;
-                        while (src != end) dif(*src++, saved);
-                    }
-                }
-                if (csize.y > fsize.y)
-                {
-                    while (src != end && !abort) dif(*src++, saved);
-                }
+                auto image = binary::bitmap{ frame, 0xaabbccdd, { dot_00, cache.size() } };
+                image.set(cache, front, state, abort);
 
                 if (abort)
                 {
