@@ -3456,7 +3456,7 @@ namespace netxs::console
             bool standalone_instance;
 
         public:
-            core xmap;
+            face xmap;
             lock sync;
             depo gears;
 
@@ -3466,8 +3466,13 @@ namespace netxs::console
                   simple_instance{ faux },
                   standalone_instance{ faux }
             {
+                xmap.link(boss.bell::id);
                 xmap.move(boss.base::coor());
                 xmap.size(boss.base::size());
+                boss.SUBMIT_T(tier::release, e2::form::prop::brush, memo, brush)
+                {
+                    xmap.mark(brush);
+                };
                 boss.SUBMIT_T(tier::release, e2::size::any, memo, newsize)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
@@ -5597,29 +5602,30 @@ again:
     class diff
     {
         using work = std::thread;
-        using lock = std::recursive_mutex;
+        using lock = std::mutex;
         using cond = std::condition_variable_any;
         using span = period;
-        using pair = std::optional<std::pair<span, si32>>;
         using buff = netxs::ansi::dtvt::buff;
 
+        struct stat
+        {
+            span watch{}; // diff::stat: Duration of the STDOUT rendering.
+            sz_t delta{}; // diff::stat: Last ansi-rendered frame size.
+        };
+
         link& conio;
-        lock& mutex; // diff: Mutex between renderer and committer threads.
+        lock  mutex; // diff: Mutex between renderer and committer threads.
         cond  synch; // diff: Synchronization between renderer and committer.
-        grid& cache; // diff: The current content buffer which going to be checked and processed.
-        grid  front; // diff: The Shadow copy of the terminal/screen.
-        si32  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
-        si32  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
-        twod  field; // diff: Current terminal/screen window size.
-        span  watch; // diff: Duration of the STDOUT rendering.
-        sz_t  delta; // diff: Last ansi-rendered frame size.
+        core  cache; // diff: The current content buffer which going to be checked and processed.
+        core  front; // diff: The Shadow copy of the terminal/screen.
         buff  frame; // diff: Text screen representation.
         bool  alive; // diff: Working loop state.
         bool  ready; // diff: Conditional variable to avoid spurious wakeup.
         bool  abort; // diff: Abort building current frame.
         svga  video; // diff: VGA 16/256-color compatibility mode.
         work  paint; // diff: Rendering thread.
-        pair  debug; // diff: Debug info.
+        stat  debug; // diff: Debug info.
+
 
         // diff: Render current buffer to the screen.
         template<svga VGAMODE = svga::truecolor>
@@ -5634,7 +5640,9 @@ again:
 
             using namespace netxs::ansi::dtvt;
             auto coord = twod{};
+            auto field = twod{};
             auto state = cell{};
+            auto saved = cell{};
             auto start = moment{};
             auto guard = std::unique_lock{ mutex };
 
@@ -5643,17 +5651,24 @@ again:
                 start = tempus::now();
                 ready = faux;
                 abort = faux;
+                saved = state;
                 coord = dot_00;
                 auto image = ascii::bitmap{ frame };
-                if (rhash != dhash)
+                if (front.hash() != cache.hash())
                 {
-                    rhash = dhash;
+                    std::swap(front, cache);
+                    guard.unlock();
+                    field = front.size();
                     auto src = front.data();
-                    auto end = src + front.size();
                     image.scroll_wipe();
                     while (coord.y < field.y)
                     {
-                        if (abort) break;
+                        if (abort)
+                        {
+                            debug.delta = image.reset();
+                            state = saved;
+                            break;
+                        }
                         image.locate(coord);
                         auto end_line = src + field.x;
                         while (src != end_line)
@@ -5697,23 +5712,27 @@ again:
                         }
                         ++coord.y;
                     }
+                    debug.delta = image.commit();
                 }
                 else
                 {
                     auto src = cache.data();
                     auto dst = front.data();
                     auto beg = src + 1;
-                    auto end = src;
+                    auto end = src + field.x;;
                     while (coord.y < field.y)
                     {
-                        if (abort) break;
-                        end += field.x;
-
+                        if (abort)
+                        {
+                            debug.delta = image.reset();
+                            state = saved;
+                            guard.unlock();
+                            break;
+                        }
                         while (src != end)
                         {
                             auto& fore = *src++;
                             auto& back = *dst++;
-
                             auto w = fore.wdt();
                             if (w < 2)
                             {
@@ -5721,8 +5740,6 @@ again:
                                 {
                                     coord.x = static_cast<si32>(src - beg);
                                     image.locate(coord);
-
-                                    back = fore;
                                     fore.scan<VGAMODE>(state, image);
 
                                     /* optimizations */
@@ -5730,14 +5747,12 @@ again:
                                     {
                                         auto& fore = *src++;
                                         auto& back = *dst++;
-
                                         auto w = fore.wdt();
                                         if (w < 2)
                                         {
                                             if (back == fore) break;
                                             else
                                             {
-                                                back = fore;
                                                 fore.scan<VGAMODE>(state, image);
                                             }
                                         }
@@ -5765,14 +5780,11 @@ again:
                                                                 fallback(fore, state, image); // Left part alone.
                                                                 fallback(d,    state, image); // Right part alone.
                                                             }
-                                                            g = d;
                                                         }
                                                     }
                                                 }
                                                 else
                                                 {
-                                                    back = fore;
-
                                                     auto& d = *(src++);
                                                     auto& g = *(dst++);
                                                     if (d.wdt() < 3)
@@ -5788,19 +5800,16 @@ again:
                                                             fallback(fore, state, image); // Left part alone.
                                                             fallback(d, state, image); // Right part alone.
                                                         }
-                                                        g = d;
                                                     }
                                                 }
                                             }
                                             else
                                             {
-                                                if (back != fore) back = fore;
                                                 fallback(fore, state, image); // Left part alone.
                                             }
                                         }
                                         else // w == 3
                                         {
-                                            if (back != fore) back = fore;
                                             fallback(fore, state, image); // Right part alone.
                                         }
                                     }
@@ -5813,8 +5822,6 @@ again:
                                 {
                                     if (back != fore)
                                     {
-                                        back = fore;
-
                                         coord.x = static_cast<si32>(src - beg);
                                         image.locate(coord);
 
@@ -5832,11 +5839,9 @@ again:
                                             {
                                                 if (!fore.scan<VGAMODE>(d, state, image))
                                                 {
-                                                    
                                                     fallback(fore, state, image); // Left part alone.
                                                     fallback(d, state, image); // Right part alone.
                                                 }
-                                                g = d;
                                             }
                                         }
                                         else
@@ -5863,7 +5868,6 @@ again:
                                             {
                                                 if (g != d)
                                                 {
-                                                    g = d;
                                                     coord.x = static_cast<si32>(src - beg - 1);
                                                     image.locate(coord);
                                                     if (!fore.scan<VGAMODE>(d, state, image))
@@ -5886,24 +5890,26 @@ again:
                                 {
                                     coord.x = static_cast<si32>(src - beg);
                                     image.locate(coord);
-                                    back = fore;
                                     fallback(fore, state, image); // Right part alone.
                                 }
                             }
                         }
                         beg += field.x;
+                        end += field.x;
                         ++coord.y;
                     }
+
+                    std::swap(front, cache);
+                    debug.delta = image.commit();
+                    guard.unlock();
                 }
 
-                delta = image.commit();
-                if (!abort && delta)
+                if (debug.delta)
                 {
-                    guard.unlock();
                     image.sendby(conio);
-                    guard.lock();
                 }
-                watch = tempus::now() - start;
+                guard.lock();
+                debug.watch = tempus::now() - start;
             }
         }
         // diff: Render current buffer in DTVT-node.
@@ -5912,6 +5918,7 @@ again:
             using namespace netxs::ansi::dtvt;
             auto coord = twod{};
             auto state = cell{};
+            auto saved = cell{};
             auto start = moment{};
             auto guard = std::unique_lock{ mutex };
 
@@ -5920,14 +5927,40 @@ again:
                 start = tempus::now();
                 ready = faux;
                 abort = faux;
+                saved = state;
                 coord = dot_00;
-                auto image = binary::bitmap{ frame, 0xaabbccdd, { dot_00, field } };
-                if (rhash != dhash)
+
+                if (cache.hash() != front.hash())
                 {
-                    rhash = dhash;
-                    image.rst();
-                    auto src = front.data();
-                    auto end = src;
+                    //todo optimize
+                    front.crop(cache.size());
+                    front.hash(cache.hash());
+                }
+                auto image = binary::bitmap{ frame, 0xaabbccdd, { dot_00, cache.size() } };
+                auto src = cache.iter();
+                auto end = cache.iend();
+                auto dst = front.iter();
+                auto beg = src + 1;
+                while (src != end)
+                {
+                    if (abort) break;
+                    auto& fore = *src++;
+                    auto& back = *dst++;
+                    if (back != fore)
+                    {
+                        auto pos = static_cast<sz_t>(src - beg);
+                        image.cup(pos);
+                        fore.scan<svga::directvt>(state, image);
+                        while (src != end)
+                        {
+                            auto& fore = *src++;
+                            auto& back = *dst++;
+                            if (back != fore) fore.scan<svga::directvt>(state, image);
+                            else break;
+                        }
+                    }
+                }
+/*
                     while (coord.y < field.y
                        && !abort)
                     {
@@ -5940,71 +5973,36 @@ again:
                         }
                         ++coord.y;
                     }
+*/
+
+                if (abort)
+                {
+                    state = saved;
+                    debug.delta = image.reset();
                 }
                 else
                 {
-                    auto src = cache.data();
-                    auto dst = front.data();
-                    auto beg = src + 1;
-                    auto end = src;
-                    while (coord.y < field.y
-                       && !abort)
-                    {
-                        end += field.x;
-                        while (src != end)
-                        {
-                            auto& fore = *src++;
-                            auto& back = *dst++;
-                            if (back != fore)
-                            {
-                                coord.x = static_cast<si32>(src - beg);
-                                image.cup(coord);
-                                back = fore;
-                                fore.scan<svga::directvt>(state, image);
-                                while (src != end)
-                                {
-                                    auto& fore = *src++;
-                                    auto& back = *dst++;
-                                    if (back == fore) break;
-                                    else
-                                    {
-                                        back = fore;
-                                        fore.scan<svga::directvt>(state, image);
-                                    }
-                                }
-                            }
-                        }
-                        beg += field.x;
-                        ++coord.y;
-                    }
+                    std::swap(front, cache);
+                    debug.delta = image.commit();
                 }
-
-                delta = image.commit(true);
-                if (!abort && delta)
+                if (debug.delta)
                 {
                     guard.unlock();
                     image.sendby(conio);
                     guard.lock();
                 }
-                watch = tempus::now() - start;
+                debug.watch = tempus::now() - start;
             }
         }
 
     public:
-        // diff: Obtain new content to render.
-        pair commit(core& canvas) // Run inside the e2::sync.
+        auto getstat()
         {
-            auto send_frame = [&]()
-            {
-                dhash = canvas.hash();
-                field = canvas.swap(cache); // Use one surface for reading (cache), one for writing (canvas).
-                //field = canvas.copy(cache);
-                if (rhash != dhash) front = cache; // Cache may be further resized before it rendered.
-                debug = { watch, delta };
-                ready = true;
-                synch.notify_one();
-                return debug;
-            };
+            return debug;
+        }
+        // diff: Obtain new content to render.
+        auto commit(core const& canvas)
+        {
             if (abort)
             {
                 while (alive) // Try to send a new frame as soon as possible.
@@ -6012,7 +6010,10 @@ again:
                     auto lock = std::unique_lock{ mutex, std::try_to_lock };
                     if (lock.owns_lock())
                     {
-                        return send_frame();
+                        cache = canvas;
+                        ready = true;
+                        synch.notify_one();
+                        return true;
                     }
                     else std::this_thread::yield();
                 }
@@ -6022,10 +6023,13 @@ again:
                 auto lock = std::unique_lock{ mutex, std::try_to_lock };
                 if (lock.owns_lock())
                 {
-                    return send_frame();
+                    cache = canvas;
+                    ready = true;
+                    synch.notify_one();
+                    return true;
                 }
             }
-            return std::nullopt;
+            return faux;
         }
         // diff: Discard current rendered frame.
         void abort_render()
@@ -6034,17 +6038,11 @@ again:
         }
 
         diff(link& conio, pro::input& input, svga vga_mode)
-            : rhash{ 0 },
-              dhash{ 0 },
-              delta{ 0 },
-              watch{ 0 },
-              alive{ true },
+            : alive{ true },
               ready{ faux },
               abort{ faux },
               conio{ conio },
-              video{ vga_mode },
-              mutex{ input.sync },
-              cache{ input.xmap.pick() }
+              video{ vga_mode }
         {
             paint = work([&]
             { 
@@ -6179,13 +6177,11 @@ again:
         pro::title title{*this }; // gate: Logo watermark.
         pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
         pro::input input{*this }; // gate: User input event handler.
-        pro::cache cache{*this, faux }; // gate: Map of objects.
         pro::debug debug{*this }; // gate: Debug telemetry controller.
 
-        using pair = std::optional<std::pair<period, si32>>;
         using sptr = netxs::sptr<base>;
         host& world;
-        pair  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
+        bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
         bool  native = faux; //gate: Extended functionality support.
@@ -6331,9 +6327,9 @@ again:
                 {
                     auto stamp = tempus::now();
 
+                    auto& canvas = input.xmap;
                     if (damaged)
                     {
-                        auto& canvas = cache.canvas;
                         canvas.wipe(world.bell::id);
                         if (input.is_not_standalone_instance())
                         {
@@ -6393,18 +6389,18 @@ again:
                         debug.bypass = true;
                         input.fire(hids::events::mouse::move.id);
                         debug.bypass = faux;
-                        yield = paint.commit(cache.canvas);
+                        yield = paint.commit(canvas);
                         if (yield)
                         {
-                            auto& [watch, delta] = yield.value();
-                            debug.update(watch, delta);
+                            auto d = paint.getstat();
+                            debug.update(d.watch, d.delta);
                         }
                         debug.update(stamp);
                     }
                     else
                     {
                         input.fire(hids::events::mouse::move.id);
-                        yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
+                        yield = paint.commit(canvas); // Try output my canvas to the my console.
                     }
                 };
                 // conio events.
@@ -6805,10 +6801,6 @@ again:
                     }
                 }
             };
-            SUBMIT(tier::release, e2::form::prop::brush, brush)
-            {
-                cache.canvas.mark(brush);
-            };
             SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
             {
                 if (gear.clear_clip_data())
@@ -6820,7 +6812,7 @@ again:
 
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
-                if (&parent_canvas != &cache.canvas) // Draw a shadow of user's terminal window for other users (spectators).
+                if (&parent_canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
                 {
                     auto area = base::area();
                     area.coor-= parent_canvas.area().coor;
@@ -6833,7 +6825,7 @@ again:
             };
             SUBMIT(tier::release, e2::postrender, parent_canvas)
             {
-                if (&parent_canvas != &cache.canvas)
+                if (&parent_canvas != &input.xmap)
                 {
                     //if (parent.test(area.coor))
                     //{

@@ -1933,7 +1933,7 @@ namespace netxs::ansi
 
                 lock  guard;
                 text& block;
-                sz_t  start;
+          const sz_t  start;
                 sz_t  basis;
                 bool  alive;
 
@@ -2074,6 +2074,12 @@ namespace netxs::ansi
                     return static_cast<sz_t>(block.length());
                 }
                 // stream: .
+                auto reset()
+                {
+                    block.resize(start);
+                    return start;
+                }
+                // stream: .
                 auto commit(bool discard_empty = faux)
                 {
                     alive = faux;
@@ -2081,8 +2087,7 @@ namespace netxs::ansi
                     if (discard_empty
                      && size == basis)
                     {
-                        block.resize(start);
-                        return start;
+                        return reset();
                     }
                     else
                     {
@@ -2182,7 +2187,6 @@ namespace netxs::ansi
                 {
                     static constexpr byte dif = 0x10; // Cell dif.
                     static constexpr byte cup = 0xFE; // Set insertion point. 8 bytes: si32 X + si32 Y
-                    static constexpr byte rst = 0xFF; // Wipe canvas. Fill canvas using current brush.
                 };
 
             public:
@@ -2203,10 +2207,15 @@ namespace netxs::ansi
                 {
                     auto [myid, area] = stream::take<id_t, rect>(data);
                     //todo head.myid
-                    canvas.size(area.size);
+                    if (canvas.size() != area.size)
+                    {
+                        canvas.crop(area.size);
+                    }
                     auto& mark = canvas.mark();
-                    auto  iter = canvas.iter();
-                    auto  coor = dot_00;
+                    auto  head = canvas.iter();
+                    auto  tail = canvas.iend();
+                    auto  iter = head;
+                    auto  size = tail - head;
                     while (data.size() > 0)
                     {
                         auto [what] = stream::take<byte>(data);
@@ -2225,13 +2234,21 @@ namespace netxs::ansi
                                     log("token size ", size);
                                 }
                             }
-                            if (canvas.test(coor)) canvas[coor] = mark;
-                            ++coor.x;
+                            *iter++ = mark;
                         }
                         else switch (what)
                         {
-                            case subtype::cup: stream::take(coor, data); break;
-                            case subtype::rst: canvas.wipe();            break;
+                            case subtype::cup:
+                            {
+                                auto [offset] = stream::take<sz_t>(data);
+                                if (offset >= size)
+                                {
+                                    log("dtvt: bitmap: corrupted data");
+                                    return;
+                                }
+                                iter = head + offset;
+                                break;
+                            }
                             default: // Unknown subtype.
                             {
                                 log("dtvt: bitmap: unknown data subtype: ", what);
@@ -2240,21 +2257,29 @@ namespace netxs::ansi
                         }
                     }
                 }
-                void dif(cell const src, cell& dst)
+                void cup(sz_t offset) { add(subtype::cup, offset); }
+                template<class UV, class ST, class GC>
+                void dif(UV&  base_uv, ST&  base_st, GC&  base_gc,
+                         UV const& uv, ST const& st, GC const& gc)
                 {
-                    //...
+                    auto changed = byte{ 0 };
+                    if (uv.bg != base_uv.bg) changed |= bgclr;
+                    if (uv.fg != base_uv.fg) changed |= fgclr;
+                    if (st    != base_st   ) changed |= style;
+                    if (gc    != base_gc   ) changed |= glyph;
+                    add(changed);
+                    if (changed & bgclr) add(base_uv.bg = uv.bg);
+                    if (changed & fgclr) add(base_uv.fg = uv.fg);
+                    if (changed & style) add(base_st.token = st.token);
+                    if (changed & glyph) 
+                    {
+                        base_gc = gc;
+                        byte size = gc.state.jumbo ? 8
+                                                   : gc.state.count + 1;
+                        add(size, view{ gc.glyph, size });
+                    }
+                    sizeof(cell);
                 }
-                //void gc(view cluster)
-                //{
-                //    auto size = static_cast<byte>(cluster.size());
-                //    add(size, cluster);
-                //}
-                //template<class T>
-                //void stl(T           token) { add(subtype::stl, token); }
-                void cup(twod const& coord) { add(subtype::cup, coord); }
-                //void fgc(rgba const& color) { add(subtype::fgc, color); }
-                //void bgc(rgba const& color) { add(subtype::bgc, color); }
-                void rst()                  { add(subtype::rst);        }
             };
 
             class tooltips
@@ -2559,9 +2584,15 @@ namespace netxs::ansi
                 lock  guard; // ascii::bitmap: .
                 text& block; // ascii::bitmap: .
                 bool  alive; // ascii::bitmap: .
-                sz_t  start; // ascii::bitmap: .
+          const sz_t  start; // ascii::bitmap: .
 
             public:
+                // ascii::bitmap: .
+                auto reset()
+                {
+                    block.resize(start);
+                    return start;
+                }
                 // ascii::bitmap: .
                 auto length() const
                 {

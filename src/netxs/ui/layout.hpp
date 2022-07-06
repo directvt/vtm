@@ -1056,30 +1056,7 @@ namespace netxs::ui::atoms
         {
             if constexpr (VGAMODE == svga::directvt)
             {
-                enum : byte
-                {
-                    bgclr = 1 << 0,
-                    fgclr = 1 << 1,
-                    style = 1 << 2,
-                    glyph = 1 << 3,
-                };
-                auto changed = byte{ 0 };
-                if (uv.bg != base.uv.bg) changed |= bgclr;
-                if (uv.fg != base.uv.fg) changed |= fgclr;
-                if (st    != base.st   ) changed |= style;
-                if (gc    != base.gc   ) changed |= glyph;
-                dest.add(changed);
-                if (changed & bgclr) dest.add(base.uv.bg = uv.bg);
-                if (changed & fgclr) dest.add(base.uv.fg = uv.fg);
-                if (changed & style) dest.add(base.st.token = st.token);
-                if (changed & glyph) 
-                {
-                    base.gc = gc;
-                    byte size = gc.state.jumbo ? 8
-                                               : gc.state.count + 1;
-                    dest.add(size, view{ gc.glyph, size });
-                }
-                sizeof(cell);
+                dest.dif(base.uv, base.st, base.gc, uv, st, gc);
             }
             else
             {

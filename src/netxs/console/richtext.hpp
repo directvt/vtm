@@ -106,7 +106,6 @@ namespace netxs::console
         constexpr auto& size() const        { return region.size;        }
         auto& coor() const                  { return region.coor;        }
         auto& area() const                  { return region;             }
-        auto  hash()                        { return digest;             } // core: Return the digest value that associatated with the current canvas size.
         auto  data() const                  { return canvas.data();      }
         auto  data()                        { return canvas.data();      }
         auto& pick()                        { return canvas;             }
@@ -127,8 +126,10 @@ namespace netxs::console
         void  back(twod const& delta)       { region.coor -= delta;      } // core: Shift location of the face by -delta.
         void  link(id_t id)                 { marker.link(id);           } // core: Set the default object ID.
         auto  link(twod const& coord) const { return test(coord) ? (*(data(coord))).link() : 0; } // core: Return ID of the object in cell at the specified coordinates.
-        auto  view() const                  { return client;    }
-        void  view(rect const& viewreg)     { client = viewreg; }
+        auto  view() const                  { return client;             }
+        void  view(rect const& viewreg)     { client = viewreg;          }
+        auto  hash() const                  { return digest;             } // core: Return the digest value that associatated with the current canvas size.
+        auto  hash(si32 d)                  { return digest != d ? (digest = d, true) : faux; } // core: Check and the digest value that associatated with the current canvas size.
         void  size(twod const& newsize) // core: Change the size of the face.
         {
             if (region.size(std::max(dot_00, newsize)))
