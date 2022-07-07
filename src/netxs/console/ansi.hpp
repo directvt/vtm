@@ -2196,48 +2196,13 @@ namespace netxs::ansi
 
                 enum : byte
                 {
-                    refer = 1 << 0, // 0 - Dif with base, 1 - dif with mark.
+                    refer = 1 << 0, // 0 - Diff with our canvas cell, 1 - diff with current brush (state).
                     bgclr = 1 << 1,
                     fgclr = 1 << 2,
                     style = 1 << 3,
                     glyph = 1 << 4,
                 };
 
-                void dif(cell const& next, cell& base)
-                {
-                    auto& base_bg = base.bgc();
-                    auto& base_fg = base.fgc();
-                    auto& base_st = base.stl();
-                    auto& base_gc = base.egc();
-                    auto& next_bg = next.bgc();
-                    auto& next_fg = next.fgc();
-                    auto& next_st = next.stl();
-                    auto& next_gc = next.egc();
-                    auto  meaning = 0;
-                    auto  cluster = byte{ 0 };
-                    auto  changed = byte{ 0 };
-                    if (base_bg != next_bg) meaning += sizeof(base_bg), changed |= bgclr;
-                    if (base_fg != next_fg) meaning += sizeof(base_fg), changed |= fgclr;
-                    if (base_st != next_st) meaning += sizeof(base_st), changed |= style;
-                    if (base_gc != next_gc)
-                    {
-                        cluster = next_gc.state.jumbo ? 8
-                                                      : next_gc.state.count + 1;
-                        meaning += cluster + 1;
-                        changed |= glyph;
-                    }
-                    add(changed);
-                    if (changed & bgclr) add(base_bg = next_bg);
-                    if (changed & fgclr) add(base_fg = next_fg);
-                    if (changed & style) add(base_st = next_st);
-                    if (changed & glyph) 
-                    {
-                        base_gc = next_gc;
-                        add(cluster, view{ next_gc.glyph, cluster });
-                    }
-                    sizeof(cell);
-                }
-                void mov(sz_t offset) { add(subtype::mov, offset); }
                 template<class Core>
                 auto set(Core& cache, Core& front, cell& state, bool& abort)
                 {
@@ -2252,21 +2217,49 @@ namespace netxs::ansi
                     auto beg = src + 1;
                     auto mid = src + csz.x * min.y;
                     bool bad = true;
-                    auto map = [&](auto& next, auto& base)
+                    auto tax = [](cell const& c1, cell const& c2)
                     {
-                        if (next != base)
+                        auto meaning = 0;
+                        auto cluster = byte{ 0 };
+                        auto changes = byte{ 0 };
+                        if (c1.bgc() != c2.bgc()) meaning += sizeof(c1.bgc()), changes |= bgclr;
+                        if (c1.fgc() != c2.fgc()) meaning += sizeof(c1.fgc()), changes |= fgclr;
+                        if (c1.stl() != c2.stl()) meaning += sizeof(c1.stl()), changes |= style;
+                        if (c1.egc() != c2.egc())
+                        {
+                            cluster = c1.egc().state.jumbo ? 8
+                                                           : c1.egc().state.count + 1;
+                            meaning += cluster + 1;
+                            changes |= glyph;
+                        }
+                        return std::tuple{ meaning, changes, cluster };
+                    };
+                    auto dif = [&](byte changes, byte cluster, cell const& cache)
+                    {
+                        add(changes);
+                        if (changes & bgclr) add(cache.bgc());
+                        if (changes & fgclr) add(cache.fgc());
+                        if (changes & style) add(cache.stl());
+                        if (changes & glyph) add(cluster, view{ cache.egc().glyph, cluster });
+                        state = cache;
+                    };
+                    auto map = [&](auto& cache, auto& front)
+                    {
+                        if (cache != front)
                         {
                             if (bad)
                             {
                                 auto offset = static_cast<sz_t>(src - beg);
-                                mov(offset);
+                                add(subtype::mov, offset);
                                 bad = faux;
                             }
-                            dif(next, state);
+                            auto [s_meaning, s_changes, s_cluster] = tax(cache, state);
+                            auto [f_meaning, f_changes, f_cluster] = tax(cache, front);
+                            if (s_meaning < f_meaning) dif(s_changes | refer, s_cluster, cache);
+                            else                       dif(f_changes,         f_cluster, cache);
                         }
                         else bad = true;
                     };
-
                     while (src != mid && !abort)
                     {
                         auto end = src + min.x;
@@ -2298,25 +2291,26 @@ namespace netxs::ansi
                     auto tail = canvas.iend();
                     auto iter = head;
                     auto size = tail - head;
+                    auto take = [&](auto what, cell& c)
+                    {
+                        if (what & bgclr) stream::take(c.bgc(), data);
+                        if (what & fgclr) stream::take(c.fgc(), data);
+                        if (what & style) stream::take(c.stl(), data);
+                        if (what & glyph) 
+                        {
+                            auto [size] = stream::take<byte>(data);
+                            stream::take(c.egc().glyph, size, data);
+                            if (c.jgc() == faux) gclist[c.tkn()];
+                        }
+                        return c;
+                    };
                     while (data.size() > 0)
                     {
                         auto [what] = stream::take<byte>(data);
                         if (what < subtype::dif)
                         {
-                            if (what & bgclr) stream::take(mark.bgc(), data);
-                            if (what & fgclr) stream::take(mark.fgc(), data);
-                            if (what & style) stream::take(mark.stl(), data);
-                            if (what & glyph) 
-                            {
-                                auto [size] = stream::take<byte>(data);
-                                stream::take(mark.egc().glyph, size, data);
-                                if (mark.jgc() == faux) // Checking grapheme cluster registration.
-                                {
-                                    gclist[mark.tkn()];
-                                    log("token size ", size);
-                                }
-                            }
-                            *iter++ = mark;
+                            if (what & refer) *iter++ = take(what, mark);
+                            else                 mark = take(what, *iter++);
                         }
                         else if (what == subtype::mov)
                         {
