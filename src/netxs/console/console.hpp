@@ -5618,336 +5618,34 @@ again:
         cond  synch; // diff: Synchronization between renderer and committer.
         core  cache; // diff: The current content buffer which going to be checked and processed.
         core  front; // diff: The Shadow copy of the terminal/screen.
-        buff  frame; // diff: Text screen representation.
+        buff  frame; // diff: Serialization buffer.
         bool  alive; // diff: Working loop state.
         bool  ready; // diff: Conditional variable to avoid spurious wakeup.
         bool  abort; // diff: Abort building current frame.
-        svga  video; // diff: VGA 16/256-color compatibility mode.
         work  paint; // diff: Rendering thread.
         stat  debug; // diff: Debug info.
 
-
         // diff: Render current buffer to the screen.
-        template<svga VGAMODE = svga::truecolor>
+        template<class Bitmap>
         void render()
         {
-            auto fallback = [&](auto& c, auto& state, auto& frame)
-            {
-                auto dumb = c;
-                dumb.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                dumb.template scan<VGAMODE>(state, frame);
-            };
-
-            using namespace netxs::ansi::dtvt;
-            auto coord = twod{};
-            auto field = twod{};
             auto state = cell{};
-            auto saved = cell{};
             auto start = moment{};
             auto guard = std::unique_lock{ mutex };
-
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
                 start = tempus::now();
                 ready = faux;
                 abort = faux;
-                saved = state;
-                coord = dot_00;
-                auto image = ascii::bitmap{ frame };
-                if (front.hash() != cache.hash())
-                {
-                    std::swap(front, cache);
-                    guard.unlock();
-                    field = front.size();
-                    auto src = front.data();
-                    image.scroll_wipe();
-                    while (coord.y < field.y)
-                    {
-                        if (abort)
-                        {
-                            debug.delta = image.reset();
-                            state = saved;
-                            break;
-                        }
-                        image.locate(coord);
-                        auto end_line = src + field.x;
-                        while (src != end_line)
-                        {
-                            auto& c = *(src++);
-                            if (c.wdt() < 2)
-                            {
-                                c.scan<VGAMODE>(state, image);
-                            }
-                            else
-                            {
-                                if (c.wdt() == 2)
-                                {
-                                    if (src != end_line)
-                                    {
-                                        auto& d = *(src++);
-                                        if (d.wdt() < 3)
-                                        {
-                                            fallback(c, state, image); // Left part alone.
-                                            src--; // Repeat all for d again.
-                                        }
-                                        else
-                                        {
-                                            if (!c.scan<VGAMODE>(d, state, image))
-                                            {
-                                                fallback(c, state, image); // Left part alone.
-                                                src--; // Repeat all for d again.
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        fallback(c, state, image); // Left part alone.
-                                    }
-                                }
-                                else
-                                {
-                                    fallback(c, state, image); // Right part alone.
-                                }
-                            }
-                        }
-                        ++coord.y;
-                    }
-                    debug.delta = image.commit();
-                }
-                else
-                {
-                    auto src = cache.data();
-                    auto dst = front.data();
-                    auto beg = src + 1;
-                    auto end = src + field.x;;
-                    while (coord.y < field.y)
-                    {
-                        if (abort)
-                        {
-                            debug.delta = image.reset();
-                            state = saved;
-                            guard.unlock();
-                            break;
-                        }
-                        while (src != end)
-                        {
-                            auto& fore = *src++;
-                            auto& back = *dst++;
-                            auto w = fore.wdt();
-                            if (w < 2)
-                            {
-                                if (back != fore)
-                                {
-                                    coord.x = static_cast<si32>(src - beg);
-                                    image.locate(coord);
-                                    fore.scan<VGAMODE>(state, image);
-
-                                    /* optimizations */
-                                    while (src != end)
-                                    {
-                                        auto& fore = *src++;
-                                        auto& back = *dst++;
-                                        auto w = fore.wdt();
-                                        if (w < 2)
-                                        {
-                                            if (back == fore) break;
-                                            else
-                                            {
-                                                fore.scan<VGAMODE>(state, image);
-                                            }
-                                        }
-                                        else if (w == 2) // Check left part.
-                                        {
-                                            if (src != end)
-                                            {
-                                                if (back == fore)
-                                                {
-                                                    auto& d = *(src++);
-                                                    auto& g = *(dst++);
-                                                    if (g == d) break;
-                                                    else
-                                                    {
-                                                        if (d.wdt() < 3)
-                                                        {
-                                                            fallback(fore, state, image); // Left part alone.
-                                                            src--; // Repeat all for d again.
-                                                            dst--; // Repeat all for g again.
-                                                        }
-                                                        else // d.wdt() == 3
-                                                        {
-                                                            if (!fore.scan<VGAMODE>(d, state, image))
-                                                            {
-                                                                fallback(fore, state, image); // Left part alone.
-                                                                fallback(d,    state, image); // Right part alone.
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    auto& d = *(src++);
-                                                    auto& g = *(dst++);
-                                                    if (d.wdt() < 3)
-                                                    {
-                                                        fallback(fore, state, image); // Left part alone.
-                                                        src--; // Repeat all for d again.
-                                                        dst--; // Repeat all for g again.
-                                                    }
-                                                    else // d.wdt() == 3
-                                                    {
-                                                        if (!fore.scan<VGAMODE>(d, state, image))
-                                                        {
-                                                            fallback(fore, state, image); // Left part alone.
-                                                            fallback(d, state, image); // Right part alone.
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            else
-                                            {
-                                                fallback(fore, state, image); // Left part alone.
-                                            }
-                                        }
-                                        else // w == 3
-                                        {
-                                            fallback(fore, state, image); // Right part alone.
-                                        }
-                                    }
-                                    /* optimizations */
-                                }
-                            }
-                            else
-                            {
-                                if (w == 2) // Left part has changed.
-                                {
-                                    if (back != fore)
-                                    {
-                                        coord.x = static_cast<si32>(src - beg);
-                                        image.locate(coord);
-
-                                        if (src != end)
-                                        {
-                                            auto& d = *(src++);
-                                            auto& g = *(dst++);
-                                            if (d.wdt() < 3)
-                                            {
-                                                fallback(fore, state, image); // Left part alone.
-                                                src--; // Repeat all for d again.
-                                                dst--; // Repeat all for g again.
-                                            }
-                                            else // d.wdt() == 3
-                                            {
-                                                if (!fore.scan<VGAMODE>(d, state, image))
-                                                {
-                                                    fallback(fore, state, image); // Left part alone.
-                                                    fallback(d, state, image); // Right part alone.
-                                                }
-                                            }
-                                        }
-                                        else
-                                        {
-                                            fallback(fore, state, image); // Left part alone.
-                                        }
-                                    }
-                                    else // Check right part.
-                                    {
-                                        if (src != end)
-                                        {
-                                            auto& d = *(src++);
-                                            auto& g = *(dst++);
-                                            if (d.wdt() < 3)
-                                            {
-                                                coord.x = static_cast<si32>(src - beg - 1);
-                                                image.locate(coord);
-
-                                                fallback(fore, state, image); // Left part alone.
-                                                src--; // Repeat all for d again.
-                                                dst--; // Repeat all for g again.
-                                            }
-                                            else /// d.wdt() == 3
-                                            {
-                                                if (g != d)
-                                                {
-                                                    coord.x = static_cast<si32>(src - beg - 1);
-                                                    image.locate(coord);
-                                                    if (!fore.scan<VGAMODE>(d, state, image))
-                                                    {
-                                                        fallback(fore, state, image); // Left part alone.
-                                                        fallback(d, state, image); // Right part alone.
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        else
-                                        {
-                                            coord.x = static_cast<si32>(src - beg);
-                                            image.locate(coord);
-                                            fallback(fore, state, image); // Left part alone.
-                                        }
-                                    }
-                                }
-                                else // w == 3 // Right part has changed.
-                                {
-                                    coord.x = static_cast<si32>(src - beg);
-                                    image.locate(coord);
-                                    fallback(fore, state, image); // Right part alone.
-                                }
-                            }
-                        }
-                        beg += field.x;
-                        end += field.x;
-                        ++coord.y;
-                    }
-
-                    std::swap(front, cache);
-                    debug.delta = image.commit();
-                    guard.unlock();
-                }
-
+                auto image = Bitmap{ frame };
+                auto winid = id_t{ 0xddccbbaa };
+                auto coord = dot_00;
+                debug.delta = image.set(winid, coord, cache, front, state, abort, guard);
                 if (debug.delta)
                 {
                     image.sendby(conio);
                 }
                 guard.lock();
-                debug.watch = tempus::now() - start;
-            }
-        }
-        // diff: Render current buffer in DTVT-node.
-        void render_dtvt()
-        {
-            using namespace netxs::ansi::dtvt;
-            auto state = cell{};
-            auto saved = cell{};
-            auto start = moment{};
-            auto guard = std::unique_lock{ mutex };
-
-            while ((void)synch.wait(guard, [&]{ return ready; }), alive)
-            {
-                start = tempus::now();
-                ready = faux;
-                abort = faux;
-                saved = state;
-
-                auto image = binary::bitmap{ frame, 0xaabbccdd, { dot_00, cache.size() } };
-                image.set(cache, front, state, abort);
-
-                if (abort)
-                {
-                    state = saved;
-                    debug.delta = image.reset();
-                }
-                else
-                {
-                    std::swap(front, cache);
-                    auto discard_empty = front.size() == cache.size();
-                    debug.delta = image.commit(discard_empty);
-                }
-                if (debug.delta)
-                {
-                    guard.unlock();
-                    image.sendby(conio);
-                    guard.lock();
-                }
                 debug.watch = tempus::now() - start;
             }
         }
@@ -5994,22 +5692,22 @@ again:
             abort = true;
         }
 
-        diff(link& conio, pro::input& input, svga vga_mode)
-            : alive{ true },
-              ready{ faux },
-              abort{ faux },
-              conio{ conio },
-              video{ vga_mode }
+        diff(link& conio, svga vtmode)
+            : alive{ true  },
+              ready{ faux  },
+              abort{ faux  },
+              conio{ conio }
         {
-            paint = work([&]
+            using namespace netxs::ansi::dtvt;
+            paint = work([&, vtmode]
             { 
                 log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
-                switch (video)
+                switch (vtmode)
                 {
-                    case svga::truecolor: render<svga::truecolor>(); break;
-                    case svga::directvt:  render_dtvt            (); break;
-                    case svga::vga16:     render<svga::vga16    >(); break;
-                    case svga::vga256:    render<svga::vga256   >(); break;
+                    case svga::directvt:  render<binary::bitmap>                 (); break;
+                    case svga::truecolor: render< ascii::bitmap<svga::truecolor>>(); break;
+                    case svga::vga16:     render< ascii::bitmap<svga::vga16    >>(); break;
+                    case svga::vga256:    render< ascii::bitmap<svga::vga256   >>(); break;
                     default: break;
                 }
                 log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
@@ -6255,17 +5953,17 @@ again:
             return item;
         }
         // Main loop.
-        void launch(xipc media, sptr deskmenu, sptr bkground = {})
+        void launch(xipc termio, sptr deskmenu, sptr bkground = {})
         {
             auto lock = events::unique_lock();
 
                 legacy |= props.legacy_mode;
 
-                auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
-                              : legacy & os::legacy::vga256 ? svga::vga256
-                              : legacy & os::legacy::direct ? svga::directvt
-                                                            : svga::truecolor;
-                auto direct = vga_mode == svga::directvt;
+                auto vtmode = legacy & os::legacy::vga16  ? svga::vga16
+                            : legacy & os::legacy::vga256 ? svga::vga256
+                            : legacy & os::legacy::direct ? svga::directvt
+                                                          : svga::truecolor;
+                auto direct = vtmode == svga::directvt;
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
                 auto conf_usr_name = props.name;
@@ -6276,9 +5974,9 @@ again:
                 //todo hids
                 //clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
 
-                link conio{ This(), media };          // gate: Terminal IO.
-                diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
-                subs token;                           // gate: Subscription tokens array.
+                link conio{ This(), termio };   // gate: Terminal IO.
+                diff paint{ conio,  vtmode }; // gate: Rendering loop.
+                subs token;                    // gate: Subscription tokens array.
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -6630,7 +6328,7 @@ again:
 
             lock.unlock();
 
-            conio.session(props.title, vga_mode);
+            conio.session(props.title, vtmode);
 
             lock.lock();
                 token.clear();

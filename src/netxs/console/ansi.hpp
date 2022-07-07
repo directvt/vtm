@@ -2074,6 +2074,11 @@ namespace netxs::ansi
                     return static_cast<sz_t>(block.length());
                 }
                 // stream: .
+                void reinit()
+                {
+                    basis = length();
+                }
+                // stream: .
                 auto reset()
                 {
                     block.resize(start);
@@ -2142,7 +2147,7 @@ namespace netxs::ansi
                       start{ length()   }
                 {
                     stream::add(head, kind, std::forward<Args>(args)...);
-                    basis = length();
+                    reinit();
                 }
                ~stream()
                 {
@@ -2192,8 +2197,8 @@ namespace netxs::ansi
                 };
 
             public:
-                bitmap(buff& data, id_t myid, rect const& area)
-                    : stream{ data, type::bitmap, myid, area }
+                bitmap(buff& data)
+                    : stream{ data, type::bitmap }
                 { }
 
                 enum : byte
@@ -2205,8 +2210,8 @@ namespace netxs::ansi
                     glyph = 1 << 4,
                 };
 
-                template<class Core>
-                auto set(Core& cache, Core& front, cell& state, bool& abort)
+                template<class Core, class Lock>
+                auto set(id_t winid, twod const& coord, Core& cache, Core& front, cell& state, bool& abort, Lock& guard)
                 {
                     auto pen = state;
                     auto src = cache.iter();
@@ -2259,7 +2264,7 @@ namespace netxs::ansi
                         if (changes & glyph) add(cluster, view{ cache.egc().glyph, cluster });
                         state = cache;
                     };
-                    auto map = [&](auto& cache, auto& front)
+                    auto map = [&](auto const& cache, auto const& front)
                     {
                         if (cache != front)
                         {
@@ -2282,6 +2287,11 @@ namespace netxs::ansi
                         }
                         else bad = true;
                     };
+                    {
+                        //todo multiple windows
+                        stream::add(winid, rect{ coord, csz });
+                        stream::reinit();
+                    }
                     while (src != mid && !abort)
                     {
                         auto end = src + min.x;
@@ -2299,6 +2309,19 @@ namespace netxs::ansi
                         while (src != end && !abort) map(*src++, pen);
                     }
                     if (sum) rep();
+                    if (abort)
+                    {
+                        std::swap(state, pen);
+                        sum = reset();
+                    }
+                    else
+                    {
+                        auto discard_empty = fsz == csz;
+                        std::swap(front, cache);
+                        sum = commit(discard_empty);
+                    }
+                    guard.unlock();
+                    return sum;
                 }
                 template<class F, class L>
                 static auto get(F&& canvas, L&& gclist, view& data)
@@ -2678,6 +2701,7 @@ namespace netxs::ansi
 
         namespace ascii
         {
+            template<svga VGAMODE = svga::truecolor>
             class bitmap
                 : public basevt<text>
             {
@@ -2718,6 +2742,269 @@ namespace netxs::ansi
                     alive = faux;
                     auto size = length();
                     return size;
+                }
+
+                template<class Core, class Lock>
+                auto set(id_t winid, twod const& winxy, Core& cache, Core& front, cell& state, bool& abort, Lock& guard)
+                {
+                    auto fallback = [&](auto& c, auto& state)
+                    {
+                        auto dumb = c;
+                        dumb.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                        dumb.template scan<VGAMODE>(state, *this);
+                    };
+
+                    auto coord = dot_00;
+                    auto saved = state;
+                    auto field = cache.size();
+                    auto delta = sz_t{ 0 };
+                    if (front.hash() != cache.hash())
+                    {
+                        std::swap(front, cache);
+                        guard.unlock();
+                        auto src = front.data();
+                        basevt::scroll_wipe();
+                        while (coord.y < field.y)
+                        {
+                            if (abort)
+                            {
+                                delta = reset();
+                                state = saved;
+                                break;
+                            }
+                            basevt::locate(coord);
+                            auto end_line = src + field.x;
+                            while (src != end_line)
+                            {
+                                auto& c = *(src++);
+                                if (c.wdt() < 2)
+                                {
+                                    c.scan<VGAMODE>(state, *this);
+                                }
+                                else
+                                {
+                                    if (c.wdt() == 2)
+                                    {
+                                        if (src != end_line)
+                                        {
+                                            auto& d = *(src++);
+                                            if (d.wdt() < 3)
+                                            {
+                                                fallback(c, state); // Left part alone.
+                                                src--; // Repeat all for d again.
+                                            }
+                                            else
+                                            {
+                                                if (!c.scan<VGAMODE>(d, state, *this))
+                                                {
+                                                    fallback(c, state); // Left part alone.
+                                                    src--; // Repeat all for d again.
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            fallback(c, state); // Left part alone.
+                                        }
+                                    }
+                                    else
+                                    {
+                                        fallback(c, state); // Right part alone.
+                                    }
+                                }
+                            }
+                            ++coord.y;
+                        }
+                        delta = commit();
+                    }
+                    else
+                    {
+                        auto src = cache.data();
+                        auto dst = front.data();
+                        auto beg = src + 1;
+                        auto end = src + field.x;;
+                        while (coord.y < field.y)
+                        {
+                            if (abort)
+                            {
+                                delta = reset();
+                                state = saved;
+                                guard.unlock();
+                                break;
+                            }
+                            while (src != end)
+                            {
+                                auto& fore = *src++;
+                                auto& back = *dst++;
+                                auto w = fore.wdt();
+                                if (w < 2)
+                                {
+                                    if (back != fore)
+                                    {
+                                        coord.x = static_cast<si32>(src - beg);
+                                        basevt::locate(coord);
+                                        fore.scan<VGAMODE>(state, *this);
+
+                                        /* optimizations */
+                                        while (src != end)
+                                        {
+                                            auto& fore = *src++;
+                                            auto& back = *dst++;
+                                            auto w = fore.wdt();
+                                            if (w < 2)
+                                            {
+                                                if (back == fore) break;
+                                                else
+                                                {
+                                                    fore.scan<VGAMODE>(state, *this);
+                                                }
+                                            }
+                                            else if (w == 2) // Check left part.
+                                            {
+                                                if (src != end)
+                                                {
+                                                    if (back == fore)
+                                                    {
+                                                        auto& d = *(src++);
+                                                        auto& g = *(dst++);
+                                                        if (g == d) break;
+                                                        else
+                                                        {
+                                                            if (d.wdt() < 3)
+                                                            {
+                                                                fallback(fore, state); // Left part alone.
+                                                                src--; // Repeat all for d again.
+                                                                dst--; // Repeat all for g again.
+                                                            }
+                                                            else // d.wdt() == 3
+                                                            {
+                                                                if (!fore.scan<VGAMODE>(d, state, *this))
+                                                                {
+                                                                    fallback(fore, state); // Left part alone.
+                                                                    fallback(d,    state); // Right part alone.
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        auto& d = *(src++);
+                                                        auto& g = *(dst++);
+                                                        if (d.wdt() < 3)
+                                                        {
+                                                            fallback(fore, state); // Left part alone.
+                                                            src--; // Repeat all for d again.
+                                                            dst--; // Repeat all for g again.
+                                                        }
+                                                        else // d.wdt() == 3
+                                                        {
+                                                            if (!fore.scan<VGAMODE>(d, state, *this))
+                                                            {
+                                                                fallback(fore, state); // Left part alone.
+                                                                fallback(d,    state); // Right part alone.
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    fallback(fore, state); // Left part alone.
+                                                }
+                                            }
+                                            else // w == 3
+                                            {
+                                                fallback(fore, state); // Right part alone.
+                                            }
+                                        }
+                                        /* optimizations */
+                                    }
+                                }
+                                else
+                                {
+                                    if (w == 2) // Left part has changed.
+                                    {
+                                        if (back != fore)
+                                        {
+                                            coord.x = static_cast<si32>(src - beg);
+                                            basevt::locate(coord);
+                                            if (src != end)
+                                            {
+                                                auto& d = *(src++);
+                                                auto& g = *(dst++);
+                                                if (d.wdt() < 3)
+                                                {
+                                                    fallback(fore, state); // Left part alone.
+                                                    src--; // Repeat all for d again.
+                                                    dst--; // Repeat all for g again.
+                                                }
+                                                else // d.wdt() == 3
+                                                {
+                                                    if (!fore.scan<VGAMODE>(d, state, *this))
+                                                    {
+                                                        fallback(fore, state); // Left part alone.
+                                                        fallback(d,    state); // Right part alone.
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                fallback(fore, state); // Left part alone.
+                                            }
+                                        }
+                                        else // Check right part.
+                                        {
+                                            if (src != end)
+                                            {
+                                                auto& d = *(src++);
+                                                auto& g = *(dst++);
+                                                if (d.wdt() < 3)
+                                                {
+                                                    coord.x = static_cast<si32>(src - beg - 1);
+                                                    basevt::locate(coord);
+                                                    fallback(fore, state); // Left part alone.
+                                                    src--; // Repeat all for d again.
+                                                    dst--; // Repeat all for g again.
+                                                }
+                                                else /// d.wdt() == 3
+                                                {
+                                                    if (g != d)
+                                                    {
+                                                        coord.x = static_cast<si32>(src - beg - 1);
+                                                        basevt::locate(coord);
+                                                        if (!fore.scan<VGAMODE>(d, state, *this))
+                                                        {
+                                                            fallback(fore, state); // Left part alone.
+                                                            fallback(d,    state); // Right part alone.
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                coord.x = static_cast<si32>(src - beg);
+                                                basevt::locate(coord);
+                                                fallback(fore, state); // Left part alone.
+                                            }
+                                        }
+                                    }
+                                    else // w == 3 // Right part has changed.
+                                    {
+                                        coord.x = static_cast<si32>(src - beg);
+                                        basevt::locate(coord);
+                                        fallback(fore, state); // Right part alone.
+                                    }
+                                }
+                            }
+                            beg += field.x;
+                            end += field.x;
+                            ++coord.y;
+                        }
+
+                        std::swap(front, cache);
+                        delta = commit();
+                        guard.unlock();
+                    }
+                    return delta;
                 }
 
                 template<class T>
