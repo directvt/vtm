@@ -5613,22 +5613,22 @@ again:
             sz_t delta{}; // diff::stat: Last ansi-rendered frame size.
         };
 
-        link& conio;
-        lock  mutex; // diff: Mutex between renderer and committer threads.
-        cond  synch; // diff: Synchronization between renderer and committer.
-        core  cache; // diff: The current content buffer which going to be checked and processed.
-        core  front; // diff: The Shadow copy of the terminal/screen.
-        buff  frame; // diff: Serialization buffer.
-        bool  alive; // diff: Working loop state.
-        bool  ready; // diff: Conditional variable to avoid spurious wakeup.
-        bool  abort; // diff: Abort building current frame.
-        work  paint; // diff: Rendering thread.
-        stat  debug; // diff: Debug info.
+        lock mutex; // diff: Mutex between renderer and committer threads.
+        cond synch; // diff: Synchronization between renderer and committer.
+        core cache; // diff: The current content buffer which going to be checked and processed.
+        core front; // diff: The Shadow copy of the terminal/screen.
+        buff frame; // diff: Serialization buffer.
+        bool alive; // diff: Working loop state.
+        bool ready; // diff: Conditional variable to avoid spurious wakeup.
+        bool abort; // diff: Abort building current frame.
+        work paint; // diff: Rendering thread.
+        stat debug; // diff: Debug info.
 
         // diff: Render current buffer to the screen.
         template<class Bitmap>
-        void render()
+        void render(link& conio)
         {
+            log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
             auto state = cell{};
             auto start = moment{};
             auto guard = std::unique_lock{ mutex };
@@ -5648,16 +5648,17 @@ again:
                 guard.lock();
                 debug.watch = tempus::now() - start;
             }
+            log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
         }
 
     public:
-        // diff: .
-        auto getstat()
+        // diff: Get rendering statistics.
+        auto status()
         {
             return debug;
         }
-        // diff: Discard current rendered frame.
-        void abort_render()
+        // diff: Discard current frame.
+        void cancel()
         {
             abort = true;
         }
@@ -5666,7 +5667,7 @@ again:
         {
             if (abort)
             {
-                while (alive) // Try to send a new frame as soon as possible.
+                while (alive) // Try to send a new frame as soon as possible (e.g. after resize).
                 {
                     auto lock = std::unique_lock{ mutex, std::try_to_lock };
                     if (lock.owns_lock())
@@ -5694,39 +5695,29 @@ again:
         }
 
         diff(link& conio, svga vtmode)
-            : alive{ true  },
-              ready{ faux  },
-              abort{ faux  },
-              conio{ conio }
+            : alive{ true },
+              ready{ faux },
+              abort{ faux }
         {
             using namespace netxs::ansi::dtvt;
             paint = work([&, vtmode]
             { 
-                log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
-                switch (vtmode)
-                {
-                    case svga::directvt:  render<binary::bitmap>                 (); break;
-                    case svga::truecolor: render< ascii::bitmap<svga::truecolor>>(); break;
-                    case svga::vga16:     render< ascii::bitmap<svga::vga16    >>(); break;
-                    case svga::vga256:    render< ascii::bitmap<svga::vga256   >>(); break;
-                    default: break;
-                }
-                log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
+                     if (vtmode == svga::directvt ) render<binary::bitmap>                 (conio);
+                else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(conio);
+                else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>(conio);
+                else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(conio);
             });
         }
         ~diff()
         {
-            if (paint.joinable())
-            {
-                auto id = paint.get_id();
-                mutex.lock();
-                alive = faux;
-                ready = true;
-                synch.notify_all();
-                mutex.unlock();
-                paint.join();
-                log("diff: id: ", id, " rendering thread joined");
-            }
+            auto id = paint.get_id();
+            mutex.lock();
+            alive = faux;
+            ready = true;
+            synch.notify_all();
+            mutex.unlock();
+            paint.join();
+            log("diff: id: ", id, " rendering thread joined");
         }
     };
 
@@ -5975,9 +5966,9 @@ again:
                 //todo hids
                 //clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
 
-                link conio{ This(), termio };   // gate: Terminal IO.
+                link conio{ This(), termio }; // gate: Terminal IO.
                 diff paint{ conio,  vtmode }; // gate: Rendering loop.
-                subs token;                    // gate: Subscription tokens array.
+                subs token;                   // gate: Subscription tokens.
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -6048,7 +6039,7 @@ again:
                         yield = paint.commit(canvas);
                         if (yield)
                         {
-                            auto d = paint.getstat();
+                            auto d = paint.status();
                             debug.update(d.watch, d.delta);
                         }
                         debug.update(stamp);
@@ -6065,7 +6056,7 @@ again:
                     auto delta = base::resize(newsize);
                     if (delta && direct)
                     {
-                        paint.abort_render();
+                        paint.cancel();
                         rebuild_scene(true);
                     }
                 };
