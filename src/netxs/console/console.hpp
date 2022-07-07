@@ -5939,7 +5939,8 @@ again:
                 else
                 {
                     std::swap(front, cache);
-                    debug.delta = image.commit();
+                    auto discard_empty = front.size() == cache.size();
+                    debug.delta = image.commit(discard_empty);
                 }
                 if (debug.delta)
                 {

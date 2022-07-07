@@ -2185,8 +2185,10 @@ namespace netxs::ansi
             {
                 struct subtype
                 {
+                    static constexpr byte nop = 0x00; // Apply current brush. nop = dif - refer.
                     static constexpr byte dif = 0x20; // Cell dif.
-                    static constexpr byte mov = 0xFE; // Set insertion point. 8 bytes: si32 X + si32 Y
+                    static constexpr byte mov = 0xFE; // Set insertion point. sz_t: offset.
+                    static constexpr byte rep = 0xFF; // Repeat current brush ui32 times. sz_t: N.
                 };
 
             public:
@@ -2196,7 +2198,7 @@ namespace netxs::ansi
 
                 enum : byte
                 {
-                    refer = 1 << 0, // 0 - Diff with our canvas cell, 1 - diff with current brush (state).
+                    refer = 1 << 0, // 1 - Diff with our canvas cell, 0 - diff with current brush (state).
                     bgclr = 1 << 1,
                     fgclr = 1 << 2,
                     style = 1 << 3,
@@ -2217,6 +2219,20 @@ namespace netxs::ansi
                     auto beg = src + 1;
                     auto mid = src + csz.x * min.y;
                     bool bad = true;
+                    auto sum = sz_t{ 0 };
+                    auto rep = [&]()
+                    {
+                        if (sum < sizeof(subtype::rep) + sizeof(sum))
+                        {
+                            do add(subtype::nop);
+                            while (--sum);
+                        }
+                        else
+                        {
+                            add(subtype::rep, sum);
+                            sum = 0;
+                        }
+                    };
                     auto tax = [](cell const& c1, cell const& c2)
                     {
                         auto meaning = 0;
@@ -2249,14 +2265,20 @@ namespace netxs::ansi
                         {
                             if (bad)
                             {
+                                if (sum) rep();
                                 auto offset = static_cast<sz_t>(src - beg);
                                 add(subtype::mov, offset);
                                 bad = faux;
                             }
-                            auto [s_meaning, s_changes, s_cluster] = tax(cache, state);
-                            auto [f_meaning, f_changes, f_cluster] = tax(cache, front);
-                            if (s_meaning < f_meaning) dif(s_changes | refer, s_cluster, cache);
-                            else                       dif(f_changes,         f_cluster, cache);
+                            if (cache == state) ++sum;
+                            else
+                            {
+                                if (sum) rep();
+                                auto [s_meaning, s_changes, s_cluster] = tax(cache, state);
+                                auto [f_meaning, f_changes, f_cluster] = tax(cache, front);
+                                if (s_meaning < f_meaning) dif(s_changes,         s_cluster, cache);
+                                else                       dif(f_changes | refer, f_cluster, cache);
+                            }
                         }
                         else bad = true;
                     };
@@ -2276,6 +2298,7 @@ namespace netxs::ansi
                     {
                         while (src != end && !abort) map(*src++, pen);
                     }
+                    if (sum) rep();
                 }
                 template<class F, class L>
                 static auto get(F&& canvas, L&& gclist, view& data)
@@ -2304,31 +2327,60 @@ namespace netxs::ansi
                         }
                         return c;
                     };
+                    //auto frame_len = data.size();
+                    //auto nop_count = 0;
+                    //auto rep_count = 0;
+                    //auto mov_count = 0;
+                    //auto dif_count = 0;
                     while (data.size() > 0)
                     {
                         auto [what] = stream::take<byte>(data);
-                        if (what < subtype::dif)
+                        if (what == subtype::nop)
                         {
-                            if (what & refer) *iter++ = take(what, mark);
-                            else                 mark = take(what, *iter++);
+                            //nop_count++;
+                            *iter++ = mark;
+                        }
+                        else if (what < subtype::dif)
+                        {
+                            //dif_count++;
+                            if (what & refer) mark = take(what, *iter++);
+                            else           *iter++ = take(what, mark);
+                        }
+                        else if (what == subtype::rep)
+                        {
+                            //rep_count++;
+                            auto [count] = stream::take<sz_t>(data);
+                            if (count > tail - iter)
+                            {
+                                log("dtvt: bitmap: corrupted data, subtype: ", what);
+                                return;
+                            }
+                            auto from = iter;
+                            std::fill(from, iter += count, mark);
                         }
                         else if (what == subtype::mov)
                         {
+                            //mov_count++;
                             auto [offset] = stream::take<sz_t>(data);
                             if (offset >= size)
                             {
-                                log("dtvt: bitmap: corrupted data");
+                                log("dtvt: bitmap: corrupted data, subtype: ", what);
                                 return;
                             }
                             iter = head + offset;
                         }
                         else // Unknown subtype.
                         {
-                            log("dtvt: bitmap: unknown data subtype: ", what);
+                            log("dtvt: bitmap: unknown data, subtype: ", what);
                             return;
                         }
                     }
                     canvas.mark(mark);
+                    //log("dtvt: frame len: ", frame_len);
+                    //log("dtvt: nop count: ", nop_count);
+                    //log("dtvt: rep count: ", rep_count);
+                    //log("dtvt: dif count: ", dif_count);
+                    //log("----------------------------");
                 }
             };
 
