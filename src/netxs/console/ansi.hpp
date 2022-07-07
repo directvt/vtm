@@ -2747,23 +2747,55 @@ namespace netxs::ansi
                 template<class Core, class Lock>
                 auto set(id_t winid, twod const& winxy, Core& cache, Core& front, cell& state, bool& abort, Lock& guard)
                 {
-                    auto fallback = [&](auto& c, auto& state)
-                    {
-                        auto dumb = c;
-                        dumb.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                        dumb.template scan<VGAMODE>(state, *this);
-                    };
-
                     auto coord = dot_00;
                     auto saved = state;
                     auto field = cache.size();
                     auto delta = sz_t{ 0 };
+
+                    auto mov = [&](auto x)
+                    {
+                        coord.x = static_cast<decltype(coord.x)>(x);
+                        basevt::locate(coord);
+                    };
+                    auto put = [&](cell const& cache)
+                    {
+                        //todo
+                        cache.scan<VGAMODE>(state, *this);
+                    };
+                    auto dif = [&](cell const& cache, cell const& front)
+                    {
+                        //todo
+                        return !cache.scan<VGAMODE>(front, state, *this);
+                    };
+                    auto fallback = [&](cell const& cache)
+                    {
+                        auto dumb = cache;
+                        dumb.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                        put(dumb);
+                    };
+                    auto left_half = [&](cell const& cache)
+                    {
+                        fallback(cache);
+                    };
+                    auto right_half = [&](cell const& cache)
+                    {
+                        fallback(cache);
+                    };
+                    auto tie = [&](cell const& fore, cell const& next)
+                    {
+                        if (dif(fore, next))
+                        {
+                             left_half(fore);
+                            right_half(next);
+                        }
+                    };
+
                     if (front.hash() != cache.hash())
                     {
                         std::swap(front, cache);
                         guard.unlock();
-                        auto src = front.data();
                         basevt::scroll_wipe();
+                        auto src = front.iter();
                         while (coord.y < field.y)
                         {
                             if (abort)
@@ -2773,44 +2805,28 @@ namespace netxs::ansi
                                 break;
                             }
                             basevt::locate(coord);
-                            auto end_line = src + field.x;
-                            while (src != end_line)
+                            auto end = src + field.x;
+                            while (src != end)
                             {
-                                auto& c = *(src++);
-                                if (c.wdt() < 2)
-                                {
-                                    c.scan<VGAMODE>(state, *this);
-                                }
+                                auto& c = *src++;
+                                if (c.wdt() < 2) put(c);
                                 else
                                 {
                                     if (c.wdt() == 2)
                                     {
-                                        if (src != end_line)
+                                        if (src != end)
                                         {
-                                            auto& d = *(src++);
-                                            if (d.wdt() < 3)
-                                            {
-                                                fallback(c, state); // Left part alone.
-                                                src--; // Repeat all for d again.
-                                            }
+                                            auto& next = *src;
+                                            if (next.wdt() < 3) left_half(c);
                                             else
                                             {
-                                                if (!c.scan<VGAMODE>(d, state, *this))
-                                                {
-                                                    fallback(c, state); // Left part alone.
-                                                    src--; // Repeat all for d again.
-                                                }
+                                                if (dif(c, next)) left_half(c);
+                                                else              ++src;
                                             }
                                         }
-                                        else
-                                        {
-                                            fallback(c, state); // Left part alone.
-                                        }
+                                        else left_half(c);
                                     }
-                                    else
-                                    {
-                                        fallback(c, state); // Right part alone.
-                                    }
+                                    else right_half(c);
                                 }
                             }
                             ++coord.y;
@@ -2819,10 +2835,8 @@ namespace netxs::ansi
                     }
                     else
                     {
-                        auto src = cache.data();
-                        auto dst = front.data();
-                        auto beg = src + 1;
-                        auto end = src + field.x;;
+                        auto src = cache.iter();
+                        auto dst = front.iter();
                         while (coord.y < field.y)
                         {
                             if (abort)
@@ -2832,6 +2846,8 @@ namespace netxs::ansi
                                 guard.unlock();
                                 break;
                             }
+                            auto beg = src + 1;
+                            auto end = src + field.x;
                             while (src != end)
                             {
                                 auto& fore = *src++;
@@ -2841,11 +2857,8 @@ namespace netxs::ansi
                                 {
                                     if (back != fore)
                                     {
-                                        coord.x = static_cast<si32>(src - beg);
-                                        basevt::locate(coord);
-                                        fore.scan<VGAMODE>(state, *this);
-
-                                        /* optimizations */
+                                        mov(src - beg);
+                                        put(fore);
                                         while (src != end)
                                         {
                                             auto& fore = *src++;
@@ -2854,69 +2867,34 @@ namespace netxs::ansi
                                             if (w < 2)
                                             {
                                                 if (back == fore) break;
-                                                else
-                                                {
-                                                    fore.scan<VGAMODE>(state, *this);
-                                                }
+                                                else              put(fore);
                                             }
                                             else if (w == 2) // Check left part.
                                             {
                                                 if (src != end)
                                                 {
-                                                    if (back == fore)
+                                                    auto& next = *src;
+                                                    if (back == fore && next == *dst)
                                                     {
-                                                        auto& d = *(src++);
-                                                        auto& g = *(dst++);
-                                                        if (g == d) break;
-                                                        else
-                                                        {
-                                                            if (d.wdt() < 3)
-                                                            {
-                                                                fallback(fore, state); // Left part alone.
-                                                                src--; // Repeat all for d again.
-                                                                dst--; // Repeat all for g again.
-                                                            }
-                                                            else // d.wdt() == 3
-                                                            {
-                                                                if (!fore.scan<VGAMODE>(d, state, *this))
-                                                                {
-                                                                    fallback(fore, state); // Left part alone.
-                                                                    fallback(d,    state); // Right part alone.
-                                                                }
-                                                            }
-                                                        }
+                                                        ++src;
+                                                        ++dst;
+                                                        break;
                                                     }
                                                     else
                                                     {
-                                                        auto& d = *(src++);
-                                                        auto& g = *(dst++);
-                                                        if (d.wdt() < 3)
+                                                        if (next.wdt() < 3) left_half(fore);
+                                                        else // next.wdt() == 3
                                                         {
-                                                            fallback(fore, state); // Left part alone.
-                                                            src--; // Repeat all for d again.
-                                                            dst--; // Repeat all for g again.
-                                                        }
-                                                        else // d.wdt() == 3
-                                                        {
-                                                            if (!fore.scan<VGAMODE>(d, state, *this))
-                                                            {
-                                                                fallback(fore, state); // Left part alone.
-                                                                fallback(d,    state); // Right part alone.
-                                                            }
+                                                            tie(fore, next);
+                                                            ++src;
+                                                            ++dst;
                                                         }
                                                     }
                                                 }
-                                                else
-                                                {
-                                                    fallback(fore, state); // Left part alone.
-                                                }
+                                                else left_half(fore);
                                             }
-                                            else // w == 3
-                                            {
-                                                fallback(fore, state); // Right part alone.
-                                            }
+                                            else right_half(fore); // w == 3
                                         }
-                                        /* optimizations */
                                     }
                                 }
                                 else
@@ -2925,78 +2903,43 @@ namespace netxs::ansi
                                     {
                                         if (back != fore)
                                         {
-                                            coord.x = static_cast<si32>(src - beg);
-                                            basevt::locate(coord);
+                                            mov(src - beg);
                                             if (src != end)
                                             {
-                                                auto& d = *(src++);
-                                                auto& g = *(dst++);
-                                                if (d.wdt() < 3)
+                                                auto& next = *src;
+                                                if (next.wdt() < 3) left_half(fore);
+                                                else // next.wdt() == 3
                                                 {
-                                                    fallback(fore, state); // Left part alone.
-                                                    src--; // Repeat all for d again.
-                                                    dst--; // Repeat all for g again.
-                                                }
-                                                else // d.wdt() == 3
-                                                {
-                                                    if (!fore.scan<VGAMODE>(d, state, *this))
-                                                    {
-                                                        fallback(fore, state); // Left part alone.
-                                                        fallback(d,    state); // Right part alone.
-                                                    }
+                                                    tie(fore, next);
+                                                    ++src;
+                                                    ++dst;
                                                 }
                                             }
-                                            else
-                                            {
-                                                fallback(fore, state); // Left part alone.
-                                            }
+                                            else left_half(fore);
                                         }
                                         else // Check right part.
                                         {
                                             if (src != end)
                                             {
-                                                auto& d = *(src++);
-                                                auto& g = *(dst++);
-                                                if (d.wdt() < 3)
+                                                auto& next = *src;
+                                                if (next.wdt() < 3) mov(src - beg), left_half(fore);
+                                                else // next.wdt() == 3
                                                 {
-                                                    coord.x = static_cast<si32>(src - beg - 1);
-                                                    basevt::locate(coord);
-                                                    fallback(fore, state); // Left part alone.
-                                                    src--; // Repeat all for d again.
-                                                    dst--; // Repeat all for g again.
-                                                }
-                                                else /// d.wdt() == 3
-                                                {
-                                                    if (g != d)
+                                                    if (next != *dst)
                                                     {
-                                                        coord.x = static_cast<si32>(src - beg - 1);
-                                                        basevt::locate(coord);
-                                                        if (!fore.scan<VGAMODE>(d, state, *this))
-                                                        {
-                                                            fallback(fore, state); // Left part alone.
-                                                            fallback(d,    state); // Right part alone.
-                                                        }
+                                                        mov(src - beg);
+                                                        tie(fore, next);
                                                     }
+                                                    ++src;
+                                                    ++dst;
                                                 }
                                             }
-                                            else
-                                            {
-                                                coord.x = static_cast<si32>(src - beg);
-                                                basevt::locate(coord);
-                                                fallback(fore, state); // Left part alone.
-                                            }
+                                            else mov(src - beg), left_half(fore);
                                         }
                                     }
-                                    else // w == 3 // Right part has changed.
-                                    {
-                                        coord.x = static_cast<si32>(src - beg);
-                                        basevt::locate(coord);
-                                        fallback(fore, state); // Right part alone.
-                                    }
+                                    else mov(src - beg), right_half(fore); // w == 3
                                 }
                             }
-                            beg += field.x;
-                            end += field.x;
                             ++coord.y;
                         }
 

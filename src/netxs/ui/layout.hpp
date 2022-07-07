@@ -1055,7 +1055,7 @@ namespace netxs::ui::atoms
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
-        bool scan(cell& next, cell& base, T& dest) const
+        bool scan(cell const& next, cell& base, T& dest) const
         {
             if constexpr (VGAMODE == svga::directvt) return {};
             if (gc.same(next.gc) && like(next))
@@ -1074,11 +1074,6 @@ namespace netxs::ui::atoms
                 return faux;
             }
         }
-        // cell: Is the cell not transparent?
-        //bool is_unalterable() const
-        //{
-        //	return vis() == unalterable;
-        //}
         // cell: Delight both foreground and background.
         void xlight()
         {

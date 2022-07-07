@@ -5651,9 +5651,15 @@ again:
         }
 
     public:
+        // diff: .
         auto getstat()
         {
             return debug;
+        }
+        // diff: Discard current rendered frame.
+        void abort_render()
+        {
+            abort = true;
         }
         // diff: Obtain new content to render.
         auto commit(core const& canvas)
@@ -5685,11 +5691,6 @@ again:
                 }
             }
             return faux;
-        }
-        // diff: Discard current rendered frame.
-        void abort_render()
-        {
-            abort = true;
         }
 
         diff(link& conio, svga vtmode)
