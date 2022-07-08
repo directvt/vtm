@@ -1234,12 +1234,13 @@ namespace netxs::app::shared
             if (gear.meta(hids::anyCtrl))
             {
                 log("host: area copied to clipboard ", location);
-                sptr<core> canvas_ptr;
+                auto canvas_ptr = sptr<core>{};
                 gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
                 if (canvas_ptr)
                 {
                     auto& canvas = *canvas_ptr;
-                    auto data = canvas.meta(location);
+                    auto data = ansi::esc{};
+                    data.s11n(canvas, location);
                     if (data.length())
                     {
                         gear.set_clip_data(location.size, data);

@@ -485,6 +485,90 @@ namespace netxs::ansi
                                                                                                     c.chan.b, 'm');
             else return block;
         }
+        // basevt: Ansify/textify content of specified region.
+        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        auto& s11n(core const& canvas, rect region, cell& state)
+        {
+            auto badfx = [&]()
+            {
+                add(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                state.set_gc();
+                state.wdt(1);
+            };
+            auto side_badfx = [&]() // Restoring the halves on the side
+            {
+                add(state.txt());
+                state.set_gc();
+                state.wdt(1);
+            };
+            auto allfx = [&](cell const& c)
+            {
+                auto width = c.wdt();
+                if (width < 2) // Narrow character
+                {
+                    if (state.wdt() == 2) badfx(); // Left part alone
+                    c.scan<svga::truecolor, USESGR>(state, block);
+                }
+                else
+                {
+                    if (width == 2) // Left part
+                    {
+                        if (state.wdt() == 2) badfx();  // Left part alone
+                        c.scan_attr<svga::truecolor, USESGR>(state, block);
+                        state.set_gc(c); // Save char from c for the next iteration
+                    }
+                    else if (width == 3) // Right part
+                    {
+                        if (state.wdt() == 2)
+                        {
+                            if (state.scan<svga::truecolor, USESGR>(c, state, block)) state.set_gc(); // Cleanup used t
+                            else
+                            {
+                                badfx(); // Left part alone
+                                c.scan_attr<svga::truecolor, USESGR>(state, block);
+                                badfx(); // Right part alone
+                            }
+                        }
+                        else
+                        {
+                            c.scan_attr<svga::truecolor, USESGR>(state, block);
+                            if (state.wdt() == 0) side_badfx(); // Right part alone at the left side
+                            else                  badfx(); // Right part alone
+                        }
+                    }
+                }
+            };
+            auto eolfx = [&]()
+            {
+                if (state.wdt() == 2) side_badfx();  // Left part alone at the right side
+                state.set_gc();
+                basevt::eol();
+            };
+
+            if (region)
+            {
+                if constexpr (USESGR && INITIAL) basevt::nil();
+                netxs::onrect(canvas, region, allfx, eolfx);
+                if constexpr (FINALISE)
+                {
+                    block.pop_back(); // Pop last eol (lf).
+                    if constexpr (USESGR) basevt::nil();
+                }
+            }
+            return *this;
+        }
+        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        auto& s11n(core const& canvas, rect region) // basevt: Ansify/textify content of specified region.
+        {
+            auto state = cell{};
+            return s11n<USESGR, INITIAL, FINALISE>(canvas, region, state);
+        }
+        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        auto& s11n(core const& canvas, cell& state) // basevt: Ansify/textify all content.
+        {
+            auto region = rect{-dot_mx / 2, dot_mx };
+            return s11n<USESGR, INITIAL, FINALISE>(canvas, region, state);
+        }
     };
 
     // ansi: Escaped sequences accumulator.
@@ -2276,6 +2360,12 @@ namespace netxs::ansi
             class bitmap
                 : public stream
             {
+                using list = std::unordered_map<ui64, text>;
+
+                cell state; // bitmap: .
+                core image; // bitmap: .
+                list newgc; // bitmap: Unknown grapheme cluster list.
+
                 struct subtype
                 {
                     static constexpr byte nop = 0x00; // Apply current brush. nop = dif - refer.
@@ -2294,15 +2384,23 @@ namespace netxs::ansi
                     glyph = 1 << 4,
                 };
 
-                template<class Core>
-                auto set(id_t winid, twod const& coord, Core& cache, Core& front, cell& state, bool& abort)
+                auto& canvas()
                 {
+                    return image;
+                }
+                auto set(id_t winid, twod const& coord, core& cache, bool& abort)
+                {
+                    {
+                        //todo multiple windows
+                        stream::add(type::bitmap, winid, rect{ coord, cache.size() });
+                        stream::reinit();
+                    }
                     auto pen = state;
                     auto src = cache.iter();
                     auto end = cache.iend();
                     auto csz = cache.size();
-                    auto fsz = front.size();
-                    auto dst = front.iter();
+                    auto fsz = image.size();
+                    auto dst = image.iter();
                     auto dtx = fsz.x - csz.x;
                     auto min = std::min(csz, fsz);
                     auto beg = src + 1;
@@ -2371,11 +2469,6 @@ namespace netxs::ansi
                         }
                         else bad = true;
                     };
-                    {
-                        //todo multiple windows
-                        stream::add(type::bitmap, winid, rect{ coord, csz });
-                        stream::reinit();
-                    }
                     while (src != mid && !abort)
                     {
                         auto end = src + min.x;
@@ -2401,23 +2494,22 @@ namespace netxs::ansi
                     else
                     {
                         auto discard_empty = fsz == csz;
-                        std::swap(front, cache);
+                        std::swap(image, cache);
                         sum = commit(discard_empty);
                     }
                     return sum;
                 }
-                template<class F, class L>
-                static auto get(F&& canvas, L&& gclist, view& data)
+                auto& sync(view& data)
                 {
                     auto [myid, area] = stream::take<id_t, rect>(data);
                     //todo head.myid
-                    if (canvas.size() != area.size)
+                    if (image.size() != area.size)
                     {
-                        canvas.crop(area.size);
+                        image.crop(area.size);
                     }
-                    auto mark = canvas.mark();
-                    auto head = canvas.iter();
-                    auto tail = canvas.iend();
+                    auto mark = image.mark();
+                    auto head = image.iter();
+                    auto tail = image.iend();
                     auto iter = head;
                     auto size = tail - head;
                     auto take = [&](auto what, cell& c)
@@ -2429,7 +2521,7 @@ namespace netxs::ansi
                         {
                             auto [size] = stream::take<byte>(data);
                             stream::take(c.egc().glyph, size, data);
-                            if (c.jgc() == faux) gclist[c.tkn()];
+                            if (c.jgc() == faux) newgc[c.tkn()];
                         }
                         return c;
                     };
@@ -2459,7 +2551,7 @@ namespace netxs::ansi
                             if (count > tail - iter)
                             {
                                 log("dtvt: bitmap: corrupted data, subtype: ", what);
-                                return;
+                                break;
                             }
                             auto from = iter;
                             std::fill(from, iter += count, mark);
@@ -2471,22 +2563,23 @@ namespace netxs::ansi
                             if (offset >= size)
                             {
                                 log("dtvt: bitmap: corrupted data, subtype: ", what);
-                                return;
+                                break;
                             }
                             iter = head + offset;
                         }
                         else // Unknown subtype.
                         {
                             log("dtvt: bitmap: unknown data, subtype: ", what);
-                            return;
+                            break;
                         }
                     }
-                    canvas.mark(mark);
+                    image.mark(mark);
                     //log("dtvt: frame len: ", frame_len);
                     //log("dtvt: nop count: ", nop_count);
                     //log("dtvt: rep count: ", rep_count);
                     //log("dtvt: dif count: ", dif_count);
                     //log("----------------------------");
+                    return newgc;
                 }
             };
         }
@@ -2498,9 +2591,10 @@ namespace netxs::ansi
                 : public basevt<text>
             {
                 text block; // ascii::bitmap: .
+                cell state; // ascii::bitmap: .
+                core image; // ascii::bitmap: .
 
             public:
-
                 // ascii::bitmap: .
                 template<class T>
                 void operator += (T&& str) { block += std::forward<T>(str); }
@@ -2537,8 +2631,7 @@ namespace netxs::ansi
                 }
 
                 // ascii::bitmap: .
-                template<class Core>
-                auto set(id_t winid, twod const& winxy, Core& cache, Core& front, cell& state, bool& abort)
+                auto set(id_t winid, twod const& winxy, core& cache, bool& abort)
                 {
                     auto coord = dot_00;
                     auto saved = state;
@@ -2583,7 +2676,7 @@ namespace netxs::ansi
                         }
                     };
 
-                    if (front.hash() != cache.hash())
+                    if (image.hash() != cache.hash())
                     {
                         basevt::scroll_wipe();
                         auto src = cache.iter();
@@ -2622,13 +2715,13 @@ namespace netxs::ansi
                             }
                             ++coord.y;
                         }
-                        std::swap(front, cache);
+                        std::swap(image, cache);
                         delta = commit();
                     }
                     else
                     {
                         auto src = cache.iter();
-                        auto dst = front.iter();
+                        auto dst = image.iter();
                         while (coord.y < field.y)
                         {
                             if (abort)
@@ -2734,7 +2827,7 @@ namespace netxs::ansi
                             ++coord.y;
                         }
 
-                        std::swap(front, cache);
+                        std::swap(image, cache);
                         delta = commit();
                     }
                     return delta;

@@ -633,12 +633,9 @@ namespace netxs::console
     class face
         : public rich, public flow, public std::enable_shared_from_this<face>
     {
-        using vrgb = std::vector<irgb>;
-
         twod anker;     // face: The position of the nearest visible paragraph.
         id_t piece = 1; // face: The nearest to top paragraph.
-
-        vrgb cache; // face: BlurFX temp buffer.
+        vrgb cache;     // face: BlurFX temp buffer.
 
         // face: Is the c inside the viewport?
         bool inside(twod const& c)
@@ -860,6 +857,8 @@ namespace netxs::console
         template<class P = noop>
         void blur(si32 r, P shade = P())
         {
+            using irgb = vrgb::value_type;
+
             auto view = core::view();
             auto size = core::size();
 
@@ -883,7 +882,6 @@ namespace netxs::console
                                              d_width, s_point,
                                                       d_point, shade);
         }
-
         // face: Render nested object to the canvas using renderproc. TRIM = trim viewport to the client area.
         template<bool TRIM = true, class T>
         void render(sptr<T> nested_ptr, twod const& basis = {})
@@ -5601,7 +5599,6 @@ again:
         lock mutex; // diff: Mutex between renderer and committer threads.
         cond synch; // diff: Synchronization between renderer and committer.
         core cache; // diff: The current content buffer which going to be checked and processed.
-        core front; // diff: The Shadow copy of the terminal/screen.
         bool alive; // diff: Working loop state.
         bool ready; // diff: Conditional variable to avoid spurious wakeup.
         bool abort; // diff: Abort building current frame.
@@ -5613,7 +5610,6 @@ again:
         void render(link& conio)
         {
             log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
-            auto state = cell{};
             auto start = moment{};
             auto image = Bitmap{};
             auto guard = std::unique_lock{ mutex };
@@ -5624,7 +5620,7 @@ again:
                 abort = faux;
                 auto winid = id_t{ 0xddccbbaa };
                 auto coord = dot_00;
-                debug.delta = image.set(winid, coord, cache, front, state, abort);
+                debug.delta = image.set(winid, coord, cache, abort);
                 if (debug.delta)
                 {
                     image.sendby(conio); // Sending, this is the frame synchronization point.

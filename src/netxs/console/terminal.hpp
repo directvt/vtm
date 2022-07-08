@@ -1840,7 +1840,7 @@ namespace netxs::ui
                 }
             }
             // bufferbase: Pickup selected data from canvas.
-            void selection_pickup(text& buffer, rich& canvas, twod const& seltop, twod const& selend, si32 selmod, bool selbox)
+            void selection_pickup(ansi::esc& buffer, rich& canvas, twod const& seltop, twod const& selend, si32 selmod, bool selbox)
             {
                 auto limits = panel - dot_11;
                 auto curtop = std::clamp(seltop, dot_00, limits);
@@ -1853,8 +1853,8 @@ namespace netxs::ui
                 square.normalize_itself();
                 if (selbox || grip_1.coor.y == grip_2.coor.y)
                 {
-                    buffer += selmod == xsgr::ansitext ? canvas.meta<true>(square)
-                                                       : canvas.meta<faux>(square);
+                    selmod == xsgr::ansitext ? buffer.s11n<true>(canvas, square)
+                                             : buffer.s11n<faux>(canvas, square);
                 }
                 else
                 {
@@ -1864,15 +1864,15 @@ namespace netxs::ui
                     auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
                     if (selmod == xsgr::ansitext)
                     {
-                        buffer += canvas.meta<true, true, faux>(part_1);
-                        buffer += canvas.meta<true, faux, faux>(part_2);
-                        buffer += canvas.meta<true, faux, true>(part_3);
+                        buffer.s11n<true, true, faux>(canvas, part_1);
+                        buffer.s11n<true, faux, faux>(canvas, part_2);
+                        buffer.s11n<true, faux, true>(canvas, part_3);
                     }
                     else
                     {
-                        buffer += canvas.meta<faux, true, faux>(part_1);
-                        buffer += canvas.meta<faux, faux, faux>(part_2);
-                        buffer += canvas.meta<faux, faux, true>(part_3);
+                        buffer.s11n<faux, true, faux>(canvas, part_1);
+                        buffer.s11n<faux, faux, faux>(canvas, part_2);
+                        buffer.s11n<faux, faux, true>(canvas, part_3);
                     }
                 }
             }
@@ -5115,9 +5115,8 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
-
-                    yield += selmod == xsgr::ansitext ? dest.meta<true, faux, true>(mark)
-                                                      : dest.meta<faux, faux, true>(mark);
+                    selmod == xsgr::ansitext ? yield.s11n<true, faux, true>(dest, mark)
+                                             : yield.s11n<faux, faux, true>(dest, mark);
                 }
                 else
                 {
@@ -5158,7 +5157,8 @@ namespace netxs::ui
                                 if (auto jet = curln.style.jet(); style.jet() != jet) yield.jet(jet);
                                 style = curln.style;
                             }
-                            auto block = curln.template meta<true, faux, faux>(field, state);
+                            auto block = ansi::esc{};
+                            block.s11n<true, faux, faux>(curln, field, state);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });
@@ -5168,7 +5168,8 @@ namespace netxs::ui
                     {
                         build([&](auto& curln)
                         {
-                            auto block = curln.template meta<faux, faux, faux>(field, state);
+                            auto block = ansi::esc{};
+                            block.s11n<faux, faux, faux>(curln, field, state);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });
@@ -6875,13 +6876,12 @@ namespace netxs::ui
         };
 
         using sync = std::condition_variable;
-        using list = std::unordered_map<ui64, text>;
+        using s11n = netxs::ansi::dtvt::binary::bitmap;
 
         events_t        events; // dtvt: .
         text            cmdarg; // dtvt: Startup command line arguments.
         bool            active; // dtvt: Terminal lifetime.
         si32            nodata; // dtvt: Show splash "No signal".
-        face            canvas; // dtvt: Application bitmap.
         face            splash; // dtvt: "No signal" splash.
         hook            oneoff; // dtvt: One-shot token for start and shutdown events.
         std::mutex      access; // dtvt: Canvas accesss mutex.
@@ -6890,7 +6890,7 @@ namespace netxs::ui
         ansi::esc       buffer; // dtvt: Clipboard buffer.
         ansi::esc       outbuf; // dtvt: PTY output buffer.
         subs            debugs; // dtvt: Tokens for debug output subcriptions.
-        list            gclist; // dtvt: Unknown grapheme cluster list.
+        s11n            bitmap; // dtvt: .
         ansi::esc       prompt; // dtvt: PTY logger prompt.
         os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
 
@@ -6917,11 +6917,11 @@ namespace netxs::ui
                     case type::bitmap:
                     {
                         auto lock = std::lock_guard{ access };
-                        bitmap::get(canvas, gclist, frame.data);
-                        if (gclist.size())
+                        auto& unknown_gc_list = bitmap.sync(frame.data);
+                        if (unknown_gc_list.size())
                         {
-                            buffer.request_gc(gclist);
-                            gclist.clear();
+                            buffer.request_gc(unknown_gc_list);
+                            unknown_gc_list.clear();
                             log("request tokens: ", utf::debase(buffer));
                             answer(buffer);
                         }
@@ -7092,9 +7092,12 @@ namespace netxs::ui
                     .add("              \n",
                          "  Closing...  \n",
                          "              \n") };
-                canvas.output(note);
-                canvas.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-                canvas.output(note);
+                auto& canvas = bitmap.canvas();
+                canvas.copy(splash);
+                splash.output(note);
+                splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                splash.output(note);
+                canvas.swap(splash);
                 this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
                 events.disable();
             }
@@ -7166,7 +7169,7 @@ namespace netxs::ui
               active{ true },
               nodata{      }
         {
-            canvas.link(base::id);
+            bitmap.canvas().link(base::id);
             cmdarg = command_line;
 
             //SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
@@ -7225,9 +7228,10 @@ namespace netxs::ui
             {
                 auto size = base::size();
                 auto lock = std::unique_lock{ access };
+                auto& canvas = bitmap.canvas();
                 if (nodata == canvas.hash()) // " No signal " on timeout > 1/60s
                 {
-                    fallback(parent_canvas);
+                    fallback(parent_canvas, canvas);
                     return;
                 }
                 else if (size == canvas.size())
@@ -7243,7 +7247,7 @@ namespace netxs::ui
                          && size != canvas.size())
                         {
                             nodata = canvas.hash();
-                            fallback(parent_canvas);
+                            fallback(parent_canvas, canvas);
                             return;
                         }
                     }
@@ -7251,7 +7255,7 @@ namespace netxs::ui
                 }
             };
         }
-        void fallback(face& parent_canvas)
+        void fallback(face& parent_canvas, core const& canvas)
         {
             auto size = base::size();
             if (splash.size() != size)
@@ -7268,7 +7272,7 @@ namespace netxs::ui
             }
             fill(parent_canvas, splash);
         }
-        void fill(face& parent_canvas, face& canvas)
+        void fill(core& parent_canvas, core const& canvas)
         {
             if (lucidity == 0xFF) parent_canvas.fill(canvas, cell::shaders::full);
             else                  parent_canvas.fill(canvas, cell::shaders::transparent(lucidity));
