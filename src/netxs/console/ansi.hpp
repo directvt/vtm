@@ -1928,14 +1928,9 @@ namespace netxs::ansi
 
             class stream
             {
-                using lock = buff::counter;
-                static constexpr sz_t head = sizeof(sz_t) + sizeof(type); 
-
-                lock  guard;
-                text& block;
-          const sz_t  start;
-                sz_t  basis;
-                bool  alive;
+                text block{};
+                sz_t basis{};
+                sz_t start{};
 
                 // stream: .
                 template<class T>
@@ -1962,14 +1957,16 @@ namespace netxs::ansi
                         block += v;
                     }
                     else if constexpr (std::is_same_v<D, view>
+                                    || std::is_same_v<D, qiew>
                                     || std::is_same_v<D, text>)
                     {
+                        auto length = static_cast<sz_t>(data.length());
+                        auto le_data = netxs::letoh(length);
+                        auto size = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
+                        block += size;
                         block += data;
                     }
-                    else
-                    {
-                        throw;
-                    }
+                    else log("dtvt: unsupported data type");
                 }
                 // stream: Replace bytes at specified position.
                 template<class T>
@@ -2025,6 +2022,13 @@ namespace netxs::ansi
                     return *this;
                 }
                 // stream: .
+                template<class Char, class Size_t>
+                inline auto& add(Char* data, Size_t size)
+                {
+                    block += view{ data, size };
+                    return *this;
+                }
+                // stream: .
                 template<class T, class ...Args>
                 inline auto& add(T&& data, Args&&... data_list)
                 {
@@ -2067,51 +2071,6 @@ namespace netxs::ansi
                     data.remove_prefix(size);
                     return crop;
                 }
-
-                // stream: .
-                auto length() const
-                {
-                    return static_cast<sz_t>(block.length());
-                }
-                // stream: .
-                void reinit()
-                {
-                    basis = length();
-                }
-                // stream: .
-                auto reset()
-                {
-                    block.resize(start);
-                    return start;
-                }
-                // stream: .
-                auto commit(bool discard_empty = faux)
-                {
-                    alive = faux;
-                    auto size = length();
-                    if (discard_empty
-                     && size == basis)
-                    {
-                        return reset();
-                    }
-                    else
-                    {
-                        stream::add_at(start, size - start);
-                        return size;
-                    }
-                }
-                // stream: .
-                template<class T>
-                void sendby(T&& sender, bool discard_empty = faux)
-                {
-                    if (alive) commit(discard_empty);
-                    if (block.size()
-                     && guard.solo())
-                    {
-                        sender.output(block);
-                        block.clear();
-                    }
-                }
                 // stream: Check DirectVT frame integrity.
                 static auto purify(view flow)
                 {
@@ -2135,34 +2094,71 @@ namespace netxs::ansi
                 }
 
                 // stream: .
-                operator view ()
+                auto length() const
                 {
-                    return block;
+                    return static_cast<sz_t>(block.length());
                 }
-                template<class ...Args>
-                stream(buff& data, type kind, Args&&... args)
-                    : guard{ data.lock()},
-                      block{ data.accum },
-                      alive{ true       },
-                      start{ length()   }
+                // stream: .
+                auto reset()
                 {
-                    stream::add(head, kind, std::forward<Args>(args)...);
-                    reinit();
+                    block.resize(basis);
+                    return sz_t{ 0 };
                 }
-               ~stream()
+                // stream: .
+                void reinit()
                 {
-                    if (alive) commit();
+                    start = length();
+                }
+                // stream: .
+                auto commit(bool discard_empty = faux)
+                {
+                    auto size = length();
+                    if (discard_empty && size == start)
+                    {
+                        return reset();
+                    }
+                    else
+                    {
+                        stream::add_at(0, size);
+                        return size;
+                    }
+                }
+                // stream: .
+                template<class T>
+                void sendby(T&& sender, bool discard_empty = faux)
+                {
+                    if (commit(discard_empty))
+                    {
+                        sender.output(block);
+                        reset();
+                    }
+                }
+                // stream: .
+                template<type Kind, class ...Args>
+                void set(Args&&... args)
+                {
+                    add(Kind, std::forward<Args>(args)...);
+                }
+                // stream: .
+                template<type Kind, class ...Args>
+                static auto get(view& data)
+                {
+                    return stream::take<Args...>(data);
+                }
+                stream()
+                {
+                    add(basis);
+                    basis = length();
+                    start = basis;
                 }
             };
 
-            class frames
-                : public stream
+            namespace iterators
             {
-                struct iterator
+                struct frame
                 {
                     type kind;
                     view data;
-
                     auto next(view& rest)
                     {
                         auto head = sizeof(sz_t) + sizeof(type);
@@ -2178,12 +2174,104 @@ namespace netxs::ansi
                         return stop;
                     }
                 };
-            public:
-                static auto get(view& data)
+                struct tooltip
                 {
-                    return generic_list_t<view, iterator>{ data };
-                }
-            };
+                    id_t gear_id;
+                    view data;
+                    auto next(view& rest)
+                    {
+                        auto stop = rest.empty();
+                        if (!stop)
+                        {
+                            std::tie(gear_id, data) = stream::take<id_t, view>(rest);
+                        }
+                        return stop;
+                    }
+                };
+                struct jgc
+                {
+                    ui64 token;
+                    view cluster;
+                    auto next(view& rest)
+                    {
+                        auto stop = rest.empty();
+                        if (!stop)
+                        {
+                            std::tie(token, cluster) = stream::take<ui64, view>(rest);
+                        }
+                        return stop;
+                    }
+                };
+            }
+            template<> auto stream::get<type::any>        (view& data) { return generic_list_t<view, iterators::frame>  { data }; }
+            template<> auto stream::get<type::tooltips>   (view& data) { return generic_list_t<text, iterators::tooltip>{ data }; }
+            template<> auto stream::get<type::jgc_list>   (view& data) { return generic_list_t<view, iterators::jgc>    { data }; }
+            template<> auto stream::get<type::mouse_event>(view& data)
+            {
+                struct
+                {
+                    id_t gear_id;
+                    hint cause;
+                    twod coord;
+                } m;
+                std::tie(m.gear_id, m.cause, m.coord) = stream::take<id_t, hint, twod>(data);
+                return m;
+            }
+            template<> auto stream::get<type::request_dbg_count>(view& data) { auto [count]   = stream::take<sz_t>(data); return count; }
+            template<> auto stream::get<type::request_clipboard>(view& data) { auto [gear_id] = stream::take<id_t>(data); return gear_id; }
+            template<> auto stream::get<type::set_clipboard>    (view& data)
+            {
+                struct
+                {
+                    id_t gear_id;
+                    twod clip_prev_size;
+                    view clipdata;
+                } c;
+                std::tie(c.gear_id, c.clip_prev_size, c.clipdata) = stream::take<id_t, twod, view>(data);
+                return c;
+            }
+            template<> auto stream::get<type::off_focus>(view& data) { auto [gear_id] = stream::take<id_t>(data); return gear_id; }
+            template<> auto stream::get<type::set_focus>(view& data)
+            {
+                struct
+                {
+                    id_t gear_id;
+                    bool combine_focus;
+                    bool force_group_focus;
+                } f;
+                std::tie(f.gear_id, f.combine_focus, f.force_group_focus) = stream::take<id_t, bool, bool>(data);
+                return f;
+            }
+            template<> auto stream::get<type::form_header>(view& data)
+            {
+                struct
+                {
+                    id_t window_id;
+                    view new_header;
+                } h;
+                std::tie(h.window_id, h.new_header) = stream::take<id_t, view>(data);
+                return h;
+            }
+            template<> auto stream::get<type::form_footer>(view& data)
+            {
+                struct
+                {
+                    id_t window_id;
+                    view new_footer;
+                } f;
+                std::tie(f.window_id, f.new_footer) = stream::take<id_t, view>(data);
+                return f;
+            }
+            template<> auto stream::get<type::warping>(view& data)
+            {
+                struct
+                {
+                    id_t window_id;
+                    dent warpdata;
+                } w;
+                std::tie(w.window_id, w.warpdata) = stream::take<id_t, dent>(data);
+                return w;
+            }
 
             class bitmap
                 : public stream
@@ -2197,10 +2285,6 @@ namespace netxs::ansi
                 };
 
             public:
-                bitmap(buff& data)
-                    : stream{ data, type::bitmap }
-                { }
-
                 enum : byte
                 {
                     refer = 1 << 0, // 1 - Diff with our canvas cell, 0 - diff with current brush (state).
@@ -2210,8 +2294,8 @@ namespace netxs::ansi
                     glyph = 1 << 4,
                 };
 
-                template<class Core, class Lock>
-                auto set(id_t winid, twod const& coord, Core& cache, Core& front, cell& state, bool& abort, Lock& guard)
+                template<class Core>
+                auto set(id_t winid, twod const& coord, Core& cache, Core& front, cell& state, bool& abort)
                 {
                     auto pen = state;
                     auto src = cache.iter();
@@ -2261,7 +2345,7 @@ namespace netxs::ansi
                         if (changes & bgclr) add(cache.bgc());
                         if (changes & fgclr) add(cache.fgc());
                         if (changes & style) add(cache.stl());
-                        if (changes & glyph) add(cluster, view{ cache.egc().glyph, cluster });
+                        if (changes & glyph) add(cluster, cache.egc().glyph, cluster);
                         state = cache;
                     };
                     auto map = [&](auto const& cache, auto const& front)
@@ -2289,7 +2373,7 @@ namespace netxs::ansi
                     };
                     {
                         //todo multiple windows
-                        stream::add(winid, rect{ coord, csz });
+                        stream::add(type::bitmap, winid, rect{ coord, csz });
                         stream::reinit();
                     }
                     while (src != mid && !abort)
@@ -2320,7 +2404,6 @@ namespace netxs::ansi
                         std::swap(front, cache);
                         sum = commit(discard_empty);
                     }
-                    guard.unlock();
                     return sum;
                 }
                 template<class F, class L>
@@ -2406,297 +2489,6 @@ namespace netxs::ansi
                     //log("----------------------------");
                 }
             };
-
-            class tooltips
-                : public stream
-            {
-                struct tooltip_iterator
-                {
-                    id_t gear_id;
-                    view data;
-
-                    auto next(view& rest)
-                    {
-                        auto stop = rest.empty();
-                        if (!stop)
-                        {
-                            std::tie(gear_id, data) = stream::take<id_t, view>(rest);
-                        }
-                        return stop;
-                    }
-                };
-
-            public:
-                tooltips(buff& data)
-                    : stream{ data, type::tooltips }
-                { }
-
-                void add(id_t gear_id, view tooltip_data)
-                {
-                    stream::add(gear_id, (sz_t)tooltip_data.size(), tooltip_data);
-                }
-                static auto get(view& data)
-                {
-                    return generic_list_t<text, tooltip_iterator>{ data };
-                }
-            };
-
-            class jgc_list
-                : public stream
-            {
-                struct jgc_iterator
-                {
-                    ui64 token;
-                    view cluster;
-
-                    auto next(view& rest)
-                    {
-                        auto stop = rest.empty();
-                        if (!stop)
-                        {
-                            std::tie(token, cluster) = stream::take<ui64, view>(rest);
-                        }
-                        return stop;
-                    }
-                };
-
-            public:
-                jgc_list(buff& data)
-                    : stream{ data, type::jgc_list }
-                { }
-
-                template<class T>
-                void add(T token, view cluster)
-                {
-                    stream::add(token, static_cast<sz_t>(cluster.size()), cluster);
-                }
-                static auto get(view& data)
-                {
-                    return generic_list_t<view, jgc_iterator>{ data };
-                }
-            };
-
-            class mouse_event
-                : public stream
-            {
-            public:
-                mouse_event(buff& data)
-                    : stream{ data, type::mouse_event }
-                { }
-
-                void set(id_t gear_id, hint cause, twod const& coord)
-                {
-                    stream::add(gear_id, cause, coord);
-                }
-                static auto get(view& data)
-                {
-                    struct
-                    {
-                        id_t gear_id;
-                        hint cause;
-                        twod coord;
-                    } m;
-                    std::tie(m.gear_id, m.cause, m.coord) = stream::take<id_t, hint, twod>(data);
-                    return m;
-                }
-            };
-
-            class request_debug
-                : public stream
-            {
-            public:
-                request_debug(buff& data)
-                    : stream{ data, type::request_debug }
-                { }
-            };
-
-            class request_dbg_count
-                : public stream
-            {
-            public:
-                request_dbg_count(buff& data)
-                    : stream{ data, type::request_dbg_count }
-                { }
-
-                void set(sz_t count)
-                {
-                    stream::add(count);
-                }
-                static auto get(view& data)
-                {
-                    auto [count] = stream::take<sz_t>(data);
-                    return count;
-                }
-            };
-
-            class set_clipboard
-                : public stream
-            {
-            public:
-                set_clipboard(buff& data)
-                    : stream{ data, type::set_clipboard }
-                { }
-
-                void set(id_t gear_id, twod const& clip_prev_size, view clipdata)
-                {
-                    stream::add(gear_id, clip_prev_size, static_cast<sz_t>(clipdata.size()), clipdata);
-                }
-                static auto get(view& data)
-                {
-                    struct
-                    {
-                        id_t gear_id;
-                        twod clip_prev_size;
-                        view clipdata;
-                    } c;
-                    std::tie(c.gear_id, c.clip_prev_size, c.clipdata) = stream::take<id_t, twod, view>(data);
-                    return c;
-                }
-            };
-
-            class request_clipboard
-                : public stream
-            {
-            public:
-                request_clipboard(buff& data)
-                    : stream{ data, type::request_clipboard }
-                { }
-
-                void set(id_t gear_id)
-                {
-                    stream::add(gear_id);
-                }
-                static auto get(view& data)
-                {
-                    auto [gear_id] = stream::take<id_t>(data);
-                    return gear_id;
-                }
-            };
-
-            class set_focus
-                : public stream
-            {
-            public:
-                set_focus(buff& data)
-                    : stream{ data, type::set_focus }
-                { }
-
-                void set(id_t gear_id, bool combine_focus, bool force_group_focus)
-                {
-                    stream::add(gear_id, combine_focus, force_group_focus);
-                }
-                static auto get(view& data)
-                {
-                    struct
-                    {
-                        id_t gear_id;
-                        bool combine_focus;
-                        bool force_group_focus;
-                    } f;
-                    std::tie(f.gear_id, f.combine_focus, f.force_group_focus) = stream::take<id_t, bool, bool>(data);
-                    return f;
-                }
-            };
-
-            class off_focus
-                : public stream
-            {
-            public:
-                off_focus(buff& data)
-                    : stream{ data, type::off_focus }
-                { }
-
-                void set(id_t gear_id)
-                {
-                    stream::add(gear_id);
-                }
-                static auto get(view& data)
-                {
-                    auto [gear_id] = stream::take<id_t>(data);
-                    return gear_id;
-                }
-            };
-
-            class form_header
-                : public stream
-            {
-            public:
-                form_header(buff& data)
-                    : stream{ data, type::form_header }
-                { }
-
-                void set(id_t window_id, view new_header)
-                {
-                    stream::add(window_id, static_cast<sz_t>(new_header.size()), new_header);
-                }
-                static auto get(view& data)
-                {
-                    struct
-                    {
-                        id_t window_id;
-                        view new_header;
-                    } h;
-                    std::tie(h.window_id, h.new_header) = stream::take<id_t, view>(data);
-                    return h;
-                }
-            };
-
-            class form_footer
-                : public stream
-            {
-            public:
-                form_footer(buff& data)
-                    : stream{ data, type::form_footer }
-                { }
-
-                void set(id_t window_id, view new_footer)
-                {
-                    stream::add(window_id, static_cast<sz_t>(new_footer.size()), new_footer);
-                }
-                static auto get(view& data)
-                {
-                    struct
-                    {
-                        id_t window_id;
-                        view new_footer;
-                    } f;
-                    std::tie(f.window_id, f.new_footer) = stream::take<id_t, view>(data);
-                    return f;
-                }
-            };
-
-            class warping
-                : public stream
-            {
-            public:
-                warping(buff& data)
-                    : stream{ data, type::warping }
-                { }
-
-                void set(id_t window_id, dent const& warpdata)
-                {
-                    stream::add(window_id, warpdata);
-                }
-                static auto get(view& data)
-                {
-                    struct
-                    {
-                        id_t window_id;
-                        dent warpdata;
-                    } w;
-                    std::tie(w.window_id, w.warpdata) = stream::take<id_t, dent>(data);
-                    return w;
-                }
-            };
-
-            class expose
-                : public stream
-            {
-            public:
-                expose(buff& data)
-                    : stream{ data, type::expose }
-                { }
-            };
         }
 
         namespace ascii
@@ -2705,32 +2497,34 @@ namespace netxs::ansi
             class bitmap
                 : public basevt<text>
             {
-                using lock = buff::counter;
-
-                lock  guard; // ascii::bitmap: .
-                text& block; // ascii::bitmap: .
-                bool  alive; // ascii::bitmap: .
-          const sz_t  start; // ascii::bitmap: .
+                text block; // ascii::bitmap: .
 
             public:
+
                 // ascii::bitmap: .
-                auto reset()
-                {
-                    block.resize(start);
-                    return start;
-                }
+                template<class T>
+                void operator += (T&& str) { block += std::forward<T>(str); }
+
+                bitmap()
+                    : basevt{ block }
+                { }
+
                 // ascii::bitmap: .
                 auto length() const
                 {
                     return static_cast<sz_t>(block.length());
                 }
                 // ascii::bitmap: .
+                auto reset()
+                {
+                    block.clear();
+                    return length();
+                }
+                // ascii::bitmap: .
                 template<class T>
                 void sendby(T&& sender)
                 {
-                    if (alive) commit();
-                    if (block.size()
-                     && guard.solo())
+                    if (commit())
                     {
                         sender.output(block);
                         block.clear();
@@ -2739,13 +2533,12 @@ namespace netxs::ansi
                 // ascii::bitmap: .
                 auto commit()
                 {
-                    alive = faux;
-                    auto size = length();
-                    return size;
+                    return length();
                 }
 
-                template<class Core, class Lock>
-                auto set(id_t winid, twod const& winxy, Core& cache, Core& front, cell& state, bool& abort, Lock& guard)
+                // ascii::bitmap: .
+                template<class Core>
+                auto set(id_t winid, twod const& winxy, Core& cache, Core& front, cell& state, bool& abort)
                 {
                     auto coord = dot_00;
                     auto saved = state;
@@ -2792,10 +2585,8 @@ namespace netxs::ansi
 
                     if (front.hash() != cache.hash())
                     {
-                        std::swap(front, cache);
-                        guard.unlock();
                         basevt::scroll_wipe();
-                        auto src = front.iter();
+                        auto src = cache.iter();
                         while (coord.y < field.y)
                         {
                             if (abort)
@@ -2831,6 +2622,7 @@ namespace netxs::ansi
                             }
                             ++coord.y;
                         }
+                        std::swap(front, cache);
                         delta = commit();
                     }
                     else
@@ -2843,7 +2635,6 @@ namespace netxs::ansi
                             {
                                 delta = reset();
                                 state = saved;
-                                guard.unlock();
                                 break;
                             }
                             auto beg = src + 1;
@@ -2945,21 +2736,9 @@ namespace netxs::ansi
 
                         std::swap(front, cache);
                         delta = commit();
-                        guard.unlock();
                     }
                     return delta;
                 }
-
-                template<class T>
-                void operator += (T&& str) { block += std::forward<T>(str); }
-
-                bitmap(buff& data)
-                    : basevt{data.accum },
-                      guard{ data.lock()},
-                      block{ data.accum },
-                      alive{ true       },
-                      start{ length()   }
-                { }
             };
         }
     }

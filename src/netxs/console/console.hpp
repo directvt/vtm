@@ -4778,7 +4778,7 @@ namespace netxs::console
         using lock = std::recursive_mutex;
         using cond = std::condition_variable_any;
         using sptr = netxs::sptr<bell>;
-        using buff = netxs::ansi::dtvt::buff;
+        using buff = netxs::ansi::dtvt::binary::stream;
 
         sptr owner; // link: Boss.
         xipc canal; // link: Data highway.
@@ -4878,92 +4878,78 @@ namespace netxs::console
         }
         void forward(id_t gear_id, hint cause, twod const& coord)
         {
-            auto mouse_event = ansi::dtvt::binary::mouse_event{ frame };
-            mouse_event.set(gear_id, cause, coord);
-            mouse_event.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::mouse_event>(gear_id, cause, coord);
+            frame.sendby(*this);
         }
         void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
         {
-            auto set_clipboard = ansi::dtvt::binary::set_clipboard{ frame };
-            set_clipboard.set(gear_id, clip_preview_size, clip_rawdata);
-            set_clipboard.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::set_clipboard>(gear_id, clip_preview_size, clip_rawdata);
+            frame.sendby(*this);
         }
         void request_clipboard(id_t gear_id)
         {
-            auto request_clipboard = ansi::dtvt::binary::request_clipboard{ frame };
-            request_clipboard.set(gear_id);
-            request_clipboard.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::request_clipboard>(gear_id);
+            frame.sendby(*this);
         }
         void set_focus(id_t gear_id, bool combine_focus, bool force_group_focus)
         {
-            auto set_focus = ansi::dtvt::binary::set_focus{ frame };
-            set_focus.set(gear_id, combine_focus, force_group_focus);
-            set_focus.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::set_focus>(gear_id, combine_focus, force_group_focus);
+            frame.sendby(*this);
         }
         void off_focus(id_t gear_id)
         {
-            auto off_focus = ansi::dtvt::binary::off_focus{ frame };
-            off_focus.set(gear_id);
-            off_focus.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::off_focus>(gear_id);
+            frame.sendby(*this);
         }
         void expose()
         {
-            auto pack = ansi::dtvt::binary::expose{ frame };
-            pack.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::expose>();
+            frame.sendby(*this);
         }
         void request_debug()
         {
-            auto request_dbg = ansi::dtvt::binary::request_debug{ frame };
-            request_dbg.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::request_debug>();
+            frame.sendby(*this);
         }
         void request_dbg_count(sz_t count)
         {
-            auto request_count = ansi::dtvt::binary::request_dbg_count{ frame };
-            request_count.set(count);
-            request_count.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::request_dbg_count>(count);
+            frame.sendby(*this);
         }
         void send_header(id_t window_id, view new_header)
         {
-            auto form_header = ansi::dtvt::binary::form_header{ frame };
-            form_header.set(window_id, new_header);
-            form_header.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::form_header>(window_id, new_header);
+            frame.sendby(*this);
         }
         void send_footer(id_t window_id, view new_footer)
         {
-            auto form_footer = ansi::dtvt::binary::form_footer{ frame };
-            form_footer.set(window_id, new_footer);
-            form_footer.sendby(*this);
+            frame.set<ansi::dtvt::binary::type::form_footer>(window_id, new_footer);
+            frame.sendby(*this);
         }
         template<class T>
         void send_tooltips(T&& gears)
         {
-            auto tooltips = ansi::dtvt::binary::tooltips{ frame };
+            frame.set<ansi::dtvt::binary::type::tooltips>();
             for (auto& [gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.is_tooltip_changed())
                 {
-                    tooltips.add(gear_id, gear.get_tooltip());
+                    frame.add(gear_id, gear.get_tooltip());
                 }
             }
-            tooltips.sendby(*this, true);
+            frame.sendby(*this, true);
         }
         template<class T>
         void send_gclist(T&& gclist)
         {
-            auto jgc_list = ansi::dtvt::binary::jgc_list{ frame };
+            frame.set<ansi::dtvt::binary::type::jgc_list>();
             for (auto& [token, cluster] : gclist)
             {
-                jgc_list.add(token, cluster);
+                frame.add(token, cluster);
                 log("token ", token, " cluster.size ", cluster.size());
             }
-            jgc_list.sendby(*this);
-        }
-        void append(view utf8)
-        {
-            auto extra = ansi::dtvt::ascii::bitmap{ frame };
-            extra.add(utf8);
-            extra.sendby(*this);
+            frame.sendby(*this);
         }
 
         template<class E, class T>
@@ -5605,7 +5591,6 @@ again:
         using lock = std::mutex;
         using cond = std::condition_variable_any;
         using span = period;
-        using buff = netxs::ansi::dtvt::buff;
 
         struct stat
         {
@@ -5617,7 +5602,6 @@ again:
         cond synch; // diff: Synchronization between renderer and committer.
         core cache; // diff: The current content buffer which going to be checked and processed.
         core front; // diff: The Shadow copy of the terminal/screen.
-        buff frame; // diff: Serialization buffer.
         bool alive; // diff: Working loop state.
         bool ready; // diff: Conditional variable to avoid spurious wakeup.
         bool abort; // diff: Abort building current frame.
@@ -5631,21 +5615,20 @@ again:
             log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
             auto state = cell{};
             auto start = moment{};
+            auto image = Bitmap{};
             auto guard = std::unique_lock{ mutex };
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
                 start = tempus::now();
                 ready = faux;
                 abort = faux;
-                auto image = Bitmap{ frame };
                 auto winid = id_t{ 0xddccbbaa };
                 auto coord = dot_00;
-                debug.delta = image.set(winid, coord, cache, front, state, abort, guard);
+                debug.delta = image.set(winid, coord, cache, front, state, abort);
                 if (debug.delta)
                 {
-                    image.sendby(conio);
-                }
-                guard.lock();
+                    image.sendby(conio); // Sending, this is the frame synchronization point.
+                }                        // Frames should drop, the rest should wait for the end of sending.
                 debug.watch = tempus::now() - start;
             }
             log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
@@ -6130,7 +6113,7 @@ again:
                             para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
                         }
                         log("gate: title changed to '", temp, ansi::nil().add("'"));
-                        conio.append(ansi::header(temp));
+                        conio.output(ansi::header(temp));
                     }
                 };
                 SUBMIT_T(tier::general, e2::nextframe, token, damaged)
@@ -6177,7 +6160,7 @@ again:
                     auto& data = gear.clip_rawdata;
                     auto& size = gear.preview_size;
                     if (direct) conio.forward_clipboard(ext_gear_id, size, data);
-                    else        conio.append(ansi::setbuf(data)); // OSC 52
+                    else        conio.output(ansi::setbuf(data)); // OSC 52
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
                 {

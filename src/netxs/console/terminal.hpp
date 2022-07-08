@@ -6907,17 +6907,17 @@ namespace netxs::ui
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
         {
-            using namespace ansi::dtvt;
+            using namespace ansi::dtvt::binary;
 
-            auto frames = binary::frames::get(data);
+            auto frames = stream::get<type::any>(data);
             for(auto& frame : frames)
             {
                 switch (frame.kind)
                 {
-                    case binary::type::bitmap:
+                    case type::bitmap:
                     {
                         auto lock = std::lock_guard{ access };
-                        binary::bitmap::get(canvas, gclist, frame.data);
+                        bitmap::get(canvas, gclist, frame.data);
                         if (gclist.size())
                         {
                             buffer.request_gc(gclist);
@@ -6930,15 +6930,15 @@ namespace netxs::ui
                         syncxs.notify_one();
                         break;
                     }
-                    case binary::type::mouse_event:
+                    case type::mouse_event:
                     {
-                        auto m = binary::mouse_event::get(frame.data);
+                        auto m = stream::get<type::mouse_event>(frame.data);
                         events.replay(m.gear_id, m.cause, m.coord);
                         break;
                     }
-                    case binary::type::tooltips:
+                    case type::tooltips:
                     {
-                        auto tooltips = binary::tooltips::get(frame.data);
+                        auto tooltips = stream::get<type::tooltips>(frame.data);
                         netxs::events::enqueue(This(), [&, tooltips = std::move(tooltips)](auto& boss)
                         {
                             for (auto& tooltip : tooltips)
@@ -6953,7 +6953,7 @@ namespace netxs::ui
                         });
                         break;
                     }
-                    case binary::type::expose:
+                    case type::expose:
                     {
                         netxs::events::enqueue(This(), [&](auto& boss)
                         {
@@ -6962,7 +6962,7 @@ namespace netxs::ui
                         break;
                     }
                     //todo reimplement Logs
-                    case binary::type::request_debug:
+                    case type::request_debug:
                     {
                         netxs::events::enqueue(This(), [&](auto& boss)
                         {
@@ -6971,33 +6971,33 @@ namespace netxs::ui
                         break;
                     }
                     //todo reimplement Logs
-                    case binary::type::request_dbg_count:
+                    case type::request_dbg_count:
                     {
-                        auto count = binary::request_dbg_count::get(frame.data);
+                        auto count = stream::get<type::request_dbg_count>(frame.data);
                         netxs::events::enqueue(This(), [&, count](auto& boss) mutable
                         {
                             this->SIGNAL(tier::general, e2::debug::count::set, count);
                         });
                         break;
                     }
-                    case binary::type::set_clipboard:
+                    case type::set_clipboard:
                     {
-                        auto c = binary::set_clipboard::get(frame.data);
+                        auto c = stream::get<type::set_clipboard>(frame.data);
                         events.set_clipboad(c.gear_id, c.clip_prev_size, c.clipdata);
                         break;
                     }
-                    case binary::type::request_clipboard:
+                    case type::request_clipboard:
                     {
-                        auto gear_id = binary::request_clipboard::get(frame.data);
+                        auto gear_id = stream::get<type::request_clipboard>(frame.data);
                         text clipdata; //todo use gear.raw_clip_data
                         events.get_clipboad(gear_id, clipdata);
                         buffer = ansi::clipdata(gear_id, clipdata);
                         answer(buffer);
                         break;
                     }
-                    case binary::type::set_focus:
+                    case type::set_focus:
                     {
-                        auto f = binary::set_focus::get(frame.data);
+                        auto f = stream::get<type::set_focus>(frame.data);
                         events.set_focus(f.gear_id, f.combine_focus, f.force_group_focus);
                         //todo revise
                         //netxs::events::enqueue(This(), [&, gear_id](auto& boss)
@@ -7006,15 +7006,15 @@ namespace netxs::ui
                         //});
                         break;
                     }
-                    case binary::type::off_focus:
+                    case type::off_focus:
                     {
-                        auto gear_id = binary::off_focus::get(frame.data);
+                        auto gear_id = stream::get<type::off_focus>(frame.data);
                         events.off_focus(gear_id);
                         break;
                     }
-                    case binary::type::form_header:
+                    case type::form_header:
                     {
-                        auto h = binary::form_header::get(frame.data);
+                        auto h = stream::get<type::form_header>(frame.data);
                         netxs::events::enqueue(This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
                         {
                             //todo use window_id
@@ -7022,9 +7022,9 @@ namespace netxs::ui
                         });
                         break;
                     }
-                    case binary::type::form_footer:
+                    case type::form_footer:
                     {
-                        auto f = binary::form_footer::get(frame.data);
+                        auto f = stream::get<type::form_footer>(frame.data);
                         netxs::events::enqueue(This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
                         {
                             //todo use window_id
@@ -7032,9 +7032,9 @@ namespace netxs::ui
                         });
                         break;
                     }
-                    case binary::type::warping:
+                    case type::warping:
                     {
-                        auto w = binary::warping::get(frame.data);
+                        auto w = stream::get<type::warping>(frame.data);
                         netxs::events::enqueue(This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
                         {
                             //todo use window_id
@@ -7042,9 +7042,9 @@ namespace netxs::ui
                         });
                         break;
                     }
-                    case binary::type::jgc_list:
+                    case type::jgc_list:
                     {
-                        auto jgc_list = binary::jgc_list::get(frame.data);
+                        auto jgc_list = stream::get<type::jgc_list>(frame.data);
                         for (auto& jgc : jgc_list)
                         {
                             cell::gc_set_data(jgc.token, jgc.cluster);
@@ -7053,7 +7053,7 @@ namespace netxs::ui
                         //todo full strike to redraw with new clusters
                         break;
                     }
-                    case binary::type::vt_command:
+                    case type::vt_command:
                     {
                         break;
                     }
