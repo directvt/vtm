@@ -6619,7 +6619,7 @@ namespace netxs::ui
                 if (gear.captured(owner.id)) gear.setfree(faux);
                 gear.dismiss();
             }
-            void serialize(hids& gear)
+            void mouse(hids& gear)
             {
                 auto coord = gear.coord;
                 auto bttns = gear.get_buttons();
@@ -6699,7 +6699,7 @@ namespace netxs::ui
                 //log("dtvt: ", utf::debase(queue));
                 owner.answer(queue);
             }
-            void proceed(hids& gear, id_t cause, bool moved)
+            void serialize_mouse(hids& gear, id_t cause, bool moved)
             {
                 using m = hids::events::mouse;
                 using b = hids::events::mouse::button;
@@ -6729,22 +6729,43 @@ namespace netxs::ui
                     default:
                         break;
                 }
-                if (active) serialize(gear);
+                if (active) mouse(gear);
             }
 
         public:
-            void replay(id_t gear_id, hint cause, twod const& coord)
+            void disable()
             {
-                log("replay: ", cause);
+                token.clear();
+            }
+
+            void handle(ansi::dtvt::binary::tooltips& tooltips_data)
+            {
+                auto list = tooltips_data.get();
+                netxs::events::enqueue(owner.This(), [&, tooltips = std::move(list)](auto& boss) mutable
+                {
+                    for (auto& tooltip : tooltips)
+                    {
+                        if (auto ptr = bell::getref(tooltip.gear_id))
+                        if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                        {
+                            log("tooltip: ", tooltip.tip_text);
+                            gear_ptr->set_tooltip(0, tooltip.tip_text);
+                        }
+                    }
+                });
+            }
+            void handle(ansi::dtvt::binary::mouse_event& m)
+            {
+                log("replay: ", m.cause);
                 auto lock = events::sync{};
-                if (auto ptr = bell::getref(gear_id))
+                if (auto ptr = bell::getref(m.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 if (auto parent_ptr = owner.base::parent())
                 {
                     auto& gear = *gear_ptr;
                     release(gear);
-                    gear.replay(cause, coord);
-                    parent_ptr->template raw_riseup<tier::release>(cause, gear);
+                    gear.replay(m.cause, m.coord);
+                    parent_ptr->template raw_riseup<tier::release>(m.cause, gear);
                     //todo unify
                     auto basis = e2::coor::set.param();
                     gear.owner.SIGNAL(tier::request, e2::coor::set, basis);
@@ -6753,48 +6774,85 @@ namespace netxs::ui
                     gear.coord -= basis; // Restore gate mouse position.
                     if (gear) // Forward the event to the gate as if it was initiated there.
                     {
-                        gear.owner.bell::template signal<tier::release>(cause, gear);
+                        gear.owner.bell::template signal<tier::release>(m.cause, gear);
                     }
                 }
             }
-            void set_clipboad(id_t gear_id, twod const& clip_prev_size, view clipdata)
+            void handle(ansi::dtvt::binary::jgc_list& jgc_list)
             {
+                auto list = jgc_list.get();
+                for (auto& jgc : list)
+                {
+                    cell::gc_set_data(jgc.token, jgc.cluster);
+                    log("new gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                }
+                //todo full strike to redraw with new clusters
+            }
+            void handle(ansi::dtvt::binary::expose& object)
+            {
+                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                {
+                    owner.base::template riseup<tier::preview>(e2::form::layout::expose, owner);
+                });
+            }
+            void handle(ansi::dtvt::binary::request_debug& object)
+            {
+                //todo reimplement Logs
+                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                {
+                    owner.request_debug();
+                });
+            }
+            void handle(ansi::dtvt::binary::request_dbg_count& object)
+            {
+                //todo reimplement Logs
+                netxs::events::enqueue(owner.This(), [&, count = object.count](auto& boss) mutable
+                {
+                    owner.SIGNAL(tier::general, e2::debug::count::set, count);
+                });
+            }
+            void handle(ansi::dtvt::binary::set_clipboard& c)
+            {
+                //id_t gear_id, twod const& clip_prev_size, view clipdata)
                 auto lock = events::sync{};
-                if (auto ptr = bell::getref(gear_id))
+                if (auto ptr = bell::getref(c.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    gear_ptr->set_clip_data(clip_prev_size, clipdata);
+                    gear_ptr->set_clip_data(c.clip_prev_size, c.clipdata);
                 }
             }
-            void get_clipboad(id_t gear_id, text& clipdata)
+            void handle(ansi::dtvt::binary::request_clipboard& c)
             {
                 auto lock = events::sync{};
-                if (auto ptr = bell::getref(gear_id))
+                text clipdata; //todo use gear.raw_clip_data
+                if (auto ptr = bell::getref(c.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
                     gear_ptr->get_clip_data(clipdata);
                 }
+                owner.buffer = ansi::clipdata(c.gear_id, clipdata);
+                owner.answer(owner.buffer);
             }
-            void set_focus(id_t gear_id, bool combine_focus, bool force_group_focus)
+            void handle(ansi::dtvt::binary::set_focus& f)
             {
                 auto lock = events::sync{};
-                if (auto ptr = bell::getref(gear_id))
+                if (auto ptr = bell::getref(f.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
                     auto& gear = *gear_ptr;
                     //todo unify (hids)
                     auto state = gear.state();
-                    gear.force_group_focus = force_group_focus;
-                    gear.combine_focus = combine_focus;
+                    gear.force_group_focus = f.force_group_focus;
+                    gear.combine_focus = f.combine_focus;
                     gear.set_kb_focus(owner.This());
                     gear.state(state);
                     log("dtvt: events: set_kb_focus");
                 }
             }
-            void off_focus(id_t gear_id)
+            void handle(ansi::dtvt::binary::off_focus& f)
             {
                 auto lock = events::sync{};
-                if (auto ptr = bell::getref(gear_id))
+                if (auto ptr = bell::getref(f.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
                     auto& gear = *gear_ptr;
@@ -6802,9 +6860,29 @@ namespace netxs::ui
                     log("dtvt: events: remove_from_kb_focus ", gear.id);
                 }
             }
-            void disable()
+            void handle(ansi::dtvt::binary::form_header& h)
             {
-                token.clear();
+                netxs::events::enqueue(owner.This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
+                {
+                    //todo use window_id
+                    owner.base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
+                });
+            }
+            void handle(ansi::dtvt::binary::form_footer& f)
+            {
+                netxs::events::enqueue(owner.This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
+                {
+                    //todo use window_id
+                    owner.base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
+                });
+            }
+            void handle(ansi::dtvt::binary::warping& w)
+            {
+                netxs::events::enqueue(owner.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
+                {
+                    //todo use window_id
+                    owner.base::riseup<tier::release>(e2::form::layout::swarp, warp);
+                });
             }
 
             events_t(dtvt& owner)
@@ -6821,7 +6899,7 @@ namespace netxs::ui
                     }
                     else moved = mapit->second(gear.coord);
                     auto cause = owner.bell::protos<tier::release>();
-                    proceed(gear, cause, moved);
+                    serialize_mouse(gear, cause, moved);
                     owner.bell::template expire<tier::release>();
                 };
                 owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
@@ -6876,7 +6954,7 @@ namespace netxs::ui
         };
 
         using sync = std::condition_variable;
-        using s11n = netxs::ansi::dtvt::binary::bitmap;
+        using s11n = netxs::ansi::dtvt::binary::s11n;
 
         events_t        events; // dtvt: .
         text            cmdarg; // dtvt: Startup command line arguments.
@@ -6890,7 +6968,7 @@ namespace netxs::ui
         ansi::esc       buffer; // dtvt: Clipboard buffer.
         ansi::esc       outbuf; // dtvt: PTY output buffer.
         subs            debugs; // dtvt: Tokens for debug output subcriptions.
-        s11n            bitmap; // dtvt: .
+        s11n            stream; // dtvt: .
         ansi::esc       prompt; // dtvt: PTY logger prompt.
         os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
 
@@ -6909,7 +6987,8 @@ namespace netxs::ui
         {
             using namespace ansi::dtvt::binary;
 
-            auto frames = stream::get<type::any>(data);
+            stream.frames.sync(data);
+            auto frames = stream.frames.get();
             for(auto& frame : frames)
             {
                 switch (frame.kind)
@@ -6917,11 +6996,11 @@ namespace netxs::ui
                     case type::bitmap:
                     {
                         auto lock = std::lock_guard{ access };
-                        auto& unknown_gc_list = bitmap.sync(frame.data);
-                        if (unknown_gc_list.size())
+                        stream.bitmap.sync(frame.data);
+                        if (stream.bitmap.newgc.size())
                         {
-                            buffer.request_gc(unknown_gc_list);
-                            unknown_gc_list.clear();
+                            buffer.request_gc(stream.bitmap.newgc);
+                            stream.bitmap.newgc.clear();
                             log("request tokens: ", utf::debase(buffer));
                             answer(buffer);
                         }
@@ -6930,138 +7009,21 @@ namespace netxs::ui
                         syncxs.notify_one();
                         break;
                     }
-                    case type::mouse_event:
-                    {
-                        auto m = stream::get<type::mouse_event>(frame.data);
-                        events.replay(m.gear_id, m.cause, m.coord);
-                        break;
-                    }
-                    case type::tooltips:
-                    {
-                        auto tooltips = stream::get<type::tooltips>(frame.data);
-                        netxs::events::enqueue(This(), [&, tooltips = std::move(tooltips)](auto& boss)
-                        {
-                            for (auto& tooltip : tooltips)
-                            {
-                                if (auto ptr = bell::getref(tooltip.gear_id))
-                                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
-                                {
-                                    log("tooltip: ", tooltip.data);
-                                    gear_ptr->set_tooltip(0, tooltip.data);
-                                }
-                            }
-                        });
-                        break;
-                    }
-                    case type::expose:
-                    {
-                        netxs::events::enqueue(This(), [&](auto& boss)
-                        {
-                            this->base::template riseup<tier::preview>(e2::form::layout::expose, *this);
-                        });
-                        break;
-                    }
-                    //todo reimplement Logs
-                    case type::request_debug:
-                    {
-                        netxs::events::enqueue(This(), [&](auto& boss)
-                        {
-                            request_debug();
-                        });
-                        break;
-                    }
-                    //todo reimplement Logs
-                    case type::request_dbg_count:
-                    {
-                        auto count = stream::get<type::request_dbg_count>(frame.data);
-                        netxs::events::enqueue(This(), [&, count](auto& boss) mutable
-                        {
-                            this->SIGNAL(tier::general, e2::debug::count::set, count);
-                        });
-                        break;
-                    }
-                    case type::set_clipboard:
-                    {
-                        auto c = stream::get<type::set_clipboard>(frame.data);
-                        events.set_clipboad(c.gear_id, c.clip_prev_size, c.clipdata);
-                        break;
-                    }
-                    case type::request_clipboard:
-                    {
-                        auto gear_id = stream::get<type::request_clipboard>(frame.data);
-                        text clipdata; //todo use gear.raw_clip_data
-                        events.get_clipboad(gear_id, clipdata);
-                        buffer = ansi::clipdata(gear_id, clipdata);
-                        answer(buffer);
-                        break;
-                    }
-                    case type::set_focus:
-                    {
-                        auto f = stream::get<type::set_focus>(frame.data);
-                        events.set_focus(f.gear_id, f.combine_focus, f.force_group_focus);
-                        //todo revise
-                        //netxs::events::enqueue(This(), [&, gear_id](auto& boss)
-                        //{
-                        //    events.set_focus(gear_id);
-                        //});
-                        break;
-                    }
-                    case type::off_focus:
-                    {
-                        auto gear_id = stream::get<type::off_focus>(frame.data);
-                        events.off_focus(gear_id);
-                        break;
-                    }
-                    case type::form_header:
-                    {
-                        auto h = stream::get<type::form_header>(frame.data);
-                        netxs::events::enqueue(This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
-                        {
-                            //todo use window_id
-                            this->base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
-                        });
-                        break;
-                    }
-                    case type::form_footer:
-                    {
-                        auto f = stream::get<type::form_footer>(frame.data);
-                        netxs::events::enqueue(This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
-                        {
-                            //todo use window_id
-                            this->base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
-                        });
-                        break;
-                    }
-                    case type::warping:
-                    {
-                        auto w = stream::get<type::warping>(frame.data);
-                        netxs::events::enqueue(This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
-                        {
-                            //todo use window_id
-                            this->base::riseup<tier::release>(e2::form::layout::swarp, warp);
-                        });
-                        break;
-                    }
-                    case type::jgc_list:
-                    {
-                        auto jgc_list = stream::get<type::jgc_list>(frame.data);
-                        for (auto& jgc : jgc_list)
-                        {
-                            cell::gc_set_data(jgc.token, jgc.cluster);
-                            log("new gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
-                        }
-                        //todo full strike to redraw with new clusters
-                        break;
-                    }
-                    case type::vt_command:
-                    {
-                        break;
-                    }
-                    default: // Unsupported command
-                    {
-                        log("dtvt: unsupported command: ", (byte)frame.kind, "\n", utf::debase(frame.data));
-                        break;
-                    }
+                    case type::mouse_event:       events.handle(stream.mouse_event      .sync(frame.data)); break;
+                    case type::tooltips:          events.handle(stream.tooltips         .sync(frame.data)); break;
+                    case type::jgc_list:          events.handle(stream.jgc_list         .sync(frame.data)); break;
+                    case type::expose:            events.handle(stream.expose           .sync(frame.data)); break;
+                    case type::request_debug:     events.handle(stream.request_debug    .sync(frame.data)); break;
+                    case type::request_dbg_count: events.handle(stream.request_dbg_count.sync(frame.data)); break;
+                    case type::set_clipboard:     events.handle(stream.set_clipboard    .sync(frame.data)); break;
+                    case type::request_clipboard: events.handle(stream.request_clipboard.sync(frame.data)); break;
+                    case type::set_focus:         events.handle(stream.set_focus        .sync(frame.data)); break;
+                    case type::off_focus:         events.handle(stream.off_focus        .sync(frame.data)); break;
+                    case type::form_header:       events.handle(stream.form_header      .sync(frame.data)); break;
+                    case type::form_footer:       events.handle(stream.form_footer      .sync(frame.data)); break;
+                    case type::warping:           events.handle(stream.warping          .sync(frame.data)); break;
+                    case type::vt_command: /*todo*/ break;
+                    default: log("dtvt: unsupported command: ", (byte)frame.kind, "\n", utf::debase(frame.data));
                 }
             }
         }
@@ -7087,17 +7049,20 @@ namespace netxs::ui
         {
             if (active)
             {
+                {
+                    auto lock = std::lock_guard{ access };
+                    auto& canvas = stream.bitmap.image;
+                    auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
+                        .add("              \n",
+                             "  Closing...  \n",
+                             "              \n") };
+                    canvas.copy(splash);
+                    splash.output(note);
+                    splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                    splash.output(note);
+                    canvas.swap(splash);
+                }
                 auto lock = netxs::events::sync{};
-                auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
-                    .add("              \n",
-                         "  Closing...  \n",
-                         "              \n") };
-                auto& canvas = bitmap.canvas();
-                canvas.copy(splash);
-                splash.output(note);
-                splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-                splash.output(note);
-                canvas.swap(splash);
                 this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
                 events.disable();
             }
@@ -7169,7 +7134,7 @@ namespace netxs::ui
               active{ true },
               nodata{      }
         {
-            bitmap.canvas().link(base::id);
+            stream.bitmap.image.link(base::id);
             cmdarg = command_line;
 
             //SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
@@ -7228,7 +7193,7 @@ namespace netxs::ui
             {
                 auto size = base::size();
                 auto lock = std::unique_lock{ access };
-                auto& canvas = bitmap.canvas();
+                auto& canvas = stream.bitmap.image;
                 if (nodata == canvas.hash()) // " No signal " on timeout > 1/60s
                 {
                     fallback(parent_canvas, canvas);

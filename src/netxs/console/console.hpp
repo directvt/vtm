@@ -4776,7 +4776,7 @@ namespace netxs::console
         using lock = std::recursive_mutex;
         using cond = std::condition_variable_any;
         using sptr = netxs::sptr<bell>;
-        using buff = netxs::ansi::dtvt::binary::stream;
+        using s11n = netxs::ansi::dtvt::binary::s11n;
 
         sptr owner; // link: Boss.
         xipc canal; // link: Data highway.
@@ -4786,7 +4786,7 @@ namespace netxs::console
         bool close; // link: Pre closing condition.
         si32 iface; // link: Platform specific UI code.
         text accum; // link: Accumulated unparsed input.
-        buff frame; // link: .
+        s11n wired; // link: .
 
         void reader()
         {
@@ -4876,78 +4876,66 @@ namespace netxs::console
         }
         void forward(id_t gear_id, hint cause, twod const& coord)
         {
-            frame.set<ansi::dtvt::binary::type::mouse_event>(gear_id, cause, coord);
-            frame.sendby(*this);
+            wired.mouse_event.send(*this, gear_id, cause, coord);
         }
         void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
         {
-            frame.set<ansi::dtvt::binary::type::set_clipboard>(gear_id, clip_preview_size, clip_rawdata);
-            frame.sendby(*this);
+            wired.set_clipboard.send(*this, gear_id, clip_preview_size, clip_rawdata);
         }
         void request_clipboard(id_t gear_id)
         {
-            frame.set<ansi::dtvt::binary::type::request_clipboard>(gear_id);
-            frame.sendby(*this);
+            wired.request_clipboard.send(*this, gear_id);
         }
         void set_focus(id_t gear_id, bool combine_focus, bool force_group_focus)
         {
-            frame.set<ansi::dtvt::binary::type::set_focus>(gear_id, combine_focus, force_group_focus);
-            frame.sendby(*this);
+            wired.set_focus.send(*this, gear_id, combine_focus, force_group_focus);
         }
         void off_focus(id_t gear_id)
         {
-            frame.set<ansi::dtvt::binary::type::off_focus>(gear_id);
-            frame.sendby(*this);
+            wired.off_focus.send(*this, gear_id);
         }
         void expose()
         {
-            frame.set<ansi::dtvt::binary::type::expose>();
-            frame.sendby(*this);
+            wired.expose.send(*this);
         }
         void request_debug()
         {
-            frame.set<ansi::dtvt::binary::type::request_debug>();
-            frame.sendby(*this);
+            wired.request_debug.send(*this);
         }
         void request_dbg_count(sz_t count)
         {
-            frame.set<ansi::dtvt::binary::type::request_dbg_count>(count);
-            frame.sendby(*this);
+            wired.request_dbg_count.send(*this, count);
         }
         void send_header(id_t window_id, view new_header)
         {
-            frame.set<ansi::dtvt::binary::type::form_header>(window_id, new_header);
-            frame.sendby(*this);
+            wired.form_header.send(*this, window_id, new_header);
         }
         void send_footer(id_t window_id, view new_footer)
         {
-            frame.set<ansi::dtvt::binary::type::form_footer>(window_id, new_footer);
-            frame.sendby(*this);
+            wired.form_footer.send(*this, window_id, new_footer);
         }
         template<class T>
         void send_tooltips(T&& gears)
         {
-            frame.set<ansi::dtvt::binary::type::tooltips>();
             for (auto& [gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.is_tooltip_changed())
                 {
-                    frame.add(gear_id, gear.get_tooltip());
+                    wired.tooltips << wired.tooltip_element(gear_id, gear.get_tooltip());
                 }
             }
-            frame.sendby(*this, true);
+            wired.tooltips.send<true>(*this);
         }
         template<class T>
         void send_gclist(T&& gclist)
         {
-            frame.set<ansi::dtvt::binary::type::jgc_list>();
             for (auto& [token, cluster] : gclist)
             {
-                frame.add(token, cluster);
+                wired.jgc_list << wired.jgc_element(token, cluster);
                 log("token ", token, " cluster.size ", cluster.size());
             }
-            frame.sendby(*this);
+            wired.jgc_list.send(*this);
         }
 
         template<class E, class T>
@@ -5623,8 +5611,8 @@ again:
                 debug.delta = image.set(winid, coord, cache, abort);
                 if (debug.delta)
                 {
-                    image.sendby(conio); // Sending, this is the frame synchronization point.
-                }                        // Frames should drop, the rest should wait for the end of sending.
+                    image.send(conio); // Sending, this is the frame synchronization point.
+                }                      // Frames should drop, the rest should wait for the end of sending.
                 debug.watch = tempus::now() - start;
             }
             log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
