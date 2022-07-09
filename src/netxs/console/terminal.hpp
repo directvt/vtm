@@ -6752,10 +6752,9 @@ namespace netxs::ui
                 owner.base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
                 owner.syncxs.notify_one();
             }
-            void apply(view data, ansi::dtvt::binary::tooltips& tooltips_data)
+            void apply(view data, ansi::dtvt::binary::tooltips& tooltips)
             {
-                tooltips_data.sync(data);
-                auto list = tooltips_data.get();
+                auto list = tooltips.sync(data);
                 netxs::events::enqueue(owner.This(), [&, tooltips = std::move(list)](auto& boss) mutable
                 {
                     for (auto& tooltip : tooltips)
@@ -6796,8 +6795,7 @@ namespace netxs::ui
             }
             void apply(view data, ansi::dtvt::binary::jgc_list& jgc_list)
             {
-                jgc_list.sync(data);
-                auto list = jgc_list.get();
+                auto list = jgc_list.sync(data);
                 for (auto& jgc : list)
                 {
                     cell::gc_set_data(jgc.token, jgc.cluster);
@@ -7012,8 +7010,7 @@ namespace netxs::ui
         {
             using namespace ansi::dtvt::binary;
 
-            stream.frames.sync(data);
-            auto frames = stream.frames.get();
+            auto frames = stream.frames.sync(data);
             for(auto& frame : frames)
             {
                 switch (frame.kind)

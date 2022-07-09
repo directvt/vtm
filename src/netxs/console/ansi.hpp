@@ -2299,14 +2299,10 @@ namespace netxs::ansi
 
                 view rest;
 
-                auto get()
-                {
-                    return generic_list_t<view, frame_element>{ rest };
-                }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
                     rest = data;
-                    return *this;
+                    return generic_list_t<view, frame_element>{ rest };
                 }
             };
             class mouse_event : public wrapper<mouse_event>
@@ -2362,14 +2358,10 @@ namespace netxs::ansi
 
                 text rest;
 
-                auto get()
-                {
-                    return generic_list_t<text, tooltip_element>{ rest };
-                }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
                     rest = data;
-                    return *this;
+                    return generic_list_t<text, tooltip_element>{ rest };
                 }
             };
             class jgc_element : public wrapper<jgc_element>
@@ -2401,14 +2393,10 @@ namespace netxs::ansi
 
                 text frame;
 
-                auto get()
-                {
-                    return generic_list_t<view, jgc_element>{ frame };
-                }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
                     frame = data;
-                    return *this;
+                    return generic_list_t<view, jgc_element>{ frame };
                 }
             };
             class request_dbg_count : public wrapper<request_dbg_count>
