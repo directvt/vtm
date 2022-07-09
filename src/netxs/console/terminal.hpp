@@ -6738,8 +6738,23 @@ namespace netxs::ui
                 token.clear();
             }
 
-            void handle(ansi::dtvt::binary::tooltips& tooltips_data)
+            void apply(view data, ansi::dtvt::binary::bitmap& bitmap)
             {
+                auto lock = bitmap.sync(data);
+                if (bitmap.newgc.size())
+                {
+                    owner.buffer.request_gc(bitmap.newgc);
+                    bitmap.newgc.clear();
+                    log("request tokens: ", utf::debase(owner.buffer));
+                    owner.answer(owner.buffer);
+                }
+                //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
+                owner.base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
+                owner.syncxs.notify_one();
+            }
+            void apply(view data, ansi::dtvt::binary::tooltips& tooltips_data)
+            {
+                tooltips_data.sync(data);
                 auto list = tooltips_data.get();
                 netxs::events::enqueue(owner.This(), [&, tooltips = std::move(list)](auto& boss) mutable
                 {
@@ -6754,8 +6769,9 @@ namespace netxs::ui
                     }
                 });
             }
-            void handle(ansi::dtvt::binary::mouse_event& m)
+            void apply(view data, ansi::dtvt::binary::mouse_event& m)
             {
+                m.sync(data);
                 log("replay: ", m.cause);
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(m.gear_id))
@@ -6778,8 +6794,9 @@ namespace netxs::ui
                     }
                 }
             }
-            void handle(ansi::dtvt::binary::jgc_list& jgc_list)
+            void apply(view data, ansi::dtvt::binary::jgc_list& jgc_list)
             {
+                jgc_list.sync(data);
                 auto list = jgc_list.get();
                 for (auto& jgc : list)
                 {
@@ -6788,32 +6805,35 @@ namespace netxs::ui
                 }
                 //todo full strike to redraw with new clusters
             }
-            void handle(ansi::dtvt::binary::expose& object)
+            void apply(view data, ansi::dtvt::binary::expose& object)
             {
+                object.sync(data);
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
                 {
                     owner.base::template riseup<tier::preview>(e2::form::layout::expose, owner);
                 });
             }
-            void handle(ansi::dtvt::binary::request_debug& object)
+            void apply(view data, ansi::dtvt::binary::request_debug& object)
             {
+                object.sync(data);
                 //todo reimplement Logs
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
                 {
                     owner.request_debug();
                 });
             }
-            void handle(ansi::dtvt::binary::request_dbg_count& object)
+            void apply(view data, ansi::dtvt::binary::request_dbg_count& object)
             {
+                object.sync(data);
                 //todo reimplement Logs
                 netxs::events::enqueue(owner.This(), [&, count = object.count](auto& boss) mutable
                 {
                     owner.SIGNAL(tier::general, e2::debug::count::set, count);
                 });
             }
-            void handle(ansi::dtvt::binary::set_clipboard& c)
+            void apply(view data, ansi::dtvt::binary::set_clipboard& c)
             {
-                //id_t gear_id, twod const& clip_prev_size, view clipdata)
+                c.sync(data);
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(c.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
@@ -6821,8 +6841,9 @@ namespace netxs::ui
                     gear_ptr->set_clip_data(c.clip_prev_size, c.clipdata);
                 }
             }
-            void handle(ansi::dtvt::binary::request_clipboard& c)
+            void apply(view data, ansi::dtvt::binary::request_clipboard& c)
             {
+                c.sync(data);
                 auto lock = events::sync{};
                 text clipdata; //todo use gear.raw_clip_data
                 if (auto ptr = bell::getref(c.gear_id))
@@ -6833,8 +6854,9 @@ namespace netxs::ui
                 owner.buffer = ansi::clipdata(c.gear_id, clipdata);
                 owner.answer(owner.buffer);
             }
-            void handle(ansi::dtvt::binary::set_focus& f)
+            void apply(view data, ansi::dtvt::binary::set_focus& f)
             {
+                f.sync(data);
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(f.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
@@ -6849,8 +6871,9 @@ namespace netxs::ui
                     log("dtvt: events: set_kb_focus");
                 }
             }
-            void handle(ansi::dtvt::binary::off_focus& f)
+            void apply(view data, ansi::dtvt::binary::off_focus& f)
             {
+                f.sync(data);
                 auto lock = events::sync{};
                 if (auto ptr = bell::getref(f.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
@@ -6860,24 +6883,27 @@ namespace netxs::ui
                     log("dtvt: events: remove_from_kb_focus ", gear.id);
                 }
             }
-            void handle(ansi::dtvt::binary::form_header& h)
+            void apply(view data, ansi::dtvt::binary::form_header& h)
             {
+                h.sync(data);
                 netxs::events::enqueue(owner.This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
                 {
                     //todo use window_id
                     owner.base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
                 });
             }
-            void handle(ansi::dtvt::binary::form_footer& f)
+            void apply(view data, ansi::dtvt::binary::form_footer& f)
             {
+                f.sync(data);
                 netxs::events::enqueue(owner.This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
                 {
                     //todo use window_id
                     owner.base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
                 });
             }
-            void handle(ansi::dtvt::binary::warping& w)
+            void apply(view data, ansi::dtvt::binary::warping& w)
             {
+                w.sync(data);
                 netxs::events::enqueue(owner.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
                 {
                     //todo use window_id
@@ -6962,8 +6988,7 @@ namespace netxs::ui
         si32            nodata; // dtvt: Show splash "No signal".
         face            splash; // dtvt: "No signal" splash.
         hook            oneoff; // dtvt: One-shot token for start and shutdown events.
-        std::mutex      access; // dtvt: Canvas accesss mutex.
-        sync            syncxs; // dtvt: Canvas access condvar.
+        sync            syncxs; // dtvt: Canvas access sync.
         period          maxoff; // dtvt: Max delay before showing "No signal".
         ansi::esc       buffer; // dtvt: Clipboard buffer.
         ansi::esc       outbuf; // dtvt: PTY output buffer.
@@ -6993,35 +7018,20 @@ namespace netxs::ui
             {
                 switch (frame.kind)
                 {
-                    case type::bitmap:
-                    {
-                        auto lock = std::lock_guard{ access };
-                        stream.bitmap.sync(frame.data);
-                        if (stream.bitmap.newgc.size())
-                        {
-                            buffer.request_gc(stream.bitmap.newgc);
-                            stream.bitmap.newgc.clear();
-                            log("request tokens: ", utf::debase(buffer));
-                            answer(buffer);
-                        }
-                        //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
-                        base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
-                        syncxs.notify_one();
-                        break;
-                    }
-                    case type::mouse_event:       events.handle(stream.mouse_event      .sync(frame.data)); break;
-                    case type::tooltips:          events.handle(stream.tooltips         .sync(frame.data)); break;
-                    case type::jgc_list:          events.handle(stream.jgc_list         .sync(frame.data)); break;
-                    case type::expose:            events.handle(stream.expose           .sync(frame.data)); break;
-                    case type::request_debug:     events.handle(stream.request_debug    .sync(frame.data)); break;
-                    case type::request_dbg_count: events.handle(stream.request_dbg_count.sync(frame.data)); break;
-                    case type::set_clipboard:     events.handle(stream.set_clipboard    .sync(frame.data)); break;
-                    case type::request_clipboard: events.handle(stream.request_clipboard.sync(frame.data)); break;
-                    case type::set_focus:         events.handle(stream.set_focus        .sync(frame.data)); break;
-                    case type::off_focus:         events.handle(stream.off_focus        .sync(frame.data)); break;
-                    case type::form_header:       events.handle(stream.form_header      .sync(frame.data)); break;
-                    case type::form_footer:       events.handle(stream.form_footer      .sync(frame.data)); break;
-                    case type::warping:           events.handle(stream.warping          .sync(frame.data)); break;
+                    case type::bitmap:            events.apply(frame.data, stream.bitmap           ); break;
+                    case type::mouse_event:       events.apply(frame.data, stream.mouse_event      ); break;
+                    case type::tooltips:          events.apply(frame.data, stream.tooltips         ); break;
+                    case type::jgc_list:          events.apply(frame.data, stream.jgc_list         ); break;
+                    case type::expose:            events.apply(frame.data, stream.expose           ); break;
+                    case type::request_debug:     events.apply(frame.data, stream.request_debug    ); break;
+                    case type::request_dbg_count: events.apply(frame.data, stream.request_dbg_count); break;
+                    case type::set_clipboard:     events.apply(frame.data, stream.set_clipboard    ); break;
+                    case type::request_clipboard: events.apply(frame.data, stream.request_clipboard); break;
+                    case type::set_focus:         events.apply(frame.data, stream.set_focus        ); break;
+                    case type::off_focus:         events.apply(frame.data, stream.off_focus        ); break;
+                    case type::form_header:       events.apply(frame.data, stream.form_header      ); break;
+                    case type::form_footer:       events.apply(frame.data, stream.form_footer      ); break;
+                    case type::warping:           events.apply(frame.data, stream.warping          ); break;
                     case type::vt_command: /*todo*/ break;
                     default: log("dtvt: unsupported command: ", (byte)frame.kind, "\n", utf::debase(frame.data));
                 }
@@ -7050,8 +7060,8 @@ namespace netxs::ui
             if (active)
             {
                 {
-                    auto lock = std::lock_guard{ access };
-                    auto& canvas = stream.bitmap.image;
+                    auto inst = stream.bitmap.freeze();
+                    auto& canvas = inst.image;
                     auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
                         .add("              \n",
                              "  Closing...  \n",
@@ -7192,8 +7202,8 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 auto size = base::size();
-                auto lock = std::unique_lock{ access };
-                auto& canvas = stream.bitmap.image;
+                auto inst = stream.bitmap.freeze();
+                auto& canvas = inst.image;
                 if (nodata == canvas.hash()) // " No signal " on timeout > 1/60s
                 {
                     fallback(parent_canvas, canvas);
@@ -7208,7 +7218,7 @@ namespace netxs::ui
                     while (size != canvas.size()) // Always waiting for the correct frame.
                     {
                         if (!active) return;
-                        if (std::cv_status::timeout == syncxs.wait_for(lock, maxoff)
+                        if (std::cv_status::timeout == syncxs.wait_for(inst.guard, maxoff)
                          && size != canvas.size())
                         {
                             nodata = canvas.hash();

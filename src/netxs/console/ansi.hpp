@@ -2279,14 +2279,12 @@ namespace netxs::ansi
                 auto   end() { return text::npos; }
             };
 
-            struct frame_element
-                : public wrapper<frame_element>
+            class frame_element : public wrapper<frame_element>
             {
-                view data;
+            public:
+                frame_element() : wrapper{ *this, type::frame_element } { }
 
-                frame_element()
-                    : wrapper{ *this, type::frame_element }
-                { }
+                view data;
 
                 auto sync(view& rest)
                 {
@@ -2294,14 +2292,12 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct frames
-                : public wrapper<frames>
+            class frames : public wrapper<frames>
             {
-                view rest;
+            public:
+                frames() : wrapper{ *this, type::any } { }
 
-                frames()
-                    : wrapper{ *this, type::any }
-                { }
+                view rest;
 
                 auto get()
                 {
@@ -2313,16 +2309,14 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct mouse_event
-                : public wrapper<mouse_event>
+            class mouse_event : public wrapper<mouse_event>
             {
+            public:
+                mouse_event() : wrapper{ *this, type::mouse_event } { }
+
                 id_t gear_id;
                 hint cause;
                 twod coord;
-
-                mouse_event()
-                    : wrapper{ *this, type::mouse_event }
-                { }
 
                 auto& operator () (id_t gear_id, hint cause, twod const& coord)
                 {
@@ -2339,15 +2333,13 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct tooltip_element
-                : public wrapper<tooltip_element>
+            class tooltip_element : public wrapper<tooltip_element>
             {
+            public:
+                tooltip_element() : wrapper{ *this, type::tooltip_element } { }
+
                 id_t gear_id;
                 text tip_text;
-
-                tooltip_element()
-                    : wrapper{ *this, type::tooltip_element }
-                { }
 
                 auto& operator () (id_t gear_id, view tip_text)
                 {
@@ -2363,14 +2355,12 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct tooltips
-                : public wrapper<tooltips>
+            class tooltips : public wrapper<tooltips>
             {
-                text rest;
+            public:
+                tooltips() : wrapper{ *this, type::tooltips } { }
 
-                tooltips()
-                    : wrapper{ *this, type::tooltips }
-                { }
+                text rest;
 
                 auto get()
                 {
@@ -2382,15 +2372,13 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct jgc_element
-                : public wrapper<jgc_element>
+            class jgc_element : public wrapper<jgc_element>
             {
+            public:
+                jgc_element() : wrapper{ *this, type::jgc_element } { }
+
                 ui64 token;
                 text cluster;
-
-                jgc_element()
-                    : wrapper{ *this, type::jgc_element }
-                { }
 
                 auto& operator () (ui64 token, view cluster)
                 {
@@ -2406,14 +2394,12 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct jgc_list
-                : public wrapper<jgc_list>
+            class jgc_list : public wrapper<jgc_list>
             {
-                text frame;
+            public:
+                jgc_list() : wrapper{ *this, type::jgc_list } { }
 
-                jgc_list()
-                    : wrapper{ *this, type::jgc_list }
-                { }
+                text frame;
 
                 auto get()
                 {
@@ -2425,14 +2411,12 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct request_dbg_count
-                : public wrapper<request_dbg_count>
+            class request_dbg_count : public wrapper<request_dbg_count>
             {
+            public:
                 sz_t count;
 
-                request_dbg_count()
-                    : wrapper{ *this, type::request_dbg_count }
-                { }
+                request_dbg_count() : wrapper{ *this, type::request_dbg_count } { }
 
                 auto& operator () (sz_t count)
                 {
@@ -2447,23 +2431,19 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct request_debug
-                : public wrapper<request_debug>
+            class request_debug : public wrapper<request_debug>
             {
-                request_debug()
-                    : wrapper{ *this, type::request_debug }
-                { }
+            public:
+                request_debug() : wrapper{ *this, type::request_debug } { }
             };
-            struct set_clipboard
-                : public wrapper<set_clipboard>
+            class set_clipboard : public wrapper<set_clipboard>
             {
+            public:
+                set_clipboard() : wrapper{ *this, type::set_clipboard } { }
+
                 id_t gear_id;
                 twod clip_prev_size;
                 text clipdata;
-
-                set_clipboard()
-                    : wrapper{ *this, type::set_clipboard }
-                { }
 
                 auto& operator () (id_t gear_id, twod const& clip_prev_size, view clipdata)
                 {
@@ -2480,14 +2460,12 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct request_clipboard
-                : public wrapper<request_clipboard>
+            class request_clipboard : public wrapper<request_clipboard>
             {
-                id_t gear_id;
+            public:
+                request_clipboard() : wrapper{ *this, type::request_clipboard } { }
 
-                request_clipboard()
-                    : wrapper{ *this, type::request_clipboard }
-                { }
+                id_t gear_id;
 
                 auto& operator () (id_t gear_id)
                 {
@@ -2502,16 +2480,14 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct set_focus
-                : public wrapper<set_focus>
+            class set_focus : public wrapper<set_focus>
             {
+            public:
+                set_focus() : wrapper{ *this, type::set_focus } { }
+
                 id_t gear_id;
                 bool combine_focus;
                 bool force_group_focus;
-
-                set_focus()
-                    : wrapper{ *this, type::set_focus }
-                { }
 
                 auto& operator () (id_t gear_id, bool combine_focus, bool force_group_focus)
                 {
@@ -2528,14 +2504,12 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct off_focus
-                : public wrapper<off_focus>
+            class off_focus : public wrapper<off_focus>
             {
+            public:
                 id_t gear_id;
 
-                off_focus()
-                    : wrapper{ *this, type::off_focus }
-                { }
+                off_focus() : wrapper{ *this, type::off_focus } { }
 
                 auto& operator () (id_t gear_id)
                 {
@@ -2550,15 +2524,13 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct form_header
-                : public wrapper<form_header>
+            class form_header : public wrapper<form_header>
             {
+            public:
+                form_header() : wrapper{ *this, type::form_header } { }
+
                 id_t window_id;
                 text new_header;
-
-                form_header()
-                    : wrapper{ *this, type::form_header }
-                { }
 
                 auto& operator () (id_t window_id, view new_header)
                 {
@@ -2574,15 +2546,13 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct form_footer
-                : public wrapper<form_footer>
+            class form_footer : public wrapper<form_footer>
             {
+            public:
+                form_footer() : wrapper{ *this, type::form_footer } { }
+
                 id_t window_id;
                 text new_footer;
-
-                form_footer()
-                    : wrapper{ *this, type::form_footer }
-                { }
 
                 auto& operator () (id_t window_id, view new_footer)
                 {
@@ -2598,15 +2568,13 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct warping
-                : public wrapper<warping>
+            class warping : public wrapper<warping>
             {
+            public:
+                warping() : wrapper{ *this, type::warping } { }
+
                 id_t window_id;
                 dent warpdata;
-
-                warping()
-                    : wrapper{ *this, type::warping }
-                { }
 
                 auto& operator () (id_t window_id, dent warpdata)
                 {
@@ -2622,18 +2590,20 @@ namespace netxs::ansi
                     return *this;
                 }
             };
-            struct expose
-                : public wrapper<expose>
+            class expose : public wrapper<expose>
             {
-                expose()
-                    : wrapper{ *this, type::expose }
-                { }
+            public:
+                expose() : wrapper{ *this, type::expose } { }
             };
-
-            class bitmap
-                : public wrapper<bitmap>
+            class bitmap : public wrapper<bitmap>
             {
-                using list = std::unordered_map<ui64, text>;
+            public:
+                bitmap() : wrapper{ *this, type::bitmap } { }
+
+                cell                           state; // bitmap: .
+                core                           image; // bitmap: .
+                std::mutex                     mutex; // bitmap: Canvas accesss mutex.
+                std::unordered_map<ui64, text> newgc; // bitmap: Unknown grapheme cluster list.
 
                 struct subtype
                 {
@@ -2642,11 +2612,6 @@ namespace netxs::ansi
                     static constexpr byte mov = 0xFE; // Set insertion point. sz_t: offset.
                     static constexpr byte rep = 0xFF; // Repeat current brush ui32 times. sz_t: N.
                 };
-
-            public:
-                cell state; // bitmap: .
-                core image; // bitmap: .
-                list newgc; // bitmap: Unknown grapheme cluster list.
 
                 enum : byte
                 {
@@ -2657,10 +2622,19 @@ namespace netxs::ansi
                     glyph = 1 << 4,
                 };
 
-                bitmap()
-                    : wrapper{ *this, type::bitmap }
-                { }
-
+                auto freeze()
+                {
+                    struct locked
+                    {
+                        std::unique_lock<std::mutex> guard;
+                        core&                        image;
+                        locked(std::mutex& mutex, core& image)
+                            : guard{ mutex },
+                              image{ image }
+                        { }
+                    };
+                    return locked{ mutex, image };
+                }
                 auto set(id_t winid, twod const& coord, core& cache, bool& abort)
                 {
                     //todo multiple windows
@@ -2769,8 +2743,9 @@ namespace netxs::ansi
                     }
                     return sum;
                 }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
+                    auto lock = std::unique_lock{ mutex };
                     auto [myid, area] = stream::take<id_t, rect>(data);
                     //todo head.myid
                     if (image.size() != area.size)
@@ -2849,7 +2824,7 @@ namespace netxs::ansi
                     //log("dtvt: rep count: ", rep_count);
                     //log("dtvt: dif count: ", dif_count);
                     //log("----------------------------");
-                    return newgc;
+                    return std::move(lock);
                 }
             };
 
