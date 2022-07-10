@@ -6753,9 +6753,10 @@ namespace netxs::ui
             }
             void apply(ansi::dtvt::binary::tooltips::access             lock)
             {
-                netxs::events::enqueue(owner.This(), [lock = std::move(lock)](auto& boss) mutable
+                auto copy = lock.thing;
+                netxs::events::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
                 {
-                    for (auto locked_tooltip : lock.thing)
+                    for (auto locked_tooltip : tooltips)
                     {
                         auto& tooltip = locked_tooltip.thing;
                         if (auto ptr = bell::getref(tooltip.gear_id))

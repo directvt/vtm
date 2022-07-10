@@ -2176,6 +2176,8 @@ namespace netxs::ansi
                     reset();
                 }
 
+                stream(stream const&) = default;
+                stream(stream&&)      = default;
                 stream(type kind)
                     : basis{ sizeof(basis) + sizeof(kind) },
                       start{ basis },
@@ -2205,6 +2207,11 @@ namespace netxs::ansi
                     { }
                 };
 
+                wrapper(wrapper&&) = default;
+                wrapper(wrapper const& other)
+                    : stream{ other },
+                       thing{ other.thing }
+                { }
                 wrapper(Base& boss, type kind)
                     : stream{ kind },
                        thing{ boss }
@@ -2300,6 +2307,14 @@ namespace netxs::ansi
                 using generic = binary::generic<Storage_type, Element_type>;
 
             public:
+                list(list const& other)
+                    : generic{ other },
+                      wrapper{ *this, Kind }
+                { }
+                list(list&& other)
+                    : generic{ std::move(other) },
+                      wrapper{ *this, Kind }
+                { }
                 list()
                     : wrapper{ *this, Kind }
                 { }
@@ -2330,6 +2345,16 @@ namespace netxs::ansi
             class tooltip_element : public wrapper<tooltip_element>
             {
             public:
+                tooltip_element(tooltip_element&& other)
+                    : wrapper{ *this, type::tooltip_element },
+                      gear_id { std::move(other.gear_id) },
+                      tip_text{ std::move(other.tip_text) }
+                { }
+                tooltip_element(tooltip_element const& other)
+                    : wrapper{ *this, type::tooltip_element },
+                      gear_id{ other.gear_id },
+                      tip_text{ other.tip_text }
+                { }
                 tooltip_element() : wrapper{ *this, type::tooltip_element } { }
 
                 id_t gear_id;
