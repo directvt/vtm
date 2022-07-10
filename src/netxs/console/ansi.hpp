@@ -1886,7 +1886,7 @@ namespace netxs::ansi
         {
             enum class type : byte
             {
-                any,
+                frames,
                 frame_element,
                 bitmap,            // Canvas data.
                 mouse_event,       // Mouse events.
@@ -2162,12 +2162,6 @@ namespace netxs::ansi
                     add(Kind, std::forward<Args>(args)...);
                 }
                 // stream: .
-                template<type Kind, class ...Args>
-                static auto get(view& data)
-                {
-                    return stream::take<Args...>(data);
-                }
-                // stream: .
                 void operator << (stream& other)
                 {
                     other.commit();
@@ -2195,21 +2189,39 @@ namespace netxs::ansi
             class wrapper
                 : public stream
             {
-                Base& boss;
+                using Lock = std::unique_lock<std::mutex>;
+
+                Base&      thing; // wrapper: Protected object.
+                std::mutex mutex; // wrapper: Accesss mutex.
 
             public:
+                struct access
+                    : public Lock
+                {
+                    Base& thing;
+                    access(std::mutex& mutex, Base& thing)
+                        :  Lock{ mutex },
+                          thing{ thing }
+                    { }
+                };
+
                 wrapper(Base& boss, type kind)
                     : stream{ kind },
-                        boss{ boss }
+                       thing{ boss }
                 { }
 
+                // wrapper .
+                auto freeze()
+                {
+                    return access{ mutex, thing };
+                }
                 // wrapper .
                 template<bool Discard_empty = faux, class T, class ...Args>
                 void send(T&& sender, Args&&... args)
                 {
                     if constexpr (!!sizeof...(args))
                     {
-                        boss(std::forward<Args>(args)...);
+                        thing(std::forward<Args>(args)...);
                     }
                     if (stream::commit(Discard_empty))
                     {
@@ -2218,21 +2230,23 @@ namespace netxs::ansi
                     }
                 }
                 // wrapper .
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
-                    return boss;
+                    return freeze();
                 }
             };
 
             template<class T, class Type>
-            struct generic_list_t
+            struct generic
             {
+            protected:
                 T    copy;
                 Type item;
 
                 struct iter
                 {
                     view  rest;
+                    view  crop;
                     bool  stop;
                     Type& item;
 
@@ -2245,14 +2259,15 @@ namespace netxs::ansi
                     }
 
                     template<class A>
-                    auto  operator == (A&&) const { return stop; }
-                    auto& operator  * ()    const { return item; }
-                    auto& operator  * ()          { return item; }
-                    auto  operator ++ ()
+                    auto operator == (A&&) const { return stop; }
+                    auto operator  * ()    const { return item.sync(crop); }
+                    auto operator  * ()          { return item.sync(crop); }
+                    auto operator ++ ()
                     {
                         static constexpr auto head = sizeof(sz_t) + sizeof(type);
                         stop = rest.size() < head;
-                        if (!stop)
+                        if (stop) crop = {};
+                        else
                         {
                             auto size = sz_t{};
                             std::tie(size, item.kind) = stream::template take<sz_t, type>(rest);
@@ -2260,23 +2275,42 @@ namespace netxs::ansi
                             if (stop) log("dtvt: corrupted data");
                             else
                             {
-                                auto crop = rest.substr(0, size - head);
+                                crop = rest.substr(0, size - head);
                                 rest.remove_prefix(size - head);
-                                item.sync(crop);
                             }
                         }
                     }
                 };
 
-                generic_list_t(generic_list_t const&) = default;
-                generic_list_t(generic_list_t&&)      = default;
-                generic_list_t(view data)
-                    : copy{ data }
-                {
-                    data = {};
-                }
+            public:
+                generic(generic const&) = default;
+                generic(generic&&)      = default;
+                generic()               = default;
+
                 auto begin() { return iter{ copy, item }; }
                 auto   end() { return text::npos; }
+            };
+
+            template<class Storage_type, type Kind, class Element_type>
+            class list
+                : public generic<Storage_type, Element_type>,
+                  public wrapper<list<Storage_type, Kind, Element_type>>
+            {
+                using wrapper = binary::wrapper<list<Storage_type, Kind, Element_type>>;
+                using generic = binary::generic<Storage_type, Element_type>;
+
+            public:
+                list()
+                    : wrapper{ *this, Kind }
+                { }
+
+                auto sync(view& data)
+                {
+                    auto lock = wrapper::freeze();
+                    generic::copy = data;
+                    data = {};
+                    return lock;
+                }
             };
 
             class frame_element : public wrapper<frame_element>
@@ -2288,45 +2322,9 @@ namespace netxs::ansi
 
                 auto sync(view& rest)
                 {
+                    auto lock = wrapper::freeze();
                     data = rest;
-                    return *this;
-                }
-            };
-            class frames : public wrapper<frames>
-            {
-            public:
-                frames() : wrapper{ *this, type::any } { }
-
-                view rest;
-
-                auto sync(view& data)
-                {
-                    rest = data;
-                    return generic_list_t<view, frame_element>{ rest };
-                }
-            };
-            class mouse_event : public wrapper<mouse_event>
-            {
-            public:
-                mouse_event() : wrapper{ *this, type::mouse_event } { }
-
-                id_t gear_id;
-                hint cause;
-                twod coord;
-
-                auto& operator () (id_t gear_id, hint cause, twod const& coord)
-                {
-                    stream::reset();
-                    this->gear_id = gear_id;
-                    this->cause = cause;
-                    this->coord = coord;
-                    stream::add(gear_id, cause, coord);
-                    return *this;
-                }
-                auto& sync(view& data)
-                {
-                    std::tie(gear_id, cause, coord) = stream::take<id_t, hint, twod>(data);
-                    return *this;
+                    return lock;
                 }
             };
             class tooltip_element : public wrapper<tooltip_element>
@@ -2345,23 +2343,11 @@ namespace netxs::ansi
                     stream::add(gear_id, tip_text);
                     return *this;
                 }
-                auto& sync(view& data)
-                {
-                    std::tie(gear_id, tip_text) = stream::take<id_t, view>(data);
-                    return *this;
-                }
-            };
-            class tooltips : public wrapper<tooltips>
-            {
-            public:
-                tooltips() : wrapper{ *this, type::tooltips } { }
-
-                text rest;
-
                 auto sync(view& data)
                 {
-                    rest = data;
-                    return generic_list_t<text, tooltip_element>{ rest };
+                    auto lock = wrapper::freeze();
+                    std::tie(gear_id, tip_text) = stream::take<id_t, view>(data);
+                    return lock;
                 }
             };
             class jgc_element : public wrapper<jgc_element>
@@ -2382,21 +2368,35 @@ namespace netxs::ansi
                 }
                 auto sync(view& rest)
                 {
+                    auto lock = wrapper::freeze();
                     std::tie(token, cluster) = stream::take<ui64, view>(rest);
-                    return *this;
+                    return lock;
                 }
             };
-            class jgc_list : public wrapper<jgc_list>
+
+            class mouse_event : public wrapper<mouse_event>
             {
             public:
-                jgc_list() : wrapper{ *this, type::jgc_list } { }
+                mouse_event() : wrapper{ *this, type::mouse_event } { }
 
-                text frame;
+                id_t gear_id;
+                hint cause;
+                twod coord;
 
+                auto& operator () (id_t gear_id, hint cause, twod const& coord)
+                {
+                    stream::reset();
+                    this->gear_id = gear_id;
+                    this->cause = cause;
+                    this->coord = coord;
+                    stream::add(gear_id, cause, coord);
+                    return *this;
+                }
                 auto sync(view& data)
                 {
-                    frame = data;
-                    return generic_list_t<view, jgc_element>{ frame };
+                    auto lock = wrapper::freeze();
+                    std::tie(gear_id, cause, coord) = stream::take<id_t, hint, twod>(data);
+                    return lock;
                 }
             };
             class request_dbg_count : public wrapper<request_dbg_count>
@@ -2413,10 +2413,11 @@ namespace netxs::ansi
                     stream::add(count);
                     return *this;
                 }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
+                    auto lock = wrapper::freeze();
                     std::tie(count) = stream::take<sz_t>(data);
-                    return *this;
+                    return lock;
                 }
             };
             class request_debug : public wrapper<request_debug>
@@ -2442,10 +2443,11 @@ namespace netxs::ansi
                     stream::add(gear_id, clip_prev_size, clipdata);
                     return *this;
                 }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
+                    auto lock = wrapper::freeze();
                     std::tie(gear_id, clip_prev_size, clipdata) = stream::take<id_t, twod, view>(data);
-                    return *this;
+                    return lock;
                 }
             };
             class request_clipboard : public wrapper<request_clipboard>
@@ -2462,10 +2464,11 @@ namespace netxs::ansi
                     stream::add(gear_id);
                     return *this;
                 }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
+                    auto lock = wrapper::freeze();
                     std::tie(gear_id) = stream::take<id_t>(data);
-                    return *this;
+                    return lock;
                 }
             };
             class set_focus : public wrapper<set_focus>
@@ -2486,10 +2489,11 @@ namespace netxs::ansi
                     stream::add(gear_id, combine_focus, force_group_focus);
                     return *this;
                 }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
+                    auto lock = wrapper::freeze();
                     std::tie(gear_id, combine_focus, force_group_focus) = stream::take<id_t, bool, bool>(data);
-                    return *this;
+                    return lock;
                 }
             };
             class off_focus : public wrapper<off_focus>
@@ -2506,10 +2510,11 @@ namespace netxs::ansi
                     stream::add(gear_id);
                     return *this;
                 }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
+                    auto lock = wrapper::freeze();
                     std::tie(gear_id) = stream::take<id_t>(data);
-                    return *this;
+                    return lock;
                 }
             };
             class form_header : public wrapper<form_header>
@@ -2528,10 +2533,11 @@ namespace netxs::ansi
                     stream::add(window_id, new_header);
                     return *this;
                 }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
+                    auto lock = wrapper::freeze();
                     std::tie(window_id, new_header) = stream::take<id_t, view>(data);
-                    return *this;
+                    return lock;
                 }
             };
             class form_footer : public wrapper<form_footer>
@@ -2550,10 +2556,11 @@ namespace netxs::ansi
                     stream::add(window_id, new_footer);
                     return *this;
                 }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
+                    auto lock = wrapper::freeze();
                     std::tie(window_id, new_footer) = stream::take<id_t, view>(data);
-                    return *this;
+                    return lock;
                 }
             };
             class warping : public wrapper<warping>
@@ -2572,10 +2579,11 @@ namespace netxs::ansi
                     stream::add(window_id, warpdata);
                     return *this;
                 }
-                auto& sync(view& data)
+                auto sync(view& data)
                 {
+                    auto lock = wrapper::freeze();
                     std::tie(window_id, warpdata) = stream::take<id_t, dent>(data);
-                    return *this;
+                    return lock;
                 }
             };
             class expose : public wrapper<expose>
@@ -2590,7 +2598,6 @@ namespace netxs::ansi
 
                 cell                           state; // bitmap: .
                 core                           image; // bitmap: .
-                std::mutex                     mutex; // bitmap: Canvas accesss mutex.
                 std::unordered_map<ui64, text> newgc; // bitmap: Unknown grapheme cluster list.
 
                 struct subtype
@@ -2610,19 +2617,6 @@ namespace netxs::ansi
                     glyph = 1 << 4,
                 };
 
-                auto freeze()
-                {
-                    struct locked
-                    {
-                        std::unique_lock<std::mutex> guard;
-                        core&                        image;
-                        locked(std::mutex& mutex, core& image)
-                            : guard{ mutex },
-                              image{ image }
-                        { }
-                    };
-                    return locked{ mutex, image };
-                }
                 auto set(id_t winid, twod const& coord, core& cache, bool& abort)
                 {
                     //todo multiple windows
@@ -2733,7 +2727,7 @@ namespace netxs::ansi
                 }
                 auto sync(view& data)
                 {
-                    auto lock = std::unique_lock{ mutex };
+                    auto lock = wrapper::freeze();
                     auto [myid, area] = stream::take<id_t, rect>(data);
                     //todo head.myid
                     if (image.size() != area.size)
@@ -2812,9 +2806,13 @@ namespace netxs::ansi
                     //log("dtvt: rep count: ", rep_count);
                     //log("dtvt: dif count: ", dif_count);
                     //log("----------------------------");
-                    return std::move(lock);
+                    return lock;
                 }
             };
+
+            using frames   = list<view, type::frames,     frame_element>;
+            using jgc_list = list<text, type::jgc_list,     jgc_element>;
+            using tooltips = list<text, type::tooltips, tooltip_element>;
 
             struct s11n
             {

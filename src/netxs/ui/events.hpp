@@ -642,19 +642,33 @@ namespace netxs::events
             mutex.unlock();
             agent.join();
         }
-        void add(enqueue_t::wptr object_ptr, enqueue_t::func proc)
+        template<class T>
+        void add(enqueue_t::wptr object_ptr, T&& proc)
         {
             auto guard = std::lock_guard{ mutex };
-            queue.emplace_back(std::move(object_ptr), std::move(proc));
+            if constexpr (std::is_copy_constructible_v<T>)
+            {
+                queue.emplace_back(object_ptr, std::forward<T>(proc));
+            }
+            else
+            {
+                //todo issue with MSVC: Generalized lambda capture does't work.
+                auto proxy = std::make_shared<std::decay_t<T>>(std::forward<T>(proc));
+                queue.emplace_back(object_ptr, [proxy](auto&&... args)->decltype(auto)
+                {
+                    return (*proxy)(decltype(args)(args)...);
+                });
+            }
             synch.notify_one();
         }
     };
 
     // events: Enqueue deferred task.
-    void enqueue(enqueue_t::wptr object_ptr, enqueue_t::func proc)
+    template<class T>
+    void enqueue(enqueue_t::wptr object_ptr, T&& proc)
     {
         static auto agent = enqueue_t{};
-        agent.add(std::move(object_ptr), std::move(proc));
+        agent.add(object_ptr, std::forward<T>(proc));
     }
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;
