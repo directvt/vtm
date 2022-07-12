@@ -2336,12 +2336,17 @@ namespace netxs::ansi
             {
                 static constexpr auto _counter_base = __COUNTER__;
 
-                #define CAT(x, y) x ## y
-                #define ECAT(x, y) CAT(x, y)
+                #define ECAT(x, ...) x ## __VA_ARGS__
+                #define CAT(x, ...) ECAT(x, __VA_ARGS__)
+
+                #define EXPAND_(...) __VA_ARGS__
+                #define EXPAND(...) EXPAND_(__VA_ARGS__)
 
                 #define WRAP__odd(...) ((__VA_ARGS__))##WRAP_even
                 #define WRAP_even(...) ((__VA_ARGS__))##WRAP__odd
-                #define WRAP(args) CAT(WRAP__odd##args, _last)
+                #define WRAP_even_last
+                #define WRAP__odd_last
+                #define WRAP(args) EXPAND(CAT(WRAP__odd args, _last))
 
                 #define MEMBER(type, name) type name;
                 #define ASSIGN(type, name) this->name = name;
@@ -2349,35 +2354,45 @@ namespace netxs::ansi
                 #define  NAMES(type, name) name,
                 #define  TYPES(type, name) type,
 
-                #define FOR_MEMBER__odd(...) MEMBER __VA_ARGS__ FOR_MEMBER_even
-                #define FOR_MEMBER_even(...) MEMBER __VA_ARGS__ FOR_MEMBER__odd
+                #define FOR_MEMBER__odd(...) MEMBER##__VA_ARGS__ FOR_MEMBER_even
+                #define FOR_MEMBER_even(...) MEMBER##__VA_ARGS__ FOR_MEMBER__odd
+                #define FOR_MEMBER_even_last
+                #define FOR_MEMBER__odd_last
                 #define FOR_MEMBER_evenWRAP_even_last_last
                 #define FOR_MEMBER__oddWRAP__odd_last_last
-                #define FOR_MEMBER(args) ECAT(FOR_MEMBER__odd args, _last)
+                #define FOR_MEMBER(args) EXPAND(CAT(FOR_MEMBER__odd args, _last))
 
-                #define FOR_ASSIGN__odd(...) ASSIGN __VA_ARGS__ FOR_ASSIGN_even
-                #define FOR_ASSIGN_even(...) ASSIGN __VA_ARGS__ FOR_ASSIGN__odd
+                #define FOR_ASSIGN__odd(...) EXPAND(ASSIGN##__VA_ARGS__) FOR_ASSIGN_even
+                #define FOR_ASSIGN_even(...) EXPAND(ASSIGN##__VA_ARGS__) FOR_ASSIGN__odd
+                #define FOR_ASSIGN_even_last
+                #define FOR_ASSIGN__odd_last
                 #define FOR_ASSIGN_evenWRAP_even_last_last
                 #define FOR_ASSIGN__oddWRAP__odd_last_last
-                #define FOR_ASSIGN(args) ECAT(FOR_ASSIGN__odd args, _last)
+                #define FOR_ASSIGN(args) EXPAND(CAT(FOR_ASSIGN__odd args, _last))
 
-                #define FOR_PARAM__odd(...) PARAM __VA_ARGS__ FOR_PARAM_even
-                #define FOR_PARAM_even(...) PARAM __VA_ARGS__ FOR_PARAM__odd
+                #define FOR_PARAM__odd(...) EXPAND(PARAM##__VA_ARGS__) FOR_PARAM_even
+                #define FOR_PARAM_even(...) EXPAND(PARAM##__VA_ARGS__) FOR_PARAM__odd
+                #define FOR_PARAM_even_last
+                #define FOR_PARAM__odd_last
                 #define FOR_PARAM_evenWRAP_even_last_last
                 #define FOR_PARAM__oddWRAP__odd_last_last
-                #define FOR_PARAM(args) ECAT(FOR_PARAM__odd args, _last)
+                #define FOR_PARAM(args) EXPAND(CAT(FOR_PARAM__odd args, _last))
 
-                #define FOR_NAMES__odd(...) NAMES __VA_ARGS__ FOR_NAMES_even
-                #define FOR_NAMES_even(...) NAMES __VA_ARGS__ FOR_NAMES__odd
+                #define FOR_NAMES__odd(...) EXPAND(NAMES##__VA_ARGS__) FOR_NAMES_even
+                #define FOR_NAMES_even(...) EXPAND(NAMES##__VA_ARGS__) FOR_NAMES__odd
+                #define FOR_NAMES_even_last
+                #define FOR_NAMES__odd_last
                 #define FOR_NAMES_evenWRAP_even_last_last
                 #define FOR_NAMES__oddWRAP__odd_last_last
-                #define FOR_NAMES(args) ECAT(FOR_NAMES__odd args, _last)
+                #define FOR_NAMES(args) EXPAND(CAT(FOR_NAMES__odd args, _last))
 
-                #define FOR_TYPES__odd(...) TYPES __VA_ARGS__ FOR_TYPES_even
-                #define FOR_TYPES_even(...) TYPES __VA_ARGS__ FOR_TYPES__odd
+                #define FOR_TYPES__odd(...) EXPAND(TYPES##__VA_ARGS__) FOR_TYPES_even
+                #define FOR_TYPES_even(...) EXPAND(TYPES##__VA_ARGS__) FOR_TYPES__odd
+                #define FOR_TYPES_even_last
+                #define FOR_TYPES__odd_last
                 #define FOR_TYPES_evenWRAP_even_last_last
                 #define FOR_TYPES__oddWRAP__odd_last_last
-                #define FOR_TYPES(args) ECAT(FOR_TYPES__odd args, _last)
+                #define FOR_TYPES(args) EXPAND(CAT(FOR_TYPES__odd args, _last))
 
                 //Test macro
                 //#define members (id_t, gear_id) (hint, cause) (twod, coord)
@@ -2387,32 +2402,32 @@ namespace netxs::ansi
                 //FOR_NAMES(WRAP(members))
                 //FOR_TYPES(WRAP(members))
 
-                #define STRUCT(name, members)                                           \
-                    struct CAT(name, _t)                                                \
-                    {                                                                   \
-                        static constexpr byte type = __COUNTER__ - _counter_base;       \
-                        FOR_MEMBER(WRAP(members))                                       \
-                        void set(FOR_PARAM(WRAP(members)) int tmp = {})                 \
-                        {                                                               \
-                            FOR_ASSIGN(WRAP(members))                                   \
-                        }                                                               \
-                        void get(view& data)                                            \
-                        {                                                               \
-                            int _tmp;                                                   \
-                            std::tie(FOR_NAMES(WRAP(members)) _tmp) =                   \
-                                stream::take<FOR_TYPES(WRAP(members)) noop>(data);      \
-                        }                                                               \
-                    };                                                                  \
-                    CAT(name, _t) name;
+                #define STRUCT(struct_name, struct_members)                               \
+                    struct CAT(struct_name, _t)                                           \
+                    {                                                                     \
+                        static constexpr byte type = __COUNTER__ - _counter_base;         \
+                        FOR_MEMBER(WRAP(struct_members))                                  \
+                        void set(FOR_PARAM(WRAP(struct_members)) int tmp = {})            \
+                        {                                                                 \
+                            FOR_ASSIGN(WRAP(struct_members))                              \
+                        }                                                                 \
+                        void get(view& data)                                              \
+                        {                                                                 \
+                            int _tmp;                                                     \
+                            std::tie(FOR_NAMES(WRAP(struct_members)) _tmp) =              \
+                                stream::take<FOR_TYPES(WRAP(struct_members)) noop>(data); \
+                        }                                                                 \
+                    };                                                                    \
+                    CAT(struct_name, _t) struct_name;
 
-                #define EMPTY_STRUCT(name)                                              \
-                    struct CAT(name, _t)                                                \
-                    {                                                                   \
-                        static constexpr byte type = __COUNTER__ - _counter_base;       \
-                        void set() {}                                                   \
-                        void get(view& data) {}                                         \
-                    };                                                                  \
-                    CAT(name, _t) name;
+                #define STRUCT_LITE(struct_name)                                          \
+                    struct CAT(struct_name, _t)                                           \
+                    {                                                                     \
+                        static constexpr byte type = __COUNTER__ - _counter_base;         \
+                        void set() {}                                                     \
+                        void get(view& data) {}                                           \
+                    };                                                                    \
+                    CAT(struct_name, _t) struct_name;
 
                 STRUCT(frame_element,     (view, data))
                 STRUCT(jgc_element,       (ui64, token) (text, cluster))
@@ -2428,8 +2443,8 @@ namespace netxs::ansi
                 STRUCT(warping,           (id_t, window_id) (dent, warpdata))
                 using map_list = std::unordered_map<ui64, text>;
                 STRUCT(bitmaps,           (cell, state) (core, image) (map_list, newgc))
-                EMPTY_STRUCT(expose)
-                EMPTY_STRUCT(request_debug)
+                STRUCT_LITE(expose)
+                STRUCT_LITE(request_debug)
 
 
             };

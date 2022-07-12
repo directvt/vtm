@@ -6598,6 +6598,8 @@ namespace netxs::ui
         }
     };
 
+    ansi::dtvt::binary::s11n_v2 test;
+
     class dtvt
         : public ui::form<dtvt>
     {
@@ -7139,6 +7141,10 @@ namespace netxs::ui
               active{ true },
               nodata{      }
         {
+            //todo test
+            test.mouse_event.coord = {};
+            test.mouse_event.type;
+
             stream.bitmap.image.link(base::id);
             cmdarg = command_line;
 
