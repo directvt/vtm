@@ -2019,6 +2019,10 @@ namespace netxs::ansi
                         }
                         return crop;
                     }
+                    else if constexpr (std::is_same_v<D, noop>)
+                    {
+                        return 0;
+                    }
                     else
                     {
                         if (data.size() < sizeof(D))
@@ -2193,8 +2197,8 @@ namespace netxs::ansi
             {
                 using Lock = std::unique_lock<std::mutex>;
 
-                Base&      thing; // wrapper: Protected object.
                 std::mutex mutex; // wrapper: Accesss mutex.
+                Base&      thing; // wrapper: Protected object.
 
             public:
                 struct access
@@ -2326,6 +2330,108 @@ namespace netxs::ansi
                     data = {};
                     return lock;
                 }
+            };
+
+            struct s11n_v2
+            {
+                static constexpr auto _counter_base = __COUNTER__;
+
+                #define CAT(x, y) x ## y
+                #define ECAT(x, y) CAT(x, y)
+
+                #define WRAP__odd(...) ((__VA_ARGS__))##WRAP_even
+                #define WRAP_even(...) ((__VA_ARGS__))##WRAP__odd
+                #define WRAP(args) CAT(WRAP__odd##args, _last)
+
+                #define MEMBER(type, name) type name;
+                #define ASSIGN(type, name) this->name = name;
+                #define  PARAM(type, name) type name,
+                #define  NAMES(type, name) name,
+                #define  TYPES(type, name) type,
+
+                #define FOR_MEMBER__odd(...) MEMBER __VA_ARGS__ FOR_MEMBER_even
+                #define FOR_MEMBER_even(...) MEMBER __VA_ARGS__ FOR_MEMBER__odd
+                #define FOR_MEMBER_evenWRAP_even_last_last
+                #define FOR_MEMBER__oddWRAP__odd_last_last
+                #define FOR_MEMBER(args) ECAT(FOR_MEMBER__odd args, _last)
+
+                #define FOR_ASSIGN__odd(...) ASSIGN __VA_ARGS__ FOR_ASSIGN_even
+                #define FOR_ASSIGN_even(...) ASSIGN __VA_ARGS__ FOR_ASSIGN__odd
+                #define FOR_ASSIGN_evenWRAP_even_last_last
+                #define FOR_ASSIGN__oddWRAP__odd_last_last
+                #define FOR_ASSIGN(args) ECAT(FOR_ASSIGN__odd args, _last)
+
+                #define FOR_PARAM__odd(...) PARAM __VA_ARGS__ FOR_PARAM_even
+                #define FOR_PARAM_even(...) PARAM __VA_ARGS__ FOR_PARAM__odd
+                #define FOR_PARAM_evenWRAP_even_last_last
+                #define FOR_PARAM__oddWRAP__odd_last_last
+                #define FOR_PARAM(args) ECAT(FOR_PARAM__odd args, _last)
+
+                #define FOR_NAMES__odd(...) NAMES __VA_ARGS__ FOR_NAMES_even
+                #define FOR_NAMES_even(...) NAMES __VA_ARGS__ FOR_NAMES__odd
+                #define FOR_NAMES_evenWRAP_even_last_last
+                #define FOR_NAMES__oddWRAP__odd_last_last
+                #define FOR_NAMES(args) ECAT(FOR_NAMES__odd args, _last)
+
+                #define FOR_TYPES__odd(...) TYPES __VA_ARGS__ FOR_TYPES_even
+                #define FOR_TYPES_even(...) TYPES __VA_ARGS__ FOR_TYPES__odd
+                #define FOR_TYPES_evenWRAP_even_last_last
+                #define FOR_TYPES__oddWRAP__odd_last_last
+                #define FOR_TYPES(args) ECAT(FOR_TYPES__odd args, _last)
+
+                //Test macro
+                //#define members (id_t, gear_id) (hint, cause) (twod, coord)
+                //FOR_MEMBER(WRAP(members))
+                //FOR_ASSIGN(WRAP(members))
+                //FOR_PARAM(WRAP(members))
+                //FOR_NAMES(WRAP(members))
+                //FOR_TYPES(WRAP(members))
+
+                #define STRUCT(name, members)                                           \
+                    struct CAT(name, _t)                                                \
+                    {                                                                   \
+                        static constexpr byte type = __COUNTER__ - _counter_base;       \
+                        FOR_MEMBER(WRAP(members))                                       \
+                        void set(FOR_PARAM(WRAP(members)) int tmp = {})                 \
+                        {                                                               \
+                            FOR_ASSIGN(WRAP(members))                                   \
+                        }                                                               \
+                        void get(view& data)                                            \
+                        {                                                               \
+                            int _tmp;                                                   \
+                            std::tie(FOR_NAMES(WRAP(members)) _tmp) =                   \
+                                stream::take<FOR_TYPES(WRAP(members)) noop>(data);      \
+                        }                                                               \
+                    };                                                                  \
+                    CAT(name, _t) name;
+
+                #define EMPTY_STRUCT(name)                                              \
+                    struct CAT(name, _t)                                                \
+                    {                                                                   \
+                        static constexpr byte type = __COUNTER__ - _counter_base;       \
+                        void set() {}                                                   \
+                        void get(view& data) {}                                         \
+                    };                                                                  \
+                    CAT(name, _t) name;
+
+                STRUCT(frame_element,     (view, data))
+                STRUCT(jgc_element,       (ui64, token) (text, cluster))
+                STRUCT(request_dbg_count, (sz_t, count))
+                STRUCT(tooltip_element,   (id_t, gear_id) (text, tip_text))
+                STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord))
+                STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata))
+                STRUCT(request_clipboard, (id_t, gear_id))
+                STRUCT(set_focus,         (id_t, gear_id) (bool, combine_focus) (bool, force_group_focus))
+                STRUCT(off_focus,         (id_t, gear_id))
+                STRUCT(form_header,       (id_t, window_id) (text, new_header))
+                STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
+                STRUCT(warping,           (id_t, window_id) (dent, warpdata))
+                using map_list = std::unordered_map<ui64, text>;
+                STRUCT(bitmaps,           (cell, state) (core, image) (map_list, newgc))
+                EMPTY_STRUCT(expose)
+                EMPTY_STRUCT(request_debug)
+
+
             };
 
             class frame_element : public wrapper<frame_element>
