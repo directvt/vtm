@@ -979,7 +979,7 @@ namespace netxs::ansi
         deco() = default;
         bool operator==(const deco&) const = default;
 
-        auto  wrp   () const  { return wrapln; sizeof(deco);                        } // deco: Return Auto wrapping.
+        auto  wrp   () const  { return wrapln;                                      } // deco: Return Auto wrapping.
         auto  jet   () const  { return adjust;                                      } // deco: Return Paragraph adjustment.
         auto  rtl   () const  { return r_to_l;                                      } // deco: Return RTL.
         auto  rlf   () const  { return rlfeed;                                      } // deco: Return Reverse line feed.
@@ -2270,7 +2270,7 @@ namespace netxs::ansi
                     }
 
                     template<class A>
-                    auto operator == (A&&) const { return !!stop;          }
+                    bool operator == (A&&) const { return stop;            }
                     auto operator  * ()    const { return item.sync(crop); }
                     auto operator  * ()          { return item.sync(crop); }
                     auto operator ++ ()
@@ -2794,9 +2794,9 @@ namespace netxs::ansi
                         auto meaning = 0;
                         auto cluster = byte{ 0 };
                         auto changes = byte{ 0 };
-                        if (c1.bgc() != c2.bgc()) meaning += sizeof(c1.bgc()), changes |= bgclr;
-                        if (c1.fgc() != c2.fgc()) meaning += sizeof(c1.fgc()), changes |= fgclr;
-                        if (c1.stl() != c2.stl()) meaning += sizeof(c1.stl()), changes |= style;
+                        if (c1.bgc() != c2.bgc()) { meaning += sizeof(c1.bgc()); changes |= bgclr; }
+                        if (c1.fgc() != c2.fgc()) { meaning += sizeof(c1.fgc()); changes |= fgclr; }
+                        if (c1.stl() != c2.stl()) { meaning += sizeof(c1.stl()); changes |= style; }
                         if (c1.egc() != c2.egc())
                         {
                             cluster = c1.egc().state.jumbo ? 8

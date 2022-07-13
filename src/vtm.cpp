@@ -248,13 +248,13 @@ int main(int argc, char* argv[])
             //todo unify
             auto menusz = 3;
             utf::to_up(utf::to_low(params), 1);
-                 if (params == "Text") log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
-            else if (params == "Calc") log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
-            else if (params == "Gems") log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
-            else if (params == "Test") log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
-            else if (params == "Logs") log("Desktopio Log Console "        DESKTOPIO_VER);
-            else if (params == "Powershell") log("Desktopio Powershell "   DESKTOPIO_VER);
-            else if (params == "Truecolor")  log("Desktopio ANSI Art "     DESKTOPIO_VER);
+                 if (params == "Text")       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
+            else if (params == "Calc")       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
+            else if (params == "Gems")       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
+            else if (params == "Test")       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
+            else if (params == "Logs")       log("Desktopio Log Console "        DESKTOPIO_VER);
+            else if (params == "Powershell") log("Desktopio Powershell "         DESKTOPIO_VER);
+            else if (params == "Truecolor")  log("Desktopio ANSI Art "           DESKTOPIO_VER);
             else
             {
                 menusz = 1;

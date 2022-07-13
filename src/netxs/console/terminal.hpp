@@ -2296,8 +2296,8 @@ namespace netxs::ui
                 uirev = faux;
                 uifwd = faux;
                 selection_gonext(direction);
-                if (direction == feed::fwd && uirev == faux
-                 || direction == feed::rev && uifwd == faux)
+                if ((direction == feed::fwd && uirev == faux)
+                 || (direction == feed::rev && uifwd == faux))
                 {
                     selection_cancel();
                 }
@@ -4832,8 +4832,8 @@ namespace netxs::ui
                     }
                     else if (coor.y < scrolling_margin || coor.y >= scrolling_margin + arena)
                     {
-                        if ((dntop.role == grip::join || upend.role == grip::join) && coor.y < scrolling_margin
-                         || (uptop.role == grip::join || dnend.role == grip::join) && coor.y >= scrolling_margin + arena)
+                        if (((dntop.role == grip::join || upend.role == grip::join) && coor.y < scrolling_margin)
+                         || ((uptop.role == grip::join || dnend.role == grip::join) && coor.y >= scrolling_margin + arena))
                         {
                             swap = true;
                         }
@@ -5182,7 +5182,7 @@ namespace netxs::ui
                 auto yield = ansi::esc{};
                 auto len = testy<si64>{};
                 auto selbox = selection_selbox();
-                if (!selection_active()) return yield;
+                if (!selection_active()) return std::move(yield);
                 if (selmod == xsgr::ansitext) yield.nil();
                 len = yield.size();
                 if (uptop.role != grip::idle)
@@ -5473,8 +5473,8 @@ namespace netxs::ui
                 }
                 auto delta = selection_gonext(direction);
 
-                if (ahead && uirev == faux
-                 ||!ahead && uifwd == faux)
+                if ((ahead && uirev == faux)
+                 ||(!ahead && uifwd == faux))
                 {
                     selection_cancel();
                     delta = {};
@@ -5991,8 +5991,8 @@ namespace netxs::ui
                         auto last_slide = target->get_slide();
                         ansi::parse(data, target);
                         auto next_basis = target->get_basis();
-                        follow[axis::Y] = last_basis <= last_slide && last_slide <= next_basis
-                                       || next_basis <= last_slide && last_slide <= last_basis;
+                        follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
+                                       || (next_basis <= last_slide && last_slide <= last_basis);
                     }
 
                     unsync = true;
@@ -7143,7 +7143,7 @@ namespace netxs::ui
         {
             //todo test
             test.mouse_event.coord = {};
-            test.mouse_event.type;
+            log("test: ", test.mouse_event.type);
 
             stream.bitmap.image.link(base::id);
             cmdarg = command_line;

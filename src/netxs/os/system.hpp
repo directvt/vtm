@@ -823,17 +823,6 @@ namespace netxs::os
     }
     auto vt_mode()
     {
-        auto vga16colors = { // https://github.com//termstandard/colors
-            "ansi",
-            "linux",
-            "xterm-color",
-            "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
-            "fbcon",
-        };
-        auto vga256colors = {
-            "rxvt-unicode-256color",
-        };
-
         auto mode = si32{ legacy::clean };
 
         if (os::legacy::peek_dmd(STDIN_FD))
@@ -841,11 +830,21 @@ namespace netxs::os
             log("  os: DirectVT");
             mode |= legacy::direct;
         }
-
-        auto term = os::get_env("TERM");
-        if (term.size())
+        else if (auto term = os::get_env("TERM"); term.size())
         {
             log("  os: terminal type \"", term, "\"");
+
+            auto vga16colors = { // https://github.com//termstandard/colors
+                "ansi",
+                "linux",
+                "xterm-color",
+                "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
+                "fbcon",
+            };
+            auto vga256colors = {
+                "rxvt-unicode-256color",
+            };
+
             if (term.ends_with("16color") || term.ends_with("16colour"))
             {
                 mode |= legacy::vga16;
@@ -872,6 +871,7 @@ namespace netxs::os
                     }
                 }
             }
+
             if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
             {
                 log("  os: macOS Apple_Terminal detected");
@@ -879,6 +879,7 @@ namespace netxs::os
             }
 
             if (os::local_mode()) mode |= legacy::mouse;
+
             log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
                                     : mode & legacy::vga256 ? "256-color"
                                                             : "true-color");

@@ -3491,6 +3491,8 @@ namespace netxs::console
                         {
                             switch (mousestate.control)
                             {
+                                case sysmouse::stat::ok:
+                                    break;
                                 case sysmouse::stat::halt:
                                     gear_it->second->deactivate();
                                     break;
