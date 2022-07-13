@@ -2270,7 +2270,7 @@ namespace netxs::ansi
                     }
 
                     template<class A>
-                    auto operator == (A&&) const { return stop; }
+                    auto operator == (A&&) const { return !!stop;          }
                     auto operator  * ()    const { return item.sync(crop); }
                     auto operator  * ()          { return item.sync(crop); }
                     auto operator ++ ()

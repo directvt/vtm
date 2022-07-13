@@ -427,7 +427,7 @@ namespace netxs::app::test
                     boss.keybd.accept(true);
                     boss.SUBMIT(tier::anycast, e2::form::quit, item)
                     {
-                        boss.base::riseup<tier::release>(e2::form::quit, item);
+                        boss.base::template riseup<tier::release>(e2::form::quit, item);
                     };
                 });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))

@@ -995,7 +995,7 @@ namespace netxs::app::tile
                         boss.keybd.active();
                         boss.SUBMIT(tier::anycast, e2::form::quit, item)
                         {
-                            boss.base::riseup<tier::release>(e2::form::quit, item);
+                            boss.base::template riseup<tier::release>(e2::form::quit, item);
                         };
                     });
 
