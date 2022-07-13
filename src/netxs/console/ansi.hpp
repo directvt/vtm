@@ -2342,57 +2342,56 @@ namespace netxs::ansi
                 #define EXPAND_(...) __VA_ARGS__
                 #define EXPAND(...) EXPAND_(__VA_ARGS__)
 
-                #define WRAP__odd(...) ((__VA_ARGS__))##WRAP_even
-                #define WRAP_even(...) ((__VA_ARGS__))##WRAP__odd
+                #define WRAP__odd(...) ((__VA_ARGS__))WRAP_even
+                #define WRAP_even(...) ((__VA_ARGS__))WRAP__odd
                 #define WRAP_even_last
                 #define WRAP__odd_last
                 #define WRAP(args) EXPAND(CAT(WRAP__odd args, _last))
 
-                #define MEMBER(type, name) type name;
-                #define ASSIGN(type, name) this->name = name;
-                #define  PARAM(type, name) type name,
-                #define  NAMES(type, name) name,
-                #define  TYPES(type, name) type,
+                #define MEMBER(type, name, ...) type name;
+                #define ASSIGN(type, name, ...) this->name = name;
+                #define  PARAM(type, name, ...) type name
+                #define  NAMES(type, name, ...) name
+                #define  TYPES(type, name, ...) type
 
-                #define FOR_MEMBER__odd(...) MEMBER##__VA_ARGS__ FOR_MEMBER_even
-                #define FOR_MEMBER_even(...) MEMBER##__VA_ARGS__ FOR_MEMBER__odd
+                #define FOR_MEMBER__odd(...) MEMBER __VA_ARGS__ FOR_MEMBER_even
+                #define FOR_MEMBER_even(...) MEMBER __VA_ARGS__ FOR_MEMBER__odd
                 #define FOR_MEMBER_even_last
                 #define FOR_MEMBER__odd_last
-                #define FOR_MEMBER_evenWRAP_even_last_last
-                #define FOR_MEMBER__oddWRAP__odd_last_last
                 #define FOR_MEMBER(args) EXPAND(CAT(FOR_MEMBER__odd args, _last))
 
-                #define FOR_ASSIGN__odd(...) EXPAND(ASSIGN##__VA_ARGS__) FOR_ASSIGN_even
-                #define FOR_ASSIGN_even(...) EXPAND(ASSIGN##__VA_ARGS__) FOR_ASSIGN__odd
+                #define FOR_ASSIGN__odd(...) ASSIGN __VA_ARGS__ FOR_ASSIGN_even
+                #define FOR_ASSIGN_even(...) ASSIGN __VA_ARGS__ FOR_ASSIGN__odd
                 #define FOR_ASSIGN_even_last
                 #define FOR_ASSIGN__odd_last
-                #define FOR_ASSIGN_evenWRAP_even_last_last
-                #define FOR_ASSIGN__oddWRAP__odd_last_last
                 #define FOR_ASSIGN(args) EXPAND(CAT(FOR_ASSIGN__odd args, _last))
 
-                #define FOR_PARAM__odd(...) EXPAND(PARAM##__VA_ARGS__) FOR_PARAM_even
-                #define FOR_PARAM_even(...) EXPAND(PARAM##__VA_ARGS__) FOR_PARAM__odd
+                #define FOR_PARAM__odd(...) PARAM __VA_ARGS__, FOR_PARAM_even
+                #define FOR_PARAM_even(...) PARAM __VA_ARGS__, FOR_PARAM__odd
                 #define FOR_PARAM_even_last
                 #define FOR_PARAM__odd_last
-                #define FOR_PARAM_evenWRAP_even_last_last
-                #define FOR_PARAM__oddWRAP__odd_last_last
-                #define FOR_PARAM(args) EXPAND(CAT(FOR_PARAM__odd args, _last))
 
-                #define FOR_NAMES__odd(...) EXPAND(NAMES##__VA_ARGS__) FOR_NAMES_even
-                #define FOR_NAMES_even(...) EXPAND(NAMES##__VA_ARGS__) FOR_NAMES__odd
+                #define FOR_NAMES__odd(...) NAMES __VA_ARGS__, FOR_NAMES_even
+                #define FOR_NAMES_even(...) NAMES __VA_ARGS__, FOR_NAMES__odd
                 #define FOR_NAMES_even_last
                 #define FOR_NAMES__odd_last
-                #define FOR_NAMES_evenWRAP_even_last_last
-                #define FOR_NAMES__oddWRAP__odd_last_last
-                #define FOR_NAMES(args) EXPAND(CAT(FOR_NAMES__odd args, _last))
 
-                #define FOR_TYPES__odd(...) EXPAND(TYPES##__VA_ARGS__) FOR_TYPES_even
-                #define FOR_TYPES_even(...) EXPAND(TYPES##__VA_ARGS__) FOR_TYPES__odd
+                #define FOR_TYPES__odd(...) TYPES __VA_ARGS__, FOR_TYPES_even
+                #define FOR_TYPES_even(...) TYPES __VA_ARGS__, FOR_TYPES__odd
                 #define FOR_TYPES_even_last
                 #define FOR_TYPES__odd_last
-                #define FOR_TYPES_evenWRAP_even_last_last
-                #define FOR_TYPES__oddWRAP__odd_last_last
+
+            #if defined(_WIN32)
+                #define FOR_PARAM(args) EXPAND(CAT(FOR_PARAM__odd args, _last))
+                #define FOR_NAMES(args) EXPAND(CAT(FOR_NAMES__odd args, _last))
                 #define FOR_TYPES(args) EXPAND(CAT(FOR_TYPES__odd args, _last))
+            #else
+                #define DEL_AFTER xDEL(
+                #define xDEL(...)
+                #define FOR_PARAM(args) FOR_PARAM__odd args ((,DEL_AFTER ))) // Trailing comma workaround.
+                #define FOR_NAMES(args) FOR_NAMES__odd args ((,DEL_AFTER ))) //
+                #define FOR_TYPES(args) FOR_TYPES__odd args (( DEL_AFTER,))) //
+            #endif
 
                 //Test macro
                 //#define members (id_t, gear_id) (hint, cause) (twod, coord)
@@ -2445,8 +2444,6 @@ namespace netxs::ansi
                 STRUCT(bitmaps,           (cell, state) (core, image) (map_list, newgc))
                 STRUCT_LITE(expose)
                 STRUCT_LITE(request_debug)
-
-
             };
 
             class frame_element : public wrapper<frame_element>
