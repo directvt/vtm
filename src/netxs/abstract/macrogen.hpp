@@ -4,8 +4,8 @@
 #if defined(MACROGEN_DEF)
     #undef MACROGEN_DEF
 
-        #define xCAT(x, ...) x ## __VA_ARGS__
-        #define CAT(x, ...) xCAT(x, __VA_ARGS__)
+        #define CAT_(x, ...) x ## __VA_ARGS__
+        #define CAT(x, ...) CAT_(x, __VA_ARGS__)
 
         #define EVAL_(...) __VA_ARGS__
         #define EVAL(...) EVAL_(__VA_ARGS__)
@@ -54,18 +54,18 @@
         #define SEQ_NAME(args) EVAL(CAT(SEQ_NAME__odd args, _last))
         #define SEQ_TYPE(args) EVAL(CAT(SEQ_TYPE__odd args, _last))
     #else
-        #define xDEL(...)
-        #define DEL_AFTER xDEL(
-        #define SEQ_SIGN(args) SEQ_SIGN__odd args ((,DEL_AFTER ))) // Trailing comma workaround.
-        #define SEQ_NAME(args) SEQ_NAME__odd args ((,DEL_AFTER ))) //
-        #define SEQ_TYPE(args) SEQ_TYPE__odd args (( DEL_AFTER,))) //
+        #define DEL_(...)
+        #define DEL_TAIL DEL_(
+        #define SEQ_SIGN(args) SEQ_SIGN__odd args ((,DEL_TAIL ))) // Trailing comma workaround.
+        #define SEQ_NAME(args) SEQ_NAME__odd args ((,DEL_TAIL ))) //
+        #define SEQ_TYPE(args) SEQ_TYPE__odd args (( DEL_TAIL,))) //
     #endif
 
 #endif
 #if defined(MACROGEN_UNDEF)
     #undef MACROGEN_UNDEF
 
-        #undef xCAT
+        #undef CAT_
         #undef CAT
         #undef EVAL_
         #undef EVAL
@@ -101,7 +101,7 @@
         #undef SEQ_TYPE_even
         #undef SEQ_TYPE_even_last
         #undef SEQ_TYPE__odd_last
-        #undef xDEL
+        #undef DEL_
         #undef DEL_AFTER
         #undef SEQ_SIGN
         #undef SEQ_NAME
