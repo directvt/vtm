@@ -2336,85 +2336,23 @@ namespace netxs::ansi
             {
                 static constexpr auto _counter_base = __COUNTER__;
 
-                #define ECAT(x, ...) x ## __VA_ARGS__
-                #define CAT(x, ...) ECAT(x, __VA_ARGS__)
-
-                #define EXPAND_(...) __VA_ARGS__
-                #define EXPAND(...) EXPAND_(__VA_ARGS__)
-
-                #define WRAP__odd(...) ((__VA_ARGS__))WRAP_even
-                #define WRAP_even(...) ((__VA_ARGS__))WRAP__odd
-                #define WRAP_even_last
-                #define WRAP__odd_last
-                #define WRAP(args) EXPAND(CAT(WRAP__odd args, _last))
-
-                #define MEMBER(type, name, ...) type name;
-                #define ASSIGN(type, name, ...) this->name = name;
-                #define  PARAM(type, name, ...) type name
-                #define  NAMES(type, name, ...) name
-                #define  TYPES(type, name, ...) type
-
-                #define FOR_MEMBER__odd(...) MEMBER __VA_ARGS__ FOR_MEMBER_even
-                #define FOR_MEMBER_even(...) MEMBER __VA_ARGS__ FOR_MEMBER__odd
-                #define FOR_MEMBER_even_last
-                #define FOR_MEMBER__odd_last
-                #define FOR_MEMBER(args) EXPAND(CAT(FOR_MEMBER__odd args, _last))
-
-                #define FOR_ASSIGN__odd(...) ASSIGN __VA_ARGS__ FOR_ASSIGN_even
-                #define FOR_ASSIGN_even(...) ASSIGN __VA_ARGS__ FOR_ASSIGN__odd
-                #define FOR_ASSIGN_even_last
-                #define FOR_ASSIGN__odd_last
-                #define FOR_ASSIGN(args) EXPAND(CAT(FOR_ASSIGN__odd args, _last))
-
-                #define FOR_PARAM__odd(...) PARAM __VA_ARGS__, FOR_PARAM_even
-                #define FOR_PARAM_even(...) PARAM __VA_ARGS__, FOR_PARAM__odd
-                #define FOR_PARAM_even_last
-                #define FOR_PARAM__odd_last
-
-                #define FOR_NAMES__odd(...) NAMES __VA_ARGS__, FOR_NAMES_even
-                #define FOR_NAMES_even(...) NAMES __VA_ARGS__, FOR_NAMES__odd
-                #define FOR_NAMES_even_last
-                #define FOR_NAMES__odd_last
-
-                #define FOR_TYPES__odd(...) TYPES __VA_ARGS__, FOR_TYPES_even
-                #define FOR_TYPES_even(...) TYPES __VA_ARGS__, FOR_TYPES__odd
-                #define FOR_TYPES_even_last
-                #define FOR_TYPES__odd_last
-
-            #if defined(_WIN32)
-                #define FOR_PARAM(args) EXPAND(CAT(FOR_PARAM__odd args, _last))
-                #define FOR_NAMES(args) EXPAND(CAT(FOR_NAMES__odd args, _last))
-                #define FOR_TYPES(args) EXPAND(CAT(FOR_TYPES__odd args, _last))
-            #else
-                #define DEL_AFTER xDEL(
-                #define xDEL(...)
-                #define FOR_PARAM(args) FOR_PARAM__odd args ((,DEL_AFTER ))) // Trailing comma workaround.
-                #define FOR_NAMES(args) FOR_NAMES__odd args ((,DEL_AFTER ))) //
-                #define FOR_TYPES(args) FOR_TYPES__odd args (( DEL_AFTER,))) //
-            #endif
-
-                //Test macro
-                //#define members (id_t, gear_id) (hint, cause) (twod, coord)
-                //FOR_MEMBER(WRAP(members))
-                //FOR_ASSIGN(WRAP(members))
-                //FOR_PARAM(WRAP(members))
-                //FOR_NAMES(WRAP(members))
-                //FOR_TYPES(WRAP(members))
+                #define MACROGEN_DEF
+                #include "../abstract/macrogen.hpp"
 
                 #define STRUCT(struct_name, struct_members)                               \
                     struct CAT(struct_name, _t)                                           \
                     {                                                                     \
                         static constexpr byte type = __COUNTER__ - _counter_base;         \
-                        FOR_MEMBER(WRAP(struct_members))                                  \
-                        void set(FOR_PARAM(WRAP(struct_members)) int tmp = {})            \
+                        SEQ_ATTR(WRAP(struct_members))                                    \
+                        void set(SEQ_SIGN(WRAP(struct_members)) int tmp = {})             \
                         {                                                                 \
-                            FOR_ASSIGN(WRAP(struct_members))                              \
+                            SEQ_INIT(WRAP(struct_members))                                \
                         }                                                                 \
                         void get(view& data)                                              \
                         {                                                                 \
                             int _tmp;                                                     \
-                            std::tie(FOR_NAMES(WRAP(struct_members)) _tmp) =              \
-                                stream::take<FOR_TYPES(WRAP(struct_members)) noop>(data); \
+                            std::tie(SEQ_NAME(WRAP(struct_members)) _tmp) =               \
+                                stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(data);  \
                         }                                                                 \
                     };                                                                    \
                     CAT(struct_name, _t) struct_name;
@@ -2444,6 +2382,11 @@ namespace netxs::ansi
                 STRUCT(bitmaps,           (cell, state) (core, image) (map_list, newgc))
                 STRUCT_LITE(expose)
                 STRUCT_LITE(request_debug)
+
+                #undef STRUCT
+                #undef STRUCT_LITE
+                #define MACROGEN_UNDEF
+                #include "../abstract/macrogen.hpp"
             };
 
             class frame_element : public wrapper<frame_element>
