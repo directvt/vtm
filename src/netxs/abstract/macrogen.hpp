@@ -19,7 +19,7 @@
         #define MAKE_ATTR(type, name, ...) type name;
         #define MAKE_INIT(type, name, ...) this->name = name;
         #define MAKE_SIGN(type, name, ...) type name
-        #define MAKE_NAME(type, name, ...) name
+        #define MAKE_NAME(type, name, ...) this->name
         #define MAKE_TYPE(type, name, ...) type
 
         #define SEQ_ATTR__odd(...) MAKE_ATTR __VA_ARGS__ SEQ_ATTR_even

@@ -4880,7 +4880,7 @@ namespace netxs::console
         {
             wired.mouse_event.send(*this, gear_id, cause, coord);
         }
-        void forward_clipboard(id_t gear_id, twod const& clip_preview_size, view clip_rawdata)
+        void forward_clipboard(id_t gear_id, twod const& clip_preview_size, text clip_rawdata)
         {
             wired.set_clipboard.send(*this, gear_id, clip_preview_size, clip_rawdata);
         }
@@ -4908,36 +4908,45 @@ namespace netxs::console
         {
             wired.request_dbg_count.send(*this, count);
         }
-        void send_header(id_t window_id, view new_header)
+        //todo revise (view/text)
+        void send_header(id_t window_id, text new_header)
         {
             wired.form_header.send(*this, window_id, new_header);
         }
-        void send_footer(id_t window_id, view new_footer)
+        //todo revise (view/text)
+        void send_footer(id_t window_id, text new_footer)
         {
             wired.form_footer.send(*this, window_id, new_footer);
         }
         template<class T>
         void send_tooltips(T&& gears)
         {
+            auto list = wired.tooltips.freeze();
+            auto elem = wired.tooltip_element.freeze();
             for (auto& [gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.is_tooltip_changed())
                 {
-                    wired.tooltips << wired.tooltip_element(gear_id, gear.get_tooltip());
+                    //todo revise (view/text)
+                    elem.thing.set(gear_id, text{ (view)gear.get_tooltip() });
+                    list.thing << elem.thing;
                 }
             }
-            wired.tooltips.send<true>(*this);
+            list.thing.sendby<true>(*this);
         }
         template<class T>
         void send_gclist(T&& gclist)
         {
+            auto list = wired.jgc_list.freeze();
+            auto elem = wired.jgc_element.freeze();
             for (auto& [token, cluster] : gclist)
             {
-                wired.jgc_list << wired.jgc_element(token, cluster);
+                elem.thing.set(token, cluster);
+                list.thing << elem.thing;
                 log("token ", token, " cluster.size ", cluster.size());
             }
-            wired.jgc_list.send(*this);
+            list.thing.sendby<true>(*this);
         }
 
         template<class E, class T>
@@ -5610,11 +5619,11 @@ again:
                 abort = faux;
                 auto winid = id_t{ 0xddccbbaa };
                 auto coord = dot_00;
-                debug.delta = image.set(winid, coord, cache, abort);
+                image.set(winid, coord, cache, abort, debug.delta);
                 if (debug.delta)
                 {
-                    image.send(conio); // Sending, this is the frame synchronization point.
-                }                      // Frames should drop, the rest should wait for the end of sending.
+                    image.sendby(conio); // Sending, this is the frame synchronization point.
+                }                        // Frames should drop, the rest should wait for the end of sending.
                 debug.watch = tempus::now() - start;
             }
             log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
@@ -5671,7 +5680,8 @@ again:
             using namespace netxs::ansi::dtvt;
             paint = work([&, vtmode]
             { 
-                     if (vtmode == svga::directvt ) render<binary::bitmap>                 (conio);
+                //todo revise (bitmap/bitmap_t)
+                     if (vtmode == svga::directvt ) render<binary::bitmap_t>               (conio);
                 else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(conio);
                 else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>(conio);
                 else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(conio);

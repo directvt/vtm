@@ -6598,8 +6598,6 @@ namespace netxs::ui
         }
     };
 
-    ansi::dtvt::binary::s11n_v2 test;
-
     class dtvt
         : public ui::form<dtvt>
     {
@@ -6751,16 +6749,14 @@ namespace netxs::ui
                 }
                 //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
                 owner.base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
-                owner.syncxs.notify_one();
             }
             void apply(ansi::dtvt::binary::tooltips::access             lock)
             {
                 auto copy = lock.thing;
                 netxs::events::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
                 {
-                    for (auto locked_tooltip : tooltips)
+                    for (auto& tooltip : tooltips)
                     {
-                        auto& tooltip = locked_tooltip.thing;
                         if (auto ptr = bell::getref(tooltip.gear_id))
                         if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                         {
@@ -6772,9 +6768,8 @@ namespace netxs::ui
             }
             void apply(ansi::dtvt::binary::jgc_list::access             lock)
             {
-                for (auto locked_jgc : lock.thing)
+                for (auto& jgc : lock.thing)
                 {
-                    auto& jgc = locked_jgc.thing;
                     cell::gc_set_data(jgc.token, jgc.cluster);
                     log("new gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                 }
@@ -6985,7 +6980,6 @@ namespace netxs::ui
         si32            nodata; // dtvt: Show splash "No signal".
         face            splash; // dtvt: "No signal" splash.
         hook            oneoff; // dtvt: One-shot token for start and shutdown events.
-        sync            syncxs; // dtvt: Canvas access sync.
         period          maxoff; // dtvt: Max delay before showing "No signal".
         ansi::esc       buffer; // dtvt: Clipboard buffer.
         ansi::esc       outbuf; // dtvt: PTY output buffer.
@@ -7010,26 +7004,26 @@ namespace netxs::ui
             using namespace ansi::dtvt::binary;
 
             auto lock = stream.frames.sync(data);
-            for(auto locked_frame : lock.thing)
+            for(auto& frame : lock.thing)
             {
-                auto& frame = locked_frame.thing;
-                switch (frame.kind)
+                switch (frame.next)
                 {
-                    case type::bitmap:            events.apply(stream.bitmap            .sync(frame.data)); break;
-                    case type::mouse_event:       events.apply(stream.mouse_event       .sync(frame.data)); break;
-                    case type::tooltips:          events.apply(stream.tooltips          .sync(frame.data)); break;
-                    case type::jgc_list:          events.apply(stream.jgc_list          .sync(frame.data)); break;
-                    case type::expose:            events.apply(stream.expose            .sync(frame.data)); break;
-                    case type::request_debug:     events.apply(stream.request_debug     .sync(frame.data)); break;
-                    case type::request_dbg_count: events.apply(stream.request_dbg_count .sync(frame.data)); break;
-                    case type::set_clipboard:     events.apply(stream.set_clipboard     .sync(frame.data)); break;
-                    case type::request_clipboard: events.apply(stream.request_clipboard .sync(frame.data)); break;
-                    case type::set_focus:         events.apply(stream.set_focus         .sync(frame.data)); break;
-                    case type::off_focus:         events.apply(stream.off_focus         .sync(frame.data)); break;
-                    case type::form_header:       events.apply(stream.form_header       .sync(frame.data)); break;
-                    case type::form_footer:       events.apply(stream.form_footer       .sync(frame.data)); break;
-                    case type::warping:           events.apply(stream.warping           .sync(frame.data)); break;
-                    case type::vt_command: /*todo*/ break;
+                    //todo unify
+                    case bitmap_t::kind:            events.apply(stream.bitmap            .sync(frame.data)); break;
+                    case mouse_event_t::kind:       events.apply(stream.mouse_event       .sync(frame.data)); break;
+                    case tooltips_t::kind:          events.apply(stream.tooltips          .sync(frame.data)); break;
+                    case jgc_list_t::kind:          events.apply(stream.jgc_list          .sync(frame.data)); break;
+                    case expose_t::kind:            events.apply(stream.expose            .sync(frame.data)); break;
+                    case request_debug_t::kind:     events.apply(stream.request_debug     .sync(frame.data)); break;
+                    case request_dbg_count_t::kind: events.apply(stream.request_dbg_count .sync(frame.data)); break;
+                    case set_clipboard_t::kind:     events.apply(stream.set_clipboard     .sync(frame.data)); break;
+                    case request_clipboard_t::kind: events.apply(stream.request_clipboard .sync(frame.data)); break;
+                    case set_focus_t::kind:         events.apply(stream.set_focus         .sync(frame.data)); break;
+                    case off_focus_t::kind:         events.apply(stream.off_focus         .sync(frame.data)); break;
+                    case form_header_t::kind:       events.apply(stream.form_header       .sync(frame.data)); break;
+                    case form_footer_t::kind:       events.apply(stream.form_footer       .sync(frame.data)); break;
+                    case warping_t::kind:           events.apply(stream.warping           .sync(frame.data)); break;
+                    case vt_command_t::kind: /*todo*/ break;
                     default: log("dtvt: unsupported command: ", (byte)frame.kind, "\n", utf::debase(frame.data));
                 }
             }
@@ -7141,11 +7135,11 @@ namespace netxs::ui
               active{ true },
               nodata{      }
         {
-            //todo test
-            test.mouse_event.coord = {};
-            log("test: ", test.mouse_event.type);
-
-            stream.bitmap.image.link(base::id);
+            {
+                //todo unify
+                auto lock = stream.bitmap.freeze();
+                lock.thing.image.link(base::id);
+            }
             cmdarg = command_line;
 
             //SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
@@ -7219,7 +7213,7 @@ namespace netxs::ui
                     while (size != canvas.size()) // Always waiting for the correct frame.
                     {
                         if (!active) return;
-                        if (std::cv_status::timeout == syncxs.wait_for(lock, maxoff)
+                        if (std::cv_status::timeout == lock.wait_for(maxoff)
                          && size != canvas.size())
                         {
                             nodata = canvas.hash();

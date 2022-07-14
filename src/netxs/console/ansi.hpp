@@ -1884,28 +1884,12 @@ namespace netxs::ansi
 
         namespace binary
         {
-            enum class type : byte
-            {
-                frames,
-                frame_element,
-                bitmap,            // Canvas data.
-                mouse_event,       // Mouse events.
-                tooltips,          // Tooltip list.
-                tooltip_element,   // Tooltip.
-                jgc_list,          // list of jumbo GC
-                jgc_element,       // jumbo GC: gc.token + gc.view (response on terminal request)
-                form_header,       // .
-                form_footer,       // .
-                request_clipboard, // request main clipboard data
-                set_clipboard,     // set main clipboard using following data
-                set_focus,         // request to set focus
-                off_focus,         // request to remove focus
-                expose,            // bring the form to the front
-                request_debug,     // request debug output redirection to stdin
-                request_dbg_count, // .
-                vt_command,        // parse following vt-sequences in UTF-8 format
-                warping,           // warping
-            };
+            using type = byte;
+            static constexpr type is_list = 1 << (sizeof(type) * 8 - 1);
+
+            //todo unify
+            struct frag : public view
+            { };
 
             #pragma pack(push,1)
             static constexpr auto initial = char{ '\xFF' };
@@ -1948,7 +1932,8 @@ namespace netxs::ansi
 
             struct stream
             {
-                type kind;
+                //todo revise
+                type next{};
 
             protected:
                 text block;
@@ -1989,6 +1974,10 @@ namespace netxs::ansi
                         block += size;
                         block += data;
                     }
+                    else if constexpr (std::is_same_v<D, noop>)
+                    {
+                        // Noop.
+                    }
                     else log("dtvt: unsupported data type");
                 }
                 // stream: Replace bytes at specified position.
@@ -2004,8 +1993,14 @@ namespace netxs::ansi
                 static auto _take_item(view& data)
                 {
                     using D = std::remove_cv_t<std::remove_reference_t<T>>;
-                    if constexpr (std::is_same_v<D, view>)
+                    if constexpr (std::is_same_v<D, view>
+                               || std::is_same_v<D, text>)
                     {
+                        if (data.size() < sizeof(sz_t))
+                        {
+                            log("dtvt: corrupted view frame");
+                            return view{};
+                        }
                         auto size = netxs::letoh(*reinterpret_cast<sz_t const*>(data.data()));
                         if (data.size() < size + sizeof(size))
                         {
@@ -2019,6 +2014,15 @@ namespace netxs::ansi
                         }
                         return crop;
                     }
+                    else if constexpr (std::is_same_v<D, frag>)
+                    {
+                        auto crop = frag{ data };
+                        if constexpr (!PeekOnly)
+                        {
+                            data.remove_prefix(data.size());
+                        }
+                        return crop;
+                    }
                     else if constexpr (std::is_same_v<D, noop>)
                     {
                         return 0;
@@ -2027,7 +2031,7 @@ namespace netxs::ansi
                     {
                         if (data.size() < sizeof(D))
                         {
-                            log("dtvt: corrupted int data");
+                            log("dtvt: corrupted integer data");
                             return D{};
                         }
                         auto crop = netxs::letoh(*reinterpret_cast<D const*>(data.data()));
@@ -2158,7 +2162,16 @@ namespace netxs::ansi
                         return size;
                     }
                 }
-
+                // stream: .
+                template<bool Discard_empty = faux, class T>
+                void sendby(T&& sender)
+                {
+                    if (stream::commit(Discard_empty))
+                    {
+                        sender.output(block);
+                        stream::reset();
+                    }
+                }
                 // stream: .
                 template<type Kind, class ...Args>
                 void set(Args&&... args)
@@ -2180,12 +2193,9 @@ namespace netxs::ansi
                     reset();
                 }
 
-                stream(stream const&) = default;
-                stream(stream&&)      = default;
                 stream(type kind)
                     : basis{ sizeof(basis) + sizeof(kind) },
-                      start{ basis },
-                       kind{ kind  }
+                      start{ basis }
                 {
                     add(basis, kind);
                 }
@@ -2193,65 +2203,83 @@ namespace netxs::ansi
 
             template<class Base>
             class wrapper
-                : public stream
             {
-                using Lock = std::unique_lock<std::mutex>;
+                using utex = std::mutex;
+                using cond = std::condition_variable;
+                using Lock = std::unique_lock<utex>;
 
-                std::mutex mutex; // wrapper: Accesss mutex.
-                Base&      thing; // wrapper: Protected object.
+                utex mutex; // wrapper: Accesss mutex.
+                cond synch; // wrapper: Accesss notificator.
+                Base thing; // wrapper: Protected object.
 
             public:
                 struct access
-                    : public Lock
                 {
-                    Base& thing;
-                    access(std::mutex& mutex, Base& thing)
-                        :  Lock{ mutex },
-                          thing{ thing }
-                    { }
-                };
+                    Lock  guard; // access: .
+                    Base& thing; // access: .
+                    cond& synch; // access: .
 
-                wrapper(wrapper&&) = default;
-                wrapper(wrapper const& other)
-                    : stream{ other },
-                       thing{ other.thing }
-                { }
-                wrapper(Base& boss, type kind)
-                    : stream{ kind },
-                       thing{ boss }
-                { }
+                    access(utex& mutex, cond& synch, Base& thing)
+                        : guard{ mutex },
+                          thing{ thing },
+                          synch{ synch }
+                    { }
+                    access(access&& other)
+                        : guard{ std::move(other.guard) },
+                          thing{ other.thing },
+                          synch{ other.synch }
+                    { }
+                   ~access()
+                    {
+                        if (guard) synch.notify_all();
+                    }
+                    template<class Period>
+                    auto wait_for(Period&& maxoff)
+                    {
+                        return synch.wait_for(guard, std::forward<Period>(maxoff));
+                    }
+                };
 
                 // wrapper .
                 auto freeze()
                 {
-                    return access{ mutex, thing };
+                    return access{ mutex, synch, thing };
                 }
                 // wrapper .
                 template<bool Discard_empty = faux, class T, class ...Args>
                 void send(T&& sender, Args&&... args)
                 {
+                    auto lock = freeze();
                     if constexpr (!!sizeof...(args))
                     {
-                        thing(std::forward<Args>(args)...);
+                        thing.set(std::forward<Args>(args)...);
                     }
-                    if (stream::commit(Discard_empty))
-                    {
-                        sender.output(block);
-                        stream::reset();
-                    }
+                    thing.sendby<Discard_empty>(sender);
+                }
+                // wrapper .
+                template<class ...Args>
+                auto operator () (Args&&... args)
+                {
+                    auto lock = freeze();
+                    thing.set(std::forward<Args>(args)...);
+                    return lock;
                 }
                 // wrapper .
                 auto sync(view& data)
                 {
-                    return freeze();
+                    auto lock = freeze();
+                    thing.get(data);
+                    return lock;
                 }
             };
 
-            template<class T, class Type>
-            struct generic
+            template<class Base, class Type>
+            struct list
+                : stream
             {
-            protected:
-                T    copy;
+                static constexpr type kind = Type::kind | binary::is_list;
+
+                Base copy;
                 Type item;
 
                 struct iter
@@ -2270,10 +2298,10 @@ namespace netxs::ansi
                     }
 
                     template<class A>
-                    bool operator == (A&&) const { return stop;            }
-                    auto operator  * ()    const { return item.sync(crop); }
-                    auto operator  * ()          { return item.sync(crop); }
-                    auto operator ++ ()
+                    bool  operator == (A&&) const { return stop;                 }
+                    auto& operator  * ()    const { item.get(crop); return item; }
+                    auto& operator  * ()          { item.get(crop); return item; }
+                    auto  operator ++ ()
                     {
                         static constexpr auto head = sizeof(sz_t) + sizeof(type);
                         stop = rest.size() < head;
@@ -2281,7 +2309,7 @@ namespace netxs::ansi
                         else
                         {
                             auto size = sz_t{};
-                            std::tie(size, item.kind) = stream::template take<sz_t, type>(rest);
+                            std::tie(size, item.next) = stream::template take<sz_t, type>(rest);
                             stop = size > rest.size() + head;
                             if (stop) log("dtvt: corrupted data");
                             else
@@ -2294,393 +2322,101 @@ namespace netxs::ansi
                 };
 
             public:
-                generic(generic const&) = default;
-                generic(generic&&)      = default;
-                generic()               = default;
+                list(list const&) = default;
+                list(list&&)      = default;
+                list()
+                    : stream{ kind }
+                { }
 
                 auto begin() { return iter{ copy, item }; }
                 auto   end() { return text::npos; }
-            };
 
-            template<class Storage_type, type Kind, class Element_type>
-            class list
-                : public generic<Storage_type, Element_type>,
-                  public wrapper<list<Storage_type, Kind, Element_type>>
-            {
-                using wrapper = binary::wrapper<list<Storage_type, Kind, Element_type>>;
-                using generic = binary::generic<Storage_type, Element_type>;
-
-            public:
-                list(list const& other)
-                    : generic{ other },
-                      wrapper{ *this, Kind }
-                { }
-                list(list&& other)
-                    : generic{ std::move(other) },
-                      wrapper{ *this, Kind }
-                { }
-                list()
-                    : wrapper{ *this, Kind }
-                { }
-
-                auto sync(view& data)
+                template<class ...Args>
+                void set(Args&&... args)
                 {
-                    auto lock = wrapper::freeze();
-                    generic::copy = data;
+                    item.set(std::forward<Args>(args)...);
+                } 
+                void get(view& data)
+                {
+                    copy = data;
                     data = {};
-                    return lock;
                 }
             };
 
-            struct s11n_v2
-            {
-                static constexpr auto _counter_base = __COUNTER__;
+            static constexpr auto _counter_base = __COUNTER__;
 
-                #define MACROGEN_DEF
-                #include "../abstract/macrogen.hpp"
+            // Definition of plain objects.
+            #define MACROGEN_DEF
+            #include "../abstract/macrogen.hpp"
 
-                #define STRUCT(struct_name, struct_members)                               \
-                    struct CAT(struct_name, _t)                                           \
-                    {                                                                     \
-                        static constexpr byte type = __COUNTER__ - _counter_base;         \
-                        SEQ_ATTR(WRAP(struct_members))                                    \
-                        void set(SEQ_SIGN(WRAP(struct_members)) int tmp = {})             \
-                        {                                                                 \
-                            SEQ_INIT(WRAP(struct_members))                                \
-                        }                                                                 \
-                        void get(view& data)                                              \
-                        {                                                                 \
-                            int _tmp;                                                     \
-                            std::tie(SEQ_NAME(WRAP(struct_members)) _tmp) =               \
-                                stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(data);  \
-                        }                                                                 \
-                    };                                                                    \
-                    CAT(struct_name, _t) struct_name;
+            #define STRUCT(struct_name, struct_members)                               \
+                struct CAT(struct_name, _t) : public stream                           \
+                {                                                                     \
+                    static constexpr type kind = __COUNTER__ - _counter_base;         \
+                    SEQ_ATTR(WRAP(struct_members))                                    \
+                    CAT(struct_name, _t)()                                            \
+                        : stream{ kind }                                              \
+                    { }                                                               \
+                    void set(SEQ_SIGN(WRAP(struct_members)) int tmp = {})             \
+                    {                                                                 \
+                        SEQ_INIT(WRAP(struct_members))                                \
+                        stream::reset();                                              \
+                        stream::add(SEQ_NAME(WRAP(struct_members)) noop{});           \
+                    }                                                                 \
+                    void get(view& data)                                              \
+                    {                                                                 \
+                        int _tmp;                                                     \
+                        std::tie(SEQ_NAME(WRAP(struct_members)) _tmp) =               \
+                            stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(data);  \
+                    }                                                                 \
+                };                                                                    \
+                using struct_name = wrapper<CAT(struct_name, _t)>;
 
-                #define STRUCT_LITE(struct_name)                                          \
-                    struct CAT(struct_name, _t)                                           \
-                    {                                                                     \
-                        static constexpr byte type = __COUNTER__ - _counter_base;         \
-                        void set() {}                                                     \
-                        void get(view& data) {}                                           \
-                    };                                                                    \
-                    CAT(struct_name, _t) struct_name;
+            #define STRUCT_LITE(struct_name)                                          \
+                struct CAT(struct_name, _t) : public stream                           \
+                {                                                                     \
+                    static constexpr type kind = __COUNTER__ - _counter_base;         \
+                    CAT(struct_name, _t)()                                            \
+                        : stream{ kind }                                              \
+                    { }                                                               \
+                    void set() {}                                                     \
+                    void get(view& data) {}                                           \
+                };                                                                    \
+                using struct_name = wrapper<CAT(struct_name, _t)>;
 
-                STRUCT(frame_element,     (view, data))
-                STRUCT(jgc_element,       (ui64, token) (text, cluster))
-                STRUCT(request_dbg_count, (sz_t, count))
-                STRUCT(tooltip_element,   (id_t, gear_id) (text, tip_text))
-                STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord))
-                STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata))
-                STRUCT(request_clipboard, (id_t, gear_id))
-                STRUCT(set_focus,         (id_t, gear_id) (bool, combine_focus) (bool, force_group_focus))
-                STRUCT(off_focus,         (id_t, gear_id))
-                STRUCT(form_header,       (id_t, window_id) (text, new_header))
-                STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
-                STRUCT(warping,           (id_t, window_id) (dent, warpdata))
-                using map_list = std::unordered_map<ui64, text>;
-                STRUCT(bitmaps,           (cell, state) (core, image) (map_list, newgc))
-                STRUCT_LITE(expose)
-                STRUCT_LITE(request_debug)
+            STRUCT(frame_element,     (frag, data))
+            STRUCT(jgc_element,       (ui64, token) (text, cluster))
+            STRUCT(request_dbg_count, (sz_t, count))
+            STRUCT(tooltip_element,   (id_t, gear_id) (text, tip_text))
+            STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord))
+            STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata))
+            STRUCT(request_clipboard, (id_t, gear_id))
+            STRUCT(set_focus,         (id_t, gear_id) (bool, combine_focus) (bool, force_group_focus))
+            STRUCT(off_focus,         (id_t, gear_id))
+            STRUCT(form_header,       (id_t, window_id) (text, new_header))
+            STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
+            STRUCT(warping,           (id_t, window_id) (dent, warpdata))
+            STRUCT(vt_command,        (text, command))
+            STRUCT_LITE(expose)
+            STRUCT_LITE(request_debug)
+            //using map_list = std::unordered_map<ui64, text>;
+            //STRUCT(bitmaps,           (cell, state) (core, image) (map_list, newgc))
 
-                #undef STRUCT
-                #undef STRUCT_LITE
-                #define MACROGEN_UNDEF
-                #include "../abstract/macrogen.hpp"
-            };
+            #undef STRUCT
+            #undef STRUCT_LITE
+            #define MACROGEN_UNDEF
+            #include "../abstract/macrogen.hpp"
 
-            class frame_element : public wrapper<frame_element>
-            {
-            public:
-                frame_element() : wrapper{ *this, type::frame_element } { }
-
-                view data;
-
-                auto sync(view& rest)
-                {
-                    auto lock = wrapper::freeze();
-                    data = rest;
-                    return lock;
-                }
-            };
-            class tooltip_element : public wrapper<tooltip_element>
+            // Definition of complex objects.
+            class bitmap_t
+                : public stream
             {
             public:
-                tooltip_element(tooltip_element&& other)
-                    : wrapper{ *this, type::tooltip_element },
-                      gear_id { std::move(other.gear_id) },
-                      tip_text{ std::move(other.tip_text) }
+                static constexpr type kind = __COUNTER__ - _counter_base;
+                
+                bitmap_t()
+                    : stream{ kind }
                 { }
-                tooltip_element(tooltip_element const& other)
-                    : wrapper{ *this, type::tooltip_element },
-                      gear_id{ other.gear_id },
-                      tip_text{ other.tip_text }
-                { }
-                tooltip_element() : wrapper{ *this, type::tooltip_element } { }
-
-                id_t gear_id;
-                text tip_text;
-
-                auto& operator () (id_t gear_id, view tip_text)
-                {
-                    stream::reset();
-                    this->gear_id = gear_id;
-                    this->tip_text = tip_text;
-                    stream::add(gear_id, tip_text);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(gear_id, tip_text) = stream::take<id_t, view>(data);
-                    return lock;
-                }
-            };
-            class jgc_element : public wrapper<jgc_element>
-            {
-            public:
-                jgc_element() : wrapper{ *this, type::jgc_element } { }
-
-                ui64 token;
-                text cluster;
-
-                auto& operator () (ui64 token, view cluster)
-                {
-                    this->token = token;
-                    this->cluster = cluster;
-                    stream::reset();
-                    stream::add(token, cluster);
-                    return *this;
-                }
-                auto sync(view& rest)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(token, cluster) = stream::take<ui64, view>(rest);
-                    return lock;
-                }
-            };
-
-            class mouse_event : public wrapper<mouse_event>
-            {
-            public:
-                mouse_event() : wrapper{ *this, type::mouse_event } { }
-
-                id_t gear_id;
-                hint cause;
-                twod coord;
-
-                auto& operator () (id_t gear_id, hint cause, twod const& coord)
-                {
-                    stream::reset();
-                    this->gear_id = gear_id;
-                    this->cause = cause;
-                    this->coord = coord;
-                    stream::add(gear_id, cause, coord);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(gear_id, cause, coord) = stream::take<id_t, hint, twod>(data);
-                    return lock;
-                }
-            };
-            class request_dbg_count : public wrapper<request_dbg_count>
-            {
-            public:
-                sz_t count;
-
-                request_dbg_count() : wrapper{ *this, type::request_dbg_count } { }
-
-                auto& operator () (sz_t count)
-                {
-                    this->count = count;
-                    stream::reset();
-                    stream::add(count);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(count) = stream::take<sz_t>(data);
-                    return lock;
-                }
-            };
-            class request_debug : public wrapper<request_debug>
-            {
-            public:
-                request_debug() : wrapper{ *this, type::request_debug } { }
-            };
-            class set_clipboard : public wrapper<set_clipboard>
-            {
-            public:
-                set_clipboard() : wrapper{ *this, type::set_clipboard } { }
-
-                id_t gear_id;
-                twod clip_prev_size;
-                text clipdata;
-
-                auto& operator () (id_t gear_id, twod const& clip_prev_size, view clipdata)
-                {
-                    this->gear_id = gear_id;
-                    this->clip_prev_size = clip_prev_size;
-                    this->clipdata = clipdata;
-                    stream::reset();
-                    stream::add(gear_id, clip_prev_size, clipdata);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(gear_id, clip_prev_size, clipdata) = stream::take<id_t, twod, view>(data);
-                    return lock;
-                }
-            };
-            class request_clipboard : public wrapper<request_clipboard>
-            {
-            public:
-                request_clipboard() : wrapper{ *this, type::request_clipboard } { }
-
-                id_t gear_id;
-
-                auto& operator () (id_t gear_id)
-                {
-                    this->gear_id = gear_id;
-                    stream::reset();
-                    stream::add(gear_id);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(gear_id) = stream::take<id_t>(data);
-                    return lock;
-                }
-            };
-            class set_focus : public wrapper<set_focus>
-            {
-            public:
-                set_focus() : wrapper{ *this, type::set_focus } { }
-
-                id_t gear_id;
-                bool combine_focus;
-                bool force_group_focus;
-
-                auto& operator () (id_t gear_id, bool combine_focus, bool force_group_focus)
-                {
-                    this->gear_id = gear_id;
-                    this->combine_focus = combine_focus;
-                    this->force_group_focus = force_group_focus;
-                    stream::reset();
-                    stream::add(gear_id, combine_focus, force_group_focus);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(gear_id, combine_focus, force_group_focus) = stream::take<id_t, bool, bool>(data);
-                    return lock;
-                }
-            };
-            class off_focus : public wrapper<off_focus>
-            {
-            public:
-                id_t gear_id;
-
-                off_focus() : wrapper{ *this, type::off_focus } { }
-
-                auto& operator () (id_t gear_id)
-                {
-                    this->gear_id = gear_id;
-                    stream::reset();
-                    stream::add(gear_id);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(gear_id) = stream::take<id_t>(data);
-                    return lock;
-                }
-            };
-            class form_header : public wrapper<form_header>
-            {
-            public:
-                form_header() : wrapper{ *this, type::form_header } { }
-
-                id_t window_id;
-                text new_header;
-
-                auto& operator () (id_t window_id, view new_header)
-                {
-                    this->window_id = window_id;
-                    this->new_header = new_header;
-                    stream::reset();
-                    stream::add(window_id, new_header);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(window_id, new_header) = stream::take<id_t, view>(data);
-                    return lock;
-                }
-            };
-            class form_footer : public wrapper<form_footer>
-            {
-            public:
-                form_footer() : wrapper{ *this, type::form_footer } { }
-
-                id_t window_id;
-                text new_footer;
-
-                auto& operator () (id_t window_id, view new_footer)
-                {
-                    this->window_id = window_id;
-                    this->new_footer = new_footer;
-                    stream::reset();
-                    stream::add(window_id, new_footer);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(window_id, new_footer) = stream::take<id_t, view>(data);
-                    return lock;
-                }
-            };
-            class warping : public wrapper<warping>
-            {
-            public:
-                warping() : wrapper{ *this, type::warping } { }
-
-                id_t window_id;
-                dent warpdata;
-
-                auto& operator () (id_t window_id, dent warpdata)
-                {
-                    this->window_id = window_id;
-                    this->warpdata = warpdata;
-                    stream::reset();
-                    stream::add(window_id, warpdata);
-                    return *this;
-                }
-                auto sync(view& data)
-                {
-                    auto lock = wrapper::freeze();
-                    std::tie(window_id, warpdata) = stream::take<id_t, dent>(data);
-                    return lock;
-                }
-            };
-            class expose : public wrapper<expose>
-            {
-            public:
-                expose() : wrapper{ *this, type::expose } { }
-            };
-            class bitmap : public wrapper<bitmap>
-            {
-            public:
-                bitmap() : wrapper{ *this, type::bitmap } { }
 
                 cell                           state; // bitmap: .
                 core                           image; // bitmap: .
@@ -2703,7 +2439,7 @@ namespace netxs::ansi
                     glyph = 1 << 4,
                 };
 
-                auto set(id_t winid, twod const& coord, core& cache, bool& abort)
+                void set(id_t winid, twod const& coord, core& cache, bool& abort, sz_t& delta)
                 {
                     //todo multiple windows
                     stream::reinit(winid, rect{ coord, cache.size() });
@@ -2809,11 +2545,10 @@ namespace netxs::ansi
                         std::swap(image, cache);
                         sum = commit(discard_empty);
                     }
-                    return sum;
+                    delta = sum;
                 }
-                auto sync(view& data)
+                void get(view& data)
                 {
-                    auto lock = wrapper::freeze();
                     auto [myid, area] = stream::take<id_t, rect>(data);
                     //todo head.myid
                     if (image.size() != area.size)
@@ -2892,33 +2627,37 @@ namespace netxs::ansi
                     //log("dtvt: rep count: ", rep_count);
                     //log("dtvt: dif count: ", dif_count);
                     //log("----------------------------");
-                    return lock;
                 }
             };
+            using bitmap = wrapper<bitmap_t>;
 
-            using frames   = list<view, type::frames,     frame_element>;
-            using jgc_list = list<text, type::jgc_list,     jgc_element>;
-            using tooltips = list<text, type::tooltips, tooltip_element>;
+            using frames_t   = list<view,   frame_element_t>;
+            using jgc_list_t = list<text,     jgc_element_t>;
+            using tooltips_t = list<text, tooltip_element_t>;
+            using frames   = wrapper<frames_t  >;
+            using jgc_list = wrapper<jgc_list_t>;
+            using tooltips = wrapper<tooltips_t>;
 
             struct s11n
             {
-                binary::frames              frames;
-                binary::bitmap              bitmap;
-                binary::mouse_event         mouse_event;
-                binary::tooltip_element     tooltip_element;
-                binary::tooltips            tooltips;
-                binary::jgc_element         jgc_element;
-                binary::jgc_list            jgc_list;
-                binary::request_dbg_count   request_dbg_count;
-                binary::request_debug       request_debug;
-                binary::set_clipboard       set_clipboard;
-                binary::request_clipboard   request_clipboard;
-                binary::off_focus           off_focus;
-                binary::set_focus           set_focus;
-                binary::form_header         form_header;
-                binary::form_footer         form_footer;
-                binary::warping             warping;
-                binary::expose              expose;
+                binary::frames              frames;             // Received frames.
+                binary::bitmap              bitmap;             // Canvas data.
+                binary::mouse_event         mouse_event;        // Mouse events.
+                binary::tooltip_element     tooltip_element;    // Tooltip.
+                binary::tooltips            tooltips;           // Tooltip list.
+                binary::jgc_element         jgc_element;        // jumbo GC: gc.token + gc.view (response on terminal request)
+                binary::jgc_list            jgc_list;           // list of jumbo GC
+                binary::request_dbg_count   request_dbg_count;  // .
+                binary::request_debug       request_debug;      // request debug output redirection to stdin
+                binary::set_clipboard       set_clipboard;      // set main clipboard using following data
+                binary::request_clipboard   request_clipboard;  // request main clipboard data
+                binary::off_focus           off_focus;          // request to remove focus
+                binary::set_focus           set_focus;          // request to set focus
+                binary::form_header         form_header;        // .
+                binary::form_footer         form_footer;        // .
+                binary::warping             warping;            // warping
+                binary::expose              expose;             // bring the form to the front
+                binary::vt_command          vt_command;         // parse following vt-sequences in UTF-8 format
             };
         }
 
@@ -2954,7 +2693,7 @@ namespace netxs::ansi
                 }
                 // ascii::bitmap: .
                 template<class T>
-                void send(T&& sender)
+                void sendby(T&& sender)
                 {
                     if (commit())
                     {
@@ -2969,12 +2708,11 @@ namespace netxs::ansi
                 }
 
                 // ascii::bitmap: .
-                auto set(id_t winid, twod const& winxy, core& cache, bool& abort)
+                void set(id_t winid, twod const& winxy, core& cache, bool& abort, sz_t& delta)
                 {
                     auto coord = dot_00;
                     auto saved = state;
                     auto field = cache.size();
-                    auto delta = sz_t{ 0 };
 
                     auto mov = [&](auto x)
                     {
@@ -3168,7 +2906,6 @@ namespace netxs::ansi
                         std::swap(image, cache);
                         delta = commit();
                     }
-                    return delta;
                 }
             };
         }
