@@ -2403,8 +2403,6 @@ namespace netxs::ansi
             STRUCT(vt_command,        (text, command))
             STRUCT_LITE(expose)
             STRUCT_LITE(request_debug)
-            //using map_list = std::unordered_map<ui64, text>;
-            //STRUCT(bitmaps,           (cell, state) (core, image) (map_list, newgc))
 
             #undef STRUCT
             #undef STRUCT_LITE
@@ -2644,26 +2642,32 @@ namespace netxs::ansi
 
             struct s11n
             {
-                binary::frames              frames;             // Received frames.
-                binary::bitmap              bitmap;             // Canvas data.
-                binary::mouse_event         mouse_event;        // Mouse events.
-                binary::tooltip_element     tooltip_element;    // Tooltip.
-                binary::tooltips            tooltips;           // Tooltip list.
-                binary::jgc_element         jgc_element;        // jumbo GC: gc.token + gc.view (response on terminal request)
-                binary::jgc_list            jgc_list;           // list of jumbo GC
-                binary::request_dbg_count   request_dbg_count;  // .
-                binary::request_debug       request_debug;      // request debug output redirection to stdin
-                binary::set_clipboard       set_clipboard;      // set main clipboard using following data
-                binary::request_clipboard   request_clipboard;  // request main clipboard data
-                binary::off_focus           off_focus;          // request to remove focus
-                binary::set_focus           set_focus;          // request to set focus
-                binary::form_header         form_header;        // .
-                binary::form_footer         form_footer;        // .
-                binary::warping             warping;            // warping
-                binary::expose              expose;             // bring the form to the front
-                binary::vt_command          vt_command;         // parse following vt-sequences in UTF-8 format
+                #define OBJECT_LIST \
+                X(bitmap           ) /* Canvas data. */\
+                X(mouse_event      ) /* Mouse events. */\
+                X(tooltips         ) /* Tooltip list. */\
+                X(jgc_list         ) /* list of jumbo GC */\
+                X(request_dbg_count) /* . */\
+                X(request_debug    ) /* request debug output redirection to stdin */\
+                X(set_clipboard    ) /* set main clipboard using following data */\
+                X(request_clipboard) /* request main clipboard data */\
+                X(off_focus        ) /* request to remove focus */\
+                X(set_focus        ) /* request to set focus */\
+                X(form_header      ) /* . */\
+                X(form_footer      ) /* . */\
+                X(warping          ) /* warping */\
+                X(expose           ) /* bring the form to the front */\
+                X(vt_command       ) /* parse following vt-sequences in UTF-8 format */ 
+                //X(frames           ) /* Received frames. */
+                //X(tooltip_element  ) /* Tooltip. */
+                //X(jgc_element      ) /* jumbo GC: gc.token + gc.view (response on terminal request) */
 
-                std::unordered_map<byte, std::function<void(view&)>> exec;
+                binary::frames frames; // s11n: Frame iterator.
+                std::unordered_map<byte, std::function<void(view&)>> exec; // s11n: .
+
+                #define X(_object) binary::_object _object;
+                OBJECT_LIST
+                #undef X
 
                 void sync(view& data)
                 {
@@ -2683,24 +2687,15 @@ namespace netxs::ansi
                 template<class T>
                 s11n(T& boss)
                 {
+                    #define X(_object) exec[binary::_object::kind] = [&](auto& data) { boss.handle(_object.sync(data)); };
+                    OBJECT_LIST
+                    #undef X
+
                     auto lock = bitmap.freeze();
-                    lock.thing.image.link(boss.base::id);
-                    exec[bitmap              ::kind] = [&](auto& data) { boss.handle(bitmap            .sync(data)); };
-                    exec[mouse_event         ::kind] = [&](auto& data) { boss.handle(mouse_event       .sync(data)); };
-                    exec[tooltips            ::kind] = [&](auto& data) { boss.handle(tooltips          .sync(data)); };
-                    exec[jgc_list            ::kind] = [&](auto& data) { boss.handle(jgc_list          .sync(data)); };
-                    exec[expose              ::kind] = [&](auto& data) { boss.handle(expose            .sync(data)); };
-                    exec[request_debug       ::kind] = [&](auto& data) { boss.handle(request_debug     .sync(data)); };
-                    exec[request_dbg_count   ::kind] = [&](auto& data) { boss.handle(request_dbg_count .sync(data)); };
-                    exec[set_clipboard       ::kind] = [&](auto& data) { boss.handle(set_clipboard     .sync(data)); };
-                    exec[request_clipboard   ::kind] = [&](auto& data) { boss.handle(request_clipboard .sync(data)); };
-                    exec[set_focus           ::kind] = [&](auto& data) { boss.handle(set_focus         .sync(data)); };
-                    exec[off_focus           ::kind] = [&](auto& data) { boss.handle(off_focus         .sync(data)); };
-                    exec[form_header         ::kind] = [&](auto& data) { boss.handle(form_header       .sync(data)); };
-                    exec[form_footer         ::kind] = [&](auto& data) { boss.handle(form_footer       .sync(data)); };
-                    exec[warping             ::kind] = [&](auto& data) { boss.handle(warping           .sync(data)); };
-                    exec[vt_command          ::kind] = [&](auto& data) { boss.handle(vt_command        .sync(data)); };
+                    lock.thing.image.link(boss.id);
                 }
+
+                #undef OBJECT_LIST
             };
         }
 
