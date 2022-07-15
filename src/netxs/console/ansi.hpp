@@ -2179,18 +2179,11 @@ namespace netxs::ansi
                     add(Kind, std::forward<Args>(args)...);
                 }
                 // stream: .
-                void operator << (stream& other)
+                void emplace(stream& other)
                 {
                     other.commit();
                     block += other.block;
                     other.reset();
-                }
-                // stream: .
-                void operator >> (stream& other)
-                {
-                    commit();
-                    other.block += block;
-                    reset();
                 }
 
                 stream(type kind)
@@ -2213,6 +2206,8 @@ namespace netxs::ansi
                 Base thing; // wrapper: Protected object.
 
             public:
+                static constexpr type kind = Base::kind;
+
                 struct access
                 {
                     Lock  guard; // access: .
@@ -2331,11 +2326,20 @@ namespace netxs::ansi
                 auto begin() { return iter{ copy, item }; }
                 auto   end() { return text::npos; }
 
+                // list: .
+                template<class ...Args>
+                void push(Args&&... args)
+                {
+                    item.set(std::forward<Args>(args)...);
+                    stream::emplace(item);
+                }
+                // list: .
                 template<class ...Args>
                 void set(Args&&... args)
                 {
                     item.set(std::forward<Args>(args)...);
                 } 
+                // list: .
                 void get(view& data)
                 {
                     copy = data;

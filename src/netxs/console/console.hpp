@@ -4922,15 +4922,13 @@ namespace netxs::console
         void send_tooltips(T&& gears)
         {
             auto list = wired.tooltips.freeze();
-            auto elem = wired.tooltip_element.freeze();
-            for (auto& [gear_id, gear_ptr] : gears)
+            for (auto& [gear_id, gear_ptr] : gears /* use filter gear.is_tooltip_changed()*/)
             {
                 auto& gear = *gear_ptr;
                 if (gear.is_tooltip_changed())
                 {
                     //todo revise (view/text)
-                    elem.thing.set(gear_id, text{ (view)gear.get_tooltip() });
-                    list.thing << elem.thing;
+                    list.thing.push(gear_id, text{ (view)gear.get_tooltip() });
                 }
             }
             list.thing.sendby<true>(*this);
@@ -4939,11 +4937,9 @@ namespace netxs::console
         void send_gclist(T&& gclist)
         {
             auto list = wired.jgc_list.freeze();
-            auto elem = wired.jgc_element.freeze();
             for (auto& [token, cluster] : gclist)
             {
-                elem.thing.set(token, cluster);
-                list.thing << elem.thing;
+                list.thing.push(token, cluster);
                 log("token ", token, " cluster.size ", cluster.size());
             }
             list.thing.sendby<true>(*this);

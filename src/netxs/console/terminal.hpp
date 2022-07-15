@@ -6902,6 +6902,11 @@ namespace netxs::ui
                     owner.base::riseup<tier::release>(e2::form::layout::swarp, warp);
                 });
             }
+            void apply(ansi::dtvt::binary::vt_command::access              lock)
+            {
+                auto& w = lock.thing;
+                //todo implement
+            }
 
             events_t(dtvt& owner)
                 : owner{ owner }
@@ -7008,22 +7013,21 @@ namespace netxs::ui
             {
                 switch (frame.next)
                 {
-                    //todo unify
-                    case bitmap_t::kind:            events.apply(stream.bitmap            .sync(frame.data)); break;
-                    case mouse_event_t::kind:       events.apply(stream.mouse_event       .sync(frame.data)); break;
-                    case tooltips_t::kind:          events.apply(stream.tooltips          .sync(frame.data)); break;
-                    case jgc_list_t::kind:          events.apply(stream.jgc_list          .sync(frame.data)); break;
-                    case expose_t::kind:            events.apply(stream.expose            .sync(frame.data)); break;
-                    case request_debug_t::kind:     events.apply(stream.request_debug     .sync(frame.data)); break;
-                    case request_dbg_count_t::kind: events.apply(stream.request_dbg_count .sync(frame.data)); break;
-                    case set_clipboard_t::kind:     events.apply(stream.set_clipboard     .sync(frame.data)); break;
-                    case request_clipboard_t::kind: events.apply(stream.request_clipboard .sync(frame.data)); break;
-                    case set_focus_t::kind:         events.apply(stream.set_focus         .sync(frame.data)); break;
-                    case off_focus_t::kind:         events.apply(stream.off_focus         .sync(frame.data)); break;
-                    case form_header_t::kind:       events.apply(stream.form_header       .sync(frame.data)); break;
-                    case form_footer_t::kind:       events.apply(stream.form_footer       .sync(frame.data)); break;
-                    case warping_t::kind:           events.apply(stream.warping           .sync(frame.data)); break;
-                    case vt_command_t::kind: /*todo*/ break;
+                    case bitmap::kind:            events.apply(stream.bitmap            .sync(frame.data)); break;
+                    case mouse_event::kind:       events.apply(stream.mouse_event       .sync(frame.data)); break;
+                    case tooltips::kind:          events.apply(stream.tooltips          .sync(frame.data)); break;
+                    case jgc_list::kind:          events.apply(stream.jgc_list          .sync(frame.data)); break;
+                    case expose::kind:            events.apply(stream.expose            .sync(frame.data)); break;
+                    case request_debug::kind:     events.apply(stream.request_debug     .sync(frame.data)); break;
+                    case request_dbg_count::kind: events.apply(stream.request_dbg_count .sync(frame.data)); break;
+                    case set_clipboard::kind:     events.apply(stream.set_clipboard     .sync(frame.data)); break;
+                    case request_clipboard::kind: events.apply(stream.request_clipboard .sync(frame.data)); break;
+                    case set_focus::kind:         events.apply(stream.set_focus         .sync(frame.data)); break;
+                    case off_focus::kind:         events.apply(stream.off_focus         .sync(frame.data)); break;
+                    case form_header::kind:       events.apply(stream.form_header       .sync(frame.data)); break;
+                    case form_footer::kind:       events.apply(stream.form_footer       .sync(frame.data)); break;
+                    case warping::kind:           events.apply(stream.warping           .sync(frame.data)); break;
+                    case vt_command::kind:        events.apply(stream.vt_command        .sync(frame.data)); break;
                     default: log("dtvt: unsupported command: ", (byte)frame.kind, "\n", utf::debase(frame.data));
                 }
             }
