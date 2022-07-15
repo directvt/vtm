@@ -2375,7 +2375,7 @@ namespace netxs::ansi
                     }                                                                 \
                 };                                                                    \
                 using struct_name = wrapper<CAT(struct_name, _t)>;
-
+            //todo use C++20 __VA_OPT__ (MSVC not ready yet)
             #define STRUCT_LITE(struct_name)                                          \
                 struct CAT(struct_name, _t) : public stream                           \
                 {                                                                     \
@@ -2661,6 +2661,13 @@ namespace netxs::ansi
                 //X(frames           ) /* Received frames. */
                 //X(tooltip_element  ) /* Tooltip. */
                 //X(jgc_element      ) /* jumbo GC: gc.token + gc.view (response on terminal request) */
+
+                struct xs
+                {
+                    #define X(_object) using _object = binary::_object::access;
+                    OBJECT_LIST
+                    #undef X
+                };
 
                 binary::frames frames; // s11n: Frame iterator.
                 std::unordered_map<byte, std::function<void(view&)>> exec; // s11n: .

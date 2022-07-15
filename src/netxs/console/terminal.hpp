@@ -6601,6 +6601,9 @@ namespace netxs::ui
     class dtvt
         : public ui::form<dtvt>
     {
+        using sync = std::condition_variable;
+        using s11n = netxs::ansi::dtvt::binary::s11n;
+
         // dtvt: DTVT-style mouse tracking functionality.
         class events_t
         {
@@ -6738,7 +6741,7 @@ namespace netxs::ui
                 token.clear();
             }
 
-            void sync(ansi::dtvt::binary::bitmap::access               lock)
+            void sync(s11n::xs::bitmap              lock)
             {
                 if (lock.thing.newgc.size())
                 {
@@ -6750,7 +6753,7 @@ namespace netxs::ui
                 //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
                 owner.base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
             }
-            void sync(ansi::dtvt::binary::tooltips::access             lock)
+            void sync(s11n::xs::tooltips            lock)
             {
                 auto copy = lock.thing;
                 netxs::events::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
@@ -6766,7 +6769,7 @@ namespace netxs::ui
                     }
                 });
             }
-            void sync(ansi::dtvt::binary::jgc_list::access             lock)
+            void sync(s11n::xs::jgc_list            lock)
             {
                 for (auto& jgc : lock.thing)
                 {
@@ -6775,7 +6778,7 @@ namespace netxs::ui
                 }
                 //todo full strike to redraw with new clusters
             }
-            void sync(ansi::dtvt::binary::mouse_event::access          lock)
+            void sync(s11n::xs::mouse_event         lock)
             {
                 auto& m = lock.thing;
                 log("replay: ", m.cause);
@@ -6800,14 +6803,14 @@ namespace netxs::ui
                     }
                 }
             }
-            void sync(ansi::dtvt::binary::expose::access               lock)
+            void sync(s11n::xs::expose              lock)
             {
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
                 {
                     owner.base::template riseup<tier::preview>(e2::form::layout::expose, owner);
                 });
             }
-            void sync(ansi::dtvt::binary::request_debug::access        lock)
+            void sync(s11n::xs::request_debug       lock)
             {
                 //todo reimplement Logs
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
@@ -6815,7 +6818,7 @@ namespace netxs::ui
                     owner.request_debug();
                 });
             }
-            void sync(ansi::dtvt::binary::request_dbg_count::access    lock)
+            void sync(s11n::xs::request_dbg_count   lock)
             {
                 //todo reimplement Logs
                 netxs::events::enqueue(owner.This(), [&, count = lock.thing.count](auto& boss) mutable
@@ -6823,7 +6826,7 @@ namespace netxs::ui
                     owner.SIGNAL(tier::general, e2::debug::count::set, count);
                 });
             }
-            void sync(ansi::dtvt::binary::set_clipboard::access        lock)
+            void sync(s11n::xs::set_clipboard       lock)
             {
                 auto& c = lock.thing;
                 auto lock_ui = events::sync{};
@@ -6833,7 +6836,7 @@ namespace netxs::ui
                     gear_ptr->set_clip_data(c.clip_prev_size, c.clipdata);
                 }
             }
-            void sync(ansi::dtvt::binary::request_clipboard::access    lock)
+            void sync(s11n::xs::request_clipboard   lock)
             {
                 auto& c = lock.thing;
                 auto lock_ui = events::sync{};
@@ -6846,7 +6849,7 @@ namespace netxs::ui
                 owner.buffer = ansi::clipdata(c.gear_id, clipdata);
                 owner.answer(owner.buffer);
             }
-            void sync(ansi::dtvt::binary::set_focus::access            lock)
+            void sync(s11n::xs::set_focus           lock)
             {
                 auto& f = lock.thing;
                 auto lock_ui = events::sync{};
@@ -6863,7 +6866,7 @@ namespace netxs::ui
                     log("dtvt: events: set_kb_focus");
                 }
             }
-            void sync(ansi::dtvt::binary::off_focus::access            lock)
+            void sync(s11n::xs::off_focus           lock)
             {
                 auto& f = lock.thing;
                 auto lock_ui = events::sync{};
@@ -6875,7 +6878,7 @@ namespace netxs::ui
                     log("dtvt: events: remove_from_kb_focus ", gear.id);
                 }
             }
-            void sync(ansi::dtvt::binary::form_header::access          lock)
+            void sync(s11n::xs::form_header         lock)
             {
                 auto& h = lock.thing;
                 netxs::events::enqueue(owner.This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
@@ -6884,7 +6887,7 @@ namespace netxs::ui
                     owner.base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
                 });
             }
-            void sync(ansi::dtvt::binary::form_footer::access          lock)
+            void sync(s11n::xs::form_footer         lock)
             {
                 auto& f = lock.thing;
                 netxs::events::enqueue(owner.This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
@@ -6893,7 +6896,7 @@ namespace netxs::ui
                     owner.base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
                 });
             }
-            void sync(ansi::dtvt::binary::warping::access              lock)
+            void sync(s11n::xs::warping             lock)
             {
                 auto& w = lock.thing;
                 netxs::events::enqueue(owner.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
@@ -6902,7 +6905,7 @@ namespace netxs::ui
                     owner.base::riseup<tier::release>(e2::form::layout::swarp, warp);
                 });
             }
-            void sync(ansi::dtvt::binary::vt_command::access           lock)
+            void sync(s11n::xs::vt_command          lock)
             {
                 auto& w = lock.thing;
                 //todo implement
@@ -6975,9 +6978,6 @@ namespace netxs::ui
                 };
             }
         };
-
-        using sync = std::condition_variable;
-        using s11n = netxs::ansi::dtvt::binary::s11n;
 
         events_t        events; // dtvt: .
         text            cmdarg; // dtvt: Startup command line arguments.
