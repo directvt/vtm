@@ -378,6 +378,7 @@ namespace netxs::utf
         void     pop_front () { view::remove_prefix(1); }
         si32     front     () const { return static_cast<unsigned char>(view::front()); }
         operator bool      () const { return view::length(); }
+        operator text      () const { return text{ static_cast<view>(*this) }; }
 
         constexpr qiew() noexcept : view() { }
         constexpr qiew(view const& v) noexcept : view(v) { }

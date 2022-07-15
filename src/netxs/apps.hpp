@@ -1141,10 +1141,15 @@ namespace netxs::app::shared
                 //auto buff = std::vector<char>(1 << 20 /* 1M */);
                 for (auto const& name : fs::directory_iterator(apps))
                 {
+                    log("apps: external module found: ", name);
                     if (!(name.is_regular_file()
                        || name.is_symlink())) continue;
                     auto file = std::ifstream(name.path(), std::ios::binary | std::ios::in);
-                    file.seekg(0, std::ios::end);
+                    if (file.seekg(0, std::ios::end).fail())
+                    {
+                        log("apps: unable to get file size, skip it: ", name);
+                        continue;
+                    }
                     auto size = file.tellg();
                     auto buff = std::vector<char>(size);
                     file.seekg(0, std::ios::beg);
@@ -1154,7 +1159,13 @@ namespace netxs::app::shared
                     {
                         iter += skip;
                         netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
-                        list.emplace_back(name, std::move(crop));
+                        auto& rec = list.emplace_back(name, std::move(crop));
+
+                        auto profiles = utf::divide(rec.second, "\n");
+                        for (auto profile : profiles)
+                        {
+                            if (profile.length()) log("\t<link>", profile);
+                        }
                     }
                 }
 
@@ -1166,6 +1177,10 @@ namespace netxs::app::shared
                 {
                     apply_params(file.second, file.first.path().string());
                 }
+            }
+            else
+            {
+                log("apps: no external modules found at ", apps);
             }
             if (list.empty())
             {
@@ -1194,7 +1209,7 @@ namespace netxs::app::shared
             if (auto size = tiling_profiles.size())
             {
                 auto i = 0;
-                log("main: tiling profile", size > 1 ? "s":"", " found");
+                log("main: tiling profile", size > 1 ? "s":"", " found:");
                 for (auto& p : tiling_profiles)
                 {
                     log("\t", i++, ". profile: ", utf::debase(p));

@@ -4927,8 +4927,7 @@ namespace netxs::console
                 auto& gear = *gear_ptr;
                 if (gear.is_tooltip_changed())
                 {
-                    //todo revise (view/text)
-                    list.thing.push(gear_id, text{ (view)gear.get_tooltip() });
+                    list.thing.push(gear_id, gear.get_tooltip());
                 }
             }
             list.thing.sendby<true>(*this);
