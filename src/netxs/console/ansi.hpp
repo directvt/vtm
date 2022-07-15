@@ -1083,7 +1083,7 @@ namespace netxs::ansi
     };
 
     template<class Q, class C>
-    using func = netxs::generics::tree <Q, C*, std::function<void(Q&, C*&)>>;
+    using func = netxs::generics::tree<Q, C*, std::function<void(Q&, C*&)>>;
 
     template<class T, bool NOMULTIARG = faux>
     struct csi_t
@@ -2353,7 +2353,6 @@ namespace netxs::ansi
             #define MACROGEN_DEF
             #include "../abstract/macrogen.hpp"
 
-            //using noop = ::netxs::noop;
             #define STRUCT(struct_name, struct_members)                               \
                 struct CAT(struct_name, _t) : public stream                           \
                 {                                                                     \
@@ -2663,6 +2662,45 @@ namespace netxs::ansi
                 binary::warping             warping;            // warping
                 binary::expose              expose;             // bring the form to the front
                 binary::vt_command          vt_command;         // parse following vt-sequences in UTF-8 format
+
+                std::unordered_map<byte, std::function<void(view&)>> exec;
+
+                void sync(view& data)
+                {
+                    auto lock = frames.sync(data);
+                    for(auto& frame : lock.thing)
+                    {
+                        auto iter = exec.find(frame.next);
+                        if (iter != exec.end())
+                        {
+                            iter->second(frame.data);
+                        }
+                        else log("s11n: unsupported frame type: ", (byte)frame.next, "\n", utf::debase(frame.data));
+                    }
+                }
+
+                s11n() = default;
+                template<class T>
+                s11n(T& boss)
+                {
+                    auto lock = bitmap.freeze();
+                    lock.thing.image.link(boss.base::id);
+                    exec[bitmap              ::kind] = [&](auto& data) { boss.handle(bitmap            .sync(data)); };
+                    exec[mouse_event         ::kind] = [&](auto& data) { boss.handle(mouse_event       .sync(data)); };
+                    exec[tooltips            ::kind] = [&](auto& data) { boss.handle(tooltips          .sync(data)); };
+                    exec[jgc_list            ::kind] = [&](auto& data) { boss.handle(jgc_list          .sync(data)); };
+                    exec[expose              ::kind] = [&](auto& data) { boss.handle(expose            .sync(data)); };
+                    exec[request_debug       ::kind] = [&](auto& data) { boss.handle(request_debug     .sync(data)); };
+                    exec[request_dbg_count   ::kind] = [&](auto& data) { boss.handle(request_dbg_count .sync(data)); };
+                    exec[set_clipboard       ::kind] = [&](auto& data) { boss.handle(set_clipboard     .sync(data)); };
+                    exec[request_clipboard   ::kind] = [&](auto& data) { boss.handle(request_clipboard .sync(data)); };
+                    exec[set_focus           ::kind] = [&](auto& data) { boss.handle(set_focus         .sync(data)); };
+                    exec[off_focus           ::kind] = [&](auto& data) { boss.handle(off_focus         .sync(data)); };
+                    exec[form_header         ::kind] = [&](auto& data) { boss.handle(form_header       .sync(data)); };
+                    exec[form_footer         ::kind] = [&](auto& data) { boss.handle(form_footer       .sync(data)); };
+                    exec[warping             ::kind] = [&](auto& data) { boss.handle(warping           .sync(data)); };
+                    exec[vt_command          ::kind] = [&](auto& data) { boss.handle(vt_command        .sync(data)); };
+                }
             };
         }
 

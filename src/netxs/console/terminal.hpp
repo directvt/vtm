@@ -6738,7 +6738,7 @@ namespace netxs::ui
                 token.clear();
             }
 
-            void apply(ansi::dtvt::binary::bitmap::access               lock)
+            void sync(ansi::dtvt::binary::bitmap::access               lock)
             {
                 if (lock.thing.newgc.size())
                 {
@@ -6750,7 +6750,7 @@ namespace netxs::ui
                 //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
                 owner.base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
             }
-            void apply(ansi::dtvt::binary::tooltips::access             lock)
+            void sync(ansi::dtvt::binary::tooltips::access             lock)
             {
                 auto copy = lock.thing;
                 netxs::events::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
@@ -6766,7 +6766,7 @@ namespace netxs::ui
                     }
                 });
             }
-            void apply(ansi::dtvt::binary::jgc_list::access             lock)
+            void sync(ansi::dtvt::binary::jgc_list::access             lock)
             {
                 for (auto& jgc : lock.thing)
                 {
@@ -6775,7 +6775,7 @@ namespace netxs::ui
                 }
                 //todo full strike to redraw with new clusters
             }
-            void apply(ansi::dtvt::binary::mouse_event::access          lock)
+            void sync(ansi::dtvt::binary::mouse_event::access          lock)
             {
                 auto& m = lock.thing;
                 log("replay: ", m.cause);
@@ -6800,14 +6800,14 @@ namespace netxs::ui
                     }
                 }
             }
-            void apply(ansi::dtvt::binary::expose::access               lock)
+            void sync(ansi::dtvt::binary::expose::access               lock)
             {
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
                 {
                     owner.base::template riseup<tier::preview>(e2::form::layout::expose, owner);
                 });
             }
-            void apply(ansi::dtvt::binary::request_debug::access        lock)
+            void sync(ansi::dtvt::binary::request_debug::access        lock)
             {
                 //todo reimplement Logs
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
@@ -6815,7 +6815,7 @@ namespace netxs::ui
                     owner.request_debug();
                 });
             }
-            void apply(ansi::dtvt::binary::request_dbg_count::access    lock)
+            void sync(ansi::dtvt::binary::request_dbg_count::access    lock)
             {
                 //todo reimplement Logs
                 netxs::events::enqueue(owner.This(), [&, count = lock.thing.count](auto& boss) mutable
@@ -6823,7 +6823,7 @@ namespace netxs::ui
                     owner.SIGNAL(tier::general, e2::debug::count::set, count);
                 });
             }
-            void apply(ansi::dtvt::binary::set_clipboard::access        lock)
+            void sync(ansi::dtvt::binary::set_clipboard::access        lock)
             {
                 auto& c = lock.thing;
                 auto lock_ui = events::sync{};
@@ -6833,7 +6833,7 @@ namespace netxs::ui
                     gear_ptr->set_clip_data(c.clip_prev_size, c.clipdata);
                 }
             }
-            void apply(ansi::dtvt::binary::request_clipboard::access    lock)
+            void sync(ansi::dtvt::binary::request_clipboard::access    lock)
             {
                 auto& c = lock.thing;
                 auto lock_ui = events::sync{};
@@ -6846,7 +6846,7 @@ namespace netxs::ui
                 owner.buffer = ansi::clipdata(c.gear_id, clipdata);
                 owner.answer(owner.buffer);
             }
-            void apply(ansi::dtvt::binary::set_focus::access            lock)
+            void sync(ansi::dtvt::binary::set_focus::access            lock)
             {
                 auto& f = lock.thing;
                 auto lock_ui = events::sync{};
@@ -6863,7 +6863,7 @@ namespace netxs::ui
                     log("dtvt: events: set_kb_focus");
                 }
             }
-            void apply(ansi::dtvt::binary::off_focus::access            lock)
+            void sync(ansi::dtvt::binary::off_focus::access            lock)
             {
                 auto& f = lock.thing;
                 auto lock_ui = events::sync{};
@@ -6875,7 +6875,7 @@ namespace netxs::ui
                     log("dtvt: events: remove_from_kb_focus ", gear.id);
                 }
             }
-            void apply(ansi::dtvt::binary::form_header::access          lock)
+            void sync(ansi::dtvt::binary::form_header::access          lock)
             {
                 auto& h = lock.thing;
                 netxs::events::enqueue(owner.This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
@@ -6884,7 +6884,7 @@ namespace netxs::ui
                     owner.base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
                 });
             }
-            void apply(ansi::dtvt::binary::form_footer::access          lock)
+            void sync(ansi::dtvt::binary::form_footer::access          lock)
             {
                 auto& f = lock.thing;
                 netxs::events::enqueue(owner.This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
@@ -6893,7 +6893,7 @@ namespace netxs::ui
                     owner.base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
                 });
             }
-            void apply(ansi::dtvt::binary::warping::access              lock)
+            void sync(ansi::dtvt::binary::warping::access              lock)
             {
                 auto& w = lock.thing;
                 netxs::events::enqueue(owner.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
@@ -6902,7 +6902,7 @@ namespace netxs::ui
                     owner.base::riseup<tier::release>(e2::form::layout::swarp, warp);
                 });
             }
-            void apply(ansi::dtvt::binary::vt_command::access              lock)
+            void sync(ansi::dtvt::binary::vt_command::access           lock)
             {
                 auto& w = lock.thing;
                 //todo implement
@@ -6993,6 +6993,8 @@ namespace netxs::ui
         ansi::esc       prompt; // dtvt: PTY logger prompt.
         os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
 
+        byte lucidity = 0xFF;
+
         // dtvt: Write tty data and flush the queue.
         //todo deprecated: use binary stream
         void answer(ansi::esc& queue)
@@ -7006,31 +7008,7 @@ namespace netxs::ui
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
         {
-            using namespace ansi::dtvt::binary;
-
-            auto lock = stream.frames.sync(data);
-            for(auto& frame : lock.thing)
-            {
-                switch (frame.next)
-                {
-                    case bitmap::kind:            events.apply(stream.bitmap            .sync(frame.data)); break;
-                    case mouse_event::kind:       events.apply(stream.mouse_event       .sync(frame.data)); break;
-                    case tooltips::kind:          events.apply(stream.tooltips          .sync(frame.data)); break;
-                    case jgc_list::kind:          events.apply(stream.jgc_list          .sync(frame.data)); break;
-                    case expose::kind:            events.apply(stream.expose            .sync(frame.data)); break;
-                    case request_debug::kind:     events.apply(stream.request_debug     .sync(frame.data)); break;
-                    case request_dbg_count::kind: events.apply(stream.request_dbg_count .sync(frame.data)); break;
-                    case set_clipboard::kind:     events.apply(stream.set_clipboard     .sync(frame.data)); break;
-                    case request_clipboard::kind: events.apply(stream.request_clipboard .sync(frame.data)); break;
-                    case set_focus::kind:         events.apply(stream.set_focus         .sync(frame.data)); break;
-                    case off_focus::kind:         events.apply(stream.off_focus         .sync(frame.data)); break;
-                    case form_header::kind:       events.apply(stream.form_header       .sync(frame.data)); break;
-                    case form_footer::kind:       events.apply(stream.form_footer       .sync(frame.data)); break;
-                    case warping::kind:           events.apply(stream.warping           .sync(frame.data)); break;
-                    case vt_command::kind:        events.apply(stream.vt_command        .sync(frame.data)); break;
-                    default: log("dtvt: unsupported command: ", (byte)frame.kind, "\n", utf::debase(frame.data));
-                }
-            }
+            stream.sync(data);
         }
         // dtvt: Shutdown callback handler.
         void onexit(si32 code)
@@ -7103,6 +7081,12 @@ namespace netxs::ui
         }
 
     public:
+        // dtvt: .
+        template<class T>
+        void handle(T&& lock)
+        {
+            events.sync(std::forward<T>(lock));
+        }
         // dtvt: Start a new process.
         void start()
         {
@@ -7126,24 +7110,18 @@ namespace netxs::ui
                 };
             }
         }
+
        ~dtvt()
         {
             if (debugs.count()/* for Logs only */) SIGNAL_GLOBAL(e2::debug::count::set, -1);
             active = faux;
         }
-
-        testy<twod> coord;
-        byte lucidity = 0xFF;
         dtvt(text command_line)
             : events{*this },
               active{ true },
-              nodata{      }
+              nodata{      },
+              stream{*this }
         {
-            {
-                //todo unify
-                auto lock = stream.bitmap.freeze();
-                lock.thing.image.link(base::id);
-            }
             cmdarg = command_line;
 
             //SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
