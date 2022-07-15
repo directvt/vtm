@@ -19,7 +19,7 @@
         #define MAKE_ATTR(type, name, ...) type name;
         #define MAKE_INIT(type, name, ...) this->name = name;
         #define MAKE_SIGN(type, name, ...) type name
-        #define MAKE_NAME(type, name, ...) this->name
+        #define MAKE_NAME(type, name, ...) name
         #define MAKE_TYPE(type, name, ...) type
 
         #define SEQ_ATTR__odd(...) MAKE_ATTR __VA_ARGS__ SEQ_ATTR_even
@@ -56,9 +56,9 @@
     #else
         #define DEL_(...)
         #define DEL_TAIL DEL_(
-        #define SEQ_SIGN(args) SEQ_SIGN__odd args ((,DEL_TAIL ))) // Trailing comma workaround.
-        #define SEQ_NAME(args) SEQ_NAME__odd args ((,DEL_TAIL ))) //
-        #define SEQ_TYPE(args) SEQ_TYPE__odd args (( DEL_TAIL,))) //
+        #define SEQ_SIGN(args) SEQ_SIGN__odd args ((,DEL_TAIL))) // Trailing comma workaround.
+        #define SEQ_NAME(args) SEQ_NAME__odd args ((,DEL_TAIL))) //
+        #define SEQ_TYPE(args) SEQ_TYPE__odd args ((DEL_TAIL,))) //
     #endif
 
 #endif

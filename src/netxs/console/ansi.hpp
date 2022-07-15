@@ -2249,7 +2249,7 @@ namespace netxs::ansi
                     {
                         thing.set(std::forward<Args>(args)...);
                     }
-                    thing.sendby<Discard_empty>(sender);
+                    thing.template sendby<Discard_empty>(sender);
                 }
                 // wrapper .
                 template<class ...Args>
@@ -2353,6 +2353,7 @@ namespace netxs::ansi
             #define MACROGEN_DEF
             #include "../abstract/macrogen.hpp"
 
+            //using noop = ::netxs::noop;
             #define STRUCT(struct_name, struct_members)                               \
                 struct CAT(struct_name, _t) : public stream                           \
                 {                                                                     \
@@ -2361,17 +2362,17 @@ namespace netxs::ansi
                     CAT(struct_name, _t)()                                            \
                         : stream{ kind }                                              \
                     { }                                                               \
-                    void set(SEQ_SIGN(WRAP(struct_members)) int tmp = {})             \
+                    void set(SEQ_SIGN(WRAP(struct_members)) int _tmp = {})            \
                     {                                                                 \
                         SEQ_INIT(WRAP(struct_members))                                \
                         stream::reset();                                              \
                         stream::add(SEQ_NAME(WRAP(struct_members)) noop{});           \
                     }                                                                 \
-                    void get(view& data)                                              \
+                    void get(view& _data)                                             \
                     {                                                                 \
                         int _tmp;                                                     \
                         std::tie(SEQ_NAME(WRAP(struct_members)) _tmp) =               \
-                            stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(data);  \
+                            stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(_data); \
                     }                                                                 \
                 };                                                                    \
                 using struct_name = wrapper<CAT(struct_name, _t)>;

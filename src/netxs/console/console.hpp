@@ -4788,7 +4788,7 @@ namespace netxs::console
         bool close; // link: Pre closing condition.
         si32 iface; // link: Platform specific UI code.
         text accum; // link: Accumulated unparsed input.
-        s11n wired; // link: .
+        s11n wired; // link: Serialization buffers.
 
         void reader()
         {
@@ -4876,74 +4876,6 @@ namespace netxs::console
         {
             canal->send(buffer);
         }
-        void forward(id_t gear_id, hint cause, twod const& coord)
-        {
-            wired.mouse_event.send(*this, gear_id, cause, coord);
-        }
-        void forward_clipboard(id_t gear_id, twod const& clip_preview_size, text clip_rawdata)
-        {
-            wired.set_clipboard.send(*this, gear_id, clip_preview_size, clip_rawdata);
-        }
-        void request_clipboard(id_t gear_id)
-        {
-            wired.request_clipboard.send(*this, gear_id);
-        }
-        void set_focus(id_t gear_id, bool combine_focus, bool force_group_focus)
-        {
-            wired.set_focus.send(*this, gear_id, combine_focus, force_group_focus);
-        }
-        void off_focus(id_t gear_id)
-        {
-            wired.off_focus.send(*this, gear_id);
-        }
-        void expose()
-        {
-            wired.expose.send(*this);
-        }
-        void request_debug()
-        {
-            wired.request_debug.send(*this);
-        }
-        void request_dbg_count(sz_t count)
-        {
-            wired.request_dbg_count.send(*this, count);
-        }
-        //todo revise (view/text)
-        void send_header(id_t window_id, text new_header)
-        {
-            wired.form_header.send(*this, window_id, new_header);
-        }
-        //todo revise (view/text)
-        void send_footer(id_t window_id, text new_footer)
-        {
-            wired.form_footer.send(*this, window_id, new_footer);
-        }
-        template<class T>
-        void send_tooltips(T&& gears)
-        {
-            auto list = wired.tooltips.freeze();
-            for (auto& [gear_id, gear_ptr] : gears /* use filter gear.is_tooltip_changed()*/)
-            {
-                auto& gear = *gear_ptr;
-                if (gear.is_tooltip_changed())
-                {
-                    list.thing.push(gear_id, gear.get_tooltip());
-                }
-            }
-            list.thing.sendby<true>(*this);
-        }
-        template<class T>
-        void send_gclist(T&& gclist)
-        {
-            auto list = wired.jgc_list.freeze();
-            for (auto& [token, cluster] : gclist)
-            {
-                list.thing.push(token, cluster);
-                log("token ", token, " cluster.size ", cluster.size());
-            }
-            list.thing.sendby<true>(*this);
-        }
-
         template<class E, class T>
         void notify(E, T& data)
         {
@@ -5390,15 +5322,16 @@ again:
                                             }
                                             case ansi::dtvt::requestgc:
                                             {
-                                                auto jgclist = std::vector<std::pair<ui64, text>>{};
+                                                //todo unify
+                                                auto list = wired.jgc_list.freeze();
                                                 do
                                                 {
                                                     auto token = netxs::letoh(take64());
                                                     auto cluster = cell::gc_get_data(token);
-                                                    jgclist.emplace_back(token, cluster);
+                                                    list.thing.push(token, cluster);
                                                 }
                                                 while (strv.at(pos) == ':');
-                                                send_gclist(jgclist);
+                                                list.thing.sendby(*this);
                                                 break;
                                             }
                                             default:
@@ -5801,6 +5734,8 @@ again:
         pro::debug debug{*this }; // gate: Debug telemetry controller.
 
         using sptr = netxs::sptr<base>;
+        using s11n = netxs::ansi::dtvt::binary::s11n;
+
         host& world;
         bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para  uname; // gate: Client name.
@@ -5813,6 +5748,7 @@ again:
         //face  clip_preview; // gate: Clipboard render.
 
         conf props; // gate: Client properties.
+        s11n wired; // gate: Serialization buffers.
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -5880,6 +5816,19 @@ again:
                     }
                 }
             }
+        }
+        void send_tooltips(link& conio)
+        {
+            auto list = wired.tooltips.freeze();
+            for (auto& [gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
+            {
+                auto& gear = *gear_ptr;
+                if (gear.is_tooltip_changed())
+                {
+                    list.thing.push(gear_id, gear.get_tooltip());
+                }
+            }
+            list.thing.sendby<true>(conio);
         }
         void check_tooltips(moment now)
         {
@@ -5979,7 +5928,7 @@ again:
 
                         if (props.tooltip_enabled)
                         {
-                            if (direct) conio.send_tooltips(input.gears);
+                            if (direct) send_tooltips(conio);
                             else        draw_tooltips(canvas);
                         }
 
@@ -6082,14 +6031,16 @@ again:
                 {
                     if (direct)
                     {
-                        conio.send_footer(0, newfooter);
+                        auto window_id = 0;
+                        wired.form_footer.send(conio, window_id, newfooter);
                     }
                 };
                 SUBMIT_T(tier::release, e2::form::prop::ui::header, token, newheader)
                 {
                     if (direct)
                     {
-                        conio.send_header(0, newheader);
+                        auto window_id = 0;
+                        wired.form_footer.send(conio, window_id, newheader);
                     }
                     else
                     {
@@ -6150,7 +6101,7 @@ again:
                     auto& gear =*gear_ptr;
                     auto& data = gear.clip_rawdata;
                     auto& size = gear.preview_size;
-                    if (direct) conio.forward_clipboard(ext_gear_id, size, data);
+                    if (direct) wired.set_clipboard.send(conio, ext_gear_id, size, data);
                     else        conio.output(ansi::setbuf(data)); // OSC 52
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
@@ -6163,7 +6114,7 @@ again:
                     conio.relay.mutex.unlock();
                     auto lock = std::unique_lock{ depot.mutex };
                     depot.ready = faux;
-                    conio.request_clipboard(ext_gear_id);
+                    wired.request_clipboard.send(conio, ext_gear_id);
                     auto maxoff = 100ms;
                     if (std::cv_status::timeout != depot.synch.wait_for(lock, maxoff))
                     {
@@ -6201,7 +6152,7 @@ again:
                 {
                     auto deed = bell::protos<tier::release>();
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    conio.forward(ext_gear_id, deed, gear.coord);
+                    wired.mouse_event.send(conio, ext_gear_id, deed, gear.coord);
                     gear.dismiss();
                 };
                 if (direct) // Forward unhandled events outside.
@@ -6210,7 +6161,7 @@ again:
                     SUBMIT_T(tier::general, e2::debug::count::any, token, count)
                     {
                         auto lock = std::unique_lock{ conio.debug_count_relay.mutex };
-                        conio.request_dbg_count(count);
+                        wired.request_dbg_count.send(conio, count);
                         auto maxoff = 100ms;
                         //conio.debug_count_relay.synch.wait(lock);
                         if (std::cv_status::timeout != conio.debug_count_relay.synch.wait_for(lock, maxoff))
@@ -6226,7 +6177,7 @@ again:
                     //if (debug_console) // For Logs only.
                     //{
                     //    log("e2::debug::count::set ", debug_console);
-                    //    paint.request_debug();
+                    //    wired.request_debug.send(conio);
                     //    SUBMIT_T(tier::release, e2::conio::keybd, token, keybdstate)
                     //    {
                     //        if (keybdstate.keybdid == 0
@@ -6247,7 +6198,7 @@ again:
                     SUBMIT_T(tier::preview, hids::events::mouse::button::click::any, token, gear)
                     {
                         log("e2::form::layout::expose");
-                        conio.expose();
+                        wired.expose.send(conio);
                     };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
@@ -6258,14 +6209,14 @@ again:
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                         log("gate: hids::events::notify::keybd::test ", ext_gear_id, " from_gear.kb_focus_set=", from_gear.kb_focus_set?"1":"0", " !!gear=", !!from_gear?"1":"0");
-                        from_gear.kb_focus_set ? conio.set_focus(ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus)
-                                               : conio.off_focus(ext_gear_id);
+                        from_gear.kb_focus_set ? wired.set_focus.send(conio, ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus)
+                                               : wired.off_focus.send(conio, ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, from_gear)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                         log("gate: hids::events::notify::keybd::lost ", ext_gear_id);
-                        conio.off_focus(ext_gear_id);
+                        wired.off_focus.send(conio, ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
                     {
