@@ -4788,6 +4788,7 @@ namespace netxs::console
         bool close; // link: Pre closing condition.
         si32 iface; // link: Platform specific UI code.
         text accum; // link: Accumulated unparsed input.
+        //todo move it to the gate
         s11n wired; // link: Serialization buffers.
 
         void reader()
@@ -6040,7 +6041,7 @@ again:
                     if (direct)
                     {
                         auto window_id = 0;
-                        wired.form_footer.send(conio, window_id, newheader);
+                        wired.form_header.send(conio, window_id, newheader);
                     }
                     else
                     {

@@ -2657,10 +2657,10 @@ namespace netxs::ansi
                 X(form_footer      ) /* . */\
                 X(warping          ) /* warping */\
                 X(expose           ) /* bring the form to the front */\
-                X(vt_command       ) /* parse following vt-sequences in UTF-8 format */ 
-                //X(frames           ) /* Received frames. */
-                //X(tooltip_element  ) /* Tooltip. */
-                //X(jgc_element      ) /* jumbo GC: gc.token + gc.view (response on terminal request) */
+                X(vt_command       ) /* parse following vt-sequences in UTF-8 format */\
+                X(frames           ) /* Received frames. */\
+                X(tooltip_element  ) /* Tooltip. */\
+                X(jgc_element      ) /* jumbo GC: gc.token + gc.view (response on terminal request) */
 
                 struct xs
                 {
@@ -2669,12 +2669,11 @@ namespace netxs::ansi
                     #undef X
                 };
 
-                binary::frames frames; // s11n: Frame iterator.
-                std::unordered_map<byte, std::function<void(view&)>> exec; // s11n: .
-
                 #define X(_object) binary::_object _object;
                 OBJECT_LIST
                 #undef X
+
+                std::unordered_map<type, std::function<void(view&)>> exec; // s11n: .
 
                 void sync(view& data)
                 {
@@ -2686,7 +2685,7 @@ namespace netxs::ansi
                         {
                             iter->second(frame.data);
                         }
-                        else log("s11n: unsupported frame type: ", (byte)frame.next, "\n", utf::debase(frame.data));
+                        else log("s11n: unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
                     }
                 }
 
@@ -2694,7 +2693,9 @@ namespace netxs::ansi
                 template<class T>
                 s11n(T& boss)
                 {
-                    #define X(_object) exec[binary::_object::kind] = [&](auto& data) { boss.handle(_object.sync(data)); };
+                    #define X(_object) \
+                        if constexpr (requires(view data) { boss.handle(_object.sync(data)); }) \
+                            exec[binary::_object::kind] = [&](auto& data) { boss.handle(_object.sync(data)); };
                     OBJECT_LIST
                     #undef X
 

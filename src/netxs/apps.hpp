@@ -1141,13 +1141,13 @@ namespace netxs::app::shared
                 //auto buff = std::vector<char>(1 << 20 /* 1M */);
                 for (auto const& name : fs::directory_iterator(apps))
                 {
-                    log("apps: external module found: ", name);
+                    log("apps: external module found: ", name.path());
                     if (!(name.is_regular_file()
                        || name.is_symlink())) continue;
                     auto file = std::ifstream(name.path(), std::ios::binary | std::ios::in);
                     if (file.seekg(0, std::ios::end).fail())
                     {
-                        log("apps: unable to get file size, skip it: ", name);
+                        log("apps: unable to get file size, skip it: ", name.path());
                         continue;
                     }
                     auto size = file.tellg();

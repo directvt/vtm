@@ -7082,7 +7082,7 @@ namespace netxs::ui
 
     public:
         // dtvt: .
-        template<class T>
+        template<class T, typename = std::enable_if_t<requires(T&& lock) { events.sync(std::forward<T>(lock)); }>>
         void handle(T&& lock)
         {
             events.sync(std::forward<T>(lock));
