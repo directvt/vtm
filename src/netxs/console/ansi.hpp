@@ -2388,6 +2388,7 @@ namespace netxs::ansi
                 };                                                                    \
                 using struct_name = wrapper<CAT(struct_name, _t)>;
 
+            // Output data.
             STRUCT(frame_element,     (frag, data))
             STRUCT(jgc_element,       (ui64, token) (text, cluster))
             STRUCT(request_dbg_count, (sz_t, count))
@@ -2403,6 +2404,21 @@ namespace netxs::ansi
             STRUCT(vt_command,        (text, command))
             STRUCT_LITE(expose)
             STRUCT_LITE(request_debug)
+
+            // Input data.
+            STRUCT(keybd,             (id_t, gear_id) (ui16, ctlstat) (ui16, virtkey) (ui16, scancod) (bool, pressed) (bool, imitate) (text, cluster))
+            STRUCT(mouse,             (id_t, gear_id) (ui16, ctlstat) (ui16, bttns)   (ui16, flags)   (ui16, wheel)   (twod, coor))
+            STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, combine_focus) (bool, force_group_focus))
+            STRUCT(winsz,             (id_t, gear_id) (twod, winsize))
+            STRUCT(clipdata,          (id_t, gear_id) (text, data))
+            STRUCT(mouse_stop,        (id_t, gear_id))
+            STRUCT(mouse_halt,        (id_t, gear_id))
+            STRUCT(unknown_gc,        (ui64, token))
+            STRUCT(fps,               (si32, frame_rate))
+            STRUCT(debug_count,       (si32, count))
+            STRUCT(debugdata,         (text, data))
+            STRUCT(native,            (bool, mode)) // CCC_EXT/* 25:1p */
+            STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
 
             #undef STRUCT
             #undef STRUCT_LITE
@@ -2633,12 +2649,15 @@ namespace netxs::ansi
             };
             using bitmap = wrapper<bitmap_t>;
 
-            using frames_t   = list<view,   frame_element_t>;
-            using jgc_list_t = list<text,     jgc_element_t>;
-            using tooltips_t = list<text, tooltip_element_t>;
-            using frames   = wrapper<frames_t  >;
-            using jgc_list = wrapper<jgc_list_t>;
-            using tooltips = wrapper<tooltips_t>;
+            using frames_t     = list<view,   frame_element_t>;
+            using jgc_list_t   = list<text,     jgc_element_t>;
+            using tooltips_t   = list<text, tooltip_element_t>;
+            using request_gc_t = list<text, unknown_gc_t>;
+
+            using frames     = wrapper<frames_t  >;
+            using jgc_list   = wrapper<jgc_list_t>;
+            using tooltips   = wrapper<tooltips_t>;
+            using request_gc = wrapper<request_gc_t>;
 
             struct s11n
             {
