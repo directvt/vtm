@@ -26,7 +26,7 @@ R"==(
 ="Truecolor [DEMO]", "Tooltip Message", a("Direct", "Test Title", "-r truecolor")
 )==";
 
-#define DESKTOPIO_VER "v0.7.6"
+#define DESKTOPIO_VER "v0.7.7"
 #define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_MYPATH "vtm"

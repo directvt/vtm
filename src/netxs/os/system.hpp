@@ -2614,7 +2614,7 @@ namespace netxs::os
                             }
                             else
                             {
-                                log("path: cleanup file system socket file ", path);
+                                log("path: remove file system socket file ", path);
                                 ::unlink(path.c_str()); // Cleanup file system socket.
                             }
                         }

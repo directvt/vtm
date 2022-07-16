@@ -19,7 +19,7 @@
         #define TAKE_NAME(...) __VA_OPT__(this->__VA_ARGS__) // Ignore trailing spaces.
         #define MAKE_NAME(type, name, ...) TAKE_NAME(name)
         #define MAKE_INIT(type, name, ...) this->name = name;
-        #define MAKE_ATTR(type, name, ...) type name;
+        #define MAKE_ATTR(type, name, ...) type name{};
         #define MAKE_SIGN(type, name, ...) type name
         #define MAKE_TYPE(type, name, ...) type
 
