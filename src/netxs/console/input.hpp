@@ -339,6 +339,22 @@ namespace netxs::input
             }
             return bitfield;
         }
+        // sysmouse: .
+        ui32 get_sysbuttons()
+        {
+            ui32 bitfield = 0;
+            for (auto i = 0; i < numofbutton; i++)
+            {
+                if (buttons[i]) bitfield |= 1 << i;
+            }
+            return bitfield;
+        }
+        // sysmouse: .
+        ui32 get_msflags()
+        {
+            return (wheeldt ? (1 << 2) : 0)
+                 | (hzwheel ? (1 << 3) : 0);
+        }
     };
 
     // console: Base keybd class.

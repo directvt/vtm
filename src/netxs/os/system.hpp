@@ -2907,7 +2907,6 @@ namespace netxs::os
                 twod mcoor;
                 auto buffer = text(STDIN_BUF, '\0');
                 si32 ttynum = 0;
-                auto yield = ansi::esc{};
 
                 struct
                 {
@@ -2965,9 +2964,7 @@ namespace netxs::os
                                 ttynum = cur_tty.value();
                             }
                         }
-                        yield.show_mouse(true);
-                        ipcio.send(view(yield));
-                        yield.clear();
+                        wired.mouse_show.send(ipcio, true);
                         if (ack == '\xfa') log(" tty: ImPS/2 mouse connected, fd: ", fd);
                         else               log(" tty: unknown PS/2 mouse connected, fd: ", fd, " ack: ", (int)ack);
                     }
@@ -2978,22 +2975,354 @@ namespace netxs::os
                     }
                 }
 
+                struct sysgears
+                {
+                    input::sysmouse mouse = {};
+                    input::syskeybd keybd = {};
+                    input::sysfocus focus = {};
+                };
+                auto gears = std::unordered_map<id_t, sysgears>{};
+                auto close = faux;
+                auto total = text{};
+                auto digit = [](auto c) { return c >= '0' && c <= '9'; };
+
+                // The following sequences are processed here:
+                // ESC
+                // ESC ESC
+                // ESC [ I
+                // ESC [ O
+                // ESC [ < 0 ; x ; y M/m
+                auto filter = [&](view accum)
+                {
+                    total += accum;
+                    auto strv = view{ total };
+
+                    //#ifdef KEYLOG
+                    //    log("link: input data (", total.size(), " bytes):\n", utf::debase(total));
+                    //#endif
+
+                    //#ifndef PROD
+                    //if (close)
+                    //{
+                    //    close = faux;
+                    //    notify(e2::conio::preclose, close);
+                    //    if (total.front() == '\x1b') // two consecutive escapes
+                    //    {
+                    //        log("\t - two consecutive escapes: \n\tstrv:        ", strv);
+                    //        notify(e2::conio::quit, "pipe two consecutive escapes");
+                    //        return;
+                    //    }
+                    //}
+                    //#endif
+
+                    //todo unify (it is just a proof of concept)
+                    while (auto len = strv.size())
+                    {
+                        auto pos = 0_sz;
+                        auto unk = faux;
+
+                        if (strv.at(0) == '\x1b')
+                        {
+                            ++pos;
+
+                            //#ifndef PROD
+                            //if (pos == len) // the only one esc
+                            //{
+                            //    close = true;
+                            //    total = strv;
+                            //    log("\t - preclose: ", canal);
+                            //    notify(e2::conio::preclose, close);
+                            //    break;
+                            //}
+                            //else if (strv.at(pos) == '\x1b') // two consecutive escapes
+                            //{
+                            //    total.clear();
+                            //    log("\t - two consecutive escapes: ", canal);
+                            //    notify(e2::conio::quit, "pipe2: two consecutive escapes");
+                            //    break;
+                            //}
+                            //#else
+                            if (pos == len) // the only one esc
+                            {
+                                // Pass Esc.
+                                auto id = 0;
+                                auto& k = gears[id].keybd;
+                                k.keybdid = id;
+                                k.pressed = true;
+                                k.cluster = strv.substr(0, 1);
+                                //notify(e2::conio::keybd, k);
+                                wired.keybd.send(ipcio,
+                                    0,
+                                    k.ctlstat,
+                                    k.virtcod,
+                                    k.scancod,
+                                    k.pressed,
+                                    k.imitate,
+                                    k.cluster);
+                                total.clear();
+                                break;
+                            }
+                            else if (strv.at(pos) == '\x1b') // two consecutive escapes
+                            {
+                                // Pass Esc.
+                                auto id = 0;
+                                auto& k = gears[id].keybd;
+                                k.keybdid = id;
+                                k.pressed = true;
+                                k.cluster = strv.substr(0, 1);
+                                //notify(e2::conio::keybd, k);
+                                wired.keybd.send(ipcio,
+                                    0,
+                                    k.ctlstat,
+                                    k.virtcod,
+                                    k.scancod,
+                                    k.pressed,
+                                    k.imitate,
+                                    k.cluster);
+                                total = strv.substr(1);
+                                break;
+                            }
+                            //#endif
+                            else if (strv.at(pos) == '[')
+                            {
+                                if (++pos == len) { total = strv; break; }//incomlpete
+                                if (strv.at(pos) == 'I')
+                                {
+                                    auto id = 0;
+                                    auto& f = gears[id].focus;
+                                    f.focusid = id;
+                                    f.enabled = true;
+                                    //notify(e2::conio::focus, f);
+                                    wired.focus.send(ipcio,
+                                        0,
+                                        f.enabled,
+                                        f.combine_focus,
+                                        f.force_group_focus);
+                                    log("\t - focus on ", ipcio);
+                                    ++pos;
+                                }
+                                else if (strv.at(pos) == 'O')
+                                {
+                                    auto id = 0;
+                                    auto& f = gears[id].focus;
+                                    f.focusid = id;
+                                    f.enabled = faux;
+                                    //notify(e2::conio::focus, f);
+                                    wired.focus.send(ipcio,
+                                        0,
+                                        f.enabled,
+                                        f.combine_focus,
+                                        f.force_group_focus);
+                                    log("\t - focus off: ", ipcio);
+                                    ++pos;
+                                }
+                                else if (strv.at(pos) == '<') // \033[<0;x;yM/m
+                                {
+                                    if (++pos == len) { total = strv; break; }// incomlpete sequence
+
+                                    auto tmp = strv.substr(pos);
+                                    auto l = tmp.size();
+                                    if (auto ctrl = utf::to_int(tmp))
+                                    {
+                                        pos += l - tmp.size();
+                                        if (pos == len) { total = strv; break; }// incomlpete sequence
+                                        {
+                                            if (++pos == len) { total = strv; break; }// incomlpete sequence
+
+                                            auto tmp = strv.substr(pos);
+                                            auto l = tmp.size();
+                                            if (auto pos_x = utf::to_int(tmp))
+                                            {
+                                                pos += l - tmp.size();
+                                                if (pos == len) { total = strv; break; }// incomlpete sequence
+                                                {
+                                                    if (++pos == len) { total = strv; break; }// incomlpete sequence
+
+                                                    auto tmp = strv.substr(pos);
+                                                    auto l = tmp.size();
+                                                    if (auto pos_y = utf::to_int(tmp))
+                                                    {
+                                                        pos += l - tmp.size();
+                                                        if (pos == len) { total = strv; break; }// incomlpete sequence
+                                                        {
+                                                            auto ispressed = (strv.at(pos) == 'M');
+                                                            ++pos;
+
+                                                            auto clamp = [](auto a) { return std::clamp(a,
+                                                                std::numeric_limits<si32>::min() / 2,
+                                                                std::numeric_limits<si32>::max() / 2); };
+
+                                                            auto x = clamp(pos_x.value() - 1);
+                                                            auto y = clamp(pos_y.value() - 1);
+                                                            auto ctl = ctrl.value();
+                                                            auto id = 0;
+                                                            auto& m = gears[id].mouse;
+
+                                                            // 00000 000
+                                                            //   ||| |||
+                                                            //   ||| |------ btn state
+                                                            //   |---------- ctl state
+                                                            m.ctlstat = {};
+                                                            if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
+                                                            if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
+                                                            if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
+                                                            ctl = ctl & ~0b00011100;
+
+                                                            m.mouseid = id;
+                                                            m.shuffle = faux;
+                                                            m.wheeled = faux;
+                                                            m.wheeldt = 0;
+
+                                                            auto fire = true;
+
+                                                            if (ctl == 35 &&(m.buttons[input::sysmouse::left  ]
+                                                                          || m.buttons[input::sysmouse::middle]
+                                                                          || m.buttons[input::sysmouse::right ]
+                                                                          || m.buttons[input::sysmouse::win   ]))
+                                                            {
+                                                                // Moving without buttons (case when second release not fired: apple's terminal.app)
+                                                                m.buttons[input::sysmouse::left  ] = faux;
+                                                                m.buttons[input::sysmouse::middle] = faux;
+                                                                m.buttons[input::sysmouse::right ] = faux;
+                                                                m.buttons[input::sysmouse::win   ] = faux;
+                                                                m.update_buttons();
+                                                                //notify(e2::conio::mouse, m);
+                                                                wired.mouse.send(ipcio,
+                                                                    0,
+                                                                    m.ctlstat,
+                                                                    m.get_sysbuttons(),
+                                                                    m.get_msflags(),
+                                                                    m.wheeldt,
+                                                                    m.coor);
+                                                            }
+                                                            // Moving should be fired first
+                                                            if ((m.ismoved = m.coor({ x, y })))
+                                                            {
+                                                                m.update_buttons();
+                                                                //notify(e2::conio::mouse, m);
+                                                                wired.mouse.send(ipcio,
+                                                                    0,
+                                                                    m.ctlstat,
+                                                                    m.get_sysbuttons(),
+                                                                    m.get_msflags(),
+                                                                    m.wheeldt,
+                                                                    m.coor);
+                                                                m.ismoved = faux;
+                                                            }
+                                                            switch (ctl)
+                                                            {
+                                                                case 0: m.buttons[input::sysmouse::left  ] = ispressed; break;
+                                                                case 1: m.buttons[input::sysmouse::middle] = ispressed; break;
+                                                                case 2: m.buttons[input::sysmouse::right ] = ispressed; break;
+                                                                case 3: m.buttons[input::sysmouse::win   ] = ispressed; break;
+                                                                    //if (!ispressed) // WinSrv2019 vtmouse bug workaround
+                                                                    //{               //  - release any button always fires winbt release
+                                                                    //	m.button[sysmouse::left  ] = ispressed;
+                                                                    //	m.button[sysmouse::middle] = ispressed;
+                                                                    //	m.button[sysmouse::right ] = ispressed;
+                                                                    //}
+                                                                    //break;
+                                                                case 64:
+                                                                    m.wheeled = true;
+                                                                    m.wheeldt = 1;
+                                                                    break;
+                                                                case 65:
+                                                                    m.wheeled = true;
+                                                                    m.wheeldt = -1;
+                                                                    break;
+                                                                default:
+                                                                    fire = faux;
+                                                                    m.shuffle = !m.ismoved;
+                                                                    break;
+                                                            }
+
+                                                            if (fire)
+                                                            {
+                                                                m.update_buttons();
+                                                                //notify(e2::conio::mouse, m);
+                                                                wired.mouse.send(ipcio,
+                                                                    0,
+                                                                    m.ctlstat,
+                                                                    m.get_sysbuttons(),
+                                                                    m.get_msflags(),
+                                                                    m.wheeldt,
+                                                                    m.coor);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    unk = true;
+                                    pos = 0_sz;
+                                }
+                            }
+                            else
+                            {
+                                unk = true;
+                                pos = 0_sz;
+                            }
+                        }
+
+                        if (!unk)
+                        {
+                            total = strv.substr(pos);
+                            strv = total;
+                        }
+
+                        if (auto size = strv.size())
+                        {
+                            auto i = unk ? 1_sz : 0_sz;
+                            while (i != size && (strv.at(i) != '\x1b'))
+                            {
+                                // Pass SIGINT inside the desktop
+                                //if (strv.at(i) == 3 /*3 - SIGINT*/)
+                                //{
+                                //	log(" - SIGINT in stdin");
+                                //	owner.SIGNAL(tier::release, e2::conio::quit, "pipe: SIGINT");
+                                //	return;
+                                //}
+                                i++;
+                            }
+
+                            if (i)
+                            {
+                                auto id = 0;
+                                auto& k = gears[id].keybd;
+                                k.keybdid = id;
+                                k.pressed = true;
+                                k.cluster = strv.substr(0, i);
+                                //notify(e2::conio::keybd, k);
+                                wired.keybd.send(ipcio,
+                                    0,
+                                    k.ctlstat,
+                                    k.virtcod,
+                                    k.scancod,
+                                    k.pressed,
+                                    k.imitate,
+                                    k.cluster);
+                                total = strv.substr(i);
+                                strv = total;
+                            }
+                        }
+                    }
+                };
+
                 auto h_proc = [&]()
                 {
+                    auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
                     if (micefd != INVALID_FD
                      && state.shift(get_kb_state()))
                     {
-                        yield.meta_state(state.shift.last);
-                        auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                        yield.add(data);
-                        ipcio.send(yield);
-                        yield.clear();
+                        wired.ctrls.send(ipcio,
+                            0,
+                            state.shift.last);
                     }
-                    else
-                    {
-                        auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                        ipcio.send(data);
-                    }
+                    filter(data);
                 };
                 auto m_proc = [&]()
                 {
@@ -3020,17 +3349,13 @@ namespace netxs::os
                              || state.shift(get_kb_state())
                              || state.flags)
                             {
-                                yield.dtvt_begin()
-                                     .dtvt_mouse(0,
-                                        state.bttns.last,
-                                        state.shift.last,
-                                        state.flags,
-                                        wheel,
-                                        state.coord.last.x,
-                                        state.coord.last.y)
-                                     .dtvt_close();
-                                ipcio.send(view(yield));
-                                yield.clear();
+                                wired.mouse.send(ipcio,
+                                    0,
+                                    state.flags,
+                                    state.bttns.last,
+                                    state.flags,
+                                    wheel,
+                                    state.coord);
                             }
                         }
                     #endif

@@ -118,8 +118,6 @@ namespace netxs::ansi
     static const char CSI_hRM = 'h';     // CSI n      h  — Reset mode (always Replace mode n=4).
     static const char CSI_lRM = 'l';     // CSI n      l  — Reset mode (always Replace mode n=4).
     static const char CSI_CCC = 'p';     // CSI n [; x1; x2; ...; xn ] p — Private vt command subset.
-    //todo deprecated - use binary stream instead
-    static const char DVT_INP = '_';     // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — DTVT-input-mode.
 
     static const char C0_NUL = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
     static const char C0_SOH = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
@@ -260,24 +258,6 @@ namespace netxs::ansi
     static const si32 CCC_SGR    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
     static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
     static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
-
-    namespace dtvt
-    {
-        //todo deprecated - use binary stream
-        static const si32 start = 10000; // https://github.com/microsoft/terminal/issues/8343.
-        static const si32 keybd = 10010; // .
-        static const si32 mouse = 10020; // .
-        static const si32 mouse_stop = mouse + 1; // .
-        static const si32 mouse_halt = mouse + 2; // .
-        static const si32 winsz = 10030; // .
-        static const si32 focus = 10040; // Keybd offer. ESC [ 10040 : _gear_id_ : _focus_ : _combine_focus_ : _force_group_focus_ _
-        static const si32 debug_count_out = 10050; // Debug count output. ESC [ 10050 : _count_ _
-        static const si32 requestgc = 10060; // Request jumbo clusters. ESC [ 10060 : _token_1_ : ... : _token_n_ _
-        static const si32 fps = 10070; // .
-        static const si32 final = 10080; // .
-        static const si32 clipboard = 10100; // OSC clipboard data.
-        static const si32 debug_out = 10110; // OSC Debug output. ESC ] 10110 : _data-len_ : _base64-data_ _
-    }
 
     template<class Base>
     class basevt
@@ -594,113 +574,6 @@ namespace netxs::ansi
             return add(other);
         }
 
-        //todo deprecated
-        // esc: Send base64-encoded clipboard data (OSC).
-        esc& clipdata(id_t gear_id, view clipdata)
-        {
-            auto base64data = utf::base64(clipdata);
-            return add("\033]", dtvt::clipboard,
-                           ':', gear_id,
-                           ':', base64data.size(),
-                           ':', base64data, C0_BEL);
-        }
-        // esc: Send base64-encoded debug data (OSC).
-        esc& debugdata(view utf8)
-        {
-            auto base64data = utf::base64(utf8);
-            return add("\033]", dtvt::debug_out,
-                           ':', base64data.size(),
-                           ':', base64data, C0_BEL);
-        }
-        // esc: Request jumbo grapheme cluster.
-        template<class T>
-        esc& request_gc(T const& unknown_gc_list)
-        {
-            add("\033[", dtvt::requestgc);
-            for (auto& gc_map : unknown_gc_list)
-            {
-                add(':', netxs::letoh(gc_map.first));
-            }
-            return add('_');
-        }
-        esc& dtvt_begin()
-        {
-            return add("\033[");
-        }
-        esc& dtvt_close()
-        {
-            if (back() == ';') pop_back();
-            return add(DVT_INP);
-        }
-        // esc: DTVT-input-mode sequence (keyboard).
-        esc& dtvt_keybd(si32 id, si32 virtcod, si32 scancod, si32 pressed, si32 ctlstat, si32 imitate, view cluster)
-        {
-            add(dtvt::keybd,
-               ':',      id,
-               ':', virtcod,
-               ':', scancod,
-               ':', pressed,
-               ':', ctlstat,
-               ':', imitate);
-            if (auto code = utf::cpit{ cluster })
-            {
-                do add(':', code.next().cdpoint);
-                while (code);
-            }
-            else add(':');
-            return add(';');
-        }
-        // esc: DTVT-input-mode sequence (mouse).
-        esc& dtvt_mouse(si32 id, si32 bttns, si32 ctrls, si32 flags, si32 wheel, si32 xcoor, si32 ycoor)
-        {
-            return add(dtvt::mouse, ':',
-                                id, ':',
-                             bttns, ':',
-                             ctrls, ':',
-                             flags, ':',
-                             wheel, ':',
-                             xcoor, ':',
-                             ycoor, ';');
-        }
-        // esc: DTVT-input-mode sequences.
-        esc& dtvt_mouse_stop(si32 id) { return add(dtvt::mouse_stop, ':', id, ';'); }
-        esc& dtvt_mouse_halt(si32 id) { return add(dtvt::mouse_halt, ':', id, ';'); }
-        // esc: DTVT-input-mode sequence (keybd focus).
-        esc& dtvt_focus(si32 id, si32 focus, si32 combine_focus = 0, si32 force_group_focus = 0)
-        {
-            return add(dtvt::focus, ':',
-                                id, ':',
-                             focus, ':',
-                     combine_focus, ':',
-                 force_group_focus, ';');
-        }
-        // esc: DTVT-input-mode sequence (set fps).
-        esc& dtvt_fps(si32 fps)
-        {
-            return add(dtvt::fps, ':',
-                             fps, ';');
-        }
-        // esc: DTVT-input-mode sequence (debug count).
-        esc& dtvt_debug_count(si32 count)
-        {
-            return add(dtvt::debug_count_out, ':',
-                                       count, ';');
-        }
-        // esc: DTVT-input-mode sequence (window resize).
-        esc& dtvt_winsz(twod size)
-        {
-            return add(dtvt::winsz, ':',
-                            size.x, ':',
-                            size.y, ';');
-        }
-        // esc: Disintegrative DTVT-input-mode sequence (window resize).
-        esc& win(twod size)
-        {
-            return dtvt_begin().
-                   dtvt_winsz(size).
-                   dtvt_close();
-        }
-
         auto& vmouse(bool b) // esc: Focus and Mouse position reporting/tracking.
         {
             return add(b ? "\033[?1002;1003;1004;1006;10060h"
@@ -802,7 +675,6 @@ namespace netxs::ansi
         auto& ref(si32 i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
         auto& ext(si32 b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
         auto& show_mouse(si32 b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
-        auto& meta_state(si32 m) { return add("\033[27:", m  , CSI_CCC); } // esc: Set keyboard meta modifiers (Ctrl, Shift, Alt, etc).
     };
 
     template<class ...Args>
@@ -851,7 +723,6 @@ namespace netxs::ansi
     static auto mgb(si32 n)           { return esc{}.mgb(n);        } // ansi: Bottom margin.
     static auto ext(bool b)           { return esc{}.ext(b);        } // ansi: Extended functionality.
     static auto fcs(bool b)           { return esc{}.fcs(b);        } // ansi: Terminal window focus.
-    static auto win(twod const& p)    { return esc{}.win(p);        } // ansi: Terminal DTVT-window resize report.
     static auto jet(bias n)           { return esc{}.jet(n);        } // ansi: Text alignment.
     static auto wrp(wrap n)           { return esc{}.wrp(n);        } // ansi: Text wrapping.
     static auto rtl(rtol n)           { return esc{}.rtl(n);        } // ansi: Text right-to-left.
@@ -875,14 +746,6 @@ namespace netxs::ansi
     static auto idx(si32 i)           { return esc{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
                                                                       //       All following text is under the IDX until the next command is issued.
                                                                       //       Redefine if the id already exists.
-    //todo deprecated
-    static auto debugdata(view utf8)  { return esc{}.debugdata(utf8); } // ansi: Send OSC with 64-base encoded debug data.
-    static auto clipdata(id_t gear_id, view data) { return esc{}.clipdata(gear_id, data); } // ansi: Send OSC with 64-base encoded clipboard data.
-    template<class ...Args> static esc dtvt_keybd(Args&&... p) { return esc{}.dtvt_keybd(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (keyboard).
-    template<class ...Args> static esc dtvt_mouse(Args&&... p) { return esc{}.dtvt_mouse(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (mouse).
-    template<class ...Args> static esc dtvt_focus(Args&&... p) { return esc{}.dtvt_focus(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (focus).
-    template<class ...Args> static esc dtvt_winsz(Args&&... p) { return esc{}.dtvt_winsz(std::forward<Args>(p)...); } // ansi: DTVT-input-mode sequence (window resize).
-
     // ansi: Caret forwarding instructions.
     // The order is important (see the richtext::flow::exec constexpr).
     // todo tie with richtext::flow::exec
@@ -2410,6 +2273,7 @@ namespace netxs::ansi
             STRUCT(winsz,             (id_t, gear_id) (twod, winsize))
             STRUCT(clipdata,          (id_t, gear_id) (text, data))
             STRUCT(plain,             (id_t, gear_id) (text, utf8txt))
+            STRUCT(ctrls,             (id_t, gear_id) (ui32, ctlstat))
             STRUCT(keybd,             (id_t, gear_id) (ui32, ctlstat) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster))
             STRUCT(mouse,             (id_t, gear_id) (ui32, ctlstat) (ui32, buttons) (ui32, msflags) (ui32, wheeldt) (twod, coordxy))
             STRUCT(mouse_stop,        (id_t, gear_id))
@@ -2687,6 +2551,7 @@ namespace netxs::ansi
                 X(winsz            ) /* Window resize.                                */\
                 X(clipdata         ) /* Clipboard raw data.                           */\
                 X(plain            ) /* Raw text input.                               */\
+                X(ctrls            ) /* Keyboard modifiers state.                     */\
                 X(keybd            ) /* Keybd events.                                 */\
                 X(mouse            ) /* Mouse events.                                 */\
                 X(mouse_stop       ) /* Mouse disconnected.                           */\
