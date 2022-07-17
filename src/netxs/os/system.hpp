@@ -134,7 +134,7 @@ namespace netxs::os
             bool nums   = ctrls & NUMLOCK_ON;
             bool scrl   = ctrls & SCROLLLOCK_ON;
             bool caps   = ctrls & CAPSLOCK_ON;
-            auto state  = si32{};
+            auto state  = ui32{};
             if (lshift) state |= input::hids::LShift;
             if (rshift) state |= input::hids::RShift;
             if (lalt  ) state |= input::hids::LAlt;
@@ -2021,6 +2021,10 @@ namespace netxs::os
             {
                 return s << *sock;
             }
+            void output(view data)
+            {
+                send(data);
+            }
         };
 
         template<role ROLE>
@@ -2697,9 +2701,10 @@ namespace netxs::os
         template<class V>
         struct _globals
         {
-            static xipc        ipcio;
-            static conmode     state;
-            static testy<twod> winsz;
+            static xipc                     ipcio; // _globals: .
+            static conmode                  state; // _globals: .
+            static testy<twod>              winsz; // _globals: .
+            static ansi::dtvt::binary::s11n wired; // _globals: Serialization buffers.
             static void resize_handler()
             {
                 static constexpr auto winsz_fallback = twod{ 132, 60 };
@@ -2731,7 +2736,7 @@ namespace netxs::os
 
                 if (winsz.test)
                 {
-                    ipcio->send(ansi::win(winsz.last));
+                    wired.winsz.send(*ipcio, 0, winsz.last);
                 }
             }
 
@@ -2747,10 +2752,10 @@ namespace netxs::os
                     switch (signal)
                     {
                         case CTRL_C_EVENT:
-                            ipcio->send(view{ &ansi::C0_ETX, 1 });
+                            wired.plain.send(*ipcio, 0, text(1, ansi::C0_ETX));
                             break;
                         case CTRL_BREAK_EVENT:
-                            ipcio->send(view{ &ansi::C0_ETX, 1 });
+                            wired.plain.send(*ipcio, 0, text(1, ansi::C0_ETX));
                             break;
                         case CTRL_CLOSE_EVENT:
                             /**/
@@ -2808,6 +2813,7 @@ namespace netxs::os
         {
             log(" tty: id: ", std::this_thread::get_id(), " reading thread started");
             auto& ipcio =*_globals<void>::ipcio;
+            auto& wired = _globals<void>::wired;
 
             #if defined(_WIN32)
 
@@ -2815,7 +2821,6 @@ namespace netxs::os
             // ReadFile and ReadConsoleA either replace non-ASCII characters with NUL
             // or return 0 bytes read.
             auto reply = std::vector<INPUT_RECORD>(1);
-            auto yield = ansi::esc{};
             auto count = DWORD{};
             fd_t waits[] = { STDIN_FD, signal };
 
@@ -2823,7 +2828,7 @@ namespace netxs::os
 
             auto xlate_bttns = [](auto bttns)
             {
-                auto b = si32{};
+                auto b = ui32{};
                 b |= bttns & FROM_LEFT_1ST_BUTTON_PRESSED ? (1 << input::sysmouse::left  ) : 0;
                 b |= bttns & RIGHTMOST_BUTTON_PRESSED     ? (1 << input::sysmouse::right ) : 0;
                 b |= bttns & FROM_LEFT_2ND_BUTTON_PRESSED ? (1 << input::sysmouse::middle) : 0;
@@ -2858,44 +2863,44 @@ namespace netxs::os
                     {
                         auto entry = reply.begin();
                         auto limit = entry + count;
-                        yield.dtvt_begin();
                         while (entry != limit)
                         {
                             auto& reply = *entry++;
                             switch (reply.EventType)
                             {
                                 case KEY_EVENT:
-                                    yield.dtvt_keybd(0,
+                                    wired.keybd.send(ipcio,
+                                        0,
+                                        os::kbstate(reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode),
                                         reply.Event.KeyEvent.wVirtualKeyCode,
                                         reply.Event.KeyEvent.wVirtualScanCode,
                                         reply.Event.KeyEvent.bKeyDown,
-                                        os::kbstate(reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode),
                                         reply.Event.KeyEvent.wRepeatCount,
                                         utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar));
                                     break;
                                 case MOUSE_EVENT:
-                                    yield.dtvt_mouse(0,
-                                        xlate_bttns(reply.Event.MouseEvent.dwButtonState),
+                                    wired.mouse.send(ipcio,
+                                        0,
                                         os::kbstate(reply.Event.MouseEvent.dwControlKeyState),
+                                        xlate_bttns(reply.Event.MouseEvent.dwButtonState),
                                         reply.Event.MouseEvent.dwEventFlags,
                                         static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
-                                        reply.Event.MouseEvent.dwMousePosition.X,
-                                        reply.Event.MouseEvent.dwMousePosition.Y);
+                                        twod{ reply.Event.MouseEvent.dwMousePosition.X, reply.Event.MouseEvent.dwMousePosition.Y });
                                     break;
                                 case WINDOW_BUFFER_SIZE_EVENT:
                                     _globals<void>::resize_handler();
                                     break;
                                 case FOCUS_EVENT:
-                                    yield.dtvt_focus(0,
-                                        reply.Event.FocusEvent.bSetFocus);
+                                    wired.focus.send(ipcio,
+                                        0,
+                                        reply.Event.FocusEvent.bSetFocus,
+                                        faux,
+                                        faux);
                                     break;
                                 default:
                                     break;
                             }
                         }
-                        yield.dtvt_close();
-                        ipcio.send(yield);
-                        yield.clear();
                     }
                 }
             }
@@ -3236,9 +3241,10 @@ namespace netxs::os
         }
     };
 
-    template<class V> xipc        tty::_globals<V>::ipcio;
-    template<class V> conmode     tty::_globals<V>::state;
-    template<class V> testy<twod> tty::_globals<V>::winsz;
+    template<class V> xipc                     tty::_globals<V>::ipcio;
+    template<class V> conmode                  tty::_globals<V>::state;
+    template<class V> testy<twod>              tty::_globals<V>::winsz;
+    template<class V> ansi::dtvt::binary::s11n tty::_globals<V>::wired;
 
     class pty // Note: STA.
     {
@@ -3602,7 +3608,6 @@ namespace netxs::os
             #endif
 
             ipc::direct               termlink{};
-            testy<twod>               termsize{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
             std::thread               stderror{};
@@ -3652,7 +3657,6 @@ namespace netxs::os
                 loggerfx = logs_hndl;
                 preclose = preclose_hndl;
                 shutdown = shutdown_hndl;
-                termsize(winsz);
                 log("dtvt: new child process: ", cmdline);
 
                 #if defined(_WIN32)
@@ -3885,10 +3889,10 @@ namespace netxs::os
                 }
                 log("dtvt: id: ", thread_id, " logging thread ended");
             }
-            void read_socket_thread()
-            {
-                log("dtvt: id: ", stdinput.get_id(), " reading thread started");
 
+            template<class T, class P>
+            static void reading_loop(T& termlink, P&& receiver)
+            {
                 auto flow = text{};
                 while (termlink)
                 {
@@ -3904,6 +3908,13 @@ namespace netxs::os
                     }
                     else break;
                 }
+            }
+            void read_socket_thread()
+            {
+                log("dtvt: id: ", stdinput.get_id(), " reading thread started");
+
+                reading_loop(termlink, receiver);
+
                 //todo test
                 //if (termlink)
                 {
@@ -3931,14 +3942,7 @@ namespace netxs::os
                 guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
                 log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");
             }
-            void resize(twod const& newsize)
-            {
-                if (termlink && termsize(newsize))
-                {
-                    write(ansi::win(newsize));
-                }
-            }
-            void write(view data)
+            void output(view data)
             {
                 auto guard = std::lock_guard{ writemtx };
                 writebuf += data;

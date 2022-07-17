@@ -4780,6 +4780,139 @@ namespace netxs::console
         using sptr = netxs::sptr<bell>;
         using s11n = netxs::ansi::dtvt::binary::s11n;
 
+        // link: Event handler.
+        class events_t
+        {
+            struct sysgears
+            {
+                sysmouse mouse = {};
+                syskeybd keybd = {};
+                sysfocus focus = {};
+            };
+
+            link& owner; // events_t: Link reference.
+            std::unordered_map<id_t, sysgears> gears{};
+
+        public:
+            events_t(link& owner)
+                : owner{ owner }
+            { }
+
+            void sync(s11n::xs::focus       lock)
+            {
+                auto& item = lock.thing;
+                auto& f = gears[item.gear_id].focus;
+                f.focusid = item.gear_id;
+                f.enabled = item.state;
+                f.combine_focus = item.combine_focus;
+                f.force_group_focus = item.force_group_focus;
+                owner.notify(e2::conio::focus, f);
+                log("\t - focus ", f.enabled ? "on: ":"off: ", owner.canal);
+            }
+            void sync(s11n::xs::winsz       lock)
+            {
+                auto& item = lock.thing;
+                owner.notify(e2::conio::winsz, item.winsize);
+            }
+            void sync(s11n::xs::clipdata    lock)
+            {
+                auto& item = lock.thing;
+                owner.relay.set(item.gear_id, item.data);
+            }
+            void sync(s11n::xs::keybd       lock)
+            {
+                auto& item = lock.thing;
+                auto& k = gears[item.gear_id].keybd;
+                k.keybdid = item.gear_id;
+                k.virtcod = item.virtcod;
+                k.scancod = item.scancod;
+                k.pressed = item.pressed;
+                k.ctlstat = item.ctlstat;
+                k.imitate = item.imitate;
+                k.cluster = item.cluster;
+                owner.notify(e2::conio::keybd, k);
+            }
+            void sync(s11n::xs::mouse       lock)
+            {
+                auto& item = lock.thing;
+                auto gear_id = item.gear_id;
+                auto buttons = item.buttons;
+                auto ctlstat = item.ctlstat;
+                auto msflags = item.msflags;
+                auto wheeldt = item.wheeldt;
+                auto coordxy = item.coordxy;
+                auto& m = gears[gear_id].mouse;
+                m.set_buttons(buttons);
+                m.mouseid = gear_id;
+                m.control = sysmouse::stat::ok;
+                m.ismoved = m.coor(coordxy);
+                m.shuffle = !m.ismoved && (msflags & (1 << 0)); // MOUSE_MOVED
+                m.doubled = msflags & (1 << 1); // DOUBLE_CLICK -- Makes no sense (ignored)
+                m.wheeled = msflags & (1 << 2); // MOUSE_WHEELED
+                m.hzwheel = msflags & (1 << 3); // MOUSE_HWHEELED
+                m.wheeldt = wheeldt;
+                m.ctlstat = ctlstat;
+                if (!m.shuffle)
+                {
+                    m.update_buttons();
+                    owner.notify(e2::conio::mouse, m);
+                }
+            }
+            void sync(s11n::xs::mouse_stop  lock)
+            {
+                auto& item = lock.thing;
+                auto& m = gears[item.gear_id].mouse;
+                m.mouseid = item.gear_id;
+                m.control = sysmouse::stat::die;
+                owner.notify(e2::conio::mouse, m);
+            }
+            void sync(s11n::xs::mouse_halt  lock)
+            {
+                auto& item = lock.thing;
+                auto& m = gears[item.gear_id].mouse;
+                m.mouseid = item.gear_id;
+                m.control = sysmouse::stat::halt;
+                owner.notify(e2::conio::mouse, m);
+            }
+            void sync(s11n::xs::mouse_show  lock)
+            {
+                auto& item = lock.thing;
+                owner.notify(e2::conio::pointer, item.mode);
+            }
+            void sync(s11n::xs::native      lock)
+            {
+                auto& item = lock.thing;
+                owner.notify(e2::conio::native, item.mode);
+            }
+            void sync(s11n::xs::request_gc  lock)
+            {
+                auto& item = lock.thing;
+                auto list = owner.wired.jgc_list.freeze();
+                for (auto& gc : item)
+                {
+                    auto cluster = cell::gc_get_data(gc.token);
+                    list.thing.push(gc.token, cluster);
+                }
+                list.thing.sendby(owner);
+            }
+            void sync(s11n::xs::fps         lock)
+            {
+                auto& item = lock.thing;
+                owner.notify(e2::config::fps, item.frame_rate);
+            }
+            void sync(s11n::xs::debug_count lock)
+            {
+                auto& item = lock.thing;
+                //todo
+            }
+            void sync(s11n::xs::debugdata   lock)
+            {
+                auto& item = lock.thing;
+                //todo
+            }
+        }
+        events{*this};
+
         sptr owner; // link: Boss.
         xipc canal; // link: Data highway.
         cond synch; // link: Thread sync cond variable.
@@ -4788,19 +4921,22 @@ namespace netxs::console
         bool close; // link: Pre closing condition.
         si32 iface; // link: Platform specific UI code.
         text accum; // link: Accumulated unparsed input.
-        //todo move it to the gate
         s11n wired; // link: Serialization buffers.
 
+        // link: .
         void reader()
         {
             auto thread_id = std::this_thread::get_id();
             log("link: id: ", thread_id, " reading thread started");
-            while (auto yield = canal->recv())
-            {
-                auto guard = std::lock_guard{ mutex };
-                accum += yield;
-                synch.notify_one();
-            }
+
+            auto& termlink = *canal;
+            os::direct::pty::reading_loop(termlink, [&](view data){ wired.sync(data); });
+            //while (auto yield = canal->recv())
+            //{
+            //    auto guard = std::lock_guard{ mutex };
+            //    accum += yield;
+            //    synch.notify_one();
+            //}
 
             if (alive)
             {
@@ -4811,6 +4947,13 @@ namespace netxs::console
         }
 
     public:
+        // link: .
+        template<class T, typename = std::enable_if_t<requires(T&& lock) { events.sync(std::forward<T>(lock)); }>>
+        void handle(T&& lock)
+        {
+            events.sync(std::forward<T>(lock));
+        }
+
         struct
         {
             struct clip_t
@@ -4870,7 +5013,8 @@ namespace netxs::console
               canal{ sock },
               alive{ true },
               close{ faux },
-              iface{ 0    }
+              iface{ 0    },
+              wired{*this }
         { }
 
         void output(view buffer)
@@ -5219,6 +5363,7 @@ again:
                                         {
                                             case ansi::dtvt::mouse:
                                             {
+                                                //done:
                                                 auto id    = take();
                                                 auto bttns = take();
                                                 auto ctrls = take();
@@ -5250,6 +5395,7 @@ again:
                                             }
                                             case ansi::dtvt::keybd:
                                             {
+                                                //done
                                                 auto id = take();
                                                 auto& k = gears[id].keybd;
                                                 k.keybdid = id;
@@ -5270,6 +5416,7 @@ again:
                                             }
                                             case ansi::dtvt::winsz:
                                             {
+                                                //done
                                                 auto xsize = take();
                                                 auto ysize = take();
                                                 auto winsz = twod{ xsize,ysize };
@@ -5278,12 +5425,14 @@ again:
                                             }
                                             case ansi::dtvt::fps:
                                             {
+                                                //done
                                                 auto fps = take();
                                                 notify(e2::config::fps, fps);
                                                 break;
                                             }
                                             case ansi::dtvt::focus:
                                             {
+                                                //done
                                                 //todo clear pressed keys on lost focus
                                                 auto id = take();
                                                 auto& f = gears[id].focus;
@@ -5296,6 +5445,7 @@ again:
                                             }
                                             case ansi::dtvt::mouse_halt:
                                             {
+                                                //done
                                                 auto id = take();
                                                 auto& m = gears[id].mouse;
                                                 m.mouseid = id;
@@ -5305,6 +5455,7 @@ again:
                                             }
                                             case ansi::dtvt::mouse_stop:
                                             {
+                                                //done
                                                 auto id = take();
                                                 auto& m = gears[id].mouse;
                                                 m.mouseid = id;
@@ -5315,6 +5466,7 @@ again:
                                             //todo reimplement Logs
                                             case ansi::dtvt::debug_count_out:
                                             {
+                                                //none
                                                 auto count = take();
                                                 auto lock = std::lock_guard{ debug_count_relay.mutex };
                                                 debug_count_relay.count = count;
@@ -5323,6 +5475,7 @@ again:
                                             }
                                             case ansi::dtvt::requestgc:
                                             {
+                                                //done
                                                 //todo unify
                                                 auto list = wired.jgc_list.freeze();
                                                 do
@@ -5350,6 +5503,7 @@ again:
                                 else if (event_id == ansi::CCC_EXT && l > 2
                                     && tmp.at(0) == ':' && tmp.at(2) == 'p')
                                 {
+                                    //done
                                     pos += 5 /* 25:1p */;
                                     auto native = tmp.at(1) == '1';
                                     notify(e2::conio::native, native);
@@ -5357,6 +5511,7 @@ again:
                                 else if (event_id == ansi::CCC_SMS && l > 2
                                     && tmp.at(0) == ':' && tmp.at(2) == 'p')
                                 {
+                                    //done
                                     pos += 5 /* 26:1p */;
                                     auto pointer = tmp.at(1) == '1';
                                     notify(e2::conio::pointer, pointer);
@@ -5403,6 +5558,7 @@ again:
                                                         pos += l - tmp.size();
                                                         if (pos == len) { total = strv; break; }//incomlpete
                                                         {
+                                                            //done
                                                             if (++pos == len) { total = strv; break; }//incomlpete
                                                             auto length = data_len.value();
                                                             if (len - pos < length + 1/* +BEL */) { total = strv; break; }//incomlpete
@@ -5420,6 +5576,7 @@ again:
                                     //todo reimplement Logs
                                     case ansi::dtvt::debug_out:
                                     {
+                                        //none
                                         pos += l - tmp.size();
                                         if (pos == len) { total = strv; break; }//incomlpete
                                         {

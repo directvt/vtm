@@ -2409,8 +2409,9 @@ namespace netxs::ansi
             STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, combine_focus) (bool, force_group_focus))
             STRUCT(winsz,             (id_t, gear_id) (twod, winsize))
             STRUCT(clipdata,          (id_t, gear_id) (text, data))
-            STRUCT(keybd,             (id_t, gear_id) (ui16, ctlstat) (ui16, virtkey) (ui16, scancod) (bool, pressed) (bool, imitate) (text, cluster))
-            STRUCT(mouse,             (id_t, gear_id) (ui16, ctlstat) (ui16, bttns)   (ui16, flags)   (ui16, wheel)   (twod, coor))
+            STRUCT(plain,             (id_t, gear_id) (text, utf8txt))
+            STRUCT(keybd,             (id_t, gear_id) (ui32, ctlstat) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster))
+            STRUCT(mouse,             (id_t, gear_id) (ui32, ctlstat) (ui32, buttons) (ui32, msflags) (ui32, wheeldt) (twod, coordxy))
             STRUCT(mouse_stop,        (id_t, gear_id))
             STRUCT(mouse_halt,        (id_t, gear_id))
             STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
@@ -2685,6 +2686,7 @@ namespace netxs::ansi
                 X(focus            ) /* Set/unset focus.                              */\
                 X(winsz            ) /* Window resize.                                */\
                 X(clipdata         ) /* Clipboard raw data.                           */\
+                X(plain            ) /* Raw text input.                               */\
                 X(keybd            ) /* Keybd events.                                 */\
                 X(mouse            ) /* Mouse events.                                 */\
                 X(mouse_stop       ) /* Mouse disconnected.                           */\
@@ -2726,7 +2728,7 @@ namespace netxs::ansi
 
                 s11n() = default;
                 template<class T>
-                s11n(T& boss)
+                s11n(T& boss, id_t boss_id = {})
                 {
                     #define X(_object) \
                         if constexpr (requires(view data) { boss.handle(_object.sync(data)); }) \
@@ -2735,7 +2737,7 @@ namespace netxs::ansi
                     #undef X
 
                     auto lock = bitmap.freeze();
-                    lock.thing.image.link(boss.id);
+                    lock.thing.image.link(boss_id);
                 }
 
                 #undef OBJECT_LIST
