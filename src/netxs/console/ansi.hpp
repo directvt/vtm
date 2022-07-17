@@ -2388,10 +2388,9 @@ namespace netxs::ansi
                 };                                                                    \
                 using struct_name = wrapper<CAT(struct_name, _t)>;
 
-            // Output data.
+            // Output stream.
             STRUCT(frame_element,     (frag, data))
             STRUCT(jgc_element,       (ui64, token) (text, cluster))
-            STRUCT(request_dbg_count, (sz_t, count))
             STRUCT(tooltip_element,   (id_t, gear_id) (text, tip_text))
             STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord))
             STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata))
@@ -2404,21 +2403,22 @@ namespace netxs::ansi
             STRUCT(vt_command,        (text, command))
             STRUCT_LITE(expose)
             STRUCT_LITE(request_debug)
+            STRUCT(request_dbg_count, (sz_t, count))
 
-            // Input data.
-            STRUCT(keybd,             (id_t, gear_id) (ui16, ctlstat) (ui16, virtkey) (ui16, scancod) (bool, pressed) (bool, imitate) (text, cluster))
-            STRUCT(mouse,             (id_t, gear_id) (ui16, ctlstat) (ui16, bttns)   (ui16, flags)   (ui16, wheel)   (twod, coor))
+            // Input stream.
             STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, combine_focus) (bool, force_group_focus))
             STRUCT(winsz,             (id_t, gear_id) (twod, winsize))
             STRUCT(clipdata,          (id_t, gear_id) (text, data))
+            STRUCT(keybd,             (id_t, gear_id) (ui16, ctlstat) (ui16, virtkey) (ui16, scancod) (bool, pressed) (bool, imitate) (text, cluster))
+            STRUCT(mouse,             (id_t, gear_id) (ui16, ctlstat) (ui16, bttns)   (ui16, flags)   (ui16, wheel)   (twod, coor))
             STRUCT(mouse_stop,        (id_t, gear_id))
             STRUCT(mouse_halt,        (id_t, gear_id))
+            STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
+            STRUCT(native,            (bool, mode)) // CCC_EXT/* 25:1p */
             STRUCT(unknown_gc,        (ui64, token))
             STRUCT(fps,               (si32, frame_rate))
             STRUCT(debug_count,       (si32, count))
             STRUCT(debugdata,         (text, data))
-            STRUCT(native,            (bool, mode)) // CCC_EXT/* 25:1p */
-            STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
 
             #undef STRUCT
             #undef STRUCT_LITE
@@ -2662,24 +2662,40 @@ namespace netxs::ansi
             struct s11n
             {
                 #define OBJECT_LIST \
-                X(bitmap           ) /* Canvas data. */\
-                X(mouse_event      ) /* Mouse events. */\
-                X(tooltips         ) /* Tooltip list. */\
-                X(jgc_list         ) /* list of jumbo GC */\
-                X(request_dbg_count) /* . */\
-                X(request_debug    ) /* request debug output redirection to stdin */\
-                X(set_clipboard    ) /* set main clipboard using following data */\
-                X(request_clipboard) /* request main clipboard data */\
-                X(off_focus        ) /* request to remove focus */\
-                X(set_focus        ) /* request to set focus */\
-                X(form_header      ) /* . */\
-                X(form_footer      ) /* . */\
-                X(warping          ) /* warping */\
-                X(expose           ) /* bring the form to the front */\
-                X(vt_command       ) /* parse following vt-sequences in UTF-8 format */\
-                X(frames           ) /* Received frames. */\
-                X(tooltip_element  ) /* Tooltip. */\
-                X(jgc_element      ) /* jumbo GC: gc.token + gc.view (response on terminal request) */
+                /* Output stream                                                      */\
+                X(bitmap           ) /* Canvas data.                                  */\
+                X(mouse_event      ) /* Mouse events.                                 */\
+                X(tooltips         ) /* Tooltip list.                                 */\
+                X(jgc_list         ) /* List of jumbo GC.                             */\
+                X(set_clipboard    ) /* Set main clipboard using following data.      */\
+                X(request_clipboard) /* Request main clipboard data.                  */\
+                X(off_focus        ) /* Request to remove focus.                      */\
+                X(set_focus        ) /* Request to set focus.                         */\
+                X(form_header      ) /* Set window title.                             */\
+                X(form_footer      ) /* Set window footer.                            */\
+                X(warping          ) /* Warp resize.                                  */\
+                X(expose           ) /* Bring the form to the front.                  */\
+                X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
+                X(frames           ) /* Received frames.                              */\
+                X(tooltip_element  ) /* Tooltip text.                                 */\
+                X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
+                X(request_dbg_count) /* Request debug listeners count.                */\
+                X(request_debug    ) /* Request debug output redirection to stdin.    */\
+                /* Input stream                                                       */\
+                X(focus            ) /* Set/unset focus.                              */\
+                X(winsz            ) /* Window resize.                                */\
+                X(clipdata         ) /* Clipboard raw data.                           */\
+                X(keybd            ) /* Keybd events.                                 */\
+                X(mouse            ) /* Mouse events.                                 */\
+                X(mouse_stop       ) /* Mouse disconnected.                           */\
+                X(mouse_halt       ) /* Mouse leaves window.                          */\
+                X(mouse_show       ) /* Show mouse cursor.                            */\
+                X(native           ) /* Set native/desktopio mode.                    */\
+                X(request_gc       ) /* Unknown gc token list.                        */\
+                X(unknown_gc       ) /* Unknown gc token.                             */\
+                X(fps              ) /* Set frame rate.                               */\
+                X(debug_count      ) /* Debug listeners count.                        */\
+                X(debugdata        ) /* Debug data.                                   */
 
                 struct xs
                 {
