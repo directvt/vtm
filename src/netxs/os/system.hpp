@@ -4,10 +4,6 @@
 #ifndef NETXS_SYSTEM_HPP
 #define NETXS_SYSTEM_HPP
 
-#ifndef VTM_USE_CLASSICAL_WIN32_INPUT
-#define VTM_USE_CLASSICAL_WIN32_INPUT // Turns on classical console win32 input mode.
-#endif
-
 #if (defined(__unix__) || defined(__APPLE__)) && !defined(__linux__)
     #define __BSD__
 #endif
@@ -2817,164 +2813,91 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
-            // The input codepage to UTF-8 is severely broken in all Windows versions.
-            // ReadFile and ReadConsoleA either replace non-ASCII characters with NUL
-            // or return 0 bytes read.
-            auto reply = std::vector<INPUT_RECORD>(1);
-            auto count = DWORD{};
-            fd_t waits[] = { STDIN_FD, signal };
+                // The input codepage to UTF-8 is severely broken in all Windows versions.
+                // ReadFile and ReadConsoleA either replace non-ASCII characters with NUL
+                // or return 0 bytes read.
+                auto reply = std::vector<INPUT_RECORD>(1);
+                auto count = DWORD{};
+                fd_t waits[] = { STDIN_FD, signal };
 
-            #ifdef VTM_USE_CLASSICAL_WIN32_INPUT
-
-            auto xlate_bttns = [](auto bttns)
-            {
-                auto b = ui32{};
-                b |= bttns & FROM_LEFT_1ST_BUTTON_PRESSED ? (1 << input::sysmouse::left  ) : 0;
-                b |= bttns & RIGHTMOST_BUTTON_PRESSED     ? (1 << input::sysmouse::right ) : 0;
-                b |= bttns & FROM_LEFT_2ND_BUTTON_PRESSED ? (1 << input::sysmouse::middle) : 0;
-                b |= bttns & FROM_LEFT_3RD_BUTTON_PRESSED ? (1 << input::sysmouse::wheel ) : 0;
-                b |= bttns & FROM_LEFT_4TH_BUTTON_PRESSED ? (1 << input::sysmouse::win   ) : 0;
-                return b;
-            };
-
-            while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
-            {
-                if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
+                auto xlate_bttns = [](auto bttns)
                 {
-                    // ERROR_PIPE_NOT_CONNECTED
-                    // 233 (0xE9)
-                    // No process is on the other end of the pipe.
-                    //defeat("GetNumberOfConsoleInputEvents error");
-                    os::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", ::GetLastError());
-                    break;
-                }
-                else if (count)
-                {
-                    if (count > reply.size()) reply.resize(count);
+                    auto b = ui32{};
+                    b |= bttns & FROM_LEFT_1ST_BUTTON_PRESSED ? (1 << input::sysmouse::left  ) : 0;
+                    b |= bttns & RIGHTMOST_BUTTON_PRESSED     ? (1 << input::sysmouse::right ) : 0;
+                    b |= bttns & FROM_LEFT_2ND_BUTTON_PRESSED ? (1 << input::sysmouse::middle) : 0;
+                    b |= bttns & FROM_LEFT_3RD_BUTTON_PRESSED ? (1 << input::sysmouse::wheel ) : 0;
+                    b |= bttns & FROM_LEFT_4TH_BUTTON_PRESSED ? (1 << input::sysmouse::win   ) : 0;
+                    return b;
+                };
 
-                    if (!::ReadConsoleInputW(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
+                while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
+                {
+                    if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
                     {
-                        //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
-                        //defeat("ReadConsoleInput error");
-                        os::exit(-1, " tty: ReadConsoleInput error ", ::GetLastError());
+                        // ERROR_PIPE_NOT_CONNECTED
+                        // 233 (0xE9)
+                        // No process is on the other end of the pipe.
+                        //defeat("GetNumberOfConsoleInputEvents error");
+                        os::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", ::GetLastError());
                         break;
                     }
-                    else
+                    else if (count)
                     {
-                        auto entry = reply.begin();
-                        auto limit = entry + count;
-                        while (entry != limit)
+                        if (count > reply.size()) reply.resize(count);
+
+                        if (!::ReadConsoleInputW(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
                         {
-                            auto& reply = *entry++;
-                            switch (reply.EventType)
+                            //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
+                            //defeat("ReadConsoleInput error");
+                            os::exit(-1, " tty: ReadConsoleInput error ", ::GetLastError());
+                            break;
+                        }
+                        else
+                        {
+                            auto entry = reply.begin();
+                            auto limit = entry + count;
+                            while (entry != limit)
                             {
-                                case KEY_EVENT:
-                                    wired.keybd.send(ipcio,
-                                        0,
-                                        os::kbstate(reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode),
-                                        reply.Event.KeyEvent.wVirtualKeyCode,
-                                        reply.Event.KeyEvent.wVirtualScanCode,
-                                        reply.Event.KeyEvent.bKeyDown,
-                                        reply.Event.KeyEvent.wRepeatCount,
-                                        utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar));
-                                    break;
-                                case MOUSE_EVENT:
-                                    wired.mouse.send(ipcio,
-                                        0,
-                                        os::kbstate(reply.Event.MouseEvent.dwControlKeyState),
-                                        xlate_bttns(reply.Event.MouseEvent.dwButtonState),
-                                        reply.Event.MouseEvent.dwEventFlags,
-                                        static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
-                                        twod{ reply.Event.MouseEvent.dwMousePosition.X, reply.Event.MouseEvent.dwMousePosition.Y });
-                                    break;
-                                case WINDOW_BUFFER_SIZE_EVENT:
-                                    _globals<void>::resize_handler();
-                                    break;
-                                case FOCUS_EVENT:
-                                    wired.focus.send(ipcio,
-                                        0,
-                                        reply.Event.FocusEvent.bSetFocus,
-                                        faux,
-                                        faux);
-                                    break;
-                                default:
-                                    break;
+                                auto& reply = *entry++;
+                                switch (reply.EventType)
+                                {
+                                    case KEY_EVENT:
+                                        wired.keybd.send(ipcio,
+                                            0,
+                                            os::kbstate(reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode),
+                                            reply.Event.KeyEvent.wVirtualKeyCode,
+                                            reply.Event.KeyEvent.wVirtualScanCode,
+                                            reply.Event.KeyEvent.bKeyDown,
+                                            reply.Event.KeyEvent.wRepeatCount,
+                                            utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar));
+                                        break;
+                                    case MOUSE_EVENT:
+                                        wired.mouse.send(ipcio,
+                                            0,
+                                            os::kbstate(reply.Event.MouseEvent.dwControlKeyState),
+                                            xlate_bttns(reply.Event.MouseEvent.dwButtonState),
+                                            reply.Event.MouseEvent.dwEventFlags,
+                                            static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
+                                            twod{ reply.Event.MouseEvent.dwMousePosition.X, reply.Event.MouseEvent.dwMousePosition.Y });
+                                        break;
+                                    case WINDOW_BUFFER_SIZE_EVENT:
+                                        _globals<void>::resize_handler();
+                                        break;
+                                    case FOCUS_EVENT:
+                                        wired.focus.send(ipcio,
+                                            0,
+                                            reply.Event.FocusEvent.bSetFocus,
+                                            faux,
+                                            faux);
+                                        break;
+                                    default:
+                                        break;
+                                }
                             }
                         }
                     }
                 }
-            }
-
-            #else
-
-            auto buff = std::vector<wchar_t>(STDIN_BUF);
-            while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
-            {
-                if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
-                {
-                    defeat("GetNumberOfConsoleInputEvents error");
-                }
-                else if (count)
-                {
-                    if (count > reply.size()) reply.resize(count);
-
-                    if (!::PeekConsoleInput(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
-                    {
-                        //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
-                        defeat("PeekConsoleInput error");
-                    }
-                    else
-                    {
-                        auto entry = reply.begin();
-                        auto limit = entry + count;
-                        auto vtcon = faux;
-                        yield.clear();
-                        while (entry != limit)
-                        {
-                            auto& reply = *entry++;
-                            switch (reply.EventType)
-                            {
-                                case KEY_EVENT:
-                                    // ReadConsole ignores key up event
-                                    vtcon |= static_cast<bool>(reply.Event.KeyEvent.bKeyDown);
-                                    break;
-                                case MOUSE_EVENT:
-                                    break;
-                                case WINDOW_BUFFER_SIZE_EVENT: // Valid only for alt buffer.
-                                    yield += ansi::win({
-                                        reply.Event.WindowBufferSizeEvent.dwSize.X,
-                                        reply.Event.WindowBufferSizeEvent.dwSize.Y });
-                                    break;
-                                case FOCUS_EVENT:
-                                    yield += ansi::fcs(
-                                        reply.Event.FocusEvent.bSetFocus);
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
-
-                        if (vtcon)
-                        {
-                            auto state = CONSOLE_READCONSOLE_CONTROL{ sizeof(state) };
-
-                            ::ReadConsoleW( input, // Auto flushed after reading.
-                                            buff.data(),
-                                            (DWORD)buff.size(),
-                                            &count,
-                                            &state);
-
-                            //todo forward key ctrl state too
-                            yield += utf::to_utf(buff.data(), count);
-                        }
-                        else ::FlushConsoleInputBuffer(STDIN_FD);
-
-                        ipcio.send(yield);
-                    }
-                }
-            }
-
-            #endif // USE_WIN32_INPUT
 
             #else
 
@@ -3178,9 +3101,6 @@ namespace netxs::os
                               | ENABLE_PROCESSED_INPUT
                               | ENABLE_WINDOW_INPUT
                               | ENABLE_MOUSE_INPUT
-                            #ifndef VTM_USE_CLASSICAL_WIN32_INPUT
-                              | ENABLE_VIRTUAL_TERMINAL_INPUT
-                            #endif
                               ;
                 ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
 
