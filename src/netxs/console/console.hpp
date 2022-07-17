@@ -4832,6 +4832,15 @@ namespace netxs::console
                 k.cluster = item.cluster;
                 owner.notify(e2::conio::keybd, k);
             }
+            void sync(s11n::xs::plain       lock)
+            {
+                auto& item = lock.thing;
+                auto& k = gears[item.gear_id].keybd;
+                k.keybdid = item.gear_id;
+                k.cluster = item.utf8txt;
+                k.pressed = true;
+                owner.notify(e2::conio::keybd, k);
+            }
             void sync(s11n::xs::mouse       lock)
             {
                 auto& item = lock.thing;

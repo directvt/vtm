@@ -6622,57 +6622,19 @@ namespace netxs::ui
                 if (gear.captured(owner.id)) gear.setfree(faux);
                 gear.dismiss();
             }
-
-            void _mouse(hids& gear)
-            {
-                auto coordxy = gear.coord;
-                auto ctlstat = gear.meta();
-                auto buttons = gear.get_buttons();
-                auto wheeldt = gear.whldt;
-                auto msflags =(gear.whldt ? (1 << 2) : 0)
-                            | (gear.hzwhl ? (1 << 3) : 0);
-                mouse.send(owner, gear.id, ctlstat, buttons, msflags, wheeldt, coordxy);
-            }
-            void gone(hids& gear)
-            {
-                log("dtvt: mouse::die, ", gear.id);
-                release(gear);
-                mouse_stop.send(owner, gear.id);
-            }
-            void leave(hids& gear)
-            {
-                log("dtvt: mouse::halt, ", gear.id);
-                mouse_halt.send(owner, gear.id);
-            }
-            void _keybd(hids& gear)
-            {
-                keybd.send(owner, gear.id,
-                                  gear.ctlstate,
-                                  gear.virtcod,
-                                  gear.scancod,
-                                  gear.pressed,
-                                  gear.imitate,
-                                  gear.cluster);
-            }
-            void _focus(hids& gear, bool focus_state)
-            {
-                focus.send(owner, gear.id,
-                                  focus_state,
-                                  gear.combine_focus,
-                                  gear.force_group_focus);
-            }
-            void _frame_rate(si32 frame_rate)
-            {
-                fps.send(owner, frame_rate);
-            }
-            void _debug_count(si32 count)
-            {
-                debug_count.send(owner, count);
-            }
-            void serialize_mouse(hids& gear, id_t cause, bool moved)
+            void proceed(hids& gear, id_t cause)
             {
                 using m = hids::events::mouse;
                 using b = hids::events::mouse::button;
+
+                bool moved; // It's valuable for the drag start in a multi user environment.
+                auto mapit = coord.find(gear.id);
+                if (mapit == coord.end())
+                {
+                    coord.try_emplace(gear.id, gear.coord);
+                    moved = true;
+                }
+                else moved = mapit->second(gear.coord);
 
                 auto active = faux;
                 switch (cause)
@@ -6699,7 +6661,16 @@ namespace netxs::ui
                     default:
                         break;
                 }
-                if (active) _mouse(gear);
+                if (active)
+                {
+                    auto coordxy = gear.coord;
+                    auto ctlstat = gear.meta();
+                    auto buttons = gear.get_buttons();
+                    auto wheeldt = gear.whldt;
+                    auto msflags =(gear.whldt ? (1 << 2) : 0)
+                                | (gear.hzwhl ? (1 << 3) : 0);
+                    mouse.send(owner, gear.id, ctlstat, buttons, msflags, wheeldt, coordxy);
+                }
             }
 
         public:
@@ -6718,6 +6689,7 @@ namespace netxs::ui
                     {
                         list.thing.push(gc_map.first);
                     }
+                    bitmap.newgc.clear();
                     list.thing.sendby(owner);
                 }
                 //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
@@ -6810,7 +6782,7 @@ namespace netxs::ui
             {
                 auto& c = lock.thing;
                 auto lock_ui = events::sync{};
-                text clip_raw_data; //todo use gear.raw_clip_data
+                auto clip_raw_data = text{}; //todo use gear.raw_clip_data
                 if (auto ptr = bell::getref(c.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
@@ -6886,64 +6858,75 @@ namespace netxs::ui
             {
                 owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                 {
-                    bool moved; // It's valuable for the drag start in a multi user environment.
-                    auto mapit = coord.find(gear.id);
-                    if (mapit == coord.end())
-                    {
-                        coord.try_emplace(gear.id, gear.coord);
-                        moved = true;
-                    }
-                    else moved = mapit->second(gear.coord);
                     auto cause = owner.bell::protos<tier::release>();
-                    serialize_mouse(gear, cause, moved);
+                    proceed(gear, cause);
                     owner.bell::template expire<tier::release>();
                 };
                 owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                 {
                     log("dtvt: die ", gear.id);
-                    gone(gear);
+                    release(gear);
+                    mouse_stop.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                 {
                     log("dtvt: halt ", gear.id);
-                    leave(gear);
+                    mouse_halt.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
                 {
                     log("dtvt: leave ", gear.id);
-                    leave(gear);
+                    mouse_halt.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
                 {
-                    _keybd(gear);
+                    keybd.send(owner, gear.id,
+                                      gear.ctlstate,
+                                      gear.virtcod,
+                                      gear.scancod,
+                                      gear.pressed,
+                                      gear.imitate,
+                                      gear.cluster);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
                 {
                     log("dtvt: events: hids::events::upevent::kboffer ", gear.id);
-                    _focus(gear, true);
+                    auto focus_state = true;
+                    focus.send(owner, gear.id,
+                                      focus_state,
+                                      gear.combine_focus,
+                                      gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
                 {
                     log("dtvt: events: hids::events::upevent::kbannul ", gear.id);
                     gear.remove_from_kb_focus(owner.This());
-                    _focus(gear, faux);
+                    auto focus_state = faux;
+                    focus.send(owner, gear.id,
+                                      focus_state,
+                                      gear.combine_focus,
+                                      gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, gear)
                 {
                     log("dtvt: keybd focus lost ", gear.id);
-                    _focus(gear, faux);
+                    auto focus_state = faux;
+                    focus.send(owner, gear.id,
+                                      focus_state,
+                                      gear.combine_focus,
+                                      gear.force_group_focus);
                 };
                 //todo reimplement Logs
                 owner.SUBMIT_T(tier::general, e2::debug::count::any, token, count)
                 {
                     log("dtvt: debug count ", count);
-                    _debug_count(count);
+                    debug_count.send(owner, count);
                 };
-                owner.SUBMIT_T(tier::general, e2::config::fps, token, fps)
+                owner.SUBMIT_T(tier::general, e2::config::fps, token, frame_rate)
                 {
-                    if (fps > 0)
+                    if (frame_rate > 0)
                     {
-                        _frame_rate(fps);
+                        fps.send(owner, frame_rate);
                     }
                 };
             }
