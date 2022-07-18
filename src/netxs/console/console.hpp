@@ -42,6 +42,7 @@ namespace netxs::console
     using gear_id_list_t = std::list<id_t>;
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
+    using s11n = netxs::ansi::dtvt::binary::s11n;
     using os::xipc;
 
     struct create_t
@@ -4774,197 +4775,17 @@ namespace netxs::console
 
     // console: TTY session manager.
     class link
+        : public s11n
     {
-        using lock = std::recursive_mutex;
-        using cond = std::condition_variable_any;
         using sptr = netxs::sptr<bell>;
-        using s11n = netxs::ansi::dtvt::binary::s11n;
-
-        // link: Event handler.
-        class events_t
-        {
-            struct sysgears
-            {
-                sysmouse mouse = {};
-                syskeybd keybd = {};
-                sysfocus focus = {};
-            };
-
-            link& owner; // events_t: Link reference.
-            std::unordered_map<id_t, sysgears> gears{};
-
-        public:
-            events_t(link& owner)
-                : owner{ owner }
-            { }
-
-            void sync(s11n::xs::focus       lock)
-            {
-                auto& item = lock.thing;
-                auto& f = gears[item.gear_id].focus;
-                f.focusid = item.gear_id;
-                f.enabled = item.state;
-                f.combine_focus = item.combine_focus;
-                f.force_group_focus = item.force_group_focus;
-                owner.notify(e2::conio::focus, f);
-                log("\t - focus ", f.enabled ? "on: ":"off: ", owner.canal);
-            }
-            void sync(s11n::xs::winsz       lock)
-            {
-                auto& item = lock.thing;
-                owner.notify(e2::conio::winsz, item.winsize);
-            }
-            void sync(s11n::xs::clipdata    lock)
-            {
-                auto& item = lock.thing;
-                owner.relay.set(item.gear_id, item.data);
-            }
-            void sync(s11n::xs::keybd       lock)
-            {
-                auto& item = lock.thing;
-                auto& k = gears[item.gear_id].keybd;
-                k.keybdid = item.gear_id;
-                k.virtcod = item.virtcod;
-                k.scancod = item.scancod;
-                k.pressed = item.pressed;
-                k.ctlstat = item.ctlstat;
-                k.imitate = item.imitate;
-                k.cluster = item.cluster;
-                owner.notify(e2::conio::keybd, k);
-            }
-            void sync(s11n::xs::plain       lock)
-            {
-                auto& item = lock.thing;
-                auto& k = gears[item.gear_id].keybd;
-                k.keybdid = item.gear_id;
-                k.cluster = item.utf8txt;
-                k.pressed = true;
-                owner.notify(e2::conio::keybd, k);
-            }
-            void sync(s11n::xs::ctrls       lock)
-            {
-                auto& item = lock.thing;
-                auto& k = gears[item.gear_id].keybd;
-                k.keybdid = item.gear_id;
-                k.ctlstat = item.ctlstat;
-                k.cluster = {};
-                k.pressed = faux;
-                owner.notify(e2::conio::keybd, k);
-            }
-            void sync(s11n::xs::mouse       lock)
-            {
-                auto& item = lock.thing;
-                auto gear_id = item.gear_id;
-                auto buttons = item.buttons;
-                auto ctlstat = item.ctlstat;
-                auto msflags = item.msflags;
-                auto wheeldt = item.wheeldt;
-                auto coordxy = item.coordxy;
-                auto& m = gears[gear_id].mouse;
-                m.set_buttons(buttons);
-                m.mouseid = gear_id;
-                m.control = sysmouse::stat::ok;
-                m.ismoved = m.coor(coordxy);
-                m.shuffle = !m.ismoved && (msflags & (1 << 0)); // MOUSE_MOVED
-                m.doubled = msflags & (1 << 1); // DOUBLE_CLICK -- Makes no sense (ignored)
-                m.wheeled = msflags & (1 << 2); // MOUSE_WHEELED
-                m.hzwheel = msflags & (1 << 3); // MOUSE_HWHEELED
-                m.wheeldt = wheeldt;
-                m.ctlstat = ctlstat;
-                if (!m.shuffle)
-                {
-                    m.update_buttons();
-                    owner.notify(e2::conio::mouse, m);
-                }
-            }
-            void sync(s11n::xs::mouse_stop  lock)
-            {
-                auto& item = lock.thing;
-                auto& m = gears[item.gear_id].mouse;
-                m.mouseid = item.gear_id;
-                m.control = sysmouse::stat::die;
-                owner.notify(e2::conio::mouse, m);
-            }
-            void sync(s11n::xs::mouse_halt  lock)
-            {
-                auto& item = lock.thing;
-                auto& m = gears[item.gear_id].mouse;
-                m.mouseid = item.gear_id;
-                m.control = sysmouse::stat::halt;
-                owner.notify(e2::conio::mouse, m);
-            }
-            void sync(s11n::xs::mouse_show  lock)
-            {
-                auto& item = lock.thing;
-                owner.notify(e2::conio::pointer, item.mode);
-            }
-            void sync(s11n::xs::native      lock)
-            {
-                auto& item = lock.thing;
-                owner.notify(e2::conio::native, item.mode);
-            }
-            void sync(s11n::xs::request_gc  lock)
-            {
-                auto& item = lock.thing;
-                auto list = owner.wired.jgc_list.freeze();
-                for (auto& gc : item)
-                {
-                    auto cluster = cell::gc_get_data(gc.token);
-                    list.thing.push(gc.token, cluster);
-                }
-                list.thing.sendby(owner);
-            }
-            void sync(s11n::xs::fps         lock)
-            {
-                auto& item = lock.thing;
-                owner.notify(e2::config::fps, item.frame_rate);
-            }
-            void sync(s11n::xs::debug_count lock)
-            {
-                auto& item = lock.thing;
-                //todo
-            }
-            void sync(s11n::xs::debugdata   lock)
-            {
-                auto& item = lock.thing;
-                //todo
-            }
-        }
-        events{*this};
-
-        sptr owner; // link: Boss.
-        xipc canal; // link: Data highway.
-        lock mutex; // link: Thread sync mutex.
-        bool close; // link: Pre closing condition.
-        s11n wired; // link: Serialization buffers.
-
-        // link: .
-        void reader()
-        {
-            auto thread_id = std::this_thread::get_id();
-            log("link: id: ", thread_id, " reading thread started");
-
-            auto& termlink = *canal;
-            os::direct::pty::reading_loop(termlink, [&](view data){ wired.sync(data); });
-
-            if (termlink)
-            {
-                log("link: signaling to close the read channel ", canal);
-                notify(e2::conio::quit, "link: read channel is closed");
-            }
-            log("link: id: ", thread_id, " reading thread ended");
-        }
+        using ipc  = os::ipc::iobase;
 
     public:
-        // link: .
-        template<class T, typename = std::enable_if_t<requires(T&& lock) { events.sync(std::forward<T>(lock)); }>>
-        void handle(T&& lock)
+        struct relay_t
         {
-            events.sync(std::forward<T>(lock));
-        }
+            using lock = std::recursive_mutex;
+            using cond = std::condition_variable_any;
 
-        struct
-        {
             struct clip_t
             {
                 lock mutex{};
@@ -4991,43 +4812,48 @@ namespace netxs::console
                     item.synch.notify_all();
                 }
             }
-                //void get(id_t id, text& out_utf8)
-                //{
-                //    auto lock = std::lock_guard{ mutex };
-                //    out_utf8 = depot[id];
-                //}
-                //void reset()
-                //{
-                //    auto lock = std::lock_guard{ mutex };
-                //    ready = faux;
-                //}
-                //void wait(id_t id, text& out_utf8)
-                //{
-                //    auto lock = std::unique_lock{ mutex };
-                //    synch.wait(lock);
-                //}
-        }
-        relay;
-        //todo reimplement Logs
-        struct
-        {
-            lock mutex{};
-            cond synch{};
-            si32 count{};
-        }
-        debug_count_relay;
+        };
 
-        link(sptr boss, xipc sock)
-            : owner{ boss },
-              canal{ sock },
-              close{ faux },
-              wired{*this }
+        struct sysgears
+        {
+            sysmouse mouse = {};
+            syskeybd keybd = {};
+            sysfocus focus = {};
+        };
+
+        ipc&                               canal; // link: Data highway.
+        sptr                               owner; // link: Link owner.
+        relay_t                            relay; // link: Clipboard relay.
+        std::unordered_map<id_t, sysgears> gears; // link: Input devices state.
+
+    public:
+        // link: Send data outside.
+        void output(view data)
+        {
+            canal.output(data);
+        }
+        // link: .
+        auto request_clip_data(id_t ext_gear_id, text& clip_rawdata)
+        {
+            relay.mutex.lock();
+            auto& selected_depot = relay.depot[ext_gear_id]; // If rehashing occurs due to the insertion, all iterators are invalidated.
+            relay.mutex.unlock();
+            auto lock = std::unique_lock{ selected_depot.mutex };
+            selected_depot.ready = faux;
+            request_clipboard.send(canal, ext_gear_id);
+            auto maxoff = 100ms; //todo magic numbers
+            auto received = std::cv_status::timeout != selected_depot.synch.wait_for(lock, maxoff);
+            if (received) clip_rawdata = selected_depot.chars;
+            return received;
+        }
+
+        link(ipc& canal, sptr owner)
+            : s11n{ *this },
+             canal{ canal },
+             owner{ owner }
         { }
 
-        void output(view buffer)
-        {
-            canal->send(buffer);
-        }
+        // link: Send an event message to the link owner.
         template<class E, class T>
         void notify(E, T& data)
         {
@@ -5036,33 +4862,136 @@ namespace netxs::console
                 boss.SIGNAL(tier::release, E{}, d);
             });
         }
-        void session(text title, svga vgamode)
+        void handle(s11n::xs::focus       lock)
         {
-            auto thread_id = std::this_thread::get_id();
-            log("link: id: ", thread_id, " conio session started");
-
-            if (vgamode == svga::directvt)
-            {
-                //todo proceed title
-                //auto size = ui32{ 0 };
-                //auto data = ansi::esc{}.add<svga::directvt>(ansi::dtvt::cmd, size);
-                //data.ext(true);
-                //if (title.size()) data.header(title);
-                //output(data);
-            }
-            else
-            {
-                output(ansi::ext(true));
-                if (title.size()) output(ansi::header(title));
-            }
-
-            reader();
-            log("link: id: ", thread_id, " conio session ended");
+            auto& item = lock.thing;
+            auto& f = gears[item.gear_id].focus;
+            f.focusid = item.gear_id;
+            f.enabled = item.state;
+            f.combine_focus = item.combine_focus;
+            f.force_group_focus = item.force_group_focus;
+            notify(e2::conio::focus, f);
+            log("\t - focus ", f.enabled ? "on: ":"off: ", canal);
         }
-        // link: Interrupt IO.
-        void shutdown ()
+        void handle(s11n::xs::winsz       lock)
         {
-            canal->stop();
+            auto& item = lock.thing;
+            notify(e2::conio::winsz, item.winsize);
+        }
+        void handle(s11n::xs::clipdata    lock)
+        {
+            auto& item = lock.thing;
+            relay.set(item.gear_id, item.data);
+        }
+        void handle(s11n::xs::keybd       lock)
+        {
+            auto& item = lock.thing;
+            auto& k = gears[item.gear_id].keybd;
+            k.keybdid = item.gear_id;
+            k.virtcod = item.virtcod;
+            k.scancod = item.scancod;
+            k.pressed = item.pressed;
+            k.ctlstat = item.ctlstat;
+            k.imitate = item.imitate;
+            k.cluster = item.cluster;
+            notify(e2::conio::keybd, k);
+        }
+        void handle(s11n::xs::plain       lock)
+        {
+            auto& item = lock.thing;
+            auto& k = gears[item.gear_id].keybd;
+            k.keybdid = item.gear_id;
+            k.cluster = item.utf8txt;
+            k.pressed = true;
+            notify(e2::conio::keybd, k);
+        }
+        void handle(s11n::xs::ctrls       lock)
+        {
+            auto& item = lock.thing;
+            auto& k = gears[item.gear_id].keybd;
+            k.keybdid = item.gear_id;
+            k.ctlstat = item.ctlstat;
+            k.cluster = {};
+            k.pressed = faux;
+            notify(e2::conio::keybd, k);
+        }
+        void handle(s11n::xs::mouse       lock)
+        {
+            auto& item = lock.thing;
+            auto gear_id = item.gear_id;
+            auto buttons = item.buttons;
+            auto ctlstat = item.ctlstat;
+            auto msflags = item.msflags;
+            auto wheeldt = item.wheeldt;
+            auto coordxy = item.coordxy;
+            auto& m = gears[gear_id].mouse;
+            m.set_buttons(buttons);
+            m.mouseid = gear_id;
+            m.control = sysmouse::stat::ok;
+            m.ismoved = m.coor(coordxy);
+            m.shuffle = !m.ismoved && (msflags & (1 << 0)); // MOUSE_MOVED
+            m.doubled = msflags & (1 << 1); // DOUBLE_CLICK -- Makes no sense (ignored)
+            m.wheeled = msflags & (1 << 2); // MOUSE_WHEELED
+            m.hzwheel = msflags & (1 << 3); // MOUSE_HWHEELED
+            m.wheeldt = wheeldt;
+            m.ctlstat = ctlstat;
+            if (!m.shuffle)
+            {
+                m.update_buttons();
+                notify(e2::conio::mouse, m);
+            }
+        }
+        void handle(s11n::xs::mouse_stop  lock)
+        {
+            auto& item = lock.thing;
+            auto& m = gears[item.gear_id].mouse;
+            m.mouseid = item.gear_id;
+            m.control = sysmouse::stat::die;
+            notify(e2::conio::mouse, m);
+        }
+        void handle(s11n::xs::mouse_halt  lock)
+        {
+            auto& item = lock.thing;
+            auto& m = gears[item.gear_id].mouse;
+            m.mouseid = item.gear_id;
+            m.control = sysmouse::stat::halt;
+            notify(e2::conio::mouse, m);
+        }
+        void handle(s11n::xs::mouse_show  lock)
+        {
+            auto& item = lock.thing;
+            notify(e2::conio::pointer, item.mode);
+        }
+        void handle(s11n::xs::native      lock)
+        {
+            auto& item = lock.thing;
+            notify(e2::conio::native, item.mode);
+        }
+        void handle(s11n::xs::request_gc  lock)
+        {
+            auto& items = lock.thing;
+            auto list = jgc_list.freeze();
+            for (auto& gc : items)
+            {
+                auto cluster = cell::gc_get_data(gc.token);
+                list.thing.push(gc.token, cluster);
+            }
+            list.thing.sendby(canal);
+        }
+        void handle(s11n::xs::fps         lock)
+        {
+            auto& item = lock.thing;
+            notify(e2::config::fps, item.frame_rate);
+        }
+        void handle(s11n::xs::debug_count lock)
+        {
+            auto& item = lock.thing;
+            //todo
+        }
+        void handle(s11n::xs::debugdata   lock)
+        {
+            auto& item = lock.thing;
+            //todo
         }
     };
 
@@ -5073,6 +5002,7 @@ namespace netxs::console
         using lock = std::mutex;
         using cond = std::condition_variable_any;
         using span = period;
+        using ipc  = os::ipc::iobase;
 
         struct stat
         {
@@ -5091,7 +5021,7 @@ namespace netxs::console
 
         // diff: Render current buffer to the screen.
         template<class Bitmap>
-        void render(link& conio)
+        void render(ipc& canal)
         {
             log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
             auto start = moment{};
@@ -5107,7 +5037,7 @@ namespace netxs::console
                 image.set(winid, coord, cache, abort, debug.delta);
                 if (debug.delta)
                 {
-                    image.sendby(conio); // Sending, this is the frame synchronization point.
+                    image.sendby(canal); // Sending, this is the frame synchronization point.
                 }                        // Frames should drop, the rest should wait for the end of sending.
                 debug.watch = tempus::now() - start;
             }
@@ -5157,7 +5087,7 @@ namespace netxs::console
             return faux;
         }
 
-        diff(link& conio, svga vtmode)
+        diff(ipc& canal, svga vtmode)
             : alive{ true },
               ready{ faux },
               abort{ faux }
@@ -5166,10 +5096,10 @@ namespace netxs::console
             paint = work([&, vtmode]
             { 
                 //todo revise (bitmap/bitmap_t)
-                     if (vtmode == svga::directvt ) render<binary::bitmap_t>               (conio);
-                else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(conio);
-                else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>(conio);
-                else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(conio);
+                     if (vtmode == svga::directvt ) render<binary::bitmap_t>               (canal);
+                else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(canal);
+                else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>(canal);
+                else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(canal);
             });
         }
         ~diff()
@@ -5291,7 +5221,6 @@ namespace netxs::console
         pro::debug debug{*this }; // gate: Debug telemetry controller.
 
         using sptr = netxs::sptr<base>;
-        using s11n = netxs::ansi::dtvt::binary::s11n;
 
         host& world;
         bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
@@ -5300,12 +5229,7 @@ namespace netxs::console
         bool  native = faux; //gate: Extended functionality support.
         bool  fullscreen = faux; //gate: Fullscreen mode.
         si32  legacy = os::legacy::clean;
-        //todo hids
-        //text  clip_rawtext; // gate: Clipboard data.
-        //face  clip_preview; // gate: Clipboard render.
-
-        conf props; // gate: Client properties.
-        s11n wired; // gate: Serialization buffers.
+        conf  props; // gate: Client properties.
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -5376,7 +5300,7 @@ namespace netxs::console
         }
         void send_tooltips(link& conio)
         {
-            auto list = wired.tooltips.freeze();
+            auto list = conio.tooltips.freeze();
             for (auto& [gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
             {
                 auto& gear = *gear_ptr;
@@ -5446,8 +5370,9 @@ namespace netxs::console
                 //todo hids
                 //clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
 
-                link conio{ This(), termio }; // gate: Terminal IO.
-                diff paint{ conio,  vtmode }; // gate: Rendering loop.
+                auto& canal = *termio;
+                link conio{ canal, This() }; // gate: Terminal IO.
+                diff paint{ canal, vtmode }; // gate: Rendering loop.
                 subs token;                   // gate: Subscription tokens.
 
                 auto rebuild_scene = [&](bool damaged)
@@ -5560,22 +5485,22 @@ namespace netxs::console
                 {
                     auto msg = text{ "\n\rgate: Term error: " } + std::to_string(errcode) + "\r\n";
                     log("gate: error byemsg: ", msg);
-                    conio.shutdown();
+                    canal.stop();
                 };
                 SUBMIT_T(tier::release, e2::conio::quit, token, msg)
                 {
                     log("gate: quit byemsg: ", msg);
-                    conio.shutdown();
+                    canal.stop();
                 };
                 SUBMIT_T(tier::general, e2::conio::quit, token, msg)
                 {
                     log("gate: global shutdown byemsg: ", msg);
-                    conio.shutdown();
+                    canal.stop();
                 };
                 SUBMIT_T(tier::release, e2::form::quit, token, initiator)
                 {
                     auto msg = ansi::add("gate: quit message from: ", initiator->id);
-                    conio.shutdown();
+                    canal.stop();
                     this->SIGNAL(tier::general, e2::shutdown, msg);
                 };
                 //SUBMIT_T(tier::release, e2::form::state::header, token, newheader)
@@ -5589,7 +5514,7 @@ namespace netxs::console
                     if (direct)
                     {
                         auto window_id = 0;
-                        wired.form_footer.send(conio, window_id, newfooter);
+                        conio.form_footer.send(canal, window_id, newfooter);
                     }
                 };
                 SUBMIT_T(tier::release, e2::form::prop::ui::header, token, newheader)
@@ -5597,7 +5522,7 @@ namespace netxs::console
                     if (direct)
                     {
                         auto window_id = 0;
-                        wired.form_header.send(conio, window_id, newheader);
+                        conio.form_header.send(canal, window_id, newheader);
                     }
                     else
                     {
@@ -5658,7 +5583,7 @@ namespace netxs::console
                     auto& gear =*gear_ptr;
                     auto& data = gear.clip_rawdata;
                     auto& size = gear.preview_size;
-                    if (direct) wired.set_clipboard.send(conio, ext_gear_id, size, data);
+                    if (direct) conio.set_clipboard.send(canal, ext_gear_id, size, data);
                     else        conio.output(ansi::setbuf(data)); // OSC 52
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
@@ -5666,18 +5591,7 @@ namespace netxs::console
                     if (!direct) return;
                     auto myid = from_gear.id;
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                    conio.relay.mutex.lock();
-                    auto& depot = conio.relay.depot[ext_gear_id]; // If rehashing occurs due to the insertion, all iterators are invalidated.
-                    conio.relay.mutex.unlock();
-                    auto lock = std::unique_lock{ depot.mutex };
-                    depot.ready = faux;
-                    wired.request_clipboard.send(conio, ext_gear_id);
-                    auto maxoff = 100ms;
-                    if (std::cv_status::timeout != depot.synch.wait_for(lock, maxoff))
-                    {
-                        gear_ptr->clip_rawdata = depot.chars;
-                    }
-                    else
+                    if (!conio.request_clip_data(ext_gear_id, gear_ptr->clip_rawdata))
                     {
                         log("gate: timeout: no clipboard data reply");
                     }
@@ -5709,7 +5623,7 @@ namespace netxs::console
                 {
                     auto deed = bell::protos<tier::release>();
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    wired.mouse_event.send(conio, ext_gear_id, deed, gear.coord);
+                    conio.mouse_event.send(canal, ext_gear_id, deed, gear.coord);
                     gear.dismiss();
                 };
                 if (direct) // Forward unhandled events outside.
@@ -5717,14 +5631,13 @@ namespace netxs::console
                     //todo reimplement Logs
                     SUBMIT_T(tier::general, e2::debug::count::any, token, count)
                     {
-                        auto lock = std::unique_lock{ conio.debug_count_relay.mutex };
-                        wired.request_dbg_count.send(conio, count);
+                        auto debug_count = conio.debug_count.freeze();
+                        conio.request_dbg_count.send(conio, count);
                         auto maxoff = 100ms;
-                        //conio.debug_count_relay.synch.wait(lock);
-                        if (std::cv_status::timeout != conio.debug_count_relay.synch.wait_for(lock, maxoff))
+                        if (std::cv_status::timeout != debug_count.wait_for(maxoff))
                         {
-                            count += conio.debug_count_relay.count;
-                            conio.debug_count_relay.count = 0;
+                            count += debug_count.thing.count;
+                            debug_count.thing.count = 0;
                         }
                         else
                         {
@@ -5734,7 +5647,7 @@ namespace netxs::console
                     //if (debug_console) // For Logs only.
                     //{
                     //    log("e2::debug::count::set ", debug_console);
-                    //    wired.request_debug.send(conio);
+                    //    conio.request_debug.send(conio);
                     //    SUBMIT_T(tier::release, e2::conio::keybd, token, keybdstate)
                     //    {
                     //        if (keybdstate.keybdid == 0
@@ -5755,7 +5668,7 @@ namespace netxs::console
                     SUBMIT_T(tier::preview, hids::events::mouse::button::click::any, token, gear)
                     {
                         log("e2::form::layout::expose");
-                        wired.expose.send(conio);
+                        conio.expose.send(conio);
                     };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
@@ -5766,14 +5679,14 @@ namespace netxs::console
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                         log("gate: hids::events::notify::keybd::test ", ext_gear_id, " from_gear.kb_focus_set=", from_gear.kb_focus_set?"1":"0", " !!gear=", !!from_gear?"1":"0");
-                        from_gear.kb_focus_set ? wired.set_focus.send(conio, ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus)
-                                               : wired.off_focus.send(conio, ext_gear_id);
+                        from_gear.kb_focus_set ? conio.set_focus.send(conio, ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus)
+                                               : conio.off_focus.send(conio, ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, from_gear)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                         log("gate: hids::events::notify::keybd::lost ", ext_gear_id);
-                        wired.off_focus.send(conio, ext_gear_id);
+                        conio.off_focus.send(conio, ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
                     {
@@ -5796,13 +5709,26 @@ namespace netxs::console
                         forward_event(gear);
                     };
                 }
-                else input.check_focus();
+                else
+                {
+                    input.check_focus();
+                    conio.output(ansi::ext(true));
+                    if (props.title.size())
+                    {
+                        conio.output(ansi::header(props.title));
+                    }
+                }
 
                 SIGNAL(tier::anycast, e2::form::upon::started, This());
 
             lock.unlock();
 
-            conio.session(props.title, vtmode);
+            os::direct::pty::reading_loop(canal, [&](view data){ conio.sync(data); });
+            if (canal)
+            {
+                log("link: signaling to close the read channel ", canal);
+                conio.notify(e2::conio::quit, "link: read channel is closed");
+            }
 
             lock.lock();
                 token.clear();
