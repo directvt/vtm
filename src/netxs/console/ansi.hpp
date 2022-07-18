@@ -1456,15 +1456,6 @@ namespace netxs::ansi
 
     class parser
     {
-        //todo use C++20 requires expressions
-        template <class A>
-        struct has
-        {
-            template <class B> static int16_t _(decltype(&B::template parser_config<ansi::vt_parser<B>>));
-            template <class B> static uint8_t _(...);
-            static constexpr bool parser_config = sizeof(_<A>(nullptr)) - 1;
-        };
-
     public:
         deco style{}; // parser: Parser style.
         deco state{}; // parser: Parser style last state.
@@ -1485,7 +1476,10 @@ namespace netxs::ansi
             using vt = ansi::vt_parser<T>;
             vt_parser() : vt()
             {
-                if constexpr (has<T>::parser_config) T::parser_config(*this);
+                if constexpr (requires{ T::parser_config(*this); })
+                {
+                    T::parser_config(*this);
+                }
             }
         };
 

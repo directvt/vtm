@@ -45,15 +45,6 @@ namespace netxs::ui
         std::map<std::type_index, uptr<pro::skill>> depo;
         std::map<id_t, subs> memomap; // form: Token set for depend submissions.
 
-        //todo use C++20 requires expressions
-        template <class A>
-        struct has
-        {
-            template <class B> static int16_t _(decltype(&B::remove));
-            template <class B> static uint8_t _(...);
-            static constexpr bool remove = sizeof(_<A>(nullptr)) - 1;
-        };
-
     public:
         using sptr = netxs::sptr<base>;
 
@@ -63,7 +54,7 @@ namespace netxs::ui
         auto This() { return base::This<T>(); }
         form()
         {
-            if constexpr (has<T>::remove)
+            if constexpr (requires(decltype(e2::form::proceed::detach)::type shadow) { This()->T::remove(shadow); })
             {
                 SUBMIT(tier::preview, e2::form::proceed::detach, shadow)
                 {
