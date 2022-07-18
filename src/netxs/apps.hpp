@@ -374,13 +374,14 @@ namespace netxs::app::shared
                 };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    auto& area = boss.base::area();
-                    if (!area.size.inside(gear.coord))
+                    auto area = boss.base::area();
+                    auto home = rect{ -dot_21, area.size + dot_21 * 2}; // Including resizer grips.
+                    if (!home.hittest(gear.coord))
                     {
                         auto center = area.coor + (area.size / 2);
                         gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
+                        boss.base::deface();
                     }
-                    boss.base::deface();
                 };
                 boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
                 {

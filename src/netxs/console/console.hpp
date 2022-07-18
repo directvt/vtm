@@ -1554,6 +1554,7 @@ namespace netxs::console
                 };
 
                 engage<sysmouse::left>();
+                engage<sysmouse::leftright>();
             }
             // pro::sizer: Configuring the mouse button to operate.
             template<sysmouse::bttns BUTTON>
@@ -1779,8 +1780,9 @@ namespace netxs::console
                     {
                         boss.SUBMIT_T(tier::release, e2::form::maximize, maxs, gear)
                         {
-                            auto size = boss.base::size();
-                            if (size.inside(gear.coord))
+                            auto area = boss.base::area();
+                            auto home = rect{ -dot_21, area.size + dot_21 * 2};
+                            if (home.hittest(gear.coord)) // Including resizer grips.
                             {
                                 if (seized(gear.owner.id)) unbind();
                                 else                       follow(gear.owner.id, dot_00);
@@ -1837,7 +1839,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::release, e2::coor::any, memo, coor)
                     {
-                        if (weak && body.coor != coor) unbind();
+                        if (weak && body.coor != coor) unbind(true, faux);
                     };
 
                     weak = master;
@@ -1851,7 +1853,7 @@ namespace netxs::console
                     };
                 }
             }
-            void unbind(bool restor_size = true)
+            void unbind(bool restor_size = true, bool restor_coor = true)
             {
                 if (memo.count())
                 {
@@ -1863,7 +1865,16 @@ namespace netxs::console
                     }
                 }
                 weak = {};
-                if (restor_size) boss.base::extend(last); // Restore previous position
+                if (restor_size && restor_coor) boss.base::extend(last); // Restore previous position
+                else
+                {
+                    if (restor_size)
+                    {
+                        boss.base::resize(last.size);
+                        boss.base::moveby(boss.base::anchor - last.size / twod{ 2,4 }); // Centrify on mouse. See pro::frame pull.
+                    }
+                    else if (restor_coor) boss.base::moveto(last.coor);
+                }
             }
         };
 
@@ -2067,14 +2078,25 @@ namespace netxs::console
                 {
                     robo.pacify();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::pull::left, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::pull::any, memo, gear)
                 {
                     if (gear)
                     {
-                        auto delta = gear.delta.get();
-                        boss.base::moveby(delta);
-                        boss.SIGNAL(tier::preview, e2::form::upon::changed, delta);
-                        gear.dismiss();
+                        auto deed = boss.bell::template protos<tier::release>();
+                        switch (deed)
+                        {
+                            case e2::form::drag::pull::left.id:
+                            case e2::form::drag::pull::leftright.id:
+                            {
+                                auto delta = gear.delta.get();
+                                boss.base::anchor = gear.coord; // See pro::align unbind.
+                                boss.base::moveby(delta);
+                                boss.SIGNAL(tier::preview, e2::form::upon::changed, delta);
+                                gear.dismiss();
+                                break;
+                            }
+                            default: break;
+                        }
                     }
                 };
                 boss.SUBMIT_T(tier::release, e2::form::upon::dragged, memo, gear)

@@ -119,7 +119,7 @@ namespace netxs::console
                         }
                     });
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::left, memo, gear)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
@@ -129,7 +129,7 @@ namespace netxs::console
                     }
                     recalc();
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::any, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::left, memo, gear)
                 {
                     auto& item = items.take(gear);
                     auto area = boss.size();

@@ -160,7 +160,7 @@ No arguments | Run client (auto start server)
     <td></td>
   </tr>
   <tr>
-    <th>Left+Right</th>
+    <th>Left+RightClick</th>
     <td colspan="3"></td>
     <td colspan="5">Clear clipboard</td>
     <td></td>
@@ -184,7 +184,9 @@ No arguments | Run client (auto start server)
   </tr>
   <tr>
     <th>Left+RightDrag</th>
-    <td colspan="9">Panoramic workspace scrolling</td>
+    <td colspan="3"></td>
+    <td colspan="4">Move window</td>
+    <td colspan="2">Panoramic workspace scrolling</td>
   </tr>
   <tr>
     <th>Ctrl+LeftDrag</th>
