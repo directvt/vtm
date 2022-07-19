@@ -5241,6 +5241,7 @@ namespace netxs::console
         pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
         pro::input input{*this }; // gate: User input event handler.
         pro::debug debug{*this }; // gate: Debug telemetry controller.
+        pro::limit limit{*this }; // gate: Limit size to dot_11.
 
         using sptr = netxs::sptr<base>;
 
@@ -5763,6 +5764,7 @@ namespace netxs::console
         gate(host& world, conf const& client_props)//, bool is_standalone_app = faux)
             : world{ world }
         {
+            limit.set(dot_11);
             props = client_props;
             //todo unify
             title.live = faux;
