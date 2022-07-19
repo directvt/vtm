@@ -988,7 +988,8 @@ namespace netxs::app::shared
         {
             if (v.empty()) throw;
             auto window = ui::cake::ctor()
-                            ->plugin<pro::focus>();
+                ->plugin<pro::limit>(dot_11)
+                ->plugin<pro::focus>();
 
             auto direct = ui::dtvt::ctor(text{ v })
                 ->invoke([](auto& boss)
