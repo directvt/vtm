@@ -1,29 +1,31 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = "\3\33\333DESKTOPIO\7"
+auto DirectVT = ">>>DESKTOPIO="
 R"==(
-="Term", "Tooltip Message", a("Direct", "Term Title", "-r term")
+="Term", "Tooltip Message", a("DirectVT", "Term Title", "$0 -r term")
 )=="
 #ifdef _WIN32
 R"==(
-="PowerShell", "Tooltip Message", a("Direct", "Term Title", "-r powershell")
+="PowerShell", "Tooltip Message", a("DirectVT", "Term Title", "$0 -r powershell")
+="Far", "Tooltip Message", a("DirectVT", "Term Title", "$0 -r headless far")
 )=="
 #endif
 R"==(
-="Tile", "Tiling Window Manager", h(a("Direct", "Term Title", "vtm -r term"), a("Direct", "Term Title", "vtm -r term"))
+="Tile", "Tiling Window Manager", h(a("DirectVT", "Term Title", "$0 -r term"), a("DirectVT", "Term Title", "$0 -r term"))
 )=="
 
 "=\"View\", \"Tooltip Message\", a(\"View\", \"\033[11:3pView: Region 1\", \"\")"
 
 R"==(
 ="Settings", "Tooltip Message", a("Settings", "Settings: Frame Rate Limit", "")
-="Logs", "Tooltip Message", a("Direct", "Logs Title", "-r logs")
-="Gems [DEMO]", "Tooltip Message", a("Direct", "Gems Title", "-r gems")
-="Text [DEMO]", "Tooltip Message", a("Direct", "Text Title", "-r text")
-="Calc [DEMO]", "Tooltip Message", a("Direct", "Calc Title", "-r calc")
-="Test [DEMO]", "Tooltip Message", a("Direct", "Test Title", "-r test")
-="Truecolor [DEMO]", "Tooltip Message", a("Direct", "Test Title", "-r truecolor")
+="Logs", "Tooltip Message", a("DirectVT", "Logs Title", "$0 -r logs")
+="Gems [DEMO]", "Tooltip Message", a("DirectVT", "Gems Title", "$0 -r gems")
+="Text [DEMO]", "Tooltip Message", a("DirectVT", "Text Title", "$0 -r text")
+="Calc [DEMO]", "Tooltip Message", a("DirectVT", "Calc Title", "$0 -r calc")
+="Test [DEMO]", "Tooltip Message", a("DirectVT", "Test Title", "$0 -r test")
+="Truecolor [DEMO]", "Tooltip Message", a("DirectVT", "Test Title", "$0 -r truecolor")
+="Midnight Commander", "Tooltip Message", a("DirectVT", "Test Title", "$0 -r headless bash -c mc")
 )==";
 
 #define DESKTOPIO_VER "v0.7.7"
@@ -248,13 +250,14 @@ int main(int argc, char* argv[])
             //todo unify
             auto menusz = 3;
             utf::to_up(utf::to_low(params), 1);
-                 if (params == "Text")       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
-            else if (params == "Calc")       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
-            else if (params == "Gems")       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
-            else if (params == "Test")       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
-            else if (params == "Logs")       log("Desktopio Log Console "        DESKTOPIO_VER);
-            else if (params == "Powershell") log("Desktopio Powershell "         DESKTOPIO_VER);
-            else if (params == "Truecolor")  log("Desktopio ANSI Art "           DESKTOPIO_VER);
+                 if (params.starts_with("Text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
+            else if (params.starts_with("Calc"))       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
+            else if (params.starts_with("Gems"))       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
+            else if (params.starts_with("Test"))       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
+            else if (params.starts_with("Logs"))       log("Desktopio Log Console "        DESKTOPIO_VER);
+            else if (params.starts_with("Powershell")) log("Desktopio Powershell "         DESKTOPIO_VER);
+            else if (params.starts_with("Truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
+            else if (params.starts_with("Headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);
             else
             {
                 menusz = 1;

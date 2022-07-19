@@ -273,7 +273,7 @@ No arguments | Run client (auto start server)
      VTM_PROFILE_2='"Menu label 2", "Window Title 2", h( v("bash -c htop", "bash -c mc"), "bash")'
 
      # Single DirectVT application
-     VTM_PROFILE_3='"DTVT Term", "Notes", a("Direct", "DTVT Term title", "vtm -r term")'
+     VTM_PROFILE_3='"DTVT Term", "Notes", a("DirectVT", "DTVT Term title", "vtm -r term")'
      ```
 
 

@@ -1,9 +1,9 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = "\3\33\333DESKTOPIO\7"
+auto DirectVT = ">>>DESKTOPIO="
 R"==(
-="Term", "Term Tooltip Message", a("Direct", "Term App Title", "cmdline args")
+="Term", "Term Tooltip Message", a("DirectVT", "Term App Title", "$0")
 )==";
 
 #define DESKTOPIO_VER "v0.7.6"
@@ -23,6 +23,8 @@ int main(int argc, char* argv[])
     auto syslog = os::ipc::logger(vtmode);
     auto maxfps = si32{ 60 };
     auto menusz = 1;
+    auto getopt = os::args{ argc, argv };
+    auto params = DESKTOPIO_DEFAPP + " "s + getopt.tail();
 
     //todo unify
     skin::setup(tone::kb_focus, 60);
@@ -36,7 +38,7 @@ int main(int argc, char* argv[])
     //todo unify
     log(DESKTOPIO_MYNAME);
 
-    auto success = app::shared::start(DESKTOPIO_DEFAPP, DESKTOPIO_MYPATH, vtmode, maxfps, menusz);
+    auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, maxfps, menusz);
 
     if (success) return 0;
     else

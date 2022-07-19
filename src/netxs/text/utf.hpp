@@ -1029,6 +1029,11 @@ namespace netxs::utf
         return txt.substr(0, lazy ? txt.find(delimiter) : txt.rfind(delimiter));
     }
     template<class T>
+    T cutoff(T const& txt, char delimiter, bool lazy = true)
+    {
+        return txt.substr(0, lazy ? txt.find(delimiter) : txt.rfind(delimiter));
+    }
+    template<class T>
     inline T domain(T const& txt)
     {
         return remain(txt);

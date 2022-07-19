@@ -460,7 +460,9 @@ namespace netxs::app::shared
         auto ground = base::create<host>(tunnel.first, maxfps);
         auto runapp = [&]()
         {
-            auto applet = app::shared::creator(app_name)(direct ? "" : "!"); // ! - means simple (w/o plugins)
+            auto aclass = utf::cutoff(app_name, ' ');
+            auto params = utf::remain(app_name, ' ');
+            auto applet = app::shared::creator(aclass)((direct ? "" : "!") + params); // ! - means simple (w/o plugins)
             auto window = ground->invite<gate>(config);
             if (!direct) applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
             window->resize(size);
@@ -890,7 +892,7 @@ namespace netxs::app::shared
             window->SIGNAL(tier::anycast, app::term::events::colors, colors);
             return window;
         };
-        auto build_HeadlessTerm  = [](view v)
+        auto build_Headless      = [](view v)
         {
             auto window = ui::cake::ctor()
                   ->invoke([&](auto& boss)
@@ -901,11 +903,14 @@ namespace netxs::app::shared
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
-                auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+            //auto object = window->attach(ui::fork::ctor(axis::Y))
+            //                    ->colors(whitelt, app::shared::term_menu_bg);
+            //    auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
+            //    auto layers = object->attach(slot::_2, ui::cake::ctor())
+            //                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+            auto layers = window->attach(ui::cake::ctor())
+                                ->colors(whitelt, app::shared::term_menu_bg)
+                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
                     auto data = v.empty() ? os::get_shell() + "-i"
@@ -984,7 +989,7 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_Direct        = [](view v)
+        auto build_DirectVT      = [](view v)
         {
             if (v.empty()) throw;
             auto window = ui::cake::ctor()
@@ -1012,9 +1017,9 @@ namespace netxs::app::shared
         app::shared::initialize builder_MC           { "MC"           , build_MC            };
         app::shared::initialize builder_Powershell   { "Powershell"   , build_Powershell    };
         app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
-        app::shared::initialize builder_HeadlessTerm { "HeadlessTerm" , build_HeadlessTerm  };
+        app::shared::initialize builder_Headless     { "Headless"     , build_Headless      };
         app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
-        app::shared::initialize builder_Direct       { "Direct"       , build_Direct        };
+        app::shared::initialize builder_DirectVT     { "DirectVT"     , build_DirectVT      };
     }
 
     auto init_app_registry = [](auto& world)
@@ -1110,6 +1115,8 @@ namespace netxs::app::shared
                 auto profiles = utf::divide(profile_data, "\n");
                 for (auto& p : profiles)
                 {
+                    if (p.length() && p.front() == '=') log("\t<link>", p);
+
                     auto r = parse_params(p);
                     auto& m = app::shared::objs_config[r.app_name];
                     if (r.count == 1)
@@ -1118,7 +1125,10 @@ namespace netxs::app::shared
                         m.label = r.menu_name;
                         m.notes = r.tooltip;
                         m.title = r.app_name;
-                        m.param = file_name + " " + r.app_cmdline;
+                        m.param = r.app_cmdline;
+                        //todo implement names with spaces
+                        //utf::change(m.param, "$0", '"' + file_name + '"');
+                        utf::change(m.param, "$0", file_name);
                         menu_list[r.app_name];
                     }
                     else if (r.count == 2)
@@ -1127,6 +1137,8 @@ namespace netxs::app::shared
                         m.label = r.menu_name;
                         m.title = r.app_name;
                         m.param = text{ p };
+                        //todo implement names with spaces
+                        utf::change(m.param, "$0", file_name);
                         menu_list[r.app_name];
                     }
                 }
@@ -1138,8 +1150,9 @@ namespace netxs::app::shared
             if (fs::exists(apps))
             {
                 auto crop = text{};
-                auto skip = data.find('\007') + 1; //todo magic numbers
+                auto skip = data.find('=') + 1;
                 auto what = data.substr(0, skip);
+                //todo optimize
                 //auto buff = std::vector<char>(1 << 20 /* 1M */);
                 for (auto const& name : fs::directory_iterator(apps))
                 {
@@ -1162,12 +1175,6 @@ namespace netxs::app::shared
                         iter += skip;
                         netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
                         auto& rec = list.emplace_back(name, std::move(crop));
-
-                        auto profiles = utf::divide(rec.second, "\n");
-                        for (auto profile : profiles)
-                        {
-                            if (profile.length()) log("\t<link>", profile);
-                        }
                     }
                 }
 
