@@ -206,6 +206,23 @@ namespace netxs::ui
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed
                 {
+                    owner.SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
+                    {
+                        auto cause = owner.bell::protos<tier::release>();
+                        switch (cause)
+                        {
+                            case hids::events::mouse::button::drag:: start::leftright.id:
+                            case hids::events::mouse::button::drag::  pull::leftright.id:
+                            case hids::events::mouse::button::drag::cancel::leftright.id:
+                            case hids::events::mouse::button::drag::  stop::leftright.id:
+                            case hids::events::mouse::button::        down::leftright.id:
+                            case hids::events::mouse::button::          up::leftright.id:
+                                if (gear.captured(owner.id)) gear.setfree(true);
+                                owner.bell::router<tier::release>().skip();
+                                break;
+                            default: break;
+                        }
+                    };
                     owner.SUBMIT_T(tier::release, hids::events::mouse::scroll::any, token, gear)
                     {
                         if (owner.selmod == xsgr::disabled)
@@ -314,18 +331,15 @@ namespace netxs::ui
                 switch (cause)
                 {
                     // Move
-                    case b::drag::pull::leftright.id:
                     case b::drag::pull::left     .id: if (isdrag) proceed<PROT>(gear, idle + left, true); break;
                     case b::drag::pull::middle   .id: if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
                     case b::drag::pull::right    .id: if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
                     case m::move                 .id: if (ismove) proceed<PROT>(gear, idle + btup, faux); break;
                     // Press
-                    case b::down::leftright.id: capture(gear); break;
                     case b::down::left     .id: capture(gear); proceed<PROT>(gear, left, true); break;
                     case b::down::middle   .id: capture(gear); proceed<PROT>(gear, mddl, true); break;
                     case b::down::right    .id: capture(gear); proceed<PROT>(gear, rght, true); break;
                     // Release
-                    case b::up::leftright.id:   release(gear); break;
                     case b::up::left     .id:   release(gear); proceed<PROT>(gear, up_left); break;
                     case b::up::middle   .id:   release(gear); proceed<PROT>(gear, up_mddl); break;
                     case b::up::right    .id:   release(gear); proceed<PROT>(gear, up_rght); break;
@@ -338,9 +352,9 @@ namespace netxs::ui
                         if (auto buttons = gear.get_buttons())
                         {
                             // Release pressed mouse buttons.
-                            if (buttons | sysmouse::left)   proceed<PROT>(gear, up_left);
-                            if (buttons | sysmouse::middle) proceed<PROT>(gear, up_mddl);
-                            if (buttons | sysmouse::right)  proceed<PROT>(gear, up_rght);
+                            if (buttons & (1 << sysmouse::left  )) proceed<PROT>(gear, up_left);
+                            if (buttons & (1 << sysmouse::middle)) proceed<PROT>(gear, up_mddl);
+                            if (buttons & (1 << sysmouse::right )) proceed<PROT>(gear, up_rght);
                         }
                         break;
                     default:
@@ -6651,7 +6665,7 @@ namespace netxs::ui
                     case b::down::middle   .id: capture(gear); active = true; break;
                     case b::down::right    .id: capture(gear); active = true; break;
                     // Release
-                    case b::up::leftright.id:   release(gear); break;
+                    case b::up::leftright.id:   release(gear); active = true; break; // Pass left+right to clear clipboard.
                     case b::up::left     .id:   release(gear); active = true; break;
                     case b::up::middle   .id:   release(gear); active = true; break;
                     case b::up::right    .id:   release(gear); active = true; break;
@@ -6666,6 +6680,11 @@ namespace netxs::ui
                     auto coordxy = gear.coord;
                     auto ctlstat = gear.meta();
                     auto buttons = gear.get_buttons();
+                    if (buttons & (1 << sysmouse::leftright))
+                    {
+                        buttons |= (1 << sysmouse::left);
+                        buttons |= (1 << sysmouse::right);
+                    }
                     auto wheeldt = gear.whldt;
                     auto msflags =(gear.whldt ? (1 << 2) : 0)
                                 | (gear.hzwhl ? (1 << 3) : 0);

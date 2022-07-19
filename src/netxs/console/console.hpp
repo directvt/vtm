@@ -4149,7 +4149,7 @@ namespace netxs::console
                   drags{ faux },
                   under{      }
             {
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::left, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::any, memo, gear)
                 {
                     if (boss.size().inside(gear.coord)
                     && !gear.kbmod())
@@ -4159,19 +4159,19 @@ namespace netxs::console
                         under = {};
                     }
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::left, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, memo, gear)
                 {
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              coord = gear.coord - gear.delta.get();
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::left, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::any, memo, gear)
                 {
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              proceed(true);
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::left, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::any, memo, gear)
                 {
                     if (!drags) return;
                     //todo revise (panoramic scrolling with left + right)

@@ -270,7 +270,7 @@ namespace netxs::app::tile
 
                         auto master_shadow = ptr::shadow(boss.This());
                         auto branch_shadow = ptr::shadow(branch);
-                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::drag::start::left, gear)
+                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::drag::start::any, gear)
                         {
                             if (auto branch_ptr = branch_shadow.lock())
                             if (branch_ptr->area().hittest(gear.coord))
@@ -278,6 +278,10 @@ namespace netxs::app::tile
                             {
                                 auto& master = *master_ptr;
                                 auto& branch = *branch_ptr;
+
+                                auto deed = master.bell::template protos<tier::release>();
+                                if (deed != hids::events::mouse::button::drag::start::left.id
+                                 && deed != hids::events::mouse::button::drag::start::leftright.id) return;
 
                                 // Reset restoring callback.
                                 master.SIGNAL(tier::release, e2::form::restore, e2::form::restore.param());
@@ -317,9 +321,9 @@ namespace netxs::app::tile
                                 master.base::template riseup<tier::release>(e2::form::quit, master_ptr);
 
                                 // Handover mouse input.
-                                master.SIGNAL(tier::release, hids::events::notify::mouse::leave,             gear);
-                                object.SIGNAL(tier::release, hids::events::notify::mouse::enter,             gear);
-                                object.SIGNAL(tier::release, hids::events::mouse::button::drag::start::left, gear);
+                                master.SIGNAL(tier::release, hids::events::notify::mouse::leave, gear);
+                                object.SIGNAL(tier::release, hids::events::notify::mouse::enter, gear);
+                                gear.pass<tier::release>(what.object, dot_00);
                             }
                         };
 

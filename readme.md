@@ -185,7 +185,7 @@ No arguments | Run client (auto start server)
   <tr>
     <th>Left+RightDrag</th>
     <td colspan="3"></td>
-    <td colspan="4">Move window</td>
+    <td colspan="4">Move window / Restore maximized window</td>
     <td colspan="2">Panoramic workspace scrolling</td>
   </tr>
   <tr>

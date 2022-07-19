@@ -496,7 +496,7 @@ namespace netxs::input
         idxs pressed_list;
         idxs flipped_list;
 
-        void update(sysmouse const& m)
+        void update(sysmouse m)
         {
             //if (m.shuffle)
             //{
@@ -517,6 +517,8 @@ namespace netxs::input
                         buttons[other].dragged = faux;
                         action(dragcncl, other);
                     }
+                    m.buttons[first] = faux;
+                    m.buttons[other] = faux;
                 }
 
                 // In order to avoid single button tracking (Click, Pull, etc)
@@ -556,7 +558,10 @@ namespace netxs::input
                     {
                         for (auto i : pressed_list)
                         {
-                            if (buttons[i].succeed) action(dragpull, i);
+                            if (buttons[i].succeed)
+                            {
+                                action(dragpull, i);
+                            }
                         }
                         pressed_list.clear();
                     }
@@ -635,7 +640,10 @@ namespace netxs::input
                             }
                             else
                             {
-                                if (b.succeed) action(sglclick, i);
+                                if (b.succeed)
+                                {
+                                    action(sglclick, i);
+                                }
                                 if (!nodbl)
                                 {
                                     // Fire double/triple-click if delay is not expired
@@ -1108,6 +1116,11 @@ namespace netxs::input
                 {
                     take_mouse_focus(*next);
                     pass<tier::release>(next, offset, true);
+
+                    if (alive && !captured()) // Pass unhandled event to the gate.
+                    {
+                        owner.bell::template signal<tier::release>(cause, *this);
+                    }
                 }
                 else mouse::setfree();
             }
@@ -1128,7 +1141,7 @@ namespace netxs::input
                     if (!alive) return;
                 }
 
-                owner.bell::template signal<tier::release>(cause, *this);
+                owner.bell::template signal<tier::release>(cause, *this); // Pass unhandled event to the gate.
             }
         }
         void fire_keybd()
