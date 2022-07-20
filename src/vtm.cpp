@@ -255,6 +255,7 @@ int main(int argc, char* argv[])
             else if (params.starts_with("Gems"))       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
             else if (params.starts_with("Test"))       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
             else if (params.starts_with("Logs"))       log("Desktopio Log Console "        DESKTOPIO_VER);
+            else if (params.starts_with("Term"))       log("Desktopio Terminal "           DESKTOPIO_VER);
             else if (params.starts_with("Powershell")) log("Desktopio Powershell "         DESKTOPIO_VER);
             else if (params.starts_with("Truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
             else if (params.starts_with("Headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);

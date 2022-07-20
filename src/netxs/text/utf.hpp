@@ -1468,7 +1468,7 @@ namespace netxs::utf
         }
         utf8.remove_prefix(std::distance(head, stop) + 1);
         auto str = text{ coor, stop }; 
-        change(str, text{ "\\" } + delim, text{ 1, delim });
+        change(str, text{ "\\" } + delim, text(1, delim));
         if (!skip.empty()) trim_front(utf8, skip);
         return str;
     };

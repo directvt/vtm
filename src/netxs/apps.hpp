@@ -33,7 +33,7 @@ namespace netxs::app::shared
     X(Term         , "Term"                  , ("Term")                                                        , "" ) \
     X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
     X(Calc         , "Calc"                  , (ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled 1.ods"))  , "" ) \
-    X(Gems         , "Gems"                  , ("Desktopio App Manager (Demo)")                                         , "" ) \
+    X(Gems         , "Gems"                  , ("Desktopio App Manager (Demo)")                                , "" ) \
     X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
     X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
     X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"Term\" ,\"\"), a(\"Term\" ,\"Term\" ,\"\"))" ) \
@@ -1110,8 +1110,13 @@ namespace netxs::app::shared
                 }
                 return result;
             };
-            auto apply_params = [&](auto& profile_data, auto&& file_name)
+            auto apply_params = [&](auto& profile_data_shadow, auto&& file_name)
             {
+                auto profile_data = text{ profile_data_shadow };
+                auto spaced = file_name.find(' ') != text::npos;
+                utf::change(profile_data, "$0", spaced ? "\\\"" + file_name + "\\\""
+                                                       : file_name);
+
                 auto profiles = utf::divide(profile_data, "\n");
                 for (auto& p : profiles)
                 {
@@ -1126,9 +1131,6 @@ namespace netxs::app::shared
                         m.notes = r.tooltip;
                         m.title = r.app_name;
                         m.param = r.app_cmdline;
-                        //todo implement names with spaces
-                        //utf::change(m.param, "$0", '"' + file_name + '"');
-                        utf::change(m.param, "$0", file_name);
                         menu_list[r.app_name];
                     }
                     else if (r.count == 2)
@@ -1137,8 +1139,6 @@ namespace netxs::app::shared
                         m.label = r.menu_name;
                         m.title = r.app_name;
                         m.param = text{ p };
-                        //todo implement names with spaces
-                        utf::change(m.param, "$0", file_name);
                         menu_list[r.app_name];
                     }
                 }
@@ -1174,6 +1174,21 @@ namespace netxs::app::shared
                     {
                         iter += skip;
                         netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
+                        auto& rec = list.emplace_back(name, std::move(crop));
+                    }
+                    else
+                    {
+                        auto filename = utf::to_utf(name.path().filename().wstring());
+                        auto fullname = utf::to_utf(name.path().wstring());
+                        auto modulename = os::current_module_file();
+                        if (filename  .find(' ') != text::npos) filename   = "\\\"" + filename   + "\\\"";
+                        if (fullname  .find(' ') != text::npos) fullname   = "\\\"" + fullname   + "\\\"";
+                        if (modulename.find(' ') != text::npos) modulename = "\\\"" + modulename + "\\\"";
+                        #if defined(_WIN32)
+                            crop = "=\"" + filename + "\", \"file: " + fullname + "\", a(\"DirectVT\", \"" + fullname + "\", \"" + modulename + " -r headless cmd /c " + fullname + "\")";
+                        #else
+                            crop = "=\"" + filename + "\", \"file: " + fullname + "\", a(\"DirectVT\", \"" + fullname + "\", \"" + modulename + " -r headless bash -c " + fullname + "\")";
+                        #endif
                         auto& rec = list.emplace_back(name, std::move(crop));
                     }
                 }

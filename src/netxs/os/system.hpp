@@ -207,7 +207,17 @@ namespace netxs::os
             auto crop = text{};
             while (iter < argc)
             {
-                crop += view{ argv[iter++] };
+                auto arg = view{ argv[iter++] };
+                if (arg.find(' ') == view::npos)
+                {
+                    crop += arg;
+                }
+                else
+                {
+                    crop.push_back('\"');
+                    crop += arg;
+                    crop.push_back('\"');
+                }
                 crop.push_back(' ');
             }
             if (!crop.empty()) crop.pop_back(); // Pop last space.
@@ -3558,6 +3568,7 @@ namespace netxs::os
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
+            utf::change(cmdline, "\\\"", "\"");
             log("xpty: new child process: ", cmdline);
 
             #if defined(_WIN32)
@@ -3902,7 +3913,8 @@ namespace netxs::os
                 loggerfx = logs_hndl;
                 preclose = preclose_hndl;
                 shutdown = shutdown_hndl;
-                log("dtvt: new child process: ", cmdline);
+                utf::change(cmdline, "\\\"", "'");
+                log("dtvt: new child process: ", utf::debase(cmdline));
 
                 #if defined(_WIN32)
 
