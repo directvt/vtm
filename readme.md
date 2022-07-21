@@ -265,15 +265,15 @@ No arguments | Run client (auto start server)
      - `LeftClick` -- Set exclusive focus
      - `Ctrl+LeftClick`/`RightClick` -- Set/Unset group focus
      - `double LeftClick` -- Maxixmize/restore
-   - Configurable via environment variable `VTM_PROFILE...`.  
+   - Configurable via environment variable `VTM_PROFILE*`.  
      ```
      # Configuration example:
 
-     VTM_PROFILE_1='"Menu label 1", "Window Title 1", h1:2( v1:1("bash -c htop", "bash -c mc"), "bash")'
-     VTM_PROFILE_2='"Menu label 2", "Window Title 2", h( v("bash -c htop", "bash -c mc"), "bash")'
-
-     # Single DirectVT application
-     VTM_PROFILE_3='"DTVT Term", "Notes", a("DirectVT", "DTVT Term title", "vtm -r term")'
+     VTM_PROFILE='<item id=Term notes="Run terminal" class="DirectVT" title="Terminal Emulator" param="$0 -r term"/>
+                  <item id=View notes="Desktop region" class="View" title="region 1"/>
+                  <item id=htop fixed=no notes="htop app" class="ANSI/VT" param="bash -c htop"/>
+                  <item id=mc fixed=no notes="mc app" class="ANSI/VT" param="bash -c mc"/>
+                  <item id=Tile notes="Tiling Window Manager" class="Tile" title="Tiling Window Manager" param="h1:2( v1:1(htop, mc), Term)"/>'
      ```
 
 

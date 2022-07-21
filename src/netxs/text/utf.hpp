@@ -933,6 +933,16 @@ namespace netxs::utf
         return from.substr(0, s_size);
     }
 
+    template<class TEXT_OR_VIEW, class C>
+    auto quotes(TEXT_OR_VIEW&& name)
+    {
+        using D = std::remove_cv_t<std::remove_reference_t<TEXT_OR_VIEW>>;
+        if (name.find(' ') != text::npos)
+        {
+            if constexpr (std::is_same_v<D, text>) return "\\\"" + name + "\\\"";
+            else                                   return "\\\"" + text{ name } + "\\\"";
+        }
+    }
     template<class W, class R>
     static void change(text& utf8, W const& what, R const& replace)
     {

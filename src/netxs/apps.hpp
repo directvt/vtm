@@ -1020,6 +1020,7 @@ namespace netxs::app::shared
         app::shared::initialize builder_Headless     { "Headless"     , build_Headless      };
         app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
         app::shared::initialize builder_DirectVT     { "DirectVT"     , build_DirectVT      };
+        app::shared::initialize builder_ANSIVT       { "ANSI/VT"      , build_ANSIVT        };
     }
 
     auto init_app_registry = [](auto& world)
@@ -1149,9 +1150,30 @@ namespace netxs::app::shared
             auto data = view{ ::DirectVT };
             if (fs::exists(apps))
             {
-                auto crop = text{};
-                auto skip = data.find('=') + 1;
-                auto what = data.substr(0, skip);
+                auto take_doc_name = [](auto const& data)
+                {
+                    auto from = data.find('<');
+                    auto skip = data.find('>') + 1;
+                    auto name = data.substr(from, skip - from);
+                    return text{ name };
+                };
+                using item_t = std::unordered_map<text, text>;
+                    //text "id"
+                    //bool "fixed"
+                    //text "notes"
+                    //text "class"
+                    //text "title"
+                    //text "param"
+                auto take_menu_item = [](view tag, view data)
+                {
+                    item_t item;
+                    //...
+                    return item;
+                };
+                //auto skip = data.find('>') + 1;
+                auto what = take_doc_name(data);
+                auto stop = what;
+                utf::change(stop, "<", "</");
                 //todo optimize
                 //auto buff = std::vector<char>(1 << 20 /* 1M */);
                 for (auto const& name : fs::directory_iterator(apps))
@@ -1169,25 +1191,40 @@ namespace netxs::app::shared
                     auto buff = std::vector<char>(size);
                     file.seekg(0, std::ios::beg);
                     file.read(buff.data(), size);
-                    auto iter = std::search(buff.begin(), buff.end(), what.begin(), what.end());
-                    if (iter != buff.end())
+                    auto last = list.size();
+                    auto iter = buff.begin();
+                    while (iter != buff.end())
                     {
-                        iter += skip;
-                        netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
-                        auto& rec = list.emplace_back(name, std::move(crop));
+                        auto next = std::search(iter, buff.end(), what.begin(), what.end());
+                        if (next != buff.end())
+                        {
+                            next += what.size();
+                            auto iter = std::search(next, buff.end(), stop.begin(), stop.end());
+                            if (iter != buff.end())
+                            {
+                                while (auto item = take_menu_item("item", view{ next, iter }))
+                                {
+                                    list.emplace_back(name, std::move(item.value()));
+                                }
+                                iter += stop.size();
+                            }
+
+
+                            //iter += skip;
+                            //netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
+                            //auto& rec = list.emplace_back(name, std::move(crop));
+                        }
                     }
-                    else
+                    if (last == list.size()) // No one entry found.
                     {
-                        auto filename = utf::to_utf(name.path().filename().wstring());
-                        auto fullname = utf::to_utf(name.path().wstring());
-                        auto modulename = os::current_module_file();
-                        if (filename  .find(' ') != text::npos) filename   = "\\\"" + filename   + "\\\"";
-                        if (fullname  .find(' ') != text::npos) fullname   = "\\\"" + fullname   + "\\\"";
-                        if (modulename.find(' ') != text::npos) modulename = "\\\"" + modulename + "\\\"";
+                        auto filename = utf::quotes(utf::to_utf(name.path().filename().wstring()));
+                        auto fullname = utf::quotes(utf::to_utf(name.path().wstring()));
+                        auto execname = utf::quotes(os::current_module_file());
+                        auto item = item_t{};
                         #if defined(_WIN32)
-                            crop = "=\"" + filename + "\", \"file: " + fullname + "\", a(\"DirectVT\", \"" + fullname + "\", \"" + modulename + " -r headless cmd /c " + fullname + "\")";
+                            crop = "=\"" + filename + "\", \"file: " + fullname + "\", a(\"DirectVT\", \"" + fullname + "\", \"" + execname + " -r headless cmd /c " + fullname + "\")";
                         #else
-                            crop = "=\"" + filename + "\", \"file: " + fullname + "\", a(\"DirectVT\", \"" + fullname + "\", \"" + modulename + " -r headless bash -c " + fullname + "\")";
+                            crop = "=\"" + filename + "\", \"file: " + fullname + "\", a(\"DirectVT\", \"" + fullname + "\", \"" + execname + " -r headless bash -c " + fullname + "\")";
                         #endif
                         auto& rec = list.emplace_back(name, std::move(crop));
                     }

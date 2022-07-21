@@ -3,7 +3,7 @@
 
 auto DirectVT = R"==(
 <DESKTOPIO>
-    <item id=Term notes="Tooltip Message" class="DirectVT" title="Terminal Emulator" param="$0 -r term"/>
+    <item id=Term fixed=yes notes="Tooltip Message" class="DirectVT" title="Terminal Emulator" param="$0 -r term"/>
 )=="
 #ifdef _WIN32
 R"==(
@@ -15,7 +15,7 @@ R"==(
     <item id=Tile label=Tile notes="Tiling Window Manager" class="Tile" title="Tiling Window Manager" param="h1:1(Term, Term)/>
 )=="
 
-    "<item id=View label=View notes=\"Desktop region\" class=View param=\"\033[11:3pView: Region 1\"/>"
+    "<item id=View label=View notes=\"Desktop region\" class=View title=\"\033[11:3pView: Region 1\"/>"
 
 R"==(
     <item id=Settings  label=Settings          notes="Tooltip Message" class="Settings"/>
