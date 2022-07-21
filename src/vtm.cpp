@@ -1,31 +1,32 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = ">>>DESKTOPIO="
-R"==(
-="Term", "Tooltip Message", a("DirectVT", "Term Title", "$0 -r term")
+auto DirectVT = R"==(
+<DESKTOPIO>
+    <item id=Term notes="Tooltip Message" class="DirectVT" title="Terminal Emulator" param="$0 -r term"/>
 )=="
 #ifdef _WIN32
 R"==(
-="PowerShell", "Tooltip Message", a("DirectVT", "Term Title", "$0 -r powershell")
-="Far", "Tooltip Message", a("DirectVT", "Term Title", "$0 -r headless far")
+    <item id=PowerShell label="PowerShell" notes="Tooltip Message" class="DirectVT" param="$0 -r powershell"/>
+    <item id=Far label=Far notes="Far Manager" class="DirectVT" param="$0 -r headless far"/>
 )=="
 #endif
 R"==(
-="Tile", "Tiling Window Manager", h(a("DirectVT", "Term Title", "$0 -r term"), a("DirectVT", "Term Title", "$0 -r term"))
+    <item id=Tile label=Tile notes="Tiling Window Manager" class="Tile" title="Tiling Window Manager" param="h1:1(Term, Term)/>
 )=="
 
-"=\"View\", \"Tooltip Message\", a(\"View\", \"\033[11:3pView: Region 1\", \"\")"
+    "<item id=View label=View notes=\"Desktop region\" class=View param=\"\033[11:3pView: Region 1\"/>"
 
 R"==(
-="Settings", "Tooltip Message", a("Settings", "Settings: Frame Rate Limit", "")
-="Logs", "Tooltip Message", a("DirectVT", "Logs Title", "$0 -r logs")
-="Gems [DEMO]", "Tooltip Message", a("DirectVT", "Gems Title", "$0 -r gems")
-="Text [DEMO]", "Tooltip Message", a("DirectVT", "Text Title", "$0 -r text")
-="Calc [DEMO]", "Tooltip Message", a("DirectVT", "Calc Title", "$0 -r calc")
-="Test [DEMO]", "Tooltip Message", a("DirectVT", "Test Title", "$0 -r test")
-="Truecolor [DEMO]", "Tooltip Message", a("DirectVT", "Test Title", "$0 -r truecolor")
-="Midnight Commander", "Tooltip Message", a("DirectVT", "Test Title", "$0 -r headless bash -c mc")
+    <item id=Settings  label=Settings          notes="Tooltip Message" class="Settings"/>
+    <item id=Logs      label=Logs              notes="Tooltip Message" class="DirectVT" title="Logs Title" param="$0 -r logs"/>
+    <item id=Gems      label="Gems [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Gems Title" param="$0 -r gems"/>
+    <item id=Text      label="Text [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Text Title" param="$0 -r text"/>
+    <item id=Calc      label="Calc [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Calc Title" param="$0 -r calc"/>
+    <item id=Test      label="Test [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Test Title" param="$0 -r test"/>
+    <item id=Truecolor label="Truecolor [DEMO] notes="Tooltip Message" class="DirectVT" title="True Title" param="$0 -r truecolor"/>
+    <item id=mc        label="Midnight Commander" class="ANSI/VT" param="bash -c mc"/>
+</DESKTOPIO>
 )==";
 
 #define DESKTOPIO_VER "v0.7.7"
@@ -262,7 +263,7 @@ int main(int argc, char* argv[])
             else
             {
                 menusz = 1;
-                params = DESKTOPIO_DEFAPP;
+                params = DESKTOPIO_DEFAPP + " "s + params;
                 log(DESKTOPIO_APPINF);
             }
 

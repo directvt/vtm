@@ -1,9 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = ">>>DESKTOPIO="
-R"==(
-="Term", "Term Tooltip Message", a("DirectVT", "Term App Title", "$0")
+auto DirectVT = R"==(
+<DESKTOPIO>
+    <item id=Term label="Term" title="Terminal Emulator" notes="Terminal Emulator" class="DirectVT" param="$0"/>
+</DESKTOPIO>
 )==";
 
 #define DESKTOPIO_VER "v0.7.6"
