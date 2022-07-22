@@ -29,6 +29,7 @@ namespace netxs::utf
     using flux = std::stringstream;
     using utfx = uint32_t;
     using ctrl = unidata::cntrls::type;
+    using namespace std::literals;
 
     static constexpr utfx        REPLACEMENT_CHARACTER = 0x0000FFFD;
     static constexpr char const* REPLACEMENT_CHARACTER_UTF8 = "\uFFFD";	// 0xEF 0xBF 0xBD (efbfbd) "�"
@@ -375,13 +376,14 @@ namespace netxs::utf
 
     struct qiew : public view
     {
-        void     pop_front () { view::remove_prefix(1); }
+        auto     pop_front () { auto c = view::front(); view::remove_prefix(1); return c; }
         si32     front     () const { return static_cast<unsigned char>(view::front()); }
         operator bool      () const { return view::length(); }
         operator text      () const { return text{ static_cast<view>(*this) }; }
 
         constexpr qiew() noexcept : view() { }
         constexpr qiew(view const& v) noexcept : view(v) { }
+        constexpr qiew(text const& v) noexcept : view(v) { }
         template<class INT>
         constexpr qiew(char const* ptr, INT len) noexcept: view(ptr, len) { }
         constexpr qiew& operator = (qiew const&) noexcept = default;
@@ -933,16 +935,6 @@ namespace netxs::utf
         return from.substr(0, s_size);
     }
 
-    template<class TEXT_OR_VIEW, class C>
-    auto quotes(TEXT_OR_VIEW&& name)
-    {
-        using D = std::remove_cv_t<std::remove_reference_t<TEXT_OR_VIEW>>;
-        if (name.find(' ') != text::npos)
-        {
-            if constexpr (std::is_same_v<D, text>) return "\\\"" + name + "\\\"";
-            else                                   return "\\\"" + text{ name } + "\\\"";
-        }
-    }
     template<class W, class R>
     static void change(text& utf8, W const& what, R const& replace)
     {
@@ -1425,12 +1417,12 @@ namespace netxs::utf
     }
 
     template<class ITER>
-    auto find_char(ITER head, ITER tail, char delim)
+    auto find_char(ITER head, ITER tail, view delims)
     {
         while (head != tail)
         {
             auto c = *head;
-                 if (c == delim) break;
+                 if (delims.find(c) != view::npos) break;
             else if (c == '\\' && head != tail) ++head;
             ++head;
         }
@@ -1459,18 +1451,18 @@ namespace netxs::utf
         while (!utf8.empty() && utf8. back() == space) utf8.remove_suffix(1);
         return utf8;
     };
-    auto get_quote(view& utf8, char delim, view skip = {})
+    auto get_quote(view& utf8, view delims, view skip = {})
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
-        auto coor = find_char(head, tail, delim);
+        auto coor = find_char(head, tail, delims);
         if (std::distance(coor, tail) < 2)
         {
             utf8 = view{};
             return text{};
         }
         ++coor;
-        auto stop = find_char(coor, tail, delim);
+        auto stop = find_char(coor, tail, delims);
         if (stop == tail)
         {
             utf8 = view{};
@@ -1478,8 +1470,21 @@ namespace netxs::utf
         }
         utf8.remove_prefix(std::distance(head, stop) + 1);
         auto str = text{ coor, stop }; 
-        change(str, text{ "\\" } + delim, text(1, delim));
         if (!skip.empty()) trim_front(utf8, skip);
+        return str;
+    };
+    auto get_tail(view& utf8, view delims)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto stop = find_char(head, tail, delims);
+        if (stop == tail)
+        {
+            utf8 = view{};
+            return text{};
+        }
+        auto str = text{ head, stop };
+        utf8.remove_prefix(std::distance(head, stop));
         return str;
     };
     template<class TEXT_or_VIEW>
@@ -1501,6 +1506,103 @@ namespace netxs::utf
         auto tail = head + std::min(utf8.size(), size);
         std::transform(head, tail, head, [](unsigned char c) { return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c; });
         return utf8;
+    }
+
+    namespace xml
+    {
+        static constexpr auto spaces = " \n\r\t";
+        enum type
+        {
+            none,
+            token,
+            assign,
+            close,
+        };
+        auto escape(text line)
+        {
+            utf::change(line, "\\"s, "\\\\"s);
+            utf::change(line, "\""s, "\\\""s);
+            return line;
+        }
+        auto unescape(qiew line)
+        {
+            auto crop = text{};
+            crop.reserve(line.size());
+            while (line)
+            {
+                auto c = line.pop_front();
+                if (c == '\\' && line)
+                {
+                    auto c = line.pop_front();
+                    switch (c)
+                    {
+                        case 'e' : crop.push_back('\x1b'); break;
+                        case 't' : crop.push_back('\t'  ); break;
+                        case 'r' : crop.push_back('\n'  ); break;
+                        case 'n' : crop.push_back('\n'  ); break;
+                        case 'a' : crop.push_back('\a'  ); break;
+                        case '\"': crop.push_back('\"'  ); break;
+                        case '\'': crop.push_back('\''  ); break;
+                        default:   crop.push_back('\\'  );
+                                   crop.push_back(c     ); break;
+                    };
+                }
+                else crop.push_back(c);
+            }
+            return crop;
+        }
+        auto open(view& data)
+        {
+            trim_front(data, spaces);
+            auto iter = data.find('<');
+            if (iter != view::npos)
+            {
+                data.remove_prefix(iter + 1);
+                return true;
+            }
+            else return faux;
+        }
+        auto attr(view& data, text& item)
+        {
+            trim_front(data, spaces);
+            item.clear();
+            if (data.empty()) return type::none;
+            auto c = data.front();
+
+            if (c == '/')
+            {
+                data.remove_prefix(1);
+                if (data.size() && data.front() == '>')
+                {
+                    data.remove_prefix(1);
+                    return type::close;
+                }
+                else return type::none;
+            }
+            else
+            {
+                item = get_tail(data, " =");
+                return type::token;
+            }
+        }
+        auto value(view& data)
+        {
+            auto crop = text{};
+            trim_front(data, spaces);
+
+            if (data.empty() || data.front() != '=') return crop;
+            data.remove_prefix(1); // remove '='.
+            trim_front(data, spaces);
+
+            auto delim = data.front();
+            if (delim != '/')
+            {
+                if (delim != '\'' && delim != '\"') crop = get_tail(data, " /");
+                else                                crop = get_quote(data, view(&delim, 1));
+                crop = unescape(crop);
+            }
+            return crop;
+        }
     }
 }
 

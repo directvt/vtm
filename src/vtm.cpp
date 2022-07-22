@@ -12,7 +12,7 @@ R"==(
 )=="
 #endif
 R"==(
-    <item id=Tile label=Tile notes="Tiling Window Manager" class="Tile" title="Tiling Window Manager" param="h1:1(Term, Term)/>
+    <item id=Tile label=Tile notes="Tiling Window Manager" class="Tile" title="Tiling Window Manager" param="h1:1(Term, Term)"/>
 )=="
 
     "<item id=View label=View notes=\"Desktop region\" class=View title=\"\033[11:3pView: Region 1\"/>"

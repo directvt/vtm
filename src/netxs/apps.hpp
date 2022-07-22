@@ -29,6 +29,19 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
+    static constexpr auto class_ANSIVT = "ANSI/VT";
+    static constexpr auto class_DirectVT = "DirectVT";
+    static constexpr auto class_Tile = "Tile";
+    static constexpr auto class_View = "View";
+    static constexpr auto attr_id = "id";
+    static constexpr auto attr_class = "class";
+    static constexpr auto attr_notes = "notes";
+    static constexpr auto attr_label = "label";
+    static constexpr auto attr_title = "title";
+    static constexpr auto attr_param = "param";
+    static constexpr auto attr_fixed = "fixed";
+    static constexpr auto tag_item = "item";
+
     #define TYPE_LIST                                                                                                 \
     X(Term         , "Term"                  , ("Term")                                                        , "" ) \
     X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
@@ -1007,6 +1020,22 @@ namespace netxs::app::shared
             window->attach(direct);
             return window;
         };
+        auto build_ANSIVT        = [](view v)
+        {
+            if (v.empty()) throw;
+
+            auto param = os::current_module_file();
+            if (param.find(' ') != text::npos) param = "\"" + param + "\"";
+
+            #if defined(_WIN32)
+                param += " -r headless cmd /c ";
+            #else
+                param += " -r headless " + os::get_shell() + " -c ";
+            #endif
+            param += v;
+
+            return build_DirectVT(param);
+        };
 
         app::shared::initialize builder_Strobe       { "Strobe"       , build_Strobe        };
         app::shared::initialize builder_Settings     { "Settings"     , build_Settings      };
@@ -1042,7 +1071,7 @@ namespace netxs::app::shared
                 menu_list[menu_item_id];
             }
         #else
-
+/*
             auto parse_params = [](view data)
             {
                 struct
@@ -1144,36 +1173,87 @@ namespace netxs::app::shared
                     }
                 }
             };
+*/
             namespace fs = std::filesystem;
+            using item_t = std::unordered_map<text, text>;
+
+            auto take_doc_name = [](auto const& data)
+            {
+                auto from = data.find('<');
+                auto skip = data.find('>') + 1;
+                auto name = data.substr(from, skip - from);
+                return text{ name };
+            };
+                //text "id"
+                //bool "fixed"
+                //bool "label"
+                //text "notes"
+                //text "class"
+                //text "title"
+                //text "param"
+            auto take_menu_item = [](view tag, item_t& item, view& data)
+            {
+                auto result = faux;
+                log("xml: \ntag: ", tag);
+                if (utf::xml::open(data))
+                {
+                    auto word = text{};
+                    auto attr = text{};
+                    auto next = utf::xml::attr(data, word);
+                    if (next == utf::xml::type::token && word == tag)
+                    {
+                        next = utf::xml::attr(data, word);
+                        while (next == utf::xml::type::token)
+                        {
+                            std::swap(attr, word);
+                            item[attr] = utf::xml::value(data);
+                            log("xml: ", attr, "=", item[attr]);
+                            next = utf::xml::attr(data, word);
+                        }
+                        result = next == utf::xml::type::close;
+                        if (result) log("xml: parsed ok");
+                        else        log("xml: stop at ", (int)next);
+                    }
+                }
+                return result;
+            };
+            auto take_items = [&](auto const& filename, auto& list, auto& buff, view what, view stop)
+            {
+                auto item = item_t{};
+                auto iter = buff.begin();
+                while (iter != buff.end())
+                {
+                    auto next = std::search(iter, buff.end(), what.begin(), what.end());
+                    if (next == buff.end()) break;
+
+                    next += what.size();
+                    iter = std::search(next, buff.end(), stop.begin(), stop.end());
+                    if (iter == buff.end())  break;
+
+                    auto data = view{ next, iter };
+                    while (take_menu_item(tag_item, item, data))
+                    {
+                        list.emplace_back(filename, std::move(item));
+                    }
+                    iter += stop.size();
+
+                        //iter += skip;
+                        //netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
+                        //auto& rec = list.emplace_back(name, std::move(crop));
+                }
+            };
+
             auto apps = os::homepath() + DESKTOPIO_APPDIR;
-            auto list = std::vector<std::pair<fs::directory_entry, text>>{};
+            auto list = std::vector<std::pair<fs::directory_entry, item_t>>{};
             auto data = view{ ::DirectVT };
+            auto what = take_doc_name(data);
+            auto stop = what;
+            utf::change(stop, "<", "</");
+
             if (fs::exists(apps))
             {
-                auto take_doc_name = [](auto const& data)
-                {
-                    auto from = data.find('<');
-                    auto skip = data.find('>') + 1;
-                    auto name = data.substr(from, skip - from);
-                    return text{ name };
-                };
-                using item_t = std::unordered_map<text, text>;
-                    //text "id"
-                    //bool "fixed"
-                    //text "notes"
-                    //text "class"
-                    //text "title"
-                    //text "param"
-                auto take_menu_item = [](view tag, view data)
-                {
-                    item_t item;
-                    //...
-                    return item;
-                };
+
                 //auto skip = data.find('>') + 1;
-                auto what = take_doc_name(data);
-                auto stop = what;
-                utf::change(stop, "<", "</");
                 //todo optimize
                 //auto buff = std::vector<char>(1 << 20 /* 1M */);
                 for (auto const& name : fs::directory_iterator(apps))
@@ -1192,41 +1272,26 @@ namespace netxs::app::shared
                     file.seekg(0, std::ios::beg);
                     file.read(buff.data(), size);
                     auto last = list.size();
-                    auto iter = buff.begin();
-                    while (iter != buff.end())
-                    {
-                        auto next = std::search(iter, buff.end(), what.begin(), what.end());
-                        if (next != buff.end())
-                        {
-                            next += what.size();
-                            auto iter = std::search(next, buff.end(), stop.begin(), stop.end());
-                            if (iter != buff.end())
-                            {
-                                while (auto item = take_menu_item("item", view{ next, iter }))
-                                {
-                                    list.emplace_back(name, std::move(item.value()));
-                                }
-                                iter += stop.size();
-                            }
 
+                    take_items(name, list, buff, what, stop);
 
-                            //iter += skip;
-                            //netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
-                            //auto& rec = list.emplace_back(name, std::move(crop));
-                        }
-                    }
-                    if (last == list.size()) // No one entry found.
+                    if (last == list.size()) // No records found.
                     {
-                        auto filename = utf::quotes(utf::to_utf(name.path().filename().wstring()));
-                        auto fullname = utf::quotes(utf::to_utf(name.path().wstring()));
-                        auto execname = utf::quotes(os::current_module_file());
+                        //auto filename = utf::to_utf(name.path().filename().wstring());
+                        auto fullname = utf::to_utf(name.path().wstring());
+                        //auto execname = os::current_module_file();
+                        if (fullname.find(' ') != text::npos) fullname = "\"" + fullname + "\"";
+                        //auto filename_esc = utf::xml::escape(filename);
+                        //auto fullname_esc = utf::xml::escape(fullname);
+                        //auto execname_esc = utf::xml::escape(execname);
                         auto item = item_t{};
-                        #if defined(_WIN32)
-                            crop = "=\"" + filename + "\", \"file: " + fullname + "\", a(\"DirectVT\", \"" + fullname + "\", \"" + execname + " -r headless cmd /c " + fullname + "\")";
-                        #else
-                            crop = "=\"" + filename + "\", \"file: " + fullname + "\", a(\"DirectVT\", \"" + fullname + "\", \"" + execname + " -r headless bash -c " + fullname + "\")";
-                        #endif
-                        auto& rec = list.emplace_back(name, std::move(crop));
+                        item["id"] = fullname;
+                        item["fixed"] = "yes";
+                        item["notes"] = fullname;
+                        item["class"] = class_ANSIVT;
+                        item["title"] = fullname;
+                        item["param"] = fullname;
+                        list.emplace_back(name, std::move(item));
                     }
                 }
 
@@ -1234,18 +1299,23 @@ namespace netxs::app::shared
                 {
                     return a.first.last_write_time() < b.first.last_write_time();
                 });
-                for (auto& file : list)
-                {
-                    apply_params(file.second, file.first.path().string());
-                }
+                //for (auto& file : list)
+                //{
+                //    apply_params(file.second, file.first.path().string());
+                //}
             }
             else
             {
                 log("apps: no external modules found at ", apps);
             }
+
+            auto current_module_file = fs::directory_entry(os::current_module_file());
             if (list.empty())
             {
-                apply_params(data, os::current_module_file());
+                take_items(current_module_file, list, data, what, stop);
+
+                //apply_params(data, os::current_module_file());
+
                 //log("main: no apps at ", apps);
                 //#ifdef _WIN32
                 //    menu_list[objs_lookup["Term"]];
@@ -1271,35 +1341,48 @@ namespace netxs::app::shared
             {
                 auto i = 0;
                 log("main: tiling profile", size > 1 ? "s":"", " found:");
-                for (auto& p : tiling_profiles)
+                for (auto& data : tiling_profiles)
                 {
-                    log("\t", i++, ". profile: ", utf::debase(p));
+                    log("\t", i++, ". profile: ", utf::debase(data));
+                    take_items(current_module_file, list, data, what, stop);
+
                     //todo rewrite
-                    auto v = view{ p };
-                    auto name = utf::get_quote(v, '\"');
-                    if (!name.empty())
-                    {
-                        auto& m = app::shared::objs_config[name];
-                        auto r = parse_params(p);
-                        if (r.count == 1)
-                        {
-                            m.group = r.group;
-                            m.label = r.menu_name;
-                            m.title = r.app_name; // Use the same title as the menu label.
-                            m.param = r.app_cmdline;
-                        }
-                        else
-                        {
-                            m.group = "Tile";
-                            m.label = name;
-                            m.title = name; // Use the same title as the menu label.
-                            m.param = text{ p };
-                        }
-                        menu_list[name];
-                    }
+                    //auto v = view{ p };
+                    //auto name = utf::get_quote(v, '\"');
+                    //if (!name.empty())
+                    //{
+                    //    auto& m = app::shared::objs_config[name];
+                    //    auto r = parse_params(p);
+                    //    if (r.count == 1)
+                    //    {
+                    //        m.group = r.group;
+                    //        m.label = r.menu_name;
+                    //        m.title = r.app_name; // Use the same title as the menu label.
+                    //        m.param = r.app_cmdline;
+                    //    }
+                    //    else
+                    //    {
+                    //        m.group = "Tile";
+                    //        m.label = name;
+                    //        m.title = name; // Use the same title as the menu label.
+                    //        m.param = text{ p };
+                    //    }
+                    //    menu_list[name];
+                    //}
                 }
             }
 
+            for (auto& rec : list)
+            {
+                auto& name = rec.first;
+                auto& item = rec.second;
+                auto iter = item.find(attr_id);
+                if (iter != item.end())
+                {
+                    auto& id = iter->second;
+                    menu_list[id];
+                }
+            }
         #endif
 
         world->SUBMIT(tier::release, e2::form::proceed::createby, gear)

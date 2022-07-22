@@ -756,7 +756,7 @@ namespace netxs::app::tile
             if (tag == '\"') //todo deprecated - use a("Term"...
             {
                 // add term
-                auto cmdline = utf::get_quote(utf8, '\"');
+                auto cmdline = utf::get_quote(utf8, "\"");
                 if (cmdline.empty()) return place;
                 log(" node cmdline=", cmdline);
                 auto menu_item_id = "Term"s;
@@ -772,10 +772,10 @@ namespace netxs::app::tile
                 utf::trim_front(utf8, " ");
                 if (utf8.empty() || utf8.front() != '(') return place;
                 utf8.remove_prefix(1);
-                auto app_id  = utf::get_quote(utf8, '\"', ", ");
+                auto app_id  = utf::get_quote(utf8, "\"", ", ");
                 if (app_id.empty()) return place;
-                auto app_title = utf::get_quote(utf8, '\"', ", ");
-                auto app_data = utf::get_quote(utf8, '\"', ") ");
+                auto app_title = utf::get_quote(utf8, "\"", ", ");
+                auto app_data = utf::get_quote(utf8, "\"", ") ");
                 log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
 
                 auto& creator = app::shared::creator(app_id);
@@ -842,8 +842,8 @@ namespace netxs::app::tile
                     //envvar_data = view{ b, e }; //todo apple clang doesn't get it
                     envvar_data = view{ &(*b), (size_t)(e - b) };
                     log(" envvar_data=", envvar_data);
-                    auto menu_name = utf::get_quote(envvar_data, '\"');
-                    window_title   = utf::get_quote(envvar_data, '\"', ", ");
+                    auto menu_name = utf::get_quote(envvar_data, "\"");
+                    window_title   = utf::get_quote(envvar_data, "\"", ", ");
                     log(" menu_name=", menu_name);
                     log(" window_title=", window_title);
                     log(" layout_data=", envvar_data);
