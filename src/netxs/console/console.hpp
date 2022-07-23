@@ -30,20 +30,13 @@
 
 namespace netxs::console
 {
+    namespace fs = std::filesystem;
+
     class face;
     class base;
     class form;
     class link;
     class site;
-
-    using namespace netxs::input;
-    using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
-    using focus_test_t = std::pair<id_t, si32>;
-    using gear_id_list_t = std::list<id_t>;
-    using functor = std::function<void(sptr<base>)>;
-    using proc = std::function<void(hids&)>;
-    using s11n = netxs::ansi::dtvt::binary::s11n;
-    using os::xipc;
 
     struct create_t
     {
@@ -54,6 +47,29 @@ namespace netxs::console
         rect square;
         sptr object;
     };
+    struct menuitem_t
+    {
+        using file = fs::directory_entry;
+        text id;
+        file fname;
+        text alias;
+        bool fixed;
+        text label;
+        text notes;
+        text brand;
+        text title;
+        text param;
+    };
+
+    using namespace netxs::input;
+    using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
+    using links_t = std::unordered_map<text, menuitem_t>;
+    using focus_test_t = std::pair<id_t, si32>;
+    using gear_id_list_t = std::list<id_t>;
+    using functor = std::function<void(sptr<base>)>;
+    using proc = std::function<void(hids&)>;
+    using s11n = netxs::ansi::dtvt::binary::s11n;
+    using os::xipc;
 }
 
 namespace netxs::events::userland
@@ -112,6 +128,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( users, sptr<std::list<sptr<console::base>>> ), // list of connected users.
                     EVENT_XS( apps , sptr<console::registry_t>            ), // list of running apps.
+                    EVENT_XS( links, sptr<console::links_t>               ), // list of registered apps.
                 };
             };
             SUBSET_XS( debug )
@@ -4643,8 +4660,10 @@ namespace netxs::console
         public:
             sptr<registry_t>            app_ptr = std::make_shared<registry_t>();
             sptr<std::list<sptr<base>>> usr_ptr = std::make_shared<std::list<sptr<base>>>();
+            sptr<links_t>               lnk_ptr = std::make_shared<links_t>();
             registry_t&                 app = *app_ptr;
             std::list<sptr<base>>&      usr = *usr_ptr;
+            links_t&                    lnk = *lnk_ptr;
 
             auto remove(sptr<base> item_ptr)
             {
@@ -4737,6 +4756,10 @@ namespace netxs::console
             SUBMIT(tier::request, e2::bindings::list::apps, app_list_ptr)
             {
                 app_list_ptr = regis.app_ptr;
+            };
+            SUBMIT(tier::request, e2::bindings::list::links, list_ptr)
+            {
+                list_ptr = regis.lnk_ptr;
             };
             //todo unify
             SUBMIT(tier::request, e2::form::layout::gonext, next)

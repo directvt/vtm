@@ -685,9 +685,11 @@ namespace netxs::app::tile
                                 auto& gate = gear.owner;
                                 auto current_default = e2::data::changed.param();
                                 gate.SIGNAL(tier::request, e2::data::changed, current_default);
-                                auto config = app::shared::objs_config[current_default];
 
-                                auto& creator = app::shared::creator(config.group);
+                                auto& conf_list = app::shared::get_config();
+                                auto config = conf_list[current_default];
+
+                                auto& creator = app::shared::creator(config.brand);
                                 auto host = creator(config.param);
                                 auto app = app_window(config.title, "", host, current_default);
                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
@@ -876,7 +878,8 @@ namespace netxs::app::tile
             object->invoke([&](auto& boss)
                 {
                     auto oneoff = std::make_shared<hook>();
-                    auto objs_config_ptr = &app::shared::objs_config;
+                    auto& conf_list = app::shared::get_config();
+                    auto objs_config_ptr = &conf_list;
                     boss.SUBMIT_T_BYVAL(tier::anycast, e2::form::upon::created, *oneoff, gear)
                     {
                         auto& gate = gear.owner;
@@ -884,8 +887,8 @@ namespace netxs::app::tile
                         auto menu_item_id = e2::data::changed.param();
                         gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
                         //todo unify
-                        auto config = objs_config[menu_item_id];
-                        if (config.group == "Tile") // Reset the currently selected application to the previous one.
+                        auto& config = objs_config[menu_item_id];
+                        if (config.brand == "Tile") // Reset the currently selected application to the previous one.
                         {
                             gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
                             gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;

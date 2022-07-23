@@ -116,11 +116,12 @@ namespace netxs::app::desk
                     };
                 });
 
+            auto& conf_list = app::shared::get_config();
             for (auto const& [class_id, stat_inst_ptr_list] : *apps_map)
             {
                 auto& [state, inst_ptr_list] = stat_inst_ptr_list;
                 auto inst_id  = class_id;
-                auto obj_desc = app::shared::objs_config[class_id].label;
+                auto obj_desc = conf_list[class_id].label;
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
                                      ->template plugin<pro::fader>(x3, c3, 0ms)
                                      ->template plugin<pro::notes>(" Menu item:                           \n"

@@ -383,7 +383,7 @@ namespace netxs::utf
 
         constexpr qiew() noexcept : view() { }
         constexpr qiew(view const& v) noexcept : view(v) { }
-        constexpr qiew(text const& v) noexcept : view(v) { }
+                  qiew(text const& v) noexcept : view(v) { }
         template<class INT>
         constexpr qiew(char const* ptr, INT len) noexcept: view(ptr, len) { }
         constexpr qiew& operator = (qiew const&) noexcept = default;
@@ -1014,14 +1014,13 @@ namespace netxs::utf
         {
             crop = utf8.substr(coor + what.size(), text::npos);
         }
-
         return crop;
     }
     template<class TEXT_OR_VIEW>
     auto remain(TEXT_OR_VIEW&& utf8, char delimiter = '.')
     {
         auto what = view{ &delimiter, 1 };
-        return remain(std::move(utf8), what);
+        return remain(std::forward<TEXT_OR_VIEW>(utf8), what);
     }
 
     // utf: Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right).
@@ -1511,11 +1510,11 @@ namespace netxs::utf
     namespace xml
     {
         static constexpr auto spaces = " \n\r\t";
-        enum type
+        enum class type
         {
             none,
             token,
-            assign,
+            open,
             close,
         };
         auto escape(text line)
@@ -1551,39 +1550,47 @@ namespace netxs::utf
             }
             return crop;
         }
-        auto open(view& data)
+        auto open(view& data, type& next)
         {
             trim_front(data, spaces);
             auto iter = data.find('<');
             if (iter != view::npos)
             {
                 data.remove_prefix(iter + 1);
+                next = type::open;
                 return true;
-            }
-            else return faux;
-        }
-        auto attr(view& data, text& item)
-        {
-            trim_front(data, spaces);
-            item.clear();
-            if (data.empty()) return type::none;
-            auto c = data.front();
-
-            if (c == '/')
-            {
-                data.remove_prefix(1);
-                if (data.size() && data.front() == '>')
-                {
-                    data.remove_prefix(1);
-                    return type::close;
-                }
-                else return type::none;
             }
             else
             {
-                item = get_tail(data, " =");
-                return type::token;
+                next = type::none;
+                return faux;
             }
+        }
+        auto attr(view& data, text& item, type& next)
+        {
+            trim_front(data, spaces);
+            item.clear();
+            if (data.empty()) next = type::none;
+            else
+            {
+                auto c = data.front();
+                if (c == '/')
+                {
+                    data.remove_prefix(1);
+                    if (data.size() && data.front() == '>')
+                    {
+                        data.remove_prefix(1);
+                        next = type::close;
+                    }
+                    else next = type::none;
+                }
+                else
+                {
+                    item = get_tail(data, " =");
+                    next = type::token;
+                }
+            }
+            return next == type::token;
         }
         auto value(view& data)
         {

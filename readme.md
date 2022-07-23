@@ -269,11 +269,11 @@ No arguments | Run client (auto start server)
      ```
      # Configuration example:
 
-     VTM_PROFILE='<item id=Term notes="Run terminal" class="DirectVT" title="Terminal Emulator" param="$0 -r term"/>
-                  <item id=View notes="Desktop region" class="View" title="region 1"/>
-                  <item id=htop fixed=no notes="htop app" class="ANSI/VT" param="bash -c htop"/>
-                  <item id=mc fixed=no notes="mc app" class="ANSI/VT" param="bash -c mc"/>
-                  <item id=Tile notes="Tiling Window Manager" class="Tile" title="Tiling Window Manager" param="h1:2( v1:1(htop, mc), Term)"/>'
+     VTM_PROFILE='<menuitem id=Term notes="Run terminal" class=DirectVT label="Virtual \e[41mTerminal\e[m] Emulator" param="$0 -r term"/>
+                  <menuitem id=View label=View notes="Desktop region" class="View" title="region 1"/>
+                  <menuitem id=htop label=htop fixed=no notes="htop app" class=ANSIVT param="bash -c htop"/>
+                  <menuitem id=mc label=mc fixed=no notes="mc app" class="ANSIVT" param="bash -c mc"/>
+                  <menuitem id=Tile label=Tile notes="Tiling Window Manager" class=Tile title="Tiling Window Manager" param="h1:2( v1:1(htop, mc), Term)"/>'
      ```
 
 

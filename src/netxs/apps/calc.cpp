@@ -2,9 +2,9 @@
 // Licensed under the MIT license.
 
 auto DirectVT = R"==(
-<DESKTOPIO>
-    <item id=Calc label="Calc DEMO" title="Calc App Title" notes="Calc Tooltip Message" class="DirectVT" param="$0"/>
-</DESKTOPIO>
+<VTM_PROFILE>
+    <menuitem id=Calc label="Calc DEMO" title="Calc App Title" notes="Calc Tooltip Message" class="DirectVT" param="$0"/>
+</VTM_PROFILE>
 )==";
 
 #define DESKTOPIO_VER "v0.7.6"

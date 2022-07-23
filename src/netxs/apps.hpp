@@ -29,56 +29,20 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static constexpr auto class_ANSIVT = "ANSI/VT";
+    static constexpr auto class_ANSIVT   = "ANSIVT";
     static constexpr auto class_DirectVT = "DirectVT";
     static constexpr auto class_Tile = "Tile";
     static constexpr auto class_View = "View";
-    static constexpr auto attr_id = "id";
+    static constexpr auto attr_id    = "id";
     static constexpr auto attr_class = "class";
     static constexpr auto attr_notes = "notes";
     static constexpr auto attr_label = "label";
     static constexpr auto attr_title = "title";
     static constexpr auto attr_param = "param";
     static constexpr auto attr_fixed = "fixed";
-    static constexpr auto tag_item = "item";
-
-    #define TYPE_LIST                                                                                                 \
-    X(Term         , "Term"                  , ("Term")                                                        , "" ) \
-    X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
-    X(Calc         , "Calc"                  , (ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled 1.ods"))  , "" ) \
-    X(Gems         , "Gems"                  , ("Desktopio App Manager (Demo)")                                , "" ) \
-    X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
-    X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
-    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"Term\" ,\"\"), a(\"Term\" ,\"Term\" ,\"\"))" ) \
-    X(Settings     , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
-    X(PowerShell   , "Powershell"            , ("Term \nPowerShell")                                           , "" ) \
-    X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
-    X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
-    X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
-    X(Truecolor    , "Truecolor image"       , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
-    X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
-    X(Test         , "Test Window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
-    X(Empty        , "Empty Window"          , (ansi::add("Empty Instance \nid: "))                            , "" )
-
-    struct menu_item
-    {
-        text group; //menu_item: Application group.
-        text label; //menu_item: Menu item label.
-        text title; //menu_item: Window title.
-        text param; //menu_item: Command line.
-        text notes; //menu_item: Tooltip.
-        bool fixed = true;
-    };
-
-    //todo temp
-    #define X(a, b, c, d) { #a, b },
-    std::map<text, text> objs_lookup{ TYPE_LIST };
-    #undef X
-
-    #define X(a, b, c, d) { b, { #a, b, c, d} },
-    netxs::imap<text, menu_item> objs_config{ TYPE_LIST };
-    #undef X
-    #undef TYPE_LIST
+    static constexpr auto attr_alias = "alias";
+    static constexpr auto tag_menuitem = "menuitem";
+    static constexpr auto tag_profile  = "VTM_PROFILE";
 
     using menu_item_type = std::tuple<bool, text, text, std::function<void(ui::pads&)>>;
     using menu_list_type = std::list<menu_item_type>;
@@ -428,6 +392,15 @@ namespace netxs::app::shared
         static std::map<text, builder_t> creator_inst;
         return creator_inst;
     }
+    auto& get_config()
+    {
+        auto world_ptr = e2::config::whereami.param();
+        SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+        auto conf_list_ptr = e2::bindings::list::links.param();
+        world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
+        auto& conf_list = *conf_list_ptr;
+        return conf_list;
+    }
     auto& creator(view app_typename)
     {
         static builder_t empty =
@@ -459,7 +432,6 @@ namespace netxs::app::shared
     
     auto start(text app_name, text log_title, si32 vtmode, si32 maxfps, si32 menusz)
     {
-
         auto direct = !!(vtmode & os::legacy::direct);
         if (!direct) os::start_log(log_title);
 
@@ -969,19 +941,22 @@ namespace netxs::app::shared
                             gear.slot.size = viewport.size * 3 / 4;
 
                             auto menu_list_ptr = e2::bindings::list::apps.param();
+                            auto conf_list_ptr = e2::bindings::list::links.param();
                             world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
+                            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
                             auto& menu_list = *menu_list_ptr;
-                            
-                            if (app::shared::objs_config.contains(name) && app::shared::objs_config[name].fixed) // Check for Demo label availability.
+                            auto& conf_list = *conf_list_ptr;
+
+                            if (conf_list.contains(name) && conf_list[name].fixed) // Check for id availability.
                             {
                                 auto i = 1;
                                 auto test = text{};
                                 do   test = name + " (" + std::to_string(++i) + ")";
-                                while (app::shared::objs_config.contains(test) && app::shared::objs_config[name].fixed);
+                                while (conf_list.contains(test) && conf_list[name].fixed);
                                 std::swap(test, name);
                             }
-                            auto& m = app::shared::objs_config[name];
-                            m.group = type;
+                            auto& m = conf_list[name];
+                            m.brand = type;
                             m.label = name;
                             m.title = name; // Use the same title as the menu label.
                             m.param = args;
@@ -1049,341 +1024,184 @@ namespace netxs::app::shared
         app::shared::initialize builder_Headless     { "Headless"     , build_Headless      };
         app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
         app::shared::initialize builder_DirectVT     { "DirectVT"     , build_DirectVT      };
-        app::shared::initialize builder_ANSIVT       { "ANSI/VT"      , build_ANSIVT        };
+        app::shared::initialize builder_ANSIVT       { "ANSIVT"       , build_ANSIVT        };
     }
 
     auto init_app_registry = [](auto& world)
     {
         auto menu_list_ptr = e2::bindings::list::apps.param();
+        auto conf_list_ptr = e2::bindings::list::links.param();
         world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
+        world->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
         auto& menu_list = *menu_list_ptr;
+        auto& conf_list = *conf_list_ptr;
 
-        #ifdef DEMO
-            auto shell = os::get_shell();
-            #ifdef PROD
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(a(\"MC\",\"\",\"\"), h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
-            #else
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(a(\"MC\",\"\",\"\"), h1:1(\"\",\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\")), a(\"Calc\",\"\",\"\"))";
-            #endif
+        using item_t = std::unordered_map<text, text>;
+        auto list = std::vector<std::pair<fs::directory_entry, item_t>>{};
 
-            for (auto& [menu_item_id, app_data] : app::shared::objs_config)
+        auto take_doc_name = [](auto const& data)
+        {
+            auto from = data.find('<');
+            auto skip = data.find('>') + 1;
+            auto name = data.substr(from, skip - from);
+            return text{ name };
+        };
+        auto take_menu_item = [](text& tag, item_t& item, view& data)
+        {
+            auto type = utf::xml::type::none;
+            if (utf::xml::open(data, type))
             {
-                menu_list[menu_item_id];
+                auto attr = text{};
+                if (utf::xml::attr(data, tag, type))
+                {
+                    log("\t link: <", tag, faux);
+                    while (utf::xml::attr(data, attr, type))
+                    {
+                        auto& value = item[attr];
+                        value = utf::xml::value(data);
+                             if (value.empty()) log(" ", attr, faux);
+                        else if (value.find(' ') == text::npos
+                              || value.front() == '\"') log(" ", attr, "=",   value, faux);
+                        else                            log(" ", attr, "=\"", value, "\"", faux);
+                    }
+                    log(" />");
+                }
+
+                if (type != utf::xml::type::close) log(" xml: unexpected data: {", utf::debase(data), "}");
             }
-        #else
-/*
-            auto parse_params = [](view data)
+            return type == utf::xml::type::close;
+        };
+        auto take_elements = [&](auto const& filename, view data)
+        {
+            auto item = item_t{};
+            auto tag = text{};
+            while (take_menu_item(tag, item, data))
             {
-                struct
+                if (tag == tag_menuitem)
                 {
-                    text group;
-                    text app_name;
-                    text app_cmdline;
-                    text menu_name;
-                    text tooltip;
-                    si32 count = 0;
+                    list.emplace_back(filename, std::move(item));
                 }
-                result;
-                auto envvar_data = view{};
-                auto window_title = text{};
-                auto a = data.find('=');
-                if (a != text::npos)
-                {
-                    auto b = data.begin();
-                    auto e = data.end();
-                    auto t = b + a;
-                    auto envvar_name = view{ &(*b), (size_t)(t - b) };
-                    b = t + 1;
-                    if (b != e)
-                    {
-                        envvar_data = view{ &(*b), (size_t)(e - b) };
-                        result.menu_name = utf::get_quote(envvar_data, '\"');
-                        result.tooltip = utf::get_quote(envvar_data, '\"', ", ");
-                    }
-                }
-                else return result;
-                utf::trim_front(envvar_data, ", ");
-                if (envvar_data.empty()) return result;
-                auto tag = envvar_data.front();
-                if (tag == '\"') //todo deprecated - use a("Term"...
-                {
-                    // add term
-                    result.app_cmdline = utf::get_quote(envvar_data, '\"');
-                    if (result.app_cmdline.empty()) return result;
-                    result.group = "Term"s;
-                    result.app_name = result.group;
-                    result.count = 1;
-                }
-                else if (tag == 'a')
-                {
-                    // add app
-                    envvar_data.remove_prefix(1);
-                    utf::trim_front(envvar_data, " ");
-                    if (envvar_data.empty() || envvar_data.front() != '(') return result;
-                    envvar_data.remove_prefix(1);
-                    result.group = utf::get_quote(envvar_data, '\"', ", ");
-                    if (result.group.empty()) return result;
-                    result.app_name = utf::get_quote(envvar_data, '\"', ", ");
-                    result.app_cmdline = utf::get_quote(envvar_data, '\"', ") ");
-                    result.count = 1;
-                }
-                else if (tag == 'h'
-                      || tag == 'v')
-                {
-                    // add app
-                    envvar_data.remove_prefix(1);
-                    utf::trim_front(envvar_data, " ");
-                    if (envvar_data.empty() || envvar_data.front() != '(') return result;
-                    envvar_data.remove_prefix(1);
-                    result.app_name = result.tooltip;//utf::get_quote(envvar_data, '\"', ", ");
-                    result.count = 2;
-                }
-                return result;
-            };
-            auto apply_params = [&](auto& profile_data_shadow, auto&& file_name)
-            {
-                auto profile_data = text{ profile_data_shadow };
-                auto spaced = file_name.find(' ') != text::npos;
-                utf::change(profile_data, "$0", spaced ? "\\\"" + file_name + "\\\""
-                                                       : file_name);
-
-                auto profiles = utf::divide(profile_data, "\n");
-                for (auto& p : profiles)
-                {
-                    if (p.length() && p.front() == '=') log("\t<link>", p);
-
-                    auto r = parse_params(p);
-                    auto& m = app::shared::objs_config[r.app_name];
-                    if (r.count == 1)
-                    {
-                        m.group = r.group;
-                        m.label = r.menu_name;
-                        m.notes = r.tooltip;
-                        m.title = r.app_name;
-                        m.param = r.app_cmdline;
-                        menu_list[r.app_name];
-                    }
-                    else if (r.count == 2)
-                    {
-                        m.group = "Tile";
-                        m.label = r.menu_name;
-                        m.title = r.app_name;
-                        m.param = text{ p };
-                        menu_list[r.app_name];
-                    }
-                }
-            };
-*/
-            namespace fs = std::filesystem;
-            using item_t = std::unordered_map<text, text>;
-
-            auto take_doc_name = [](auto const& data)
-            {
-                auto from = data.find('<');
-                auto skip = data.find('>') + 1;
-                auto name = data.substr(from, skip - from);
-                return text{ name };
-            };
-                //text "id"
-                //bool "fixed"
-                //bool "label"
-                //text "notes"
-                //text "class"
-                //text "title"
-                //text "param"
-            auto take_menu_item = [](view tag, item_t& item, view& data)
-            {
-                auto result = faux;
-                log("xml: \ntag: ", tag);
-                if (utf::xml::open(data))
-                {
-                    auto word = text{};
-                    auto attr = text{};
-                    auto next = utf::xml::attr(data, word);
-                    if (next == utf::xml::type::token && word == tag)
-                    {
-                        next = utf::xml::attr(data, word);
-                        while (next == utf::xml::type::token)
-                        {
-                            std::swap(attr, word);
-                            item[attr] = utf::xml::value(data);
-                            log("xml: ", attr, "=", item[attr]);
-                            next = utf::xml::attr(data, word);
-                        }
-                        result = next == utf::xml::type::close;
-                        if (result) log("xml: parsed ok");
-                        else        log("xml: stop at ", (int)next);
-                    }
-                }
-                return result;
-            };
-            auto take_items = [&](auto const& filename, auto& list, auto& buff, view what, view stop)
-            {
-                auto item = item_t{};
-                auto iter = buff.begin();
-                while (iter != buff.end())
-                {
-                    auto next = std::search(iter, buff.end(), what.begin(), what.end());
-                    if (next == buff.end()) break;
-
-                    next += what.size();
-                    iter = std::search(next, buff.end(), stop.begin(), stop.end());
-                    if (iter == buff.end())  break;
-
-                    auto data = view{ next, iter };
-                    while (take_menu_item(tag_item, item, data))
-                    {
-                        list.emplace_back(filename, std::move(item));
-                    }
-                    iter += stop.size();
-
-                        //iter += skip;
-                        //netxs::copy_until(iter, buff.end(), std::back_inserter(crop), [](auto c) { return c; });
-                        //auto& rec = list.emplace_back(name, std::move(crop));
-                }
-            };
-
-            auto apps = os::homepath() + DESKTOPIO_APPDIR;
-            auto list = std::vector<std::pair<fs::directory_entry, item_t>>{};
-            auto data = view{ ::DirectVT };
-            auto what = take_doc_name(data);
-            auto stop = what;
-            utf::change(stop, "<", "</");
-
-            if (fs::exists(apps))
-            {
-
-                //auto skip = data.find('>') + 1;
-                //todo optimize
-                //auto buff = std::vector<char>(1 << 20 /* 1M */);
-                for (auto const& name : fs::directory_iterator(apps))
-                {
-                    log("apps: external module found: ", name.path());
-                    if (!(name.is_regular_file()
-                       || name.is_symlink())) continue;
-                    auto file = std::ifstream(name.path(), std::ios::binary | std::ios::in);
-                    if (file.seekg(0, std::ios::end).fail())
-                    {
-                        log("apps: unable to get file size, skip it: ", name.path());
-                        continue;
-                    }
-                    auto size = file.tellg();
-                    auto buff = std::vector<char>(size);
-                    file.seekg(0, std::ios::beg);
-                    file.read(buff.data(), size);
-                    auto last = list.size();
-
-                    take_items(name, list, buff, what, stop);
-
-                    if (last == list.size()) // No records found.
-                    {
-                        //auto filename = utf::to_utf(name.path().filename().wstring());
-                        auto fullname = utf::to_utf(name.path().wstring());
-                        //auto execname = os::current_module_file();
-                        if (fullname.find(' ') != text::npos) fullname = "\"" + fullname + "\"";
-                        //auto filename_esc = utf::xml::escape(filename);
-                        //auto fullname_esc = utf::xml::escape(fullname);
-                        //auto execname_esc = utf::xml::escape(execname);
-                        auto item = item_t{};
-                        item["id"] = fullname;
-                        item["fixed"] = "yes";
-                        item["notes"] = fullname;
-                        item["class"] = class_ANSIVT;
-                        item["title"] = fullname;
-                        item["param"] = fullname;
-                        list.emplace_back(name, std::move(item));
-                    }
-                }
-
-                std::sort(list.begin(), list.end(), [](auto& a, auto& b)
-                {
-                    return a.first.last_write_time() < b.first.last_write_time();
-                });
-                //for (auto& file : list)
-                //{
-                //    apply_params(file.second, file.first.path().string());
-                //}
+                else log(" xml: skip element <", tag, ">");
             }
-            else
+        };
+        auto take_menu = [&](auto const& filename, auto& buff, view what, view stop)
+        {
+            auto iter = buff.begin();
+            while (iter != buff.end())
             {
-                log("apps: no external modules found at ", apps);
+                auto next = std::search(iter, buff.end(), what.begin(), what.end());
+                if (next == buff.end()) break;
+
+                next += what.size();
+                iter = std::search(next, buff.end(), stop.begin(), stop.end());
+                if (iter == buff.end())  break;
+
+                auto data = view{ next, iter };
+                take_elements(filename, data);
+                iter += stop.size();
             }
+        };
 
-            auto current_module_file = fs::directory_entry(os::current_module_file());
-            if (list.empty())
+        auto apps = os::homepath() + DESKTOPIO_APPDIR;
+        auto data = view{ ::DirectVT };
+        auto what = take_doc_name(data);
+        auto stop = what;
+        utf::change(stop, "<", "</");
+
+        if (fs::exists(apps))
+        {
+            //auto buff = std::vector<char>(1 << 20 /* 1M */);
+            for (auto const& name : fs::directory_iterator(apps))
             {
-                take_items(current_module_file, list, data, what, stop);
-
-                //apply_params(data, os::current_module_file());
-
-                //log("main: no apps at ", apps);
-                //#ifdef _WIN32
-                //    menu_list[objs_lookup["Term"]];
-                //    menu_list[objs_lookup["Powershell"]];
-                //    menu_list[objs_lookup["Tile"]];
-                //    menu_list[objs_lookup["Logs"]];
-                //    menu_list[objs_lookup["View"]];
-                //    menu_list[objs_lookup["Gems"]];
-                //    menu_list[objs_lookup["Settings"]];
-                //#else
-                //    menu_list[objs_lookup["Term"]];
-                //    menu_list[objs_lookup["Tile"]];
-                //    menu_list[objs_lookup["Logs"]];
-                //    menu_list[objs_lookup["View"]];
-                //    menu_list[objs_lookup["Gems"]];
-                //    menu_list[objs_lookup["Settings"]];
-                //#endif
-            }
-            // Add custom commands to the menu.
-            // vtm: Get user defined tiling layouts.
-            auto tiling_profiles = os::get_envars("VTM_PROFILE");
-            if (auto size = tiling_profiles.size())
-            {
-                auto i = 0;
-                log("main: tiling profile", size > 1 ? "s":"", " found:");
-                for (auto& data : tiling_profiles)
+                log("apps: external module found: ", name.path());
+                if (!(name.is_regular_file()
+                   || name.is_symlink())) continue;
+                auto file = std::ifstream(name.path(), std::ios::binary | std::ios::in);
+                if (file.seekg(0, std::ios::end).fail())
                 {
-                    log("\t", i++, ". profile: ", utf::debase(data));
-                    take_items(current_module_file, list, data, what, stop);
+                    log("apps: unable to get file size, skip it: ", name.path());
+                    continue;
+                }
+                auto size = file.tellg();
+                auto buff = std::vector<char>(size);
+                file.seekg(0, std::ios::beg);
+                file.read(buff.data(), size);
+                auto last = list.size();
 
-                    //todo rewrite
-                    //auto v = view{ p };
-                    //auto name = utf::get_quote(v, '\"');
-                    //if (!name.empty())
-                    //{
-                    //    auto& m = app::shared::objs_config[name];
-                    //    auto r = parse_params(p);
-                    //    if (r.count == 1)
-                    //    {
-                    //        m.group = r.group;
-                    //        m.label = r.menu_name;
-                    //        m.title = r.app_name; // Use the same title as the menu label.
-                    //        m.param = r.app_cmdline;
-                    //    }
-                    //    else
-                    //    {
-                    //        m.group = "Tile";
-                    //        m.label = name;
-                    //        m.title = name; // Use the same title as the menu label.
-                    //        m.param = text{ p };
-                    //    }
-                    //    menu_list[name];
-                    //}
+                take_menu(name, buff, what, stop);
+
+                if (last == list.size()) // No records found.
+                {
+                    auto fullname = utf::to_utf(name.path().wstring());
+                    if (fullname.find(' ') != text::npos) fullname = "\"" + fullname + "\"";
+                    auto item = item_t{};
+                    item["id"] = fullname;
+                    item["fixed"] = "yes";
+                    item["notes"] = fullname;
+                    item["class"] = class_ANSIVT;
+                    item["title"] = fullname;
+                    item["param"] = fullname;
+                    list.emplace_back(name, std::move(item));
                 }
             }
 
-            for (auto& rec : list)
+            std::sort(list.begin(), list.end(), [](auto& a, auto& b)
             {
-                auto& name = rec.first;
-                auto& item = rec.second;
-                auto iter = item.find(attr_id);
-                if (iter != item.end())
+                return a.first.last_write_time() < b.first.last_write_time();
+            });
+        }
+        else
+        {
+            log("apps: no external modules found at ", apps);
+        }
+
+        auto current_module_file = fs::directory_entry(os::current_module_file());
+        if (list.empty())
+        {
+            take_menu(current_module_file, data, what, stop);
+        }
+
+        auto tiling_profiles = os::get_envars(tag_profile);
+        if (auto size = tiling_profiles.size())
+        {
+            auto i = 0;
+            log("main: tiling profile", size > 1 ? "s":"", " found:");
+            for (auto& profile : tiling_profiles)
+            {
+                log("\t", i++, ". profile: ", utf::debase(profile));
+                auto data = utf::remain(profile, '=');
+                take_elements(current_module_file, data);
+            }
+        }
+
+        log("apps: ", list.size(), " menu item(s) added");
+        for (auto& [name, item] : list)
+        {
+            if (auto iter = item.find(attr_id); iter != item.end())
+            {
+                auto& id = iter->second;
+                auto unique_id = utf::to_utf(name.path().filename().wstring());
+                unique_id += '/';
+                unique_id += id;
+                auto& conf_rec = conf_list[unique_id];
+                conf_rec.id = id;
+                conf_rec.fname = name;
+                conf_rec.alias = item[attr_alias];
+                conf_rec.brand = item[attr_class];
+                conf_rec.label = item[attr_label];
+                conf_rec.notes = item[attr_notes];
+                conf_rec.param = item[attr_param];
+                conf_rec.title = item[attr_title];
+                auto& fixed    = item[attr_fixed];
+                conf_rec.fixed = fixed.empty() || fixed.starts_with("1")
+                                               || fixed.starts_with("y")
+                                               || fixed.starts_with("t");
+                if (conf_rec.fixed)
                 {
-                    auto& id = iter->second;
-                    menu_list[id];
+                    auto& menu_rec = menu_list[unique_id];
                 }
             }
-        #endif
+        }
 
         world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
         {
@@ -1452,13 +1270,14 @@ namespace netxs::app::shared
         };
         world->SUBMIT(tier::release, e2::form::proceed::createat, what)
         {
-            auto& config = app::shared::objs_config[what.menuid];
+            auto& conf_list = app::shared::get_config();
+            auto& config = conf_list[what.menuid];
             auto  window = app::shared::base_window(config.title, "", what.menuid);
 
             window->extend(what.square);
-            auto& creator = app::shared::creator(config.group);
+            auto& creator = app::shared::creator(config.brand);
             window->attach(creator(config.param));
-            log("host: app type: ", config.group, ", menu item id: ", what.menuid);
+            log("host: app type: ", config.brand, ", menu item id: ", what.menuid);
             world->branch(what.menuid, window, config.fixed);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 
@@ -1466,44 +1285,18 @@ namespace netxs::app::shared
         };
         world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
         {
-            auto& config = app::shared::objs_config[what.menuid];
+            auto& conf_list = app::shared::get_config();
+            auto& config = conf_list[what.menuid];
             auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
 
             window->extend(what.square);
             window->attach(what.object);
-            log("host: attach type=", config.group, " menu_item_id=", what.menuid);
+            log("host: attach type=", config.brand, " menu_item_id=", what.menuid);
             world->branch(what.menuid, window, config.fixed);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 
             what.object = window;
         };
-
-        #ifdef DEMO
-            auto creator = [&](text const& menu_item_id, rect area)
-            {
-                auto what = e2::form::proceed::createat.param();
-                what.menuid = menu_item_id;
-                what.square = area;
-                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
-            };
-            auto sub_pos = twod{ 12+17, 0 };
-            creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
-            creator(objs_lookup["Test"], { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
-            creator(objs_lookup["Gems"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
-            creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
-            creator(objs_lookup["Text"], { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 68, 22 } });
-            creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
-            creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
-            creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
-            creator(objs_lookup["View"], { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
-            creator(objs_lookup["View"], { twod{ 0,-1 } + sub_pos, { 120, 52 } });
-
-            sub_pos = twod{-120, 60};
-            creator(objs_lookup["Truecolor"  ], { twod{ 20, 15 } + sub_pos, { 70, 30 } });
-            creator(objs_lookup["Logs"       ], { twod{ 52, 33 } + sub_pos, { 45, 12 } });
-            creator(objs_lookup["Settings"   ], { twod{ 60, 41 } + sub_pos, { 35, 10 } });
-        #endif
     };
 }
 

@@ -2,31 +2,31 @@
 // Licensed under the MIT license.
 
 auto DirectVT = R"==(
-<DESKTOPIO>
-    <item id=Term fixed=yes notes="Tooltip Message" class="DirectVT" title="Terminal Emulator" param="$0 -r term"/>
+<VTM_PROFILE>
+    <menuitem id=Term fixed=yes notes="Tooltip Message" class="DirectVT" title="Terminal Emulator" param="$0 -r term"/>
 )=="
 #ifdef _WIN32
 R"==(
-    <item id=PowerShell label="PowerShell" notes="Tooltip Message" class="DirectVT" param="$0 -r powershell"/>
-    <item id=Far label=Far notes="Far Manager" class="DirectVT" param="$0 -r headless far"/>
+    <menuitem id=PowerShell label="PowerShell" notes="Tooltip Message" class="DirectVT" param="$0 -r powershell"/>
+    <menuitem id=Far label=Far notes="Far Manager" class="DirectVT" param="$0 -r headless far"/>
 )=="
 #endif
 R"==(
-    <item id=Tile label=Tile notes="Tiling Window Manager" class="Tile" title="Tiling Window Manager" param="h1:1(Term, Term)"/>
+    <menuitem id=Tile label=Tile notes="Tiling Window Manager" class="Tile" title="Tiling Window Manager" param="h1:1(Term, Term)"/>
 )=="
 
-    "<item id=View label=View notes=\"Desktop region\" class=View title=\"\033[11:3pView: Region 1\"/>"
+    "<menuitem id=View label=View notes=\"Desktop region\" class=View title=\"\033[11:3pView: Region 1\"/>"
 
 R"==(
-    <item id=Settings  label=Settings          notes="Tooltip Message" class="Settings"/>
-    <item id=Logs      label=Logs              notes="Tooltip Message" class="DirectVT" title="Logs Title" param="$0 -r logs"/>
-    <item id=Gems      label="Gems [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Gems Title" param="$0 -r gems"/>
-    <item id=Text      label="Text [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Text Title" param="$0 -r text"/>
-    <item id=Calc      label="Calc [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Calc Title" param="$0 -r calc"/>
-    <item id=Test      label="Test [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Test Title" param="$0 -r test"/>
-    <item id=Truecolor label="Truecolor [DEMO] notes="Tooltip Message" class="DirectVT" title="True Title" param="$0 -r truecolor"/>
-    <item id=mc        label="Midnight Commander" class="ANSI/VT" param="bash -c mc"/>
-</DESKTOPIO>
+    <menuitem id=Settings  label=Settings          notes="Tooltip Message" class="Settings"/>
+    <menuitem id=Logs      label=Logs              notes="Tooltip Message" class="DirectVT" title="Logs Title" param="$0 -r logs"/>
+    <menuitem id=Gems      label="Gems [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Gems Title" param="$0 -r gems"/>
+    <menuitem id=Text      label="Text [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Text Title" param="$0 -r text"/>
+    <menuitem id=Calc      label="Calc [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Calc Title" param="$0 -r calc"/>
+    <menuitem id=Test      label="Test [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Test Title" param="$0 -r test"/>
+    <menuitem id=Truecolor label="Truecolor [DEMO] notes="Tooltip Message" class="DirectVT" title="True Title" param="$0 -r truecolor"/>
+    <menuitem id=mc        label="Midnight Commander" class="ANSIVT" param="mc"/>
+</VTM_PROFILE>
 )==";
 
 #define DESKTOPIO_VER "v0.7.7"

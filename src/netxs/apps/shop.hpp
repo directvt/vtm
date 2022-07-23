@@ -99,8 +99,10 @@ namespace netxs::app::shop
                     fgc(whitelt).bld(true).add("VTM_TILE").fgc().bld(faux).
                     add(".\n\nConfiguration example:\n\n").
                     mgl(2).fgc(whitelt).bgc(blacklt)
-                    .add(" VTM_PROFILE_1='\"Menu label 1\", \"Window Title 1\", h1:2( v1:1(\"bash -c htop\", \"bash -c mc\"), \"bash\")' \n"
-                        " VTM_PROFILE_2='\"Menu label 2\", \"Window Title 2\", h( v(\"bash -c htop\", \"bash -c mc\"), a(\"Calc\",\"\",\"\"))' ")),
+                    .add(" VTM_PROFILE='<menuitem id=Term  fixed=yes label=\"Term\"                class=Term/>\\n \n"
+                         "              <menuitem id=mc    fixed=no  label=\"Midnight Commander\"  class=ANSIVT param=\"mc\"/>\\n \n"
+                         "              <menuitem id=htop  fixed=no  label=\"htop\"                class=ANSIVT param=\"htop\"/>\\n \n"
+                         "              <menuitem id=Tile1 fixed=yes label=\"Tile\" title=\"Tiling Manager\" class=Tile param=\"h1:2( v1:1(htop, mc), Term)\"/>' ")),
 
                     item("Text", cyandk, "102", "Free ", "Get",
                     "A simple text editor for Desktopio environment "
