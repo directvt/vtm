@@ -51,38 +51,6 @@ namespace netxs::app::term
 
         auto items = app::shared::menu_list_type
         {
-        #ifdef DEMO
-            { true, "T1", " Exec `ls /bin` ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto data = "ls /bin\n"s;
-                    boss.SIGNAL(tier::anycast, app::term::events::data::out, data);
-                    gear.dismiss(true);
-                };
-            }},
-            { true, "T2", " Exec `ping -c 3 127.0.0.1 | ccze -A` ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto data = "ping -c 3 127.0.0.1 | ccze -A\n"s;
-                    boss.SIGNAL(tier::anycast, app::term::events::data::out, data);
-                    gear.dismiss(true);
-                };
-            }},
-            { true, "T3", " Exec `curl wttr.in` ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto data = "curl wttr.in\n"s;
-                    boss.SIGNAL(tier::anycast, app::term::events::data::out, data);
-                    gear.dismiss(true);
-                };
-            }},
-        #endif
             { true, "=─", " Align text lines on left side   \n"
                           " - applied to selection if it is ",
             [](ui::pads& boss)
@@ -208,7 +176,6 @@ namespace netxs::app::term
                     boss.color(mode & 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-        #ifdef PROD
             { faux, "  ", " ...empty menu block for safety ",
             [](ui::pads& boss)
             {
@@ -222,7 +189,6 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-        #endif
             { true, "Reset", " Clear scrollback and SGR-attributes ",
             [](ui::pads& boss)
             {

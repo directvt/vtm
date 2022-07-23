@@ -4,8 +4,6 @@ project ("vtm")
 project ("term")
 project ("calc")
 
-OPTION(DEMO "Demo mode" OFF)
-
 set (CMAKE_CXX_STANDARD 20)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -22,10 +20,6 @@ elseif (NOT CMAKE_SYSTEM_NAME MATCHES "Android")
         #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc -pthread -s")
         #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -s")
     endif ()
-endif ()
-
-if (DEMO)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEMO")
 endif ()
 
 add_executable (vtm  "vtm.cpp")

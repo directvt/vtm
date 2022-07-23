@@ -11,7 +11,6 @@ auto DirectVT = R"==(
 #define DESKTOPIO_MYNAME "Desktopio Terminal " DESKTOPIO_VER
 #define DESKTOPIO_MYPATH "vtm/term"
 #define DESKTOPIO_DEFAPP "Term"
-#define PROD
 
 #include "../apps.hpp"
 

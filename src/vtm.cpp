@@ -36,12 +36,6 @@ R"==(
 #define DESKTOPIO_DEFAPP "Term"
 #define DESKTOPIO_APPINF "Desktopio Terminal " DESKTOPIO_VER
 
-// Enable demo apps and assign Esc key to log off.
-//#define DEMO
-
-// Enable keyboard input and unassign Esc key.
-#define PROD
-
 // Enable to show all terminal input (keyboard/mouse etc).
 //#define KEYLOG
 
@@ -81,29 +75,6 @@ int main(int argc, char* argv[])
                 case 's': whoami = type::server; break;
                 case 'd': daemon = true; break;
                 default:
-                    #ifndef PROD
-
-                        if (os::get_env("SHELL").ends_with(DESKTOPIO_MYPATH))
-                        {
-                            auto error = utf::text{ "main: interactive server is not allowed in demo mode" };
-                            if (argc > 1)
-                            {
-                                auto host = os::get_env("SSH_CLIENT");
-                                auto name = os::get_env("USER");
-                                error += "\nblock explicit shell command invocation {" + name + ", " + host + "}";
-                                for (auto i = 1; i < argc; i++)
-                                {
-                                    error += '\n';
-                                    error += utf::text(argv[i]);
-                                }
-                            }
-                            os::start_log(DESKTOPIO_MYPATH);
-                            log(error);
-                            return 1;
-                        }
-
-                    #endif
-
                     banner();
                     log("Usage:\n\n ", argv[0], " [ -d | -s | -r [<app> [<args...>]] ]\n\n"s
                                     + " No arguments\tRun client, auto start server if is not started.\n"s

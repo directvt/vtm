@@ -7,9 +7,6 @@
 #define DESKTOPIO_FOLDER "/.config/vtm/"
 #define DESKTOPIO_APPDIR "/.config/vtm/apps"
 
-#ifndef PROD
-    #define APPS_MAX_COUNT 20
-#endif
 #define APPS_DEL_TIMEOUT 1s
 
 #include "ui/controls.hpp"
@@ -851,11 +848,7 @@ namespace netxs::app::shared
 
                     #else
                         auto shell = os::get_shell();
-                        #ifndef PROD
-                            auto inst = scroll->attach(ui::term::ctor(shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'"));
-                        #else
-                            auto inst = scroll->attach(ui::term::ctor(shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-                        #endif
+                        auto inst = scroll->attach(ui::term::ctor(shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
                     #endif
 
                     inst->colors(whitelt, blackdk)
@@ -1135,12 +1128,11 @@ namespace netxs::app::shared
                     auto fullname = utf::to_utf(name.path().wstring());
                     if (fullname.find(' ') != text::npos) fullname = "\"" + fullname + "\"";
                     auto item = item_t{};
-                    item["id"] = fullname;
-                    item["fixed"] = "yes";
-                    item["notes"] = fullname;
-                    item["class"] = class_ANSIVT;
-                    item["title"] = fullname;
-                    item["param"] = fullname;
+                    item[attr_id   ] = fullname;
+                    item[attr_notes] = fullname;
+                    item[attr_class] = class_ANSIVT;
+                    item[attr_title] = fullname;
+                    item[attr_param] = fullname;
                     list.emplace_back(name, std::move(item));
                 }
             }
@@ -1192,10 +1184,11 @@ namespace netxs::app::shared
                 conf_rec.notes = item[attr_notes];
                 conf_rec.param = item[attr_param];
                 conf_rec.title = item[attr_title];
-                auto& fixed    = item[attr_fixed];
-                conf_rec.fixed = fixed.empty() || fixed.starts_with("1")
-                                               || fixed.starts_with("y")
-                                               || fixed.starts_with("t");
+                auto& fixed = utf::to_low(item[attr_fixed]);
+                conf_rec.fixed = fixed.empty() || fixed.starts_with("1")  // 1 - true
+                                               || fixed.starts_with("o")  // on
+                                               || fixed.starts_with("y")  // yes
+                                               || fixed.starts_with("t"); // true
                 if (conf_rec.fixed)
                 {
                     auto& menu_rec = menu_list[unique_id];
@@ -1235,27 +1228,6 @@ namespace netxs::app::shared
                 if (auto& frame = what.object)
                 {
                     insts_count++;
-                    #ifndef PROD
-                        if (insts_count > APPS_MAX_COUNT)
-                        {
-                            log("inst: max count reached");
-                            auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
-                            auto w_frame = ptr::shadow(frame);
-                            frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
-                            {
-                                if (timestamp > timeout)
-                                {
-                                    log("inst: timebomb");
-                                    if (auto frame = w_frame.lock())
-                                    {
-                                        frame->base::detach();
-                                        log("inst: frame detached: ", insts_count);
-                                    }
-                                }
-                            };
-                        }
-                    #endif
-
                     frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
                     {
                         insts_count--;

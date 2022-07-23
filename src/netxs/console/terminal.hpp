@@ -6142,10 +6142,6 @@ namespace netxs::ui
             }
             else if (selection_passed()) // Paste from clipboard.
             {
-                #ifndef PROD
-                    return;
-                #endif
-
                 auto data = text{};
                 gear.get_clip_data(data);
                 if (data.size())
@@ -6479,9 +6475,6 @@ namespace netxs::ui
 
                 follow[axis::X] = true;
                 follow[axis::Y] = true;
-                #ifndef PROD
-                    return;
-                #endif
 
                 //todo optimize/unify
                 auto data = gear.interpret();
@@ -7120,11 +7113,6 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
                 //this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
-
-                #ifndef PROD
-                    return;
-                #endif
-
                 #ifdef KEYLOG
                     auto d = std::stringstream{};
                     auto v = view{ gear.cluster };

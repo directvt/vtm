@@ -5,12 +5,7 @@
 #define NETXS_APP_TILE_HPP
 
 // Tiling limits.
-#ifndef PROD
-    #define INHERITANCE_LIMIT 12
-    #define TILE_MAX_COUNT    2
-#else
-    #define INHERITANCE_LIMIT 30
-#endif
+#define INHERITANCE_LIMIT 30
 
 namespace netxs::app::tile
 {
@@ -698,27 +693,6 @@ namespace netxs::app::tile
                                 //todo unify, demo limits
                                 {
                                     insts_count++;
-                                    #ifndef PROD
-                                        if (insts_count > APPS_MAX_COUNT)
-                                        {
-                                            log("tile: inst: max count reached");
-                                            auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
-                                            auto w_frame = ptr::shadow(host);
-                                            host->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
-                                            {
-                                                if (timestamp > timeout)
-                                                {
-                                                    log("tile: inst: timebomb");
-                                                    if (auto host = w_frame.lock())
-                                                    {
-                                                        host->riseup<tier::release>(e2::form::quit, host);
-                                                        //host->base::detach();
-                                                        log("tile: inst: frame detached: ", insts_count);
-                                                    }
-                                                }
-                                            };
-                                        }
-                                    #endif
                                     host->SUBMIT(tier::release, e2::dtor, id)
                                     {
                                         insts_count--;
@@ -855,25 +829,6 @@ namespace netxs::app::tile
 
             auto object = ui::fork::ctor(axis::Y)
                         ->plugin<items>();
-
-            #ifndef PROD
-                if (app::shared::tile_count < TILE_MAX_COUNT)
-                {
-                    auto c = &app::shared::tile_count; (*c)++;
-                    object->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
-                    {
-                        (*c)--;
-                        log("main: tile manager destoyed");
-                    };
-                }
-                else
-                {
-                    auto& creator = app::shared::creator("Empty");
-                    object->attach(slot::_1, creator(""));
-                    app::shared::app_limit(object, "Reached The Limit");
-                    return object;
-                }
-            #endif
 
             object->invoke([&](auto& boss)
                 {

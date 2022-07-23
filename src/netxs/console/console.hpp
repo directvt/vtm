@@ -4704,10 +4704,6 @@ namespace netxs::console
             }
         };
 
-        #ifndef PROD
-        pro::watch zombi{*this }; // hall: Zombie protection.
-        #endif
-
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
         depo regis; // hall: Actors registry.
@@ -5225,13 +5221,8 @@ namespace netxs::console
             coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
             region            = _region;
             fullname          = _name;
-            #ifndef PROD
-                name          = "[User." + utf::remain(ip) + ":" + port + "]";
-                title         = _region;
-            #else
-                name          = _user;
-                title         = _user;
-            #endif
+            name              = _user;
+            title             = _user;
             tooltip_timeout   = 500ms;
             tooltip_enabled   = true;
             glow_fx           = true;

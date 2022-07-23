@@ -11,7 +11,6 @@ auto DirectVT = R"==(
 #define DESKTOPIO_MYNAME "Desktopio Calc " DESKTOPIO_VER
 #define DESKTOPIO_MYPATH "vtm/calc"
 #define DESKTOPIO_DEFAPP "Calc"
-#define PROD
 
 #include "../apps.hpp"
 
