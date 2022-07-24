@@ -292,7 +292,12 @@ namespace netxs::app::term
                                     {
                                         boss.set_fg_color(fg);
                                     };
-
+                                    boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
+                                    {
+                                        auto deed = boss.bell::template protos<tier::anycast>();
+                                             if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::bg, clr);
+                                        else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::fg, clr);
+                                    };
                                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                                     {
                                         boss.start();

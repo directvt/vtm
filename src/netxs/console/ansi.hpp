@@ -2276,6 +2276,9 @@ namespace netxs::ansi
             STRUCT(native,            (bool, mode)) // CCC_EXT/* 25:1p */
             STRUCT(unknown_gc,        (ui64, token))
             STRUCT(fps,               (si32, frame_rate))
+            STRUCT(bgc,               (rgba, color))
+            STRUCT(fgc,               (rgba, color))
+            STRUCT(slimmenu,          (bool, menusize))
             STRUCT(debug_count,       (si32, count))
             STRUCT(debugdata,         (text, data))
 
@@ -2555,6 +2558,9 @@ namespace netxs::ansi
                 X(request_gc       ) /* Unknown gc token list.                        */\
                 X(unknown_gc       ) /* Unknown gc token.                             */\
                 X(fps              ) /* Set frame rate.                               */\
+                X(bgc              ) /* Set background color.                         */\
+                X(fgc              ) /* Set foreground color.                         */\
+                X(slimmenu         ) /* Set window menu size.                         */\
                 X(debug_count      ) /* Debug listeners count.                        */\
                 X(debugdata        ) /* Debug data.                                   */
 

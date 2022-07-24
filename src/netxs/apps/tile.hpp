@@ -249,7 +249,7 @@ namespace netxs::app::tile
         };
         auto app_window = [](view header, view footer, auto branch, auto menu_item_id)
         {
-            branch->SIGNAL(tier::anycast, e2::form::prop::menusize, 1);
+            branch->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, true);
             return ui::fork::ctor(axis::Y)
                     ->plugin<pro::title>(""/*not used here*/, footer, true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })

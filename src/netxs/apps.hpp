@@ -42,7 +42,7 @@ namespace netxs::app::shared
     static constexpr auto attr_bg       = "bg";
     static constexpr auto attr_fg       = "fg";
     static constexpr auto attr_winsize  = "winsize";
-    static constexpr auto attr_menusize = "menusize";
+    static constexpr auto attr_slimmenu = "slimmenu";
     static constexpr auto attr_hotkey   = "hotkey";
     static constexpr auto attr_type     = "type";
     static constexpr auto attr_param    = "param";
@@ -264,8 +264,9 @@ namespace netxs::app::shared
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::menusize, size)
+                boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::ui::slimmenu, slim)
                 {
+                    auto size = slim ? 1 : 3;
                     if (auto park_ptr = park_shadow.lock())
                     if (auto grip_ptr = grip_shadow.lock())
                     if (auto boss_ptr = boss_shadow.lock())
@@ -455,7 +456,6 @@ namespace netxs::app::shared
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::creator(aclass)((direct ? "" : "!") + params); // ! - means simple (w/o plugins)
             auto window = ground->invite<gate>(config);
-            if (!direct) applet->SIGNAL(tier::anycast, e2::form::prop::menusize, menusz);
             window->resize(size);
             window->launch(tunnel.first, applet);
             window.reset();
@@ -1241,14 +1241,14 @@ namespace netxs::app::shared
                 if (shadow.starts_with('#')) // hex: #rrggbbaa
                 {
                     shadow.remove_prefix(1);
-                    if (shadow.size() >= 9) // hex: #rrggbbaa
+                    if (shadow.size() >= 8) // hex: #rrggbbaa
                     {
                         result.chan.r = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
                         result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                         result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                         result.chan.a = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
                     }
-                    else if (shadow.size() >= 7) // hex: #rrggbb
+                    else if (shadow.size() >= 6) // hex: #rrggbb
                     {
                         result.chan.r = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
                         result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
@@ -1260,14 +1260,14 @@ namespace netxs::app::shared
                 else if (shadow.starts_with("0x")) // hex: 0xaabbggrr
                 {
                     shadow.remove_prefix(2);
-                    if (shadow.size() >= 10) // hex: 0xaabbggrr
+                    if (shadow.size() >= 8) // hex: 0xaabbggrr
                     {
                         result.chan.a = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
                         result.chan.b = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                         result.chan.g = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                         result.chan.r = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
                     }
-                    else if (shadow.size() >= 8) // hex: 0xbbggrr
+                    else if (shadow.size() >= 6) // hex: 0xbbggrr
                     {
                         result.chan.b = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
                         result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
@@ -1340,7 +1340,7 @@ namespace netxs::app::shared
                 conf_rec.bg       = take_rgba(item, attr_bg);
                 conf_rec.fg       = take_rgba(item, attr_fg);
                 conf_rec.winsize  = take_twod(item, attr_winsize);
-                conf_rec.slimmenu = take_bool(item, attr_menusize);
+                conf_rec.slimmenu = take_bool(item, attr_slimmenu);
                 conf_rec.hotkey   = take_text(item, attr_hotkey);
                 //todo register hotkey
                 conf_rec.type     = take_text(item, attr_type);
@@ -1416,10 +1416,9 @@ namespace netxs::app::shared
             auto& creator = app::shared::creator(config.type);
 
             auto object = creator(config.param);
-
-            //todo unify (exclude term, forward to dtvt)
-            if (config.bg) object->SIGNAL(tier::anycast, app::term::events::colors::bg, config.bg);
-            if (config.fg) object->SIGNAL(tier::anycast, app::term::events::colors::fg, config.fg);
+            if (config.bg) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg, config.bg);
+            if (config.fg) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg, config.fg);
+            object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
 
             window->attach(object);
             log("host: app type: ", config.type, ", menu item id: ", what.menuid);

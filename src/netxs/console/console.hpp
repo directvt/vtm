@@ -429,11 +429,11 @@ namespace netxs::events::userland
                     EVENT_XS( brush     , const cell  ), // set form brush/color.
                     EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
-                    EVENT_XS( menusize  , si32        ), // release: set menu height.
                     EVENT_XS( lucidity  , si32        ), // set or request window transparency, si32: 0-255, -1 to request.
                     EVENT_XS( fixedsize , bool        ), // set ui::fork ratio.
                     GROUP_XS( window    , twod        ), // set or request window properties.
                     GROUP_XS( ui        , text        ), // set or request textual properties.
+                    GROUP_XS( colors    , rgba        ), // set or request bg/fg colors.
 
                     SUBSET_XS( window )
                     {
@@ -441,9 +441,15 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( ui )
                     {
-                        EVENT_XS( header , text ), // set/get form caption header.
-                        EVENT_XS( footer , text ), // set/get form caption footer.
-                        EVENT_XS( tooltip, text ), // set/get tooltip text.
+                        EVENT_XS( header  , text ), // set/get form caption header.
+                        EVENT_XS( footer  , text ), // set/get form caption footer.
+                        EVENT_XS( tooltip , text ), // set/get tooltip text.
+                        EVENT_XS( slimmenu, bool ), // set/get window menu size.
+                    };
+                    SUBSET_XS( colors )
+                    {
+                        EVENT_XS( bg, rgba ), // set/get rgba color.
+                        EVENT_XS( fg, rgba ), // set/get rgba color.
                     };
                 };
                 SUBSET_XS( global )
@@ -4904,12 +4910,12 @@ namespace netxs::console
         { }
 
         // link: Send an event message to the link owner.
-        template<class E, class T>
+        template<tier TIER = tier::release, class E, class T>
         void notify(E, T& data)
         {
             netxs::events::enqueue(owner, [d = data](auto& boss) mutable
             {
-                boss.SIGNAL(tier::release, E{}, d);
+                boss.SIGNAL(TIER, E{}, d);
             });
         }
         void handle(s11n::xs::focus       lock)
@@ -5032,6 +5038,21 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             notify(e2::config::fps, item.frame_rate);
+        }
+        void handle(s11n::xs::bgc         lock)
+        {
+            auto& item = lock.thing;
+            notify<tier::anycast>(e2::form::prop::colors::bg, item.color);
+        }
+        void handle(s11n::xs::fgc         lock)
+        {
+            auto& item = lock.thing;
+            notify<tier::anycast>(e2::form::prop::colors::fg, item.color);
+        }
+        void handle(s11n::xs::slimmenu    lock)
+        {
+            auto& item = lock.thing;
+            notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
         }
         void handle(s11n::xs::debug_count lock)
         {
