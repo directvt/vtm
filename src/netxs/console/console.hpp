@@ -5709,6 +5709,10 @@ namespace netxs::console
                             SIGNAL_GLOBAL(e2::config::fps, fps);
                         }
                     };
+                    SUBMIT_T(tier::preview, e2::config::fps, token, fps)
+                    {
+                        conio.fps.send(conio, fps);
+                    };
                     SUBMIT_T(tier::preview, hids::events::mouse::button::click::any, token, gear)
                     {
                         log("e2::form::layout::expose");

@@ -2801,7 +2801,7 @@ namespace netxs::ui
         {
             if (_move_grip(new_val))
             {
-                SIGNAL(TIER, EVENT{}, cur_val);
+                base::template riseup<TIER>(EVENT{}, cur_val);
             }
         }
         void giveup(hids& gear)
@@ -2828,7 +2828,7 @@ namespace netxs::ui
             SUBMIT(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
-            SIGNAL(TIER, EVENT{}, cur_val);
+            base::template riseup<TIER>(EVENT{}, cur_val);
 
             limit.set(twod{ utf::length(caption) + (pad + 2) * 2,
                            10 });
@@ -2852,7 +2852,7 @@ namespace netxs::ui
                     base::deface();
                 }
             };
-            SUBMIT(TIER, EVENT{}, cur_val)
+            SUBMIT(tier::general, EVENT{}, cur_val)
             {
                 if (cur_val >= min_val)
                 {

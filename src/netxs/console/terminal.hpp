@@ -6863,6 +6863,13 @@ namespace netxs::ui
                 auto& w = lock.thing;
                 //todo implement
             }
+            void handle(s11n::xs::fps                 lock)
+            {
+                netxs::events::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& boss) mutable
+                {
+                    SIGNAL_GLOBAL(e2::config::fps, fps);
+                });
+            }
 
             events_t(dtvt& owner)
                 : s11n{ *this, owner.id },
