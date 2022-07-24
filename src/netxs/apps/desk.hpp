@@ -155,6 +155,7 @@ namespace netxs::app::desk
                                                  auto viewport = gear.area();
                                                  gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
                                                  gear.slot.size = viewport.size * 3 / 4;
+                                                 gear.slot_forced = faux;
                                                  world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
                                                  gear.dismiss();
                                              }

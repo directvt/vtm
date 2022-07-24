@@ -874,9 +874,6 @@ namespace netxs::app::shared
         auto build_Powershell    = [](view v)
         {
             auto window = app::term::build("powershell");
-            //todo unify
-            auto colors = cell{ whitespace }.fgc(whitelt).bgc(0xFF562401);
-            window->SIGNAL(tier::anycast, app::term::events::colors, colors);
             return window;
         };
         auto build_Headless      = [](view v)
@@ -941,6 +938,7 @@ namespace netxs::app::shared
                             auto viewport = gear.area();
                             gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
                             gear.slot.size = viewport.size * 3 / 4;
+                            gear.slot_forced = faux;
 
                             auto menu_list_ptr = e2::bindings::list::apps.param();
                             auto conf_list_ptr = e2::bindings::list::links.param();
@@ -1176,46 +1174,177 @@ namespace netxs::app::shared
         }
 
         log("apps: ", list.size(), " menu item(s) added");
+        auto take_ui32 = [](auto& item, auto& attr)
+        {
+            auto result = ui32{};
+            if (auto v = utf::to_int(item[attr]))
+            {
+                result = v.value();
+            }
+            return result;
+        };
+        auto take_text = [](auto& item, auto& attr)
+        {
+            if (auto iter = item.find(attr); iter != item.end())
+            {
+                return view{ iter->second };
+            }
+            return view{};
+        };
+        auto take_bool = [](auto& item, auto& attr)
+        {
+            auto result = faux;
+            if (auto iter = item.find(attr); iter != item.end())
+            {
+                auto& value = utf::to_low(iter->second);
+                result = value.empty() || value.starts_with("1")  // 1 - true
+                                       || value.starts_with("o")  // on
+                                       || value.starts_with("y")  // yes
+                                       || value.starts_with("t"); // true
+            }
+            return result;
+        };
+        auto take_twod = [](auto& item, auto& attr)
+        {
+            auto result = dot_00;
+            if (auto iter = item.find(attr); iter != item.end())
+            {
+                auto shadow = view{ iter->second };
+                utf::trim_front(shadow, " ({[\"\'");
+                if (auto x = utf::to_int(shadow))
+                {
+                    utf::trim_front(shadow, " ,.x/:;");
+                    if (auto y = utf::to_int(shadow))
+                    {
+                        result.x = x.value();
+                        result.y = y.value();
+                    }
+                }
+            }
+            return result;
+        };
+        auto take_rgba = [](auto& item, auto& attr)
+        {
+            auto result = rgba{};
+            auto tobyte = [](auto c)
+            {
+                     if (c >= '0' && c <= '9') return c - '0';
+                else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+                else                           return 0;
+            };
+            
+            if (auto iter = item.find(attr); iter != item.end())
+            {
+                auto& value = utf::to_low(iter->second);
+                auto shadow = view{ value };
+                utf::trim_front(shadow, " ({[\"\'");
+                if (shadow.starts_with('#')) // hex: #rrggbbaa
+                {
+                    shadow.remove_prefix(1);
+                    if (shadow.size() >= 9) // hex: #rrggbbaa
+                    {
+                        result.chan.r = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
+                        result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
+                        result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
+                        result.chan.a = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
+                    }
+                    else if (shadow.size() >= 7) // hex: #rrggbb
+                    {
+                        result.chan.r = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
+                        result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
+                        result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
+                        result.chan.a = 0xff;
+                    }
+                    else log(" xml: unknown hex rgba format: { ", value, " }, expected #rrggbbaa or #rrggbb rgba hex value");
+                }
+                else if (shadow.starts_with("0x")) // hex: 0xaabbggrr
+                {
+                    shadow.remove_prefix(2);
+                    if (shadow.size() >= 10) // hex: 0xaabbggrr
+                    {
+                        result.chan.a = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
+                        result.chan.b = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
+                        result.chan.g = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
+                        result.chan.r = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
+                    }
+                    else if (shadow.size() >= 8) // hex: 0xbbggrr
+                    {
+                        result.chan.b = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
+                        result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
+                        result.chan.r = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
+                        result.chan.a = 0xff;
+                    }
+                    else log(" xml: unknown hex rgba format: { ", value, " }, expected 0xaabbggrr or 0xbbggrr rgba hex value");
+                }
+                else if (utf::check_any(shadow, ",;/")) // dec: 000,000,000,000
+                {
+                    if (auto r = utf::to_int(shadow))
+                    {
+                        result.chan.r = r.value();
+                        utf::trim_front(shadow, ",./:;");
+                        if (auto g = utf::to_int(shadow))
+                        {
+                            result.chan.g = g.value();
+                            utf::trim_front(shadow, ",./:;");
+                            if (auto b = utf::to_int(shadow))
+                            {
+                                result.chan.b = b.value();
+                                utf::trim_front(shadow, ",./:;");
+                                if (auto a = utf::to_int(shadow)) result.chan.a = a.value();
+                                else                              result.chan.a = 0xff;
+                                return result;
+                            }
+                        }
+                    }
+                    log(" xml: unknown rgba format: { ", value, " }, expected 000,000,000,000 decimal rgba value");
+                }
+                else // Single ANSI color value
+                {
+                    if (auto c = utf::to_int(shadow); c.value() >=0 && c.value() <=255)
+                    {
+                        result = rgba::color256[c.value()];
+                    }
+                    else log(" xml: unknown ANSI 256-color value format: { ", value, " }, expected 0-255 decimal value");
+                }
+            }
+            return result;
+        };
         for (auto& [name, item] : list)
         {
+            auto filepath = utf::to_utf(name.path().wstring());
             if (auto iter = item.find(attr_id); iter != item.end())
             {
                 auto& id = iter->second;
-                auto filepath = utf::to_utf(name.path().wstring());
                 auto unique_id = filepath + "/" + id;
-                auto& conf_rec = conf_list[unique_id];
-                conf_rec.fname = name;
-                conf_rec.id    = id;
-                if (auto idx = utf::to_int(item[attr_index]))
+                auto& label = item[attr_label];
+                if (label.empty())
                 {
-                    conf_rec.index = idx.value();
-                }
-                conf_rec.alias = item[attr_alias];
-                if (auto iter = item.find(attr_hidden); iter != item.end())
-                {
-                    auto& value = utf::to_low(iter->second);
-                    conf_rec.hidden = value.empty() || value.starts_with("1")  // 1 - true
-                                                    || value.starts_with("o")  // on
-                                                    || value.starts_with("y")  // yes
-                                                    || value.starts_with("t"); // true
-                }
-                conf_rec.label = item[attr_label];
-                if (conf_rec.label.empty())
-                {
-                    log("apps: attribute 'label' missing for ", unique_id);
+                    log("apps: attribute '", attr_label, "' missing for ", unique_id);
                     continue;
                 }
-                conf_rec.notes = item[attr_notes];
-                conf_rec.title = item[attr_title];
-                conf_rec.footer = item[attr_footer];
-                //conf_rec.bg = rgba::from_text(item[attr_bg]);
-                //conf_rec.fg = rgba::from_text(item[attr_fg]);
-                //conf_rec.winsize = twod::from_text(item[attr_winsize]);
-                //conf_rec.menusize = twod::from_text(item[attr_menusize]);
-                conf_rec.hotkey = item[attr_hotkey];
+                if (id.empty())
+                {
+                    log("apps: attribute '", attr_id, "' missing for ", unique_id);
+                    continue;
+                }
+                auto& conf_rec = conf_list[unique_id];
+                conf_rec.label    = label;
+                conf_rec.fname    = name;
+                conf_rec.id       = id;
+                conf_rec.index    = take_ui32(item, attr_index);
+                conf_rec.alias    = take_text(item, attr_alias);
+                conf_rec.hidden   = take_bool(item, attr_hidden);
+                conf_rec.notes    = take_text(item, attr_notes);
+                conf_rec.title    = take_text(item, attr_title);
+                conf_rec.footer   = take_text(item, attr_footer);
+                conf_rec.bg       = take_rgba(item, attr_bg);
+                conf_rec.fg       = take_rgba(item, attr_fg);
+                conf_rec.winsize  = take_twod(item, attr_winsize);
+                conf_rec.slimmenu = take_bool(item, attr_menusize);
+                conf_rec.hotkey   = take_text(item, attr_hotkey);
                 //todo register hotkey
-                conf_rec.type  = item[attr_type ];
-                conf_rec.param = item[attr_param];
+                conf_rec.type     = take_text(item, attr_type);
+                conf_rec.param    = take_text(item, attr_param);
 
                 utf::change(conf_rec.title,  "$0", filepath);
                 utf::change(conf_rec.footer, "$0", filepath);
@@ -1228,6 +1357,7 @@ namespace netxs::app::shared
                     auto& menu_rec = menu_list[unique_id];
                 }
             }
+            else log("apps: attribute '", attr_id, "' missing for ", filepath);
         }
 
         world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
@@ -1255,6 +1385,7 @@ namespace netxs::app::shared
             {
                 auto what = e2::form::proceed::createat.param();
                 what.square = gear.slot;
+                what.forced = gear.slot_forced;
                 auto data = e2::data::changed.param();
                 gate.SIGNAL(tier::request, e2::data::changed, data);
                 what.menuid = data;
@@ -1280,9 +1411,17 @@ namespace netxs::app::shared
             auto& config = conf_list[what.menuid];
             auto  window = app::shared::base_window(config.title, "", what.menuid);
 
-            window->extend(what.square);
+            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
+            else                                window->extend(what.square);
             auto& creator = app::shared::creator(config.type);
-            window->attach(creator(config.param));
+
+            auto object = creator(config.param);
+
+            //todo unify (exclude term, forward to dtvt)
+            if (config.bg) object->SIGNAL(tier::anycast, app::term::events::colors::bg, config.bg);
+            if (config.fg) object->SIGNAL(tier::anycast, app::term::events::colors::fg, config.fg);
+
+            window->attach(object);
             log("host: app type: ", config.type, ", menu item id: ", what.menuid);
             world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());

@@ -12,8 +12,8 @@ namespace netxs::events::userland
     {
         EVENTPACK( uiterm, netxs::events::userland::root::custom )
         {
-            EVENT_XS( colors, cell ),
             EVENT_XS( selmod, si32 ),
+            GROUP_XS( colors, rgba ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( search, input::hids ),
 
@@ -27,6 +27,11 @@ namespace netxs::events::userland
                 EVENT_XS( forward, input::hids ),
                 EVENT_XS( reverse, input::hids ),
                 EVENT_XS( status , si32        ),
+            };
+            SUBSET_XS( colors )
+            {
+                EVENT_XS( bg, rgba ),
+                EVENT_XS( fg, rgba ),
             };
         };
     };
@@ -6324,6 +6329,24 @@ namespace netxs::ui
             base::color(brush);
             target->brush.reset(brush);
         }
+        void set_bg_color(rgba bg)
+        {
+            //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
+            auto brush = base::color();
+            brush.bgc(bg);
+            brush.link(base::id);
+            base::color(brush);
+            target->brush.reset(brush);
+        }
+        void set_fg_color(rgba fg)
+        {
+            //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
+            auto brush = base::color();
+            brush.fgc(fg);
+            brush.link(base::id);
+            base::color(brush);
+            target->brush.reset(brush);
+        }
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
@@ -6429,7 +6452,8 @@ namespace netxs::ui
             set_color(cell{ '\0' }.fgc(def_fcolor).bgc(def_bcolor).link(this->id)); //todo unify (config with defaults)
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
-            publish_property(ui::term::events::colors,         [&](auto& v){ v = target->brush; });
+            publish_property(ui::term::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
+            publish_property(ui::term::events::colors::fg,     [&](auto& v){ v = target->brush.fgc(); });
             publish_property(ui::term::events::layout::wrapln, [&](auto& v){ v = target->style.wrp(); });
             publish_property(ui::term::events::layout::align,  [&](auto& v){ v = target->style.jet(); });
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });

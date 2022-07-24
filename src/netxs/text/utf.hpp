@@ -330,8 +330,7 @@ namespace netxs::utf
     }
 
     // utf: Return the first grapheme cluster and its Unicode attributes.
-    static
-    auto letter(view const& utf8)
+    static auto letter(view const& utf8)
     {
         if (auto code = cpit{ utf8 })
         {
@@ -1426,7 +1425,12 @@ namespace netxs::utf
             ++head;
         }
         return head;
-    };
+    }
+    auto check_any(view shadow, view delims)
+    {
+        auto p = utf::find_char(shadow.begin(), shadow.end(), delims);
+        return p != shadow.end();
+    }
     template<class P>
     void trim_front_if(view& utf8, P pred)
     {
@@ -1439,17 +1443,17 @@ namespace netxs::utf
             ++head;
         }
         utf8.remove_prefix(std::distance(utf8.begin(), head));
-    };
+    }
     void trim_front(view& utf8, view delims)
     {
         trim_front_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
-    };
+    }
     auto trim(view utf8, char space = ' ')
     {
         while (!utf8.empty() && utf8.front() == space) utf8.remove_prefix(1);
         while (!utf8.empty() && utf8. back() == space) utf8.remove_suffix(1);
         return utf8;
-    };
+    }
     auto get_quote(view& utf8, view delims, view skip = {})
     {
         auto head = utf8.begin();
@@ -1471,7 +1475,7 @@ namespace netxs::utf
         auto str = text{ coor, stop }; 
         if (!skip.empty()) trim_front(utf8, skip);
         return str;
-    };
+    }
     auto get_tail(view& utf8, view delims)
     {
         auto head = utf8.begin();
@@ -1485,7 +1489,7 @@ namespace netxs::utf
         auto str = text{ head, stop };
         utf8.remove_prefix(std::distance(head, stop));
         return str;
-    };
+    }
     template<class TEXT_or_VIEW>
     auto is_plain(TEXT_or_VIEW&& utf8)
     {

@@ -41,11 +41,12 @@ namespace netxs::console
     struct create_t
     {
         using sptr = netxs::sptr<base>;
-        text menuid;
-        text header;
-        text footer;
-        rect square;
-        sptr object;
+        text menuid{};
+        text header{};
+        text footer{};
+        rect square{};
+        bool forced{};
+        sptr object{};
     };
     struct menuitem_t
     {
@@ -62,7 +63,7 @@ namespace netxs::console
         rgba       bg{};
         rgba       fg{};
         twod  winsize{};
-        twod menusize{};
+        bool slimmenu{};
         text   hotkey{};
         text     type{};
         text    param{};
@@ -2331,6 +2332,7 @@ namespace netxs::console
                     if (data.slot)
                     {
                         gear.slot = data.slot;
+                        gear.slot_forced = true;
                         boss.SIGNAL(tier::preview, e2::form::proceed::createby, gear);
                     }
                     slots.erase(gear.id);

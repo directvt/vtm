@@ -7,7 +7,7 @@ auto DirectVT = R"==(
 )=="
 #ifdef _WIN32
 R"==(
-    <menuitem id=PowerShell label="PowerShell" notes="Tooltip Message" type=DirectVT param="$0 -r powershell"/>
+    <menuitem id=PowerShell label="PowerShell" fg=15 bg=0xFF562401 notes="Tooltip Message" type=DirectVT param="$0 -r powershell"/>
     <menuitem id=Far label="Far" notes="Far Manager" type=DirectVT param="$0 -r headless far"/>
 )=="
 #endif
@@ -18,7 +18,7 @@ R"==(
     "<menuitem id=View label=View notes=\"Desktop region\" type=Region title=\"\033[11:3pView: Region 1\"/>"
 
 R"==(
-    <menuitem id=Settings  label=Settings          notes="Tooltip Message" type=DirectVT title="Settings"   param="$0 -r settings"/>
+    <menuitem id=Settings  label=Settings winsize=50x15 notes="Tooltip Message" type=DirectVT title="Settings"   param="$0 -r settings"/>
     <menuitem id=Logs      label=Logs              notes="Tooltip Message" type=DirectVT title="Logs Title" param="$0 -r logs"/>
     <menuitem id=Gems      label="Gems [DEMO]"     notes="Tooltip Message" type=DirectVT title="Gems Title" param="$0 -r gems"/>
     <menuitem id=Text      label="Text [DEMO]"     notes="Tooltip Message" type=DirectVT title="Text Title" param="$0 -r text"/>

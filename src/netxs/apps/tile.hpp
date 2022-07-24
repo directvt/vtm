@@ -293,6 +293,7 @@ namespace netxs::app::tile
                                 what.square.size = branch.base::size();
                                 branch.global(what.square.coor);
                                 what.square.coor = -what.square.coor;
+                                what.forced = true;
                                 what.object = branch_ptr;
                                 master.SIGNAL(tier::preview, e2::form::proceed::detach, branch_ptr);
                                 branch.moveto(dot_00);
@@ -1065,7 +1066,7 @@ namespace netxs::app::tile
         };
     }
 
-    app::shared::initialize builder{ app::shared::type_Region, build_inst };
+    app::shared::initialize builder{ app::shared::type_Group, build_inst };
 }
 
 #endif // NETXS_APP_TILE_HPP

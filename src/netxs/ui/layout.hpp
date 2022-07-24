@@ -136,6 +136,10 @@ namespace netxs::ui::atoms
             }
         }
 
+        constexpr explicit operator bool() const
+        {
+            return token;
+        }
         constexpr auto operator == (rgba const& c) const
         {
             return token == c.token;

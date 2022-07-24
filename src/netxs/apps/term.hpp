@@ -14,7 +14,7 @@ namespace netxs::events::userland
         {
             EVENT_XS( cmd   , si32 ),
             EVENT_XS( selmod, si32 ),
-            EVENT_XS( colors, cell ),
+            GROUP_XS( colors, rgba ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( data  , si32 ),
             GROUP_XS( search, input::hids ),
@@ -34,6 +34,11 @@ namespace netxs::events::userland
                 EVENT_XS( forward, input::hids ),
                 EVENT_XS( reverse, input::hids ),
                 EVENT_XS( status , si32        ),
+            };
+            SUBSET_XS( colors )
+            {
+                EVENT_XS( bg, rgba ),
+                EVENT_XS( fg, rgba ),
             };
         };
     };
@@ -258,7 +263,8 @@ namespace netxs::app::term
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
                                                                                 : text{ v }));
 
-                            inst->attach_property(ui::term::events::colors,          app::term::events::colors)
+                            inst->attach_property(ui::term::events::colors::bg,      app::term::events::colors::bg)
+                                ->attach_property(ui::term::events::colors::fg,      app::term::events::colors::fg)
                                 ->attach_property(ui::term::events::selmod,          app::term::events::selmod)
                                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::layout::wrapln)
                                 ->attach_property(ui::term::events::layout::align,   app::term::events::layout::align)
@@ -278,9 +284,13 @@ namespace netxs::app::term
                                         boss.data_out(data);
                                     };
                                     //todo add color picker to the menu
-                                    boss.SUBMIT(tier::anycast, app::term::events::colors, brush)
+                                    boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
                                     {
-                                        boss.set_color(brush);
+                                        boss.set_bg_color(bg);
+                                    };
+                                    boss.SUBMIT(tier::anycast, app::term::events::colors::fg, fg)
+                                    {
+                                        boss.set_fg_color(fg);
                                     };
 
                                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)

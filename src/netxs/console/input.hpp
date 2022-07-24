@@ -831,6 +831,7 @@ namespace netxs::input
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
+        bool slot_forced = faux; // .
 
         //todo unify
         bool disabled = faux;
