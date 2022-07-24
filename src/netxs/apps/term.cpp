@@ -3,7 +3,7 @@
 
 auto DirectVT = R"==(
 <VTM_PROFILE>
-    <menuitem id=Term label="Term" title="Terminal Emulator" notes="Terminal Emulator" class="DirectVT" param="$0"/>
+    <menuitem id=Term label="Term" title="Terminal Emulator" notes="Terminal Emulator" type=DirectVT param="$0"/>
 </VTM_PROFILE>
 )==";
 

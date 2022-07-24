@@ -50,15 +50,22 @@ namespace netxs::console
     struct menuitem_t
     {
         using file = fs::directory_entry;
-        text id;
-        file fname;
-        text alias;
-        bool fixed;
-        text label;
-        text notes;
-        text brand;
-        text title;
-        text param;
+        file    fname{};
+        text       id{};
+        ui32    index{};
+        text    alias{};
+        bool   hidden{};
+        text    label{};
+        text    notes{};
+        text    title{};
+        text   footer{};
+        rgba       bg{};
+        rgba       fg{};
+        twod  winsize{};
+        twod menusize{};
+        text   hotkey{};
+        text     type{};
+        text    param{};
     };
 
     using namespace netxs::input;

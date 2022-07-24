@@ -3,29 +3,29 @@
 
 auto DirectVT = R"==(
 <VTM_PROFILE>
-    <menuitem id=Term fixed=yes notes="Tooltip Message" class="DirectVT" title="Terminal Emulator" param="$0 -r term"/>
+    <menuitem id=Term label="Term" hidden=no notes="Tooltip Message" type=DirectVT title="Terminal Emulator" param="$0 -r term"/>
 )=="
 #ifdef _WIN32
 R"==(
-    <menuitem id=PowerShell label="PowerShell" notes="Tooltip Message" class="DirectVT" param="$0 -r powershell"/>
-    <menuitem id=Far label=Far notes="Far Manager" class="DirectVT" param="$0 -r headless far"/>
+    <menuitem id=PowerShell label="PowerShell" notes="Tooltip Message" type=DirectVT param="$0 -r powershell"/>
+    <menuitem id=Far label="Far" notes="Far Manager" type=DirectVT param="$0 -r headless far"/>
 )=="
 #endif
 R"==(
-    <menuitem id=Tile label=Tile notes="Tiling Window Manager" class="Tile" title="Tiling Window Manager" param="h1:1(Term, Term)"/>
+    <menuitem id=Tile label="Tile" notes="Tiling Window Manager" type=Group title="Tiling Window Manager" param="h1:1(Term, Term)"/>
 )=="
 
-    "<menuitem id=View label=View notes=\"Desktop region\" class=View title=\"\033[11:3pView: Region 1\"/>"
+    "<menuitem id=View label=View notes=\"Desktop region\" type=Region title=\"\033[11:3pView: Region 1\"/>"
 
 R"==(
-    <menuitem id=Settings  label=Settings          notes="Tooltip Message" class="Settings"/>
-    <menuitem id=Logs      label=Logs              notes="Tooltip Message" class="DirectVT" title="Logs Title" param="$0 -r logs"/>
-    <menuitem id=Gems      label="Gems [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Gems Title" param="$0 -r gems"/>
-    <menuitem id=Text      label="Text [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Text Title" param="$0 -r text"/>
-    <menuitem id=Calc      label="Calc [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Calc Title" param="$0 -r calc"/>
-    <menuitem id=Test      label="Test [DEMO]"     notes="Tooltip Message" class="DirectVT" title="Test Title" param="$0 -r test"/>
-    <menuitem id=Truecolor label="Truecolor [DEMO] notes="Tooltip Message" class="DirectVT" title="True Title" param="$0 -r truecolor"/>
-    <menuitem id=mc        label="Midnight Commander" class="ANSIVT" param="mc"/>
+    <menuitem id=Settings  label=Settings          notes="Tooltip Message" type=DirectVT title="Settings"   param="$0 -r settings"/>
+    <menuitem id=Logs      label=Logs              notes="Tooltip Message" type=DirectVT title="Logs Title" param="$0 -r logs"/>
+    <menuitem id=Gems      label="Gems [DEMO]"     notes="Tooltip Message" type=DirectVT title="Gems Title" param="$0 -r gems"/>
+    <menuitem id=Text      label="Text [DEMO]"     notes="Tooltip Message" type=DirectVT title="Text Title" param="$0 -r text"/>
+    <menuitem id=Calc      label="Calc [DEMO]"     notes="Tooltip Message" type=DirectVT title="Calc Title" param="$0 -r calc"/>
+    <menuitem id=Test      label="Test [DEMO]"     notes="Tooltip Message" type=DirectVT title="Test Title" param="$0 -r test"/>
+    <menuitem id=Truecolor label="Truecolor [DEMO] notes="Tooltip Message" type=DirectVT title="True Title" param="$0 -r truecolor"/>
+    <menuitem id=mc        label="Midnight Commander" type=ANSIVT param="mc"/>
 </VTM_PROFILE>
 )==";
 
@@ -231,6 +231,7 @@ int main(int argc, char* argv[])
             else if (params.starts_with("Powershell")) log("Desktopio Powershell "         DESKTOPIO_VER);
             else if (params.starts_with("Truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
             else if (params.starts_with("Headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);
+            else if (params.starts_with("Settings"))   log("Desktopio Settings "           DESKTOPIO_VER);
             else
             {
                 menusz = 1;

@@ -684,7 +684,7 @@ namespace netxs::app::tile
                                 auto& conf_list = app::shared::get_config();
                                 auto config = conf_list[current_default];
 
-                                auto& creator = app::shared::creator(config.brand);
+                                auto& creator = app::shared::creator(config.type);
                                 auto host = creator(config.param);
                                 auto app = app_window(config.title, "", host, current_default);
                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
@@ -843,7 +843,7 @@ namespace netxs::app::tile
                         gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
                         //todo unify
                         auto& config = objs_config[menu_item_id];
-                        if (config.brand == "Tile") // Reset the currently selected application to the previous one.
+                        if (config.type == app::shared::type_Region) // Reset the currently selected application to the previous one.
                         {
                             gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
                             gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
@@ -1065,7 +1065,7 @@ namespace netxs::app::tile
         };
     }
 
-    app::shared::initialize builder{ "Tile", build_inst };
+    app::shared::initialize builder{ app::shared::type_Region, build_inst };
 }
 
 #endif // NETXS_APP_TILE_HPP

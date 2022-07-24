@@ -26,18 +26,27 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static constexpr auto class_ANSIVT   = "ANSIVT";
-    static constexpr auto class_DirectVT = "DirectVT";
-    static constexpr auto class_Tile = "Tile";
-    static constexpr auto class_View = "View";
-    static constexpr auto attr_id    = "id";
-    static constexpr auto attr_class = "class";
-    static constexpr auto attr_notes = "notes";
-    static constexpr auto attr_label = "label";
-    static constexpr auto attr_title = "title";
-    static constexpr auto attr_param = "param";
-    static constexpr auto attr_fixed = "fixed";
-    static constexpr auto attr_alias = "alias";
+    static constexpr auto type_ANSIVT   = "ANSIVT";
+    static constexpr auto type_DirectVT = "DirectVT";
+    static constexpr auto type_Group    = "Group";
+    static constexpr auto type_Region   = "Region";
+
+    static constexpr auto attr_id       = "id";
+    static constexpr auto attr_index    = "index";
+    static constexpr auto attr_alias    = "alias";
+    static constexpr auto attr_hidden   = "hidden";
+    static constexpr auto attr_label    = "label";
+    static constexpr auto attr_notes    = "notes";
+    static constexpr auto attr_title    = "title";
+    static constexpr auto attr_footer   = "footer";
+    static constexpr auto attr_bg       = "bg";
+    static constexpr auto attr_fg       = "fg";
+    static constexpr auto attr_winsize  = "winsize";
+    static constexpr auto attr_menusize = "menusize";
+    static constexpr auto attr_hotkey   = "hotkey";
+    static constexpr auto attr_type     = "type";
+    static constexpr auto attr_param    = "param";
+
     static constexpr auto tag_menuitem = "menuitem";
     static constexpr auto tag_profile  = "VTM_PROFILE";
 
@@ -566,7 +575,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_View          = [](view v)
+        auto build_Region        = [](view v)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -940,20 +949,20 @@ namespace netxs::app::shared
                             auto& menu_list = *menu_list_ptr;
                             auto& conf_list = *conf_list_ptr;
 
-                            if (conf_list.contains(name) && conf_list[name].fixed) // Check for id availability.
+                            if (conf_list.contains(name) && !conf_list[name].hidden) // Check for id availability.
                             {
                                 auto i = 1;
                                 auto test = text{};
                                 do   test = name + " (" + std::to_string(++i) + ")";
-                                while (conf_list.contains(test) && conf_list[name].fixed);
+                                while (conf_list.contains(test) && !conf_list[name].hidden);
                                 std::swap(test, name);
                             }
                             auto& m = conf_list[name];
-                            m.brand = type;
+                            m.type = type;
                             m.label = name;
                             m.title = name; // Use the same title as the menu label.
                             m.param = args;
-                            m.fixed = faux;
+                            m.hidden = true;
                             menu_list[name];
 
                             auto current_default = e2::data::changed.param();
@@ -1005,19 +1014,19 @@ namespace netxs::app::shared
             return build_DirectVT(param);
         };
 
-        app::shared::initialize builder_Strobe       { "Strobe"       , build_Strobe        };
-        app::shared::initialize builder_Settings     { "Settings"     , build_Settings      };
-        app::shared::initialize builder_Empty        { "Empty"        , build_Empty         };
-        app::shared::initialize builder_View         { "View"         , build_View          };
-        app::shared::initialize builder_Truecolor    { "Truecolor"    , build_Truecolor     };
-        app::shared::initialize builder_VTM          { "VTM"          , build_VTM           };
-        app::shared::initialize builder_MC           { "MC"           , build_MC            };
-        app::shared::initialize builder_Powershell   { "Powershell"   , build_Powershell    };
-        app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
-        app::shared::initialize builder_Headless     { "Headless"     , build_Headless      };
-        app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
-        app::shared::initialize builder_DirectVT     { "DirectVT"     , build_DirectVT      };
-        app::shared::initialize builder_ANSIVT       { "ANSIVT"       , build_ANSIVT        };
+        app::shared::initialize builder_Strobe       { "Strobe"                  , build_Strobe     };
+        app::shared::initialize builder_Settings     { "Settings"                , build_Settings   };
+        app::shared::initialize builder_Empty        { "Empty"                   , build_Empty      };
+        app::shared::initialize builder_Truecolor    { "Truecolor"               , build_Truecolor  };
+        app::shared::initialize builder_VTM          { "VTM"                     , build_VTM        };
+        app::shared::initialize builder_MC           { "MC"                      , build_MC         };
+        app::shared::initialize builder_Powershell   { "Powershell"              , build_Powershell };
+        app::shared::initialize builder_Bash         { "Bash"                    , app::term::build };
+        app::shared::initialize builder_Headless     { "Headless"                , build_Headless   };
+        app::shared::initialize builder_Fone         { "Fone"                    , build_Fone       };
+        app::shared::initialize builder_Region       { app::shared::type_Region  , build_Region     };
+        app::shared::initialize builder_DirectVT     { app::shared::type_DirectVT, build_DirectVT   };
+        app::shared::initialize builder_ANSIVT       { app::shared::type_ANSIVT  , build_ANSIVT     };
     }
 
     auto init_app_registry = [](auto& world)
@@ -1130,7 +1139,7 @@ namespace netxs::app::shared
                     auto item = item_t{};
                     item[attr_id   ] = fullname;
                     item[attr_notes] = fullname;
-                    item[attr_class] = class_ANSIVT;
+                    item[attr_type ] = type_ANSIVT;
                     item[attr_title] = fullname;
                     item[attr_param] = fullname;
                     list.emplace_back(name, std::move(item));
@@ -1172,24 +1181,49 @@ namespace netxs::app::shared
             if (auto iter = item.find(attr_id); iter != item.end())
             {
                 auto& id = iter->second;
-                auto unique_id = utf::to_utf(name.path().filename().wstring());
-                unique_id += '/';
-                unique_id += id;
+                auto filepath = utf::to_utf(name.path().wstring());
+                auto unique_id = filepath + "/" + id;
                 auto& conf_rec = conf_list[unique_id];
-                conf_rec.id = id;
                 conf_rec.fname = name;
+                conf_rec.id    = id;
+                if (auto idx = utf::to_int(item[attr_index]))
+                {
+                    conf_rec.index = idx.value();
+                }
                 conf_rec.alias = item[attr_alias];
-                conf_rec.brand = item[attr_class];
+                if (auto iter = item.find(attr_hidden); iter != item.end())
+                {
+                    auto& value = utf::to_low(iter->second);
+                    conf_rec.hidden = value.empty() || value.starts_with("1")  // 1 - true
+                                                    || value.starts_with("o")  // on
+                                                    || value.starts_with("y")  // yes
+                                                    || value.starts_with("t"); // true
+                }
                 conf_rec.label = item[attr_label];
+                if (conf_rec.label.empty())
+                {
+                    log("apps: attribute 'label' missing for ", unique_id);
+                    continue;
+                }
                 conf_rec.notes = item[attr_notes];
-                conf_rec.param = item[attr_param];
                 conf_rec.title = item[attr_title];
-                auto& fixed = utf::to_low(item[attr_fixed]);
-                conf_rec.fixed = fixed.empty() || fixed.starts_with("1")  // 1 - true
-                                               || fixed.starts_with("o")  // on
-                                               || fixed.starts_with("y")  // yes
-                                               || fixed.starts_with("t"); // true
-                if (conf_rec.fixed)
+                conf_rec.footer = item[attr_footer];
+                //conf_rec.bg = rgba::from_text(item[attr_bg]);
+                //conf_rec.fg = rgba::from_text(item[attr_fg]);
+                //conf_rec.winsize = twod::from_text(item[attr_winsize]);
+                //conf_rec.menusize = twod::from_text(item[attr_menusize]);
+                conf_rec.hotkey = item[attr_hotkey];
+                //todo register hotkey
+                conf_rec.type  = item[attr_type ];
+                conf_rec.param = item[attr_param];
+
+                utf::change(conf_rec.title,  "$0", filepath);
+                utf::change(conf_rec.footer, "$0", filepath);
+                utf::change(conf_rec.label,  "$0", filepath);
+                utf::change(conf_rec.notes,  "$0", filepath);
+                utf::change(conf_rec.param,  "$0", filepath);
+
+                if (!conf_rec.hidden)
                 {
                     auto& menu_rec = menu_list[unique_id];
                 }
@@ -1247,10 +1281,10 @@ namespace netxs::app::shared
             auto  window = app::shared::base_window(config.title, "", what.menuid);
 
             window->extend(what.square);
-            auto& creator = app::shared::creator(config.brand);
+            auto& creator = app::shared::creator(config.type);
             window->attach(creator(config.param));
-            log("host: app type: ", config.brand, ", menu item id: ", what.menuid);
-            world->branch(what.menuid, window, config.fixed);
+            log("host: app type: ", config.type, ", menu item id: ", what.menuid);
+            world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 
             what.object = window;
@@ -1263,8 +1297,8 @@ namespace netxs::app::shared
 
             window->extend(what.square);
             window->attach(what.object);
-            log("host: attach type=", config.brand, " menu_item_id=", what.menuid);
-            world->branch(what.menuid, window, config.fixed);
+            log("host: attach type=", config.type, " menu_item_id=", what.menuid);
+            world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 
             what.object = window;
