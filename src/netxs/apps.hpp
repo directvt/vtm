@@ -1112,18 +1112,25 @@ namespace netxs::app::shared
         auto stop = what;
         utf::change(stop, "<", "</");
 
+        auto take_path = [](auto const& filename)
+        {
+            auto path = utf::to_utf(filename.path().wstring());
+            utf::change(path, "\\", "/");
+            return path;
+        };
+
         if (fs::exists(apps))
         {
             //auto buff = std::vector<char>(1 << 20 /* 1M */);
             for (auto const& name : fs::directory_iterator(apps))
             {
-                log("apps: external module found: ", name.path());
+                log("apps: external module found: ", take_path(name));
                 if (!(name.is_regular_file()
                    || name.is_symlink())) continue;
                 auto file = std::ifstream(name.path(), std::ios::binary | std::ios::in);
                 if (file.seekg(0, std::ios::end).fail())
                 {
-                    log("apps: unable to get file size, skip it: ", name.path());
+                    log("apps: unable to get file size, skip it: ", take_path(name));
                     continue;
                 }
                 auto size = file.tellg();
@@ -1136,7 +1143,7 @@ namespace netxs::app::shared
 
                 if (last == list.size()) // No records found.
                 {
-                    auto fullname = utf::to_utf(name.path().wstring());
+                    auto fullname = take_path(name);
                     if (fullname.find(' ') != text::npos) fullname = "\"" + fullname + "\"";
                     auto item = item_t{};
                     item[attr_id   ] = fullname;
@@ -1180,7 +1187,7 @@ namespace netxs::app::shared
         log("apps: ", list.size(), " menu item(s) added");
         for (auto& [name, item] : list)
         {
-            auto filepath = utf::to_utf(name.path().wstring());
+            auto filepath = take_path(name);
             if (auto iter = item.find(attr_id); iter != item.end())
             {
                 auto& id = iter->second;
