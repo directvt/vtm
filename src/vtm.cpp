@@ -7,7 +7,7 @@ auto DirectVT = R"==(
 )=="
 #ifdef _WIN32
 R"==(
-    <menuitem id=PowerShell label="PowerShell" fg=15 bg=0xFF562401 notes="Tooltip Message" type=DirectVT param="$0 -r powershell"/>
+    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Tooltip Message" type=DirectVT param="$0 -r powershell"/>
     <menuitem id=Far label="Far" notes="Far Manager" type=DirectVT param="$0 -r headless far"/>
 )=="
 #endif

@@ -53,15 +53,15 @@ namespace netxs::console
         using file = fs::directory_entry;
         file    fname{};
         text       id{};
-        ui32    index{};
+        si32    index{};
         text    alias{};
         bool   hidden{};
         text    label{};
         text    notes{};
         text    title{};
         text   footer{};
-        rgba       bg{};
-        rgba       fg{};
+        rgba  bgcolor{};
+        rgba  fgcolor{};
         twod  winsize{};
         bool slimmenu{};
         text   hotkey{};
@@ -5039,12 +5039,12 @@ namespace netxs::console
             auto& item = lock.thing;
             notify(e2::config::fps, item.frame_rate);
         }
-        void handle(s11n::xs::bgc         lock)
+        void handle(s11n::xs::bgcolor     lock)
         {
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::colors::bg, item.color);
         }
-        void handle(s11n::xs::fgc         lock)
+        void handle(s11n::xs::fgcolor     lock)
         {
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::colors::fg, item.color);

@@ -7128,8 +7128,8 @@ namespace netxs::ui
             SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
             {
                 auto deed = bell::template protos<tier::anycast>();
-                     if (deed == e2::form::prop::colors::bg.id) stream.bgc.send(ptycon, clr);
-                else if (deed == e2::form::prop::colors::fg.id) stream.fgc.send(ptycon, clr);
+                     if (deed == e2::form::prop::colors::bg.id) stream.bgcolor.send(ptycon, clr);
+                else if (deed == e2::form::prop::colors::fg.id) stream.fgcolor.send(ptycon, clr);
             };
             SUBMIT(tier::anycast, e2::form::prop::ui::slimmenu, slim)
             {

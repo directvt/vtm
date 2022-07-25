@@ -16,7 +16,6 @@ namespace netxs::app
 {
     using namespace std::placeholders;
     using namespace netxs::console;
-    using namespace netxs::xml;
     using namespace netxs;
 
     using slot = ui::slot;
@@ -41,8 +40,8 @@ namespace netxs::app::shared
     static constexpr auto attr_notes    = "notes";
     static constexpr auto attr_title    = "title";
     static constexpr auto attr_footer   = "footer";
-    static constexpr auto attr_bg       = "bg";
-    static constexpr auto attr_fg       = "fg";
+    static constexpr auto attr_bgcolor  = "bgcolor";
+    static constexpr auto attr_fgcolor  = "fgcolor";
     static constexpr auto attr_winsize  = "winsize";
     static constexpr auto attr_slimmenu = "slimmenu";
     static constexpr auto attr_hotkey   = "hotkey";
@@ -1040,6 +1039,9 @@ namespace netxs::app::shared
 
         using item_t = std::unordered_map<text, text>;
         auto list = std::vector<std::pair<fs::directory_entry, item_t>>{};
+        auto sort_list = std::list<std::pair<text, menuitem_t>>{};
+        auto free_list = sort_list;
+        auto temp_list = sort_list;
 
         auto take_doc_name = [](auto const& data)
         {
@@ -1194,7 +1196,7 @@ namespace netxs::app::shared
                     log("apps: attribute '", attr_id, "' missing for ", unique_id);
                     continue;
                 }
-                auto& conf_rec = conf_list[unique_id];
+                auto conf_rec = menuitem_t{};
                 conf_rec.label    = label;
                 conf_rec.fname    = name;
                 conf_rec.id       = id;
@@ -1204,8 +1206,8 @@ namespace netxs::app::shared
                 conf_rec.notes    = xml::take<view>(item, attr_notes);
                 conf_rec.title    = xml::take<view>(item, attr_title);
                 conf_rec.footer   = xml::take<view>(item, attr_footer);
-                conf_rec.bg       = xml::take<rgba>(item, attr_bg);
-                conf_rec.fg       = xml::take<rgba>(item, attr_fg);
+                conf_rec.bgcolor  = xml::take<rgba>(item, attr_bgcolor);
+                conf_rec.fgcolor  = xml::take<rgba>(item, attr_fgcolor);
                 conf_rec.winsize  = xml::take<twod>(item, attr_winsize);
                 conf_rec.slimmenu = xml::take<bool>(item, attr_slimmenu, faux);
                 conf_rec.hotkey   = xml::take<view>(item, attr_hotkey); //todo register hotkey
@@ -1218,12 +1220,32 @@ namespace netxs::app::shared
                 utf::change(conf_rec.notes,  "$0", filepath);
                 utf::change(conf_rec.param,  "$0", filepath);
 
-                if (!conf_rec.hidden)
-                {
-                    auto& menu_rec = menu_list[unique_id];
-                }
+                     if (conf_rec.hidden)      temp_list.emplace_back(std::move(unique_id), std::move(conf_rec));
+                else if (conf_rec.index == -1) free_list.emplace_back(std::move(unique_id), std::move(conf_rec));
+                else                           sort_list.emplace_back(std::move(unique_id), std::move(conf_rec));
             }
             else log("apps: attribute '", attr_id, "' missing for ", filepath);
+        }
+        sort_list.sort([](auto const& a, auto const& b)
+        {
+            return a.second.index < b.second.index;
+        });
+        for (auto iter = sort_list.begin(); iter != sort_list.end(); ++iter)
+        {
+            auto& [unique_id, conf_rec] = *iter;
+            auto index = std::clamp(conf_rec.index, 0, static_cast<decltype(conf_rec.index)>(free_list.size()));
+            auto insertion_point = free_list.begin();
+            std::advance(insertion_point, index);
+            free_list.insert(insertion_point, std::move(*iter));
+        }
+        for (auto& [unique_id, conf_rec] : free_list)
+        {
+            menu_list[unique_id];
+            conf_list.emplace(std::move(unique_id), std::move(conf_rec));
+        }
+        for (auto& [unique_id, conf_rec] : temp_list)
+        {
+            conf_list.emplace(std::move(unique_id), std::move(conf_rec));
         }
 
         world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
@@ -1282,8 +1304,8 @@ namespace netxs::app::shared
             auto& creator = app::shared::creator(config.type);
 
             auto object = creator(config.param);
-            if (config.bg) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg, config.bg);
-            if (config.fg) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg, config.fg);
+            if (config.bgcolor) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg, config.bgcolor);
+            if (config.fgcolor) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg, config.fgcolor);
             object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
 
             window->attach(object);
