@@ -3,7 +3,7 @@
 
 auto DirectVT = R"==(
 <VTM_PROFILE>
-    <menuitem id=Calc label="Calc DEMO" title="Calc App Title" notes="Calc Tooltip Message" type=DirectVT param="$0"/>
+    <menuitem id=Calc label="Calc DEMO" title="Calc App Title" notes="$0\nCalc Tooltip Message" type=DirectVT param="$0"/>
 </VTM_PROFILE>
 )==";
 
