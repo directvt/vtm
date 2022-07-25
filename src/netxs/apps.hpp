@@ -10,11 +10,13 @@
 #define APPS_DEL_TIMEOUT 1s
 
 #include "ui/controls.hpp"
+#include "text/xml.hpp"
 
 namespace netxs::app
 {
     using namespace std::placeholders;
     using namespace netxs::console;
+    using namespace netxs::xml;
     using namespace netxs;
 
     using slot = ui::slot;
@@ -1048,17 +1050,17 @@ namespace netxs::app::shared
         };
         auto take_menu_item = [](text& tag, item_t& item, view& data)
         {
-            auto type = utf::xml::type::none;
-            if (utf::xml::open(data, type))
+            auto type = xml::type::none;
+            if (xml::open(data, type))
             {
                 auto attr = text{};
-                if (utf::xml::attr(data, tag, type))
+                if (xml::attr(data, tag, type))
                 {
                     log("\t link: <", tag, faux);
-                    while (utf::xml::attr(data, attr, type))
+                    while (xml::attr(data, attr, type))
                     {
                         auto& value = item[attr];
-                        value = utf::xml::value(data);
+                        value = xml::value(data);
                              if (value.empty()) log(" ", attr, faux);
                         else if (value.find(' ') == text::npos
                               || value.front() == '\"') log(" ", attr, "=",   value, faux);
@@ -1067,9 +1069,9 @@ namespace netxs::app::shared
                     log(" />");
                 }
 
-                if (type != utf::xml::type::close) log(" xml: unexpected data: {", utf::debase(data), "}");
+                if (type != xml::type::close) log(" xml: unexpected data: {", utf::debase(data), "}");
             }
-            return type == utf::xml::type::close;
+            return type == xml::type::close;
         };
         auto take_elements = [&](auto const& filename, view data)
         {
@@ -1174,141 +1176,6 @@ namespace netxs::app::shared
         }
 
         log("apps: ", list.size(), " menu item(s) added");
-        auto take_ui32 = [](auto& item, auto& attr)
-        {
-            auto result = ui32{};
-            if (auto v = utf::to_int(item[attr]))
-            {
-                result = v.value();
-            }
-            return result;
-        };
-        auto take_text = [](auto& item, auto& attr)
-        {
-            if (auto iter = item.find(attr); iter != item.end())
-            {
-                return view{ iter->second };
-            }
-            return view{};
-        };
-        auto take_bool = [](auto& item, auto& attr)
-        {
-            auto result = faux;
-            if (auto iter = item.find(attr); iter != item.end())
-            {
-                auto& value = utf::to_low(iter->second);
-                result = value.empty() || value.starts_with("1")  // 1 - true
-                                       || value.starts_with("o")  // on
-                                       || value.starts_with("y")  // yes
-                                       || value.starts_with("t"); // true
-            }
-            return result;
-        };
-        auto take_twod = [](auto& item, auto& attr)
-        {
-            auto result = dot_00;
-            if (auto iter = item.find(attr); iter != item.end())
-            {
-                auto shadow = view{ iter->second };
-                utf::trim_front(shadow, " ({[\"\'");
-                if (auto x = utf::to_int(shadow))
-                {
-                    utf::trim_front(shadow, " ,.x/:;");
-                    if (auto y = utf::to_int(shadow))
-                    {
-                        result.x = x.value();
-                        result.y = y.value();
-                    }
-                }
-            }
-            return result;
-        };
-        auto take_rgba = [](auto& item, auto& attr)
-        {
-            auto result = rgba{};
-            auto tobyte = [](auto c)
-            {
-                     if (c >= '0' && c <= '9') return c - '0';
-                else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-                else                           return 0;
-            };
-            
-            if (auto iter = item.find(attr); iter != item.end())
-            {
-                auto& value = utf::to_low(iter->second);
-                auto shadow = view{ value };
-                utf::trim_front(shadow, " ({[\"\'");
-                if (shadow.starts_with('#')) // hex: #rrggbbaa
-                {
-                    shadow.remove_prefix(1);
-                    if (shadow.size() >= 8) // hex: #rrggbbaa
-                    {
-                        result.chan.r = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
-                        result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
-                        result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
-                        result.chan.a = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
-                    }
-                    else if (shadow.size() >= 6) // hex: #rrggbb
-                    {
-                        result.chan.r = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
-                        result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
-                        result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
-                        result.chan.a = 0xff;
-                    }
-                    else log(" xml: unknown hex rgba format: { ", value, " }, expected #rrggbbaa or #rrggbb rgba hex value");
-                }
-                else if (shadow.starts_with("0x")) // hex: 0xaabbggrr
-                {
-                    shadow.remove_prefix(2);
-                    if (shadow.size() >= 8) // hex: 0xaabbggrr
-                    {
-                        result.chan.a = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
-                        result.chan.b = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
-                        result.chan.g = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
-                        result.chan.r = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
-                    }
-                    else if (shadow.size() >= 6) // hex: 0xbbggrr
-                    {
-                        result.chan.b = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
-                        result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
-                        result.chan.r = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
-                        result.chan.a = 0xff;
-                    }
-                    else log(" xml: unknown hex rgba format: { ", value, " }, expected 0xaabbggrr or 0xbbggrr rgba hex value");
-                }
-                else if (utf::check_any(shadow, ",;/")) // dec: 000,000,000,000
-                {
-                    if (auto r = utf::to_int(shadow))
-                    {
-                        result.chan.r = r.value();
-                        utf::trim_front(shadow, ",./:;");
-                        if (auto g = utf::to_int(shadow))
-                        {
-                            result.chan.g = g.value();
-                            utf::trim_front(shadow, ",./:;");
-                            if (auto b = utf::to_int(shadow))
-                            {
-                                result.chan.b = b.value();
-                                utf::trim_front(shadow, ",./:;");
-                                if (auto a = utf::to_int(shadow)) result.chan.a = a.value();
-                                else                              result.chan.a = 0xff;
-                                return result;
-                            }
-                        }
-                    }
-                    log(" xml: unknown rgba format: { ", value, " }, expected 000,000,000,000 decimal rgba value");
-                }
-                else // Single ANSI color value
-                {
-                    if (auto c = utf::to_int(shadow); c.value() >=0 && c.value() <=255)
-                    {
-                        result = rgba::color256[c.value()];
-                    }
-                    else log(" xml: unknown ANSI 256-color value format: { ", value, " }, expected 0-255 decimal value");
-                }
-            }
-            return result;
-        };
         for (auto& [name, item] : list)
         {
             auto filepath = utf::to_utf(name.path().wstring());
@@ -1331,20 +1198,19 @@ namespace netxs::app::shared
                 conf_rec.label    = label;
                 conf_rec.fname    = name;
                 conf_rec.id       = id;
-                conf_rec.index    = take_ui32(item, attr_index);
-                conf_rec.alias    = take_text(item, attr_alias);
-                conf_rec.hidden   = take_bool(item, attr_hidden);
-                conf_rec.notes    = take_text(item, attr_notes);
-                conf_rec.title    = take_text(item, attr_title);
-                conf_rec.footer   = take_text(item, attr_footer);
-                conf_rec.bg       = take_rgba(item, attr_bg);
-                conf_rec.fg       = take_rgba(item, attr_fg);
-                conf_rec.winsize  = take_twod(item, attr_winsize);
-                conf_rec.slimmenu = take_bool(item, attr_slimmenu);
-                conf_rec.hotkey   = take_text(item, attr_hotkey);
-                //todo register hotkey
-                conf_rec.type     = take_text(item, attr_type);
-                conf_rec.param    = take_text(item, attr_param);
+                conf_rec.index    = xml::take<si32>(item, attr_index, -1);
+                conf_rec.alias    = xml::take<view>(item, attr_alias);
+                conf_rec.hidden   = xml::take<bool>(item, attr_hidden, faux);
+                conf_rec.notes    = xml::take<view>(item, attr_notes);
+                conf_rec.title    = xml::take<view>(item, attr_title);
+                conf_rec.footer   = xml::take<view>(item, attr_footer);
+                conf_rec.bg       = xml::take<rgba>(item, attr_bg);
+                conf_rec.fg       = xml::take<rgba>(item, attr_fg);
+                conf_rec.winsize  = xml::take<twod>(item, attr_winsize);
+                conf_rec.slimmenu = xml::take<bool>(item, attr_slimmenu, faux);
+                conf_rec.hotkey   = xml::take<view>(item, attr_hotkey); //todo register hotkey
+                conf_rec.type     = xml::take<view>(item, attr_type);
+                conf_rec.param    = xml::take<view>(item, attr_param);
 
                 utf::change(conf_rec.title,  "$0", filepath);
                 utf::change(conf_rec.footer, "$0", filepath);
