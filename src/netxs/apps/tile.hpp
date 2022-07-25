@@ -249,7 +249,6 @@ namespace netxs::app::tile
         };
         auto app_window = [](view header, view footer, auto branch, auto menu_item_id)
         {
-            branch->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, true);
             return ui::fork::ctor(axis::Y)
                     ->plugin<pro::title>(""/*not used here*/, footer, true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
@@ -724,43 +723,13 @@ namespace netxs::app::tile
                     empty_pane()
                 );
         };
-        auto parse_data = [](auto&& parse_data, view& utf8) -> sptr<ui::veer>
+        auto parse_data = [](auto&& parse_data, view& unique_id, view& utf8) -> sptr<ui::veer>
         {
             auto place = empty_slot(empty_slot);
             utf::trim_front(utf8, ", ");
             if (utf8.empty()) return place;
             auto tag = utf8.front();
-            if (tag == '\"') //todo deprecated - use a("Term"...
-            {
-                // add term
-                auto cmdline = utf::get_quote(utf8, "\"");
-                if (cmdline.empty()) return place;
-                log(" node cmdline=", cmdline);
-                auto menu_item_id = "Term"s;
-                auto& creator = app::shared::creator(menu_item_id);
-                auto host = creator(cmdline);
-                auto inst = app_window("Headless TE", "", host, menu_item_id);
-                place->attach(inst);
-            }
-            else if (tag == 'a')
-            {
-                // add app
-                utf8.remove_prefix(1);
-                utf::trim_front(utf8, " ");
-                if (utf8.empty() || utf8.front() != '(') return place;
-                utf8.remove_prefix(1);
-                auto app_id  = utf::get_quote(utf8, "\"", ", ");
-                if (app_id.empty()) return place;
-                auto app_title = utf::get_quote(utf8, "\"", ", ");
-                auto app_data = utf::get_quote(utf8, "\"", ") ");
-                log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
-
-                auto& creator = app::shared::creator(app_id);
-                auto host = creator(app_data);
-                auto inst = app_window(app_title, "", host, app_id);
-                place->attach(inst);
-            }
-            else if (tag == 'h' || tag == 'v')
+            if ((tag == 'h' || tag == 'v') && utf8.find('(') < utf8.find(','))
             {
                 // add split
                 utf8.remove_prefix(1);
@@ -768,21 +737,21 @@ namespace netxs::app::tile
                 auto s1 = si32{ 1 };
                 auto s2 = si32{ 1 };
                 auto w  = si32{-1 };
-                if (auto param = utf::to_int(utf8))
+                if (auto v = utf::to_int(utf8)) // Left side ratio
                 {
-                    s1 = std::abs(param.value());
+                    s1 = std::abs(v.value());
                     if (utf8.empty() || utf8.front() != ':') return place;
                     utf8.remove_prefix(1);
-                    if (auto param = utf::to_int(utf8))
+                    if (auto v = utf::to_int(utf8)) // Right side ratio
                     {
-                        s2 = std::abs(param.value());
+                        s2 = std::abs(v.value());
                         utf::trim_front(utf8, " ");
                         if (!utf8.empty() && utf8.front() == ':') // Grip width.
                         {
                             utf8.remove_prefix(1);
-                            if (auto param = utf::to_int(utf8))
+                            if (auto v = utf::to_int(utf8))
                             {
-                                w = std::abs(param.value());
+                                w = std::abs(v.value());
                                 utf::trim_front(utf8, " ");
                             }
                         }
@@ -792,41 +761,62 @@ namespace netxs::app::tile
                 if (utf8.empty() || utf8.front() != '(') return place;
                 utf8.remove_prefix(1);
                 auto node = built_node(tag, s1, s2, w);
-                auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8));
-                auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8));
+                auto slot1 = node->attach(slot::_1, parse_data(parse_data, unique_id, utf8));
+                auto slot2 = node->attach(slot::_2, parse_data(parse_data, unique_id, utf8));
                 place->attach(node);
 
                 utf::trim_front(utf8, ") ");
+            }
+            else  // Add application.
+            {
+                utf::trim_front(utf8, " ");
+                auto app_id = utf::get_tail(utf8, " ,)");
+                if (app_id.empty()) return place;
+
+                utf::trim_front(utf8, " ,");
+                if (utf8.size() && utf8.front() == ')') utf8.remove_prefix(1); // pop ')';
+
+                auto menu_item_id = text{};
+                menu_item_id += utf::cutoff(unique_id, '/', faux);
+                if (unique_id.substr(menu_item_id.size() + 1) == app_id)
+                {
+                    log("tile: recursive nesting, id=", app_id);
+                    return place; // Avoid recursion.
+                }
+                menu_item_id += '/';
+                menu_item_id += app_id;
+                auto& conf_list = app::shared::get_config();
+
+                auto iter = conf_list.find(menu_item_id);
+                if (iter == conf_list.end())
+                {
+                    auto foreign_id = '/' + app_id;
+                    iter = std::find_if(conf_list.begin(), conf_list.end(), [&](auto& conf)
+                    {
+                        return conf.first.ends_with(foreign_id);
+                    });
+                    if (iter == conf_list.end())
+                    {
+                        log("tile: application id='", app_id, "' not found");
+                        return place;
+                    }
+                    menu_item_id = iter->first;
+                }
+                auto& config = iter->second;
+                auto& creator = app::shared::creator(config.type);
+                auto host = creator(config.param);
+                auto inst = app_window(config.title, config.footer, host, menu_item_id);
+                if (config.bgcolor)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
+                if (config.fgcolor)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
+                if (config.slimmenu) inst->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+                place->attach(inst);
             }
             return place;
         };
         auto build_inst = [](view data) -> sptr<base>
         {
-            auto envvar_data = view{};
-            auto window_title = text{};
-            auto a = data.find('=');
-            if (a != text::npos)
-            {
-                auto b = data.begin();
-                auto e = data.end();
-                auto t = b + a;
-                //auto envvar_name = view{ b, t }; //todo apple clang doesn't get it
-                auto envvar_name = view{ &(*b), (size_t)(t - b) };
-                log(" envvar_name=", envvar_name);
-                b = t + 1;
-                if (b != e)
-                {
-                    //envvar_data = view{ b, e }; //todo apple clang doesn't get it
-                    envvar_data = view{ &(*b), (size_t)(e - b) };
-                    log(" envvar_data=", envvar_data);
-                    auto menu_name = utf::get_quote(envvar_data, "\"");
-                    window_title   = utf::get_quote(envvar_data, "\"", ", ");
-                    log(" menu_name=", menu_name);
-                    log(" window_title=", window_title);
-                    log(" layout_data=", envvar_data);
-                    //if (window_title.length()) window_title += '\n';
-                }
-            }
+            auto unique_id = utf::cutoff(data, '\0');
+            auto param     = utf::remain(data, '\0');;
 
             auto object = ui::fork::ctor(axis::Y)
                         ->plugin<items>();
@@ -850,12 +840,6 @@ namespace netxs::app::tile
                             gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
                         }
                         oneoff.reset();
-                    };
-                    boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
-                    {
-                        auto title = ansi::add(window_title);// + utf::debase(data));
-                        log(" attached title=", window_title);
-                        parent->base::riseup<tier::preview>(e2::form::prop::ui::header, title);
                     };
                 });
 
@@ -962,7 +946,7 @@ namespace netxs::app::tile
                         };
                     });
 
-            object->attach(slot::_2, parse_data(parse_data, envvar_data))
+            object->attach(slot::_2, parse_data(parse_data, unique_id, param))
                 ->invoke([&](auto& boss)
                 {
                     boss.SUBMIT(tier::release, e2::form::proceed::attach, fullscreen_item)

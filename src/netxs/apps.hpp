@@ -1252,6 +1252,11 @@ namespace netxs::app::shared
                 utf::change(conf_rec.notes,  "$0", filepath);
                 utf::change(conf_rec.param,  "$0", filepath);
 
+                if (conf_rec.type == type_Group) // Pass unique_id to the group ctor.
+                {
+                    conf_rec.param = unique_id + '\0' + conf_rec.param;
+                }
+
                      if (conf_rec.hidden)      temp_list.emplace_back(std::move(unique_id), std::move(conf_rec));
                 else if (conf_rec.index == -1) free_list.emplace_back(std::move(unique_id), std::move(conf_rec));
                 else                           sort_list.emplace_back(std::move(unique_id), std::move(conf_rec));
