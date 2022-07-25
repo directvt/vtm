@@ -1304,16 +1304,16 @@ namespace netxs::app::shared
         {
             auto& conf_list = app::shared::get_config();
             auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(config.title, "", what.menuid);
+            auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
 
             if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
             else                                window->extend(what.square);
             auto& creator = app::shared::creator(config.type);
 
             auto object = creator(config.param);
-            if (config.bgcolor) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg, config.bgcolor);
-            if (config.fgcolor) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg, config.fgcolor);
-            object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+            if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
+            if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
+            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
 
             window->attach(object);
             log("host: app type: ", config.type, ", menu item id: ", what.menuid);
