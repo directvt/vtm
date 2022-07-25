@@ -1185,6 +1185,29 @@ namespace netxs::app::shared
         }
 
         log("apps: ", list.size(), " menu item(s) added");
+        auto dflt_rec = menuitem_t
+        {
+            .index    = -1,
+            .hidden   = faux,
+            .slimmenu = faux,
+        };
+        auto find = [&](auto const& alias) -> auto&
+        {
+            auto id = '/' + alias;
+            auto test = [&](auto& p) { return p.first.ends_with(id); };
+
+            auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
+            if (iter_free != free_list.end()) return iter_free->second;
+
+            auto iter_temp = std::find_if(temp_list.begin(), temp_list.end(), test);
+            if (iter_temp != temp_list.end()) return iter_temp->second;
+
+            auto iter_sort = std::find_if(sort_list.begin(), sort_list.end(), test);
+            if (iter_sort != sort_list.end()) return iter_sort->second;
+
+            return dflt_rec;
+        };
+
         for (auto& [name, item] : list)
         {
             auto filepath = take_path(name);
@@ -1207,19 +1230,21 @@ namespace netxs::app::shared
                 conf_rec.label    = label;
                 conf_rec.fname    = name;
                 conf_rec.id       = id;
-                conf_rec.index    = xml::take<si32>(item, attr_index, -1);
                 conf_rec.alias    = xml::take<view>(item, attr_alias);
-                conf_rec.hidden   = xml::take<bool>(item, attr_hidden, faux);
-                conf_rec.notes    = xml::take<view>(item, attr_notes);
-                conf_rec.title    = xml::take<view>(item, attr_title);
-                conf_rec.footer   = xml::take<view>(item, attr_footer);
-                conf_rec.bgcolor  = xml::take<rgba>(item, attr_bgcolor);
-                conf_rec.fgcolor  = xml::take<rgba>(item, attr_fgcolor);
-                conf_rec.winsize  = xml::take<twod>(item, attr_winsize);
-                conf_rec.slimmenu = xml::take<bool>(item, attr_slimmenu, faux);
-                conf_rec.hotkey   = xml::take<view>(item, attr_hotkey); //todo register hotkey
-                conf_rec.type     = xml::take<view>(item, attr_type);
-                conf_rec.param    = xml::take<view>(item, attr_param);
+                auto& fallback = conf_rec.alias.empty() ? dflt_rec
+                                                        : find(conf_rec.alias);
+                conf_rec.index    = xml::take<si32>(item, attr_index,    fallback.index   );
+                conf_rec.hidden   = xml::take<bool>(item, attr_hidden,   fallback.hidden  );
+                conf_rec.notes    = xml::take<view>(item, attr_notes,    fallback.notes   );
+                conf_rec.title    = xml::take<view>(item, attr_title,    fallback.title   );
+                conf_rec.footer   = xml::take<view>(item, attr_footer,   fallback.footer  );
+                conf_rec.bgcolor  = xml::take<rgba>(item, attr_bgcolor,  fallback.bgcolor );
+                conf_rec.fgcolor  = xml::take<rgba>(item, attr_fgcolor,  fallback.fgcolor );
+                conf_rec.winsize  = xml::take<twod>(item, attr_winsize,  fallback.winsize );
+                conf_rec.slimmenu = xml::take<bool>(item, attr_slimmenu, fallback.slimmenu);
+                conf_rec.hotkey   = xml::take<view>(item, attr_hotkey,   fallback.hotkey  ); //todo register hotkey
+                conf_rec.type     = xml::take<view>(item, attr_type,     fallback.type    );
+                conf_rec.param    = xml::take<view>(item, attr_param,    fallback.param   );
 
                 utf::change(conf_rec.title,  "$0", filepath);
                 utf::change(conf_rec.footer, "$0", filepath);
