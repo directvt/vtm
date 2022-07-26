@@ -7214,7 +7214,12 @@ namespace netxs::ui
             if (splash.size() != size)
             {
                 splash.size(size);
-                splash.zoom(canvas, cell::shaders::full);
+
+                auto parent_id = id_t{}; // Handover control to the parent if no response.
+                if (auto parent = base::parent()) parent_id = parent->id;
+                if (canvas.size()) splash.zoom(canvas, cell::shaders::fullid(parent_id));
+                else               splash.wipe(cell{}.link(parent_id).bgc(blacklt));
+
                 auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
                                        .add("             \n",
                                             "  NO SIGNAL  \n",

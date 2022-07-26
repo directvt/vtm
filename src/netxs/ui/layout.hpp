@@ -1348,12 +1348,30 @@ namespace netxs::ui::atoms
                     operator()(dst);
                 }
             };
+            struct fullid_t
+            {
+                id_t newid;
+                constexpr fullid_t(id_t newid)
+                    : newid{ newid }
+                { }
+                template<class D>
+                inline void operator () (D& dst) const
+                {
+                    dst.link(newid);
+                }
+                template<class D, class S>
+                inline void operator () (D& dst, S& src) const
+                {
+                    dst.fuse(src, newid);
+                }
+            };
 
         public:
             template<class T>
             static constexpr auto   selection(T    brush) { return   selection_t{ brush }; }
             static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
             static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
+            static constexpr auto      fullid(id_t newid) { return      fullid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
             static constexpr auto     lite =     lite_t{};
