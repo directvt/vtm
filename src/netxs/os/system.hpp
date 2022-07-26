@@ -3505,6 +3505,7 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
+            DWORD  Proc_id  { 0          };
             HPCON  hPC      { INVALID_FD };
             HANDLE hProcess { INVALID_FD };
             HANDLE hThread  { INVALID_FD };
@@ -3516,7 +3517,7 @@ namespace netxs::os
 
         #else
 
-            pid_t pid = 0;
+            pid_t Proc_id = 0;
 
         #endif
 
@@ -3640,6 +3641,7 @@ namespace netxs::os
                  && create())
                 {
                     hProcess = procsinf.hProcess;
+                    Proc_id  = procsinf.dwProcessId;
                     hThread  = procsinf.hThread;
                     gameover = ::CreateEvent( NULL,   // security attributes
                                               FALSE,  // auto-reset
@@ -3675,8 +3677,8 @@ namespace netxs::os
                 termlink.set(fdm, fdm);
                 resize(winsz);
 
-                pid = ::fork();
-                if (pid == 0) // Child branch.
+                Proc_id = ::fork();
+                if (Proc_id == 0) // Child branch.
                 {
                     os::close(fdm);
                     ok(::setsid(), "setsid error"); // Make the current process a new session leader, return process group id.
@@ -3695,9 +3697,9 @@ namespace netxs::os
                     ::signal(SIGTTOU, SIG_DFL); //
                     ::signal(SIGCHLD, SIG_DFL); //
 
-                    ::dup2 (fds, STDIN_FD);  // Assign stdio lines atomically
-                    ::dup2 (fds, STDOUT_FD); // = close(new);
-                    ::dup2 (fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
+                    ::dup2(fds, STDIN_FD ); // Assign stdio lines atomically
+                    ::dup2(fds, STDOUT_FD); // = close(new);
+                    ::dup2(fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
                     os::close(fds);
 
                     auto args = os::split_cmdline(cmdline);
@@ -3710,7 +3712,13 @@ namespace netxs::os
 
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                     ok(::execvp(argv.front(), argv.data()), "execvp failed");
-                    os::exit(1, "xpty: exec error ", errno);
+
+                    auto errcode = errno;
+                    std::cerr << text{ "xpty: exec error, errno=" } + std::to_string(errcode) << std::flush;
+                    ::close(STDERR_FD);
+                    ::close(STDOUT_FD);
+                    ::close(STDIN_FD );
+                    os::exit(errcode);
                 }
 
                 // Parent branch.
@@ -3730,6 +3738,8 @@ namespace netxs::os
             log("xpty: wait child process, tty=", termlink);
             termlink.stop();
 
+            if (Proc_id != 0)
+            {
             #if defined(_WIN32)
 
                 ::ClosePseudoConsole(hPC);
@@ -3756,11 +3766,9 @@ namespace netxs::os
 
             #else
 
-            if (pid != 0)
-            {
                 auto status = int{};
-                ok(::kill(pid, SIGKILL), "kill(pid, SIGKILL) failed");
-                ok(::waitpid(pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                ok(::kill(Proc_id, SIGKILL), "kill(pid, SIGKILL) failed");
+                ok(::waitpid(Proc_id, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                 if (WIFEXITED(status))
                 {
                     exit_code = WEXITSTATUS(status);
@@ -3771,9 +3779,9 @@ namespace netxs::os
                     exit_code = 0;
                     log("xpty: warning: child process exit code not detected");
                 }
-            }
 
             #endif
+            }
             log("xpty: child waiting complete");
             return exit_code;
         }
@@ -4051,7 +4059,13 @@ namespace netxs::os
                         argv.push_back(nullptr);
 
                         ok(::execvp(argv.front(), argv.data()), "execvp failed");
-                        os::exit(1, "dtvt: exec error ", errno);
+
+                        auto errcode = errno;
+                        std::cerr << text{ "dtvt: exec error, errno=" } + std::to_string(errcode) << std::flush;
+                        ::close(STDERR_FD);
+                        ::close(STDOUT_FD);
+                        ::close(STDIN_FD );
+                        os::exit(errcode);
                     }
 
                     // Parent branch.
@@ -4084,6 +4098,8 @@ namespace netxs::os
                     termlink.shut();
                 }
 
+                if (Proc_id != 0)
+                {
                 #if defined(_WIN32)
 
                     auto code = DWORD{ 0 };
@@ -4109,8 +4125,6 @@ namespace netxs::os
 
                 #else
 
-                if (Proc_id != 0)
-                {
                     int status;
                     ok(::kill(Proc_id, SIGKILL), "kill(pid, SIGKILL) failed");
                     ok(::waitpid(Proc_id, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
@@ -4124,9 +4138,9 @@ namespace netxs::os
                         exit_code = 0;
                         log("dtvt: warning: child process exit code not detected");
                     }
-                }
 
                 #endif
+                }
                 log("dtvt: child waiting complete");
                 return exit_code;
             }
@@ -4192,7 +4206,11 @@ namespace netxs::os
                     guard.unlock();
 
                     if (termlink.send(cache)) cache.clear();
-                    else                      break;
+                    else
+                    {
+                        guard.lock();
+                        break;
+                    }
 
                     guard.lock();
                 }
