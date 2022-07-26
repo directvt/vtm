@@ -144,6 +144,7 @@ namespace netxs::events::userland
                 EVENT_XS( logs  , const view          ), // logs output.
                 EVENT_XS( output, const view          ), // logs has to be parsed.
                 EVENT_XS( parsed, const console::page ), // output parced logs.
+                EVENT_XS( request, si32               ), // request debug data.
                 GROUP_XS( count , si32                ), // global: log listeners.
 
                 SUBSET_XS( count )
@@ -5057,12 +5058,17 @@ namespace netxs::console
         void handle(s11n::xs::debug_count lock)
         {
             auto& item = lock.thing;
-            //todo
+            notify<tier::anycast>(e2::debug::count::any, item.count);
         }
         void handle(s11n::xs::debugdata   lock)
         {
             auto& item = lock.thing;
-            //todo
+            notify<tier::general>(e2::debug::output, item.data);
+        }
+        void handle(s11n::xs::debuglogs   lock)
+        {
+            auto& item = lock.thing;
+            notify<tier::general>(e2::debug::logs, item.data);
         }
     };
 
@@ -5695,8 +5701,7 @@ namespace netxs::console
                 };
                 if (direct) // Forward unhandled events outside.
                 {
-                    //todo reimplement Logs
-                    SUBMIT_T(tier::general, e2::debug::count::any, token, count)
+                    SUBMIT_T(tier::general, e2::debug::count::set, token, count)
                     {
                         auto debug_count = conio.debug_count.freeze();
                         conio.request_dbg_count.send(conio, count);
@@ -5711,20 +5716,16 @@ namespace netxs::console
                             log("gate: timeout: no debug count reply");
                         }
                     };
-                    //if (debug_console) // For Logs only.
-                    //{
-                    //    log("e2::debug::count::set ", debug_console);
-                    //    conio.request_debug.send(conio);
-                    //    SUBMIT_T(tier::release, e2::conio::keybd, token, keybdstate)
-                    //    {
-                    //        if (keybdstate.keybdid == 0
-                    //         && keybdstate.cluster.size())
-                    //        {
-                    //            auto shadow = view{ keybdstate.cluster };
-                    //            SIGNAL_GLOBAL(e2::debug::logs, shadow);
-                    //        }
-                    //    };
-                    //}
+                    SUBMIT_T(tier::general, e2::debug::request, token, count)
+                    {
+                        if (count > 0) conio.request_debug.send(conio);
+                    };
+                    SUBMIT_T(tier::preview, e2::debug::output, token, data)
+                    {
+                        // Forward from app::term.
+                        //todo text -> view
+                        conio.debugdata.send(conio, text{ data });
+                    };
                     SUBMIT_T(tier::release, e2::config::fps, token, fps)
                     {
                         if (fps > 0)

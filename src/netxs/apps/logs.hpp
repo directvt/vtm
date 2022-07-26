@@ -54,15 +54,9 @@ namespace netxs::app::logs
                 {
                     input.join();
                 }
-                SIGNAL_GLOBAL(e2::debug::count::set, -1);
             }
             log_parser()
             {
-                SIGNAL_GLOBAL(e2::debug::count::set, 1);
-                SUBMIT(tier::general, e2::debug::count::set, count)
-                {
-                    count++;
-                };
                 SUBMIT(tier::general, e2::debug::output, shadow)
                 {
                     queue.push(text{ shadow });
@@ -182,12 +176,6 @@ namespace netxs::app::logs
                 .fgc().bgc();
             topic += label;
 
-            //too dangerous
-            //SUBMIT(tier::release, hids::events::mouse::button::dblclick::right, gear)
-            //{
-            //    clear();
-            //    gear.dismiss();
-            //};
             SUBMIT(tier::anycast, events::codepoints::request, status)
             {
                 switch (status)
@@ -219,6 +207,7 @@ namespace netxs::app::logs
             SUBMIT(tier::anycast, e2::form::upon::started, root)
             {
                 this->SIGNAL(tier::anycast, events::codepoints::release, worker->show_codepoints ? 1 : 2);
+                this->SIGNAL(tier::general, e2::debug::request, 1);
             };
             SUBMIT(tier::preview, e2::size::set, newsize)
             {

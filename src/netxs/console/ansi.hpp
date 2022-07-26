@@ -2260,7 +2260,7 @@ namespace netxs::ansi
             STRUCT(vt_command,        (text, command))
             STRUCT_LITE(expose)
             STRUCT_LITE(request_debug)
-            STRUCT(request_dbg_count, (sz_t, count))
+            STRUCT(request_dbg_count, (si32, count))
 
             // Input stream.
             STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, combine_focus) (bool, force_group_focus))
@@ -2281,6 +2281,7 @@ namespace netxs::ansi
             STRUCT(slimmenu,          (bool, menusize))
             STRUCT(debug_count,       (si32, count))
             STRUCT(debugdata,         (text, data))
+            STRUCT(debuglogs,         (text, data))
 
             #undef STRUCT
             #undef STRUCT_LITE
@@ -2562,7 +2563,8 @@ namespace netxs::ansi
                 X(fgcolor          ) /* Set foreground color.                         */\
                 X(slimmenu         ) /* Set window menu size.                         */\
                 X(debug_count      ) /* Debug listeners count.                        */\
-                X(debugdata        ) /* Debug data.                                   */
+                X(debugdata        ) /* Debug data.                                   */\
+                X(debuglogs        ) /* Debug logs.                                   */
 
                 struct xs
                 {

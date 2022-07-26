@@ -5998,7 +5998,7 @@ namespace netxs::ui
                 auto guard = netxs::events::try_sync{};
                 if (guard)
                 {
-                    if (onlogs) SIGNAL_GLOBAL(e2::debug::output, data); // Post data for Logs.
+                    if (onlogs) base::riseup<tier::preview>(e2::debug::output, data); // Post data for Logs.
 
                     if (follow[axis::Y])
                     {
@@ -6463,11 +6463,19 @@ namespace netxs::ui
                 //todo revise, see dtvt
                 this->base::riseup<tier::release>(e2::form::quit, item);
             };
-            SUBMIT(tier::general, e2::debug::count::any, count)
+            SUBMIT(tier::anycast, e2::debug::count::any, count)
             {
                 onlogs = count > 0;
             };
-            SIGNAL_GLOBAL(e2::debug::count::set, 0);
+            SUBMIT(tier::anycast, e2::form::upon::started, parent)
+            {
+                netxs::events::enqueue(This(), [&](auto& boss) mutable // To avoid deadlock in gate ctor.
+                {
+                    auto count = e2::debug::count::set.param();
+                    this->SIGNAL(tier::general, e2::debug::count::set, count);
+                    onlogs = count > 0;
+                });
+            };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
@@ -6705,7 +6713,7 @@ namespace netxs::ui
                     auto wheeldt = gear.whldt;
                     auto msflags =(gear.whldt ? (1 << 2) : 0)
                                 | (gear.hzwhl ? (1 << 3) : 0);
-                    mouse.send(owner, gear.id, ctlstat, buttons, msflags, wheeldt, coordxy);
+                    s11n::mouse.send(owner, gear.id, ctlstat, buttons, msflags, wheeldt, coordxy);
                 }
             }
 
@@ -6788,22 +6796,6 @@ namespace netxs::ui
                     owner.base::template riseup<tier::preview>(e2::form::layout::expose, owner);
                 });
             }
-            void handle(s11n::xs::request_debug       lock)
-            {
-                //todo reimplement Logs
-                netxs::events::enqueue(owner.This(), [&](auto& boss)
-                {
-                    owner.request_debug();
-                });
-            }
-            void handle(s11n::xs::request_dbg_count   lock)
-            {
-                //todo reimplement Logs
-                netxs::events::enqueue(owner.This(), [&, count = lock.thing.count](auto& boss) mutable
-                {
-                    owner.SIGNAL(tier::general, e2::debug::count::set, count);
-                });
-            }
             void handle(s11n::xs::set_clipboard       lock)
             {
                 auto& c = lock.thing;
@@ -6824,7 +6816,7 @@ namespace netxs::ui
                 {
                     gear_ptr->get_clip_data(clip_raw_data);
                 }
-                clipdata.send(owner, c.gear_id, clip_raw_data);
+                s11n::clipdata.send(owner, c.gear_id, clip_raw_data);
             }
             void handle(s11n::xs::set_focus           lock)
             {
@@ -6894,6 +6886,37 @@ namespace netxs::ui
                     SIGNAL_GLOBAL(e2::config::fps, fps);
                 });
             }
+            void handle(s11n::xs::request_debug       lock)
+            {
+                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                {
+                    owner.request_debug();
+                });
+            }
+            void handle(s11n::xs::request_dbg_count   lock)
+            {
+                netxs::events::enqueue(owner.This(), [&, count = lock.thing.count](auto& boss) mutable
+                {
+                    owner.SIGNAL(tier::general, e2::debug::count::set, count);
+                    s11n::debug_count.send(owner, count);
+                });
+            }
+            void handle(s11n::xs::debugdata           lock)
+            {
+                netxs::events::enqueue(owner.This(), [&, data = lock.thing.data](auto& boss) mutable
+                {
+                    auto shadow = view{ data };
+                    owner.SIGNAL(tier::general, e2::debug::output, shadow);
+                });
+            }
+            void handle(s11n::xs::debuglogs           lock)
+            {
+                netxs::events::enqueue(owner.This(), [&, data = lock.thing.data](auto& boss) mutable
+                {
+                    auto shadow = view{ data };
+                    owner.SIGNAL(tier::general, e2::debug::logs, shadow);
+                });
+            }
 
             events_t(dtvt& owner)
                 : s11n{ *this, owner.id },
@@ -6909,68 +6932,94 @@ namespace netxs::ui
                 {
                     log("dtvt: die ", gear.id);
                     release(gear);
-                    mouse_stop.send(owner, gear.id);
+                    s11n::mouse_stop.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                 {
                     log("dtvt: halt ", gear.id);
-                    mouse_halt.send(owner, gear.id);
+                    s11n::mouse_halt.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
                 {
                     log("dtvt: leave ", gear.id);
-                    mouse_halt.send(owner, gear.id);
+                    s11n::mouse_halt.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
                 {
-                    keybd.send(owner, gear.id,
-                                      gear.ctlstate,
-                                      gear.virtcod,
-                                      gear.scancod,
-                                      gear.pressed,
-                                      gear.imitate,
-                                      gear.cluster);
+                    #ifdef KEYLOG
+                        auto d = std::stringstream{};
+                        auto v = view{ gear.cluster };
+                        log("dtvt: key strokes raw: ", utf::debase(v));
+                        while (v.size())
+                        {
+                            d << (int)v.front() << " ";
+                            v.remove_prefix(1);
+                        }
+                        log("dtvt: key strokes bin: ", d.str());
+                    #endif
+                    s11n::keybd.send(owner, gear.id,
+                                            gear.ctlstate,
+                                            gear.virtcod,
+                                            gear.scancod,
+                                            gear.pressed,
+                                            gear.imitate,
+                                            gear.cluster);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
                 {
                     log("dtvt: events: hids::events::upevent::kboffer ", gear.id);
                     auto focus_state = true;
-                    focus.send(owner, gear.id,
-                                      focus_state,
-                                      gear.combine_focus,
-                                      gear.force_group_focus);
+                    s11n::focus.send(owner, gear.id,
+                                            focus_state,
+                                            gear.combine_focus,
+                                            gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
                 {
                     log("dtvt: events: hids::events::upevent::kbannul ", gear.id);
                     gear.remove_from_kb_focus(owner.This());
                     auto focus_state = faux;
-                    focus.send(owner, gear.id,
-                                      focus_state,
-                                      gear.combine_focus,
-                                      gear.force_group_focus);
+                    s11n::focus.send(owner, gear.id,
+                                            focus_state,
+                                            gear.combine_focus,
+                                            gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, gear)
                 {
                     log("dtvt: keybd focus lost ", gear.id);
                     auto focus_state = faux;
-                    focus.send(owner, gear.id,
-                                      focus_state,
-                                      gear.combine_focus,
-                                      gear.force_group_focus);
-                };
-                //todo reimplement Logs
-                owner.SUBMIT_T(tier::general, e2::debug::count::any, token, count)
-                {
-                    log("dtvt: debug count ", count);
-                    debug_count.send(owner, count);
+                    s11n::focus.send(owner, gear.id,
+                                            focus_state,
+                                            gear.combine_focus,
+                                            gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::general, e2::config::fps, token, frame_rate)
                 {
                     if (frame_rate > 0)
                     {
-                        fps.send(owner, frame_rate);
+                        s11n::fps.send(owner, frame_rate);
                     }
+                };
+                owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::slimmenu, token, slim)
+                {
+                    s11n::slimmenu.send(owner, slim);
+                };
+                owner.SUBMIT_T(tier::anycast, e2::form::prop::colors::any, token, clr)
+                {
+                    auto deed = owner.bell::template protos<tier::anycast>();
+                         if (deed == e2::form::prop::colors::bg.id) s11n::bgcolor.send(owner, clr);
+                    else if (deed == e2::form::prop::colors::fg.id) s11n::fgcolor.send(owner, clr);
+                };
+                owner.SUBMIT_T(tier::release, e2::size::any, token, new_size)
+                {
+                    if (owner.pty_resize(new_size))
+                    {
+                        s11n::winsz.send(owner, 0, new_size);
+                    }
+                };
+                owner.SUBMIT_T(tier::general, e2::debug::count::any, token, count)
+                {
+                    s11n::debug_count.send(owner, count);
                 };
             }
         };
@@ -6983,11 +7032,10 @@ namespace netxs::ui
         hook            oneoff; // dtvt: One-shot token for start and shutdown events.
         period          maxoff; // dtvt: Max delay before showing "No signal".
         subs            debugs; // dtvt: Tokens for debug output subcriptions.
+        byte            opaque; // dtvt: Object transparency;
         ansi::esc       prompt; // dtvt: PTY logger prompt.
         testy<twod>     termsz; // dtvt: PTY device window size.
         os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
-
-        byte lucidity = 0xFF;
 
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
@@ -7046,22 +7094,21 @@ namespace netxs::ui
         // dtvt: Logs callback handler.
         void request_debug()
         {
-            log("dtvt: debug out redirection request");
-            SIGNAL_GLOBAL(e2::debug::count::set, 1);
+            SIGNAL(tier::general, e2::debug::count::set, 1);
             SUBMIT_T(tier::general, e2::debug::count::set, debugs, count)
             {
                 count++;
             };
-            //SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
-            //{
-            //    outbuf += shadow;
-            //    answer(outbuf);
-            //};
-            //SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
-            //{
-            //    outbuf = ansi::debugdata(shadow);
-            //    answer(outbuf);
-            //};
+            SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
+            {
+                //todo text -> view
+                stream.debuglogs.send(ptycon, text{shadow});
+            };
+            SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
+            {
+                //todo text -> view
+                stream.debugdata.send(ptycon, text{shadow});
+            };
         }
 
     public:
@@ -7093,6 +7140,10 @@ namespace netxs::ui
                 };
             }
         }
+        bool pty_resize(twod const& new_size)
+        {
+            return ptycon && termsz(new_size);
+        }
 
        ~dtvt()
         {
@@ -7102,14 +7153,10 @@ namespace netxs::ui
         dtvt(text command_line)
             : stream{*this },
               active{ true },
+              opaque{ 0xFF },
               nodata{      }
         {
             cmdarg = command_line;
-
-            //SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
-            //{
-            //    this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
-            //};
 
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
@@ -7122,49 +7169,13 @@ namespace netxs::ui
             };
             SUBMIT(tier::anycast, e2::form::prop::lucidity, value)
             {
-                if (value == -1) value = lucidity;
-                else             lucidity = value;
-            };
-            SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
-            {
-                auto deed = bell::template protos<tier::anycast>();
-                     if (deed == e2::form::prop::colors::bg.id) stream.bgcolor.send(ptycon, clr);
-                else if (deed == e2::form::prop::colors::fg.id) stream.fgcolor.send(ptycon, clr);
-            };
-            SUBMIT(tier::anycast, e2::form::prop::ui::slimmenu, slim)
-            {
-                stream.slimmenu.send(ptycon, slim);
+                if (value == -1) value = opaque;
+                else             opaque = value;
             };
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 if (ptycon) ptycon.stop();
                 else        base::riseup<tier::release>(e2::form::quit, item);
-            };
-            SUBMIT(tier::release, e2::size::any, new_size)
-            {
-                if (ptycon && termsz(new_size))
-                {
-                    stream.winsz.send(ptycon, 0, new_size);
-                }
-            };
-            //SUBMIT(tier::release, hids::events::mouse::button::click::any, gear)
-            //{
-            //    this->base::template riseup<tier::release>(e2::form::layout::expose, *this);
-            //};
-            SUBMIT(tier::release, hids::events::keybd::any, gear)
-            {
-                //this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
-                #ifdef KEYLOG
-                    auto d = std::stringstream{};
-                    auto v = view{ gear.cluster };
-                    log("dtvt: key strokes raw: ", utf::debase(v));
-                    while (v.size())
-                    {
-                        d << (int)v.front() << " ";
-                        v.remove_prefix(1);
-                    }
-                    log("dtvt: key strokes bin: ", d.str());
-                #endif
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
@@ -7216,8 +7227,8 @@ namespace netxs::ui
         }
         void fill(core& parent_canvas, core const& canvas)
         {
-            if (lucidity == 0xFF) parent_canvas.fill(canvas, cell::shaders::full);
-            else                  parent_canvas.fill(canvas, cell::shaders::transparent(lucidity));
+            if (opaque == 0xFF) parent_canvas.fill(canvas, cell::shaders::full);
+            else                parent_canvas.fill(canvas, cell::shaders::transparent(opaque));
         }
     };
 }
