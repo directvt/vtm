@@ -3665,11 +3665,11 @@ namespace netxs::ui
                         : c{ cy },
                           t{ ct },
                           b{ cb },
-                          block{ c.y > cs.y_end ? (void)(t = cs.y_end + 1), cs.dnbox
-                                                :                           cs.upbox }
+                      block{ c.y > cs.y_end ? (void)(t = cs.y_end + 1), cs.dnbox
+                                            :                           cs.upbox }
                          { c.y -= t; }
                    ~qt() { c.y += t; }
-                   operator bool () { return b; }
+                    operator bool () { return b; }
                 };
                 auto inside = coord.y >= y_top
                            && coord.y <= y_end;

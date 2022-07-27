@@ -89,7 +89,7 @@ namespace netxs::xml
             }
             else
             {
-                item = get_tail(data, " =");
+                item = get_tail(data, " \t\n\r=");
                 next = type::token;
                 utf::to_low(item);
             }
@@ -108,7 +108,7 @@ namespace netxs::xml
         auto delim = data.front();
         if (delim != '/')
         {
-            if (delim != '\'' && delim != '\"') crop = utf::get_tail(data, " /");
+            if (delim != '\'' && delim != '\"') crop = utf::get_tail(data, " \t\n\r/");
             else                                crop = utf::get_quote(data, view(&delim, 1));
             crop = xml::unescape(crop);
         }

@@ -982,7 +982,7 @@ namespace netxs::input
               idmap{ idmap },
               alive{ faux  }
         { }
-        ~hids()
+       ~hids()
         {
             auto lock = netxs::events::sync{};
             log("hids: mouse leave, ", id);

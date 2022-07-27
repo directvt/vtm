@@ -293,7 +293,7 @@ namespace netxs::ui
             return This();
         }
 
-        ~fork()
+       ~fork()
         {
             auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
@@ -556,7 +556,7 @@ namespace netxs::ui
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
-        ~list()
+       ~list()
         {
             auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
@@ -700,7 +700,7 @@ namespace netxs::ui
         std::list<sptr> subset;
 
     public:
-        ~cake()
+       ~cake()
         {
             auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
@@ -815,7 +815,7 @@ namespace netxs::ui
         }
 
     public:
-        ~park()
+       ~park()
         {
             auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
@@ -917,7 +917,7 @@ namespace netxs::ui
         std::list<sptr> subset;
 
     public:
-        ~veer()
+       ~veer()
         {
             auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
@@ -1338,7 +1338,7 @@ namespace netxs::ui
 
             return This();
         }
-        ~rail()
+       ~rail()
         {
             if (client)
             {
@@ -2458,7 +2458,7 @@ namespace netxs::ui
     public:
         sptr client;
 
-        ~pads()
+       ~pads()
         {
             if (client)
             {

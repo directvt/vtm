@@ -1827,7 +1827,7 @@ namespace netxs::console
 
                 boss.SIGNAL(tier::release, e2::config::plugins::align, maximize);
             }
-            ~align() { unbind(faux); }
+           ~align() { unbind(faux); }
 
             void follow(id_t master, twod const& borders)
             {
@@ -5180,7 +5180,7 @@ namespace netxs::console
                 else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(canal);
             });
         }
-        ~diff()
+       ~diff()
         {
             auto id = paint.get_id();
             mutex.lock();

@@ -339,7 +339,7 @@ namespace netxs::os
             : r{ r },
               w{ w }
         { }
-        ~file()
+       ~file()
         {
             close();
         }
@@ -408,7 +408,7 @@ namespace netxs::os
               w{ w },
               l{ l }
         { }
-        ~dstd()
+       ~dstd()
         {
             close();
         }
@@ -1430,7 +1430,7 @@ namespace netxs::os
             }
         }
 
-        ~security_descriptor()
+       ~security_descriptor()
         {
             LocalFree(descriptor.lpSecurityDescriptor);
         }
@@ -1967,7 +1967,7 @@ namespace netxs::os
               alive{ true },
               agent{ &pool::worker, this }
         { }
-        ~pool()
+       ~pool()
         {
             mutex.lock();
             alive = faux;
@@ -2216,7 +2216,7 @@ namespace netxs::os
             {
                 if (handle) init();
             }
-            ~socket()
+           ~socket()
             {
                 #if defined(__BSD__)
 
@@ -3533,7 +3533,7 @@ namespace netxs::os
         std::condition_variable   writesyn{};
 
     public:
-        ~pty()
+       ~pty()
         {
             log("xpty: dtor started");
             if (termlink)
@@ -3894,7 +3894,7 @@ namespace netxs::os
             std::condition_variable   writesyn{};
 
         public:
-            ~pty()
+           ~pty()
             {
                 log("dtvt: dtor started");
                 if (termlink)

@@ -151,7 +151,7 @@ namespace netxs::app::tile
                 log(" start depth=", depth);
             };
         }
-        ~items()
+       ~items()
         {
             if (client)
             {

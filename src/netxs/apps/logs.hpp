@@ -46,7 +46,7 @@ namespace netxs::app::logs
             netxs::mt_queue<text> queue;
             bool                  alive = true;
             bool show_codepoints = faux;
-            ~log_parser()
+           ~log_parser()
             {
                 alive = faux;
                 queue.push(text{});
