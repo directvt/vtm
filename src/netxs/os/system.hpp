@@ -99,6 +99,7 @@ namespace netxs::os
     using list = std::vector<text>;
     using xipc = std::shared_ptr<ipc::iobase>;
     using namespace std::chrono_literals;
+    using namespace std::literals;
     using namespace netxs::ui::atoms;
 
     enum role { client, server };
@@ -3564,14 +3565,14 @@ namespace netxs::os
         
         operator bool () { return termlink; }
 
-        void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
-                                           , std::function<void(si32)> shutdown_hndl)
+        void start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
+                                                       std::function<void(si32)> shutdown_hndl)
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
             utf::change(cmdline, "\\\"", "\"");
-            log("xpty: new child process: ", cmdline);
-
+            log("xpty: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
+                                                                                             : "'" + cwd + "'");
             #if defined(_WIN32)
 
                 termsize(winsz);
@@ -3624,16 +3625,17 @@ namespace netxs::os
                 {
                     startinf.StartupInfo.dwFlags |= STARTF_USESTDHANDLES; // Force the new process to not inherit the redirected default handles.
                                                                           // https://github.com/microsoft/terminal/issues/11276#issuecomment-923207186
-                    auto result = ::CreateProcessA( nullptr,                      // lpApplicationName
-                                                    cmdline.data(),               // lpCommandLine
-                                                    nullptr,                      // lpProcessAttributes
-                                                    nullptr,                      // lpThreadAttributes
-                                                    FALSE,                        // bInheritHandles
-                                                    EXTENDED_STARTUPINFO_PRESENT, // dwCreationFlags (override startupInfo type)
-                                                    nullptr,                      // lpCurrentDirectory
-                                                    nullptr,                      // lpEnvironment
-                                                    &startinf.StartupInfo,        // lpStartupInfo (ptr to STARTUPINFOEX)
-                                                    &procsinf);                   // lpProcessInformation
+                    auto result = ::CreateProcessA( nullptr,                             // lpApplicationName
+                                                    cmdline.data(),                      // lpCommandLine
+                                                    nullptr,                             // lpProcessAttributes
+                                                    nullptr,                             // lpThreadAttributes
+                                                    FALSE,                               // bInheritHandles
+                                                    EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
+                                                    nullptr,                             // lpEnvironment
+                                                    cwd.empty() ? nullptr
+                                                                : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
+                                                    &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFOEX)
+                                                    &procsinf);                          // lpProcessInformation
                     return result;
                 };
                 if (pseudo()
@@ -3702,6 +3704,14 @@ namespace netxs::os
                     ::dup2(fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
                     os::close(fds);
 
+                    if (cwd.size())
+                    {
+                        auto err = std::error_code{};
+                        std::filesystem::current_path(cwd, err);
+                        if (err) std::cerr << "xpty: failed to change current working directory to '" + cwd + "', error code: " + std::to_string(err.value()) << std::flush;
+                        else     std::cerr << "xpty: change current working directory to '" + cwd + "'" << std::flush;
+                    }
+
                     auto args = os::split_cmdline(cmdline);
                     auto argv = std::vector<char*>{};
                     for (auto& c : args)
@@ -3711,7 +3721,7 @@ namespace netxs::os
                     argv.push_back(nullptr);
 
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
-                    ok(::execvp(argv.front(), argv.data()), "execvp failed");
+                    ::execvp(argv.front(), argv.data());
 
                     auto errcode = errno;
                     std::cerr << text{ "xpty: exec error, errno=" } + std::to_string(errcode) << std::flush;
@@ -3912,18 +3922,18 @@ namespace netxs::os
             
             operator bool () { return termlink; }
 
-            auto start(text cmdline, twod winsz, std::function<void(view)> input_hndl
-                                               , std::function<void(view)> logs_hndl
-                                               , std::function<void(si32)> preclose_hndl
-                                               , std::function<void(si32)> shutdown_hndl)
+            auto start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
+                                                           std::function<void(view)> logs_hndl,
+                                                           std::function<void(si32)> preclose_hndl,
+                                                           std::function<void(si32)> shutdown_hndl)
             {
                 receiver = input_hndl;
                 loggerfx = logs_hndl;
                 preclose = preclose_hndl;
                 shutdown = shutdown_hndl;
                 utf::change(cmdline, "\\\"", "'");
-                log("dtvt: new child process: ", utf::debase(cmdline));
-
+                log("dtvt: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
+                                                                                                 : "'" + cwd + "'");
                 #if defined(_WIN32)
 
                     auto s_pipe_r = INVALID_FD;
@@ -3988,17 +3998,18 @@ namespace netxs::os
                     };
                     auto create = [&]()
                     {
-                        return ::CreateProcessA( nullptr,                      // lpApplicationName
-                                                 cmdline.data(),               // lpCommandLine
-                                                 nullptr,                      // lpProcessAttributes
-                                                 nullptr,                      // lpThreadAttributes
-                                                 TRUE,                         // bInheritHandles
-                                                 DETACHED_PROCESS |            // create without attached console, dwCreationFlags
-                                                 EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
-                                                 nullptr,                      // lpCurrentDirectory
-                                                 nullptr,                      // lpEnvironment
-                                                 &startinf.StartupInfo,        // lpStartupInfo (ptr to STARTUPINFO)
-                                                 &procsinf);                   // lpProcessInformation
+                        return ::CreateProcessA( nullptr,                             // lpApplicationName
+                                                 cmdline.data(),                      // lpCommandLine
+                                                 nullptr,                             // lpProcessAttributes
+                                                 nullptr,                             // lpThreadAttributes
+                                                 TRUE,                                // bInheritHandles
+                                                 DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
+                                                 EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
+                                                 nullptr,                             // lpEnvironment
+                                                 cwd.empty() ? nullptr
+                                                             : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
+                                                 &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
+                                                 &procsinf);                          // lpProcessInformation
                     };
 
                     if (tunnel()
@@ -4050,6 +4061,14 @@ namespace netxs::os
                         os::close(to_server[1]);
                         os::close(to_srvlog[1]);
 
+                        if (cwd.size())
+                        {
+                            auto err = std::error_code{};
+                            std::filesystem::current_path(cwd, err);
+                            if (err) std::cerr << "dtvt: failed to change current working directory to '" + cwd + "', error code: " + std::to_string(err.value()) << std::flush;
+                            else     std::cerr << "dtvt: change current working directory to '" + cwd + "'" << std::flush;
+                        }
+
                         auto args = os::split_cmdline(cmdline);
                         auto argv = std::vector<char*>{};
                         for (auto& c : args)
@@ -4058,7 +4077,7 @@ namespace netxs::os
                         }
                         argv.push_back(nullptr);
 
-                        ok(::execvp(argv.front(), argv.data()), "execvp failed");
+                        ::execvp(argv.front(), argv.data());
 
                         auto errcode = errno;
                         std::cerr << text{ "dtvt: exec error, errno=" } + std::to_string(errcode) << std::flush;

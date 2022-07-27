@@ -220,7 +220,7 @@ namespace netxs::app::desk
             return apps;
         };
 
-        auto build = [](view v)
+        auto build = [](text cwd, text v)
         {
             auto lock = netxs::events::sync{}; // Protect access to the world.
 
@@ -487,7 +487,7 @@ namespace netxs::app::desk
         };
     }
 
-    app::shared::initialize builder{ "Desk", build };
+    app::shared::initialize builder{ "desk", build };
 }
 
 #endif // NETXS_APP_DESK_HPP

@@ -7,8 +7,12 @@ auto DirectVT = R"==(
 )=="
 #ifdef _WIN32
 R"==(
-    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Tooltip Message" type=DirectVT param="$0 -r powershell"/>
+    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Tooltip Message" type=DirectVT param="$0 -r term powershell"/>
     <menuitem id=Far label="Far" notes="Far Manager" type=DirectVT param="$0 -r headless far"/>
+)=="
+#else
+R"==(
+    <menuitem id=mc label="Midnight Commander" type=SHELL param="mc"/>
 )=="
 #endif
 R"==(
@@ -19,13 +23,12 @@ R"==(
 
 R"==(
     <menuitem id=Settings  label=Settings winsize=50x15 notes="Tooltip Message" type=DirectVT title="Settings"   param="$0 -r settings"/>
-    <menuitem id=Logs      label=Logs              notes="Tooltip Message" type=DirectVT title="Logs Title" param="$0 -r logs"/>
-    <menuitem id=Gems      label="Gems [DEMO]"     notes="Tooltip Message" type=DirectVT title="Gems Title" param="$0 -r gems"/>
-    <menuitem id=Text      label="Text [DEMO]"     notes="Tooltip Message" type=DirectVT title="Text Title" param="$0 -r text"/>
-    <menuitem id=Calc      label="Calc [DEMO]"     notes="Tooltip Message" type=DirectVT title="Calc Title" param="$0 -r calc"/>
-    <menuitem id=Test      label="Test [DEMO]"     notes="Tooltip Message" type=DirectVT title="Test Title" param="$0 -r test"/>
-    <menuitem id=Truecolor label="Truecolor [DEMO] notes="Tooltip Message" type=DirectVT title="True Title" param="$0 -r truecolor"/>
-    <menuitem id=mc        label="Midnight Commander" type=ANSIVT param="mc"/>
+    <menuitem id=Logs      label=Logs                   notes="Tooltip Message" type=DirectVT title="Logs Title" param="$0 -r logs"/>
+    <menuitem id=Gems      label="Gems [DEMO]"          notes="Tooltip Message" type=DirectVT title="Gems Title" param="$0 -r gems"/>
+    <menuitem id=Text      label="Text [DEMO]"          notes="Tooltip Message" type=DirectVT title="Text Title" param="$0 -r text"/>
+    <menuitem id=Calc      label="Calc [DEMO]"          notes="Tooltip Message" type=DirectVT title="Calc Title" param="$0 -r calc"/>
+    <menuitem id=Test      label="Test [DEMO]"          notes="Tooltip Message" type=DirectVT title="Test Title" param="$0 -r test"/>
+    <menuitem id=Truecolor label="Truecolor [DEMO]"     notes="Tooltip Message" type=DirectVT title="True Title" param="$0 -r truecolor"/>
 </VTM_PROFILE>
 )==";
 
@@ -171,8 +174,8 @@ int main(int argc, char* argv[])
                 if (auto window = ground->invite<gate>(config))
                 {
                     log("user: new gate for ", client);
-                    auto deskmenu = app::shared::creator("Desk")(utf::concat(window->id, ";", config.os_user_id));
-                    auto bkground = app::shared::creator("Fone")("Gems;Demo;");
+                    auto deskmenu = app::shared::creator(app::shared::type_Desk)("", utf::concat(window->id, ";", config.os_user_id));
+                    auto bkground = app::shared::creator(app::shared::type_Fone)("", "Gems; Demo; ");
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }
@@ -221,17 +224,17 @@ int main(int argc, char* argv[])
         {
             //todo unify
             auto menusz = 3;
-            utf::to_up(utf::to_low(params), 1);
-                 if (params.starts_with("Text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
-            else if (params.starts_with("Calc"))       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
-            else if (params.starts_with("Gems"))       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
-            else if (params.starts_with("Test"))       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
-            else if (params.starts_with("Logs"))       log("Desktopio Log Console "        DESKTOPIO_VER);
-            else if (params.starts_with("Term"))       log("Desktopio Terminal "           DESKTOPIO_VER);
-            else if (params.starts_with("Powershell")) log("Desktopio Powershell "         DESKTOPIO_VER);
-            else if (params.starts_with("Truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
-            else if (params.starts_with("Headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);
-            else if (params.starts_with("Settings"))   log("Desktopio Settings "           DESKTOPIO_VER);
+            auto shadow = params;
+            utf::to_low(shadow);
+                 if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
+            else if (shadow.starts_with("calc"))       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
+            else if (shadow.starts_with("gems"))       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
+            else if (shadow.starts_with("test"))       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
+            else if (shadow.starts_with("logs"))       log("Desktopio Log Console "        DESKTOPIO_VER);
+            else if (shadow.starts_with("term"))       log("Desktopio Terminal "           DESKTOPIO_VER);
+            else if (shadow.starts_with("truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
+            else if (shadow.starts_with("headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);
+            else if (shadow.starts_with("settings"))   log("Desktopio Settings "           DESKTOPIO_VER);
             else
             {
                 menusz = 1;

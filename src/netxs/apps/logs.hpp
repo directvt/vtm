@@ -249,7 +249,7 @@ namespace netxs::app::logs
 
     namespace
     {
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             const static auto x3 = app::shared::x3;
 
@@ -304,7 +304,7 @@ namespace netxs::app::logs
         };
     }
 
-    app::shared::initialize builder{ "Logs", build };
+    app::shared::initialize builder{ "logs", build };
 }
 
 #endif // NETXS_APP_LOGS_HPP

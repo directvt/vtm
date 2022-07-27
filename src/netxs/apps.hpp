@@ -27,10 +27,14 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static constexpr auto type_ANSIVT   = "ANSIVT";
-    static constexpr auto type_DirectVT = "DirectVT";
-    static constexpr auto type_Group    = "Group";
-    static constexpr auto type_Region   = "Region";
+    static constexpr auto type_ANSIVT   = "ansivt";
+    static constexpr auto type_DirectVT = "directvt";
+    static constexpr auto type_SHELL    = "shell";
+    static constexpr auto type_Group    = "group";
+    static constexpr auto type_Region   = "region";
+    static constexpr auto type_Desk     = "desk";
+    static constexpr auto type_Fone     = "fone";
+    static constexpr auto type_Headless = "headless";
 
     static constexpr auto attr_id       = "id";
     static constexpr auto attr_index    = "index";
@@ -394,7 +398,7 @@ namespace netxs::app::shared
             });
     };
 
-    using builder_t = std::function<sptr<base>(view)>;
+    using builder_t = std::function<sptr<base>(text, text)>;
 
     auto& get_creator()
     {
@@ -413,7 +417,7 @@ namespace netxs::app::shared
     auto& creator(view app_typename)
     {
         static builder_t empty =
-        [](view) -> sptr<base>
+        [](text, text) -> sptr<base>
         {
             //todo make a banner
             return ui::cake::ctor();
@@ -455,8 +459,9 @@ namespace netxs::app::shared
         auto runapp = [&]()
         {
             auto aclass = utf::cutoff(app_name, ' ');
+            utf::to_low(aclass);
             auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::creator(aclass)((direct ? "" : "!") + params); // ! - means simple (w/o plugins)
+            auto applet = app::shared::creator(aclass)("", (direct ? "" : "!") + params); // ! - means simple (w/o plugins)
             auto window = ground->invite<gate>(config);
             window->resize(size);
             window->launch(tunnel.first, applet);
@@ -514,7 +519,7 @@ namespace netxs::app::shared
             };
         };
 
-        auto build_Strobe        = [](view v)
+        auto build_Strobe        = [](text cwd, text v)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
@@ -539,7 +544,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](view v)
+        auto build_Settings      = [](text cwd, text v)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -555,7 +560,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](view v)
+        auto build_Empty         = [](text cwd, text v)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -577,7 +582,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_Region        = [](view v)
+        auto build_Region        = [](text cwd, text v)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -654,7 +659,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Truecolor     = [](view v)
+        auto build_Truecolor     = [](text cwd, text v)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -785,100 +790,7 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_VTM           = [](view v)
-        {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>()
-                  ->invoke([&](auto& boss)
-                    {
-                        closing_on_quit(boss);
-                    });
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
-                auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                    auto scroll = layers->attach(ui::rail::ctor());
-                    if (app::shared::vtm_count < app::shared::max_vtm)
-                    {
-                        auto c = &app::shared::vtm_count; (*c)++;
-                        scroll->attach(ui::term::ctor("vtm"))
-                              ->colors(whitelt, blackdk)
-                              ->invoke([&](auto& boss)
-                              {
-                                  boss.SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
-                                  {
-                                      (*c)--;
-                                      log("main: vtm recursive conn destoyed");
-                                  };
-                                  boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                                  {
-                                      boss.start();
-                                  };
-                              });
-                    }
-                    else
-                    {
-                        scroll->attach(ui::post::ctor())
-                              ->colors(whitelt, blackdk)
-                              ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                                      .add("\n\nconnection rejected\n\n")
-                                      .nil().wrp(wrap::on)
-                                      .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones."));
-                    }
-                layers->attach(app::shared::scroll_bars(scroll));
-            return window;
-        };
-        auto build_MC            = [](view v)
-        {
-            auto window = ui::cake::ctor()
-                  ->invoke([&](auto& boss)
-                    {
-                        closing_on_quit(boss);
-                    });
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
-                auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                    auto scroll = layers->attach(ui::rail::ctor())
-                                        ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
-                    // -c -- force color support
-                    // -x -- force xtrem functionality
-
-                    #if defined(_WIN32)
-
-                        auto inst = scroll->attach(ui::term::ctor("wsl mc"));
-
-                    #else
-                        auto shell = os::get_shell();
-                        auto inst = scroll->attach(ui::term::ctor(shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-                    #endif
-
-                    inst->colors(whitelt, blackdk)
-                        ->invoke([&](auto& boss)
-                        {
-                            boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                            {
-                                boss.start();
-                            };
-                        });
-                layers->attach(app::shared::scroll_bars(scroll));
-            return window;
-        };
-        auto build_Powershell    = [](view v)
-        {
-            auto window = app::term::build("powershell");
-            return window;
-        };
-        auto build_Headless      = [](view v)
+        auto build_Headless      = [](text cwd, text param)
         {
             auto window = ui::cake::ctor()
                   ->invoke([&](auto& boss)
@@ -899,9 +811,9 @@ namespace netxs::app::shared
                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
-                    auto data = v.empty() ? os::get_shell() + "-i"
-                                          : text{ v };
-                    auto inst = scroll->attach(ui::term::ctor(data))
+                    auto data = param.empty() ? os::get_shell() + "-i"
+                                              : param;
+                    auto inst = scroll->attach(ui::term::ctor(cwd, data))
                                       ->colors(whitelt, blackdk)
                                       ->invoke([&](auto& boss)
                                       {
@@ -913,7 +825,7 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Fone          = [](view v)
+        auto build_Fone          = [](text cwd, text param)
         {
             return ui::park::ctor()
                 ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(DESKTOPIO_MYNAME)
@@ -922,7 +834,7 @@ namespace netxs::app::shared
                 ->invoke([&](auto& boss)
                 {
                     auto shadow = ptr::shadow(boss.This());
-                    auto data = utf::divide(v, ";");
+                    auto data = utf::divide(param, ";");
                     auto type = text{ data.size() > 0 ? data[0] : view{} };
                     auto name = text{ data.size() > 1 ? data[1] : view{} };
                     auto args = text{ data.size() > 2 ? data[2] : view{} };
@@ -979,14 +891,13 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_DirectVT      = [](view v)
+        auto build_DirectVT      = [](text cwd, text param)
         {
-            if (v.empty()) throw;
             auto window = ui::cake::ctor()
                 ->plugin<pro::limit>(dot_11)
                 ->plugin<pro::focus>();
 
-            auto direct = ui::dtvt::ctor(text{ v })
+            auto direct = ui::dtvt::ctor(cwd, param)
                 ->invoke([](auto& boss)
                 {
                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
@@ -997,36 +908,55 @@ namespace netxs::app::shared
             window->attach(direct);
             return window;
         };
-        auto build_ANSIVT        = [](view v)
+        auto build_ANSIVT        = [](text cwd, text param)
         {
-            if (v.empty()) throw;
+            if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
 
-            auto param = os::current_module_file();
-            if (param.find(' ') != text::npos) param = "\"" + param + "\"";
+            auto args = os::current_module_file();
+            if (args.find(' ') != text::npos) args = "\"" + args + "\"";
 
-            #if defined(_WIN32)
-                param += " -r headless cmd /c ";
-            #else
-                param += " -r headless " + os::get_shell() + " -c ";
-            #endif
-            param += v;
+            args += " -r headless ";
+            args += param;
 
-            return build_DirectVT(param);
+            return build_DirectVT(cwd, args);
+        };
+        auto build_SHELL         = [](text cwd, text param)
+        {
+            auto args = os::current_module_file();
+            if (args.find(' ') != text::npos) args = "\"" + args + "\"";
+
+            args += " -r headless ";
+            if (param.empty())
+            {
+                #if defined(_WIN32)
+                    args += "cmd";
+                #else
+                    args += os::get_shell();
+                #endif
+            }
+            else
+            {
+                #if defined(_WIN32)
+                    args += "cmd /c ";
+                #else
+                    args += os::get_shell() + " -c ";
+                #endif
+                args += param;
+            }
+
+            return build_DirectVT(cwd, args);
         };
 
-        app::shared::initialize builder_Strobe       { "Strobe"                  , build_Strobe     };
-        app::shared::initialize builder_Settings     { "Settings"                , build_Settings   };
-        app::shared::initialize builder_Empty        { "Empty"                   , build_Empty      };
-        app::shared::initialize builder_Truecolor    { "Truecolor"               , build_Truecolor  };
-        app::shared::initialize builder_VTM          { "VTM"                     , build_VTM        };
-        app::shared::initialize builder_MC           { "MC"                      , build_MC         };
-        app::shared::initialize builder_Powershell   { "Powershell"              , build_Powershell };
-        app::shared::initialize builder_Bash         { "Bash"                    , app::term::build };
-        app::shared::initialize builder_Headless     { "Headless"                , build_Headless   };
-        app::shared::initialize builder_Fone         { "Fone"                    , build_Fone       };
+        app::shared::initialize builder_Strobe       { "strobe"                  , build_Strobe     };
+        app::shared::initialize builder_Settings     { "settings"                , build_Settings   };
+        app::shared::initialize builder_Empty        { "empty"                   , build_Empty      };
+        app::shared::initialize builder_Truecolor    { "truecolor"               , build_Truecolor  };
+        app::shared::initialize builder_Headless     { app::shared::type_Headless, build_Headless   };
+        app::shared::initialize builder_Fone         { app::shared::type_Fone    , build_Fone       };
         app::shared::initialize builder_Region       { app::shared::type_Region  , build_Region     };
         app::shared::initialize builder_DirectVT     { app::shared::type_DirectVT, build_DirectVT   };
         app::shared::initialize builder_ANSIVT       { app::shared::type_ANSIVT  , build_ANSIVT     };
+        app::shared::initialize builder_SHELL        { app::shared::type_SHELL   , build_SHELL      };
     }
 
     auto init_app_registry = [](auto& world)
@@ -1149,7 +1079,7 @@ namespace netxs::app::shared
                     auto item = item_t{};
                     item[attr_id   ] = fullname;
                     item[attr_notes] = fullname;
-                    item[attr_type ] = type_ANSIVT;
+                    item[attr_type ] = type_SHELL;
                     item[attr_title] = fullname;
                     item[attr_param] = fullname;
                     list.emplace_back(name, std::move(item));
@@ -1191,7 +1121,7 @@ namespace netxs::app::shared
             .index    = -1,
             .hidden   = faux,
             .slimmenu = faux,
-            .type     = type_ANSIVT,
+            .type     = type_SHELL,
         };
         auto find = [&](auto const& alias) -> auto&
         {
@@ -1224,7 +1154,7 @@ namespace netxs::app::shared
                 }
                 auto& label = item[attr_label];
                 auto conf_rec = menuitem_t{};
-                conf_rec.label    = label.empty() ? iter->second : label;
+                conf_rec.label    = label.empty() ? id : label;
                 conf_rec.fname    = name;
                 conf_rec.id       = id;
                 conf_rec.alias    = xml::take<view>(item, attr_alias);
@@ -1241,9 +1171,9 @@ namespace netxs::app::shared
                 conf_rec.slimmenu = xml::take<bool>(item, attr_slimmenu, fallback.slimmenu);
                 conf_rec.hotkey   = xml::take<view>(item, attr_hotkey,   fallback.hotkey  ); //todo register hotkey
                 conf_rec.cwd      = xml::take<view>(item, attr_cwd,      fallback.cwd     );
-                conf_rec.type     = xml::take<view>(item, attr_type,     fallback.type    );
                 conf_rec.param    = xml::take<view>(item, attr_param,    fallback.param   );
-
+                conf_rec.type     = xml::take<view>(item, attr_type,     fallback.type    );
+                utf::to_low(conf_rec.type);
                 utf::change(conf_rec.title,  "$0", filepath);
                 utf::change(conf_rec.footer, "$0", filepath);
                 utf::change(conf_rec.label,  "$0", filepath);
@@ -1338,16 +1268,7 @@ namespace netxs::app::shared
             else                                window->extend(what.square);
             auto& creator = app::shared::creator(config.type);
 
-            auto err = std::error_code{};
-            auto cwd = fs::current_path(err);
-            if (config.cwd.size())
-            {
-                log("apps: changing current working directory to '", config.cwd, "'");
-                fs::current_path(config.cwd, err);
-                if (err) log("apps: failed to change current working directory to '", config.cwd, "', error code: ", err.value());
-            }
-
-            auto object = creator(config.param);
+            auto object = creator(config.cwd, config.param);
             if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
             if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
@@ -1356,8 +1277,6 @@ namespace netxs::app::shared
             log("apps: app type: ", config.type, ", menu item id: ", what.menuid);
             world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
-
-            if (config.cwd.size()) fs::current_path(cwd, err);
 
             what.object = window;
         };

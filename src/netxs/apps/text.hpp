@@ -183,7 +183,7 @@ utility like ctags is used to locate the definitions.
 
 )";
 
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -228,7 +228,7 @@ utility like ctags is used to locate the definitions.
         };
     }
 
-    app::shared::initialize builder{ "Text", build };
+    app::shared::initialize builder{ "text", build };
 }
 
 #endif // NETXS_APP_TEXT_HPP

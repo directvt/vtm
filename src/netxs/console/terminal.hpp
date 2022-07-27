@@ -5743,6 +5743,7 @@ namespace netxs::ui
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
         text       cmdarg; // term: Startup command line arguments.
+        text       curdir; // term: Current working directory.
         hook       oneoff; // term: One-shot token for start and shutdown events.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
@@ -6408,8 +6409,8 @@ namespace netxs::ui
                     if (unique != timer)
                     {
                         auto initsz = target->panel;
-                        ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                     [&](auto exit_reason) { onexit(exit_reason); } );
+                        ptycon.start(curdir, cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                             [&](auto exit_reason) { onexit(exit_reason); } );
                         unique = timer;
                         oneoff.reset();
                     }
@@ -6423,7 +6424,7 @@ namespace netxs::ui
         }
         bool linux_console{};
        ~term(){ active = faux; }
-        term(text command_line, si32 max_scrollback_size = def_length, si32 grow_step = def_growup)
+        term(text cwd, text command_line, si32 max_scrollback_size = def_length, si32 grow_step = def_growup)
             : normal{ *this, max_scrollback_size, grow_step },
               altbuf{ *this },
               cursor{ *this },
@@ -6440,10 +6441,11 @@ namespace netxs::ui
               onlogs{  faux },
               unsync{  faux },
               invert{  faux },
-              selmod{ def_selmod }
+              curdir{ cwd   },
+              selmod{ def_selmod },
+              cmdarg{command_line}
         {
             linux_console = os::local_mode();
-            cmdarg = command_line;
             target = &normal;
             //cursor.style(commands::cursor::def_style); // default=blinking_box
             cursor.style(def_cursor); //todo make it via props like selmod
@@ -7025,6 +7027,7 @@ namespace netxs::ui
         };
 
         events_t        stream; // dtvt: .
+        text            curdir; // dtvt: Current working directory.
         text            cmdarg; // dtvt: Startup command line arguments.
         bool            active; // dtvt: Terminal lifetime.
         si32            nodata; // dtvt: Show splash "No signal".
@@ -7129,10 +7132,10 @@ namespace netxs::ui
                     if (unique != timer)
                     {
                         termsz(base::size());
-                        auto procid = ptycon.start(cmdarg, termsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                   [&](auto log_message) { onlogs(log_message); },
-                                                                   [&](auto exit_reason) { atexit(exit_reason); },
-                                                                   [&](auto exit_reason) { onexit(exit_reason); } );
+                        auto procid = ptycon.start(curdir, cmdarg, termsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                           [&](auto log_message) { onlogs(log_message); },
+                                                                           [&](auto exit_reason) { atexit(exit_reason); },
+                                                                           [&](auto exit_reason) { onexit(exit_reason); } );
                         unique = timer;
                         oneoff.reset();
                         prompt.add("    ", procid, ": ");
@@ -7150,14 +7153,14 @@ namespace netxs::ui
             if (debugs.count()/* for Logs only */) SIGNAL_GLOBAL(e2::debug::count::set, -1);
             active = faux;
         }
-        dtvt(text command_line)
+        dtvt(text cwd, text command_line)
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
-              nodata{      }
+              nodata{      },
+              curdir{ cwd  },
+              cmdarg{command_line}
         {
-            cmdarg = command_line;
-
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
             auto fps = e2::config::fps.param(-1);

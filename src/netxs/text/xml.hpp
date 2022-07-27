@@ -91,6 +91,7 @@ namespace netxs::xml
             {
                 item = get_tail(data, " =");
                 next = type::token;
+                utf::to_low(item);
             }
         }
         return next == type::token;

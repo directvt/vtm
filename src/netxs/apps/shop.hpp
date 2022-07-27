@@ -200,7 +200,7 @@ namespace netxs::app::shop
             return std::tuple{ appstore_head, appstore_body, desktopio_body };
         };
 
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             const static auto c3 = app::shared::c3;
             const static auto x3 = app::shared::x3;
@@ -245,7 +245,7 @@ namespace netxs::app::shop
         };
     };
 
-    app::shared::initialize builder{ "Gems", build };
+    app::shared::initialize builder{ "gems", build };
 }
 
 #endif // NETXS_APP_SHOP_HPP

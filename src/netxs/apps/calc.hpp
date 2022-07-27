@@ -312,7 +312,7 @@ namespace netxs::app::calc
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
         };
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             const static auto c7 = app::shared::c7;
             const static auto c3 = app::shared::c3;
@@ -412,7 +412,7 @@ namespace netxs::app::calc
         };
     }
 
-    app::shared::initialize builder{ "Calc", build };
+    app::shared::initialize builder{ "calc", build };
 }
 
 #endif // NETXS_APP_CALC_HPP

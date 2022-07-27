@@ -414,7 +414,7 @@ namespace netxs::app::test
 
             return topic;
         };
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             auto topic = get_text();
             auto window = ui::cake::ctor()
@@ -477,7 +477,7 @@ namespace netxs::app::test
         };
     }
 
-    app::shared::initialize builder{ "Test", build };
+    app::shared::initialize builder{ "test", build };
 }
 
 #endif // NETXS_APP_TEST_HPP

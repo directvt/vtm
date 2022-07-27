@@ -685,7 +685,7 @@ namespace netxs::app::tile
                                 auto config = conf_list[current_default];
 
                                 auto& creator = app::shared::creator(config.type);
-                                auto host = creator(config.param);
+                                auto host = creator(config.cwd, config.param);
                                 auto app = app_window(config.title, "", host, current_default);
                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                 boss.attach(app);
@@ -804,7 +804,7 @@ namespace netxs::app::tile
                 }
                 auto& config = iter->second;
                 auto& creator = app::shared::creator(config.type);
-                auto host = creator(config.param);
+                auto host = creator(config.cwd, config.param);
                 auto inst = app_window(config.title, config.footer, host, menu_item_id);
                 if (config.bgcolor)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
                 if (config.fgcolor)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
@@ -813,8 +813,9 @@ namespace netxs::app::tile
             }
             return place;
         };
-        auto build_inst = [](view data) -> sptr<base>
+        auto build_inst = [](text cwd, text arg) -> sptr<base>
         {
+            auto data = view{ arg };
             auto unique_id = utf::cutoff(data, '\0');
             auto param     = utf::remain(data, '\0');;
 
@@ -945,6 +946,14 @@ namespace netxs::app::tile
                             boss.base::template riseup<tier::release>(e2::form::quit, item);
                         };
                     });
+
+            if (cwd.size())
+            {
+                auto err = std::error_code{};
+                fs::current_path(cwd, err);
+                if (err) log("tile: failed to change current working directory to '", cwd, "', error code: ", err.value());
+                else     log("tile: change current working directory to '", cwd, "'");
+            }
 
             object->attach(slot::_2, parse_data(parse_data, unique_id, param))
                 ->invoke([&](auto& boss)

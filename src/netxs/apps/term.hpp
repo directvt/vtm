@@ -209,10 +209,12 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             auto window = ui::cake::ctor();
-            auto term_type = shared::app_class(v);
+            auto arg_shadow = view{ arg };
+            auto term_type = shared::app_class(arg_shadow);
+            arg = arg_shadow;
             if (term_type == shared::app_type::normal) window->plugin<pro::focus>()
                                                              ->plugin<pro::track>()
                                                              ->plugin<pro::acryl>()
@@ -260,8 +262,8 @@ namespace netxs::app::term
                                   });
 
                             auto shell = os::get_shell();
-                            auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
-                                                                                : text{ v }));
+                            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell + " -i"
+                                                                                       : arg));
 
                             inst->attach_property(ui::term::events::colors::bg,      app::term::events::colors::bg)
                                 ->attach_property(ui::term::events::colors::fg,      app::term::events::colors::fg)
@@ -319,7 +321,7 @@ namespace netxs::app::term
         };
     }
 
-    app::shared::initialize builder{ "Term", build };
+    app::shared::initialize builder{ "term", build };
 }
 
 #endif // NETXS_APP_TERM_HPP
