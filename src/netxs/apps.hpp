@@ -46,6 +46,7 @@ namespace netxs::app::shared
     static constexpr auto attr_slimmenu = "slimmenu";
     static constexpr auto attr_hotkey   = "hotkey";
     static constexpr auto attr_type     = "type";
+    static constexpr auto attr_cwd      = "cwd";
     static constexpr auto attr_param    = "param";
 
     static constexpr auto tag_menuitem = "menuitem";
@@ -400,7 +401,7 @@ namespace netxs::app::shared
         static std::map<text, builder_t> creator_inst;
         return creator_inst;
     }
-    auto& get_config()
+    auto& configs()
     {
         auto world_ptr = e2::config::whereami.param();
         SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
@@ -1190,6 +1191,7 @@ namespace netxs::app::shared
             .index    = -1,
             .hidden   = faux,
             .slimmenu = faux,
+            .type     = type_ANSIVT,
         };
         auto find = [&](auto const& alias) -> auto&
         {
@@ -1215,19 +1217,14 @@ namespace netxs::app::shared
             {
                 auto& id = iter->second;
                 auto unique_id = filepath + "/" + id;
-                auto& label = item[attr_label];
-                if (label.empty())
-                {
-                    log("apps: attribute '", attr_label, "' missing for ", unique_id);
-                    continue;
-                }
                 if (id.empty())
                 {
                     log("apps: attribute '", attr_id, "' missing for ", unique_id);
                     continue;
                 }
+                auto& label = item[attr_label];
                 auto conf_rec = menuitem_t{};
-                conf_rec.label    = label;
+                conf_rec.label    = label.empty() ? iter->second : label;
                 conf_rec.fname    = name;
                 conf_rec.id       = id;
                 conf_rec.alias    = xml::take<view>(item, attr_alias);
@@ -1243,6 +1240,7 @@ namespace netxs::app::shared
                 conf_rec.winsize  = xml::take<twod>(item, attr_winsize,  fallback.winsize );
                 conf_rec.slimmenu = xml::take<bool>(item, attr_slimmenu, fallback.slimmenu);
                 conf_rec.hotkey   = xml::take<view>(item, attr_hotkey,   fallback.hotkey  ); //todo register hotkey
+                conf_rec.cwd      = xml::take<view>(item, attr_cwd,      fallback.cwd     );
                 conf_rec.type     = xml::take<view>(item, attr_type,     fallback.type    );
                 conf_rec.param    = xml::take<view>(item, attr_param,    fallback.param   );
 
@@ -1292,7 +1290,7 @@ namespace netxs::app::shared
             auto location = gear.slot;
             if (gear.meta(hids::anyCtrl))
             {
-                log("host: area copied to clipboard ", location);
+                log("apps: area copied to clipboard ", location);
                 auto canvas_ptr = sptr<core>{};
                 gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
                 if (canvas_ptr)
@@ -1321,7 +1319,7 @@ namespace netxs::app::shared
                     frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
                     {
                         insts_count--;
-                        log("inst: detached: ", insts_count);
+                        log("apps: detached: ", insts_count);
                     };
 
                     gear.kb_focus_changed = faux;
@@ -1332,7 +1330,7 @@ namespace netxs::app::shared
         };
         world->SUBMIT(tier::release, e2::form::proceed::createat, what)
         {
-            auto& conf_list = app::shared::get_config();
+            auto& conf_list = app::shared::configs();
             auto& config = conf_list[what.menuid];
             auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
 
@@ -1340,27 +1338,38 @@ namespace netxs::app::shared
             else                                window->extend(what.square);
             auto& creator = app::shared::creator(config.type);
 
+            auto err = std::error_code{};
+            auto cwd = fs::current_path(err);
+            if (config.cwd.size())
+            {
+                log("apps: changing current working directory to '", config.cwd, "'");
+                fs::current_path(config.cwd, err);
+                if (err) log("apps: failed to change current working directory to '", config.cwd, "', error code: ", err.value());
+            }
+
             auto object = creator(config.param);
             if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
             if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
 
             window->attach(object);
-            log("host: app type: ", config.type, ", menu item id: ", what.menuid);
+            log("apps: app type: ", config.type, ", menu item id: ", what.menuid);
             world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
+
+            if (config.cwd.size()) fs::current_path(cwd, err);
 
             what.object = window;
         };
         world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
         {
-            auto& conf_list = app::shared::get_config();
+            auto& conf_list = app::shared::configs();
             auto& config = conf_list[what.menuid];
             auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
 
             window->extend(what.square);
             window->attach(what.object);
-            log("host: attach type=", config.type, " menu_item_id=", what.menuid);
+            log("apps: attach type=", config.type, " menu_item_id=", what.menuid);
             world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 

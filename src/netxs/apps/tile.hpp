@@ -681,7 +681,7 @@ namespace netxs::app::tile
                                 auto current_default = e2::data::changed.param();
                                 gate.SIGNAL(tier::request, e2::data::changed, current_default);
 
-                                auto& conf_list = app::shared::get_config();
+                                auto& conf_list = app::shared::configs();
                                 auto config = conf_list[current_default];
 
                                 auto& creator = app::shared::creator(config.type);
@@ -785,7 +785,7 @@ namespace netxs::app::tile
                 }
                 menu_item_id += '/';
                 menu_item_id += app_id;
-                auto& conf_list = app::shared::get_config();
+                auto& conf_list = app::shared::configs();
 
                 auto iter = conf_list.find(menu_item_id);
                 if (iter == conf_list.end())
@@ -824,7 +824,7 @@ namespace netxs::app::tile
             object->invoke([&](auto& boss)
                 {
                     auto oneoff = std::make_shared<hook>();
-                    auto& conf_list = app::shared::get_config();
+                    auto& conf_list = app::shared::configs();
                     auto objs_config_ptr = &conf_list;
                     boss.SUBMIT_T_BYVAL(tier::anycast, e2::form::upon::created, *oneoff, gear)
                     {

@@ -116,7 +116,7 @@ namespace netxs::app::desk
                     };
                 });
 
-            auto& conf_list = app::shared::get_config();
+            auto& conf_list = app::shared::configs();
             auto def_note = text{" Menu item:                           \n"
                                  "   Left click to start a new instance \n"
                                  "   Right click to set default app     "};

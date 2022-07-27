@@ -65,6 +65,7 @@ namespace netxs::console
         twod  winsize{};
         bool slimmenu{};
         text   hotkey{};
+        text      cwd{};
         text     type{};
         text    param{};
     };
