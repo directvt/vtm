@@ -108,7 +108,28 @@ namespace netxs::app::shared
         }
         return type;
     };
-
+    const auto closing_on_quit = [](auto& boss)
+    {
+        boss.SUBMIT(tier::anycast, e2::form::quit, item)
+        {
+            boss.base::template riseup<tier::release>(e2::form::quit, item);
+        };
+    };
+    const auto closing_by_gesture = [](auto& boss)
+    {
+        boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+        {
+            auto backup = boss.This();
+            boss.base::template riseup<tier::release>(e2::form::quit, backup);
+            gear.dismiss();
+        };
+        boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+        {
+            auto backup = boss.This();
+            boss.base::template riseup<tier::release>(e2::form::quit, backup);
+            gear.dismiss();
+        };
+    };
     const auto app_limit = [](auto boss, text title)
     {
         log("app_limit: max count reached");
@@ -414,26 +435,52 @@ namespace netxs::app::shared
         auto& conf_list = *conf_list_ptr;
         return conf_list;
     }
-    auto& creator(view app_typename)
+    auto& creator(text app_typename)
     {
         static builder_t empty =
-        [](text, text) -> sptr<base>
+        [&](text, text) -> sptr<base>
         {
-            //todo make a banner
-            return ui::cake::ctor();
+            auto window = ui::cake::ctor()
+                ->invoke([&](auto& boss)
+                {
+                    closing_on_quit(boss);
+                    closing_by_gesture(boss);
+                    boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                    {
+                        auto title = "error"s;
+                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                    };
+                });
+            auto msg = ui::post::ctor()
+                  ->colors(whitelt, rgba{ 0x7F404040 })
+                  ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                  + "\n\nUsupported application type\n\n"
+                  + ansi::nil().wrp(wrap::on)
+                  + "Only the following application types are supported\n\n"
+                  + ansi::nil().wrp(wrap::off).fgc(whitedk)
+                  + "   type = DirectVT \n"
+                    "   type = ANSIVT   \n"
+                    "   type = SHELL    \n"
+                    "   type = Group    \n"
+                    "   type = Region   \n\n"
+                  + ansi::nil().wrp(wrap::on).fgc(whitelt)
+                  + "apps: See logs for details."
+                  );
+            auto placeholder = ui::park::ctor()
+                  ->colors(whitelt, rgba{ 0x7F404040 })
+                  ->attach(snap::stretch, snap::stretch, msg);
+            window->attach(ui::rail::ctor())
+                  ->attach(placeholder);
+            return window;
         };
-        auto key = text{ app_typename };
         auto& map = get_creator();
-        const auto it = map.find(key);
+        const auto it = map.find(app_typename);
         if (it == map.end())
         {
-            //return map["Empty"];
+            log("apps: unknown app type - '", app_typename, "'");
             return empty;
         }
-        else
-        {
-            return it->second;
-        }
+        else return it->second;
     }
     struct initialize
     {
@@ -496,29 +543,6 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto closing_on_quit = [](auto& boss)
-        {
-            boss.SUBMIT(tier::anycast, e2::form::quit, item)
-            {
-                boss.base::template riseup<tier::release>(e2::form::quit, item);
-            };
-        };
-        auto closing_by_gesture = [](auto& boss)
-        {
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-            {
-                auto backup = boss.This();
-                boss.base::template riseup<tier::release>(e2::form::quit, backup);
-                gear.dismiss();
-            };
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-            {
-                auto backup = boss.This();
-                boss.base::template riseup<tier::release>(e2::form::quit, backup);
-                gear.dismiss();
-            };
-        };
-
         auto build_Strobe        = [](text cwd, text v)
         {
             auto window = ui::cake::ctor();
