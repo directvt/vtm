@@ -662,12 +662,20 @@ namespace netxs::events
             synch.notify_one();
         }
     };
-
+    namespace
+    {
+        template<class T>
+        auto& _agent()
+        {
+            static auto agent = enqueue_t{};
+            return agent;
+        }
+    }
     // events: Enqueue deferred task.
     template<class T>
     void enqueue(enqueue_t::wptr object_ptr, T&& proc)
     {
-        static auto agent = enqueue_t{};
+        auto& agent = _agent<void>();
         agent.add(object_ptr, std::forward<T>(proc));
     }
 

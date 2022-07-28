@@ -174,6 +174,15 @@ namespace netxs::os
         static constexpr fd_t STDOUT_FD = STDOUT_FILENO;
         static constexpr fd_t STDERR_FD = STDERR_FILENO;
 
+        void fdcleanup() // Close all file descriptors except the standard ones.
+        {
+            auto maxfd = ::sysconf(_SC_OPEN_MAX);
+            auto minfd = std::max({ STDIN_FD, STDOUT_FD, STDERR_FD });
+            while (++minfd < maxfd)
+            {
+                ::close(minfd);
+            }
+        }
     #endif
 
     class args
@@ -1074,6 +1083,7 @@ namespace netxs::os
                 log("exec: executing '", binary, " ", params, "'");
                 char* argv[] = { binary.data(), params.data(), nullptr };
 
+                os::fdcleanup();
                 ::execvp(argv[0], argv);
                 os::exit(1, "exec: error ", errno);
             }
@@ -3702,7 +3712,7 @@ namespace netxs::os
                     ::dup2(fds, STDIN_FD ); // Assign stdio lines atomically
                     ::dup2(fds, STDOUT_FD); // = close(new);
                     ::dup2(fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
-                    os::close(fds);
+                    os::fdcleanup();
 
                     if (cwd.size())
                     {
@@ -4057,9 +4067,7 @@ namespace netxs::os
                         ::dup2(to_client[0], STDIN_FD ); // Assign stdio lines atomically
                         ::dup2(to_server[1], STDOUT_FD); // = close(new); fcntl(old, F_DUPFD, new).
                         ::dup2(to_srvlog[1], STDERR_FD); // Used for the logs output
-                        os::close(to_client[0]);
-                        os::close(to_server[1]);
-                        os::close(to_srvlog[1]);
+                        os::fdcleanup();
 
                         if (cwd.size())
                         {
