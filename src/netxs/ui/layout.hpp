@@ -1010,6 +1010,12 @@ namespace netxs::ui::atoms
             st = c.st;
         	if (c.wdt()) gc = c.gc;
         }
+        // cell: Mix colors using alpha.
+        void mixfull(cell const& c, byte alpha)
+        {
+            mix(c, alpha);
+            if (c.id) id = c.id;
+        }
         // cell: Merge the two cells and update ID with COOR.
         void fuse(cell const& c, id_t oid)//, twod const& pos)
         {
@@ -1315,7 +1321,7 @@ namespace netxs::ui::atoms
                     : alpha{ alpha }
                 { }
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mix(src, alpha); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mixfull(src, alpha); }
             };
             struct xlucent_t
             {

@@ -6998,7 +6998,7 @@ namespace netxs::ui
         hook            oneoff; // dtvt: One-shot token for start and shutdown events.
         period          maxoff; // dtvt: Max delay before showing "No signal".
         subs            debugs; // dtvt: Tokens for debug output subcriptions.
-        byte            opaque; // dtvt: Object transparency;
+        byte            opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         ansi::esc       prompt; // dtvt: PTY logger prompt.
         testy<twod>     termsz; // dtvt: PTY device window size.
         os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
@@ -7174,25 +7174,26 @@ namespace netxs::ui
             if (splash.size() != size)
             {
                 splash.size(size);
-
                 auto parent_id = id_t{}; // Handover control to the parent if no response.
                 if (auto parent = base::parent()) parent_id = parent->id;
-                if (canvas.size()) splash.zoom(canvas, cell::shaders::fullid(parent_id));
-                else               splash.wipe(cell{}.link(parent_id).bgc(blacklt));
-
-                auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
-                                       .add("             \n",
-                                            "  NO SIGNAL  \n",
-                                            "             \n") };
-                splash.output(note);
-                splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-                splash.output(note);
+                if (canvas.size())
+                {
+                    splash.zoom(canvas, cell::shaders::fullid(parent_id));
+                    auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
+                                           .add("             \n",
+                                                "  NO SIGNAL  \n",
+                                                "             \n") };
+                    splash.output(note);
+                    splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                    splash.output(note);
+                }
+                else splash.wipe(cell{}.link(parent_id).bgc(blacklt).bga(0x40));
             }
             fill(parent_canvas, splash);
         }
         void fill(core& parent_canvas, core const& canvas)
         {
-            if (opaque == 0xFF) parent_canvas.fill(canvas, cell::shaders::full);
+            if (opaque == 0xFF) parent_canvas.fill(canvas, cell::shaders::fusefull);
             else                parent_canvas.fill(canvas, cell::shaders::transparent(opaque));
         }
     };
