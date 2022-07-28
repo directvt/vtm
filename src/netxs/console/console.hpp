@@ -2798,28 +2798,6 @@ namespace netxs::console
                     coder.clear();
                 }
 
-                //boss.SUBMIT_T(tier::release, e2::debug, owner::memo, track)
-                //{
-                //	status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
-                //		utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
-                //
-                //	status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
-                //		utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
-                //
-                //	status[prop::frame_size].set(stress) =
-                //		utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
-                //});
-
-                //boss.SUBMIT_T(tier::release, e2::conio::size, owner::memo, newsize)
-                //{
-                //	shadow();
-                //	status[prop::last_event].set(stress) = "size";
-                //
-                //	status[prop::win_size].set(stress) =
-                //		std::to_string(newsize.x) + " x " +
-                //		std::to_string(newsize.y);
-                //});
-
                 boss.SUBMIT_T(tier::general, e2::config::fps, memo, fps)
                 {
                     status[prop::frame_rate].set(stress) = std::to_string(fps);
@@ -5056,20 +5034,15 @@ namespace netxs::console
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
         }
-        void handle(s11n::xs::debug_count lock)
+        void handle(s11n::xs::debugdata   lock) // For Logs only.
         {
             auto& item = lock.thing;
-            notify<tier::anycast>(e2::debug::count::any, item.count);
+            notify<tier::anycast>(e2::debug::output, item.data);
         }
-        void handle(s11n::xs::debugdata   lock)
+        void handle(s11n::xs::debuglogs   lock) // For Logs only.
         {
             auto& item = lock.thing;
-            notify<tier::general>(e2::debug::output, item.data);
-        }
-        void handle(s11n::xs::debuglogs   lock)
-        {
-            auto& item = lock.thing;
-            notify<tier::general>(e2::debug::logs, item.data);
+            notify<tier::anycast>(e2::debug::logs, item.data);
         }
     };
 
@@ -5702,30 +5675,9 @@ namespace netxs::console
                 };
                 if (direct) // Forward unhandled events outside.
                 {
-                    SUBMIT_T(tier::general, e2::debug::count::set, token, count)
-                    {
-                        auto debug_count = conio.debug_count.freeze();
-                        conio.request_dbg_count.send(conio, count);
-                        auto maxoff = 100ms;
-                        if (std::cv_status::timeout != debug_count.wait_for(maxoff))
-                        {
-                            count += debug_count.thing.count;
-                            debug_count.thing.count = 0;
-                        }
-                        else
-                        {
-                            log("gate: timeout: no debug count reply");
-                        }
-                    };
-                    SUBMIT_T(tier::general, e2::debug::request, token, count)
+                    SUBMIT_T(tier::anycast, e2::debug::request, token, count)
                     {
                         if (count > 0) conio.request_debug.send(conio);
-                    };
-                    SUBMIT_T(tier::preview, e2::debug::output, token, data)
-                    {
-                        // Forward from app::term.
-                        //todo text -> view
-                        conio.debugdata.send(conio, text{ data });
                     };
                     SUBMIT_T(tier::release, e2::config::fps, token, fps)
                     {

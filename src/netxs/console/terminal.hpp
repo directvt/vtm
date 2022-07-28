@@ -5999,7 +5999,7 @@ namespace netxs::ui
                 auto guard = netxs::events::try_sync{};
                 if (guard)
                 {
-                    if (onlogs) base::riseup<tier::preview>(e2::debug::output, data); // Post data for Logs.
+                    if (onlogs) SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
 
                     if (follow[axis::Y])
                     {
@@ -6469,15 +6469,6 @@ namespace netxs::ui
             {
                 onlogs = count > 0;
             };
-            SUBMIT(tier::anycast, e2::form::upon::started, parent)
-            {
-                netxs::events::enqueue(This(), [&](auto& boss) mutable // To avoid deadlock in gate ctor.
-                {
-                    auto count = e2::debug::count::set.param();
-                    this->SIGNAL(tier::general, e2::debug::count::set, count);
-                    onlogs = count > 0;
-                });
-            };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
@@ -6895,30 +6886,6 @@ namespace netxs::ui
                     owner.request_debug();
                 });
             }
-            void handle(s11n::xs::request_dbg_count   lock)
-            {
-                netxs::events::enqueue(owner.This(), [&, count = lock.thing.count](auto& boss) mutable
-                {
-                    owner.SIGNAL(tier::general, e2::debug::count::set, count);
-                    s11n::debug_count.send(owner, count);
-                });
-            }
-            void handle(s11n::xs::debugdata           lock)
-            {
-                netxs::events::enqueue(owner.This(), [&, data = lock.thing.data](auto& boss) mutable
-                {
-                    auto shadow = view{ data };
-                    owner.SIGNAL(tier::general, e2::debug::output, shadow);
-                });
-            }
-            void handle(s11n::xs::debuglogs           lock)
-            {
-                netxs::events::enqueue(owner.This(), [&, data = lock.thing.data](auto& boss) mutable
-                {
-                    auto shadow = view{ data };
-                    owner.SIGNAL(tier::general, e2::debug::logs, shadow);
-                });
-            }
 
             events_t(dtvt& owner)
                 : s11n{ *this, owner.id },
@@ -7019,10 +6986,6 @@ namespace netxs::ui
                         s11n::winsz.send(owner, 0, new_size);
                     }
                 };
-                owner.SUBMIT_T(tier::general, e2::debug::count::any, token, count)
-                {
-                    s11n::debug_count.send(owner, count);
-                };
             }
         };
 
@@ -7097,11 +7060,6 @@ namespace netxs::ui
         // dtvt: Logs callback handler.
         void request_debug()
         {
-            SIGNAL(tier::general, e2::debug::count::set, 1);
-            SUBMIT_T(tier::general, e2::debug::count::set, debugs, count)
-            {
-                count++;
-            };
             SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
             {
                 //todo text -> view
@@ -7150,7 +7108,6 @@ namespace netxs::ui
 
        ~dtvt()
         {
-            if (debugs.count()/* for Logs only */) SIGNAL_GLOBAL(e2::debug::count::set, -1);
             active = faux;
         }
         dtvt(text cwd, text command_line)

@@ -57,7 +57,7 @@ namespace netxs::app::logs
             }
             log_parser()
             {
-                SUBMIT(tier::general, e2::debug::output, shadow)
+                SUBMIT(tier::anycast, e2::debug::output, shadow)
                 {
                     queue.push(text{ shadow });
                 };
@@ -68,7 +68,7 @@ namespace netxs::app::logs
                 show_codepoints = s;
                 auto msg = ansi::bgc(s ? greendk : yellowdk).fgc(whitelt)
                     .add(" show codepoints: ", s ? "on":"off", "\n").nil();
-                SIGNAL(tier::general, e2::debug::logs, msg);
+                SIGNAL(tier::anycast, e2::debug::logs, msg);
                 SIGNAL(tier::release, events::codepoints::release, s ? 1 : 2);
             }
             void worker()
@@ -207,13 +207,14 @@ namespace netxs::app::logs
             SUBMIT(tier::anycast, e2::form::upon::started, root)
             {
                 this->SIGNAL(tier::anycast, events::codepoints::release, worker->show_codepoints ? 1 : 2);
-                this->SIGNAL(tier::general, e2::debug::request, 1);
+                this->SIGNAL(tier::anycast, e2::debug::count::set, 1); // For Term.
+                this->SIGNAL(tier::anycast, e2::debug::request, 1); // For gate.
             };
             SUBMIT(tier::preview, e2::size::set, newsize)
             {
                 caret.coor(flow::cp());
             };
-            SUBMIT(tier::general, e2::debug::logs, utf8)
+            SUBMIT(tier::anycast, e2::debug::logs, utf8)
             {
                 topic += utf8;
                 update();
@@ -269,22 +270,23 @@ namespace netxs::app::logs
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
                     app::shared::menu_list_type{
-                            { true, "Codepoints", " Toggle button: Show or not codepoints ",
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    si32 status = 1;
-                                    boss.SIGNAL(tier::anycast, app::logs::events::codepoints::request, status);
-                                    boss.SIGNAL(tier::anycast, app::logs::events::codepoints::preview, status == 2 ? 1/*show*/ : 2/*hide*/);
-                                    gear.dismiss(true);
-                                };
-                                boss.SUBMIT(tier::anycast, app::logs::events::codepoints::release, status)
-                                {
-                                    //todo unify, get boss base colors, don't use x3
-                                    boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                                };
-                            }},
+                            //todo use it only in conjunction with the terminal
+                            //{ true, "Codepoints", " Toggle button: Show or not codepoints ",
+                            //[](ui::pads& boss)
+                            //{
+                            //    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            //    {
+                            //        si32 status = 1;
+                            //        boss.SIGNAL(tier::anycast, app::logs::events::codepoints::request, status);
+                            //        boss.SIGNAL(tier::anycast, app::logs::events::codepoints::preview, status == 2 ? 1/*show*/ : 2/*hide*/);
+                            //        gear.dismiss(true);
+                            //    };
+                            //    boss.SUBMIT(tier::anycast, app::logs::events::codepoints::release, status)
+                            //    {
+                            //        //todo unify, get boss base colors, don't use x3
+                            //        boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                            //    };
+                            //}},
                             { true, "Clear", " Clear scrollback ",
                             [](ui::pads& boss)
                             {

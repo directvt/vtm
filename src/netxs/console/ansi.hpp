@@ -2260,7 +2260,6 @@ namespace netxs::ansi
             STRUCT(vt_command,        (text, command))
             STRUCT_LITE(expose)
             STRUCT_LITE(request_debug)
-            STRUCT(request_dbg_count, (si32, count))
 
             // Input stream.
             STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, combine_focus) (bool, force_group_focus))
@@ -2279,7 +2278,6 @@ namespace netxs::ansi
             STRUCT(bgcolor,           (rgba, color))
             STRUCT(fgcolor,           (rgba, color))
             STRUCT(slimmenu,          (bool, menusize))
-            STRUCT(debug_count,       (si32, count))
             STRUCT(debugdata,         (text, data))
             STRUCT(debuglogs,         (text, data))
 
@@ -2542,7 +2540,6 @@ namespace netxs::ansi
                 X(frames           ) /* Received frames.                              */\
                 X(tooltip_element  ) /* Tooltip text.                                 */\
                 X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
-                X(request_dbg_count) /* Request debug listeners count.                */\
                 X(request_debug    ) /* Request debug output redirection to stdin.    */\
                 /* Input stream                                                       */\
                 X(focus            ) /* Set/unset focus.                              */\
@@ -2562,7 +2559,6 @@ namespace netxs::ansi
                 X(bgcolor          ) /* Set background color.                         */\
                 X(fgcolor          ) /* Set foreground color.                         */\
                 X(slimmenu         ) /* Set window menu size.                         */\
-                X(debug_count      ) /* Debug listeners count.                        */\
                 X(debugdata        ) /* Debug data.                                   */\
                 X(debuglogs        ) /* Debug logs.                                   */
 
