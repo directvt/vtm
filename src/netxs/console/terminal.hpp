@@ -206,6 +206,40 @@ namespace netxs::ui
             { }
 
             operator bool () { return state != mode::none; }
+
+            void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
+            {
+                auto deed = owner.bell::protos<tier::release>();
+                if (deed == hids::events::mouse::button::down::right.id)
+                {
+                    auto gear_test = e2::form::state::keybd::find.param();
+                    gear_test.first = gear.id;
+                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+                    if (gear_test.second == 0)
+                    {
+                        auto state = gear.state();
+                        gear.kb_focus_changed = faux;
+                        gear.force_group_focus = true;
+                        gear.combine_focus = true;
+                        owner.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        gear.state(state);
+                    }
+                }
+                else if (deed == hids::events::mouse::button::down::left.id
+                      || deed == hids::events::mouse::button::down::middle.id)
+                {
+                    auto gear_test = e2::form::state::keybd::find.param();
+                    gear_test.first = gear.id;
+                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+                    if (gear_test.second == 0)
+                    {
+                        auto state = gear.state();
+                        gear.kb_focus_changed = faux;
+                        owner.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        gear.state(state);
+                    }
+                }
+            }
             void enable(mode m)
             {
                 state |= m;
@@ -244,6 +278,7 @@ namespace netxs::ui
                     };
                     owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                     {
+                        check_focus(gear);
                         if (owner.selmod != xsgr::disabled)
                         {
                             owner.bell::router<tier::release>().skip();
@@ -6127,6 +6162,10 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
+            log("       term: right click");
+            //gear.kb_focus_changed = faux;
+            //SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+
             auto& console = *target;
             if (console.selection_active())
             {

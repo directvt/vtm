@@ -2891,7 +2891,7 @@ namespace netxs::os
                                             reply.Event.KeyEvent.wVirtualScanCode,
                                             reply.Event.KeyEvent.bKeyDown,
                                             reply.Event.KeyEvent.wRepeatCount,
-                                            utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar));
+                                            reply.Event.KeyEvent.uChar.UnicodeChar ? utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar) : text{});
                                         break;
                                     case MOUSE_EVENT:
                                         wired.mouse.send(ipcio,
