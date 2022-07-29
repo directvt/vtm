@@ -6814,7 +6814,6 @@ namespace netxs::ui
                         if (auto ptr = bell::getref(tooltip.gear_id))
                         if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                         {
-                            log("tooltip: ", tooltip.tip_text);
                             gear_ptr->set_tooltip(0, tooltip.tip_text);
                         }
                     }

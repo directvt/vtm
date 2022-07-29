@@ -97,8 +97,8 @@ namespace netxs::app::tile
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    auto state = e2::form::highlight::any.param();
-                                    data_ptr->SIGNAL(tier::anycast, e2::form::highlight::any, state);
+                                    auto state = e2::form::highlight::set.param();
+                                    data_ptr->SIGNAL(tier::anycast, e2::form::highlight::set, state);
                                 }
                             };
                             data_src_sptr->SUBMIT_T(tier::preview, e2::form::highlight::any, boss.tracker, state)

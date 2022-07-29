@@ -1060,10 +1060,10 @@ namespace netxs::app::shared
                     {
                         auto& value = item[attr];
                         value = xml::value(data);
-                             if (value.empty()) log(" ", attr, faux);
+                             if (value.empty()) log(" ", utf::debase(attr), faux);
                         else if (value.find(' ') == text::npos
-                              || value.front() == '\"') log(" ", attr, "=",   value, faux);
-                        else                            log(" ", attr, "=\"", value, "\"", faux);
+                              || value.front() == '\"') log(" ", utf::debase(attr), "=",   utf::debase(value), faux);
+                        else                            log(" ", utf::debase(attr), "=\"", utf::debase(value), "\"", faux);
                     }
                     log(" />");
                 }
@@ -1082,7 +1082,7 @@ namespace netxs::app::shared
                 {
                     list.emplace_back(filename, std::move(item));
                 }
-                else log(" xml: skip element <", tag, ">");
+                else log(" xml: skip element <", utf::debase(tag), ">");
             }
         };
         auto take_menu = [&](auto const& filename, auto& buff, view what, view stop)
@@ -1215,7 +1215,7 @@ namespace netxs::app::shared
                 auto unique_id = filepath + "/" + id;
                 if (id.empty())
                 {
-                    log("apps: attribute '", attr_id, "' missing for ", unique_id);
+                    log("apps: attribute '", utf::debase(attr_id), "' missing for ", utf::debase(unique_id));
                     continue;
                 }
                 auto& label = item[attr_label];
@@ -1255,7 +1255,7 @@ namespace netxs::app::shared
                 else if (conf_rec.index == -1) free_list.emplace_back(std::move(unique_id), std::move(conf_rec));
                 else                           sort_list.emplace_back(std::move(unique_id), std::move(conf_rec));
             }
-            else log("apps: attribute '", attr_id, "' missing for ", filepath);
+            else log("apps: attribute '", utf::debase(attr_id), "' missing for ", filepath);
         }
         sort_list.sort([](auto const& a, auto const& b)
         {
@@ -1340,7 +1340,7 @@ namespace netxs::app::shared
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
 
             window->attach(object);
-            log("apps: app type: ", config.type, ", menu item id: ", what.menuid);
+            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
             world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 
@@ -1354,7 +1354,7 @@ namespace netxs::app::shared
 
             window->extend(what.square);
             window->attach(what.object);
-            log("apps: attach type=", config.type, " menu_item_id=", what.menuid);
+            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
             world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 

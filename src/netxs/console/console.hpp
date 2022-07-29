@@ -259,6 +259,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( on , bool ),
                     EVENT_XS( off, bool ),
+                    EVENT_XS( set, bool ),
                 };
                 SUBSET_XS( upon )
                 {
@@ -2465,6 +2466,7 @@ namespace netxs::console
             subs   conf; // caret: Configuration subscriptions.
             bool   live; // caret: Should the caret be drawn.
             bool   done; // caret: Is the caret already drawn.
+            bool   down; // caret: Is the caret suppressed (lost focus).
             rect   body; // caret: Caret position.
             period step; // caret: Blink interval. period::zero() if steady.
             moment next; // caret: Time of next blinking.
@@ -2475,10 +2477,15 @@ namespace netxs::console
             caret(base& boss, bool visible = faux, twod position = dot_00, bool abox = faux) : skill{ boss },
                 live{ faux },
                 done{ faux },
+                down{ faux },
                 form{ abox },
                 body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
                 step{ BLINK_PERIOD }
             {
+                boss.SUBMIT_T(tier::anycast, e2::form::highlight::any, conf, state)
+                {
+                    down = !state;
+                };
                 boss.SUBMIT_T(tier::request, e2::config::caret::blink, conf, req_step)
                 {
                     req_step = step;
@@ -2608,7 +2615,9 @@ namespace netxs::console
                     boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
                     {
                         done = live;
-                        if (live)
+                        auto state = down ? (step == period::zero() ? faux : true)
+                                          : live;
+                        if (state)
                         {
                             auto field = canvas.core::view();
                             auto point = body;
@@ -3372,10 +3381,8 @@ namespace netxs::console
                     //using bttn = hids::events::mouse::button; //MSVC 16.9.4 don't get it
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
-                        log("try to capture... boss.bell::id=", boss.bell::id);
                         if (gear.capture(boss.bell::id))
                         {
-                            log("captured boss.bell::id=", boss.bell::id);
                             boss.SIGNAL(tier::release, e2::form::drag::start::_<BUTTON>, gear);
                             gear.dismiss();
                         }
@@ -3390,7 +3397,6 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
-                        log("pull cancel boss.bell::id=", boss.bell::id);
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
@@ -3400,7 +3406,6 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::general, hids::events::halt, dragmemo[BUTTON], gear)
                     {
-                        log("pull halt boss.bell::id=", boss.bell::id);
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
@@ -3410,7 +3415,6 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
-                        log("drag stop boss.bell::id=", boss.bell::id);
                         if (gear.captured(boss.bell::id))
                         {
                             boss.SIGNAL(tier::release, e2::form::drag::stop::_<BUTTON>, gear);
@@ -4050,7 +4054,7 @@ namespace netxs::console
                         boss.base::deface();
                     }
                 };
-                boss.SUBMIT_T(tier::anycast, e2::form::highlight::any, memo, state)
+                boss.SUBMIT_T(tier::anycast, e2::form::highlight::set, memo, state)
                 {
                     state = !pool.empty();
                     boss.template riseup<tier::preview>(e2::form::highlight::any, state);
@@ -4063,6 +4067,7 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
                     boss.template riseup<tier::preview>(e2::form::highlight::any, true);
+                    boss.SIGNAL(tier::anycast, e2::form::highlight::any, true);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };
@@ -4070,6 +4075,7 @@ namespace netxs::console
                 {
                     assert(!pool.empty());
                     boss.template riseup<tier::preview>(e2::form::highlight::any, faux);
+                    boss.SIGNAL(tier::anycast, e2::form::highlight::any, faux);
 
                     if (!pool.empty())
                     {
