@@ -1682,7 +1682,13 @@ namespace netxs::ui
         void update(sptr old_item_ptr, sptr new_item_ptr)
         {
             if (client != old_item_ptr) log(" rail: WARNING! Wrong DOM structure. rail.id=", id);
-            attach(new_item_ptr);
+            if (client)
+            {
+                auto current_position = client->base::coor();
+                attach(new_item_ptr);
+                if (new_item_ptr) new_item_ptr->base::moveto(current_position);
+            }
+            else attach(new_item_ptr);
         }
     };
 
