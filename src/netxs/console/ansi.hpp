@@ -118,6 +118,7 @@ namespace netxs::ansi
     static const char CSI_hRM = 'h';     // CSI n      h  — Reset mode (always Replace mode n=4).
     static const char CSI_lRM = 'l';     // CSI n      l  — Reset mode (always Replace mode n=4).
     static const char CSI_CCC = 'p';     // CSI n [; x1; x2; ...; xn ] p — Private vt command subset.
+    static const char W32_INP = '_';     // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
 
     static const char C0_NUL = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
     static const char C0_SOH = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
@@ -641,7 +642,16 @@ namespace netxs::ansi
                                  static_cast<char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
                                  static_cast<char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
         }
-
+        auto& w32keybd(si32 Vk, si32 Sc, si32 Uc, si32 Kd, si32 Cs, si32 Rc) // esc: win32-input-mode sequence (keyboard).
+        {
+            // \033 [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _
+            add("\033[", Vk, ';',      // Vk: the value of wVirtualKeyCode - any number. If omitted, defaults to '0'.
+                         Sc, ';',      // Sc: the value of wVirtualScanCode - any number. If omitted, defaults to '0'.
+                         Uc, ';',      // Uc: the decimal value of UnicodeChar - for example, NUL is "0", LF is "10", the character 'A' is "65". If omitted, defaults to '0'.
+                         Kd, ';',      // Kd: the value of bKeyDown - either a '0' or '1'. If omitted, defaults to '0'.
+                         Cs, ';',      // Cs: the value of dwControlKeyState - any number. If omitted, defaults to '0'.
+                         Rc, W32_INP); // Rc: the value of wRepeatCount - any number. If omitted, defaults to '1'.
+        }
         // Private vt command subset.
         //todo use '_' instead of 'p' in CSI_CCC
         auto& nop()              { return add("\033["   ,      CSI_CCC); } // esc: No operation. Split the text run.

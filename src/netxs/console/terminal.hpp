@@ -6540,6 +6540,9 @@ namespace netxs::ui
                 follow[axis::X] = true;
                 follow[axis::Y] = true;
 
+                #if defined(_WIN32)
+                //todo forward win32-input-mode data
+                #else
                 //todo optimize/unify
                 auto data = gear.interpret();
                 if (!bpmode)
@@ -6574,6 +6577,7 @@ namespace netxs::ui
                     utf::change(data, "\033[33~", "\033[18;2~"); // Shift+F7
                     utf::change(data, "\033[34~", "\033[19;2~"); // Shift+F8
                 }
+                #endif
 
                 ptycon.write(data);
 

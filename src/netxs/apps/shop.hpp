@@ -100,7 +100,7 @@ namespace netxs::app::shop
                     add(".\n\nConfiguration example:\n\n").
                     mgl(2).fgc(whitelt).bgc(blacklt)
                     .add(" VTM_PROFILE='<menuitem id=Term  hidden=no  label=\"Term\"                type=DirectVT param=\"vtm -r term\"/>\\n \n"
-                         "              <menuitem id=mc    hidden     label=\"Midnight Commander\"  type=ANSIVT   param=\"mc\"/>\\n \n"
+                         "              <menuitem id=mc    hidden     label=\"Midnight Commander\"  type=SHELL    param=\"mc\"/>\\n \n"
                          "              <menuitem id=htop  hidden=yes label=\"htop\"                type=ANSIVT   param=\"htop\"/>\\n \n"
                          "              <menuitem id=Tile1 hidden=0   label=\"Tile\" title=\"Tiling Manager\" type=Group param=\"h1:2( v1:1(htop, mc), Term)\"/>' ")),
 
