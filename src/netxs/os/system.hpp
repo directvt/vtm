@@ -120,17 +120,19 @@ namespace netxs::os
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
 
         template<class T1, class T2 = si32>
-        auto kbstate(T1 ctrls, T2 scancode = {})
+        auto kbstate(T1 ms_ctrls, T2 scancode = {}, bool pressed = {})
         {
-            bool ralt   = ctrls & RIGHT_ALT_PRESSED;
-            bool lalt   = ctrls & LEFT_ALT_PRESSED;
-            bool rctrl  = ctrls & RIGHT_CTRL_PRESSED;
-            bool lctrl  = ctrls & LEFT_CTRL_PRESSED;
-            bool lshift = ctrls & SHIFT_PRESSED && scancode == 0x2a;
-            bool rshift = ctrls & SHIFT_PRESSED && scancode == 0x36;
-            bool nums   = ctrls & NUMLOCK_ON;
-            bool scrl   = ctrls & SCROLLLOCK_ON;
-            bool caps   = ctrls & CAPSLOCK_ON;
+            auto lshift = scancode == 0x2a ? pressed
+                                           : ms_ctrls & SHIFT_PRESSED;
+            auto rshift = scancode == 0x36 ? pressed
+                                           : ms_ctrls & SHIFT_PRESSED;
+            bool lalt   = ms_ctrls & LEFT_ALT_PRESSED;
+            bool ralt   = ms_ctrls & RIGHT_ALT_PRESSED;
+            bool lctrl  = ms_ctrls & LEFT_CTRL_PRESSED;
+            bool rctrl  = ms_ctrls & RIGHT_CTRL_PRESSED;
+            bool nums   = ms_ctrls & NUMLOCK_ON;
+            bool caps   = ms_ctrls & CAPSLOCK_ON;
+            bool scrl   = ms_ctrls & SCROLLLOCK_ON;
             auto state  = ui32{};
             if (lshift) state |= input::hids::LShift;
             if (rshift) state |= input::hids::RShift;
@@ -141,6 +143,30 @@ namespace netxs::os
             if (nums  ) state |= input::hids::NumLock;
             if (caps  ) state |= input::hids::CapsLock;
             if (scrl  ) state |= input::hids::ScrlLock;
+            return state;
+        }
+        template<class T1>
+        auto ms_kbstate(T1 ctrls)
+        {
+            bool lshift = ctrls & input::hids::LShift;
+            bool rshift = ctrls & input::hids::RShift;
+            bool lalt   = ctrls & input::hids::LAlt;
+            bool ralt   = ctrls & input::hids::RAlt;
+            bool lctrl  = ctrls & input::hids::LCtrl;
+            bool rctrl  = ctrls & input::hids::RCtrl;
+            bool nums   = ctrls & input::hids::NumLock;
+            bool caps   = ctrls & input::hids::CapsLock;
+            bool scrl   = ctrls & input::hids::ScrlLock;
+            auto state  = ui32{};
+            if (lshift) state |= SHIFT_PRESSED;
+            if (rshift) state |= SHIFT_PRESSED;
+            if (lalt  ) state |= LEFT_ALT_PRESSED;
+            if (ralt  ) state |= RIGHT_ALT_PRESSED;
+            if (lctrl ) state |= LEFT_CTRL_PRESSED;
+            if (rctrl ) state |= RIGHT_CTRL_PRESSED;
+            if (nums  ) state |= NUMLOCK_ON;
+            if (caps  ) state |= CAPSLOCK_ON;
+            if (scrl  ) state |= SCROLLLOCK_ON;
             return state;
         }
 
@@ -2886,7 +2912,7 @@ namespace netxs::os
                                     case KEY_EVENT:
                                         wired.keybd.send(ipcio,
                                             0,
-                                            os::kbstate(reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode),
+                                            os::kbstate(reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
                                             reply.Event.KeyEvent.wVirtualKeyCode,
                                             reply.Event.KeyEvent.wVirtualScanCode,
                                             reply.Event.KeyEvent.bKeyDown,

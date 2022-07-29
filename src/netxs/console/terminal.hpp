@@ -5777,6 +5777,7 @@ namespace netxs::ui
         scroll_buf normal; // term: Normal    screen buffer.
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
+        ansi::esc  w32key; // term: win32-input-mode forward buffer.
         text       cmdarg; // term: Startup command line arguments.
         text       curdir; // term: Current working directory.
         hook       oneoff; // term: One-shot token for start and shutdown events.
@@ -6541,45 +6542,73 @@ namespace netxs::ui
                 follow[axis::Y] = true;
 
                 #if defined(_WIN32)
-                //todo forward win32-input-mode data
-                #else
-                //todo optimize/unify
-                auto data = gear.interpret();
-                if (!bpmode)
-                {
-                    utf::change(data, "\033[200~", "");
-                    utf::change(data, "\033[201~", "");
-                }
-                if (decckm)
-                {
-                    utf::change(data, "\033[A",  "\033OA");
-                    utf::change(data, "\033[B",  "\033OB");
-                    utf::change(data, "\033[C",  "\033OC");
-                    utf::change(data, "\033[D",  "\033OD");
-                    utf::change(data, "\033[1A", "\033OA");
-                    utf::change(data, "\033[1B", "\033OB");
-                    utf::change(data, "\033[1C", "\033OC");
-                    utf::change(data, "\033[1D", "\033OD");
-                }
-                if (linux_console)
-                {
-                    utf::change(data, "\033[[A",  "\033OP");     // F1
-                    utf::change(data, "\033[[B",  "\033OQ");     // F2
-                    utf::change(data, "\033[[C",  "\033OR");     // F3
-                    utf::change(data, "\033[[D",  "\033OS");     // F4
-                    utf::change(data, "\033[[E",  "\033[15~");   // F5
-                    utf::change(data, "\033[25~", "\033[1;2P");  // Shift+F1
-                    utf::change(data, "\033[26~", "\033[1;2Q");  // Shift+F2
-                    utf::change(data, "\033[28~", "\033[1;2R");  // Shift+F3
-                    utf::change(data, "\033[29~", "\033[1;2S");  // Shift+F4
-                    utf::change(data, "\033[31~", "\033[15;2~"); // Shift+F5
-                    utf::change(data, "\033[32~", "\033[17;2~"); // Shift+F6
-                    utf::change(data, "\033[33~", "\033[18;2~"); // Shift+F7
-                    utf::change(data, "\033[34~", "\033[19;2~"); // Shift+F8
-                }
-                #endif
 
-                ptycon.write(data);
+                    auto ctlstate = os::ms_kbstate(gear.ctlstate);
+                    if (gear.keybd::cluster.empty())
+                    {
+                        w32key.w32keybd(gear.keybd::virtcod,
+                                        gear.keybd::scancod,
+                                        0,
+                                        gear.keybd::pressed,
+                                        ctlstate,
+                                        gear.keybd::imitate);
+                    }
+                    else
+                    {
+                        auto iter = utf::cpit(gear.keybd::cluster);
+                        while (iter)
+                        {
+                            auto cp = iter.take();
+                            if ( cp.correct) w32key.w32keybd(gear.keybd::virtcod,
+                                                             gear.keybd::scancod,
+                                                             cp.cdpoint,
+                                                             gear.keybd::pressed,
+                                                             ctlstate,
+                                                             gear.keybd::imitate);
+                            iter.step();
+                        }
+                    }
+                    answer(w32key);
+
+                #else
+
+                    //todo optimize/unify
+                    auto data = gear.interpret();
+                    if (!bpmode)
+                    {
+                        utf::change(data, "\033[200~", "");
+                        utf::change(data, "\033[201~", "");
+                    }
+                    if (decckm)
+                    {
+                        utf::change(data, "\033[A",  "\033OA");
+                        utf::change(data, "\033[B",  "\033OB");
+                        utf::change(data, "\033[C",  "\033OC");
+                        utf::change(data, "\033[D",  "\033OD");
+                        utf::change(data, "\033[1A", "\033OA");
+                        utf::change(data, "\033[1B", "\033OB");
+                        utf::change(data, "\033[1C", "\033OC");
+                        utf::change(data, "\033[1D", "\033OD");
+                    }
+                    if (linux_console)
+                    {
+                        utf::change(data, "\033[[A",  "\033OP");     // F1
+                        utf::change(data, "\033[[B",  "\033OQ");     // F2
+                        utf::change(data, "\033[[C",  "\033OR");     // F3
+                        utf::change(data, "\033[[D",  "\033OS");     // F4
+                        utf::change(data, "\033[[E",  "\033[15~");   // F5
+                        utf::change(data, "\033[25~", "\033[1;2P");  // Shift+F1
+                        utf::change(data, "\033[26~", "\033[1;2Q");  // Shift+F2
+                        utf::change(data, "\033[28~", "\033[1;2R");  // Shift+F3
+                        utf::change(data, "\033[29~", "\033[1;2S");  // Shift+F4
+                        utf::change(data, "\033[31~", "\033[15;2~"); // Shift+F5
+                        utf::change(data, "\033[32~", "\033[17;2~"); // Shift+F6
+                        utf::change(data, "\033[33~", "\033[18;2~"); // Shift+F7
+                        utf::change(data, "\033[34~", "\033[19;2~"); // Shift+F8
+                    }
+                    ptycon.write(data);
+
+                #endif
 
                 #ifdef KEYLOG
                     auto d = std::stringstream{};

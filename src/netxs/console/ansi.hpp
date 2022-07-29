@@ -645,12 +645,12 @@ namespace netxs::ansi
         auto& w32keybd(si32 Vk, si32 Sc, si32 Uc, si32 Kd, si32 Cs, si32 Rc) // esc: win32-input-mode sequence (keyboard).
         {
             // \033 [ Vk ; Sc ; Uc ; Kd ; Cs ; Rc _
-            add("\033[", Vk, ';',      // Vk: the value of wVirtualKeyCode - any number. If omitted, defaults to '0'.
-                         Sc, ';',      // Sc: the value of wVirtualScanCode - any number. If omitted, defaults to '0'.
-                         Uc, ';',      // Uc: the decimal value of UnicodeChar - for example, NUL is "0", LF is "10", the character 'A' is "65". If omitted, defaults to '0'.
-                         Kd, ';',      // Kd: the value of bKeyDown - either a '0' or '1'. If omitted, defaults to '0'.
-                         Cs, ';',      // Cs: the value of dwControlKeyState - any number. If omitted, defaults to '0'.
-                         Rc, W32_INP); // Rc: the value of wRepeatCount - any number. If omitted, defaults to '1'.
+            return add("\033[", Vk, ';',      // Vk: the value of wVirtualKeyCode - any number. If omitted, defaults to '0'.
+                                Sc, ';',      // Sc: the value of wVirtualScanCode - any number. If omitted, defaults to '0'.
+                                Uc, ';',      // Uc: the decimal value of UnicodeChar - for example, NUL is "0", LF is "10", the character 'A' is "65". If omitted, defaults to '0'.
+                                Kd, ';',      // Kd: the value of bKeyDown - either a '0' or '1'. If omitted, defaults to '0'.
+                                Cs, ';',      // Cs: the value of dwControlKeyState - any number. If omitted, defaults to '0'.
+                                Rc, W32_INP); // Rc: the value of wRepeatCount - any number. If omitted, defaults to '1'.
         }
         // Private vt command subset.
         //todo use '_' instead of 'p' in CSI_CCC
