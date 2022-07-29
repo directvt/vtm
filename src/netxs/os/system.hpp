@@ -120,12 +120,20 @@ namespace netxs::os
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
 
         template<class T1, class T2 = si32>
-        auto kbstate(T1 ms_ctrls, T2 scancode = {}, bool pressed = {})
+        auto kbstate(si32& modstate, T1 ms_ctrls, T2 scancode = {}, bool pressed = {})
         {
-            auto lshift = scancode == 0x2a ? pressed
-                                           : ms_ctrls & SHIFT_PRESSED;
-            auto rshift = scancode == 0x36 ? pressed
-                                           : ms_ctrls & SHIFT_PRESSED;
+            if (scancode == 0x2a)
+            {
+                if (pressed) modstate |= input::hids::LShift;
+                else         modstate &=~input::hids::LShift;
+            }
+            if (scancode == 0x36)
+            {
+                if (pressed) modstate |= input::hids::RShift;
+                else         modstate &=~input::hids::RShift;
+            }
+            auto lshift = modstate & input::hids::LShift;
+            auto rshift = modstate & input::hids::RShift;
             bool lalt   = ms_ctrls & LEFT_ALT_PRESSED;
             bool ralt   = ms_ctrls & RIGHT_ALT_PRESSED;
             bool lctrl  = ms_ctrls & LEFT_CTRL_PRESSED;
@@ -2878,6 +2886,7 @@ namespace netxs::os
                     return b;
                 };
 
+                auto kbstate = si32{};
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
                     if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
@@ -2912,7 +2921,7 @@ namespace netxs::os
                                     case KEY_EVENT:
                                         wired.keybd.send(ipcio,
                                             0,
-                                            os::kbstate(reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
+                                            os::kbstate(kbstate, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
                                             reply.Event.KeyEvent.wVirtualKeyCode,
                                             reply.Event.KeyEvent.wVirtualScanCode,
                                             reply.Event.KeyEvent.bKeyDown,
@@ -2922,7 +2931,7 @@ namespace netxs::os
                                     case MOUSE_EVENT:
                                         wired.mouse.send(ipcio,
                                             0,
-                                            os::kbstate(reply.Event.MouseEvent.dwControlKeyState),
+                                            os::kbstate(kbstate, reply.Event.MouseEvent.dwControlKeyState),
                                             xlate_bttns(reply.Event.MouseEvent.dwButtonState),
                                             reply.Event.MouseEvent.dwEventFlags,
                                             static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls

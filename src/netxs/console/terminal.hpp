@@ -6559,12 +6559,12 @@ namespace netxs::ui
                         while (iter)
                         {
                             auto cp = iter.take();
-                            if ( cp.correct) w32key.w32keybd(gear.keybd::virtcod,
-                                                             gear.keybd::scancod,
-                                                             cp.cdpoint,
-                                                             gear.keybd::pressed,
-                                                             ctlstate,
-                                                             gear.keybd::imitate);
+                            if (cp.correct) w32key.w32keybd(gear.keybd::virtcod,
+                                                            gear.keybd::scancod,
+                                                            cp.cdpoint,
+                                                            gear.keybd::pressed,
+                                                            ctlstate,
+                                                            gear.keybd::imitate);
                             iter.step();
                         }
                     }
