@@ -578,9 +578,15 @@ namespace netxs::app::shared
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)
                   {
-                      boss.keybd.accept(true);
-                      closing_by_gesture(boss);
-                      closing_on_quit(boss);
+                        boss.keybd.accept(true);
+                        closing_by_gesture(boss);
+                        closing_on_quit(boss);
+                        boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
+                        {
+                            auto deed = boss.bell::template protos<tier::anycast>();
+                                 if (deed == e2::form::prop::colors::bg.id) boss.base::color(boss.base::color().fgc(), clr);
+                            else if (deed == e2::form::prop::colors::fg.id) boss.base::color(clr, boss.base::color().bgc());
+                        };
                   });
             return window;
         };
@@ -835,16 +841,52 @@ namespace netxs::app::shared
                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
-                    auto data = param.empty() ? os::get_shell() + "-i"
+                    auto data = param.empty() ? os::get_shell() + " -i"
                                               : param;
                     auto inst = scroll->attach(ui::term::ctor(cwd, data))
                                       ->colors(whitelt, blackdk)
                                       ->invoke([&](auto& boss)
                                       {
-                                          boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                                          {
-                                              boss.start();
-                                          };
+                                            //todo unify: Same as in app::term (term.hpp).
+                                            boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
+                                            {
+                                                boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::data::in, data)
+                                            {
+                                                boss.data_in(data);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::data::out, data)
+                                            {
+                                                boss.data_out(data);
+                                            };
+                                            //todo add color picker to the menu
+                                            boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
+                                            {
+                                                boss.set_bg_color(bg);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::colors::fg, fg)
+                                            {
+                                                boss.set_fg_color(fg);
+                                            };
+                                            boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
+                                            {
+                                                auto deed = boss.bell::template protos<tier::anycast>();
+                                                     if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::bg, clr);
+                                                else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::fg, clr);
+                                            };
+                                            boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                                            {
+                                                boss.start();
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::search::forward, gear)
+                                            {
+                                                boss.search(gear, feed::fwd);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::search::reverse, gear)
+                                            {
+                                                boss.search(gear, feed::rev);
+                                            };
                                       });
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
