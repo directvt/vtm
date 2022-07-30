@@ -3152,7 +3152,6 @@ namespace netxs::console
                   skill::memo;
             
             subs kb_subs{};
-            si32 clients{};
 
         public:
             keybd(base&&) = delete;
@@ -3161,28 +3160,12 @@ namespace netxs::console
                 // pro::keybd: Notify form::state::kbfocus when the number of clients is positive.
                 boss.SUBMIT_T(tier::release, hids::events::notify::keybd::got, memo, gear)
                 {
-                    //if (!highlightable || gear.begin_inform(boss.bell::id))
-                    {
-                        if (!clients++)
-                        {
-                            boss.SIGNAL(tier::release, e2::form::state::keybd::got, gear);
-                        }
-                    }
+                    boss.SIGNAL(tier::release, e2::form::state::keybd::got, gear);
                 };
                 // pro::keybd: Notify form::state::active_kbd when the number of clients is zero.
                 boss.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, memo, gear)
                 {
-                    //if (!highlightable || gear.end_inform(boss.bell::id))
-                    {
-                        if (!--clients)
-                        {
-                            boss.SIGNAL(tier::release, e2::form::state::keybd::lost, gear);
-                        }
-                    }
-                };
-                boss.SUBMIT_T(tier::request, e2::form::state::keybd::any, memo, state)
-                {
-                    state = !!clients;
+                    boss.SIGNAL(tier::release, e2::form::state::keybd::lost, gear);
                 };
                 boss.SUBMIT_T(tier::preview, hids::events::keybd::any, memo, gear)
                 {
@@ -3194,15 +3177,6 @@ namespace netxs::console
 
                     boss.SIGNAL(tier::release, hids::events::keybd::any, gear);
                 };
-                //boss.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memo, parent)
-                //{
-                //    if (parent)
-                //    {
-                //        //auto gear = gear.set_kb_focus(boss.This());
-                //        //;
-                //        //parent->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                //    }
-                //};
             };
 
             // pro::keybd: Keybd offers promoter.
@@ -4069,9 +4043,6 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
                 {
                     assert(!pool.empty());
-                    boss.template riseup<tier::preview>(e2::form::highlight::any, faux);
-                    boss.SIGNAL(tier::anycast, e2::form::highlight::any, faux);
-
                     if (!pool.empty())
                     {
                         auto head = pool.begin();
@@ -4082,6 +4053,12 @@ namespace netxs::console
                             pool.erase(item);
                         }
                         boss.base::deface();
+                    }
+
+                    if (pool.empty())
+                    {
+                        boss.template riseup<tier::preview>(e2::form::highlight::any, faux);
+                        boss.SIGNAL(tier::anycast, e2::form::highlight::any, faux);
                     }
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
