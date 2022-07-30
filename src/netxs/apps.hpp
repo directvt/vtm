@@ -53,8 +53,9 @@ namespace netxs::app::shared
     static constexpr auto attr_cwd      = "cwd";
     static constexpr auto attr_param    = "param";
 
-    static constexpr auto tag_menuitem = "menuitem";
     static constexpr auto tag_profile  = "VTM_PROFILE";
+    static constexpr auto tag_defaults = "defaults";
+    static constexpr auto tag_menuitem = "menuitem";
 
     using menu_item_type = std::tuple<bool, text, text, std::function<void(ui::pads&)>>;
     using menu_list_type = std::list<menu_item_type>;
@@ -1047,7 +1048,7 @@ namespace netxs::app::shared
             auto name = data.substr(from, skip - from);
             return text{ name };
         };
-        auto take_menu_item = [](text& tag, item_t& item, view& data)
+        auto take_xml_item = [](text& tag, item_t& item, view& data)
         {
             auto type = xml::type::none;
             if (xml::open(data, type))
@@ -1076,11 +1077,15 @@ namespace netxs::app::shared
         {
             auto item = item_t{};
             auto tag = text{};
-            while (take_menu_item(tag, item, data))
+            while (take_xml_item(tag, item, data))
             {
                 if (tag == tag_menuitem)
                 {
                     list.emplace_back(filename, std::move(item));
+                }
+                else if (tag == tag_defaults)
+                {
+                    //todo implement defaults
                 }
                 else log(" xml: skip element <", utf::debase(tag), ">");
             }
@@ -1334,6 +1339,7 @@ namespace netxs::app::shared
             else                                window->extend(what.square);
             auto& creator = app::shared::creator(config.type);
 
+            //todo pass whole s11n::configuration map
             auto object = creator(config.cwd, config.param);
             if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
             if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);

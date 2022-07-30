@@ -1841,6 +1841,12 @@ namespace netxs::ansi
                         block += size;
                         block += data;
                     }
+                    else if constexpr (std::is_same_v<D, std::unordered_map<text, text>>
+                                    || std::is_same_v<D, std::map<text, text>>
+                                    || std::is_same_v<D, imap<text, text>>)
+                    {
+                        //todo implement
+                    }
                     else if constexpr (std::is_same_v<D, noop>)
                     {
                         // Noop.
@@ -2255,6 +2261,7 @@ namespace netxs::ansi
                 };                                                                    \
                 using struct_name = wrapper<CAT(struct_name, _t)>;
 
+            using imap = netxs::imap<text, text>;
             // Output stream.
             STRUCT(frame_element,     (frag, data))
             STRUCT(jgc_element,       (ui64, token) (text, cluster))
@@ -2268,6 +2275,7 @@ namespace netxs::ansi
             STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
             STRUCT(warping,           (id_t, window_id) (dent, warpdata))
             STRUCT(vt_command,        (text, command))
+            STRUCT(configuration,     (imap, confug))
             STRUCT_LITE(expose)
             STRUCT_LITE(request_debug)
 
@@ -2547,6 +2555,7 @@ namespace netxs::ansi
                 X(warping          ) /* Warp resize.                                  */\
                 X(expose           ) /* Bring the form to the front.                  */\
                 X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
+                X(configuration    ) /* Initial application configuration.            */\
                 X(frames           ) /* Received frames.                              */\
                 X(tooltip_element  ) /* Tooltip text.                                 */\
                 X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\

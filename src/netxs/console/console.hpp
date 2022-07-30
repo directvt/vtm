@@ -3214,7 +3214,6 @@ namespace netxs::console
                     auto deed = boss.bell::protos<tier::release>();
                     if (deed == hids::events::mouse::button::click::left.id) //todo make it configurable (left click)
                     {
-                        log("pro::keybd: hids::events::mouse::button::click::left ", gear.id, " boss.id ", boss.id);
                         // Propagate throughout nested objects by base::
                         gear.kb_focus_changed = faux;
                         boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
@@ -3222,7 +3221,6 @@ namespace netxs::console
                     }
                     else if (deed == hids::events::mouse::button::click::right.id) //todo make it configurable (left click)
                     {
-                        log("pro::keybd: hids::events::mouse::button::click::right ", gear.id, " boss.id ", boss.id);
                         // Propagate throughout nested objects by base::
                         auto state = gear.state();
                         gear.kb_focus_changed = faux;
@@ -3246,13 +3244,11 @@ namespace netxs::console
                         {
                             gear.set_kb_focus(boss.This());
                             boss.bell::expire<tier::release>();
-                            log("pro::keybd: hids::events::upevent::kboffer ", gear.id, " boss.id ", boss.id);
                         }
                     };
                     boss.SUBMIT_T(tier::release, hids::events::upevent::kbannul, kb_subs, gear)
                     {
                         gear.remove_from_kb_focus(boss.This());
-                        log("pro::keybd: hids::events::upevent::kbannul ", gear.id, " boss.id ", boss.id);
                     };
                 }
                 else
@@ -3525,7 +3521,6 @@ namespace netxs::console
                     auto gear_it = gears.find(id);
                     if (mousestate.control != sysmouse::stat::ok)
                     {
-                        log("input: mousestate.status: ", (si32)mousestate.control);
                         if (gear_it != gears.end())
                         {
                             switch (mousestate.control)
@@ -4913,7 +4908,6 @@ namespace netxs::console
             f.combine_focus = item.combine_focus;
             f.force_group_focus = item.force_group_focus;
             notify(e2::conio::focus, f);
-            log("\t - focus ", f.enabled ? "on: ":"off: ", canal);
         }
         void handle(s11n::xs::winsz       lock)
         {
@@ -5698,25 +5692,21 @@ namespace netxs::console
                     };
                     SUBMIT_T(tier::preview, hids::events::mouse::button::click::any, token, gear)
                     {
-                        log("e2::form::layout::expose");
                         conio.expose.send(conio);
                     };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
-                        log("e2::form::maximize");
                         forward_event(gear);
                     };
                     SUBMIT_T(tier::release, hids::events::notify::keybd::test, token, from_gear)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                        log("gate: hids::events::notify::keybd::test ", ext_gear_id, " from_gear.kb_focus_set=", from_gear.kb_focus_set?"1":"0", " !!gear=", !!from_gear?"1":"0");
                         from_gear.kb_focus_set ? conio.set_focus.send(conio, ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus)
                                                : conio.off_focus.send(conio, ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, from_gear)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                        log("gate: hids::events::notify::keybd::lost ", ext_gear_id);
                         conio.off_focus.send(conio, ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
@@ -5834,7 +5824,6 @@ namespace netxs::console
             {
                 this->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
                 viewport.coor += base::coor();
-                log("base::coor(): ", base::coor());
             };
             //todo unify creation (delete simple create wo gear)
             SUBMIT(tier::preview, e2::form::proceed::create, region)

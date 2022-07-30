@@ -627,7 +627,6 @@ namespace netxs::ui::atoms
                     token = coder(utf8);
                     state.jumbo = true;
                     state.width = cwidth;
-                    log("jumbo token ", token, " utf8 size ", utf8.size());
                     auto lock = std::lock_guard{ mutex };
                     jumbo.insert(std::pair{ token & asset, utf8 }); // silently ignore if it exists
                 }

@@ -148,7 +148,7 @@ namespace netxs::app::tile
                 client->clear();
                 depth = 0;
                 boss.base::template riseup<tier::request>(e2::depth, depth, true);
-                log(" start depth=", depth);
+                log("tile: start depth=", depth);
             };
         }
        ~items()
@@ -469,7 +469,7 @@ namespace netxs::app::tile
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
-                            log(" empty_slot swap: defective structure, count=", count);
+                            log("tile: empty_slot swap: defective structure, count=", count);
                         }
                         else if (count == 2)
                         {
@@ -480,7 +480,7 @@ namespace netxs::app::tile
                             }
                             else item_ptr = boss.This(); // Heir to the focus.
                         }
-                        else log(" empty_slot swap: defective structure, count=", count);
+                        else log("tile: empty_slot swap: defective structure, count=", count);
                     };
                     boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                     {
@@ -499,7 +499,7 @@ namespace netxs::app::tile
                                 {
                                     item_ptr = boss.pop_back();
                                 }
-                                else log(" empty_slot: defective structure, count=", count);
+                                else log("tile:  empty_slot: defective structure, count=", count);
                                 if (auto parent = boss.parent())
                                 {
                                     parent->bell::template expire<tier::request>();
@@ -597,7 +597,7 @@ namespace netxs::app::tile
                             {
                                 auto depth = e2::depth.param();
                                 boss.base::template riseup<tier::request>(e2::depth, depth, true);
-                                log(" depth=", depth);
+                                log("tile: depth=", depth);
                                 if (depth > INHERITANCE_LIMIT) return;
 
                                 auto heading = deed == app::tile::events::ui::split::vt.id;
@@ -971,7 +971,7 @@ namespace netxs::app::tile
                             boss.attach(fullscreen_item);
                             fullscreen_item.reset();
                         }
-                        else log("fullscreen_item is empty");
+                        else log("tile: fullscreen_item is empty");
                     };
                     boss.SUBMIT(tier::anycast, app::tile::events::ui::any, gear)
                     {

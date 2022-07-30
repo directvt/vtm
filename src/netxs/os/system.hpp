@@ -857,7 +857,7 @@ namespace netxs::os
         auto conmode = -1;
         #if defined (__linux__)
             
-            if (ok(::ioctl(STDOUT_FD, KDGETMODE, &conmode), "ioctl(STDOUT_FD, KDGETMODE) failed"))
+            if (-1 != ::ioctl(STDOUT_FD, KDGETMODE, &conmode))
             {
                 switch (conmode)
                 {
@@ -877,7 +877,7 @@ namespace netxs::os
 
         if (os::legacy::peek_dmd(STDIN_FD))
         {
-            log("  os: DirectVT");
+            log("  os: DirectVT detected");
             mode |= legacy::direct;
         }
         else if (auto term = os::get_env("TERM"); term.size())
@@ -3154,7 +3154,6 @@ namespace netxs::os
                                         f.enabled,
                                         f.combine_focus,
                                         f.force_group_focus);
-                                    log("\t - focus on ", ipcio);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == 'O')
@@ -3169,7 +3168,6 @@ namespace netxs::os
                                         f.enabled,
                                         f.combine_focus,
                                         f.force_group_focus);
-                                    log("\t - focus off: ", ipcio);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == '<') // \033[<0;x;yM/m
@@ -3419,7 +3417,6 @@ namespace netxs::os
                 };
                 auto f_proc = [&]()
                 {
-                    log(" tty: signal fired");
                     signal.flush();
                 };
 

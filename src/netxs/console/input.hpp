@@ -985,7 +985,6 @@ namespace netxs::input
        ~hids()
         {
             auto lock = netxs::events::sync{};
-            log("hids: mouse leave, ", id);
             mouse_leave(mouse::hover, mouse::start);
             clear_kb_focus();
             bell::signal_global(halt_event, *this);
@@ -1090,7 +1089,6 @@ namespace netxs::input
             take_mouse_focus(owner);
             bell::signal_global(halt_event, *this);
             disabled = true;
-            log("hids: mouse deactivated, ", id);
         }
         void okay(bell& boss)
         {

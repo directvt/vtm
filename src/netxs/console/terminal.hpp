@@ -296,7 +296,6 @@ namespace netxs::ui
                     };
                     owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                     {
-                        log("term: hids::events::halt, ", gear.id);
                         auto cause = hids::events::halt.id;
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
@@ -6831,7 +6830,6 @@ namespace netxs::ui
             void handle(s11n::xs::mouse_event         lock)
             {
                 auto& m = lock.thing;
-                log("replay: ", m.cause);
                 auto lock_ui = events::sync{};
                 if (auto ptr = bell::getref(m.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
@@ -6896,7 +6894,6 @@ namespace netxs::ui
                     gear.combine_focus = f.combine_focus;
                     gear.set_kb_focus(owner.This());
                     gear.state(state);
-                    log("dtvt: events: set_kb_focus");
                 }
             }
             void handle(s11n::xs::off_focus           lock)
@@ -6908,7 +6905,6 @@ namespace netxs::ui
                 {
                     auto& gear = *gear_ptr;
                     gear.remove_from_kb_focus(owner.This());
-                    log("dtvt: events: remove_from_kb_focus ", gear.id);
                 }
             }
             void handle(s11n::xs::form_header         lock)
@@ -6970,18 +6966,15 @@ namespace netxs::ui
                 };
                 owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                 {
-                    log("dtvt: die ", gear.id);
                     release(gear);
                     s11n::mouse_stop.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                 {
-                    log("dtvt: halt ", gear.id);
                     s11n::mouse_halt.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
                 {
-                    log("dtvt: leave ", gear.id);
                     s11n::mouse_halt.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
@@ -7007,7 +7000,6 @@ namespace netxs::ui
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
                 {
-                    log("dtvt: events: hids::events::upevent::kboffer ", gear.id);
                     auto focus_state = true;
                     s11n::focus.send(owner, gear.id,
                                             focus_state,
@@ -7016,7 +7008,6 @@ namespace netxs::ui
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
                 {
-                    log("dtvt: events: hids::events::upevent::kbannul ", gear.id);
                     gear.remove_from_kb_focus(owner.This());
                     auto focus_state = faux;
                     s11n::focus.send(owner, gear.id,
@@ -7026,7 +7017,6 @@ namespace netxs::ui
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, gear)
                 {
-                    log("dtvt: keybd focus lost ", gear.id);
                     auto focus_state = faux;
                     s11n::focus.send(owner, gear.id,
                                             focus_state,
@@ -7087,7 +7077,6 @@ namespace netxs::ui
                 active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code ", code, " ").nil());
                 else      log("dtvt: exit code ", code);
-                log("dtvt: submit for destruction on next frame/tick");
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
                 {
                     auto backup = This();
