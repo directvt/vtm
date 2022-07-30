@@ -1102,7 +1102,8 @@ namespace netxs::app::shared
                 iter = std::search(next, buff.end(), stop.begin(), stop.end());
                 if (iter == buff.end())  break;
 
-                auto data = view{ next, iter };
+                //auto data = view{ next, iter };
+                auto data = view(&(*next), std::distance(next, iter)); //todo use C++20 view ctor (Clang 11.0.1 don't get it)
                 take_elements(filename, data);
                 iter += stop.size();
             }
@@ -1116,7 +1117,7 @@ namespace netxs::app::shared
 
         auto take_path = [](auto const& filename)
         {
-            auto path = utf::to_utf(filename.path().wstring());
+            auto path = filename.path().string();
             utf::change(path, "\\", "/");
             return path;
         };

@@ -3,32 +3,32 @@
 
 auto DirectVT = R"==(
 <VTM_PROFILE>
-    <menuitem id=Term label="Term" hidden=no notes="Tooltip Message" type=DirectVT title="Terminal Emulator" param="$0 -r term"/>
+    <menuitem id=Term label="Term" hidden=no notes="Run built-in terminal emulator" type=DirectVT title="Terminal Emulator" param="$0 -r term"/>
 )=="
 #ifdef _WIN32
 R"==(
-    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Tooltip Message" type=DirectVT param="$0 -r term powershell"/>
-    <menuitem id=Far label="Far" notes="Far Manager" type=DirectVT param="$0 -r headless far"/>
+    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
+    <menuitem id=Far label="Far" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>
 )=="
 #else
 R"==(
-    <menuitem id=mc label="Midnight Commander" type=SHELL param="mc"/>
+    <menuitem id=mc label="mc" notes="Run Midnight Commander in its own window (if it is installed)" type=SHELL param="mc"/>
 )=="
 #endif
 R"==(
-    <menuitem id=Tile label="Tile" notes="Tiling Window Manager" type=Group title="Tiling Window Manager" param="h1:1(Term, Term)"/>
+    <menuitem id=Tile label="Tile" notes="Run Tiling Window Manager with two terminals attached" type=Group title="Tiling Window Manager" param="h1:1(Term, Term)"/>
 )=="
 
-    "<menuitem id=View label=View notes=\"Desktop region\" type=Region title=\"\033[11:3pView: Region 1\"/>"
+    "<menuitem id=View label=View notes=\"Set desktop region\" type=Region title=\"\033[11:3pView: Region\"/>"
 
 R"==(
-    <menuitem id=Settings  label=Settings winsize=50x15 notes="Tooltip Message" type=DirectVT title="Settings"   param="$0 -r settings"/>
-    <menuitem id=Logs      label=Logs                   notes="Tooltip Message" type=DirectVT title="Logs Title" param="$0 -r logs"/>
-    <menuitem id=Gems      label="Gems [DEMO]"          notes="Tooltip Message" type=DirectVT title="Gems Title" param="$0 -r gems"/>
-    <menuitem id=Text      label="Text [DEMO]"          notes="Tooltip Message" type=DirectVT title="Text Title" param="$0 -r text"/>
-    <menuitem id=Calc      label="Calc [DEMO]"          notes="Tooltip Message" type=DirectVT title="Calc Title" param="$0 -r calc"/>
-    <menuitem id=Test      label="Test [DEMO]"          notes="Tooltip Message" type=DirectVT title="Test Title" param="$0 -r test"/>
-    <menuitem id=Truecolor label="Truecolor [DEMO]"     notes="Tooltip Message" type=DirectVT title="True Title" param="$0 -r truecolor"/>
+    <menuitem id=Settings  label=Settings winsize=50x15 notes="Configure frame rate" type=DirectVT title="Settings"   param="$0 -r settings"/>
+    <menuitem id=Logs      label=Logs                   notes="Run Logs application" type=DirectVT title="Logs Title" param="$0 -r logs"/>
+    <menuitem id=Gems      label="Gems [DEMO]"          notes="Gems [DEMO]"          type=DirectVT title="Gems Title" param="$0 -r gems"/>
+    <menuitem id=Text      label="Text [DEMO]"          notes="Text [DEMO]"          type=DirectVT title="Text Title" param="$0 -r text"/>
+    <menuitem id=Calc      label="Calc [DEMO]"          notes="Calc [DEMO]"          type=DirectVT title="Calc Title" param="$0 -r calc"/>
+    <menuitem id=Test      label="Test [DEMO]"          notes="Test [DEMO]"          type=DirectVT title="Test Title" param="$0 -r test"/>
+    <menuitem id=Truecolor label="Truecolor [DEMO]"     notes="Truecolor [DEMO]"     type=DirectVT title="True Title" param="$0 -r truecolor"/>
 </VTM_PROFILE>
 )==";
 
