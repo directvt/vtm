@@ -109,7 +109,7 @@ namespace netxs::generics
             {
                 if constexpr (USE_BACK) undock_base_back (item);
                 else                    undock_base_front(item);
-            } 
+            }
             item = type{};
             if (cart == head) inc(head), cart = head;
             else              inc(head);

@@ -1472,7 +1472,7 @@ namespace netxs::utf
             return text{};
         }
         utf8.remove_prefix(std::distance(head, stop) + 1);
-        auto str = text{ coor, stop }; 
+        auto str = text{ coor, stop };
         if (!skip.empty()) trim_front(utf8, skip);
         return str;
     }

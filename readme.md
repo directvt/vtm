@@ -265,7 +265,7 @@ No arguments | Run client (auto start server)
      - `LeftClick` -- Set exclusive focus
      - `Ctrl+LeftClick`/`RightClick` -- Set/Unset group focus
      - `double LeftClick` -- Maxixmize/restore
-   - Configurable via environment variable `VTM_PROFILE*`.  
+   - Configurable via environment variable `VTM_PROFILE*`
      ```
      # Configuration example:
 

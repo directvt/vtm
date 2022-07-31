@@ -286,7 +286,7 @@ namespace netxs::app::tile
                                 master.SIGNAL(tier::request, e2::form::prop::ui::header, what.header);
                                 master.SIGNAL(tier::request, e2::form::prop::ui::footer, what.footer);
                                 if (what.header.empty()) what.header = menu_item_id;
-                                 
+
                                 // Take coor and detach from the tiling wm.
                                 gear.coord -= branch.base::coor(); // Localize mouse coor.
                                 what.square.size = branch.base::size();

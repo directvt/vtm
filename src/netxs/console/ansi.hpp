@@ -255,7 +255,7 @@ namespace netxs::ansi
     static const si32 CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
     static const si32 CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
     static const si32 CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
-    
+
     static const si32 CCC_SGR    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
     static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
     static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
@@ -878,7 +878,7 @@ namespace netxs::ansi
         auto& rst   ()        { *this = {};                           return *this; } // deco: Reset.
         // deco: Reset to global default.
         constexpr auto& glb()
-        { 
+        {
             wrapln = deco::defwrp;
             adjust = bias::left;
             r_to_l = rtol::ltr;
@@ -924,7 +924,7 @@ namespace netxs::ansi
             }
             else
             {
-                auto g_jet = global.jet(); 
+                auto g_jet = global.jet();
                 arighted = g_jet == bias::right;
                 centered = g_jet == bias::center;
             }
@@ -1664,7 +1664,7 @@ namespace netxs::ansi
                             return utf8;
                         }
                     }
-                    // test Message/Command: 
+                    // test Message/Command:
                     else if (c == 'P'  // DSC ESC P ... BEL
                           || c == 'X'  // SOS ESC X ... BEL
                           || c == '^'  // PM  ESC ^ ... BEL
@@ -1724,7 +1724,7 @@ namespace netxs::ansi
                           || c == 'N'  // SS2
                           || c == 'V'  // SPA
                           || c == 'W'  // EPA
-                          || c == 'Z') // Return ID 
+                          || c == 'Z') // Return ID
                     {
                         if (++next == tail)
                         {
@@ -2211,7 +2211,7 @@ namespace netxs::ansi
                 void set(Args&&... args)
                 {
                     item.set(std::forward<Args>(args)...);
-                } 
+                }
                 // list: .
                 void get(view& data)
                 {
@@ -2310,7 +2310,7 @@ namespace netxs::ansi
             {
             public:
                 static constexpr type kind = __COUNTER__ - _counter_base;
-                
+
                 bitmap_t()
                     : stream{ kind }
                 { }
@@ -2462,7 +2462,7 @@ namespace netxs::ansi
                         if (what & bgclr) stream::take(c.bgc(), data);
                         if (what & fgclr) stream::take(c.fgc(), data);
                         if (what & style) stream::take(c.stl(), data);
-                        if (what & glyph) 
+                        if (what & glyph)
                         {
                             auto [size] = stream::take<byte>(data);
                             stream::take(c.egc().glyph, size, data);

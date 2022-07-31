@@ -24,7 +24,7 @@ namespace netxs::events::userland
 namespace netxs::app::desk
 {
     using events = ::netxs::events::userland::desk;
-    
+
     namespace
     {
         auto app_template = [](auto& data_src, auto const& utf8)

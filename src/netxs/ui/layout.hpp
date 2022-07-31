@@ -1131,7 +1131,7 @@ namespace netxs::ui::atoms
         auto& fgc (rgba const& c) { uv.fg = c;          return *this; } // cell: Set Foreground color.
         auto& bga (byte k)        { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
         auto& fga (byte k)        { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
-        auto& alpha(byte k)       { uv.bg.chan.a = k; 
+        auto& alpha(byte k)       { uv.bg.chan.a = k;
                                     uv.fg.chan.a = k;   return *this; } // cell: Set alpha/transparency (background and foreground).
         auto& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
         auto& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
@@ -2104,12 +2104,12 @@ namespace netxs::ui::atoms
         {
             target = canvas;
             return region.size;
-        }                                                      
+        }
         void copy(core& dest) const // core: Copy only grid of the canvas to the specified core.
         {
             dest.size(region.size);
             dest.canvas = canvas;
-        }                                                      
+        }
         template<class P>
         void copy(core& target, P proc) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
         {

@@ -85,6 +85,13 @@
         #include <linux/keyboard.h> // ::keyb_ioctl()
     #endif
 
+    #if defined(__APPLE__)
+        #include <mach-o/dyld.h>    // ::_NSGetExecutablePath()
+    #elif defined(__BSD__)
+        #include <sys/types.h>  // ::sysctl()
+        #include <sys/sysctl.h>
+    #endif
+
     extern char **environ;
 
 #endif
@@ -217,6 +224,7 @@ namespace netxs::os
                 ::close(minfd);
             }
         }
+
     #endif
 
     class args
@@ -634,7 +642,7 @@ namespace netxs::os
             }
 
         #else
-            
+
             template<class P, class ...Args>
             auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
             {
@@ -856,7 +864,7 @@ namespace netxs::os
     {
         auto conmode = -1;
         #if defined (__linux__)
-            
+
             if (-1 != ::ioctl(STDOUT_FD, KDGETMODE, &conmode))
             {
                 switch (conmode)
@@ -1021,10 +1029,11 @@ namespace netxs::os
 
             while (buffer.size() <= 32768)
             {
-                auto length = ::GetModuleFileNameEx(handle, NULL,
-                    buffer.data(), static_cast<DWORD>(buffer.size()));
-
-                if (!length) break;
+                auto length = ::GetModuleFileNameEx(handle,         // hProcess
+                                                    NULL,           // hModule
+                                                    buffer.data(),  // lpFilename
+                                 static_cast<DWORD>(buffer.size()));// nSize
+                if (length == 0) break;
 
                 if (buffer.size() > length + 1)
                 {
@@ -1035,17 +1044,68 @@ namespace netxs::os
                 buffer.resize(buffer.size() << 1);
             }
 
-        #else
+        #elif defined(__linux__) || defined(__NetBSD__)
 
-            char* resolved = ::realpath("/proc/self/exe", NULL);
-            if (resolved)
+            auto path = ::realpath("/proc/self/exe", nullptr);
+            if (path)
             {
-                result = text(resolved);
-                ::free(resolved);
+                result = text(path);
+                ::free(path);
+            }
+
+        #elif defined(__APPLE__)
+
+            auto size = uint32_t{};
+            if (-1 == ::_NSGetExecutablePath(nullptr, &size))
+            {
+                auto buff = std::vector<char>(size);
+                if (0 == ::_NSGetExecutablePath(buff.data(), &size))
+                {
+                    auto path = ::realpath(buff.data(), nullptr);
+                    if (path)
+                    {
+                        result = text(path);
+                        ::free(path);
+                    }
+                }
+            }
+
+        #elif defined(__FreeBSD__)
+
+            auto size = 0_sz;
+            int  name[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+            if (::sysctl(name, std::size(name), nullptr, &size, nullptr, 0) == 0)
+            {
+                auto buff = std::vector<char>(size);
+                if (::sysctl(name, std::size(name), buff.data(), &size, nullptr, 0) == 0)
+                {
+                    result = text(buff.data(), size);
+                }
             }
 
         #endif
 
+        #if not defined(_WIN32)
+
+            if (result.empty())
+            {
+                      auto path = ::realpath("/proc/self/exe",        nullptr);
+                if (!path) path = ::realpath("/proc/curproc/file",    nullptr);
+                if (!path) path = ::realpath("/proc/self/path/a.out", nullptr);
+                if (path)
+                {
+                    result = text(path);
+                    ::free(path);
+                }
+            }
+
+        #endif
+
+        if (result.empty())
+        {
+            os::fail("can't get current module file path, fallback to '", DESKTOPIO_MYPATH, "`");
+            result = DESKTOPIO_MYPATH;
+        }
         return result;
     }
     auto split_cmdline(view cmdline)
@@ -1094,6 +1154,8 @@ namespace netxs::os
     }
     auto exec(text binary, text params = {}, int window_state = 0)
     {
+        log("exec: executing '", binary, " ", params, "'");
+
         #if defined(_WIN32)
 
             auto ShExecInfo = ::SHELLEXECUTEINFO{};
@@ -1106,25 +1168,23 @@ namespace netxs::os
             ShExecInfo.lpDirectory = NULL;
             ShExecInfo.nShow = window_state;
             ShExecInfo.hInstApp = NULL;
-            ::ShellExecuteEx(&ShExecInfo);
-            return true;
+            if (::ShellExecuteEx(&ShExecInfo)) return true;
 
         #else
 
             auto p_id = ::fork();
             if (p_id == 0) // Child branch.
             {
-                log("exec: executing '", binary, " ", params, "'");
                 char* argv[] = { binary.data(), params.data(), nullptr };
-
                 os::fdcleanup();
                 ::execvp(argv[0], argv);
-                os::exit(1, "exec: error ", errno);
+                std::cerr << "exec: error " << errno << "\n" << std::flush;
+                os::exit(errno);
             }
 
             if (p_id > 0) // Parent branch.
             {
-                int stat;
+                auto stat = int{};
                 ::waitpid(p_id, &stat, 0); // Wait for the child to avoid zombies.
 
                 if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
@@ -1133,10 +1193,10 @@ namespace netxs::os
                 }
             }
 
-            log("exec: failed to spawn '", binary, " ' with args '", params, "'");
-            return faux;
-
         #endif
+
+        log("exec: failed to spawn '", binary, "' with args '", params, "', error ", os::error());
+        return faux;
     }
     void start_log(text srv_name)
     {
@@ -1164,7 +1224,7 @@ namespace netxs::os
 
         #if defined(_WIN32)
 
-            //todo implement            
+            //todo implement
 
         #else
 
@@ -1215,7 +1275,7 @@ namespace netxs::os
             }
 
             // Reap the child, leaving the grandchild to be inherited by init.
-            int stat;
+            auto stat = int{};
             ::waitpid(pid, &stat, 0);
             if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
             {
@@ -1856,7 +1916,7 @@ namespace netxs::os
     class fire
     {
         #if defined(_WIN32)
-        
+
             fd_t h; // fire: Descriptor for IO interrupt.
 
         public:
@@ -2107,7 +2167,7 @@ namespace netxs::os
             bool send(view data) override
             {
                 if constexpr (ROLE == role::server) return client->send(data);
-                else                                return server->send(data); 
+                else                                return server->send(data);
             }
             flux& show(flux& s) const override
             {
@@ -3604,7 +3664,7 @@ namespace netxs::os
             #endif
             log("xpty: dtor complete");
         }
-        
+
         operator bool () { return termlink; }
 
         void start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
@@ -3724,15 +3784,15 @@ namespace netxs::os
                 Proc_id = ::fork();
                 if (Proc_id == 0) // Child branch.
                 {
-                    os::close(fdm);
-                    ok(::setsid(), "setsid error"); // Make the current process a new session leader, return process group id.
+                    os::close(fdm); // os::fdcleanup();
+                    auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
 
                     // In order to receive WINCH signal make fds the controlling
                     // terminal of the current process.
                     // Current process must be a session leader (::setsid()) and not have
                     // a controlling terminal already.
                     // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-                    ok(::ioctl(fds, TIOCSCTTY, 0), "xpty: assign controlling terminal error");
+                    auto rc1 = ::ioctl(fds, TIOCSCTTY, 0);
 
                     ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                     ::signal(SIGQUIT, SIG_DFL); //
@@ -3741,18 +3801,18 @@ namespace netxs::os
                     ::signal(SIGTTOU, SIG_DFL); //
                     ::signal(SIGCHLD, SIG_DFL); //
 
-                    ::dup2(fds, STDIN_FD ); // Assign stdio lines atomically
-                    ::dup2(fds, STDOUT_FD); // = close(new);
-                    ::dup2(fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
-                    os::fdcleanup();
-
                     if (cwd.size())
                     {
                         auto err = std::error_code{};
                         std::filesystem::current_path(cwd, err);
-                        if (err) std::cerr << "xpty: failed to change current working directory to '" + cwd + "', error code: " + std::to_string(err.value()) << std::flush;
-                        else     std::cerr << "xpty: change current working directory to '" + cwd + "'" << std::flush;
+                        if (err) std::cerr << "xpty: failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
+                        else     std::cerr << "xpty: change current working directory to '" << cwd << "'" << "\n" << std::flush;
                     }
+
+                    ::dup2(fds, STDIN_FD ); // Assign stdio lines atomically
+                    ::dup2(fds, STDOUT_FD); // = close(new);
+                    ::dup2(fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
+                    os::fdcleanup();
 
                     auto args = os::split_cmdline(cmdline);
                     auto argv = std::vector<char*>{};
@@ -3766,7 +3826,7 @@ namespace netxs::os
                     ::execvp(argv.front(), argv.data());
 
                     auto errcode = errno;
-                    std::cerr << text{ "xpty: exec error, errno=" } + std::to_string(errcode) << std::flush;
+                    std::cerr << "xpty: exec error, errno=" << errcode << "\n" << std::flush;
                     ::close(STDERR_FD);
                     ::close(STDOUT_FD);
                     ::close(STDIN_FD );
@@ -3961,7 +4021,7 @@ namespace netxs::os
                 }
                 log("dtvt: dtor complete");
             }
-            
+
             operator bool () { return termlink; }
 
             auto start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
@@ -4085,8 +4145,8 @@ namespace netxs::os
                     Proc_id = ::fork();
                     if (Proc_id == 0) // Child branch.
                     {
+                        os::close(to_client[1]); // os::fdcleanup();
                         os::close(to_server[0]);
-                        os::close(to_client[1]);
                         os::close(to_srvlog[0]);
 
                         ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.

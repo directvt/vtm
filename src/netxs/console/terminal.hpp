@@ -224,6 +224,7 @@ namespace netxs::ui
                         owner.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                         gear.state(state);
                     }
+                    owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }
                 else if (deed == hids::events::mouse::button::down::left.id
                       || deed == hids::events::mouse::button::down::middle.id)
@@ -238,6 +239,7 @@ namespace netxs::ui
                         owner.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                         gear.state(state);
                     }
+                    owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }
             }
             void enable(mode m)
@@ -1202,7 +1204,7 @@ namespace netxs::ui
                 //{
                 //    add_lines(1);
                 //    batch.index(batch.length() - 1);
-                //} 
+                //}
                 //batch->locus.push(property);
             }
             // bufferbase: Update current SGR attributes.
@@ -1385,7 +1387,7 @@ namespace netxs::ui
                     default:
                         log("ESC # ", (char)c, " (", c, ") is unknown");
                         break;
-                }                
+                }
             }
             void msg(si32 c, qiew& q)
             {
@@ -1422,15 +1424,15 @@ namespace netxs::ui
             // coor.x      -2-1 0 1 2 3 4 5 6 7 8 9
             // size = 9         0 1 2 3 4 5 6 7 8
             //             ----------------------
-            // custom: fwd_idx  3 3 3 6 6 6 9 9 9 
+            // custom: fwd_idx  3 3 3 6 6 6 9 9 9
             //         rev_idx  0 0 0 3 3 3 6 6 6  coord.x - 1
-            // 
-            // auto:   fwd_idx -3-3-3-6-6-6-9-9-9 
+            //
+            // auto:   fwd_idx -3-3-3-6-6-6-9-9-9
             //         rev_idx  0 0 0 3 3 3 6 6 6  coord.x - 1
-            // 
+            //
             // empty:  fwd_idx -9-9-9-9-9-9-9-9-9
             //         rev_idx  0 0 0 0 0 0 0 0 0  coord.x - 1
-            // 
+            //
             // bufferbase: Clear tabstops.
             void clear_tabstops()
             {
@@ -1635,7 +1637,7 @@ namespace netxs::ui
             {
                 parser::flush();
                 decom = saved.decom;
-                auto coor = saved.coord; 
+                auto coor = saved.coord;
                 if (decom) coor.y += y_top;
                 set_coord(coor);
                 parser::style = saved.style;
@@ -2157,7 +2159,7 @@ namespace netxs::ui
             {
                 auto full = target.full();
                 auto view = target.view();
-                auto find = selection_active() 
+                auto find = selection_active()
                          && match.length()
                          && owner.selmod == xsgr::textonly;
                 canvas.move(full.coor);
@@ -2662,7 +2664,7 @@ namespace netxs::ui
 
             void print_slide(text msg)
             {
-                log(msg, ": ", " batch.basis=", batch.basis, " batch.slide=", batch.slide, 
+                log(msg, ": ", " batch.basis=", batch.basis, " batch.slide=", batch.slide,
                     " ancid=", batch.ancid, " ancdy=", batch.ancdy, " round=", batch.round ? 1:0);
             }
             void print_index(text msg)
@@ -3887,7 +3889,7 @@ namespace netxs::ui
                         }
                         curln.splice(start, count, proto);
                         auto curid = curln.index;
-                        if (query > 0) // case 3 - complex: Cursor is outside the viewport. 
+                        if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
                             batch.recalc(curln);
                             if (auto count = static_cast<si32>(batch.back().index - curid))
@@ -3920,7 +3922,7 @@ namespace netxs::ui
                                 start += panel.x;
                             }
                             index.push_back(curid, start, width - start);
-                            
+
                             if (coord.y > max_y)
                             {
                                 batch.basis += coord.y - max_y;
@@ -4051,7 +4053,7 @@ namespace netxs::ui
                 batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
                 index_rebuild();
             }
-            // scroll_buf: 
+            // scroll_buf: .
             template<feed DIR>
             auto xconv(si32 x, bias align, si32 remain)
             {
@@ -4067,11 +4069,11 @@ namespace netxs::ui
                     case bias::none:
                     case bias::left:   break;
                     case bias::right:  map(x, panel.x     - remain    ); break;
-                    case bias::center: map(x, panel.x / 2 - remain / 2); break;                                
+                    case bias::center: map(x, panel.x / 2 - remain / 2); break;
                 };
                 return x;
             }
-            // scroll_buf: 
+            // scroll_buf: .
             auto screen_to_offset(line& curln, twod coor)
             {
                 auto length = curln.length();
@@ -4091,7 +4093,7 @@ namespace netxs::ui
                 }
                 return coor.x;
             }
-            // scroll_buf: 
+            // scroll_buf: .
             auto offset_to_screen(line& curln, si32 offset)
             {
                 auto size = curln.length();
@@ -5358,7 +5360,7 @@ namespace netxs::ui
                                         case bias::none:
                                         case bias::left:   break;
                                         case bias::right:  coord.x += panel.x - 1; break;
-                                        case bias::center: coord.x += panel.x / 2; break;                                
+                                        case bias::center: coord.x += panel.x / 2; break;
                                     }
                                     struct { auto length() const { return 1; }} empty;
                                     draw(coord, empty, faux);
@@ -6638,7 +6640,7 @@ namespace netxs::ui
 
                     if (scroll_size != base::size() // Update scrollbars.
                      || scroll_coor != origin
-                     || adjust_pads) 
+                     || adjust_pads)
                     {
                         this->SIGNAL(tier::release, e2::size::set, scroll_size);
                         this->base::moveto(scroll_coor);

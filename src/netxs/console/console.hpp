@@ -191,7 +191,7 @@ namespace netxs::events::userland
                 EVENT_XS( preclose, const bool              ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
                 EVENT_XS( quit    , const text              ), // release: quit, arg: text - bye msg.
                 EVENT_XS( pointer , const bool              ), // release: mouse pointer visibility.
-                //EVENT_XS( menu  , si32 ), 
+                //EVENT_XS( menu  , si32 ),
             };
             SUBSET_XS( data )
             {
@@ -274,7 +274,7 @@ namespace netxs::events::userland
                     GROUP_XS( scroll , rack                ), // event after scroll.
                     //EVENT_XS( created    , sptr<console::base> ), // event after itself creation, arg: itself bell_sptr.
                     //EVENT_XS( detached   , bell_sptr           ), // inform that subject is detached, arg: parent bell_sptr.
-                    //EVENT_XS( invalidated, bool                ), 
+                    //EVENT_XS( invalidated, bool                ),
                     //EVENT_XS( moved      , twod                ), // release: event after moveto, arg: diff bw old and new coor twod. preview: event after moved by somebody.
 
                     SUBSET_XS( vtree )
@@ -1757,7 +1757,7 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
                 {
                     items.take(gear).calc(boss, gear.coord);
-                };   
+                };
                 boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
                 {
                     items.add(gear);
@@ -3150,7 +3150,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
-            
+
             subs kb_subs{};
 
         public:
@@ -3922,7 +3922,7 @@ namespace netxs::console
                              mark.fgc(title_fg_color); //todo unify, make it more contrast
                         auto fill = [&](cell& c) { c.fuse(mark); };
                         parent_canvas.fill(area, fill);
-                    }                
+                    }
                 };
             }
         };
@@ -3954,7 +3954,7 @@ namespace netxs::console
                         auto area = parent_canvas.full();
                         //parent_canvas.fill(area, fuse); //todo apple clang doesn't get it
                         parent_canvas.fill(area, cell::shaders::xlight);
-                    }                
+                    }
                 };
             }
         };
@@ -3998,7 +3998,7 @@ namespace netxs::console
                     {
                         auto tail = gear_id_list.end();
                         gear_id_list.insert(tail, pool.begin(), pool.end());
-                    }                    
+                    }
                 };
                 boss.SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_test)
                 {
@@ -5122,7 +5122,7 @@ namespace netxs::console
         {
             using namespace netxs::ansi::dtvt;
             paint = work([&, vtmode]
-            { 
+            {
                 //todo revise (bitmap/bitmap_t)
                      if (vtmode == svga::directvt ) render<binary::bitmap_t>               (canal);
                 else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(canal);
@@ -5671,6 +5671,10 @@ namespace netxs::console
                     {
                         conio.expose.send(conio);
                     };
+                    SUBMIT_T(tier::anycast, e2::form::layout::expose, token, item)
+                    {
+                        conio.expose.send(conio);
+                    };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
                         forward_event(gear);
@@ -5722,13 +5726,10 @@ namespace netxs::console
             lock.unlock();
 
             os::direct::pty::reading_loop(canal, [&](view data){ conio.sync(data); });
-            if (canal)
-            {
-                log("link: signaling to close the read channel ", canal);
-                conio.notify(e2::conio::quit, "link: read channel is closed");
-            }
 
             lock.lock();
+                log("link: signaling to close the read channel ", canal);
+                SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
                 token.clear();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                 base::detach();

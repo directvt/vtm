@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
                 case 'd': daemon = true; break;
                 default:
                     banner();
-                    log("Usage:\n\n ", argv[0], " [ -d | -s | -r [<app> [<args...>]] ]\n\n"s
+                    log("Usage:\n\n ", os::current_module_file(), " [ -d | -s | -r [<app> [<args...>]] ]\n\n"s
                                     + " No arguments\tRun client, auto start server if is not started.\n"s
                                              + "\t-d\tRun server in background.\n"s
                                              + "\t-s\tRun server in interactive mode.\n"s
@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
 
         if (daemon)
         {
-            if (!os::daemonize(argv[0]))
+            if (!os::daemonize(os::current_module_file()))
             {
                 banner();
                 log("main: failed to daemonize");
@@ -199,9 +199,8 @@ int main(int argc, char* argv[])
             auto client = os::ipc::open<os::client>(prefix, 10s, [&]()
                         {
                             log("main: new desktopio environment for user ", userid);
-                            auto binary = view{ argv[0] };
-                            utf::trim_front(binary, "-"); // Sometimes "-" appears before executable.
-                            return os::exec(text{ binary }, "-d");
+                            auto binary = os::current_module_file();
+                            return os::exec(binary, "-d");
                         });
             if (!client)
             {

@@ -237,7 +237,7 @@ namespace netxs::console
 namespace netxs::app::calc
 {
     using events = ::netxs::events::userland::calc;
-    
+
     namespace
     {
         auto get_text = []()

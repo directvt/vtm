@@ -201,7 +201,7 @@ namespace netxs::app::shared
                         ->active();
             auto inner_pads = dent{ 1,2,1,1 };
             auto menu_list = menu_area->attach(slot::_1, ui::fork::ctor());
-                                        
+
                 menu_list->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
                          ->plugin<pro::fader>(x3, c3, 150ms)
                          ->plugin<pro::notes>(" Maximize/restore window ")
@@ -490,7 +490,7 @@ namespace netxs::app::shared
             app::shared::get_creator()[text{ app_typename }] = builder;
         }
     };
-    
+
     auto start(text app_name, text log_title, si32 vtmode, si32 maxfps, si32 menusz)
     {
         auto direct = !!(vtmode & os::legacy::direct);
@@ -656,7 +656,7 @@ namespace netxs::app::shared
                             static auto i = 0; i++;
                             auto title = ansi::add("View\nRegion ", i);
                             boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
-                            
+
                             auto outer = dent{ 2,2,1,1 };
                             auto inner = dent{ -4,-4,-2,-2 };
                             boss.base::template riseup<tier::release>(e2::config::plugins::sizer::outer, outer);
@@ -946,7 +946,7 @@ namespace netxs::app::shared
 
                             auto current_default = e2::data::changed.param();
                             boss->template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
-                            
+
                             if (auto gate = boss->parent())
                             {
                                 gate->SIGNAL(tier::release, e2::data::changed, name);

@@ -938,7 +938,7 @@ namespace netxs::input
         }
         auto state()
         {
-            return std::tuple{ force_group_focus, 
+            return std::tuple{ force_group_focus,
                                 kb_focus_changed,
                                    combine_focus,
                                        countdown };
@@ -964,7 +964,7 @@ namespace netxs::input
             Fn       = 1 <<  7, //
             CapsLock = 1 <<  8, // ⇪ Caps Lock
             NumLock  = 1 <<  9, // ⇭ Num Lock
-            ScrlLock = 1 << 10, // ⇳ Scroll Lock (⤓) 
+            ScrlLock = 1 << 10, // ⇳ Scroll Lock (⤓)
             anyCtrl  = LCtrl  | RCtrl,
             anyAlt   = LAlt   | RAlt,
             anyShift = LShift | RShift,

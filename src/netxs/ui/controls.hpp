@@ -1294,7 +1294,7 @@ namespace netxs::ui
     };
 
     //using post = post_fx<>;  //todo apple clang doesn't get it
-    
+
     // controls: Scroller.
     class rail
         : public form<rail>

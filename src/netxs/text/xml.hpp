@@ -176,7 +176,7 @@ namespace netxs::xml
             else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
             else                           return 0;
         };
-        
+
         if (auto iter = item.find(attr); iter != item.end())
         {
             auto& value = utf::to_low(iter->second);
