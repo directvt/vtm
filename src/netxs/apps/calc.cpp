@@ -1,12 +1,6 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = R"==(
-<VTM_PROFILE>
-    <menuitem id=Calc label="Calc DEMO" title="Calc App Title" notes="$0\nCalc Tooltip Message" type=DirectVT param="$0"/>
-</VTM_PROFILE>
-)==";
-
 #define DESKTOPIO_VER "v0.7.6"
 #define DESKTOPIO_MYNAME "Desktopio Calc " DESKTOPIO_VER
 #define DESKTOPIO_MYPATH "vtm/calc"

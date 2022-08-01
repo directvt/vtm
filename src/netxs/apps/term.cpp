@@ -1,12 +1,6 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = R"==(
-<VTM_PROFILE>
-    <menuitem id=Term label="Term" title="Terminal Emulator" notes="$0\nTerminal Emulator" type=DirectVT param="$0"/>
-</VTM_PROFILE>
-)==";
-
 #define DESKTOPIO_VER "v0.7.6"
 #define DESKTOPIO_MYNAME "Desktopio Terminal " DESKTOPIO_VER
 #define DESKTOPIO_MYPATH "vtm/term"

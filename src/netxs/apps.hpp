@@ -4,8 +4,6 @@
 #ifndef NETXS_APPS_HPP
 #define NETXS_APPS_HPP
 
-#define DESKTOPIO_FOLDER "/.config/vtm/"
-#define DESKTOPIO_APPDIR "/.config/vtm/apps"
 
 #define APPS_DEL_TIMEOUT 1s
 
@@ -27,6 +25,46 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
+    static constexpr auto default_config = R"==(
+<config selected=Term>
+    <defaults index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0x0 wincoor=0x0 />
+    <menuitem id=Term label="Term" notes="Run built-in terminal emulator" type=DirectVT title="Terminal Emulator" param="$0 -r term"/>
+)=="
+#ifdef _WIN32
+R"==(
+    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
+    <menuitem id=Far label="Far" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>
+)=="
+#else
+R"==(
+    <menuitem id=mc label="mc" notes="Run Midnight Commander in its own window (if it is installed)" type=SHELL param="mc"/>
+)=="
+#endif
+R"==(
+    <menuitem id=Tile label="Tile" notes="Run Tiling Window Manager with two terminals attached" type=Group title="Tiling Window Manager" param="h1:1(Term, Term)"/>
+    <menuitem id=View label=View notes="Set desktop region" type=Region title="\e[11:3pView: Region"/>"
+    <menuitem id=Settings  label=Settings winsize=50x15 notes="Configure frame rate" type=DirectVT title="Settings"   param="$0 -r settings"/>
+    <menuitem id=Logs      label=Logs                   notes="Run Logs application" type=DirectVT title="Logs Title" param="$0 -r logs"/>
+    <splitter label="Demo"/>
+    <menuitem id=Gems      label="Gems"      notes="Gems"      type=DirectVT title="Gems Title" param="$0 -r gems"/>
+    <menuitem id=Text      label="Text"      notes="Text"      type=DirectVT title="Text Title" param="$0 -r text"/>
+    <menuitem id=Calc      label="Calc"      notes="Calc"      type=DirectVT title="Calc Title" param="$0 -r calc"/>
+    <menuitem id=Test      label="Test"      notes="Test"      type=DirectVT title="Test Title" param="$0 -r test"/>
+    <menuitem id=Truecolor label="Truecolor" notes="Truecolor" type=DirectVT title="True Title" param="$0 -r truecolor"/>
+
+    <autorun>
+        <Calc wincoor=100,7 winsize=100,50 />
+        <Term wincoor=40,12 winsize=100,50 />
+        <Tile wincoor=15,1 winsize=100,50 />
+    </autorun>
+    <settings>
+        ...
+    </settings>
+</config>
+)==";
+
+    static constexpr auto path_settings = ".config/vtm/settings.xml";
+
     static constexpr auto type_ANSIVT   = "ansivt";
     static constexpr auto type_DirectVT = "directvt";
     static constexpr auto type_SHELL    = "shell";
@@ -47,13 +85,18 @@ namespace netxs::app::shared
     static constexpr auto attr_bgcolor  = "bgcolor";
     static constexpr auto attr_fgcolor  = "fgcolor";
     static constexpr auto attr_winsize  = "winsize";
+    static constexpr auto attr_wincoor  = "wincoor";
     static constexpr auto attr_slimmenu = "slimmenu";
     static constexpr auto attr_hotkey   = "hotkey";
     static constexpr auto attr_type     = "type";
     static constexpr auto attr_cwd      = "cwd";
     static constexpr auto attr_param    = "param";
 
-    static constexpr auto tag_profile  = "VTM_PROFILE";
+    static constexpr auto tag_profile  = "VTM_CONFIG";
+    static constexpr auto tag_config   = "config";
+    static constexpr auto tag_autorun  = "autorun";
+    static constexpr auto tag_settings = "settings";
+    static constexpr auto tag_splitter = "splitter";
     static constexpr auto tag_defaults = "defaults";
     static constexpr auto tag_menuitem = "menuitem";
 
@@ -1034,18 +1077,29 @@ namespace netxs::app::shared
         world->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
         auto& menu_list = *menu_list_ptr;
         auto& conf_list = *conf_list_ptr;
+        auto current_module_file = os::current_module_file();
 
+        struct xml_element
+        {
+            using list = sptr<std::vector<xml_element>>;
+            using umap = std::unordered_map<text, list>;
+            text tag;      // xml_element: Element tag.
+            text value;    // xml_element: Element value.
+            list elements; // xml_element: Random access by id.
+            umap index;    // xml_element: Access by id.
+        };
         using item_t = std::unordered_map<text, text>;
-        auto list = std::vector<std::pair<fs::directory_entry, item_t>>{};
+        auto list = std::vector<item_t>{};
         auto sort_list = std::list<std::pair<text, menuitem_t>>{};
         auto free_list = sort_list;
         auto temp_list = sort_list;
 
-        auto take_doc_name = [](auto const& data)
+        auto take_doc_name = [](view& data)
         {
             auto from = data.find('<');
             auto skip = data.find('>') + 1;
             auto name = data.substr(from, skip - from);
+            data.remove_prefix(skip);
             return text{ name };
         };
         auto take_xml_item = [](text& tag, item_t& item, view& data)
@@ -1056,7 +1110,7 @@ namespace netxs::app::shared
                 auto attr = text{};
                 if (xml::attr(data, tag, type))
                 {
-                    log("\t link: <", tag, faux);
+                    log("\t<", tag, faux);
                     while (xml::attr(data, attr, type))
                     {
                         auto& value = item[attr];
@@ -1069,11 +1123,11 @@ namespace netxs::app::shared
                     log(" />");
                 }
 
-                if (type != xml::type::close) log(" xml: unexpected data: {", utf::debase(data), "}");
+                if (type != xml::type::close) log(" xml: unexpected data:\n{\n", utf::debase(data), "\n}");
             }
             return type == xml::type::close;
         };
-        auto take_elements = [&](auto const& filename, view data)
+        auto take_elements = [&](view data)
         {
             auto item = item_t{};
             auto tag = text{};
@@ -1081,7 +1135,7 @@ namespace netxs::app::shared
             {
                 if (tag == tag_menuitem)
                 {
-                    list.emplace_back(filename, std::move(item));
+                    list.emplace_back(std::move(item));
                 }
                 else if (tag == tag_defaults)
                 {
@@ -1090,88 +1144,42 @@ namespace netxs::app::shared
                 else log(" xml: skip element <", utf::debase(tag), ">");
             }
         };
-        auto take_menu = [&](auto const& filename, auto& buff, view what, view stop)
-        {
-            auto iter = buff.begin();
-            while (iter != buff.end())
-            {
-                auto next = std::search(iter, buff.end(), what.begin(), what.end());
-                if (next == buff.end()) break;
-
-                next += what.size();
-                iter = std::search(next, buff.end(), stop.begin(), stop.end());
-                if (iter == buff.end())  break;
-
-                //auto data = view{ next, iter };
-                auto data = view(&(*next), std::distance(next, iter)); //todo use C++20 view ctor (Clang 11.0.1 don't get it)
-                take_elements(filename, data);
-                iter += stop.size();
-            }
-        };
-
-        auto apps = os::homepath() + DESKTOPIO_APPDIR;
-        auto data = view{ ::DirectVT };
-        auto what = take_doc_name(data);
-        auto stop = what;
-        utf::change(stop, "<", "</");
-
         auto take_path = [](auto const& filename)
         {
             auto path = filename.path().string();
             utf::change(path, "\\", "/");
             return path;
         };
-
-        if (fs::exists(apps))
+        auto take_config = [&](view data)
         {
-            //auto buff = std::vector<char>(1 << 20 /* 1M */);
-            for (auto const& name : fs::directory_iterator(apps))
+            //todo take selected=
+            take_doc_name(data);
+            take_elements(data);
+        };
+
+        auto ec = std::error_code{};
+        auto config_file = fs::directory_entry(os::homepath() / path_settings, ec);
+        if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
+        {
+            auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
+            if (file.seekg(0, std::ios::end).fail())
             {
-                log("apps: external module found: ", take_path(name));
-                if (!(name.is_regular_file()
-                   || name.is_symlink())) continue;
-                auto file = std::ifstream(name.path(), std::ios::binary | std::ios::in);
-                if (file.seekg(0, std::ios::end).fail())
-                {
-                    log("apps: unable to get file size, skip it: ", take_path(name));
-                    continue;
-                }
+                log("apps: unable to get configuration file size, skip it: ", take_path(config_file));
+            }
+            else
+            {
+                log("apps: using configuration: ", take_path(config_file));
                 auto size = file.tellg();
                 auto buff = std::vector<char>(size);
                 file.seekg(0, std::ios::beg);
                 file.read(buff.data(), size);
-                auto last = list.size();
-
-                take_menu(name, buff, what, stop);
-
-                if (last == list.size()) // No records found.
-                {
-                    auto fullname = take_path(name);
-                    if (fullname.find(' ') != text::npos) fullname = "\"" + fullname + "\"";
-                    auto item = item_t{};
-                    item[attr_id   ] = fullname;
-                    item[attr_notes] = fullname;
-                    item[attr_type ] = type_SHELL;
-                    item[attr_title] = fullname;
-                    item[attr_param] = fullname;
-                    list.emplace_back(name, std::move(item));
-                }
+                take_config(view(buff.data(), size));
             }
-
-            std::sort(list.begin(), list.end(), [](auto& a, auto& b)
-            {
-                return a.first.last_write_time() < b.first.last_write_time();
-            });
         }
         else
         {
-            log("apps: no external modules found at ", apps);
-        }
-
-        auto current_module_file = fs::directory_entry(os::current_module_file());
-        if (list.empty())
-        {
-            take_menu(current_module_file, data, what, stop);
+            log("apps: configuration ", take_path(config_file), " not found, use default configuration");
+            take_config(default_config);
         }
 
         auto tiling_profiles = os::get_envars(tag_profile);
@@ -1183,7 +1191,7 @@ namespace netxs::app::shared
             {
                 log("\t", i++, ". profile: ", utf::debase(profile));
                 auto data = utf::remain(profile, '=');
-                take_elements(current_module_file, data);
+                take_elements(data);
             }
         }
 
@@ -1195,10 +1203,9 @@ namespace netxs::app::shared
             .slimmenu = faux,
             .type     = type_SHELL,
         };
-        auto find = [&](auto const& alias) -> auto&
+        auto find = [&](auto const& id) -> auto&
         {
-            auto id = '/' + alias;
-            auto test = [&](auto& p) { return p.first.ends_with(id); };
+            auto test = [&](auto& p) { return p.first == id; };
 
             auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
             if (iter_free != free_list.end()) return iter_free->second;
@@ -1212,22 +1219,19 @@ namespace netxs::app::shared
             return dflt_rec;
         };
 
-        for (auto& [name, item] : list)
+        for (auto& item : list)
         {
-            auto filepath = take_path(name);
             if (auto iter = item.find(attr_id); iter != item.end())
             {
                 auto& id = iter->second;
-                auto unique_id = filepath + "/" + id;
                 if (id.empty())
                 {
-                    log("apps: attribute '", utf::debase(attr_id), "' missing for ", utf::debase(unique_id));
+                    log("apps: attribute '", utf::debase(attr_id), "' missing for ", utf::debase(id));
                     continue;
                 }
                 auto& label = item[attr_label];
                 auto conf_rec = menuitem_t{};
                 conf_rec.label    = label.empty() ? id : label;
-                conf_rec.fname    = name;
                 conf_rec.id       = id;
                 conf_rec.alias    = xml::take<view>(item, attr_alias);
                 auto& fallback = conf_rec.alias.empty() ? dflt_rec
@@ -1240,28 +1244,24 @@ namespace netxs::app::shared
                 conf_rec.bgcolor  = xml::take<rgba>(item, attr_bgcolor,  fallback.bgcolor );
                 conf_rec.fgcolor  = xml::take<rgba>(item, attr_fgcolor,  fallback.fgcolor );
                 conf_rec.winsize  = xml::take<twod>(item, attr_winsize,  fallback.winsize );
+                conf_rec.wincoor  = xml::take<twod>(item, attr_wincoor,  fallback.wincoor );
                 conf_rec.slimmenu = xml::take<bool>(item, attr_slimmenu, fallback.slimmenu);
                 conf_rec.hotkey   = xml::take<view>(item, attr_hotkey,   fallback.hotkey  ); //todo register hotkey
                 conf_rec.cwd      = xml::take<view>(item, attr_cwd,      fallback.cwd     );
                 conf_rec.param    = xml::take<view>(item, attr_param,    fallback.param   );
                 conf_rec.type     = xml::take<view>(item, attr_type,     fallback.type    );
                 utf::to_low(conf_rec.type);
-                utf::change(conf_rec.title,  "$0", filepath);
-                utf::change(conf_rec.footer, "$0", filepath);
-                utf::change(conf_rec.label,  "$0", filepath);
-                utf::change(conf_rec.notes,  "$0", filepath);
-                utf::change(conf_rec.param,  "$0", filepath);
+                utf::change(conf_rec.title,  "$0", current_module_file);
+                utf::change(conf_rec.footer, "$0", current_module_file);
+                utf::change(conf_rec.label,  "$0", current_module_file);
+                utf::change(conf_rec.notes,  "$0", current_module_file);
+                utf::change(conf_rec.param,  "$0", current_module_file);
 
-                if (conf_rec.type == type_Group) // Pass unique_id to the group ctor.
-                {
-                    conf_rec.param = unique_id + '\0' + conf_rec.param;
-                }
-
-                     if (conf_rec.hidden)      temp_list.emplace_back(std::move(unique_id), std::move(conf_rec));
-                else if (conf_rec.index == -1) free_list.emplace_back(std::move(unique_id), std::move(conf_rec));
-                else                           sort_list.emplace_back(std::move(unique_id), std::move(conf_rec));
+                     if (conf_rec.hidden)      temp_list.emplace_back(std::move(id), std::move(conf_rec));
+                else if (conf_rec.index == -1) free_list.emplace_back(std::move(id), std::move(conf_rec));
+                else                           sort_list.emplace_back(std::move(id), std::move(conf_rec));
             }
-            else log("apps: attribute '", utf::debase(attr_id), "' missing for ", filepath);
+            else log("apps: attribute '", utf::debase(attr_id), "' is missing");
         }
         sort_list.sort([](auto const& a, auto const& b)
         {
@@ -1269,20 +1269,20 @@ namespace netxs::app::shared
         });
         for (auto iter = sort_list.begin(); iter != sort_list.end(); ++iter)
         {
-            auto& [unique_id, conf_rec] = *iter;
+            auto& [id, conf_rec] = *iter;
             auto index = std::clamp(conf_rec.index, 0, static_cast<decltype(conf_rec.index)>(free_list.size()));
             auto insertion_point = free_list.begin();
             std::advance(insertion_point, index);
             free_list.insert(insertion_point, std::move(*iter));
         }
-        for (auto& [unique_id, conf_rec] : free_list)
+        for (auto& [id, conf_rec] : free_list)
         {
-            menu_list[unique_id];
-            conf_list.emplace(std::move(unique_id), std::move(conf_rec));
+            menu_list[id];
+            conf_list.emplace(std::move(id), std::move(conf_rec));
         }
-        for (auto& [unique_id, conf_rec] : temp_list)
+        for (auto& [id, conf_rec] : temp_list)
         {
-            conf_list.emplace(std::move(unique_id), std::move(conf_rec));
+            conf_list.emplace(std::move(id), std::move(conf_rec));
         }
 
         world->SUBMIT(tier::release, e2::form::proceed::createby, gear)

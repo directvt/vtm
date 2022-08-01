@@ -265,11 +265,11 @@ No arguments | Run client (auto start server)
      - `LeftClick` -- Set exclusive focus
      - `Ctrl+LeftClick`/`RightClick` -- Set/Unset group focus
      - `double LeftClick` -- Maxixmize/restore
-   - Configurable via environment variable `VTM_PROFILE*`
+   - Configurable via environment variable `VTM_CONFIG*`
      ```
      # Configuration example:
 
-     VTM_PROFILE='<menuitem id=Term notes="Run terminal" type=DirectVT label="Virtual \e[41mTerminal\e[m] Emulator" param="$0 -r term"/>
+     VTM_CONFIG='<menuitem id=Term notes="Run terminal" type=DirectVT label="Virtual \e[41mTerminal\e[m] Emulator" param="$0 -r term"/>
                   <menuitem id=View label=View notes="Desktop region" type=Region title="Region 1"/>
                   <menuitem id=htop label=htop hidden=yes notes="htop app" type=ANSIVT param="htop"/>
                   <menuitem id=mc label=mc hidden=1 notes="mc app" type=SHELL param="mc"/>

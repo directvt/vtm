@@ -1,37 +1,6 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-auto DirectVT = R"==(
-<VTM_PROFILE>
-    <menuitem id=Term label="Term" hidden=no notes="Run built-in terminal emulator" type=DirectVT title="Terminal Emulator" param="$0 -r term"/>
-)=="
-#ifdef _WIN32
-R"==(
-    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
-    <menuitem id=Far label="Far" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>
-)=="
-#else
-R"==(
-    <menuitem id=mc label="mc" notes="Run Midnight Commander in its own window (if it is installed)" type=SHELL param="mc"/>
-)=="
-#endif
-R"==(
-    <menuitem id=Tile label="Tile" notes="Run Tiling Window Manager with two terminals attached" type=Group title="Tiling Window Manager" param="h1:1(Term, Term)"/>
-)=="
-
-    "<menuitem id=View label=View notes=\"Set desktop region\" type=Region title=\"\033[11:3pView: Region\"/>"
-
-R"==(
-    <menuitem id=Settings  label=Settings winsize=50x15 notes="Configure frame rate" type=DirectVT title="Settings"   param="$0 -r settings"/>
-    <menuitem id=Logs      label=Logs                   notes="Run Logs application" type=DirectVT title="Logs Title" param="$0 -r logs"/>
-    <menuitem id=Gems      label="Gems [DEMO]"          notes="Gems [DEMO]"          type=DirectVT title="Gems Title" param="$0 -r gems"/>
-    <menuitem id=Text      label="Text [DEMO]"          notes="Text [DEMO]"          type=DirectVT title="Text Title" param="$0 -r text"/>
-    <menuitem id=Calc      label="Calc [DEMO]"          notes="Calc [DEMO]"          type=DirectVT title="Calc Title" param="$0 -r calc"/>
-    <menuitem id=Test      label="Test [DEMO]"          notes="Test [DEMO]"          type=DirectVT title="Test Title" param="$0 -r test"/>
-    <menuitem id=Truecolor label="Truecolor [DEMO]"     notes="Truecolor [DEMO]"     type=DirectVT title="True Title" param="$0 -r truecolor"/>
-</VTM_PROFILE>
-)==";
-
 #define DESKTOPIO_VER "v0.7.7"
 #define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
@@ -60,7 +29,6 @@ int main(int argc, char* argv[])
     auto syslog = os::ipc::logger(vtmode);
     auto banner = [&]() { log(DESKTOPIO_MYNAME); };
     auto whoami = type::client;
-    auto region = text{};
     auto params = text{};
     auto maxfps = si32{ 60 };
     {
@@ -108,20 +76,6 @@ int main(int argc, char* argv[])
     }
 
     {
-        //todo mutex
-        auto config = std::ifstream{};
-        config.open(os::homepath() + DESKTOPIO_FOLDER "settings.ini");
-
-        if (config.is_open())
-        {
-            std::getline(config, region);
-        }
-
-        if (region.empty())
-        {
-            region = "unknown region";
-        }
-
         //todo unify
         //fps
         //skin::setup(tone::lucidity, 192);
@@ -207,8 +161,7 @@ int main(int argc, char* argv[])
                 log("main: error: no desktopio server connection");
                 return 1;
             }
-            client->send(utf::concat(region, ";",
-                                     hostip, ";",
+            client->send(utf::concat(hostip, ";",
                                      usernm, ";",
                                      userid, ";",
                                      vtmode, ";"));

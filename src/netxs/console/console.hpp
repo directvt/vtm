@@ -50,8 +50,6 @@ namespace netxs::console
     };
     struct menuitem_t
     {
-        using file = fs::directory_entry;
-        file    fname{};
         text       id{};
         si32    index{};
         text    alias{};
@@ -63,6 +61,7 @@ namespace netxs::console
         rgba  bgcolor{};
         rgba  fgcolor{};
         twod  winsize{};
+        twod  wincoor{};
         bool slimmenu{};
         text   hotkey{};
         text      cwd{};
@@ -5191,7 +5190,6 @@ namespace netxs::console
         conf(xipc peer, si32 session_id)
             : session_id{ session_id }
         {
-            auto _region = peer->line(';');
             auto _ip     = peer->line(';');
             auto _name   = peer->line(';');
             auto _user   = peer->line(';');
@@ -5206,7 +5204,6 @@ namespace netxs::console
             clip_preview_size = twod{ 80,25 };
             //background_color  = app::shared::background_color;
             coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
-            region            = _region;
             fullname          = _name;
             name              = _user;
             title             = _user;

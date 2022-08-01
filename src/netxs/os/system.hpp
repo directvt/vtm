@@ -103,6 +103,7 @@ namespace netxs::os
         class iobase;
     }
 
+    namespace fs = std::filesystem;
     using list = std::vector<text>;
     using xipc = std::shared_ptr<ipc::iobase>;
     using namespace std::chrono_literals;
@@ -836,12 +837,12 @@ namespace netxs::os
             return shell;
         #endif
     }
-    text homepath()
+    auto homepath()
     {
         #if defined(_WIN32)
-            return os::get_env("HOMEDRIVE") + os::get_env("HOMEPATH");
+            return fs::path{ os::get_env("HOMEDRIVE") } / fs::path{ os::get_env("HOMEPATH") };
         #else
-            return os::get_env("HOME");
+            return fs::path{ os::get_env("HOME") };
         #endif
     }
     //system: Get list of envvars using wildcard.
@@ -2686,13 +2687,14 @@ namespace netxs::os
                 auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
 
                 #if defined(__BSD__)
-                    auto home = os::homepath() + DESKTOPIO_FOLDER;
-                    if (!std::filesystem::exists(home))
+                    //todo unify "/.config/vtm"
+                    auto home = os::homepath() / "/.config/vtm";
+                    if (!fs::exists(home))
                     {
-                        log("path: create home directory ", home);
-                        std::filesystem::create_directory(home);
+                        log("path: create home directory ", home.string());
+                        fs::create_directory(home);
                     }
-                    path = home + path + ".sock";
+                    path = (home / path).string() + ".sock";
                     sun_path--; // File system unix domain socket.
                     log("open: file system socket ", path);
                 #endif
@@ -2720,7 +2722,7 @@ namespace netxs::os
                 if constexpr (ROLE == role::server)
                 {
                     #if defined(__BSD__)
-                        if (std::filesystem::exists(path))
+                        if (fs::exists(path))
                         {
                             if (play())
                             {
@@ -3804,7 +3806,7 @@ namespace netxs::os
                     if (cwd.size())
                     {
                         auto err = std::error_code{};
-                        std::filesystem::current_path(cwd, err);
+                        fs::current_path(cwd, err);
                         if (err) std::cerr << "xpty: failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
                         else     std::cerr << "xpty: change current working directory to '" << cwd << "'" << "\n" << std::flush;
                     }
@@ -4164,7 +4166,7 @@ namespace netxs::os
                         if (cwd.size())
                         {
                             auto err = std::error_code{};
-                            std::filesystem::current_path(cwd, err);
+                            fs::current_path(cwd, err);
                             if (err) std::cerr << "dtvt: failed to change current working directory to '" + cwd + "', error code: " + std::to_string(err.value()) << std::flush;
                             else     std::cerr << "dtvt: change current working directory to '" + cwd + "'" << std::flush;
                         }

@@ -723,7 +723,7 @@ namespace netxs::app::tile
                     empty_pane()
                 );
         };
-        auto parse_data = [](auto&& parse_data, view& unique_id, view& utf8) -> sptr<ui::veer>
+        auto parse_data = [](auto&& parse_data, view& utf8) -> sptr<ui::veer>
         {
             auto place = empty_slot(empty_slot);
             utf::trim_front(utf8, ", ");
@@ -761,8 +761,8 @@ namespace netxs::app::tile
                 if (utf8.empty() || utf8.front() != '(') return place;
                 utf8.remove_prefix(1);
                 auto node = built_node(tag, s1, s2, w);
-                auto slot1 = node->attach(slot::_1, parse_data(parse_data, unique_id, utf8));
-                auto slot2 = node->attach(slot::_2, parse_data(parse_data, unique_id, utf8));
+                auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8));
+                auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8));
                 place->attach(node);
 
                 utf::trim_front(utf8, ") ");
@@ -776,36 +776,17 @@ namespace netxs::app::tile
                 utf::trim_front(utf8, " ,");
                 if (utf8.size() && utf8.front() == ')') utf8.remove_prefix(1); // pop ')';
 
-                auto menu_item_id = text{};
-                menu_item_id += utf::cutoff(unique_id, '/', faux);
-                if (unique_id.substr(menu_item_id.size() + 1) == app_id)
-                {
-                    log("tile: recursive nesting, id=", app_id);
-                    return place; // Avoid recursion.
-                }
-                menu_item_id += '/';
-                menu_item_id += app_id;
                 auto& conf_list = app::shared::configs();
-
-                auto iter = conf_list.find(menu_item_id);
+                auto iter = conf_list.find(app_id);
                 if (iter == conf_list.end())
                 {
-                    auto foreign_id = '/' + app_id;
-                    iter = std::find_if(conf_list.begin(), conf_list.end(), [&](auto& conf)
-                    {
-                        return conf.first.ends_with(foreign_id);
-                    });
-                    if (iter == conf_list.end())
-                    {
-                        log("tile: application id='", app_id, "' not found");
-                        return place;
-                    }
-                    menu_item_id = iter->first;
+                    log("tile: application id='", app_id, "' not found");
+                    return place;
                 }
                 auto& config = iter->second;
                 auto& creator = app::shared::creator(config.type);
                 auto host = creator(config.cwd, config.param);
-                auto inst = app_window(config.title, config.footer, host, menu_item_id);
+                auto inst = app_window(config.title, config.footer, host, app_id);
                 if (config.bgcolor)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
                 if (config.fgcolor)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
                 if (config.slimmenu) inst->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
@@ -813,12 +794,8 @@ namespace netxs::app::tile
             }
             return place;
         };
-        auto build_inst = [](text cwd, text arg) -> sptr<base>
+        auto build_inst = [](text cwd, view param) -> sptr<base>
         {
-            auto data = view{ arg };
-            auto unique_id = utf::cutoff(data, '\0');
-            auto param     = utf::remain(data, '\0');;
-
             auto object = ui::fork::ctor(axis::Y)
                         ->plugin<items>();
 
@@ -955,7 +932,7 @@ namespace netxs::app::tile
                 else     log("tile: change current working directory to '", cwd, "'");
             }
 
-            object->attach(slot::_2, parse_data(parse_data, unique_id, param))
+            object->attach(slot::_2, parse_data(parse_data, param))
                 ->invoke([&](auto& boss)
                 {
                     boss.SUBMIT(tier::release, e2::form::proceed::attach, fullscreen_item)
