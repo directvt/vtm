@@ -100,7 +100,7 @@ namespace netxs::app::shop
                     add(".\n\nConfiguration example:\n\n").
                     mgl(2).fgc(whitelt).bgc(blacklt)
                    .add("VTM_CONFIG='<splitter label=\"envars\" notes=\" Menu items configured using envar VTM_CONFIG=... \"/>\\n \n"
-                        "            <menuitem id=Term2 notes=\"Run terminal\" type=DirectVT label=\"Virtual \e[41mTerminal\e[m Emulator\" param=\"$0 -r term\"/>\\n \n"
+                        "            <menuitem id=Term2 notes=\"Run terminal\" type=DirectVT label=\"Virtual \\e[41mTerminal\\e[m Emulator\" param=\"$0 -r term\"/>\\n \n"
                         "            <menuitem id=View2 label=View notes=\"Desktop region\" type=Region title=\"Region 1\"/>\\n \n"
                         "            <menuitem id=htop2 label=htop hidden=yes notes=\"htop app\" type=ANSIVT param=\"htop\"/>\\n \n"
                         "            <menuitem id=mc2 label=mc hidden=1 notes=\"mc app\" type=SHELL param=\"mc\"/>\\n \n"

@@ -52,16 +52,6 @@ R"==(
     <menuitem id=Calc      label="Calc"      notes=" Spreadsheet Calculator " type=DirectVT title="Calc Title" param="$0 -r calc"/>
     <menuitem id=Test      label="Test"      notes=" Test Page "              type=DirectVT title="Test Title" param="$0 -r test"/>
     <menuitem id=Truecolor label="Truecolor" notes=" Truecolor Test "         type=DirectVT title="True Title" param="$0 -r truecolor"/>
-
-    // not ready yet
-    //<autorun>
-    //    <Calc wincoor=100,7 winsize=100,50 />
-    //    <Term wincoor=40,12 winsize=100,50 />
-    //    <Tile wincoor=15,1 winsize=100,50 />
-    //</autorun>
-    //<settings>
-    //    ...
-    //</settings>
 </config>
 )==";
 
@@ -1111,20 +1101,12 @@ namespace netxs::app::shared
                 auto attr = text{};
                 if (xml::attr(data, tag, type))
                 {
-                    log("\t<", tag, faux);
                     while (xml::attr(data, attr, type))
                     {
                         auto& value = item[attr];
                         value = xml::value(data);
-                             if (value.empty()) log(" ", utf::debase(attr), faux);
-                        else if (value.find(' ') == text::npos
-                              || value.front() == '\"') log(" ", utf::debase(attr), "=",   utf::debase(value), faux);
-                        else                            log(" ", utf::debase(attr), "=\"", utf::debase(value), "\"", faux);
                     }
-                    log(" />");
                 }
-
-                if (type != xml::type::close) log(" xml: unexpected data:\n{\n", utf::debase(data), "\n}");
             }
             return type == xml::type::close;
         };
@@ -1172,13 +1154,11 @@ namespace netxs::app::shared
                 auto attr = text{};
                 if (xml::attr(data, tag, type) && tag == tag_config)
                 {
-                    log("<", tag, faux);
                     while (xml::attr(data, attr, type) && attr == attr_selected)
                     {
                         get_selected() = xml::value(data);
-                        log(" ", attr_selected, "=", get_selected(), faux);
+                        log(" xml: ", attr_selected, " ", get_selected());
                     }
-                    log(">");
                 }
             }
             take_elements(data);
@@ -1187,16 +1167,18 @@ namespace netxs::app::shared
         auto ec = std::error_code{};
         auto config_path = os::homepath() / path_settings;
         auto config_file = fs::directory_entry(config_path, ec);
+        auto config_path_str = "'" + config_path.string() + "'";
+        utf::change(config_path_str, "\\", "/");
         if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
         {
             auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
             if (file.seekg(0, std::ios::end).fail())
             {
-                log("apps: unable to get configuration file size, skip it: ", config_path);
+                log("apps: unable to get configuration file size, skip it: ", config_path_str);
             }
             else
             {
-                log("apps: using configuration: ", config_path);
+                log("apps: using configuration: ", config_path_str);
                 auto size = file.tellg();
                 auto buff = std::vector<char>(size);
                 file.seekg(0, std::ios::beg);
@@ -1207,7 +1189,7 @@ namespace netxs::app::shared
 
         if (list.empty())
         {
-            log("apps: configuration ", config_path, " not found, use default configuration");
+            log("apps: configuration ", config_path_str, " not found, use default configuration\n", default_config);
             take_config(default_config);
         }
 
