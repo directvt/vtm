@@ -297,12 +297,6 @@ Type              | Parameter
                        notes="Tooltip for Tiling window manager"
                        type=Group
                        param="h(v(Term, Tile1), v(mc, Term))"/>
-    // not ready yet
-    //<autorun>
-    //    <mc   wincoor=100,7 winsize=100,50 />
-    //    <Term wincoor=40,12 winsize=100,50 />
-    //    <Tile wincoor=15,1 winsize=100,50 />
-    //</autorun>
 </config>
 ```
 
