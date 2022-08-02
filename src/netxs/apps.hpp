@@ -1157,7 +1157,7 @@ namespace netxs::app::shared
                     while (xml::attr(data, attr, type) && attr == attr_selected)
                     {
                         get_selected() = xml::value(data);
-                        log(" xml: ", attr_selected, " ", get_selected());
+                        log("apps: ", attr_selected, " ", get_selected());
                     }
                 }
             }
