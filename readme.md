@@ -228,7 +228,7 @@ The value of the `selected=` attribute specifies which menu item will be selecte
 
 The list of main menu items can be extended using the `VTM_CONFIG=...` environment variable. This variable should contain a list of items as inside the `<config selected=_selected_id_> ... </config>` block.
 
-Arguments can be specified without quotes if there are no spaces in the string.
+Arguments can be specified without quotes if there are no spaces.
 
 #### Character escapes
 
