@@ -16,12 +16,21 @@ namespace netxs::events::userland
     {
         EVENTPACK( hids, netxs::events::userland::root::hids )
         {
-            EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone.
+            EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
+            EVENT_XS( halt   , input::hids ), // release::global: Notify about the mouse controller is outside.
+            EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
+            GROUP_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
+            GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
             GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
             GROUP_XS( upevent, input::hids ), // events streamed up (to children) of the visual tree by base::.
 
+            SUBSET_XS( clipbrd )
+            {
+                EVENT_XS( get, input::hids ), // release: Get clipboard data.
+                EVENT_XS( set, input::hids ), // release: Set clipboard data.
+            };
             SUBSET_XS( upevent )
             {
                 //todo make group keybd::...
@@ -36,9 +45,15 @@ namespace netxs::events::userland
                 SUBSET_XS( mouse )
                 {
                     EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
-                    EVENT_XS( leave, input::hids ), // inform the form about the mouse leave.
+                    EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
                 };
                 SUBSET_XS( keybd )
+                {
+                    EVENT_XS( got , input::hids ),
+                    EVENT_XS( lost, input::hids ),
+                    EVENT_XS( test, input::hids ),
+                };
+                SUBSET_XS( focus )
                 {
                     EVENT_XS( got , input::hids ),
                     EVENT_XS( lost, input::hids ),
@@ -219,6 +234,11 @@ namespace netxs::events::userland
                     };
                 };
             };
+            SUBSET_XS( focus )
+            {
+                EVENT_XS( set, input::hids ), // release: Set keybd focus.
+                EVENT_XS( off, input::hids ), // release: Off keybd focus.
+            };
         };
     };
 }
@@ -251,27 +271,33 @@ namespace netxs::input
             win       = usable::win      .index(),
             total     = numofbutton,
         };
+        enum class stat
+        {
+            ok,
+            halt,
+            die,
+        };
 
         twod coor = dot_mx;            // sysmouse: Cursor coordinates.
-        bool button[numofbutton] = {}; // sysmouse: Button states.
-
+        stat control = stat::ok;        // sysmouse: Mouse status.
+        bool buttons[numofbutton] = {}; // sysmouse: Button states.
         bool ismoved = faux;           // sysmouse: Movement through the cells.
         bool shuffle = faux;           // sysmouse: Movement inside the cell.
         bool doubled = faux;           // sysmouse: Double click.
         bool wheeled = faux;           // sysmouse: Vertical scroll wheel.
         bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
         si32 wheeldt = 0;              // sysmouse: Scroll delta.
-
-        ui32 ctlstate = 0;
+        id_t mouseid = 0;              // sysmouse: Gear id.
+        ui32 ctlstat = 0;
 
         bool operator != (sysmouse const& m) const
         {
-            bool result;
-            if ((result = coor == m.coor))
+            auto result = coor == m.coor;
+            if (result)
             {
-                for (int i = 0; i < numofbutton && result; i++)
+                for (auto i = 0; i < numofbutton && result; i++)
                 {
-                    result &= button[i] == m.button[i];
+                    result &= buttons[i] == m.buttons[i];
                 }
                 result &= ismoved == m.ismoved
                        && doubled == m.doubled
@@ -280,6 +306,54 @@ namespace netxs::input
                        && wheeldt == m.wheeldt;
             }
             return !result;
+        }
+        void update_buttons()
+        {
+            // Interpret button combinations
+            //todo possible bug in Apple's Terminal - it does not return the second release
+            //                                        in case the two buttons are pressed.
+            buttons[leftright] = (buttons[left     ] && buttons[right])
+                              || (buttons[leftright] && buttons[left ])
+                              || (buttons[leftright] && buttons[right]);
+        }
+        // sysmouse: Set buttons using bit field.
+        void set_buttons(si32 bitfield)
+        {
+            for (auto i = 0; i < leftright; i++) // Skip LeftRight. LeftRight is set by sysmouse::update_buttons().
+            {
+                buttons[i] = bitfield & (1 << i);
+            }
+            for (auto i = leftright + 1; i < numofbutton; i++)
+            {
+                buttons[i] = bitfield & (1 << i);
+            }
+        }
+        // sysmouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
+        template<class T>
+        static si32 get_buttons(T& buttons)
+        {
+            si32 bitfield = 0;
+            for (auto i = 0; i < numofbutton; i++)
+            {
+                if (buttons[i].pressed) bitfield |= 1 << i;
+            }
+            return bitfield;
+        }
+        // sysmouse: .
+        ui32 get_sysbuttons()
+        {
+            ui32 bitfield = 0;
+            for (auto i = 0; i < numofbutton; i++)
+            {
+                if (buttons[i]) bitfield |= 1 << i;
+            }
+            return bitfield;
+        }
+        // sysmouse: .
+        ui32 get_msflags()
+        {
+            return (wheeldt ? (1 << 2) : 0)
+                 | (hzwheel ? (1 << 3) : 0);
         }
     };
 
@@ -322,13 +396,23 @@ namespace netxs::input
             F12       = 0x7B,
         };
 
-        bool down = faux;
-        ui16 repeatcount = 0;
-        ui16 virtcode = 0;
-        ui16 scancode = 0;
-        wchar_t character = 0;
-        ui32 ctlstate = 0;
-        text textline;
+        id_t keybdid = {};
+        bool pressed = {};
+        ui16 imitate = {};
+        ui16 virtcod = {};
+        ui16 scancod = {};
+        ui32 ctlstat = {};
+        text cluster = {};
+    };
+
+    // console: Base focus class.
+    class sysfocus
+    {
+    public:
+        id_t focusid = {};
+        bool enabled = {};
+        bool combine_focus = {};
+        bool force_group_focus = {};
     };
 
     // console: Mouse tracking.
@@ -337,6 +421,7 @@ namespace netxs::input
         using tail = netxs::datetime::tail<twod>;
         using idxs = std::vector<si32>;
         using mouse_event = netxs::events::userland::hids::mouse;
+
         enum bttns
         {
             first = sysmouse::left     ,
@@ -347,6 +432,7 @@ namespace netxs::input
             joint = sysmouse::leftright,
             total = sysmouse::total    ,
         };
+
         constexpr static auto dragstrt = mouse_event::button::drag::start:: any.group<total>();
         constexpr static auto dragpull = mouse_event::button::drag::pull::  any.group<total>();
         constexpr static auto dragcncl = mouse_event::button::drag::cancel::any.group<total>();
@@ -406,12 +492,11 @@ namespace netxs::input
         stamp[sysmouse::total] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
         static constexpr period delay = 500ms;   // mouse: Double-click threshold.
 
-        knob   button[sysmouse::total];
+        knob buttons[sysmouse::total];
+        idxs pressed_list;
+        idxs flipped_list;
 
-        idxs  pressed_list;
-        idxs  flipped_list;
-
-        void update(sysmouse& m)
+        void update(sysmouse m)
         {
             //if (m.shuffle)
             //{
@@ -420,31 +505,28 @@ namespace netxs::input
             //}
             //else
             {
-                // Interpret button combinations
-                //todo possible bug in Apple's Terminal - it does not return the second release
-                //                                        in case the two buttons are pressed.
-                if ((m.button[joint] = (m.button[first]         && m.button[other])
-                                    || (  button[joint].pressed && m.button[first])
-                                    || (  button[joint].pressed && m.button[other])))
+                if (m.buttons[joint])
                 {
-                    if (button[first].dragged)
+                    if (buttons[first].dragged)
                     {
-                        button[first].dragged = faux;
+                        buttons[first].dragged = faux;
                         action(dragcncl, first);
                     }
-                    if (button[other].dragged)
+                    if (buttons[other].dragged)
                     {
-                        button[other].dragged = faux;
+                        buttons[other].dragged = faux;
                         action(dragcncl, other);
                     }
+                    m.buttons[first] = faux;
+                    m.buttons[other] = faux;
                 }
 
                 // In order to avoid single button tracking (Click, Pull, etc)
-                button[first].succeed = !(m.button[joint] || button[joint].pressed);
-                button[other].succeed = button[first].succeed;
+                buttons[first].succeed = !(m.buttons[joint] || buttons[joint].pressed);
+                buttons[other].succeed = buttons[first].succeed;
 
-                auto sysptr = std::begin(m.button);
-                auto genptr = std::begin(  button);
+                auto sysptr = std::begin(m.buttons);
+                auto genptr = std::begin(  buttons);
                 if (m.ismoved)
                 {
                     delta.set(m.coor - prime);
@@ -457,7 +539,7 @@ namespace netxs::input
                             if (genbtn.flipped)
                             {
                                 genbtn.flipped = faux;
-                                if (button[i].succeed)
+                                if (buttons[i].succeed)
                                 {
                                     genbtn.dragged = true;
                                     action(dragstrt, i);
@@ -476,15 +558,18 @@ namespace netxs::input
                     {
                         for (auto i : pressed_list)
                         {
-                            if (button[i].succeed) action(dragpull, i);
+                            if (buttons[i].succeed)
+                            {
+                                action(dragpull, i);
+                            }
                         }
                         pressed_list.clear();
                     }
 
                     action(movement);
 
-                    sysptr = std::begin(m.button);
-                    genptr = std::begin(  button);
+                    sysptr = std::begin(m.buttons);
+                    genptr = std::begin(  buttons);
                 }
 
                 for (auto i = 0; i < total; i++)
@@ -492,7 +577,8 @@ namespace netxs::input
                     auto& genbtn = *genptr++;
                     auto& sysbtn = *sysptr++;
 
-                    if ((genbtn.flipped = genbtn.pressed(sysbtn)))
+                    genbtn.flipped = genbtn.pressed(sysbtn);
+                    if (genbtn.flipped)
                     {
                         flipped_list.push_back(i);
                     }
@@ -526,21 +612,21 @@ namespace netxs::input
                         scrll = m.wheeled;
                         hzwhl = m.hzwheel;
                         whldt = m.wheeldt;
-                        action( m.wheeldt > 0 ? scrollup : scrolldn);
+                        action(m.wheeldt > 0 ? scrollup : scrolldn);
                         scrll = faux;
                         hzwhl = faux;
                         whldt = 0;
                     }
                     else
                     {
-                        action( m.wheeldt > 0 ? scrollup : scrolldn);
+                        action(m.wheeldt > 0 ? scrollup : scrolldn);
                     }
                 }
                 else
                 {
                     for (auto i : flipped_list)
                     {
-                        auto& b = button[i];
+                        auto& b = buttons[i];
                         if (b.pressed)
                         {
                             action(pushdown, i);
@@ -554,7 +640,10 @@ namespace netxs::input
                             }
                             else
                             {
-                                if (b.succeed) action(sglclick, i);
+                                if (b.succeed)
+                                {
+                                    action(sglclick, i);
+                                }
                                 if (!nodbl)
                                 {
                                     // Fire double/triple-click if delay is not expired
@@ -602,7 +691,7 @@ namespace netxs::input
             action(event_subset[index]);
             index = mouse::none;
         }
-        void action (hint cause)
+        void action(hint cause)
         {
             fire(cause);
         }
@@ -654,7 +743,7 @@ namespace netxs::input
             return faux;
         }
         // mouse: Release specified mouse control.
-        void release(bool force = true)
+        void setfree(bool force = true)
         {
             force = force || index == mouse::none;
             locks = force ? 0
@@ -662,14 +751,9 @@ namespace netxs::input
             if (!locks) swift = {};
         }
         // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
-        si32 buttons()
+        si32 get_buttons()
         {
-            si32 bitfield = 0;
-            for (auto i = 0; i < sysmouse::numofbutton; i++)
-            {
-                if (mouse::button[i].pressed) bitfield |= 1 << i;
-            }
-            return bitfield;
+            return sysmouse::get_buttons(mouse::buttons);
         }
     };
 
@@ -677,23 +761,20 @@ namespace netxs::input
     class keybd
     {
     public:
-        text     keystrokes;
-        bool     down = faux;
-        uint16_t repeatcount = 0;
-        uint16_t virtcode = 0;
-        uint16_t scancode = 0;
-        wchar_t  character = 0;
-        hint     cause = netxs::events::userland::hids::keybd::any.id;
+        text cluster = {};
+        bool pressed = {};
+        ui16 imitate = {};
+        ui16 virtcod = {};
+        ui16 scancod = {};
+        hint cause = netxs::events::userland::hids::keybd::any.id;
 
-        void update	(syskeybd& k)
+        void update(syskeybd const& k)
         {
-            virtcode    = k.virtcode;
-            down        = k.down;
-            repeatcount = k.repeatcount;
-            scancode    = k.scancode;
-            character   = k.character;
-            keystrokes  = k.textline;
-
+            pressed = k.pressed;
+            imitate = k.imitate;
+            virtcod = k.virtcod;
+            scancod = k.scancod;
+            cluster = k.cluster;
             fire_keybd();
         }
 
@@ -703,7 +784,8 @@ namespace netxs::input
     // console: Human interface device controller.
     class hids
         : public mouse,
-          public keybd
+          public keybd,
+          public bell
     {
     public:
         using events = netxs::events::userland::hids;
@@ -712,75 +794,201 @@ namespace netxs::input
         using list = std::list<wptr<bell>>;
         using xmap = netxs::console::core;
 
-        bell&       owner;
         id_t        relay; // hids: Mouse routing call stack initiator.
         xmap const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
-        //todo revise
-        ui32 ctlstate = 0;
+
+        //todo unify
+        text        tooltip_data; // hids: Tooltip data.
+        ui32        digest = 0; // hids: Tooltip digest.
+        testy<ui32> digest_tracker = 0; // hids: Tooltip changes tracker.
+        ui32        tooltip_digest = 0; // hids: Tooltip digest.
+        moment      tooltip_time = {}; // hids: The moment to show tooltip.
+        bool        tooltip_show = faux; // hids: Show tooltip or not.
+        bool        tooltip_stop = faux; // hids: Disable tooltip.
+        testy<twod> tooltip_coor = {}; // hids: .
+        period      tooltip_timeout = 500ms; // hids: .
 
         static constexpr auto enter_event   = events::notify::mouse::enter.id;
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
-        static constexpr auto focus_take    = events::notify::keybd::got  .id;
-        static constexpr auto focus_lost    = events::notify::keybd::lost .id;
+        static constexpr auto keybd_take    = events::notify::keybd::got  .id;
+        static constexpr auto keybd_lost    = events::notify::keybd::lost .id;
+        static constexpr auto keybd_test    = events::notify::keybd::test .id;
+        static constexpr auto focus_take    = events::notify::focus::got  .id;
+        static constexpr auto focus_lost    = events::notify::focus::lost .id;
         static constexpr auto kboffer_event = events::upevent::kboffer    .id;
-        static constexpr auto gone_event    = events::die                 .id;
+        static constexpr auto kbannul_event = events::upevent::kbannul    .id;
+        //todo revise (focus_set/off)
+        static constexpr auto focus_set     = events::focus::set          .id;
+        static constexpr auto focus_off     = events::focus::off          .id;
+        static constexpr auto halt_event    = events::halt                .id;
+        static constexpr auto die_event     = events::die                 .id;
 
     public:
-        id_t const& id;    // hids: Owner/gear ID.
+        bell& owner;
+        ui32 ctlstate = 0;
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
+        bool slot_forced = faux; // .
 
         //todo unify
-        bool single_instance = faux;
-        bool kb_focus_taken = faux;
+        bool disabled = faux;
+        bool simple_instance = faux;
+        bool kb_focus_changed = faux;
         bool force_group_focus = faux;
         bool combine_focus = faux;
+        bool kb_focus_set = faux;
         si32 countdown = 0;
+        si32 push = 0; // hids: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
+        virtual bool clear_clip_data()                          = 0;
+        virtual void set_clip_data(twod const& size, view utf8) = 0;
+        virtual void get_clip_data(text& out_utf8)              = 0;
+
+        auto tooltip_enabled()
+        {
+            return !push
+                && !disabled
+                && !tooltip_stop
+                && tooltip_show
+                && tooltip_data.size()
+                && !captured();
+        }
+        void set_tooltip(id_t src_id, view data)
+        {
+            if (src_id == 0 || tooltip_data.empty())
+            {
+                tooltip_data = data;
+                digest++;
+            }
+        }
+        void set_tooltip(view data, ui32 set_digest)
+        {
+            tooltip_data = data;
+            digest = set_digest;
+        }
+        auto is_tooltip_changed()
+        {
+            return digest_tracker(digest);
+        }
+        auto get_tooltip()
+        {
+            return qiew{ tooltip_data };
+        }
+        void tooltip_recalc(hint deed)
+        {
+            if (tooltip_digest != digest) // Welcome new object.
+            {
+                tooltip_stop = faux;
+            }
+
+            if (!tooltip_stop)
+            {
+                if (deed == hids::events::mouse::move.id)
+                {
+                    if (tooltip_coor(mouse::coord) || (tooltip_show && tooltip_digest != digest)) // Do nothing on shuffle.
+                    {
+                        if (tooltip_show && tooltip_digest == digest) // Drop tooltip if moved.
+                        {
+                            tooltip_stop = true;
+                        }
+                        else
+                        {
+                            tooltip_time = tempus::now() + tooltip_timeout;
+                            tooltip_show = faux;
+                        }
+                    }
+                }
+                else // Drop tooltip on any other event.
+                {
+                    tooltip_stop = true;
+                    tooltip_digest = digest;
+                }
+            }
+        }
+        auto tooltip_check(moment now)
+        {
+            if (!tooltip_stop
+             && !tooltip_show
+             &&  tooltip_time < now
+             && !captured())
+            {
+                tooltip_show = true;
+                if (tooltip_digest != digest)
+                {
+                    tooltip_digest = digest;
+                    return true;
+                }
+            }
+            else if (tooltip_show == true && captured())
+            {
+                tooltip_show = faux;
+                tooltip_stop = faux;
+            }
+            return faux;
+        }
+
+        void replay(hint cause, twod const& coor)
+        {
+            alive = true;
+            coord = coor;
+            mouse::cause = cause;
+        }
         auto state()
         {
-            return std::tuple{ force_group_focus, 
-                               kb_focus_taken,
-                               combine_focus,
-                               countdown };
+            return std::tuple{ force_group_focus,
+                                kb_focus_changed,
+                                   combine_focus,
+                                       countdown };
         }
         template<class T>
         void state(T const& s)
         {
             force_group_focus = std::get<0>(s);
-            kb_focus_taken    = std::get<1>(s);
+            kb_focus_changed  = std::get<1>(s);
             combine_focus     = std::get<2>(s);
             countdown         = std::get<3>(s);
         }
 
         enum modifiers : ui32
         {
-            SHIFT = 1 << 2,
-            ALT   = 1 << 3,
-            CTRL  = 1 << 4,
-            RCTRL = 1 << 5,
-            ANYCTRL = CTRL | RCTRL,
+            LShift   = 1 <<  0, // ⇧ Shift, Left  Shift
+            RShift   = 1 <<  1, //          Right Shift
+            LAlt     = 1 <<  2, // ⎇ Alt, ⌥ Option,   Left  Alt
+            RAlt     = 1 <<  3, // ⇮ AltGr, Alt Graph, Right Alt
+            LCtrl    = 1 <<  4, // ⌃ Ctrl, Left  Ctrl
+            RCtrl    = 1 <<  5, //         Right Ctrl
+            Meta     = 1 <<  6, // ◆ Meta, ⊞ Win, ⌘ Cmd (Apple key), ❖ Super
+            Fn       = 1 <<  7, //
+            CapsLock = 1 <<  8, // ⇪ Caps Lock
+            NumLock  = 1 <<  9, // ⇭ Num Lock
+            ScrlLock = 1 << 10, // ⇳ Scroll Lock (⤓)
+            anyCtrl  = LCtrl  | RCtrl,
+            anyAlt   = LAlt   | RAlt,
+            anyShift = LShift | RShift,
         };
 
         auto meta(ui32 ctl_key = -1) { return hids::ctlstate & ctl_key; }
-
-        template<class T>
-        hids(T& owner, xmap const& idmap)
-            : relay { 0        },
-              owner { owner    },
-              id    { owner.id },
-              idmap { idmap    },
-              alive { faux     }
-        { }
-        ~hids()
+        auto kbmod()
         {
-            netxs::events::sync lock;
-            mouse_leave();
+            return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift);
+        }
+
+        hids(bell& owner, xmap const& idmap)
+            : relay{ 0     },
+              owner{ owner },
+              idmap{ idmap },
+              alive{ faux  }
+        { }
+       ~hids()
+        {
+            auto lock = netxs::events::sync{};
+            mouse_leave(mouse::hover, mouse::start);
             clear_kb_focus();
-            bell::signal_global(gone_event, *this);
+            bell::signal_global(halt_event, *this);
+            bell::signal_global(die_event, *this);
         }
 
         // hids: Stop handeling this event.
@@ -795,19 +1003,37 @@ namespace netxs::input
         {
             return alive;
         }
-        auto take(sysmouse& m)
+        void take(sysmouse const& m)
         {
-            ctlstate = m.ctlstate;
+            ctlstate = m.ctlstat;
+            disabled = faux;
             mouse::update(m);
-            return mouse::buttons();
+            push = mouse::get_buttons();
         }
-        void take(syskeybd& k)
+        void take(syskeybd const& k)
         {
-            ctlstate = k.ctlstate;
+            ctlstate = k.ctlstat;
             keybd::update(k);
         }
+        void take(sysfocus const& f)
+        {
+            if (f.enabled)
+            {
+                auto s = state();
+                force_group_focus = f.force_group_focus;
+                combine_focus     = f.combine_focus    ;
+                owner.bell::template signal<tier::release>(kboffer_event, *this);
+                state(s);
+            }
+            else
+            {
+                //todo unify, see base::upevent handler
+                kb_focus_changed = faux;
+                owner.bell::template signal<tier::release>(kbannul_event, *this);
+            }
+        }
 
-        rect const& area() const { return idmap.area(); }
+        auto& area() const { return idmap.area(); }
 
         template<tier TIER, class T>
         void pass(sptr<T> object, twod const& offset, bool relative = faux)
@@ -835,18 +1061,19 @@ namespace netxs::input
                     last->bell::template signal<tier::release>(leave_event, *this);
                     mouse::start = start;
                 }
-                else log("hids: error condition: Clients count is broken, dangling id ", last_id);
+                else log("hids: error condition: Clients count is broken, dangling ", last_id);
             }
-        }
-        void mouse_leave()
-        {
-            log("hids: mouse leave, id ", id);
-            mouse_leave(mouse::hover, mouse::start);
         }
         void take_mouse_focus(bell& boss)
         {
             if (mouse::hover != boss.id) // The mouse cursor is over the new object.
             {
+                if (tooltip_data.size())
+                {
+                    digest++;
+                    tooltip_data.clear();
+                }
+
                 // Firing the leave event right after the enter allows us
                 // to avoid flickering the parent object state when focus
                 // acquired by children.
@@ -856,6 +1083,12 @@ namespace netxs::input
                 mouse_leave(mouse::hover, start_l);
                 mouse::hover = boss.id;
             }
+        }
+        void deactivate()
+        {
+            take_mouse_focus(owner);
+            bell::signal_global(halt_event, *this);
+            disabled = true;
         }
         void okay(bell& boss)
         {
@@ -867,6 +1100,8 @@ namespace netxs::input
         }
         void fire(hint cause)
         {
+            if (disabled) return;
+
             alive = true;
             mouse::cause = cause;
             mouse::coord = mouse::prime;
@@ -880,17 +1115,23 @@ namespace netxs::input
                 {
                     take_mouse_focus(*next);
                     pass<tier::release>(next, offset, true);
+
+                    if (alive && !captured()) // Pass unhandled event to the gate.
+                    {
+                        owner.bell::template signal<tier::release>(cause, *this);
+                    }
                 }
-                else mouse::release();
+                else mouse::setfree();
             }
             else
             {
+                tooltip_recalc(cause);
                 owner.bell::template signal<tier::preview>(cause, *this);
 
                 if (!alive) return;
 
                 auto next = idmap.link(mouse::coord);
-                if (next != id)
+                if (next != owner.id)
                 {
                     relay = next;
                     pass<tier::preview>(bell::getref(next), offset, true);
@@ -899,7 +1140,7 @@ namespace netxs::input
                     if (!alive) return;
                 }
 
-                owner.bell::template signal<tier::release>(cause, *this);
+                owner.bell::template signal<tier::release>(cause, *this); // Pass unhandled event to the gate.
             }
         }
         void fire_keybd()
@@ -938,14 +1179,14 @@ namespace netxs::input
         void _add_kb_focus(sptr<bell> item)
         {
             kb_focus.push_back(item);
-            item->bell::template signal<tier::release>(focus_take, *this);
+            item->bell::template signal<tier::release>(keybd_take, *this);
         }
         bool remove_from_kb_focus(sptr<bell> item)
         {
             return _check_kb_focus(item, [&](auto iter)
             {
                 auto next = iter->lock();
-                next->bell::template signal<tier::release>(focus_lost, *this);
+                next->bell::template signal<tier::release>(keybd_lost, *this);
                 kb_focus.erase(iter);
             });
         }
@@ -963,7 +1204,7 @@ namespace netxs::input
                         iter++;
                         continue;
                     }
-                    next->bell::template signal<tier::release>(focus_lost, *this);
+                    next->bell::template signal<tier::release>(keybd_lost, *this);
                 }
                 iter++;
                 kb_focus.erase(std::prev(iter));
@@ -971,25 +1212,28 @@ namespace netxs::input
 
             if (keep) _add_kb_focus(item);
         }
-        void add_group_kb_focus_or_release_captured(sptr<bell> item)
+        auto add_group_kb_focus_or_release_captured(sptr<bell> item)
         {
             if (!remove_from_kb_focus(item))
             {
                 _add_kb_focus(item);
+                return true;
             }
+            else return faux;
         }
-        void set_single_instance(bool b = true)
+        void set_simple_instance(bool b = true)
         {
-            single_instance = b;
+            simple_instance = b;
         }
-        auto get_single_instance()
+        auto get_simple_instance()
         {
-            return single_instance;
+            return simple_instance;
         }
         void set_kb_focus(sptr<bell> item)
         {
-            kb_focus_taken = true;
-            if (!single_instance && (hids::meta(ANYCTRL) || force_group_focus))
+            kb_focus_changed = true;
+            kb_focus_set = true;
+            if (!simple_instance && (hids::meta(anyCtrl) || force_group_focus))
             {
                 if (combine_focus)
                 {
@@ -997,13 +1241,14 @@ namespace netxs::input
                 }
                 else
                 {
-                    add_group_kb_focus_or_release_captured(item);
+                    kb_focus_set = add_group_kb_focus_or_release_captured(item);
                 }
             }
             else
             {
                 add_single_kb_focus(item);
             }
+            item->bell::template signal<tier::release>(keybd_test, *this);
         }
         void clear_kb_focus()
         {
@@ -1012,22 +1257,105 @@ namespace netxs::input
             {
                 if (auto next = iter->lock())
                 {
-                    next->bell::template signal<tier::release>(focus_lost, *this);
+                    next->bell::template signal<tier::release>(keybd_lost, *this);
                 }
                 iter++;
                 kb_focus.erase(std::prev(iter));
                 //kb_focus.erase(iter);
             }
         }
-        bool focus_taken()
+        bool focus_changed()
         {
-            return kb_focus_taken;
+            return kb_focus_changed;
         }
         void pass_kb_focus(bell& inst)
         {
             clear_kb_focus();
-            kb_focus_taken = faux;
+            kb_focus_changed = faux;
             inst.bell::template signal<tier::release>(kboffer_event, *this);
+        }
+        void offer_kb_focus(sptr<bell> inst_ptr)
+        {
+            //todo signal to the owner to do a focus relay
+            force_group_focus = true;
+            kb_focus_changed = faux;
+            inst_ptr->bell::template signal<tier::release>(kboffer_event, *this);
+            force_group_focus = faux;
+            owner.bell::template signal<tier::release>(focus_set, *this);
+        }
+        void annul_kb_focus(sptr<bell> inst_ptr)
+        {
+            kb_focus_changed = faux; //todo used in base::upevent handler
+            inst_ptr->bell::template signal<tier::release>(kbannul_event, *this);
+            owner.bell::template signal<tier::release>(focus_off, *this);
+        }
+
+        auto interpret()
+        {
+            auto textline = text{};
+            auto ctrl = [&](auto pure, auto f, auto suffix)
+            {
+                textline = "\033";
+                if (ctlstate & hids::anyShift)
+                {
+                    textline += f;
+                    textline += ";2";
+                }
+                else if (ctlstate & hids::anyAlt)
+                {
+                    textline += f;
+                    textline += ";3";
+                }
+                else if (ctlstate & hids::anyCtrl)
+                {
+                    textline += f;
+                    textline += ";5";
+                }
+                else textline += pure;
+                textline += suffix;
+            };
+            using key = syskeybd::key;
+            if (pressed)
+            {
+                switch (virtcod)
+                {
+                    //todo Ctrl+Space
+                    //     Ctrl+Backspace
+                    //     Alt+0..9
+                    //     Ctrl/Shift+Enter
+                    case key::Backspace: textline = "\177"; break;
+                    case key::Tab:
+                        textline = ctlstate & hids::anyShift ? "\033[Z"
+                                                             : "\t";
+                        break;
+                    case key::PageUp:    ctrl("[5",  "[5",  "~"); break;
+                    case key::PageDown:  ctrl("[6",  "[6",  "~"); break;
+                    case key::Insert:    ctrl("[2",  "[2",  "~"); break;
+                    case key::Delete:    ctrl("[3",  "[3",  "~"); break;
+                    case key::End:       ctrl("[",   "[1",  "F"); break;
+                    case key::Home:      ctrl("[",   "[1",  "H"); break;
+                    case key::Up:        ctrl("[",   "[1",  "A"); break;
+                    case key::Down:      ctrl("[",   "[1",  "B"); break;
+                    case key::Right:     ctrl("[",   "[1",  "C"); break;
+                    case key::Left:      ctrl("[",   "[1",  "D"); break;
+                    case key::F1:        ctrl("O",   "[1",  "P"); break;
+                    case key::F2:        ctrl("O",   "[1",  "Q"); break;
+                    case key::F3:        ctrl("O",   "[1",  "R"); break;
+                    case key::F4:        ctrl("O",   "[1",  "S"); break;
+                    case key::F5:        ctrl("[15", "[15", "~"); break;
+                    case key::F6:        ctrl("[17", "[17", "~"); break;
+                    case key::F7:        ctrl("[18", "[18", "~"); break;
+                    case key::F8:        ctrl("[19", "[19", "~"); break;
+                    case key::F9:        ctrl("[20", "[20", "~"); break;
+                    case key::F10:       ctrl("[21", "[21", "~"); break;
+                    case key::F11:       ctrl("[23", "[23", "~"); break;
+                    case key::F12:       ctrl("[24", "[24", "~"); break;
+                    default:
+                        textline = cluster;
+                        break;
+                }
+            }
+            return textline;
         }
     };
 }

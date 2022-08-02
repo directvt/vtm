@@ -38,9 +38,13 @@ namespace netxs
     {
         const auto it = map.find(key);
         if (it == map.end())
+        {
             return default_value;
+        }
         else
+        {
             return it->second;
+        }
     }
 
     // hash: Map that keeps the insertion order.
@@ -92,7 +96,7 @@ namespace netxs
         template<class K>
         auto erase(K&& key )
         {
-            si32 test = 0;
+            auto test = si32{ 0 };
             auto iter = storage.find(std::forward<K>(key));
             if (iter != storage.end())
             {

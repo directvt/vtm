@@ -22,8 +22,8 @@ namespace netxs::generics
         si32 cart; // ring: Active item position.
         si32 mxsz; // ring: Max unlimited buffer size.
 
-        void inc(si32& a) const { if  (++a == peak) a = 0;        }
-        void dec(si32& a) const { if  (--a < 0    ) a = peak - 1; }
+        void inc(si32& a) const {  if (++a == peak) a = 0;        }
+        void dec(si32& a) const {  if (--a < 0    ) a = peak - 1; }
         auto mod(si32  a) const { return a < 0  ? ++a % peak - 1 + peak
                                                 :   a % peak;     }
         auto dst(si32  a, si32 b) const
@@ -109,7 +109,7 @@ namespace netxs::generics
             {
                 if constexpr (USE_BACK) undock_base_back (item);
                 else                    undock_base_front(item);
-            } 
+            }
             item = type{};
             if (cart == head) inc(head), cart = head;
             else              inc(head);

@@ -23,28 +23,30 @@ namespace netxs
         T x;
         T y;
 
+        bool operator == (duplet const&) const = default;
+
         constexpr duplet()
             : x{ 0 },
               y{ 0 }
         { }
 
-        constexpr duplet (T const& x, T const& y)
+        constexpr duplet(T const& x, T const& y)
             : x{ x },
               y{ y }
         { }
 
-        constexpr duplet (duplet const& p)
+        constexpr duplet(duplet const& p)
             : duplet{ p.x,
                       p.y }
         { }
 
         template<class D>
-        constexpr duplet (duplet<D> const& d)
+        constexpr duplet(duplet<D> const& d)
             : duplet{ static_cast<T>(d.x),
                       static_cast<T>(d.y) }
         { }
 
-        constexpr duplet (fifo& queue)
+        constexpr duplet(fifo& queue)
             : x{ queue(0) },
               y{ queue(0) }
         { }
@@ -65,8 +67,6 @@ namespace netxs
         constexpr void     operator /=  (T i)                   { x /=   i; y /=   i;               }
         constexpr bool     operator <   (T i) const             { return x < i && y < i;            }
         constexpr bool     operator >   (T i) const             { return x > i && y > i;            }
-        constexpr bool     operator ==  (duplet const& p) const { return x == p.x && y == p.y;      }
-        constexpr bool     operator !=  (duplet const& p) const { return x != p.x || y != p.y;      }
         constexpr duplet   operator +   (duplet const& p) const { return { x + p.x, y + p.y };      }
         constexpr duplet   operator -   (duplet const& p) const { return { x - p.x, y - p.y };      }
         constexpr duplet   operator *   (duplet const& p) const { return { x * p.x, y * p.y };      }
@@ -103,6 +103,11 @@ namespace netxs
             return { x < what.x ? if_yes.x : if_no.x,
                      y < what.y ? if_yes.y : if_no.y };
         }
+        duplet equals(duplet const& what, duplet const& if_yes, duplet const& if_no) const
+        {
+            return { x == what.x ? if_yes.x : if_no.x,
+                     y == what.y ? if_yes.y : if_no.y };
+        }
         bool inside(duplet const& p) const
         {
             if (x > 0 ? (p.x >= 0 && p.x < x) : (p.x >= x && p.x < 0))
@@ -127,6 +132,16 @@ namespace netxs
         {
             return s << "{ " << p.x << ", " << p.y << " }";
         }
+        // Change endianness to LE.
+        friend auto letoh(duplet const& p)
+        {
+            return duplet{ netxs::letoh(p.x), netxs::letoh(p.y) };
+        }
+        friend auto min  (duplet const& p1, duplet const& p2) { return duplet{ std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
+        friend auto max  (duplet const& p1, duplet const& p2) { return duplet{ std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
+        friend auto round(duplet const& p) { return duplet{ std::round(p.x), std::round(p.y) }; }
+        friend auto abs  (duplet const& p) { return duplet{ std::  abs(p.x), std::  abs(p.y) }; }
+        friend auto clamp(duplet const& p, duplet const& p1, duplet const& p2) { return duplet{ std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
     };
 
     using twod = duplet<si32>;

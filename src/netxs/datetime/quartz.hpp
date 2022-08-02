@@ -110,7 +110,7 @@ namespace netxs::datetime
             if (!alive)
             {
                 alive = true;
-                fiber = std::thread([&] { worker(); });
+                fiber = std::thread{ &quartz::worker, this };
             }
         }
         void ignite(int frequency)
@@ -144,7 +144,7 @@ namespace netxs::datetime
                 fiber.join();
             }
         }
-        ~quartz()
+       ~quartz()
         {
             cancel();
         }

@@ -12,8 +12,8 @@ namespace netxs
     template<class T>
     struct testy
     {
-        T    prev;
-        T    last;
+        T    prev = {};
+        T    last = {};
         bool test = faux;
 
         bool operator () (T newvalue)
@@ -82,7 +82,7 @@ namespace netxs
         auto guard = std::lock_guard{ mutex };
 
         auto thing = count.lock();
-        if  (thing) return thing;
+         if (thing) return thing;
 
         thing = std::make_shared<T>();
         count = thing;
@@ -94,7 +94,7 @@ namespace netxs
     template<template<class...> class C, class... ARGS>
     struct change_value_type_helper<C<ARGS...>>
     {
-        template<class... NEW_ARGS>
+        template<class ...NEW_ARGS>
         using new_type = C<NEW_ARGS...>;
     };
     template<class C, class T>

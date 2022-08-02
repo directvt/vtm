@@ -10,27 +10,27 @@ namespace netxs
 {
     class random
     {
-        std::random_device rd;  // Only used once to initialize (seed) engine.
-        std::mt19937       rng; // random=number engine used (Mersenne=Twister in this case).
+        std::random_device rd; // Only used once to initialize (seed) engine.
+        std::mt19937      rng; // random=number engine used (Mersenne=Twister in this case).
 
     public:
         template<class T>
         T get_random_number(T start, T end)
         {
-            std::uniform_int_distribution<T> uni(start, end);
+            auto uni = std::uniform_int_distribution<T>(start, end);
             return uni(rng);
         }
         template<class T>
         T operator () (T start, T end)
         {
-            std::uniform_int_distribution<T> uni(start, end);
+            auto uni = std::uniform_int_distribution<T>(start, end);
             return uni(rng);
         }
 
         template<class T>
         T expected_value(T start, T end)
         {
-            std::uniform_int_distribution<T> uni(start, end);
+            auto uni = std::uniform_int_distribution<T>(start, end);
             return (start + end) / 2 + uni(rng);
         }
         template<class T>

@@ -45,15 +45,6 @@ namespace netxs::ui
         std::map<std::type_index, uptr<pro::skill>> depo;
         std::map<id_t, subs> memomap; // form: Token set for depend submissions.
 
-        //todo use C++20 requires expressions
-        template <class A>
-        struct has
-        {
-            template <class B> static int16_t _(decltype(&B::remove));
-            template <class B> static uint8_t _(...);
-            static constexpr bool remove = sizeof(_<A>(nullptr)) - 1;
-        };
-
     public:
         using sptr = netxs::sptr<base>;
 
@@ -63,7 +54,7 @@ namespace netxs::ui
         auto This() { return base::This<T>(); }
         form()
         {
-            if constexpr (has<T>::remove)
+            if constexpr (requires(decltype(e2::form::proceed::detach)::type shadow) { This()->T::remove(shadow); })
             {
                 SUBMIT(tier::preview, e2::form::proceed::detach, shadow)
                 {
@@ -171,8 +162,7 @@ namespace netxs::ui
         template<class PROPERTY, class SPTR, class P>
         auto attach_element(PROPERTY, SPTR data_src_sptr, P item_template)
         {
-            using type = typename PROPERTY::type;
-            type arg_value = {};
+            auto arg_value = typename PROPERTY::type{};
 
             auto backup = This();
             data_src_sptr->SIGNAL(tier::request, PROPERTY{}, arg_value);
@@ -218,8 +208,7 @@ namespace netxs::ui
         template<class BACKEND_PROP, class FRONTEND_PROP>
         auto attach_property(BACKEND_PROP, FRONTEND_PROP)
         {
-            using type = typename BACKEND_PROP::type;
-            type property_value = {};
+            auto property_value = typename BACKEND_PROP::type{};
 
             auto backup = This();
             SIGNAL(tier::request, BACKEND_PROP{},  property_value);
@@ -304,10 +293,10 @@ namespace netxs::ui
             return This();
         }
 
-        ~fork()
+       ~fork()
         {
-            events::sync lock;
-            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+            auto lock = events::sync{};
+            auto empty = e2::form::upon::vtree::detached.param();
             if (client_1)
             {
                 auto item_ptr = client_1;
@@ -344,7 +333,7 @@ namespace netxs::ui
             {
                 fork::size_preview(new_size);
             };
-            SUBMIT(tier::release, e2::size::set, new_size)
+            SUBMIT(tier::release, e2::size::any, new_size)
             {
                 //size = new_size;
                 if (client_1)
@@ -567,10 +556,10 @@ namespace netxs::ui
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
-        ~list()
+       ~list()
         {
-            events::sync lock;
-            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+            auto lock = events::sync{};
+            auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
                 auto item_ptr = subset.back().first;
@@ -584,7 +573,7 @@ namespace netxs::ui
         {
             SUBMIT(tier::preview, e2::size::set, new_sz)
             {
-                si32  height;
+                auto  height = si32{};
                 auto& y_size = updown ? new_sz.y : new_sz.x;
                 auto& x_size = updown ? new_sz.x : new_sz.y;
                 auto  x_temp = x_size;
@@ -606,15 +595,15 @@ namespace netxs::ui
                 meter(); if (x_temp != x_size) meter();
                 y_size = height;
             };
-            SUBMIT(tier::release, e2::size::set, new_sz)
+            SUBMIT(tier::release, e2::size::any, new_sz)
             {
                 auto& y_size = updown ? new_sz.y : new_sz.x;
                 auto& x_size = updown ? new_sz.x : new_sz.y;
-                twod  new_xy;
+                auto  new_xy = twod{};
                 auto& y_coor = updown ? new_xy.y : new_xy.x;
                 auto& x_coor = updown ? new_xy.x : new_xy.y;
 
-                auto  found = faux;
+                auto found = faux;
                 for (auto& client : subset)
                 {
                     y_size = client.second.y;
@@ -711,10 +700,10 @@ namespace netxs::ui
         std::list<sptr> subset;
 
     public:
-        ~cake()
+       ~cake()
         {
-            events::sync lock;
-            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+            auto lock = events::sync{};
+            auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
                 auto item_ptr = subset.back();
@@ -729,15 +718,19 @@ namespace netxs::ui
                 for (auto& client : subset)
                 {
                     if (client)
+                    {
                         client->SIGNAL(tier::preview, e2::size::set, newsz);
+                    }
                 }
             };
-            SUBMIT(tier::release, e2::size::set, newsz)
+            SUBMIT(tier::release, e2::size::any, newsz)
             {
                 for (auto& client : subset)
                 {
                     if (client)
+                    {
                         client->SIGNAL(tier::release, e2::size::set, newsz);
+                    }
                 }
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
@@ -822,10 +815,10 @@ namespace netxs::ui
         }
 
     public:
-        ~park()
+       ~park()
         {
-            events::sync lock;
-            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+            auto lock = events::sync{};
+            auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
                 auto item_ptr = subset.back().ptr;
@@ -835,7 +828,7 @@ namespace netxs::ui
         }
         park()
         {
-            SUBMIT(tier::release, e2::size::set, newsz)
+            SUBMIT(tier::release, e2::size::any, newsz)
             {
                 for (auto& client : subset)
                 {
@@ -924,10 +917,10 @@ namespace netxs::ui
         std::list<sptr> subset;
 
     public:
-        ~veer()
+       ~veer()
         {
-            events::sync lock;
-            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+            auto lock = events::sync{};
+            auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
                 auto item_ptr = subset.back();
@@ -941,13 +934,17 @@ namespace netxs::ui
             {
                 if (subset.size())
                 if (auto active = subset.back())
+                {
                     active->SIGNAL(tier::preview, e2::size::set, newsz);
+                }
             };
-            SUBMIT(tier::release, e2::size::set, newsz)
+            SUBMIT(tier::release, e2::size::any, newsz)
             {
                 if (subset.size())
                 if (auto active = subset.back())
+                {
                     active->SIGNAL(tier::release, e2::size::set, newsz);
+                }
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
@@ -1032,9 +1029,9 @@ namespace netxs::ui
         auto get_entry(twod const& anchor)
         {
             auto& anker = anchor.y;
-            item pred = { 0, twod{ 0, std::numeric_limits<si32>::max() } };
-            item minp = { 0, twod{ 0, std::numeric_limits<si32>::max() } };
-            si32 mindist = std::numeric_limits<si32>::max();
+            auto pred = item{ 0, twod{ 0, std::numeric_limits<si32>::max() } };
+            auto minp = item{ 0, twod{ 0, std::numeric_limits<si32>::max() } };
+            auto mindist = std::numeric_limits<si32>::max();
 
             //todo optimize, use binary search
             //start from the end
@@ -1114,7 +1111,9 @@ namespace netxs::ui
         void recalc()
         {
             if (topic.size() > layout.capacity())
+            {
                 layout.reserve(topic.size() * 2);
+            }
 
             auto entry = layout.get_entry(base::anchor); // Take the object under central point
             layout.clear();
@@ -1157,7 +1156,7 @@ namespace netxs::ui
                 recalc(size);
                 size.y = width.y;
             };
-            SUBMIT(tier::release, e2::size::set, size)
+            SUBMIT(tier::release, e2::size::any, size)
             {
                 //if (width != size)
                 //{
@@ -1229,7 +1228,9 @@ namespace netxs::ui
         void recalc()
         {
             if (topic.size() > layout.capacity())
+            {
                 layout.reserve(topic.size() * 2);
+            }
 
             auto entry = layout.get_entry(base::anchor); // Take the object under central point
             layout.clear();
@@ -1272,7 +1273,7 @@ namespace netxs::ui
                 recalc(size);
                 size.y = width.y;
             };
-            SUBMIT(tier::release, e2::size::set, size)
+            SUBMIT(tier::release, e2::size::any, size)
             {
                 //if (width != size)
                 //{
@@ -1293,7 +1294,7 @@ namespace netxs::ui
     };
 
     //using post = post_fx<>;  //todo apple clang doesn't get it
-    
+
     // controls: Scroller.
     class rail
         : public form<rail>
@@ -1337,11 +1338,11 @@ namespace netxs::ui
 
             return This();
         }
-        ~rail()
+       ~rail()
         {
             if (client)
             {
-                auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+                auto empty = e2::form::upon::vtree::detached.param();
                 auto item_ptr = client;
                 client.reset();
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
@@ -1376,31 +1377,33 @@ namespace netxs::ui
                 req_scinfo = scinfo;
             };
 
-            SUBMIT(tier::release, e2::size::set, new_size)
+            SUBMIT(tier::release, e2::size::any, new_size)
             {
                 if (client)
+                {
                     client->base::resize(new_size, base::anchor);
+                }
             };
 
-            using bttn = hids::events::mouse::button;
+            using button = hids::events::mouse::button;
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 auto dt = gear.whldt > 0;
                 auto hz = permit == xy(axes::X_ONLY)
-                       || permit == xy(axes::ALL) && gear.meta(hids::ANYCTRL | hids::SHIFT );
+                      || (permit == xy(axes::ALL) && gear.meta(hids::anyCtrl | hids::anyShift));
                 if (hz) wheels<X>(dt);
                 else    wheels<Y>(dt);
                 gear.dismiss();
             };
-            SUBMIT(tier::release, bttn::drag::start::right, gear)
+            SUBMIT(tier::release, button::drag::start::right, gear)
             {
                 auto ds = gear.delta.get();
                 auto dx = ds.x;
                 auto dy = ds.y * 2;
                 auto vt = std::abs(dx) < std::abs(dy);
 
-                if ((siezed[X] && !vt) ||
-                    (siezed[Y] &&  vt))
+                if ((siezed[X] && !vt)
+                 || (siezed[Y] &&  vt))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -1410,7 +1413,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, bttn::drag::pull::right, gear)
+            SUBMIT(tier::release, button::drag::pull::right, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1420,21 +1423,21 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, bttn::drag::cancel::right, gear)
+            SUBMIT(tier::release, button::drag::cancel::right, gear)
             {
                 if (gear.captured(bell::id))
                 {
                     giveup(gear);
                 }
             };
-            SUBMIT(tier::general, hids::events::die, gear)
+            SUBMIT(tier::general, hids::events::halt, gear)
             {
                 if (gear.captured(bell::id))
                 {
                     giveup(gear);
                 }
             };
-            SUBMIT(tier::release, bttn::drag::stop::right, gear)
+            SUBMIT(tier::release, button::drag::stop::right, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1449,11 +1452,11 @@ namespace netxs::ui
                     //todo if (permit == xy(axes::ALL)) actify(quadratic{ speed, cycle, limit, start });
 
                     base::deface();
-                    gear.release();
+                    gear.setfree();
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, bttn::click::right, gear)
+            SUBMIT(tier::release, button::click::right, gear)
             {
                 if (!gear.captured(bell::id))
                 {
@@ -1461,7 +1464,7 @@ namespace netxs::ui
                     if (manual[Y]) cancel<Y, true>();
                 }
             };
-            SUBMIT(tier::release, bttn::down::any, gear)
+            SUBMIT(tier::release, button::down::any, gear)
             {
                 cutoff();
             };
@@ -1482,7 +1485,9 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 if (client)
+                {
                     parent_canvas.render<faux>(client, base::coor());
+                }
             };
         }
         void cutoff()
@@ -1495,7 +1500,7 @@ namespace netxs::ui
             cancel<X>();
             cancel<Y>();
             base::deface();
-            gear.release();
+            gear.setfree();
             gear.dismiss();
         }
         template<axis AXIS>
@@ -1574,7 +1579,7 @@ namespace netxs::ui
         template<bool PREVIEW>
         auto scroll(twod& coord)
         {
-            twod delta;
+            auto delta = dot_00;
             if (client)
             {
                 auto& item = *client;
@@ -1611,7 +1616,9 @@ namespace netxs::ui
         void movexy(twod const& delta)
         {
             if (client)
+            {
                 client->base::moveby(delta);
+            }
         }
         template<axis AXIS>
         void move(si32 p)
@@ -1633,11 +1640,11 @@ namespace netxs::ui
             {
                 scroll<true>(coor);
             };
-            item_ptr->SUBMIT_T(tier::release, e2::coor::set, tokens.extra(), coor)
+            item_ptr->SUBMIT_T(tier::release, e2::coor::any, tokens.extra(), coor)
             {
                 scroll<faux>(coor);
             };
-            item_ptr->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
+            item_ptr->SUBMIT_T(tier::release, e2::size::any, tokens.extra(), size)
             {
                 if (client)
                 {
@@ -1675,7 +1682,13 @@ namespace netxs::ui
         void update(sptr old_item_ptr, sptr new_item_ptr)
         {
             if (client != old_item_ptr) log(" rail: WARNING! Wrong DOM structure. rail.id=", id);
-            attach(new_item_ptr);
+            if (client)
+            {
+                auto current_position = client->base::coor();
+                attach(new_item_ptr);
+                if (new_item_ptr) new_item_ptr->base::moveto(current_position);
+            }
+            else attach(new_item_ptr);
         }
     };
 
@@ -1816,7 +1829,10 @@ namespace netxs::ui
         }
         void giveup(hids& gear)
         {
-            if (on_pager) gear.dismiss();
+            if (on_pager)
+            {
+                gear.dismiss();
+            }
             else
             {
                 if (gear.captured(bell::id))
@@ -1826,7 +1842,7 @@ namespace netxs::ui
                         send<upon::scroll::cancel>();
                     }
                     base::deface();
-                    gear.release();
+                    gear.setfree();
                     gear.dismiss();
                 }
             }
@@ -1862,12 +1878,12 @@ namespace netxs::ui
                 base::deface();
             };
 
-            SUBMIT(tier::release, e2::size::set, new_size)
+            SUBMIT(tier::release, e2::size::any, new_size)
             {
                 calc.resize(new_size);
             };
 
-            using bttn = hids::events::mouse::button;
+            using button = hids::events::mouse::button;
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 if (gear.whldt)
@@ -1888,8 +1904,8 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
-                if (this->form::template protos<tier::release>(bttn::down::left) ||
-                    this->form::template protos<tier::release>(bttn::down::right))
+                if (this->form::template protos<tier::release>(button::down::left)
+                 || this->form::template protos<tier::release>(button::down::right))
                 if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
                 {
                     if (gear.capture(bell::id))
@@ -1916,10 +1932,10 @@ namespace netxs::ui
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (this->form::template protos<tier::release>(bttn::up::left) ||
-                        this->form::template protos<tier::release>(bttn::up::right))
+                    if (this->form::template protos<tier::release>(button::up::left)
+                     || this->form::template protos<tier::release>(button::up::right))
                     {
-                        gear.release();
+                        gear.setfree();
                         gear.dismiss();
                         on_pager = faux;
                         timer.pacify(activity::pager_first);
@@ -1938,7 +1954,10 @@ namespace netxs::ui
 
             SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.capture(bell::id))
@@ -1949,7 +1968,10 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.captured(bell::id))
@@ -1967,23 +1989,26 @@ namespace netxs::ui
             {
                 giveup(gear);
             };
-            SUBMIT(tier::general, hids::events::die, gear)
+            SUBMIT(tier::general, hids::events::halt, gear)
             {
                 giveup(gear);
             };
             SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (this->form::template protos<tier::release>(bttn::drag::stop::right))
+                        if (this->form::template protos<tier::release>(button::drag::stop::right))
                         {
                             send<upon::scroll::cancel>();
                         }
                         base::deface();
-                        gear.release();
+                        gear.setfree();
                         gear.dismiss();
                     }
                 }
@@ -2190,7 +2215,10 @@ namespace netxs::ui
         }
         void giveup(hids& gear)
         {
-            if (on_pager) gear.dismiss();
+            if (on_pager)
+            {
+                gear.dismiss();
+            }
             else
             {
                 if (gear.captured(bell::id))
@@ -2200,7 +2228,7 @@ namespace netxs::ui
                         send<upon::scroll::cancel>();
                     }
                     base::deface();
-                    gear.release();
+                    gear.setfree();
                     gear.dismiss();
                 }
             }
@@ -2236,7 +2264,7 @@ namespace netxs::ui
                 base::deface();
             };
 
-            SUBMIT(tier::release, e2::size::set, new_size)
+            SUBMIT(tier::release, e2::size::any, new_size)
             {
                 calc.resize(new_size);
             };
@@ -2262,8 +2290,8 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
-                if (this->form::template protos<tier::release>(bttn::down::left) ||
-                    this->form::template protos<tier::release>(bttn::down::right))
+                if (this->form::template protos<tier::release>(bttn::down::left)
+                 || this->form::template protos<tier::release>(bttn::down::right))
                 if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
                 {
                     if (gear.capture(bell::id))
@@ -2290,10 +2318,10 @@ namespace netxs::ui
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (this->form::template protos<tier::release>(bttn::up::left) ||
-                        this->form::template protos<tier::release>(bttn::up::right))
+                    if (this->form::template protos<tier::release>(bttn::up::left)
+                     || this->form::template protos<tier::release>(bttn::up::right))
                     {
-                        gear.release();
+                        gear.setfree();
                         gear.dismiss();
                         on_pager = faux;
                         timer.pacify(activity::pager_first);
@@ -2312,7 +2340,10 @@ namespace netxs::ui
 
             SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.capture(bell::id))
@@ -2323,7 +2354,10 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.captured(bell::id))
@@ -2341,13 +2375,16 @@ namespace netxs::ui
             {
                 giveup(gear);
             };
-            SUBMIT(tier::general, hids::events::die, gear)
+            SUBMIT(tier::general, hids::events::halt, gear)
             {
                 giveup(gear);
             };
             SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
             {
-                if (on_pager) gear.dismiss();
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
                 else
                 {
                     if (gear.captured(bell::id))
@@ -2357,7 +2394,7 @@ namespace netxs::ui
                             send<upon::scroll::cancel>();
                         }
                         base::deface();
-                        gear.release();
+                        gear.setfree();
                         gear.dismiss();
                     }
                 }
@@ -2427,11 +2464,11 @@ namespace netxs::ui
     public:
         sptr client;
 
-        ~pads()
+       ~pads()
         {
             if (client)
             {
-                auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+                auto empty = e2::form::upon::vtree::detached.param();
                 auto item_ptr = client;
                 client.reset();
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
@@ -2453,7 +2490,7 @@ namespace netxs::ui
                     //new_size = std::clamp(new_size, lims.min, lims.max);
                 }
             };
-            SUBMIT(tier::release, e2::size::set, new_size)
+            SUBMIT(tier::release, e2::size::any, new_size)
             {
                 if (client)
                 {
@@ -2470,7 +2507,9 @@ namespace netxs::ui
                 this->SIGNAL(tier::release, e2::render::any, parent_canvas);
                 parent_canvas.view(view);
                 if (client)
+                {
                     parent_canvas.render(client, base::coor());
+                }
                 this->bell::expire<tier::release>();
             };
         }
@@ -2518,6 +2557,7 @@ namespace netxs::ui
         para name;
         bool flex; // item: Violate or not the label size, default is faux.
         bool test; // item: Place or not(default) the Two Dot Leader when there is not enough space.
+        bool unln; // item: Full width underline.
 
         void recalc()
         {
@@ -2528,10 +2568,11 @@ namespace netxs::ui
         }
 
     public:
-        item(para const& label_para, bool flexible = faux, bool check_size = faux)
+        item(para const& label_para, bool flexible = faux, bool check_size = faux, bool underline = faux)
             : name{ label_para },
               flex{ flexible   },
-              test{ check_size }
+              test{ check_size },
+              unln{ underline  }
         {
             recalc();
             SUBMIT(tier::release, e2::data::text, label_text)
@@ -2561,10 +2602,20 @@ namespace netxs::ui
                         }
                     }
                 }
+                if (unln)
+                {
+                    auto area = parent_canvas.view();
+                    parent_canvas.fill(area, [](cell& c)
+                    {
+                        auto u = c.und();
+                        if (u == 1) c.und(2);
+                        else        c.und(1);
+                    });
+                }
             };
         }
-        item(text const& label_text, bool flexible = faux, bool check_size = faux)
-            : item(para{ label_text }, flexible, check_size)
+        item(text const& label_text, bool flexible = faux, bool check_size = faux, bool underline = faux)
+            : item(para{ label_text }, flexible, check_size, underline)
         { }
         void set(text const& label_text)
         {
@@ -2618,7 +2669,7 @@ namespace netxs::ui
         }
         void recalc()
         {
-            text cur_str = std::to_string(cur_val);
+            auto cur_str = std::to_string(cur_val);
             auto cur_len = utf::length(cur_str);
             auto pin_pos = std::max(cur_len, sfx_len) + 1;
             box_len.x = 1 + 2 * pin_pos;
@@ -2645,8 +2696,8 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            SUBMIT(tier::release, e2::size::set, new_sz) { canvas.size(new_sz); };
-            SUBMIT(tier::release, e2::coor::set, new_xy) { canvas.move(new_xy); };
+            SUBMIT(tier::release, e2::size::any, new_sz) { canvas.size(new_sz); };
+            SUBMIT(tier::release, e2::coor::any, new_xy) { canvas.move(new_xy); };
             SUBMIT(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             sfx_len = utf::length(sfx_str);
@@ -2731,8 +2782,8 @@ namespace netxs::ui
             bar_len = std::max(0, base::size().x - (pad + 1) * 2);
             auto pin_abs = netxs::divround((bar_len + 1) * (cur_val - min_val),
                 (max_val - min_val));
-            text pin_str;
-            if (pin_abs == 0)           pin_str = "├";
+            auto pin_str = text{};
+                 if (pin_abs == 0)           pin_str = "├";
             else if (pin_abs == bar_len + 1) pin_str = "┤";
             else                             pin_str = "┼";
 
@@ -2768,7 +2819,7 @@ namespace netxs::ui
         {
             if (_move_grip(new_val))
             {
-                SIGNAL(TIER, EVENT{}, cur_val);
+                base::template riseup<TIER>(EVENT{}, cur_val);
             }
         }
         void giveup(hids& gear)
@@ -2777,7 +2828,7 @@ namespace netxs::ui
             {
                 deltas = 0;
                 move_grip(origin);
-                gear.release();
+                gear.setfree();
                 gear.dismiss();
             }
         }
@@ -2790,12 +2841,12 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            SUBMIT(tier::release, e2::size::set, new_sz) { canvas.size(new_sz); };
-            SUBMIT(tier::release, e2::coor::set, new_xy) { canvas.move(new_xy); };
+            SUBMIT(tier::release, e2::size::any, new_sz) { canvas.size(new_sz); };
+            SUBMIT(tier::release, e2::coor::any, new_xy) { canvas.move(new_xy); };
             SUBMIT(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
-            SIGNAL(TIER, EVENT{}, cur_val);
+            base::template riseup<TIER>(EVENT{}, cur_val);
 
             limit.set(twod{ utf::length(caption) + (pad + 2) * 2,
                            10 });
@@ -2819,7 +2870,7 @@ namespace netxs::ui
                     base::deface();
                 }
             };
-            SUBMIT(TIER, EVENT{}, cur_val)
+            SUBMIT(tier::general, EVENT{}, cur_val)
             {
                 if (cur_val >= min_val)
                 {
@@ -2852,7 +2903,7 @@ namespace netxs::ui
                 {
                     giveup(gear);
                 };
-                grip_ctl->SUBMIT(tier::general, hids::events::die, gear)
+                grip_ctl->SUBMIT(tier::general, hids::events::halt, gear)
                 {
                     giveup(gear);
                 };
@@ -2861,7 +2912,7 @@ namespace netxs::ui
                     if (gear.captured(grip_ctl->id))
                     {
                         deltas = 0;
-                        gear.release();
+                        gear.setfree();
                         base::deface();
                         robot.actify(bygone.fader<quadratic<si32>>(750ms), [&](auto& delta)
                             {
@@ -2882,7 +2933,7 @@ namespace netxs::ui
                 };
                 recalc();
             };
-            SUBMIT(tier::release, e2::size::set, size)
+            SUBMIT(tier::release, e2::size::any, size)
             {
                 recalc();
             };

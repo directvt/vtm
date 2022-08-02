@@ -119,17 +119,17 @@ namespace netxs::console
                         }
                     });
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::left, memo, gear)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
                     {
-                        if (gear.meta(hids::ANYCTRL)) item.region.size = gear.coord - item.region.coor;
+                        if (gear.meta(hids::anyCtrl)) item.region.size = gear.coord - item.region.coor;
                         else                          item.region.size = dot_00;
                     }
                     recalc();
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::any, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::left, memo, gear)
                 {
                     auto& item = items.take(gear);
                     auto area = boss.size();
@@ -162,7 +162,7 @@ namespace netxs::console
             }
             void recalc()
             {
-                text data;
+                auto data = text{};
                 auto step = twod{ 5, 1 };
                 auto size = boss.size();
                 size.x += boss.oversz.r;
@@ -190,7 +190,7 @@ namespace netxs::console
                     data = " =SUM(" + ansi::fgc(bluedk).add(data).fgc(blacklt).add(")");
                 }
                 else data = " =SUM(" + ansi::itc(true).fgc(reddk).add("select cells by dragging").itc(faux).fgc(blacklt).add(")");
-                log("calc: DATA ", data);                        
+                log("calc: DATA ", data, ansi::nil());
                 boss.SIGNAL(tier::release, e2::data::text, data);
             }
             // pro::cell_highlight: Configuring the mouse button to operate.
@@ -205,8 +205,10 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::drag::start::_<BUTTON>, memo, gear)
                 {
-                    if (items.take(gear).grab(gear.coord, gear.meta(hids::ANYCTRL)))
+                    if (items.take(gear).grab(gear.coord, gear.meta(hids::anyCtrl)))
+                    {
                         gear.dismiss();
+                    }
                 };
                 boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<BUTTON>, memo, gear)
                 {
@@ -235,7 +237,7 @@ namespace netxs::console
 namespace netxs::app::calc
 {
     using events = ::netxs::events::userland::calc;
-    
+
     namespace
     {
         auto get_text = []()
@@ -279,7 +281,7 @@ namespace netxs::app::calc
                 auto base = topclr - 0x1f1f1f;// 0xe0e0e0;// 0xe4e4e4;
                 auto c1 = ansi::bgc(base); //ansi::bgc(0xFFf0f0f0);
                 auto c2 = ansi::bgc(base);
-                for (int i = 1; i < 100; i++)
+                for (auto i = 1; i < 100; i++)
                 {
                     auto label = utf::adjust(std::to_string(i), 3, " ", true) + " ";
                     if (!(i % 2))
@@ -310,7 +312,7 @@ namespace netxs::app::calc
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
         };
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             const static auto c7 = app::shared::c7;
             const static auto c3 = app::shared::c3;
@@ -327,6 +329,10 @@ namespace netxs::app::calc
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
+                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      {
+                          boss.base::template riseup<tier::release>(e2::form::quit, item);
+                      };
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;
@@ -406,7 +412,7 @@ namespace netxs::app::calc
         };
     }
 
-    app::shared::initialize builder{ "Calc", build };
+    app::shared::initialize builder{ "calc", build };
 }
 
 #endif // NETXS_APP_CALC_HPP

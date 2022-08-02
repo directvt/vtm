@@ -46,7 +46,7 @@ namespace netxs::app::logs
             netxs::mt_queue<text> queue;
             bool                  alive = true;
             bool show_codepoints = faux;
-            ~log_parser()
+           ~log_parser()
             {
                 alive = faux;
                 queue.push(text{});
@@ -54,16 +54,10 @@ namespace netxs::app::logs
                 {
                     input.join();
                 }
-                SIGNAL_GLOBAL(e2::debug::count::set, -1);
             }
             log_parser()
             {
-                SIGNAL_GLOBAL(e2::debug::count::set, 1);
-                SUBMIT(tier::general, e2::debug::count::set, count)
-                {
-                    count++;
-                };
-                SUBMIT(tier::general, e2::debug::output, shadow)
+                SUBMIT(tier::anycast, e2::debug::output, shadow)
                 {
                     queue.push(text{ shadow });
                 };
@@ -74,7 +68,7 @@ namespace netxs::app::logs
                 show_codepoints = s;
                 auto msg = ansi::bgc(s ? greendk : yellowdk).fgc(whitelt)
                     .add(" show codepoints: ", s ? "on":"off", "\n").nil();
-                SIGNAL(tier::general, e2::debug::logs, msg);
+                SIGNAL(tier::anycast, e2::debug::logs, msg);
                 SIGNAL(tier::release, events::codepoints::release, s ? 1 : 2);
             }
             void worker()
@@ -82,7 +76,7 @@ namespace netxs::app::logs
                 while (alive)
                 {
                     auto utf8 = queue.pop();
-                    bool processed = faux;
+                    auto processed = faux;
                     while (!processed && alive)
                     {
                         if (auto lock = netxs::events::try_sync())
@@ -172,12 +166,8 @@ namespace netxs::app::logs
         {
             caret.show();
             caret.coor(dot_01);
-
-            #ifndef PROD
-            topic.maxlen(400);
-            #else
+            keybd.accept(true);
             topic.maxlen(10000);
-            #endif
 
             label = ansi::bgc(whitelt).fgc(blackdk).add(
                 " Note: Log is limited to ", topic.maxlen(), " lines (old lines will be auto-deleted) \n"
@@ -186,11 +176,6 @@ namespace netxs::app::logs
                 .fgc().bgc();
             topic += label;
 
-            SUBMIT(tier::release, hids::events::mouse::button::dblclick::right, gear)
-            {
-                clear();
-                gear.dismiss();
-            };
             SUBMIT(tier::anycast, events::codepoints::request, status)
             {
                 switch (status)
@@ -222,15 +207,34 @@ namespace netxs::app::logs
             SUBMIT(tier::anycast, e2::form::upon::started, root)
             {
                 this->SIGNAL(tier::anycast, events::codepoints::release, worker->show_codepoints ? 1 : 2);
+                this->SIGNAL(tier::anycast, e2::debug::count::set, 1); // For Term.
+                this->SIGNAL(tier::anycast, e2::debug::request, 1); // For gate.
             };
             SUBMIT(tier::preview, e2::size::set, newsize)
             {
                 caret.coor(flow::cp());
             };
-            SUBMIT(tier::general, e2::debug::logs, utf8)
+            SUBMIT(tier::anycast, e2::debug::logs, utf8)
             {
                 topic += utf8;
                 update();
+            };
+            SUBMIT(tier::release, hids::events::keybd::any, gear)
+            {
+                auto utf8 = gear.interpret();
+                topic += utf8;
+                update();
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+            {
+                auto data = text{};
+                gear.get_clip_data(data);
+                if (data.size())
+                {
+                    topic += data;
+                    update();
+                    gear.dismiss();
+                }
             };
             worker->SUBMIT_T(tier::release, events::codepoints::release, token, status)
             {
@@ -246,7 +250,7 @@ namespace netxs::app::logs
 
     namespace
     {
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             const static auto x3 = app::shared::x3;
 
@@ -257,28 +261,32 @@ namespace netxs::app::logs
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
                   {
-                      boss.keybd.accept(true);
+                        boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                        {
+                            boss.base::template riseup<tier::release>(e2::form::quit, item);
+                        };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
                     app::shared::menu_list_type{
-                            { true, "Codepoints", " Toggle button: Show or not codepoints ",
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    si32 status = 1;
-                                    boss.SIGNAL(tier::anycast, app::logs::events::codepoints::request, status);
-                                    boss.SIGNAL(tier::anycast, app::logs::events::codepoints::preview, status == 2 ? 1/*show*/ : 2/*hide*/);
-                                    gear.dismiss(true);
-                                };
-                                boss.SUBMIT(tier::anycast, app::logs::events::codepoints::release, status)
-                                {
-                                    //todo unify, get boss base colors, don't use x3
-                                    boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                                };
-                            }},
+                            //todo use it only in conjunction with the terminal
+                            //{ true, "Codepoints", " Toggle button: Show or not codepoints ",
+                            //[](ui::pads& boss)
+                            //{
+                            //    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            //    {
+                            //        si32 status = 1;
+                            //        boss.SIGNAL(tier::anycast, app::logs::events::codepoints::request, status);
+                            //        boss.SIGNAL(tier::anycast, app::logs::events::codepoints::preview, status == 2 ? 1/*show*/ : 2/*hide*/);
+                            //        gear.dismiss(true);
+                            //    };
+                            //    boss.SUBMIT(tier::anycast, app::logs::events::codepoints::release, status)
+                            //    {
+                            //        //todo unify, get boss base colors, don't use x3
+                            //        boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                            //    };
+                            //}},
                             { true, "Clear", " Clear scrollback ",
                             [](ui::pads& boss)
                             {
@@ -291,23 +299,14 @@ namespace netxs::app::logs
                         }));
                 auto layers = object->attach(slot::_2, ui::cake::ctor());
                     auto scroll = layers->attach(ui::rail::ctor());
-                    #ifndef PROD
-                    scroll->attach(ui::post::ctor())
-                            ->colors(whitelt, blackdk)
-                            ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                            + "\n\nLogs is not availabe in DEMO mode\n\n"
-                            + ansi::nil().wrp(wrap::on)
-                            + "Use the full version of vtm to run Logs.");
-                    #else
                     scroll->attach(base::create<post_logs>())
-                            ->colors(whitelt, blackdk);
-                    #endif
+                          ->colors(whitelt, blackdk);
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
     }
 
-    app::shared::initialize builder{ "Logs", build };
+    app::shared::initialize builder{ "logs", build };
 }
 
 #endif // NETXS_APP_LOGS_HPP

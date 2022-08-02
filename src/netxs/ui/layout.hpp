@@ -10,6 +10,7 @@
 #include "events.hpp"
 
 #include <cstring> // std::memcpy
+#include <span>
 
 namespace netxs::ui::atoms
 {
@@ -26,6 +27,7 @@ namespace netxs::ui::atoms
         truecolor,
         vga16    ,
         vga256   ,
+        directvt ,
     };
 
     enum Z_order : si32
@@ -70,7 +72,7 @@ namespace netxs::ui::atoms
         ui32                               token;
 
         constexpr rgba()
-            : token(0)
+            : token{ 0 }
         { }
 
         template<class T, class A = byte>
@@ -82,15 +84,15 @@ namespace netxs::ui::atoms
         { }
 
         constexpr rgba(rgba const& c)
-            : token(c.token)
+            : token{ c.token }
+        { }
+
+        constexpr rgba(ui32 c)
+            : token{ netxs::letoh(c) }
         { }
 
         constexpr rgba(tint c)
             : rgba{ color256[c] }
-        { }
-
-        constexpr rgba(ui32 c)
-            : token(c)
         { }
 
         rgba(fifo& queue)
@@ -109,7 +111,7 @@ namespace netxs::ui::atoms
                         chan.a = queue.subarg(0xFF);
                         break;
                     case mode_256:
-                        token = color256[queue.subarg(0)];
+                        token = netxs::letoh(color256[queue.subarg(0)]);
                         break;
                     default:
                         break;
@@ -126,7 +128,7 @@ namespace netxs::ui::atoms
                         chan.a = 0xFF;
                         break;
                     case mode_256:
-                        token = color256[queue(0)];
+                        token = netxs::letoh(color256[queue(0)]);
                         break;
                     default:
                         break;
@@ -134,6 +136,10 @@ namespace netxs::ui::atoms
             }
         }
 
+        constexpr explicit operator bool() const
+        {
+            return token;
+        }
         constexpr auto operator == (rgba const& c) const
         {
             return token == c.token;
@@ -150,18 +156,14 @@ namespace netxs::ui::atoms
         // rgba: Set color to opaque black.
         void rst()
         {
-            static constexpr ui32 colorblack = 0xFF000000;
+            static constexpr rgba colorblack{ 0xFF000000 };
 
-            token = colorblack;
+            token = colorblack.token;
         }
         // rgba: Are the colors alpha blenable?
         auto is_alpha_blendable() const
         {
-            if (chan.a && chan.a != 0xFF)
-            {
-                return true;
-            }
-            return faux;
+            return chan.a && chan.a != 0xFF;
         }
         // rgba: Set alpha channel.
         void alpha(byte k)
@@ -174,11 +176,12 @@ namespace netxs::ui::atoms
             return chan.a;
         }
         // rgba: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
-        auto constexpr luma() const
+        constexpr auto luma() const
         {
-            return static_cast<byte>(0.2627 * ((token & 0x0000FF) >> 0)
-                                   + 0.6780 * ((token & 0x00FF00) >> 8)
-                                   + 0.0593 * ((token & 0xFF0000) >> 16));
+            auto t = netxs::letoh(token);
+            return static_cast<byte>(0.2627 * ((t & 0x0000FF) >> 0)
+                                   + 0.6780 * ((t & 0x00FF00) >> 8)
+                                   + 0.0593 * ((t & 0xFF0000) >> 16));
         }
         // rgba: Return 256-color 6x6x6 cube.
         auto to256cube() const
@@ -192,7 +195,7 @@ namespace netxs::ui::atoms
             else
             {
                 clr = 16 + 36 * ((chan.r * 6) >> 8)
-                          + 6 * ((chan.g * 6) >> 8)
+                         +  6 * ((chan.g * 6) >> 8)
                               + ((chan.b * 6) >> 8);
             }
             return clr;
@@ -348,7 +351,10 @@ namespace netxs::ui::atoms
         // rgba: Invert the color.
         void invert()
         {
-            token = (token & 0xFF000000) | ~(token & 0x00FFFFFF);
+            static constexpr rgba pureblack{ 0xFF000000 };
+            static constexpr rgba antiwhite{ 0x00FFFFFF };
+
+            token = (token & pureblack.token) | ~(token & antiwhite.token);
         }
         // rgba: Serialize the color.
         auto str() const
@@ -528,39 +534,38 @@ namespace netxs::ui::atoms
         {
             struct mode
             {
-                unsigned char count : CLUSTER_FIELD_SIZE; // grapheme cluster length (utf-8 encoded) (max GRAPHEME_CLUSTER_LIMIT)
+                byte jumbo : 1;                  // grapheme cluster length overflow bit
                 //todo unify with CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-                unsigned char width : WCWIDTH_FIELD_SIZE; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
-                unsigned char jumbo : 1;                  // grapheme cluster length overflow bit
+                byte width : WCWIDTH_FIELD_SIZE; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
+                byte count : CLUSTER_FIELD_SIZE; // grapheme cluster length (utf-8 encoded) (max GRAPHEME_CLUSTER_LIMIT)
             };
 
             // There is no need to reset/clear/flush the map because
             // count of different grapheme clusters is finite.
-            static constexpr size_t     limit = sizeof(ui64);
-            static std::hash<view>      coder;
-            static text                 empty;
-            static std::map<ui64, text> jumbo;
+            static constexpr ui64                 asset = netxs::letoh(~(ui64)0x07 /*jumbo:1 + width:2*/);
+            static constexpr size_t               limit = sizeof(ui64);
+            static std::hash<view>                coder;
+            static text                           empty;
+            static std::unordered_map<ui64, text> jumbo;
+            static std::mutex                     mutex;
 
             ui64 token;
             mode state;
             char glyph[limit];
 
             constexpr glyf()
-                : token(0)
+                : token{ 0 }
             { }
-
             constexpr glyf(glyf const& c)
-                : token(c.token)
+                : token{ c.token }
             { }
-
             constexpr glyf(char c)
-                : token(0)
+                : token{ 0 }
             {
                 set(c);
             }
-
             glyf(glyf const& c, view const& utf8, size_t width)
-                : token(c.token)
+                : token{ c.token }
             {
                 set(utf8, width);
             }
@@ -573,9 +578,7 @@ namespace netxs::ui::atoms
             // Check grapheme clusters equality.
             bool same(glyf const& c) const
             {
-                //auto mask = ~(decltype(token))0xFF;
-                //return (token >> sizeof(mode)) == c.token >> sizeof(mode);
-                return (token >> 8) == (c.token >> 8);
+                return (token & asset) == (c.token & asset); // Compare excluding the first three bits.
             }
 
             void wipe()
@@ -605,6 +608,10 @@ namespace netxs::ui::atoms
             *   version of the previous character"
             */
 
+            constexpr void set(ui64 t)
+            {
+                token = netxs::letoh(t);
+            }
             constexpr void set(char c)
             {
                 token       = 0;
@@ -620,7 +627,8 @@ namespace netxs::ui::atoms
                     token = coder(utf8);
                     state.jumbo = true;
                     state.width = cwidth;
-                    jumbo.insert(std::pair{ token, utf8 }); // silently ignore if it exists
+                    auto lock = std::lock_guard{ mutex };
+                    jumbo.insert(std::pair{ token & asset, utf8 }); // silently ignore if it exists
                 }
                 else
                 {
@@ -635,20 +643,36 @@ namespace netxs::ui::atoms
                 auto cluster = utf::letter(utf8);
                 set(cluster.text, cluster.attr.ucwidth);
             }
+            template<svga VGAMODE = svga::truecolor>
             view get() const
             {
-                if (state.jumbo)
-                {
-                    return netxs::get_or(jumbo, token, empty);
-                }
+                if constexpr (VGAMODE == svga::directvt) return {};
                 else
                 {
-                    return view{ glyph + 1, state.count };
+                    if (state.jumbo)
+                    {
+                        auto lock = std::lock_guard{ mutex };
+                        return netxs::get_or(jumbo, token & asset, empty);
+                    }
+                    else return view(glyph + 1, state.count);
                 }
+            }
+            auto is_registered() const
+            {
+                auto lock = std::lock_guard{ mutex };
+                return jumbo.find(token & asset) != jumbo.end();
             }
             auto is_space() const
             {
                 return static_cast<byte>(glyph[1]) <= whitespace;
+            }
+            auto tkn() const
+            {
+                return token & asset;
+            }
+            bool jgc() const
+            {
+                return !state.jumbo || is_registered();
             }
             void rst()
             {
@@ -711,11 +735,11 @@ namespace netxs::ui::atoms
             param;
 
             constexpr body()
-                : token(0)
+                : token{ 0 }
             { }
 
             constexpr body(body const& b)
-                : token(b.token)
+                : token{ b.token }
             { }
 
             bool operator == (body const& b) const
@@ -736,6 +760,7 @@ namespace netxs::ui::atoms
             template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
             void get(body& base, T& dest) const
             {
+                if constexpr (VGAMODE == svga::directvt) return;
                 if (!like(base))
                 {
                     auto& cvar =      param.shared.var;
@@ -785,7 +810,7 @@ namespace netxs::ui::atoms
             }
             void rev()
             {
-                param.shared.var.invert = !param.shared.var.invert;
+                param.shared.var.invert = !!!param.shared.var.invert;
             }
 
             void bld (bool b) { param.shared.var.bolded = b; }
@@ -817,21 +842,25 @@ namespace netxs::ui::atoms
             rgba fg;
 
             constexpr clrs()
-                : bg{}, fg{}
+                : bg{},
+                  fg{}
             { }
 
             template<class T>
             constexpr clrs(T colors)
-                : bg{ *(colors.begin() + 0) }, fg{ *(colors.begin() + 1) }
+                : bg{ *(colors.begin() + 0) },
+                  fg{ *(colors.begin() + 1) }
             { }
 
             constexpr clrs(clrs const& c)
-                : bg{ c.bg }, fg{ c.fg }
+                : bg{ c.bg },
+                  fg{ c.fg }
             { }
 
             constexpr bool operator == (clrs const& c) const
             {
-                return bg == c.bg && fg == c.fg;
+                return bg == c.bg
+                    && fg == c.fg;
                 // sizeof(*this);
             }
             constexpr bool operator != (clrs const& c) const
@@ -840,17 +869,24 @@ namespace netxs::ui::atoms
             }
 
             template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
-            void get(clrs& base, T& dest)	const
+            void get(clrs& base, T& dest) const
             {
+                if constexpr (VGAMODE == svga::directvt) return;
                 if (bg != base.bg)
                 {
                     base.bg = bg;
-                    if constexpr (USESGR) dest.template bgc<VGAMODE>(bg);
+                    if constexpr (USESGR)
+                    {
+                        dest.template bgc<VGAMODE>(bg);
+                    }
                 }
                 if (fg != base.fg)
                 {
                     base.fg = fg;
-                    if constexpr (USESGR) dest.template fgc<VGAMODE>(fg);
+                    if constexpr (USESGR)
+                    {
+                        dest.template fgc<VGAMODE>(fg);
+                    }
                 }
             }
             void wipe()
@@ -973,6 +1009,12 @@ namespace netxs::ui::atoms
             st = c.st;
         	if (c.wdt()) gc = c.gc;
         }
+        // cell: Mix colors using alpha.
+        void mixfull(cell const& c, byte alpha)
+        {
+            mix(c, alpha);
+            if (c.id) id = c.id;
+        }
         // cell: Merge the two cells and update ID with COOR.
         void fuse(cell const& c, id_t oid)//, twod const& pos)
         {
@@ -1009,20 +1051,23 @@ namespace netxs::ui::atoms
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         void scan(cell& base, T& dest) const
         {
-            if (!like(base))
+            if constexpr (VGAMODE != svga::directvt)
             {
-                //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get<VGAMODE, USESGR>(base.uv, dest);
-                st.get<VGAMODE, USESGR>(base.st, dest);
+                if (!like(base))
+                {
+                    //todo additionally consider UNIQUE ATTRIBUTES
+                    uv.get<VGAMODE, USESGR>(base.uv, dest);
+                    st.get<VGAMODE, USESGR>(base.st, dest);
+                }
+                if (wdt() && !gc.is_space()) dest += gc.get<VGAMODE>();
+                else                         dest += whitespace;
             }
-
-            if (wdt() && !gc.is_space()) dest += gc.get();
-            else                         dest += whitespace;
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
-        bool scan(cell& next, cell& base, T& dest) const
+        bool scan(cell const& next, cell& base, T& dest) const
         {
+            if constexpr (VGAMODE == svga::directvt) return {};
             if (gc.same(next.gc) && like(next))
             {
                 if (!like(base))
@@ -1031,7 +1076,7 @@ namespace netxs::ui::atoms
                     uv.get<VGAMODE, USESGR>(base.uv, dest);
                     st.get<VGAMODE, USESGR>(base.st, dest);
                 }
-                dest += gc.get();
+                dest += gc.get<VGAMODE>();
                 return true;
             }
             else
@@ -1039,11 +1084,6 @@ namespace netxs::ui::atoms
                 return faux;
             }
         }
-        // cell: Is the cell not transparent?
-        //bool is_unalterable() const
-        //{
-        //	return vis() == unalterable;
-        //}
         // cell: Delight both foreground and background.
         void xlight()
         {
@@ -1091,12 +1131,11 @@ namespace netxs::ui::atoms
         auto& fgc (rgba const& c) { uv.fg = c;          return *this; } // cell: Set Foreground color.
         auto& bga (byte k)        { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
         auto& fga (byte k)        { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
-        auto& alpha(byte k)       { uv.bg.chan.a = k; 
+        auto& alpha(byte k)       { uv.bg.chan.a = k;
                                     uv.fg.chan.a = k;   return *this; } // cell: Set alpha/transparency (background and foreground).
         auto& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
         auto& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
-        auto& und (bool b)        { st.und(b ? 1 : 0);  return *this; } // cell: Set Underline attribute.
-        auto& dnl (bool b)        { st.und(b ? 2 : 0);  return *this; } // cell: Set Double underline attribute.
+        auto& und (si32 n)        { st.und(n);          return *this; } // cell: Set Underline attribute.
         auto& ovr (bool b)        { st.ovr(b);          return *this; } // cell: Set Overline attribute.
         auto& inv (bool b)        { st.inv(b);          return *this; } // cell: Set Invert attribute.
         auto& stk (bool b)        { st.stk(b);          return *this; } // cell: Set Strikethrough attribute.
@@ -1122,25 +1161,43 @@ namespace netxs::ui::atoms
         void isepar (bool b) { st.param.unique.var.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
         void inplus (bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
         void zwnbsp (bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
-
-        si32  len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
-        si32  wdt () const { return gc.state.width;} // cell: Return Grapheme cluster screen width.
-        auto  txt () const { return gc.get();      } // cell: Return Grapheme cluster.
-        auto  bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
-        auto  fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
-        auto& bgc ()       { return uv.bg;         } // cell: Return Background color.
-        auto& fgc ()       { return uv.fg;         } // cell: Return Foreground color.
-        auto& bgc () const { return uv.bg;         } // cell: Return Background color.
-        auto& fgc () const { return uv.fg;         } // cell: Return Foreground color.
-        auto  bld () const { return st.bld();      } // cell: Return Bold attribute.
-        auto  itc () const { return st.itc();      } // cell: Return Italic attribute.
-        auto  und () const { return st.und() == 1; } // cell: Return Underline/Underscore attribute.
-        auto  dnl () const { return st.und() == 2; } // cell: Return Underline/Underscore attribute.
-        auto  ovr () const { return st.ovr();      } // cell: Return Underline/Underscore attribute.
-        auto  inv () const { return st.inv();      } // cell: Return Negative attribute.
-        auto  stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
-        auto  blk () const { return st.blk();      } // cell: Return Blink attribute.
-        auto link () const { return id;            } // cell: Return link object ID.
+        //todo unify
+        // cell: Get grapheme cluster data by token.
+        static auto gc_get_data(ui64 token)
+        {
+            auto lock = std::lock_guard{ cell::glyf<>::mutex };
+            return netxs::get_or(cell::glyf<>::jumbo, token & cell::glyf<>::asset, cell::glyf<>::empty);
+        }
+        // cell: Set grapheme cluster data by token.
+        static auto gc_set_data(ui64 token, view data)
+        {
+            auto lock = std::lock_guard{ cell::glyf<>::mutex };
+            auto& map = cell::glyf<>::jumbo;
+            map[token & cell::glyf<>::asset] = data;
+        }
+        auto  tkn() const  { return gc.tkn();      } // cell: Return grapheme cluster token.
+        bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
+        si32  len() const  { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
+        si32  wdt() const  { return gc.state.width;} // cell: Return Grapheme cluster screen width.
+        auto  txt() const  { return gc.get();      } // cell: Return Grapheme cluster.
+        auto& egc()        { return gc;            } // cell: Get Grapheme cluster token.
+        auto& egc() const  { return gc;            } // cell: Get Grapheme cluster token.
+        auto  bga() const  { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
+        auto  fga() const  { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
+        auto& bgc()        { return uv.bg;         } // cell: Return Background color.
+        auto& fgc()        { return uv.fg;         } // cell: Return Foreground color.
+        auto& bgc() const  { return uv.bg;         } // cell: Return Background color.
+        auto& fgc() const  { return uv.fg;         } // cell: Return Foreground color.
+        auto  bld() const  { return st.bld();      } // cell: Return Bold attribute.
+        auto  itc() const  { return st.itc();      } // cell: Return Italic attribute.
+        auto  und() const  { return st.und();      } // cell: Return Underline/Underscore attribute.
+        auto  ovr() const  { return st.ovr();      } // cell: Return Underline/Underscore attribute.
+        auto  inv() const  { return st.inv();      } // cell: Return Negative attribute.
+        auto  stk() const  { return st.stk();      } // cell: Return Strikethrough attribute.
+        auto  blk() const  { return st.blk();      } // cell: Return Blink attribute.
+        auto& stl()        { return st.token;      } // cell: Return style token.
+        auto& stl() const  { return st.token;      } // cell: Return style token.
+        auto link() const  { return id;            } // cell: Return link object ID.
         auto iswide()const { return wdt() > 1;     } // cell: Return true if char is wide.
         auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
         auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
@@ -1261,7 +1318,7 @@ namespace netxs::ui::atoms
                     : alpha{ alpha }
                 { }
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mix(src, alpha); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mixfull(src, alpha); }
             };
             struct xlucent_t
             {
@@ -1294,12 +1351,30 @@ namespace netxs::ui::atoms
                     operator()(dst);
                 }
             };
+            struct fullid_t
+            {
+                id_t newid;
+                constexpr fullid_t(id_t newid)
+                    : newid{ newid }
+                { }
+                template<class D>
+                inline void operator () (D& dst) const
+                {
+                    dst.link(newid);
+                }
+                template<class D, class S>
+                inline void operator () (D& dst, S& src) const
+                {
+                    dst.fuse(src, newid);
+                }
+            };
 
         public:
             template<class T>
             static constexpr auto   selection(T    brush) { return   selection_t{ brush }; }
             static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
             static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
+            static constexpr auto      fullid(id_t newid) { return      fullid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
             static constexpr auto     lite =     lite_t{};
@@ -1314,9 +1389,10 @@ namespace netxs::ui::atoms
     };
 
     // Extern link statics.
-    template<class T> std::hash<view>      cell::glyf<T>::coder;
-    template<class T> text                 cell::glyf<T>::empty;
-    template<class T> std::map<ui64, text> cell::glyf<T>::jumbo;
+    template<class T> std::hash<view>                cell::glyf<T>::coder;
+    template<class T> text                           cell::glyf<T>::empty;
+    template<class T> std::unordered_map<ui64, text> cell::glyf<T>::jumbo;
+    template<class T> std::mutex                     cell::glyf<T>::mutex;
 
     enum class bias : unsigned char { none, left, right, center, };
     enum class wrap : unsigned char { none, on,  off,            };
@@ -1349,17 +1425,14 @@ namespace netxs::ui::atoms
         {
             return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
         }
+        bool operator == (rect const&) const = default;
         explicit operator bool ()              const { return size.x != 0 && size.y != 0;       }
         auto   area            ()              const { return size.x * size.y;                  }
         twod   map             (twod const& p) const { return p - coor;                         }
         rect   shift           (twod const& p) const { return { coor + p, size };               }
         auto&  shift_itself    (twod const& p)       { coor += p; return *this;                 }
         rect   operator &      (rect const& r) const { return clip(r);                          }
-        rect   operator +      (rect const& r) const { return { coor + r.coor, size + r.size }; }
-        rect   operator -      (rect const& r) const { return { coor - r.coor, size - r.size }; }
         rect   operator |      (rect const& r) const { return unite(r);                         }
-        bool   operator !=     (rect const& r) const { return coor != r.coor || size != r.size; }
-        bool   operator ==     (rect const& r) const { return coor == r.coor && size == r.size; }
         void   operator +=     (rect const& r)       { coor += r.coor; size += r.size;          }
         void   operator -=     (rect const& r)       { coor -= r.coor; size -= r.size;          }
 
@@ -1505,6 +1578,11 @@ namespace netxs::ui::atoms
         {
             return s << '{' << r.coor << ", " << r.size << '}';
         }
+        // rect: Change endianness to LE.
+        friend auto letoh(rect const& r)
+        {
+            return rect{ netxs::letoh(r.coor), netxs::letoh(r.size) };
+        }
     };
 
     static constexpr const rect rect_00{ dot_00,dot_00 };
@@ -1549,6 +1627,9 @@ namespace netxs::ui::atoms
             t = queue(0);
             b = queue(0);
         }
+
+        bool operator == (side const&) const = default;
+
         // side: Unite the two rectangles.
         void operator |= (side const& s)
         {
@@ -1617,16 +1698,24 @@ namespace netxs::ui::atoms
         {
             return s << p.str();
         }
+        // side: Change endianness to LE.
+        friend auto letoh(side const& s)
+        {
+            return side{ netxs::letoh(s.l),
+                         netxs::letoh(s.r),
+                         netxs::letoh(s.t),
+                         netxs::letoh(s.b) };
+        }
     };
 
     // layout: Padding, space around an element's content.
-    template<class type>
-    struct dent_t
+    struct dent
     {
         template<auto just>
         struct edge
         {
-            type step = 0;
+            si32 step = 0;
+            bool operator == (edge const&) const = default;
             constexpr inline auto get(si32 size) const
             {
                 if constexpr (just) return step;
@@ -1638,21 +1727,25 @@ namespace netxs::ui::atoms
         edge<true> head = {};
         edge<faux> foot = {};
 
-        constexpr dent_t() = default;
-        constexpr dent_t(si32 w, si32 e = 0, si32 h = 0, si32 f = 0)
-            : west{ static_cast<type>(w) },
-              east{ static_cast<type>(e) },
-              head{ static_cast<type>(h) },
-              foot{ static_cast<type>(f) }
+        dent() = default;
+        constexpr dent(si32 w, si32 e = 0, si32 h = 0, si32 f = 0)
+            : west{ w },
+              east{ e },
+              head{ h },
+              foot{ f }
         { }
-        constexpr dent_t(dent_t const& pad)
+        constexpr dent(dent const& pad)
             : west{ pad.west.step },
               east{ pad.east.step },
               head{ pad.head.step },
               foot{ pad.foot.step }
         { }
-
-        constexpr auto& operator = (dent_t const& pad)
+        bool operator == (dent const&) const = default;
+        explicit operator bool () const { return west.step != 0
+                                              || east.step != 0
+                                              || head.step != 0
+                                              || foot.step != 0; }
+        constexpr auto& operator = (dent const& pad)
         {
             west = pad.west;
             east = pad.east;
@@ -1660,24 +1753,21 @@ namespace netxs::ui::atoms
             foot = pad.foot;
             return *this;
         }
-        constexpr auto& operator += (dent_t const& pad)
+        constexpr auto& operator -= (dent const& pad)
+        {
+            west.step -= pad.west.step;
+            east.step -= pad.east.step;
+            head.step -= pad.head.step;
+            foot.step -= pad.foot.step;
+            return *this;
+        }
+        constexpr auto& operator += (dent const& pad)
         {
             west.step += pad.west.step;
             east.step += pad.east.step;
             head.step += pad.head.step;
             foot.step += pad.foot.step;
             return *this;
-        }
-        constexpr auto operator == (dent_t const& pad)
-        {
-            return west.step == pad.west.step
-                && east.step == pad.east.step
-                && head.step == pad.head.step
-                && foot.step == pad.foot.step;
-        }
-        auto operator != (dent_t const& pad)
-        {
-            return !operator==(pad);
         }
         // dent: Return inner area rectangle.
         constexpr auto area(si32 size_x, si32 size_y) const
@@ -1697,7 +1787,7 @@ namespace netxs::ui::atoms
         // dent: Return inner area rectangle.
         constexpr auto area(rect const& content) const
         {
-            rect field = area(content.size.x, content.size.y);
+            auto field = area(content.size.x, content.size.y);
             field.coor += content.coor;
             return field;
         }
@@ -1755,19 +1845,19 @@ namespace netxs::ui::atoms
             foot.step = q(0);
         }
         // dent: Return size with padding.
-        friend auto operator + (twod const& size, dent_t const& pad)
+        friend auto operator + (twod const& size, dent const& pad)
         {
             return twod{ std::max(0, size.x + (pad.west.step + pad.east.step)),
                          std::max(0, size.y + (pad.head.step + pad.foot.step)) };
         }
         // dent: Return size without padding.
-        friend auto operator - (twod const& size, dent_t const& pad)
+        friend auto operator - (twod const& size, dent const& pad)
         {
             return twod{ std::max(0, size.x - (pad.west.step + pad.east.step)),
                          std::max(0, size.y - (pad.head.step + pad.foot.step)) };
         }
         // dent: Return area with padding.
-        friend auto operator + (rect const& area, dent_t const& pad)
+        friend auto operator + (rect const& area, dent const& pad)
         {
             return rect{{ area.coor.x - pad.west.step,
                           area.coor.y - pad.head.step },
@@ -1775,7 +1865,7 @@ namespace netxs::ui::atoms
                           std::max(0, area.size.y + (pad.head.step + pad.foot.step)) }};
         }
         // dent: Return area without padding.
-        friend auto operator - (rect const& area, dent_t const& pad)
+        friend auto operator - (rect const& area, dent const& pad)
         {
             return rect{ { area.coor.x + pad.west.step,
                            area.coor.y + pad.head.step },
@@ -1783,22 +1873,46 @@ namespace netxs::ui::atoms
                            std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
         }
         // dent: Return summ of two paddings.
-        friend auto operator + (dent_t const& pad1, dent_t const& pad2)
+        friend auto operator + (dent const& pad1, dent const& pad2)
         {
-            return dent_t{ pad1.west.step + pad2.west.step,
-                           pad1.east.step + pad2.east.step,
-                           pad1.head.step + pad2.head.step,
-                           pad1.foot.step + pad2.foot.step };
+            return dent{ pad1.west.step + pad2.west.step,
+                         pad1.east.step + pad2.east.step,
+                         pad1.head.step + pad2.head.step,
+                         pad1.foot.step + pad2.foot.step };
         }
         // dent: Return diff of two paddings.
-        friend auto operator - (dent_t const& pad1, dent_t const& pad2)
+        friend auto operator - (dent const& pad1, dent const& pad2)
         {
-            return dent_t{ pad1.west.step - pad2.west.step,
-                           pad1.east.step - pad2.east.step,
-                           pad1.head.step - pad2.head.step,
-                           pad1.foot.step - pad2.foot.step };
+            return dent{ pad1.west.step - pad2.west.step,
+                         pad1.east.step - pad2.east.step,
+                         pad1.head.step - pad2.head.step,
+                         pad1.foot.step - pad2.foot.step };
+        }
+        // dent: Change endianness to LE.
+        friend auto letoh(dent const& d)
+        {
+            return dent{ netxs::letoh(d.west.step),
+                         netxs::letoh(d.east.step),
+                         netxs::letoh(d.head.step),
+                         netxs::letoh(d.foot.step) };
+        }
+        friend auto& operator << (std::ostream& s, dent const& d)
+        {
+            return s << '{' << d.west.step << ','
+                            << d.east.step << ','
+                            << d.head.step << ','
+                            << d.foot.step << ','
+                            << '}';
         }
     };
+    // dent: Return difference between area.
+    auto operator - (rect const& r1, rect const& r2)
+    {
+        auto top = r2.coor - r1.coor;
+        auto end = r1.size - r2.size - top;
+        return dent{ top.x, end.x,
+                     top.y, end.y };
+    }
 
     // layout: Scroll info.
     struct rack
@@ -1835,10 +1949,479 @@ namespace netxs::ui::atoms
     }
 
     using grid = std::vector<cell>;
-    using dent = dent_t<int8_t>;
-}
-namespace netxs::ui
-{
-    using rect = netxs::ui::atoms::rect;
+    using vrgb = std::vector<irgb<si32>>;
+
+    // layout: Canvas core grid.
+    class core
+    {
+        // Prefill canvas using brush.
+        core(twod const& coor, twod const& size, cell const& brush)
+            : region{ coor  , size },
+              client{ dot_00, size },
+              canvas(size.x * size.y, brush),
+              marker{ brush }
+        { }
+        // Prefill canvas using zero.
+        core(twod const& coor, twod const& size)
+            : region{ coor  , size },
+              client{ dot_00, size },
+              canvas(size.x * size.y)
+        { }
+
+    protected:
+        si32 digest = 0;
+        cell marker;
+        rect region;
+        grid canvas;
+        rect client;
+
+    public:
+        using span = std::span<cell const>;
+
+        core()                         = default;
+        core(core&&)                   = default;
+        core(core const&)              = default;
+        core& operator = (core&&)      = default;
+        core& operator = (core const&) = default;
+        core(span const& body, twod const& size)
+            : region{ dot_00, size },
+              client{ dot_00, size },
+              canvas( body.begin(), body.end() )
+        {
+            assert(size.x * size.y == std::distance(body.begin(), body.end()));
+        }
+        core(cell const& fill, si32 length)
+            : region{ dot_00, twod{ length, 1 } },
+              client{ dot_00, twod{ length, 1 } },
+              canvas( length, fill )
+        { }
+
+        friend void swap(core& lhs, core& rhs)
+        {
+            std::swap(lhs.digest, rhs.digest);
+            std::swap(lhs.marker, rhs.marker);
+            std::swap(lhs.region, rhs.region);
+            std::swap(lhs.canvas, rhs.canvas);
+            std::swap(lhs.client, rhs.client);
+        }
+        constexpr auto& size() const        { return region.size;        }
+        auto& coor() const                  { return region.coor;        }
+        auto& area() const                  { return region;             }
+        auto  data() const                  { return canvas.data();      }
+        auto  data()                        { return canvas.data();      }
+        auto& pick()                        { return canvas;             }
+        auto  iter()                        { return canvas.begin();     }
+        auto  iend()                        { return canvas.end();       }
+        auto  iter() const                  { return canvas.begin();     }
+        auto  iend() const                  { return canvas.end();       }
+        auto  test(twod const& coord) const { return region.size.inside(coord); } // core: Check the coor inside the canvas.
+        auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates.
+        auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell.
+        auto& data(size_t offset)           { return*(data() + offset);  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
+        auto& operator [] (twod const& c)   { return*(data(c));          } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
+        auto& mark()                        { return marker;             } // core: Return a reference to the default cell value.
+        auto& mark() const                  { return marker;             } // core: Return a reference to the default cell value.
+        auto& mark(cell const& c)           { marker = c; return marker; } // core: Set the default cell value.
+        void  move(twod const& newcoor)     { region.coor = newcoor;     } // core: Change the location of the face.
+        void  step(twod const& delta)       { region.coor += delta;      } // core: Shift location of the face by delta.
+        void  back(twod const& delta)       { region.coor -= delta;      } // core: Shift location of the face by -delta.
+        void  link(id_t id)                 { marker.link(id);           } // core: Set the default object ID.
+        auto  link(twod const& coord) const { return test(coord) ? (*(data(coord))).link() : 0; } // core: Return ID of the object in cell at the specified coordinates.
+        auto  view() const                  { return client;             }
+        void  view(rect const& viewreg)     { client = viewreg;          }
+        auto  hash() const                  { return digest;             } // core: Return the digest value that associatated with the current canvas size.
+        auto  hash(si32 d)                  { return digest != d ? ((void)(digest = d), true) : faux; } // core: Check and the digest value that associatated with the current canvas size.
+        void  size(twod const& newsize) // core: Change the size of the face.
+        {
+            if (region.size(std::max(dot_00, newsize)))
+            {
+                client.size = region.size;
+                digest++;
+                canvas.assign(region.size.x * region.size.y, marker);
+            }
+        }
+        void crop(si32 newsizex, cell const& c = {}) // core: Resize while saving the textline.
+        {
+            region.size.x = newsizex;
+            region.size.y = 1;
+            client.size = region.size;
+            canvas.resize(newsizex, c);
+            digest++;
+        }
+        template<bool BOTTOM_ANCHORED = faux>
+        void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
+        {
+            auto block = core{ region.coor, newsize, c };
+            if constexpr (BOTTOM_ANCHORED) block.step({ 0, region.size.y - newsize.y });
+            netxs::onbody(block, *this, cell::shaders::full);
+            region.size = newsize;
+            client.size = region.size;
+            swap(block);
+            digest++;
+        }
+        template<bool BOTTOM_ANCHORED = faux>
+        void crop(twod const& newsize) // core: Resize while saving the bitmap.
+        {
+            crop(newsize, marker);
+        }
+        void kill() // core: Collapse canvas to size zero (see para).
+        {
+            region.size.x = 0;
+            client.size.x = 0;
+            canvas.resize(0);
+            digest++;
+        }
+        void wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill canvas with specified marker.
+        void wipe()              { wipe(marker); } // core: Fill canvas with default color.
+        void wipe(id_t id)                         // core: Fill canvas with specified id.
+        {
+            auto my = marker.link();
+            marker.link(id);
+            wipe(marker);
+            marker.link(my);
+        }
+        template<class P>
+        auto each(P proc) // core: Exec a proc for each cell.
+        {
+            using ret_t = std::invoke_result_t<P, cell&>;
+            static constexpr auto plain = std::is_same_v<void, ret_t>;
+
+            for (auto& c : canvas)
+            {
+                if constexpr (plain) proc(c);
+                else             if (proc(c)) return faux;
+            }
+            if constexpr (!plain) return true;
+        }
+        template<class P>
+        void each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
+        {
+            netxs::onrect(*this, region, proc);
+        }
+        auto copy(grid& target) const // core: Copy only grid of the canvas to the specified grid bitmap.
+        {
+            target = canvas;
+            return region.size;
+        }
+        void copy(core& dest) const // core: Copy only grid of the canvas to the specified core.
+        {
+            dest.size(region.size);
+            dest.canvas = canvas;
+        }
+        template<class P>
+        void copy(core& target, P proc) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
+        {
+            netxs::oncopy(target, *this, proc);
+            //todo should we copy all members?
+            //target.marker = marker;
+            //flow::cursor
+        }
+        template<class P>
+        void fill(core const& block, P fuse) // core: Fill canvas by the specified face using its coordinates.
+        {
+            netxs::onbody(*this, block, fuse);
+        }
+        template<class P>
+        void zoom(core const& block, P fuse) // core: Fill canvas by the stretched block.
+        {
+            netxs::zoomin(*this, block, fuse);
+        }
+        template<class P>
+        void plot(core const& block, P fuse) // core: Fill view by the specified face using its coordinates.
+        {
+            auto joint = view().clip(block.area());
+            if (joint)
+            {
+                auto place = joint.coor - block.coor();
+                netxs::inbody<faux>(*this, block, joint, place, fuse);
+            }
+        }
+        template<class P>
+        void fill(rect block, P fuse) // core: Process the specified region by the specified proc.
+        {
+            block.normalize_itself();
+            block.coor += region.coor;
+            netxs::onrect(*this, block, fuse);
+        }
+        template<class P>
+        void fill(P fuse) // core: Fill the client area using lambda.
+        {
+            fill(view(), fuse);
+        }
+        void grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient.
+        {
+            auto mx = (float)region.size.x;
+            auto my = (float)region.size.y;
+            auto len = std::sqrt(mx * mx + my * my * 4);
+
+            auto dr = (c2.chan.r - c1.chan.r) / len;
+            auto dg = (c2.chan.g - c1.chan.g) / len;
+            auto db = (c2.chan.b - c1.chan.b) / len;
+            auto da = (c2.chan.a - c1.chan.a) / len;
+
+            auto x = si32{ 0 };
+            auto y = si32{ 0 };
+            auto z = si32{ 0 };
+            auto allfx = [&](cell& c)
+            {
+                auto dt = std::sqrt(x * x + z);
+                auto& chan = c.bgc().chan;
+                chan.r = (uint8_t)((float)c1.chan.r + dr * dt);
+                chan.g = (uint8_t)((float)c1.chan.g + dg * dt);
+                chan.b = (uint8_t)((float)c1.chan.b + db * dt);
+                chan.a = (uint8_t)((float)c1.chan.a + da * dt);
+                ++x;
+            };
+            auto eolfx = [&]()
+            {
+                x = 0;
+                ++y;
+                z = y * y * 4;
+            };
+            netxs::onrect(*this, region, allfx, eolfx);
+        }
+        void swap(core& other) // core: Unconditionally swap canvases.
+        {
+            canvas.swap(other.canvas);
+            std::swap(region, other.region);
+        }
+        auto swap(grid& target) // core: Move the canvas to the specified array and return the current layout size.
+        {
+            if (auto size = canvas.size())
+            {
+                if (target.size() == size) canvas.swap(target);
+                else                       target = canvas;
+            }
+            return region.size;
+        }
+        template<feed DIRECTION>
+        auto word(twod coord) // core: Detect a word bound.
+        {
+            if (!region) return 0;
+            static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
+
+            //todo unify
+            auto is_empty = [&](auto txt)
+            {
+                return txt.empty() || txt.front() == whitespace;
+            };
+            auto empty = [&](auto txt)
+            {
+                return is_empty(txt);
+            };
+            auto alpha = [&](auto txt)
+            {
+                //todo revise (https://unicode.org/reports/tr29/#Word_Boundaries)
+                auto c = utf::letter(txt).attr.cdpoint;
+                return (c >= '0' && c <= '9')//30-39: '0'-'9'
+                     ||(c >= '@' && c <= 'Z')//40-5A: '@','A'-'Z'
+                     ||(c >= 'a' && c <= 'z')//5F,61-7A: '_','a'-'z'
+                     || c == '_'             //60:    '`'
+                     || c == 0xA0            //A0  NO-BREAK SPACE (NBSP)
+                     ||(c >= 0xC0                // C0-10FFFF: "À" - ...
+                     && c < 0x2000)||(c > 0x206F // General Punctuation
+                     && c < 0x2200)||(c > 0x23FF // Mathematical Operators
+                     && c < 0x2500)||(c > 0x25FF // Box Drawing
+                     && c < 0x2E00)||(c > 0x2E7F // Supplemental Punctuation
+                     && c < 0x3000)||(c > 0x303F // CJK Symbols and Punctuation
+                     && c != 0x30FB              // U+30FB ( ・ ) KATAKANA MIDDLE DOT
+                     && c < 0xFE50)||(c > 0xFE6F // FE50  FE6F Small Form Variants
+                     && c < 0xFF00)||(c > 0xFF0F // Halfwidth and Fullwidth Forms
+                     && c < 0xFF1A)||(c > 0xFF1F //
+                     && c < 0xFF3B)||(c > 0xFF40 //
+                     && c < 0xFF5B)|| c > 0xFF65 //
+            ;};
+            auto is_email = [&](auto txt)
+            {
+                return !txt.empty() && txt.front() == '@';
+            };
+            auto email = [&](auto txt)
+            {
+                return !txt.empty() && (alpha(txt) || txt.front() == '.');
+            };
+            auto is_digit = [&](auto txt)
+            {
+                auto c = utf::letter(txt).attr.cdpoint;
+                return (c >= '0'    && c <= '9')
+                     ||(c >= 0xFF10 && c <= 0xFF19) // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
+                     || c == '.';
+            };
+            auto digit = [&](auto txt)
+            {
+                auto c = utf::letter(txt).attr.cdpoint;
+                return c == '.'
+                    ||(c >= 'a' && c <= 'f')
+                    ||(c >= 'A' && c <= 'F')
+                    ||(c >= '0' && c <= '9')
+                    ||(c >= 0xFF10 && c <= 0xFF19); // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
+            };
+            auto func = [&](auto check)
+            {
+                coord.x += rev ? 1 : 0;
+                auto count = decltype(coord.x){};
+                auto width = (rev ? 0 : region.size.x) - coord.x;
+                auto field = rect{ coord + region.coor, { width, 1 }}.normalize();
+                auto allfx = [&](auto& c)
+                {
+                    auto txt = c.txt();
+                    if (!check(txt)) return true;
+                    count++;
+                    return faux;
+                };
+                netxs::onrect<rev>(*this, field, allfx);
+                if (count) count--;
+                coord.x -= rev ? count + 1 : -count;
+            };
+
+            coord = std::clamp(coord, dot_00, region.size - dot_11);
+            auto test = data(coord)->txt();
+            is_digit(test) ? func(digit) :
+            is_email(test) ? func(email) :
+            is_empty(test) ? func(empty) :
+                             func(alpha);
+            return coord.x;
+        }
+        template<class P>
+        void cage(rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.
+        {
+            auto temp = area;
+            temp.size.y = border_width.y; // Top
+            fill(temp, fuse);
+            temp.coor.y += area.size.y - border_width.y; // Bottom
+            fill(temp, fuse);
+            temp.size.x = border_width.x; // Left
+            temp.size.y = area.size.y - border_width.y * 2;
+            temp.coor.y = area.coor.y + border_width.y;
+            fill(temp, fuse);
+            temp.coor.x += area.size.x - border_width.x; // Right
+            fill(temp, fuse);
+        }
+        template<class P>
+        void cage(rect const& area, dent const& border, P fuse) // core: Draw the cage around specified area.
+        {
+            auto temp = area;
+            temp.size.y = border.head.step; // Top
+            fill(temp, fuse);
+            temp.coor.y += area.size.y - border.foot.step; // Bottom
+            temp.size.y = border.foot.step;
+            fill(temp, fuse);
+            temp.size.x = border.west.step; // Left
+            temp.size.y = area.size.y - border.head.step - border.foot.step;
+            temp.coor.y = area.coor.y + border.head.step;
+            fill(temp, fuse);
+            temp.coor.x += area.size.x - border.east.step; // Right
+            temp.size.x = border.east.step;
+            fill(temp, fuse);
+        }
+        template<class TEXT, class P = noop>
+        void text(twod const& pos, TEXT const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
+        {
+            rtl ? txt.template output<true>(*this, pos, print)
+                : txt.template output<faux>(*this, pos, print);
+        }
+        template<class SI32>
+        auto find(core const& what, SI32&& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
+        {
+            assert(     canvas.size() <= std::numeric_limits<si32>::max());
+            assert(what.canvas.size() <= std::numeric_limits<si32>::max());
+            auto full = static_cast<si32>(     canvas.size());
+            auto size = static_cast<si32>(what.canvas.size());
+            auto rest = full - from;
+            auto look = [&](auto canvas_begin, auto canvas_end, auto what_begin)
+            {
+                if (!size || size > rest) return faux;
+
+                size--;
+                auto head = canvas_begin;
+                auto tail = canvas_end - size;
+                auto iter = head + from;
+                auto base = what_begin;
+                auto dest = base;
+                auto&test =*base;
+                while (iter != tail)
+                {
+                    if (test.same_txt(*iter++))
+                    {
+                        auto init = iter;
+                        auto stop = iter + size;
+                        while (init != stop && init->same_txt(*++dest))
+                        {
+                            ++init;
+                        }
+
+                        if (init == stop)
+                        {
+                            from = static_cast<si32>(std::distance(head, iter)) - 1;
+                            return true;
+                        }
+                        else dest = base;
+                    }
+                }
+                return faux;
+            };
+
+            if (dir == feed::fwd)
+            {
+                if (look(canvas.begin(), canvas.end(), what.canvas.begin()))
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                std::swap(rest, from); // Reverse.
+                if (look(canvas.rbegin(), canvas.rend(), what.canvas.rbegin()))
+                {
+                    from = full - from - 1; // Restore forward representation.
+                    return true;
+                }
+            }
+            return faux;
+        }
+        auto toxy(si32 offset) const // core: Convert offset to coor.
+        {
+            assert(canvas.size() <= std::numeric_limits<si32>::max());
+            auto maxs = static_cast<si32>(canvas.size());
+            if (!maxs) return dot_00;
+            offset = std::clamp(offset, 0, maxs - 1);
+            return twod{ offset % region.size.x,
+                         offset / region.size.x };
+        }
+        auto line(si32 from, si32 upto) const // core: Get stripe.
+        {
+            if (from > upto) std::swap(from, upto);
+            assert(canvas.size() <= std::numeric_limits<si32>::max());
+            auto maxs = static_cast<si32>(canvas.size());
+            from = std::clamp(from, 0, maxs ? maxs - 1 : 0);
+            upto = std::clamp(upto, 0, maxs);
+            auto size = upto - from;
+            return core{ span{ canvas.data() + from, static_cast<size_t>(size) }, { size, 1 }};
+        }
+        auto line(twod p1, twod p2) const // core: Get stripe.
+        {
+            if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
+            auto from = p1.x + p1.y * region.size.x;
+            auto upto = p2.x + p2.y * region.size.x + 1;
+            return line(from, upto);
+        }
+        void operator += (core const& src) // core: Append specified canvas.
+        {
+            //todo inbody::RTL
+            auto a_size = size();
+            auto b_size = src.size();
+            auto new_sz = twod{ a_size.x + b_size.x, std::max(a_size.y, b_size.y) };
+            auto block = core{ region.coor, new_sz, marker };
+
+            auto region = rect{ twod{ 0, new_sz.y - a_size.y }, a_size };
+            netxs::inbody<faux>(block, *this, region, dot_00, cell::shaders::full);
+            region.coor.x += a_size.x;
+            region.coor.y += new_sz.y - a_size.y;
+            region.size = b_size;
+            netxs::inbody<faux>(block, src, region, dot_00, cell::shaders::full);
+
+            swap(block);
+            digest++;
+        }
+    };
 }
 #endif // NETXS_LAYOUT_HPP

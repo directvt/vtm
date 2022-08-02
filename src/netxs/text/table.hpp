@@ -15,82 +15,39 @@ namespace netxs
 {
     namespace table
     {
-        template<class char_T>
-        inline std::basic_string<char_T> convert(text const& str)
-        {
-            return std::basic_string<char_T>();
-        }
-        template <>
-        inline std::basic_string<char> convert<char>(text const& str)
-        {
-            return str;
-        }
-        template <>
-        inline std::basic_string<wchar_t> convert<wchar_t>(text const& str)
-        {
-            return utf::to_utf(str);
-        }
+        using utf::text;
+        using cell    = std::vector<text>;
+        using row     = std::vector<cell>;
+        using content = std::vector<row>;
 
-        template<class T>
-        using cell = std::vector<std::basic_string<T>>;
-
-        template<class T>
-        using row = std::vector<cell<T>>;
-
-        template<class T>
-        using content = std::vector<row<T>>;
-
-        template<class T, class W = std::conditional<std::is_same<char, T>::value, wchar_t, char>::type>
-        cell<W> to_utf(cell<T>& obj)
+        text draw(content const& table)
         {
-            cell<W> values;
-            for (auto& line : obj)
-            {
-                values.push_back(utf::to_utf(line));
-            }
-            return values;
-        }
-
-        template<class T, class W = std::conditional<std::is_same<char, T>::value, wchar_t, char>::type>
-        row<W> to_utf(row<T>& obj)
-        {
-            row<W> values;
-            for (auto& cell : obj)
-            {
-                values.push_back(to_utf(cell));
-            }
-            return values;
-        }
-
-        template<class T>
-        std::basic_string<T> draw(content<T> const& table)
-        {
-            std::basic_stringstream<T>	line;
+            auto line = utf::flux{};
 
             if (table.size() && table[0].size())
             {
-                const std::basic_string<T> top_left		= convert<T>("┌");
-                const std::basic_string<T> top_right	= convert<T>("┐\n");
-                const std::basic_string<T> top_cross	= convert<T>("┬");
-                const std::basic_string<T> bottom_cross = convert<T>("┴");
-                const std::basic_string<T> bottom_left	= convert<T>("└");
-                const std::basic_string<T> bottom_right = convert<T>("┘\n");
-                const std::basic_string<T> vertical		= convert<T>("│");
-                const std::basic_string<T> horizontal	= convert<T>("─");
-                const std::basic_string<T> cross		= convert<T>("┼");
-                const std::basic_string<T> left_cross	= convert<T>("├");
-                const std::basic_string<T> right_cross	= convert<T>("┤\n");
-                const std::basic_string<T> space		= convert<T>(" ");
-                const std::basic_string<T> end_line		= convert<T>("\n");
-                const std::basic_string<T> empty;
+                const auto top_left     = text{ "┌"   };
+                const auto top_right    = text{ "┐\n" };
+                const auto top_cross    = text{ "┬"   };
+                const auto bottom_cross = text{ "┴"   };
+                const auto bottom_left  = text{ "└"   };
+                const auto bottom_right = text{ "┘\n" };
+                const auto vertical     = text{ "│"   };
+                const auto horizontal   = text{ "─"   };
+                const auto cross        = text{ "┼"   };
+                const auto left_cross   = text{ "├"   };
+                const auto right_cross  = text{ "┤\n" };
+                const auto space        = text{ " "   };
+                const auto end_line     = text{ "\n"  };
+                const auto empty        = text{};
 
-                size_t columns_count = table[0].size();
-                std::vector<size_t> widths(columns_count);
+                auto columns_count = table[0].size();
+                auto widths = std::vector<size_t>(columns_count);
                 for (auto& row : table)
                 {
-                    for (size_t cell = 0; cell < row.size(); cell++)
+                    for (auto cell = 0; cell < row.size(); cell++)
                     {
-                        size_t max_width = 1 + utf::maxlen(row[cell]) + 1;
+                        auto max_width = 1 + utf::maxlen(row[cell]) + 1;
                         if (max_width > widths[cell])
                         {
                             widths[cell] = max_width;
@@ -98,12 +55,12 @@ namespace netxs
                     }
                 }
 
-                auto stroke = [&](std::basic_string<T> const& left,
-                                  std::basic_string<T> const& inner,
-                                  std::basic_string<T> const& right)
+                auto stroke = [&](text const& left,
+                                  text const& inner,
+                                  text const& right)
                 {
                     line << left;
-                    for (size_t i = 0; i + 1 < columns_count; i++)
+                    for (auto i = 0; i + 1 < columns_count; i++)
                     {
                         line << utf::repeat(horizontal, widths[i]) << inner;
                     }
@@ -111,17 +68,17 @@ namespace netxs
                 };
 
                 stroke(top_left, top_cross, top_right);
-                for (size_t r = 0; r < table.size(); r++)
+                for (auto r = 0; r < table.size(); r++)
                 {
-                    auto&  row_values = table[r];
-                    size_t rows_count = utf::maxlen(row_values);
+                    auto& row_values = table[r];
+                    auto  rows_count = utf::maxlen(row_values);
 
-                    for (size_t j = 0; j < rows_count; j++)
+                    for (auto j = 0; j < rows_count; j++)
                     {
                         line << vertical;
-                        for (size_t i = 0; i < columns_count; i++)
+                        for (auto i = 0; i < columns_count; i++)
                         {
-                            std::basic_string<T> cell_line = (j < row_values[i].size()) ? row_values[i][j] : empty;
+                            auto cell_line = text(j < row_values[i].size() ? row_values[i][j] : empty);
                             line << utf::adjust(space + cell_line, widths[i], space);
                             line << vertical;
                         }

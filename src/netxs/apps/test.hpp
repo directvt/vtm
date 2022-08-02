@@ -54,10 +54,10 @@ namespace netxs::app::test
             if (topic.empty())
             {
                 auto clr = 0xFFFFFFFF;
-                text msg = "The quick brown fox jumps over the lazy dog.";
-                text msg_rtl = ansi::rtl(rtol::rtl).add("RTL: ", msg).rtl(rtol::ltr);
-                text msg_ltr = "LTR: " + msg;
-                text testline = ansi::jet(bias::center).rtl(rtol::rtl)
+                auto msg = text{ "The quick brown fox jumps over the lazy dog." };
+                auto msg_rtl = ansi::rtl(rtol::rtl).add("RTL: ", msg).rtl(rtol::ltr);
+                auto msg_ltr = text{ "LTR: " } + msg;
+                auto testline = ansi::jet(bias::center).rtl(rtol::rtl)
                     .add("RTL: centered text.\n\n")
                     .rtl(rtol::ltr)
                     .add("centered text\n\n")
@@ -70,20 +70,20 @@ namespace netxs::app::test
                     .jet(bias::right).rtl(rtol::ltr)
                     .add(msg_ltr, "\n\n", msg_rtl);
 
-                si32 margin = 4;
+                auto margin = si32{ 4 };
                 auto l1 = ansi::mgl(margin * 1).mgr(1).fgc(whitelt).und(true);
                 auto l2 = ansi::mgl(margin * 2).mgr(1);
                 auto l3 = ansi::mgl(margin * 3).mgr(1);
                 auto c1 = bluelt;// 0xffff00;
                 auto c2 = whitedk;//0xffffff;
-                text intro = ansi::mgl(0).mgr(0)
+                auto intro = ansi::mgl(0).mgr(0)
                     .add(" ")
                     //+ ansi::jet(bias::right).mgl(1).mgr(1).wrp(true)
                     //+ "https://github.com/netxs-group/vtm\n\n"
                     .jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(0).mgr(0).eol()
                     .fgc(c1).bgc(c2).add("▄")
                     .fgc(c2).bgc(c1).add("▄")
-                    .fgc(clr).bgc().add("  Monotty Desktopio\n")
+                    .fgc(clr).bgc().add("  Desktopio Environment\n")
                     .fgc().bgc().add("Test Page    \n\n")
 
                     .nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
@@ -205,7 +205,7 @@ namespace netxs::app::test
                     .wrp(wrap::on).mgl(0).mgr(0).eol()
                     .eol();
 
-                text data = ansi::nil()
+                auto data = ansi::nil()
                     .jet(bias::center).wrp(wrap::off).fgc(whitelt).add("Test Layouts\n\n")
                     .wrp(wrap::off).jet(bias::left).und(true)
                     .add("Text wrapping is OFF:\n\n").nil().wrp(wrap::off)
@@ -268,7 +268,7 @@ namespace netxs::app::test
 
 
                 // Wikipedia run
-                text wiki = ansi::esc("\n\n")
+                auto wiki = ansi::esc("\n\n")
                     .jet(bias::center).wrp(wrap::off).fgc(clr)
                     .add("Sample Article\n\n")
 
@@ -306,7 +306,7 @@ namespace netxs::app::test
                     .fgc(clr).add("Win32 console").nil().add(" of ")
                     .fgc(clr).add("Microsoft Windows").nil().add(".");
 
-                text wiki_ru = ansi::eol().eol()
+                auto wiki_ru = ansi::eol().eol()
                     .fgc(clr).add("Управляющие символы ANSI").nil()
                     .add(" (англ. ANSI escape code) — символы, встраиваемые в текст, для управления форматом,")
                     .add(" цветом и другими опциями вывода в ")
@@ -317,7 +317,7 @@ namespace netxs::app::test
                     .add(" локального программного обеспечения, способны интерпретировать по крайней мере некоторые")
                     .add(" управляющие последовательности ANSI.");
 
-                text wiki_emoji = ansi::fgc(clr).add("\n\n")
+                auto wiki_emoji = ansi::fgc(clr).add("\n\n")
                     .add("Emoji\n").nil()
                     .add("Emoji (Japanese: 絵文字, English: /ɪˈmoʊdʒiː/; Japanese: [emodʑi];"
                         " singular emoji, plural emoji or emojis) are ideograms and "
@@ -351,7 +351,7 @@ namespace netxs::app::test
                              "🥴🤢🤮🤧😷🤒🤕🤑🤠😈👿👹👺🤡💩👻"
                              "💀👽👾🤖🎃😺😸😹😻😼😽🙀😿😾😠😍\n");
 
-                text wiki_cjk = ansi::wrp(wrap::off).fgc(clr).eol().eol()
+                auto wiki_cjk = ansi::wrp(wrap::off).fgc(clr).eol().eol()
                     .add("端末エミュレータ\n").nil()
                     .add("出典: フリー百科事典『ウィキペディア（Wikipedia）』\n\n")
                     .wrp(wrap::on).fgc(clr).add("端末エミュレータ").nil()
@@ -414,7 +414,7 @@ namespace netxs::app::test
 
             return topic;
         };
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             auto topic = get_text();
             auto window = ui::cake::ctor()
@@ -425,6 +425,10 @@ namespace netxs::app::test
                 ->invoke([](auto& boss)
                 {
                     boss.keybd.accept(true);
+                    boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                    {
+                        boss.base::template riseup<tier::release>(e2::form::quit, item);
+                    };
                 });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))
                                  ->colors(whitelt, 0xA0db3700);
@@ -460,7 +464,7 @@ namespace netxs::app::test
                     a.mark().fgc(0xFF000000);
                     a.size({ 40, 9 });
                     a.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
-                    para t{ "ARBITRARY SIZE BLOCK" };
+                    auto t = para{ "ARBITRARY SIZE BLOCK" };
                     a.text((a.size() - twod{ t.length(), 0 }) / 2, t.shadow());
                 auto& b = object->lyric(test_topic_vars::canvas2);
                     b.mark().fgc(0xFF000000);
@@ -473,7 +477,7 @@ namespace netxs::app::test
         };
     }
 
-    app::shared::initialize builder{ "Test", build };
+    app::shared::initialize builder{ "test", build };
 }
 
 #endif // NETXS_APP_TEST_HPP
