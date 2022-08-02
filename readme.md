@@ -271,7 +271,7 @@ Type     | Format
 `string` |  _UTF-8 text string_
 `x;y`    |  _integer_ <any_delimeter> _integer_
 
-#### Object type
+#### App type
 
 Type              | Parameter
 ------------------|-----------------
