@@ -2605,7 +2605,12 @@ namespace netxs::ui
                 if (unln)
                 {
                     auto area = parent_canvas.view();
-                    parent_canvas.fill(area, [](cell& c) { c.und(!c.und()); });
+                    parent_canvas.fill(area, [](cell& c)
+                    {
+                        auto u = c.und();
+                        if (u == 1) c.und(2);
+                        else        c.und(1);
+                    });
                 }
             };
         }

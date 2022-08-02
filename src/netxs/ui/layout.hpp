@@ -1135,8 +1135,7 @@ namespace netxs::ui::atoms
                                     uv.fg.chan.a = k;   return *this; } // cell: Set alpha/transparency (background and foreground).
         auto& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
         auto& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
-        auto& und (bool b)        { st.und(b ? 1 : 0);  return *this; } // cell: Set Underline attribute.
-        auto& dnl (bool b)        { st.und(b ? 2 : 0);  return *this; } // cell: Set Double underline attribute.
+        auto& und (si32 n)        { st.und(n);          return *this; } // cell: Set Underline attribute.
         auto& ovr (bool b)        { st.ovr(b);          return *this; } // cell: Set Overline attribute.
         auto& inv (bool b)        { st.inv(b);          return *this; } // cell: Set Invert attribute.
         auto& stk (bool b)        { st.stk(b);          return *this; } // cell: Set Strikethrough attribute.
@@ -1191,8 +1190,7 @@ namespace netxs::ui::atoms
         auto& fgc() const  { return uv.fg;         } // cell: Return Foreground color.
         auto  bld() const  { return st.bld();      } // cell: Return Bold attribute.
         auto  itc() const  { return st.itc();      } // cell: Return Italic attribute.
-        auto  und() const  { return st.und() == 1; } // cell: Return Underline/Underscore attribute.
-        auto  dnl() const  { return st.und() == 2; } // cell: Return Underline/Underscore attribute.
+        auto  und() const  { return st.und();      } // cell: Return Underline/Underscore attribute.
         auto  ovr() const  { return st.ovr();      } // cell: Return Underline/Underscore attribute.
         auto  inv() const  { return st.inv();      } // cell: Return Negative attribute.
         auto  stk() const  { return st.stk();      } // cell: Return Strikethrough attribute.

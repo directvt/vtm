@@ -343,12 +343,12 @@ namespace netxs::ansi
         }
 
         auto& bld(bool b)           { return add(b ? "\033[1m" : "\033[22m"         ); } // esc: SGR 𝗕𝗼𝗹𝗱 attribute.
-        auto& und(bool b)           { return add(b ? "\033[4m" : "\033[24m"         ); } // esc: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+        auto& und(si32 n)           { return add(n==0 ? "\033[24m" :
+                                                 n==2 ? "\033[21m" : "\033[4m"      ); } // esc: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
         auto& blk(bool b)           { return add(b ? "\033[5m" : "\033[25m"         ); } // esc: SGR Blink attribute.
         auto& inv(bool b)           { return add(b ? "\033[7m" : "\033[27m"         ); } // esc: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
         auto& itc(bool b)           { return add(b ? "\033[3m" : "\033[23m"         ); } // esc: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
         auto& stk(bool b)           { return add(b ? "\033[9m" : "\033[29m"         ); } // esc: SGR Strikethrough attribute.
-        auto& dnl(bool b)           { return add(b ? "\033[21m": "\033[24m"         ); } // esc: SGR Double underline attribute.
         auto& ovr(bool b)           { return add(b ? "\033[53m": "\033[55m"         ); } // esc: SGR Overline attribute.
         auto& sav()                 { return add("\033[10m"                         ); } // esc: Save SGR attributes.
         auto& nil()                 { return add("\033[m"                           ); } // esc: Reset SGR attributes to zero.
@@ -701,12 +701,11 @@ namespace netxs::ansi
     static auto chx(si32 n)           { return esc{}.chx(n);        } // ansi: Caret 0-based horizontal absolute.
     static auto chy(si32 n)           { return esc{}.chy(n);        } // ansi: Caret 0-based vertical absolute.
     static auto bld(bool b = true)    { return esc{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
-    static auto und(bool b = true)    { return esc{}.und(b);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+    static auto und(si32 n = 1   )    { return esc{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
     static auto blk(bool b = true)    { return esc{}.blk(b);        } // ansi: SGR Blink attribute.
     static auto inv(bool b = true)    { return esc{}.inv(b);        } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
     static auto itc(bool b = true)    { return esc{}.itc(b);        } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
     static auto stk(bool b = true)    { return esc{}.stk(b);        } // ansi: SGR Strikethrough attribute.
-    static auto dnl(bool b = true)    { return esc{}.dnl(b);        } // ansi: SGR Double underline attribute.
     static auto ovr(bool b = true)    { return esc{}.ovr(b);        } // ansi: SGR Overline attribute.
     static auto fgc(rgba const& n)    { return esc{}.fgc(n);        } // ansi: SGR Foreground color.
     static auto bgc(rgba const& n)    { return esc{}.bgc(n);        } // ansi: SGR Background color.
@@ -994,9 +993,8 @@ namespace netxs::ansi
             * - void itc(bool b);                    // Set italic attribute.
             * - void inv(bool b);                    // Set inverse attribute.
             * - void stk(bool b);                    // Set strikethgh attribute.
-            * - void und(bool b);                    // Set underline attribute.
+            * - void und(si32 b);                    // Set underline attribute. 1 - single, 2 - double.
             * - void blk(bool b);                    // Set blink attribute.
-            * - void dnl(bool b);                    // Set double underline attribute.
             * - void ovr(bool b);                    // Set overline attribute.
             * - void wrp(bool b);                    // Set auto wrap.
             * - void jet(si32 b);                    // Set adjustment.
@@ -1095,8 +1093,8 @@ namespace netxs::ansi
                     csi_sgr[SGR_NONITALIC] = VT_PROC{ p->brush.itc(faux); }; // fx_sgr_itc<faux>;
                     csi_sgr[SGR_INV      ] = VT_PROC{ p->brush.inv(true); }; // fx_sgr_inv<true>;
                     csi_sgr[SGR_NOINV    ] = VT_PROC{ p->brush.inv(faux); }; // fx_sgr_inv<faux>;
-                    csi_sgr[SGR_UND      ] = VT_PROC{ p->brush.und(true); }; // fx_sgr_und;
-                    csi_sgr[SGR_DOUBLEUND] = VT_PROC{ p->brush.dnl(true); }; // fx_sgr_dnl;
+                    csi_sgr[SGR_UND      ] = VT_PROC{ p->brush.und(   1); }; // fx_sgr_und;
+                    csi_sgr[SGR_DOUBLEUND] = VT_PROC{ p->brush.und(   2); }; // fx_sgr_dnl;
                     csi_sgr[SGR_NOUND    ] = VT_PROC{ p->brush.und(faux); }; // fx_sgr_und;
                     csi_sgr[SGR_SLOWBLINK] = VT_PROC{ p->brush.blk(true); }; // fx_sgr_blk;
                     csi_sgr[SGR_FASTBLINK] = VT_PROC{ p->brush.blk(true); }; // fx_sgr_blk;

@@ -2634,7 +2634,7 @@ namespace netxs::console
                                         else         c.fgc(b).bgc(cell::shaders::contrast.invert(b));
                                     });
                                 }
-                                else canvas.fill(area, [](cell& c) { c.und(!c.und()); });
+                                else canvas.fill(area, [](cell& c) { c.und() ? c.und(0) : c.und(1); });
                             }
                             else if (area.size.y)
                             {

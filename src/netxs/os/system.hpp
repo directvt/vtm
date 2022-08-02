@@ -2688,11 +2688,13 @@ namespace netxs::os
 
                 #if defined(__BSD__)
                     //todo unify "/.config/vtm"
-                    auto home = os::homepath() / "/.config/vtm";
+                    auto home = os::homepath() / ".config/vtm";
                     if (!fs::exists(home))
                     {
-                        log("path: create home directory ", home.string());
-                        fs::create_directory(home);
+                        log("path: create home directory '", home.string(), "'");
+                        auto ec = std::error_code{};
+                        fs::create_directory(home, ec);
+                        if (ec) log("path: directory '", home.string(), "' creation error ", ec.value());
                     }
                     path = (home / path).string() + ".sock";
                     sun_path--; // File system unix domain socket.
