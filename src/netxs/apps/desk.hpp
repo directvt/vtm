@@ -273,7 +273,7 @@ namespace netxs::app::desk
                         SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                         auto menu_list_ptr = e2::bindings::list::apps.param();
                         world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
-                        auto current_default_sptr = std::make_shared<text>(menu_list_ptr->begin()->first);
+                        auto current_default_sptr = std::make_shared<text>(app::shared::get_selected());
                         auto previous_default_sptr = std::make_shared<text>(*current_default_sptr);
                         auto subs_sptr = std::make_shared<subs>();
                         auto shadow = ptr::shadow(boss.This());

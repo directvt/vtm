@@ -108,7 +108,7 @@ namespace netxs::xml
         auto delim = data.front();
         if (delim != '/')
         {
-            if (delim != '\'' && delim != '\"') crop = utf::get_tail(data, " \t\n\r/");
+            if (delim != '\'' && delim != '\"') crop = utf::get_tail(data, " \t\n\r/>");
             else                                crop = utf::get_quote(data, view(&delim, 1));
             crop = xml::unescape(crop);
         }

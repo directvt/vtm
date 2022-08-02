@@ -52,14 +52,14 @@ R"==(
     <menuitem id=Test      label="Test"      notes="Test"      type=DirectVT title="Test Title" param="$0 -r test"/>
     <menuitem id=Truecolor label="Truecolor" notes="Truecolor" type=DirectVT title="True Title" param="$0 -r truecolor"/>
 
-    <autorun>
-        <Calc wincoor=100,7 winsize=100,50 />
-        <Term wincoor=40,12 winsize=100,50 />
-        <Tile wincoor=15,1 winsize=100,50 />
-    </autorun>
-    <settings>
-        ...
-    </settings>
+    //<autorun>
+    //    <Calc wincoor=100,7 winsize=100,50 />
+    //    <Term wincoor=40,12 winsize=100,50 />
+    //    <Tile wincoor=15,1 winsize=100,50 />
+    //</autorun>
+    //<settings>
+    //    ...
+    //</settings>
 </config>
 )==";
 
@@ -91,6 +91,7 @@ R"==(
     static constexpr auto attr_type     = "type";
     static constexpr auto attr_cwd      = "cwd";
     static constexpr auto attr_param    = "param";
+    static constexpr auto attr_selected = "selected";
 
     static constexpr auto tag_profile  = "VTM_CONFIG";
     static constexpr auto tag_config   = "config";
@@ -469,6 +470,11 @@ R"==(
     {
         static std::map<text, builder_t> creator_inst;
         return creator_inst;
+    }
+    auto& get_selected()
+    {
+        static text selected;
+        return selected;
     }
     auto& configs()
     {
@@ -1094,14 +1100,6 @@ namespace netxs::app::shared
         auto free_list = sort_list;
         auto temp_list = sort_list;
 
-        auto take_doc_name = [](view& data)
-        {
-            auto from = data.find('<');
-            auto skip = data.find('>') + 1;
-            auto name = data.substr(from, skip - from);
-            data.remove_prefix(skip);
-            return text{ name };
-        };
         auto take_xml_item = [](text& tag, item_t& item, view& data)
         {
             auto type = xml::type::none;
@@ -1129,17 +1127,22 @@ namespace netxs::app::shared
         };
         auto take_elements = [&](view data)
         {
+            auto defaults = item_t{};
             auto item = item_t{};
             auto tag = text{};
             while (take_xml_item(tag, item, data))
             {
                 if (tag == tag_menuitem)
                 {
+                    for (auto& [defkey, defval] : defaults)
+                    {
+                        item.try_emplace(defkey, defval);
+                    }
                     list.emplace_back(std::move(item));
                 }
                 else if (tag == tag_defaults)
                 {
-                    //todo implement defaults
+                    defaults = std::move(item);
                 }
                 else log(" xml: skip element <", utf::debase(tag), ">");
             }
@@ -1152,23 +1155,38 @@ namespace netxs::app::shared
         };
         auto take_config = [&](view data)
         {
-            //todo take selected=
-            take_doc_name(data);
+            auto type = xml::type::none;
+            auto tag = text{};
+            if (xml::open(data, type))
+            {
+                auto attr = text{};
+                if (xml::attr(data, tag, type) && tag == tag_config)
+                {
+                    log("<", tag, faux);
+                    while (xml::attr(data, attr, type) && attr == attr_selected)
+                    {
+                        get_selected() = xml::value(data);
+                        log(" ", attr_selected, "=", get_selected(), faux);
+                    }
+                    log(">");
+                }
+            }
             take_elements(data);
         };
 
         auto ec = std::error_code{};
-        auto config_file = fs::directory_entry(os::homepath() / path_settings, ec);
+        auto config_path = os::homepath() / path_settings;
+        auto config_file = fs::directory_entry(config_path, ec);
         if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
         {
             auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
             if (file.seekg(0, std::ios::end).fail())
             {
-                log("apps: unable to get configuration file size, skip it: ", take_path(config_file));
+                log("apps: unable to get configuration file size, skip it: ", config_path);
             }
             else
             {
-                log("apps: using configuration: ", take_path(config_file));
+                log("apps: using configuration: ", config_path);
                 auto size = file.tellg();
                 auto buff = std::vector<char>(size);
                 file.seekg(0, std::ios::beg);
@@ -1178,7 +1196,7 @@ namespace netxs::app::shared
         }
         else
         {
-            log("apps: configuration ", take_path(config_file), " not found, use default configuration");
+            log("apps: configuration ", config_path, " not found, use default configuration");
             take_config(default_config);
         }
 
