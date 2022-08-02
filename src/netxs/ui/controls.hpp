@@ -2557,6 +2557,7 @@ namespace netxs::ui
         para name;
         bool flex; // item: Violate or not the label size, default is faux.
         bool test; // item: Place or not(default) the Two Dot Leader when there is not enough space.
+        bool unln; // item: Full width underline.
 
         void recalc()
         {
@@ -2567,10 +2568,11 @@ namespace netxs::ui
         }
 
     public:
-        item(para const& label_para, bool flexible = faux, bool check_size = faux)
+        item(para const& label_para, bool flexible = faux, bool check_size = faux, bool underline = faux)
             : name{ label_para },
               flex{ flexible   },
-              test{ check_size }
+              test{ check_size },
+              unln{ underline  }
         {
             recalc();
             SUBMIT(tier::release, e2::data::text, label_text)
@@ -2600,10 +2602,15 @@ namespace netxs::ui
                         }
                     }
                 }
+                if (unln)
+                {
+                    auto area = parent_canvas.view();
+                    parent_canvas.fill(area, [](cell& c) { c.und(!c.und()); });
+                }
             };
         }
-        item(text const& label_text, bool flexible = faux, bool check_size = faux)
-            : item(para{ label_text }, flexible, check_size)
+        item(text const& label_text, bool flexible = faux, bool check_size = faux, bool underline = faux)
+            : item(para{ label_text }, flexible, check_size, underline)
         { }
         void set(text const& label_text)
         {

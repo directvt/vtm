@@ -28,6 +28,7 @@ namespace netxs::app::shared
     static constexpr auto default_config = R"==(
 <config selected=Term>
     <defaults index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0x0 wincoor=0x0 />
+    <splitter label="apps" notes=" Default applications group                         \n It can be configured in ~/.config/vtm/settings.xml "/>
     <menuitem id=Term label="Term" notes="Run built-in terminal emulator" type=DirectVT title="Terminal Emulator" param="$0 -r term"/>
 )=="
 #ifdef _WIN32
@@ -45,12 +46,12 @@ R"==(
     <menuitem id=View label=View notes="Set desktop region" type=Region title="\e[11:3pView: Region"/>"
     <menuitem id=Settings  label=Settings winsize=50x15 notes="Configure frame rate" type=DirectVT title="Settings"   param="$0 -r settings"/>
     <menuitem id=Logs      label=Logs                   notes="Run Logs application" type=DirectVT title="Logs Title" param="$0 -r logs"/>
-    <splitter label="Demo"/>
-    <menuitem id=Gems      label="Gems"      notes="Gems"      type=DirectVT title="Gems Title" param="$0 -r gems"/>
-    <menuitem id=Text      label="Text"      notes="Text"      type=DirectVT title="Text Title" param="$0 -r text"/>
-    <menuitem id=Calc      label="Calc"      notes="Calc"      type=DirectVT title="Calc Title" param="$0 -r calc"/>
-    <menuitem id=Test      label="Test"      notes="Test"      type=DirectVT title="Test Title" param="$0 -r test"/>
-    <menuitem id=Truecolor label="Truecolor" notes="Truecolor" type=DirectVT title="True Title" param="$0 -r truecolor"/>
+    <splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/>
+    <menuitem id=Gems      label="Gems"      notes=" App Distribution Hub "   type=DirectVT title="Gems Title" param="$0 -r gems"/>
+    <menuitem id=Text      label="Text"      notes=" Text Editor "            type=DirectVT title="Text Title" param="$0 -r text"/>
+    <menuitem id=Calc      label="Calc"      notes=" Spreadsheet Calculator " type=DirectVT title="Calc Title" param="$0 -r calc"/>
+    <menuitem id=Test      label="Test"      notes=" Test Page "              type=DirectVT title="Test Title" param="$0 -r test"/>
+    <menuitem id=Truecolor label="Truecolor" notes=" Truecolor Test "         type=DirectVT title="True Title" param="$0 -r truecolor"/>
 
     //<autorun>
     //    <Calc wincoor=100,7 winsize=100,50 />
@@ -118,6 +119,7 @@ R"==(
     auto const action_color      = tint::greenlt ;
     auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
 
+    const static auto cA = cell{}.bgc(0x0).fgc(blacklt);
     const static auto c9 = cell{}.bgc(0xFFffffff).fgc(0xFF000000);
     const static auto c8 = cell{}.bgc(0x00).fgc(highlight_color);
     const static auto x8 = cell{ c8 }.bga(0x00).fga(0x00);
@@ -1127,6 +1129,7 @@ namespace netxs::app::shared
         };
         auto take_elements = [&](view data)
         {
+            static auto splitter_count = 0;
             auto defaults = item_t{};
             auto item = item_t{};
             auto tag = text{};
@@ -1143,6 +1146,12 @@ namespace netxs::app::shared
                 else if (tag == tag_defaults)
                 {
                     defaults = std::move(item);
+                }
+                else if (tag == tag_splitter)
+                {
+                    item[tag_splitter] = "true";
+                    item[attr_id] = "<splitter_" + std::to_string(splitter_count++) + ">";
+                    list.emplace_back(std::move(item));
                 }
                 else log(" xml: skip element <", utf::debase(tag), ">");
             }
@@ -1268,6 +1277,9 @@ namespace netxs::app::shared
                 conf_rec.cwd      = xml::take<view>(item, attr_cwd,      fallback.cwd     );
                 conf_rec.param    = xml::take<view>(item, attr_param,    fallback.param   );
                 conf_rec.type     = xml::take<view>(item, attr_type,     fallback.type    );
+
+                conf_rec.splitter = xml::take<bool>(item, tag_splitter,  fallback.splitter);
+
                 utf::to_low(conf_rec.type);
                 utf::change(conf_rec.title,  "$0", current_module_file);
                 utf::change(conf_rec.footer, "$0", current_module_file);

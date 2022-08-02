@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
                 {
                     log("user: new gate for ", client);
                     auto deskmenu = app::shared::creator(app::shared::type_Desk)("", utf::concat(window->id, ";", config.os_user_id));
-                    auto bkground = app::shared::creator(app::shared::type_Fone)("", "Gems; Demo; ");
+                    auto bkground = app::shared::creator(app::shared::type_Fone)("", "gems; About; ");
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }

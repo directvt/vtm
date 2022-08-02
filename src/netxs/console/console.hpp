@@ -63,6 +63,7 @@ namespace netxs::console
         twod  winsize{};
         twod  wincoor{};
         bool slimmenu{};
+        bool splitter{};
         text   hotkey{};
         text      cwd{};
         text     type{};

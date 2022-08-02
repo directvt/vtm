@@ -102,6 +102,7 @@ namespace netxs::app::desk
         };
         auto apps_template = [](auto& data_src, auto& apps_map)
         {
+            const static auto cA = app::shared::cA;
             const static auto c3 = app::shared::c3;
             const static auto x3 = app::shared::x3;
 
@@ -127,6 +128,14 @@ namespace netxs::app::desk
                 auto& conf = conf_list[class_id];
                 auto& obj_desc = conf.label;
                 auto& obj_note = conf.notes;
+                if (conf.splitter)
+                {
+                    auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
+                                         ->attach(ui::item::ctor(obj_desc, true, faux, true))
+                                         ->colors(cA.fgc(), cA.bgc())
+                                         ->template plugin<pro::notes>(obj_note);
+                    continue;
+                }
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
                                      ->template plugin<pro::fader>(x3, c3, 0ms)
                                      ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
@@ -254,7 +263,8 @@ namespace netxs::app::desk
                     const static auto x3 = app::shared::x3;
 
                     auto item_area = ui::pads::ctor(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                            ->plugin<pro::fader>(x3, c3, 150ms);
+                                            ->plugin<pro::fader>(x3, c3, 150ms)
+                                            ->plugin<pro::notes>(" Connected user ");
                         auto user = item_area->attach(ui::item::ctor(ansi::esc(" &").nil().add(" ")
                                     .fgx(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
                     return item_area;
@@ -385,6 +395,7 @@ namespace netxs::app::desk
                                         });
                         auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
                         {
+                            const static auto cA = app::shared::cA;
                             const static auto c3 = app::shared::c3;
                             const static auto x3 = app::shared::x3;
                             const static auto c6 = app::shared::c6;
@@ -405,11 +416,12 @@ namespace netxs::app::desk
                             {
                                 auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y));
                                 auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0,0,0,0 }))
-                                                            ->plugin<pro::fader>(x3, c3, 150ms)
                                                             ->plugin<pro::notes>(" List of connected users ");
                                     auto label_bttn = label_pads->attach(ui::fork::ctor());
                                         auto label = label_bttn->attach(slot::_1,
-                                            ui::item::ctor(ansi::fgc(whitelt).add("Users"), faux, faux));
+                                            ui::item::ctor("users", true, faux, true))
+                                                ->plugin<pro::limit>(twod{ 5,-1 })
+                                                ->colors(cA.fgc(), cA.bgc());
                                         auto bttn_area = label_bttn->attach(slot::_2, ui::fork::ctor());
                                             auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,1,1 }))
                                                                       ->plugin<pro::fader>(x6, c6, 150ms)
