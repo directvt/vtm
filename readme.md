@@ -278,7 +278,7 @@ Type              | Parameter
 `DirectVT`        | `_command line_`
 `SHELL` (default) | `_command line_`
 `ANSIVT`          | `_command line_`
-`Group`           | [ v[n:m:w] \| h[n:m:w] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )]
+`Group`           | [ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )]
 `Region`          | `param` attribute is not used, use attribute `title=_view_title_` to set region name
 
 #### Example of `~/.config/vtm/settings.xml`
