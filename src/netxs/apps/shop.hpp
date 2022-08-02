@@ -99,10 +99,12 @@ namespace netxs::app::shop
                     fgc(whitelt).bld(true).add("VTM_CONFIG").fgc().bld(faux).
                     add(".\n\nConfiguration example:\n\n").
                     mgl(2).fgc(whitelt).bgc(blacklt)
-                    .add(" VTM_CONFIG='<menuitem id=Term  hidden=no  label=\"Term\"                type=DirectVT param=\"vtm -r term\"/>\\n \n"
-                         "             <menuitem id=mc    hidden     label=\"Midnight Commander\"  type=SHELL    param=\"mc\"/>\\n \n"
-                         "             <menuitem id=htop  hidden=yes label=\"htop\"                type=ANSIVT   param=\"htop\"/>\\n \n"
-                         "             <menuitem id=Tile1 hidden=0   label=\"Tile\" title=\"Tiling Manager\" type=Group param=\"h1:2( v1:1(htop, mc), Term)\"/>' ")),
+                   .add("VTM_CONFIG='<splitter label=\"envars\" notes=\" Menu items configured using envar VTM_CONFIG=... \"/>\\n \n"
+                        "            <menuitem id=Term2 notes=\"Run terminal\" type=DirectVT label=\"Virtual \e[41mTerminal\e[m Emulator\" param=\"$0 -r term\"/>\\n \n"
+                        "            <menuitem id=View2 label=View notes=\"Desktop region\" type=Region title=\"Region 1\"/>\\n \n"
+                        "            <menuitem id=htop2 label=htop hidden=yes notes=\"htop app\" type=ANSIVT param=\"htop\"/>\\n \n"
+                        "            <menuitem id=mc2 label=mc hidden=1 notes=\"mc app\" type=SHELL param=\"mc\"/>\\n \n"
+                        "            <menuitem id=Tile2 label=Tile notes=\"Tiling Window Manager\" type=Group title=\"Tiling Window Manager\" param=\"h1:2( v1:1(htop2, mc2), Term2)\"/>' ")),
 
                     item("Text", cyandk, "102", "Free ", "Get",
                     "A simple text editor for Desktopio environment "

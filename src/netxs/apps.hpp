@@ -53,6 +53,7 @@ R"==(
     <menuitem id=Test      label="Test"      notes=" Test Page "              type=DirectVT title="Test Title" param="$0 -r test"/>
     <menuitem id=Truecolor label="Truecolor" notes=" Truecolor Test "         type=DirectVT title="True Title" param="$0 -r truecolor"/>
 
+    // not ready yet
     //<autorun>
     //    <Calc wincoor=100,7 winsize=100,50 />
     //    <Term wincoor=40,12 winsize=100,50 />
@@ -1203,7 +1204,8 @@ namespace netxs::app::shared
                 take_config(view(buff.data(), size));
             }
         }
-        else
+
+        if (list.empty())
         {
             log("apps: configuration ", config_path, " not found, use default configuration");
             take_config(default_config);
