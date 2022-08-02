@@ -34,11 +34,11 @@ namespace netxs::app::shared
 #ifdef _WIN32
 R"==(
     <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
-    <menuitem id=Far label="Far" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>
+    <menuitem id=Far label="Far" title="Far Manager" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>
 )=="
 #else
 R"==(
-    <menuitem id=mc label="mc" notes="Run Midnight Commander in its own window (if it is installed)" type=SHELL param="mc"/>
+    <menuitem id=mc label="mc" title="Midnight Commander" notes="Run Midnight Commander in its own window (if it is installed)" type=SHELL param="mc"/>
 )=="
 #endif
 R"==(
