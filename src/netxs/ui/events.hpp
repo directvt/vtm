@@ -15,6 +15,7 @@
 #include <functional>
 #include <optional>
 #include <thread>
+#include <condition_variable>
 
 namespace netxs::events
 {
@@ -155,8 +156,8 @@ namespace netxs::events
 
         void cleanup(ui64& ref_count, ui64& del_count)
         {
-            ui64 lref{};
-            ui64 ldel{};
+            auto lref = ui64{};
+            auto ldel = ui64{};
             for (auto& [event, subs] : stock)
             {
                 auto refs = subs.size();
@@ -181,7 +182,7 @@ namespace netxs::events
         {
             auto proc_ptr = std::make_shared<wrapper<F>>(std::move(proc));
 
-            sync lock;
+            auto lock = sync{};
             stock[event].push_back(proc_ptr);
 
             return proc_ptr;
@@ -194,7 +195,7 @@ namespace netxs::events
         template<class F>
         auto notify(type event, F&& param)
         {
-            sync lock;
+            auto lock = sync{};
 
             alive = branch::proceed;
             queue.push_back(event);
@@ -202,8 +203,8 @@ namespace netxs::events
 
             if constexpr (ORDER == execution_order::forward)
             {
-                type itermask = events::level_mask(event);
-                type subgroup = event;
+                auto itermask = events::level_mask(event);
+                auto subgroup = event;
                 _refreshandcopy(stock[subgroup]);
                 while (itermask > 1 << events::block) // Skip root event block.
                 {
@@ -215,8 +216,8 @@ namespace netxs::events
             else
             {
                 static constexpr type mask = (1 << events::block) - 1;
-                type itermask = mask; // Skip root event block.
-                type subgroup;
+                auto itermask = mask; // Skip root event block.
+                auto subgroup = type{};
                 do
                 {
                     itermask = itermask << events::block | mask;
@@ -271,12 +272,12 @@ namespace netxs::events
         // indexer: Return shared_ptr of the object by its id.
         static auto getref(id_t id)
         {
-            sync lock;
+            auto lock = sync{};
             return netxs::get_or(store, id, empty).lock();
         }
         // indexer: Create a new object of the specified subtype and return its shared_ptr.
         template<class TT, class ...Args>
-        static auto create(Args&&... args)
+        static auto create(Args&&... args) -> sptr<TT>
         {
             // Enables the use of a protected ctor by std::make_shared<TT>.
             struct make_shared_enabler : public TT
@@ -286,8 +287,8 @@ namespace netxs::events
                 { }
             };
 
-            sync lock;
-            sptr<TT> inst = std::make_shared<make_shared_enabler>(std::forward<Args>(args)...);
+            auto lock = sync{};
+            auto inst = std::make_shared<make_shared_enabler>(std::forward<Args>(args)...);
 
             store[inst->id] = inst;
             //sptr<T>  item = inst;
@@ -298,16 +299,23 @@ namespace netxs::events
     private:
         static inline auto _counter()
         {
-            sync lock;
-            while (netxs::on_key(store, ++newid)) { }
+            auto lock = sync{};
+            while (netxs::on_key(store, ++newid))
+            { }
             return newid;
         }
 
     protected:
         indexer(indexer const&) = delete; // id is flushed out when a copy of the object is deleted.
                                           // Thus, the original object instance becomes invalid.
-        indexer() : id { _counter() } { }
-       ~indexer() { sync lock; store.erase(id); }
+        indexer()
+            : id{ _counter() }
+        { }
+       ~indexer()
+        {
+           auto lock = sync{};
+           store.erase(id);
+        }
     };
 
     template<class T> id_t                    indexer<T>::newid{};
@@ -333,8 +341,9 @@ namespace netxs::events
         using base = _parent_type;
         static constexpr auto id = _event_id;
         template<class ...Args> constexpr type_clue(Args&&...) { }
-        template<auto N> static constexpr auto group() { return events::subset<id, N>; }
-                         static constexpr auto index() { return events::number<id>;    }
+        template<class ...Args> static constexpr auto param(Args&&... args) { return type{ std::forward<Args>(args)... }; }
+        template<auto N>        static constexpr auto group()               { return events::subset<id, N>;               }
+                                static constexpr auto index()               { return events::number<id>;                  }
     };
 
     #define SUBMIT(        level, event,        param) bell::template submit<level, decltype( event )>()        = [&] (typename decltype( event )::type &&  param)
@@ -577,9 +586,98 @@ namespace netxs::events
         }
        ~bell() { SIGNAL(tier::release, userland::root::dtor, id); }
 
-        virtual void  global(twod& coor) { } // bell: Recursively calculate global coordinate.
+        virtual void global(twod& coor) { } // bell: Recursively calculate global coordinate.
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
+
+    // events: Separate thread for executing deferred tasks.
+    class enqueue_t
+    {
+    public:
+        using wptr = netxs::wptr<bell>;
+        using func = std::function<void(bell&)>;
+        using item = std::pair<wptr, func>;
+
+        std::mutex              mutex;
+        std::condition_variable synch;
+        std::list<item>         queue;
+        std::list<item>         cache;
+        bool                    alive;
+        std::thread             agent;
+
+        void worker()
+        {
+            auto guard = std::unique_lock{ mutex };
+            while (alive)
+            {
+                if (queue.empty()) synch.wait(guard);
+
+                std::swap(queue, cache);
+                guard.unlock();
+
+                while (alive && cache.size())
+                {
+                    auto lock = events::sync{};
+                    auto& [ptr, proc] = cache.front();
+                    if (auto item = ptr.lock())
+                    {
+                        proc(*item);
+                    }
+                    cache.pop_front();
+                }
+
+                guard.lock();
+            }
+        }
+
+        enqueue_t()
+            : alive{ true },
+              agent{ &enqueue_t::worker, this }
+        { }
+       ~enqueue_t()
+        {
+            mutex.lock();
+            alive = faux;
+            synch.notify_one();
+            mutex.unlock();
+            agent.join();
+        }
+        template<class T>
+        void add(enqueue_t::wptr object_ptr, T&& proc)
+        {
+            auto guard = std::lock_guard{ mutex };
+            if constexpr (std::is_copy_constructible_v<T>)
+            {
+                queue.emplace_back(object_ptr, std::forward<T>(proc));
+            }
+            else
+            {
+                //todo issue with MSVC: Generalized lambda capture does't work.
+                auto proxy = std::make_shared<std::decay_t<T>>(std::forward<T>(proc));
+                queue.emplace_back(object_ptr, [proxy](auto&&... args)->decltype(auto)
+                {
+                    return (*proxy)(decltype(args)(args)...);
+                });
+            }
+            synch.notify_one();
+        }
+    };
+    namespace
+    {
+        template<class T>
+        auto& _agent()
+        {
+            static auto agent = enqueue_t{};
+            return agent;
+        }
+    }
+    // events: Enqueue deferred task.
+    template<class T>
+    void enqueue(enqueue_t::wptr object_ptr, T&& proc)
+    {
+        auto& agent = _agent<void>();
+        agent.add(object_ptr, std::forward<T>(proc));
+    }
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;
 }

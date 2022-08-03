@@ -183,7 +183,7 @@ utility like ctags is used to locate the definitions.
 
 )";
 
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -193,6 +193,10 @@ utility like ctags is used to locate the definitions.
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
+                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      {
+                          boss.base::template riseup<tier::release>(e2::form::quit, item);
+                      };
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;
@@ -224,7 +228,7 @@ utility like ctags is used to locate the definitions.
         };
     }
 
-    app::shared::initialize builder{ "Text", build };
+    app::shared::initialize builder{ "text", build };
 }
 
 #endif // NETXS_APP_TEXT_HPP

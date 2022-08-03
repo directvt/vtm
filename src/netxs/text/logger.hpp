@@ -78,7 +78,7 @@ namespace netxs
                 }
                 else
                 {
-                    text result;
+                    auto result = text{};
                     if (prompt.size())
                     {
                         result = prompt.back() + '>' + ' ';
@@ -156,7 +156,7 @@ namespace netxs
                     g::prompt.emplace_back(new_prompt);
                 }
             }
-            ~prompt()
+           ~prompt()
             {
                 auto sync = guard();
                 if (g::prompt.size())
@@ -176,7 +176,7 @@ namespace netxs
             auto sync = guard();
             add(std::forward<Args>(writers)...);
         }
-        ~logger()
+       ~logger()
         {
             auto sync = guard();
             if (token) g::checkout(token);

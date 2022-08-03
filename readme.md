@@ -1,4 +1,4 @@
-# Monotty Desktopio
+# vtm
 
 Text-based desktop environment inside your terminal*
 
@@ -160,7 +160,7 @@ No arguments | Run client (auto start server)
     <td></td>
   </tr>
   <tr>
-    <th>Left+Right</th>
+    <th>Left+RightClick</th>
     <td colspan="3"></td>
     <td colspan="5">Clear clipboard</td>
     <td></td>
@@ -184,7 +184,9 @@ No arguments | Run client (auto start server)
   </tr>
   <tr>
     <th>Left+RightDrag</th>
-    <td colspan="9">Panoramic workspace scrolling</td>
+    <td colspan="3"></td>
+    <td colspan="4">Move window / Restore maximized window</td>
+    <td colspan="2">Panoramic workspace scrolling</td>
   </tr>
   <tr>
     <th>Ctrl+LeftDrag</th>
@@ -211,6 +213,103 @@ No arguments | Run client (auto start server)
   </tr>
 </tbody>
 </table>
+
+
+# Main Menu Configuration
+
+The main menu can be configured in the `~/.config/vtm/settings.xml` file in xml format.
+
+The top-level element `<config selected=_selected_id_>` contains a list of
+  - menu items `<menuitem ... />`
+  - splitters `<splitter ... />`
+  - default attribute definitions `<defaults ... />`.
+
+The value of the `selected=` attribute specifies which menu item will be selected by default at startup.
+
+The list of main menu items can be extended using the `VTM_CONFIG=...` environment variable. This variable should contain a list of items as inside the `<config selected=_selected_id_> ... </config>` block.
+
+Arguments can be specified without quotes if there are no spaces.
+
+#### Character escapes
+
+ - `\e`  ASCII 0x1B ESC
+ - `\t`  ASCII 0x09 TAB
+ - `\a`  ASCII 0x07 BEL
+ - `\n`  ASCII 0x0A LF
+ - `\\`  ASCII 0x5C Backslash
+ - `\"`  ASCII 0x22 Quotes
+ - `\'`  ASCII 0x27 Single quote
+ - `$0`  Current module full path
+
+#### Menu item attributes
+
+Attribute  | Description                       | Value type | Mandatory | Default value
+-----------|-----------------------------------|------------|-----------|---------------
+`id`       |  Menu item textual identifier     | `string`   | required  | 
+`index`    |  Menu item zero-based index       | `index`    |           | 
+`alias`    |  Use existing menu item specified by `id` as template  | `string` | |
+`hidden`   |  Menu item visibility             | `boolean`  |           | `no`
+`label`    |  Menu item label text             | `string`   |           | =`id`
+`notes`    |  Menu item tooltip text           | `string`   |           | empty
+`title`    |  App window title                 | `string`   |           | empty
+`footer`   |  App window footer                | `string`   |           | empty
+`bgcolor`  |  App window background color      | `RGBA`     |           |
+`fgcolor`  |  App window foreground color      | `RGBA`     |           |
+`winsize`  |  App window 2D size               | `x;y`      |           |
+`slimmenu` |  App window menu vertical size    | `boolean`  |           | `no`
+`cwd`      |  Current working directory        | `string`   |           |
+`type`     |  App type                         | `string`   |           | `SHELL`
+`param`    |  App constructor arguments        | `string`   |           | empty
+
+#### Value type
+
+Type     | Format
+---------|-----------------
+`RGBA`   |  `#rrggbbaa` \| `0xaabbggrr` \| `rrr,ggg,bbb,aaa` \| 256-color index
+`boolean`|  `true` \| `false` \| `yes` \| `no` \| `1` \| `0`
+`index`  |  0 .. N
+`string` |  _UTF-8 text string_
+`x;y`    |  _integer_ <any_delimeter> _integer_
+
+#### App type
+
+Type              | Parameter
+------------------|-----------------
+`DirectVT`        | `_command line_`
+`SHELL` (default) | `_command line_`
+`ANSIVT`          | `_command line_`
+`Group`           | [ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )]
+`Region`          | `param` attribute is not used, use attribute `title=_view_title_` to set region name
+
+#### Example of `~/.config/vtm/settings.xml`
+
+```
+<config selected=Term>
+    <splitter label="apps"/>
+    <defaults index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0x0 wincoor=0x0 />
+    <menuitem id=Term index=1 label="Term" bgcolor=#0a0a0a fgcolor=15 slimmenu notes="$0 -r Term:\nTerminal emulator" type=DirectVT param="vtm -r term bash"/>
+    <menuitem id=mc label="mc" title="mc" notes="Midnight Commander" type=SHELL param="mc"/>
+    <menuitem id=Settings index=2 label="Settings \e[45mLink\e[m" title="Settings title" footer="\e[11:2psettings status" fgcolor=15 bgcolor=0xFF562401 notes="$0\n\tRun settings" type=DirectVT param="vtm -r settings"/>
+    <menuitem id=View label=View notes="Set desktop region" type=Region title="\e[11:3pView: Region"/>"
+    <splitter label="groups"/>
+    <menuitem id=Tile1 label="Tile" notes="Tiling window manager" type=Group param="h(Term, v(mc, Term))"/>
+    <menuitem id=Tile2 label="Second TWM"
+                       notes="Tooltip for Tiling window manager"
+                       type=Group
+                       param="h(v(Term, Tile1), v(mc, Term))"/>
+</config>
+```
+
+#### Example of `VTM_CONFIG=` envar
+
+```
+VTM_CONFIG='<splitter label="envars" notes=" Menu items configured using envar VTM_CONFIG=... "/>
+            <menuitem id=Term2 notes="Run terminal" type=DirectVT label="Virtual \e[41mTerminal\e[m Emulator" param="$0 -r term"/>
+            <menuitem id=View2 label=View notes="Desktop region" type=Region title="Region 1"/>
+            <menuitem id=htop2 label=htop hidden=yes notes="htop app" type=ANSIVT param="htop"/>
+            <menuitem id=mc2 label=mc hidden=1 notes="mc app" type=SHELL param="mc"/>
+            <menuitem id=Tile2 label=Tile notes="Tiling Window Manager" type=Group title="Tiling Window Manager" param="h1:2( v1:1(htop2, mc2), Term2)"/>'
+```
 
 # Built-in Applications
 
@@ -251,26 +350,28 @@ No arguments | Run client (auto start server)
       Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets the background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
 
  - `▀▄ Logs`
-   - Debug output console. Use double `RightClick` to clear scrollback.
+   - Debug output console.
 
  - `▀▄ View`
-   - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
+   - Serves for quick navigation through the workspace using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
 
  - `▀▄ Tile`
    - Supports Drag and Drop for panes (like tabs in a browser).
    - Use any modifier (`Ctrl` or `Alt`) while pane dragging to disable drag&drop mode.
    - List of panes (outside the right side of the window)
-     - `LeftClick` -- Set exclusive focus (highlighted by color)
-     - `Ctrl+LeftClick` -- Set group focus (highlighted by color)
+     - `LeftClick` -- Set exclusive focus
+     - `Ctrl+LeftClick`/`RightClick` -- Set/Unset group focus
      - `double LeftClick` -- Maxixmize/restore
-   - Configurable via environment variable `VTM_PROFILE...`.  
+   - Configurable via environment variable `VTM_CONFIG*`
      ```
      # Configuration example:
 
-     VTM_PROFILE_1='"Menu label 1", "Window Title 1", h1:2( v1:1("bash -c htop", "bash -c mc"), "bash")'
-     VTM_PROFILE_2='"Menu label 2", "Window Title 2", h( v("bash -c htop", "bash -c mc"), "bash")'
+     VTM_CONFIG='<menuitem id=Term notes="Run terminal" type=DirectVT label="Virtual \e[41mTerminal\e[m] Emulator" param="$0 -r term"/>
+                 <menuitem id=View label=View notes="Desktop region" type=Region title="Region 1"/>
+                 <menuitem id=htop label=htop hidden=yes notes="htop app" type=ANSIVT param="htop"/>
+                 <menuitem id=mc label=mc hidden=1 notes="mc app" type=SHELL param="mc"/>
+                 <menuitem id=Tile label=Tile notes="Tiling Window Manager" type=Group title="Tiling Window Manager" param="h1:2( v1:1(htop, mc), Term)"/>'
      ```
-
 
 </p></details>
 

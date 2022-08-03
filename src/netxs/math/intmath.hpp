@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cfenv>
 #include <cassert>
+#include <bit>
 
 #ifndef faux
     #define faux (false)
@@ -24,6 +25,7 @@ namespace netxs
     using si16 = int16_t;
     using si32 = int32_t;
     using si64 = int64_t;
+    using sz_t = ui32;
 
     static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
 
@@ -34,6 +36,132 @@ namespace netxs
     template <class T>
     using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si16>::max(), si16,
                         std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si32>::max(), si32, si64>>;
+
+    // intmath: Convert LE to host endianness.
+    template<class T>
+    constexpr void letoh(byte* buff, T& i)
+    {
+        if constexpr (std::is_same_v<T, ui32>
+                   || std::is_same_v<T, si32>)
+        {
+            i = (ui32)buff[0] <<  0 |
+                (ui32)buff[1] <<  8 |
+                (ui32)buff[2] << 16 |
+                (ui32)buff[3] << 24;
+        }
+        else if constexpr (std::is_same_v<T, ui64>
+                        || std::is_same_v<T, si64>)
+        {
+            i = (ui64)buff[0] <<  0 |
+                (ui64)buff[1] <<  8 |
+                (ui64)buff[2] << 16 |
+                (ui64)buff[3] << 24 |
+                (ui64)buff[4] << 32 |
+                (ui64)buff[5] << 40 |
+                (ui64)buff[6] << 48 |
+                (ui64)buff[7] << 56;
+        }
+        else if constexpr (std::is_same_v<T, ui16>
+                        || std::is_same_v<T, si16>)
+        {
+            i = (ui16)buff[0] << 0 |
+                (ui16)buff[1] << 8;
+        }
+    }
+    // intmath: Convert BE to host endianness.
+    template<class T>
+    constexpr void betoh(byte* buff, T& i)
+    {
+        if constexpr (std::is_same_v<T, ui32>
+                   || std::is_same_v<T, si32>)
+        {
+            i = (ui32)buff[3] <<  0 |
+                (ui32)buff[2] <<  8 |
+                (ui32)buff[1] << 16 |
+                (ui32)buff[0] << 24;
+        }
+        else if constexpr (std::is_same_v<T, ui64>
+                        || std::is_same_v<T, si64>)
+        {
+            i = (ui64)buff[7] <<  0 |
+                (ui64)buff[6] <<  8 |
+                (ui64)buff[5] << 16 |
+                (ui64)buff[4] << 24 |
+                (ui64)buff[3] << 32 |
+                (ui64)buff[2] << 40 |
+                (ui64)buff[1] << 48 |
+                (ui64)buff[0] << 56;
+        }
+        else if constexpr (std::is_same_v<T, ui16>
+                        || std::is_same_v<T, si16>)
+        {
+            i = (ui16)buff[1] << 0 |
+                (ui16)buff[0] << 8;
+        }
+    }
+    namespace
+    {
+        // intmath: Invert endianness.
+        template<class T>
+        constexpr auto _swap_bytes(T i)
+        {
+            T r;
+            if constexpr (std::is_same_v<T, ui32>
+                       || std::is_same_v<T, si32>)
+            {
+                auto n = static_cast<ui32>(i);
+                r = (n & 0x000000FF) << 24 |
+                    (n & 0x0000FF00) <<  8 |
+                    (n & 0x00FF0000) >>  8 |
+                    (n & 0xFF000000) >> 24;
+            }
+            else if constexpr (std::is_same_v<T, ui64>
+                            || std::is_same_v<T, si64>)
+            {
+                auto n = static_cast<ui64>(i);
+                r = (n & 0x00000000000000FF) << 56 |
+                    (n & 0x000000000000FF00) << 40 |
+                    (n & 0x0000000000FF0000) << 24 |
+                    (n & 0x00000000FF000000) <<  8 |
+                    (n & 0x000000FF00000000) >>  8 |
+                    (n & 0x0000FF0000000000) >> 24 |
+                    (n & 0x00FF000000000000) >> 40 |
+                    (n & 0xFF00000000000000) >> 56;
+            }
+            else if constexpr (std::is_same_v<T, ui16>
+                            || std::is_same_v<T, si16>)
+            {
+                auto n = static_cast<ui16>(i);
+                r = (n & 0x00FF) << 8 |
+                    (n & 0xFF00) >> 8;
+            }
+            return r;
+        }
+    }
+    // intmath: Convert LE to host endianness.
+    template<class T, bool BE = std::endian::native == std::endian::big>
+    constexpr auto letoh(T i)
+    {
+        if constexpr (BE) return _swap_bytes(i);
+        else              return i;
+    }
+    // intmath: Convert BE to host endianness.
+    template<class T, bool LE = std::endian::native == std::endian::little>
+    constexpr auto betoh(T i)
+    {
+        if constexpr (LE) return _swap_bytes(i);
+        else              return i;
+    }
+    // intmath: LE type wrapper. T has an LE format in memory.
+    template<class T>
+    class le_t
+    {
+        T data = {};
+
+    public:
+        void set(T const& v) { data = netxs::letoh(v); }
+        T    get() const     { return netxs::letoh(data); }
+    };
 
     // intmath: Summ and return TRUE in case of
     //          unsigned integer overflow and store result in accum.
@@ -150,7 +278,7 @@ namespace netxs
 
         auto operator () (type timer) const
         {
-            std::optional<twod> delta;
+            auto delta = std::optional<twod>{};
 
             if (auto t = timer - start; t >= 0)
             {
@@ -206,7 +334,7 @@ namespace netxs
 
         auto operator () (type timer) const
         {
-            std::optional<twod> delta;
+            auto delta = std::optional<twod>{};
 
             if (auto t = timer - start; t >= 0)
             {
@@ -251,7 +379,7 @@ namespace netxs
 
         auto operator () (type timer) const
         {
-            std::optional<twod> delta;
+            auto delta = std::optional<twod>{};
 
             if (auto t = timer - start; t >= 0)
             {
@@ -295,6 +423,47 @@ namespace netxs
         }
 
         return width;
+    }
+
+    // intmath: Fill the canvas by the stretched bitmap.
+    template<class T, class P>
+    void zoomin(T& canvas, T const& bitmap, P handle)
+    {
+        auto size1 = canvas.size();
+        auto size2 = bitmap.size();
+        auto data1 = canvas.data();
+        auto data2 = bitmap.data();
+        auto data3 = data2;
+        if (size1.x * size1.y == 0
+         || size2.x * size2.y == 0) return;
+
+        auto dot_11 = size1 / size1;
+        auto msize0 = size1 - dot_11;
+        auto msize1 = max(dot_11, msize0);
+        auto msize2 = size2 - dot_11;
+
+        auto y = 0;
+        auto h_line = [&]()
+        {
+            auto x = 0;
+            while (x != msize0.x)
+            {
+                auto xpos = x++ * msize2.x / msize1.x;
+                auto from = data3 + xpos;
+                handle(*data1++, *from);
+            }
+            auto ypos = ++y * msize2.y / msize1.y;
+            auto from = data3 + msize2.x;
+            handle(*data1++, *from);
+            data3 = data2 + ypos * size2.x;
+        };
+
+        while (y != msize0.y)
+        {
+            h_line();
+        }
+        data3 = data2 + msize2.y * size2.x;
+        h_line();
     }
 
     // intmath: Copy the bitmap to the bitmap by invoking
@@ -425,8 +594,11 @@ namespace netxs
         auto left = x1 - xmin;
         auto top  = y1 - ymin;
 
-        if ((dx == 0.0f && left < 0.0f) ||
-            (dy == 0.0f && top  < 0.0f)) return faux; // Line is parallel to rectangle.
+        if ((dx == 0.0f && left < 0.0f)
+         || (dy == 0.0f && top  < 0.0f))
+        {
+            return faux; // Line is parallel to rectangle.
+        }
 
         auto max = 0.0f;
         auto min = 1.0f;
@@ -549,11 +721,15 @@ namespace netxs
                 auto decr = [](auto& a){ --a; };
 
                 if (dy > 0)
+                {
                     if (dx > 0) line(p0, p1, incr, incr);
                     else        line(p0, p1, decr, incr);
+                }
                 else
+                {
                     if (dx > 0) line(p0, p1, incr, decr);
                     else        line(p0, p1, decr, decr);
+                }
             }
         };
 

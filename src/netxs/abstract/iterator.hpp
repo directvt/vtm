@@ -8,6 +8,14 @@
 
 namespace netxs
 {
+    template<class SRC, class DST, class P>
+    void copy_until(SRC iter, SRC tail, DST dest, P pred)
+    {
+        while (iter != tail && pred(*iter))
+        {
+            *dest++ = *iter++;
+        }
+    }
     // iterator: Search an item in the container for which the predicate(item) is true.
     template <class T, class P>
     auto search(T&& iterable, P predicate)

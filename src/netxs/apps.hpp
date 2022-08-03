@@ -4,7 +4,11 @@
 #ifndef NETXS_APPS_HPP
 #define NETXS_APPS_HPP
 
+
+#define APPS_DEL_TIMEOUT 1s
+
 #include "ui/controls.hpp"
+#include "text/xml.hpp"
 
 namespace netxs::app
 {
@@ -21,42 +25,73 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    #define TYPE_LIST                                                                                                 \
-    X(Term         , "Term"                  , ("Term")                                                        , "" ) \
-    X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
-    X(Calc         , "Calc"                  , (ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled 1.ods"))  , "" ) \
-    X(Gems         , "Gems"                  , ("Desktopio App Manager (Demo)")                                         , "" ) \
-    X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
-    X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
-    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"Term\" ,\"\"), a(\"Term\" ,\"Term\" ,\"\"))" ) \
-    X(Settings     , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
-    X(PowerShell   , "PowerShell"            , ("Term \nPowerShell")                                           , "" ) \
-    X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
-    X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
-    X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
-    X(Truecolor    , "Truecolor image"       , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
-    X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
-    X(Test         , "Test Window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
-    X(Empty        , "Empty Window"          , (ansi::add("Empty Instance \nid: "))                            , "" )
+    static constexpr auto default_config = R"==(
+<config selected=Term>
+    <defaults index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0x0 wincoor=0x0 />
+    <splitter label="apps" notes=" Default applications group                         \n It can be configured in ~/.config/vtm/settings.xml "/>
+    <menuitem id=Term label="Term" notes="Run built-in terminal emulator" type=DirectVT title="Terminal Emulator" param="$0 -r term"/>
+)=="
+#ifdef _WIN32
+R"==(
+    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
+    <menuitem id=Far label="Far" title="Far Manager" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>
+)=="
+#else
+R"==(
+    <menuitem id=mc label="mc" title="Midnight Commander" notes="Run Midnight Commander in its own window (if it is installed)" type=SHELL param="mc"/>
+)=="
+#endif
+R"==(
+    <menuitem id=Tile label="Tile" notes="Run Tiling Window Manager with two terminals attached" type=Group title="Tiling Window Manager" param="h1:1(Term, Term)"/>
+    <menuitem id=View label=View notes="Set desktop region" type=Region title="\e[11:3pView: Region"/>"
+    <menuitem id=Settings  label=Settings winsize=50x15 notes="Configure frame rate" type=DirectVT title="Settings"   param="$0 -r settings"/>
+    <menuitem id=Logs      label=Logs                   notes="Run Logs application" type=DirectVT title="Logs Title" param="$0 -r logs"/>
+    <splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/>
+    <menuitem id=Gems      label="Gems"      notes=" App Distribution Hub "   type=DirectVT title="Gems Title" param="$0 -r gems"/>
+    <menuitem id=Text      label="Text"      notes=" Text Editor "            type=DirectVT title="Text Title" param="$0 -r text"/>
+    <menuitem id=Calc      label="Calc"      notes=" Spreadsheet Calculator " type=DirectVT title="Calc Title" param="$0 -r calc"/>
+    <menuitem id=Test      label="Test"      notes=" Test Page "              type=DirectVT title="Test Title" param="$0 -r test"/>
+    <menuitem id=Truecolor label="Truecolor" notes=" Truecolor Test "         type=DirectVT title="True Title" param="$0 -r truecolor"/>
+</config>
+)==";
 
-    struct menu_item
-    {
-        text group;
-        text label;
-        text title;
-        text param;
-        bool fixed = true;
-    };
+    static constexpr auto path_settings = ".config/vtm/settings.xml";
 
-    //todo temp
-    #define X(a, b, c, d) { #a, b },
-    std::map<text, text> objs_lookup{ TYPE_LIST };
-    #undef X
+    static constexpr auto type_ANSIVT   = "ansivt";
+    static constexpr auto type_DirectVT = "directvt";
+    static constexpr auto type_SHELL    = "shell";
+    static constexpr auto type_Group    = "group";
+    static constexpr auto type_Region   = "region";
+    static constexpr auto type_Desk     = "desk";
+    static constexpr auto type_Fone     = "fone";
+    static constexpr auto type_Headless = "headless";
 
-    #define X(a, b, c, d) { b, { #a, b, c, d} },
-    netxs::imap<text, menu_item> objs_config{ TYPE_LIST };
-    #undef X
-    #undef TYPE_LIST
+    static constexpr auto attr_id       = "id";
+    static constexpr auto attr_index    = "index";
+    static constexpr auto attr_alias    = "alias";
+    static constexpr auto attr_hidden   = "hidden";
+    static constexpr auto attr_label    = "label";
+    static constexpr auto attr_notes    = "notes";
+    static constexpr auto attr_title    = "title";
+    static constexpr auto attr_footer   = "footer";
+    static constexpr auto attr_bgcolor  = "bgcolor";
+    static constexpr auto attr_fgcolor  = "fgcolor";
+    static constexpr auto attr_winsize  = "winsize";
+    static constexpr auto attr_wincoor  = "wincoor";
+    static constexpr auto attr_slimmenu = "slimmenu";
+    static constexpr auto attr_hotkey   = "hotkey";
+    static constexpr auto attr_type     = "type";
+    static constexpr auto attr_cwd      = "cwd";
+    static constexpr auto attr_param    = "param";
+    static constexpr auto attr_selected = "selected";
+
+    static constexpr auto tag_profile  = "VTM_CONFIG";
+    static constexpr auto tag_config   = "config";
+    static constexpr auto tag_autorun  = "autorun";
+    static constexpr auto tag_settings = "settings";
+    static constexpr auto tag_splitter = "splitter";
+    static constexpr auto tag_defaults = "defaults";
+    static constexpr auto tag_menuitem = "menuitem";
 
     using menu_item_type = std::tuple<bool, text, text, std::function<void(ui::pads&)>>;
     using menu_list_type = std::list<menu_item_type>;
@@ -75,6 +110,7 @@ namespace netxs::app::shared
     auto const action_color      = tint::greenlt ;
     auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
 
+    const static auto cA = cell{}.bgc(0x0).fgc(blacklt);
     const static auto c9 = cell{}.bgc(0xFFffffff).fgc(0xFF000000);
     const static auto c8 = cell{}.bgc(0x00).fgc(highlight_color);
     const static auto x8 = cell{ c8 }.bga(0x00).fga(0x00);
@@ -110,7 +146,28 @@ namespace netxs::app::shared
         }
         return type;
     };
-
+    const auto closing_on_quit = [](auto& boss)
+    {
+        boss.SUBMIT(tier::anycast, e2::form::quit, item)
+        {
+            boss.base::template riseup<tier::release>(e2::form::quit, item);
+        };
+    };
+    const auto closing_by_gesture = [](auto& boss)
+    {
+        boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+        {
+            auto backup = boss.This();
+            boss.base::template riseup<tier::release>(e2::form::quit, backup);
+            gear.dismiss();
+        };
+        boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+        {
+            auto backup = boss.This();
+            boss.base::template riseup<tier::release>(e2::form::quit, backup);
+            gear.dismiss();
+        };
+    };
     const auto app_limit = [](auto boss, text title)
     {
         log("app_limit: max count reached");
@@ -181,7 +238,7 @@ namespace netxs::app::shared
                         ->active();
             auto inner_pads = dent{ 1,2,1,1 };
             auto menu_list = menu_area->attach(slot::_1, ui::fork::ctor());
-                                        
+
                 menu_list->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
                          ->plugin<pro::fader>(x3, c3, 150ms)
                          ->plugin<pro::notes>(" Maximize/restore window ")
@@ -272,8 +329,9 @@ namespace netxs::app::shared
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::menusize, size)
+                boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::ui::slimmenu, slim)
                 {
+                    auto size = slim ? 1 : 3;
                     if (auto park_ptr = park_shadow.lock())
                     if (auto grip_ptr = grip_shadow.lock())
                     if (auto boss_ptr = boss_shadow.lock())
@@ -297,16 +355,18 @@ namespace netxs::app::shared
                 };
                 //todo revise
                 if (menu_items.size()) // Show scrolling hint only if elements exist.
-                boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
                 {
-                    if (auto park_ptr = park_shadow.lock())
-                    if (auto grip_ptr = grip_shadow.lock())
-                    if (auto boss_ptr = boss_shadow.lock())
+                    boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
                     {
-                        park_ptr->visible(grip_ptr, active);
-                        boss_ptr->base::deface();
-                    }
-                };
+                        if (auto park_ptr = park_shadow.lock())
+                        if (auto grip_ptr = grip_shadow.lock())
+                        if (auto boss_ptr = boss_shadow.lock())
+                        {
+                            park_ptr->visible(grip_ptr, active);
+                            boss_ptr->base::deface();
+                        }
+                    };
+                }
             });
         menu_block->attach(snap::stretch, snap::center, menu_area);
 
@@ -337,7 +397,8 @@ namespace netxs::app::shared
             ->template plugin<pro::align>()
             ->invoke([&](auto& boss)
             {
-                boss.kind(base::reflow_root); //todo unify -- See base::reflow()
+                boss.keybd.active();
+                boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
                 auto shadow = ptr::shadow(boss.This());
                 boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
                 {
@@ -362,26 +423,29 @@ namespace netxs::app::shared
                 };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    auto& area = boss.base::area();
-                    if (!area.size.inside(gear.coord))
+                    auto area = boss.base::area();
+                    auto home = rect{ -dot_21, area.size + dot_21 * 2}; // Including resizer grips.
+                    if (!home.hittest(gear.coord))
                     {
                         auto center = area.coor + (area.size / 2);
-                        bell::getref(gear.id)->SIGNAL(tier::release, e2::form::layout::shift, center);
+                        gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
+                        boss.base::deface();
                     }
-                    boss.base::deface();
                 };
                 boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
                 {
+                    boss.mouse.reset();
                     boss.base::detach(); // The object kills itself.
                 };
                 boss.SUBMIT(tier::release, e2::form::quit, nested_item)
                 {
+                    boss.mouse.reset();
                     if (nested_item) boss.base::detach(); // The object kills itself.
                 };
                 boss.SUBMIT(tier::release, e2::dtor, p)
                 {
                     auto start = tempus::now();
-                    auto counter = decltype(e2::cleanup)::type{};
+                    auto counter = e2::cleanup.param();
                     SIGNAL_GLOBAL(e2::cleanup, counter);
                     auto stop = tempus::now() - start;
                     log("host: garbage collection",
@@ -393,29 +457,73 @@ namespace netxs::app::shared
             });
     };
 
-    using builder_t = std::function<sptr<base>(view)>;
+    using builder_t = std::function<sptr<base>(text, text)>;
 
     auto& get_creator()
     {
         static std::map<text, builder_t> creator_inst;
         return creator_inst;
     }
-    auto& creator(view app_typename)
+    auto& get_selected()
+    {
+        static text selected;
+        return selected;
+    }
+    auto& configs()
+    {
+        auto world_ptr = e2::config::whereami.param();
+        SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+        auto conf_list_ptr = e2::bindings::list::links.param();
+        world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
+        auto& conf_list = *conf_list_ptr;
+        return conf_list;
+    }
+    auto& creator(text app_typename)
     {
         static builder_t empty =
-        [](view) -> sptr<base>
+        [&](text, text) -> sptr<base>
         {
-            //todo make a banner
-            return ui::cake::ctor();
+            auto window = ui::cake::ctor()
+                ->invoke([&](auto& boss)
+                {
+                    closing_on_quit(boss);
+                    closing_by_gesture(boss);
+                    boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                    {
+                        auto title = "error"s;
+                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                    };
+                });
+            auto msg = ui::post::ctor()
+                  ->colors(whitelt, rgba{ 0x7F404040 })
+                  ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                  + "\n\nUsupported application type\n\n"
+                  + ansi::nil().wrp(wrap::on)
+                  + "Only the following application types are supported\n\n"
+                  + ansi::nil().wrp(wrap::off).fgc(whitedk)
+                  + "   type = DirectVT \n"
+                    "   type = ANSIVT   \n"
+                    "   type = SHELL    \n"
+                    "   type = Group    \n"
+                    "   type = Region   \n\n"
+                  + ansi::nil().wrp(wrap::on).fgc(whitelt)
+                  + "apps: See logs for details."
+                  );
+            auto placeholder = ui::park::ctor()
+                  ->colors(whitelt, rgba{ 0x7F404040 })
+                  ->attach(snap::stretch, snap::stretch, msg);
+            window->attach(ui::rail::ctor())
+                  ->attach(placeholder);
+            return window;
         };
-        auto key = text{ app_typename };
         auto& map = get_creator();
-        const auto it = map.find(key);
+        const auto it = map.find(app_typename);
         if (it == map.end())
-            //return map["Empty"];
+        {
+            log("apps: unknown app type - '", app_typename, "'");
             return empty;
-        else
-            return it->second;
+        }
+        else return it->second;
     }
     struct initialize
     {
@@ -424,6 +532,43 @@ namespace netxs::app::shared
             app::shared::get_creator()[text{ app_typename }] = builder;
         }
     };
+
+    auto start(text app_name, text log_title, si32 vtmode, si32 maxfps, si32 menusz)
+    {
+        auto direct = !!(vtmode & os::legacy::direct);
+        if (!direct) os::start_log(log_title);
+
+        auto config = console::conf(vtmode);
+        auto tunnel = os::ipc::local(vtmode);
+
+        auto cons = os::tty::proxy(tunnel.second);
+        auto size = cons.ignite(vtmode);
+        if (!size.last) return faux;
+
+        auto ground = base::create<host>(tunnel.first, maxfps);
+        auto runapp = [&]()
+        {
+            auto aclass = utf::cutoff(app_name, ' ');
+            utf::to_low(aclass);
+            auto params = utf::remain(app_name, ' ');
+            auto applet = app::shared::creator(aclass)("", (direct ? "" : "!") + params); // ! - means simple (w/o plugins)
+            auto window = ground->invite<gate>(config);
+            window->resize(size);
+            window->launch(tunnel.first, applet);
+            window.reset();
+            applet.reset();
+            ground->shutdown();
+        };
+
+        if (direct) runapp();
+        else
+        {
+            auto thread = std::thread{ [&](){ os::ipc::splice(cons, vtmode); }};
+            runapp();
+            thread.join();
+        }
+        return true;
+    }
 }
 
 #include "apps/term.hpp"
@@ -435,27 +580,13 @@ namespace netxs::app::shared
 #include "apps/test.hpp"
 #include "apps/desk.hpp"
 
+#include <fstream>
+
 namespace netxs::app::shared
 {
     namespace
     {
-        auto closing_by_gesture = [](auto& boss)
-        {
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-            {
-                auto backup = boss.This();
-                boss.base::template riseup<tier::release>(e2::form::quit, backup);
-                gear.dismiss();
-            };
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-            {
-                auto backup = boss.This();
-                boss.base::template riseup<tier::release>(e2::form::quit, backup);
-                gear.dismiss();
-            };
-        };
-
-        auto build_Strobe        = [](view v)
+        auto build_Strobe        = [](text cwd, text v)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
@@ -464,10 +595,11 @@ namespace netxs::app::shared
                                 {
                                     boss.keybd.accept(true);
                                     closing_by_gesture(boss);
+                                    closing_on_quit(boss);
                                 })
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
-            bool stobe_state = true;
+            auto stobe_state = true;
             strob->SUBMIT_BYVAL(tier::general, e2::timer::any, now)
             {
                 stobe_state = !stobe_state;
@@ -479,22 +611,29 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](view v)
+        auto build_Settings      = [](text cwd, text v)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
                   ->plugin<pro::cache>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
-                  ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
+                  ->attach(ui::stem_rate<tier::preview, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)
                   {
-                      boss.keybd.accept(true);
-                      closing_by_gesture(boss);
+                        boss.keybd.accept(true);
+                        closing_by_gesture(boss);
+                        closing_on_quit(boss);
+                        boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
+                        {
+                            auto deed = boss.bell::template protos<tier::anycast>();
+                                 if (deed == e2::form::prop::colors::bg.id) boss.base::color(boss.base::color().fgc(), clr);
+                            else if (deed == e2::form::prop::colors::fg.id) boss.base::color(clr, boss.base::color().bgc());
+                        };
                   });
             return window;
         };
-        auto build_Empty         = [](view v)
+        auto build_Empty         = [](text cwd, text v)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -505,6 +644,7 @@ namespace netxs::app::shared
                   {
                       boss.keybd.accept(true);
                       closing_by_gesture(boss);
+                      closing_on_quit(boss);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           auto title = ansi::add("Empty Instance \nid: ", parent->id);
@@ -515,7 +655,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_View          = [](view v)
+        auto build_Region        = [](text cwd, text v)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -523,23 +663,21 @@ namespace netxs::app::shared
                         //todo reimplement (tiling/window)
                         //boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                         //{
-                        //    auto outer = decltype(e2::config::plugins::sizer::outer)::type{};
+                        //    auto outer = e2::config::plugins::sizer::outer.param();
                         //    boss.base::template riseup<tier::request>(e2::config::plugins::sizer::outer, outer);
                         //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
                         //    if (actual_rect.hittest(gear.coord))
                         //    {
-                        //        if (auto gate_ptr = bell::getref(gear.id))
-                        //        {
-                        //            rect viewport;
-                        //            gate_ptr->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                        //            boss.base::extend(viewport);
-                        //        }
+                        //        rect viewport;
+                        //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                        //        boss.base::extend(viewport);
                         //        gear.dismiss();
                         //    }
                         //};
+                        closing_on_quit(boss);
                         boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas)
                         {
-                            rgba title_fg_color = 0xFFffffff;
+                            auto title_fg_color = rgba{ 0xFFffffff };
                             auto area = parent_canvas.full();
                             auto mark = skin::color(tone::shadower);
                             mark.fgc(title_fg_color).link(boss.bell::id);
@@ -560,7 +698,7 @@ namespace netxs::app::shared
                             static auto i = 0; i++;
                             auto title = ansi::add("View\nRegion ", i);
                             boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
-                            
+
                             auto outer = dent{ 2,2,1,1 };
                             auto inner = dent{ -4,-4,-2,-2 };
                             boss.base::template riseup<tier::release>(e2::config::plugins::sizer::outer, outer);
@@ -569,39 +707,36 @@ namespace netxs::app::shared
                             boss.base::template riseup<tier::preview>(e2::form::prop::zorder, Z_order::backmost);
                             parent.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                             {
-                                if (auto gate_ptr = bell::getref(gear.id))
+                                auto old_title = e2::form::prop::ui::header.param();
+                                boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
+
+                                auto data = text{};
+                                gear.get_clip_data(data);
+
+                                if (utf::is_plain(data)) // Reset aligning to the center if text is plain.
                                 {
-                                    auto old_title = decltype(e2::form::prop::ui::header)::type{};
-                                    boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
+                                    auto align = ansi::jet(bias::center);
+                                    boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, align);
+                                }
+                                // Copy clipboard data to title.
+                                auto title = e2::form::prop::ui::header.param(data);
+                                boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                                gear.dismiss();
 
-                                    auto data = decltype(e2::command::clipboard::get)::type{};
-                                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
-
-                                    if (utf::is_plain(data)) // Reset aligning to the center if text is plain.
-                                    {
-                                        auto align = ansi::jet(bias::center);
-                                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, align);
-                                    }
-                                    // Copy clipboard data to title.
-                                    auto title = decltype(e2::form::prop::ui::header)::type{ data };
-                                    boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
-                                    gear.dismiss();
-
-                                    if (old_title.size()) // Copy old title to clipboard.
-                                    {
-                                        gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, old_title);
-                                    }
+                                if (old_title.size()) // Copy old title to clipboard.
+                                {
+                                    gear.set_clip_data(dot_00, old_title);
                                 }
                             };
                         };
                     });
             return window;
         };
-        auto build_Truecolor     = [](view v)
+        auto build_Truecolor     = [](text cwd, text v)
         {
             #pragma region samples
                 //todo put all ansi art into external files
-                text r_grut00 = ansi::wrp(wrap::off).rlf(feed::fwd).jet(bias::center).add(
+                auto r_grut00 = ansi::wrp(wrap::off).rlf(feed::fwd).jet(bias::center).add(
                     "\033[0m\033[s"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m\033[38;2;1;1;1m▄\033[48;2;0;0;0m\033[38;2;9;8;8m▄\033[48;2;0;0;0m\033[38;2;20;17;15m▄\033[48;2;0;0;0m\033[38;2;19;16;13m▄\033[48;2;0;0;0m\033[38;2;7;6;5m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
@@ -614,7 +749,7 @@ namespace netxs::app::shared
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;14;13;12m\033[38;2;19;17;15m▄\033[48;2;82;67;55m\033[38;2;94;74;58m▄\033[48;2;104;88;74m\033[38;2;115;94;76m▄\033[48;2;88;78;68m\033[38;2;95;82;71m▄\033[48;2;81;69;63m\033[38;2;87;74;66m▄\033[48;2;91;79;73m\033[38;2;90;78;72m▄\033[48;2;108;94;86m\033[38;2;105;91;84m▄\033[48;2;112;97;90m\033[38;2;115;100;92m▄\033[48;2;110;96;88m\033[38;2;114;100;92m▄\033[48;2;109;94;85m\033[38;2;107;93;86m▄\033[48;2;115;101;91m\033[38;2;108;94;86m▄\033[48;2;120;103;89m\033[38;2;116;101;90m▄\033[48;2;116;93;72m\033[38;2;127;107;87m▄\033[48;2;70;56;45m\033[38;2;103;79;61m▄\033[48;2;14;13;12m\033[38;2;38;33;29m▄\033[48;2;0;0;0m\033[38;2;2;2;2m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;4;4;4m\033[38;2;12;12;12m▄\033[48;2;48;40;34m\033[38;2;81;62;47m▄\033[48;2;118;87;64m\033[38;2;131;100;74m▄\033[48;2;106;87;70m\033[38;2;93;79;67m▄\033[48;2;77;68;60m\033[38;2;69;61;56m▄\033[48;2;70;62;57m\033[38;2;65;58;53m▄\033[48;2;67;59;56m\033[38;2;62;55;49m▄\033[48;2;75;68;63m\033[38;2;75;68;62m▄\033[48;2;90;82;77m\033[38;2;93;84;78m▄\033[48;2;91;81;76m\033[38;2;98;84;79m▄\033[48;2;113;99;91m\033[38;2;112;98;91m▄\033[48;2;118;103;95m\033[38;2;118;102;95m▄\033[48;2;128;110;100m\033[38;2;123;106;99m▄\033[48;2;146;124;108m\033[38;2;149;127;110m▄\033[48;2;154;124;100m\033[38;2;153;124;100m▄\033[48;2;86;66;50m\033[38;2;108;83;63m▄\033[48;2;13;13;12m\033[38;2;21;19;17m▄\033[48;2;0;0;0m\033[38;2;1;1;1m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;1;1;1m \033[48;2;25;22;19m\033[38;2;29;26;23m▄\033[48;2;104;83;66m\033[38;2;107;85;67m▄\033[48;2;121;98;78m\033[38;2;124;99;79m▄\033[48;2;110;94;79m\033[38;2;102;86;73m▄\033[48;2;86;73;65m\033[38;2;92;78;69m▄\033[48;2;90;77;71m\033[38;2;93;80;72m▄\033[48;2;101;87;80m\033[38;2;94;80;73m▄\033[48;2;119;103;95m\033[38;2;113;96;88m▄\033[48;2;121;106;99m\033[38;2;122;107;99m▄\033[48;2;109;94;87m\033[38;2;116;101;94m▄\033[48;2;107;94;86m\033[38;2;107;93;85m▄\033[48;2;102;87;79m\033[38;2;110;94;86m▄\033[48;2;123;105;90m\033[38;2;127;107;93m▄\033[48;2;116;90;69m\033[38;2;134;106;83m▄\033[48;2;69;56;47m\033[38;2;97;72;53m▄\033[48;2;10;9;9m\033[38;2;33;30;27m▄\033[48;2;0;0;0m\033[38;2;1;1;0m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;2;2;2m\033[38;2;8;8;8m▄\033[48;2;36;31;27m\033[38;2;67;52;42m▄\033[48;2;107;81;61m\033[38;2;123;93;70m▄\033[48;2;136;107;82m\033[38;2;138;111;88m▄\033[48;2;86;73;64m\033[38;2;91;78;65m▄\033[48;2;60;53;49m\033[38;2;62;55;50m▄\033[48;2;61;54;49m\033[38;2;64;55;50m▄\033[48;2;68;60;54m\033[38;2;65;55;51m▄\033[48;2;78;69;63m\033[38;2;81;70;64m▄\033[48;2;87;76;70m\033[38;2;84;71;64m▄\033[48;2;104;91;84m\033[38;2;95;81;74m▄\033[48;2;102;85;79m\033[38;2;106;87;81m▄\033[48;2;121;102;96m\033[38;2;128;108;101m▄\033[48;2;129;111;104m\033[38;2;135;117;109m▄\033[48;2;142;124;109m\033[38;2;133;116;103m▄\033[48;2;146;121;97m\033[38;2;136;114;95m▄\033[48;2;122;95;74m\033[38;2;129;103;82m▄\033[48;2;32;27;24m\033[38;2;43;36;31m▄\033[48;2;1;1;1m\033[38;2;3;3;3m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "");
-                text r_grut01 = ""\
+                auto r_grut01 = text{} + ""\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;1;1;1m\033[38;2;2;2;2m▄\033[48;2;35;30;26m\033[38;2;38;33;28m▄\033[48;2;114;90;71m\033[38;2;116;94;73m▄\033[48;2;127;101;80m\033[38;2;128;103;81m▄\033[48;2;103;85;73m\033[38;2;116;95;79m▄\033[48;2;93;79;69m\033[38;2;94;80;69m▄\033[48;2;91;78;71m\033[38;2;87;73;66m▄\033[48;2;94;80;73m\033[38;2;92;76;69m▄\033[48;2;111;93;84m\033[38;2;105;87;79m▄\033[48;2;128;108;97m\033[38;2;130;109;98m▄\033[48;2;124;106;98m\033[38;2;135;113;104m▄\033[48;2;127;109;102m\033[38;2;139;118;109m▄\033[48;2;111;92;85m\033[38;2;119;99;88m▄\033[48;2;127;105;93m\033[38;2;128;106;91m▄\033[48;2;148;120;97m\033[38;2;147;120;99m▄\033[48;2;123;93;69m\033[38;2;130;100;77m▄\033[48;2;76;64;54m\033[38;2;98;73;56m▄\033[48;2;12;12;11m\033[38;2;50;46;42m▄\033[48;2;0;0;0m\033[38;2;5;5;4m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m\033[38;2;1;1;1m▄\033[48;2;3;3;3m\033[38;2;19;18;17m▄\033[48;2;34;30;27m\033[38;2;73;60;49m▄\033[48;2;102;78;60m\033[38;2;119;89;65m▄\033[48;2;136;105;80m\033[38;2;135;106;80m▄\033[48;2;141;116;92m\033[38;2;142;118;95m▄\033[48;2;99;85;72m\033[38;2;110;95;81m▄\033[48;2;69;60;55m\033[38;2;77;67;59m▄\033[48;2;63;54;50m\033[38;2;67;57;51m▄\033[48;2;66;56;51m\033[38;2;67;56;51m▄\033[48;2;77;64;58m\033[38;2;75;62;56m▄\033[48;2;89;75;68m\033[38;2;90;75;68m▄\033[48;2;95;79;71m\033[38;2;94;76;69m▄\033[48;2;116;96;89m\033[38;2;120;99;92m▄\033[48;2;130;108;100m\033[38;2;134;111;103m▄\033[48;2;135;116;108m\033[38;2;132;115;106m▄\033[48;2;135;118;104m\033[38;2;133;116;104m▄\033[48;2;127;108;92m\033[38;2;133;113;96m▄\033[48;2;134;109;88m\033[38;2;143;117;93m▄\033[48;2;55;44;36m\033[38;2;63;50;41m▄\033[48;2;5;5;5m\033[38;2;6;6;6m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;2;2;2m\033[38;2;1;1;1m▄\033[48;2;38;33;28m\033[38;2;36;30;26m▄\033[48;2;118;95;74m\033[38;2;118;93;72m▄\033[48;2;124;100;80m\033[38;2;127;103;81m▄\033[48;2;120;99;82m\033[38;2;109;89;74m▄\033[48;2;102;86;73m\033[38;2;102;87;74m▄\033[48;2;88;74;66m\033[38;2;90;77;67m▄\033[48;2;87;73;65m\033[38;2;80;66;59m▄\033[48;2;100;82;74m\033[38;2;92;75;68m▄\033[48;2;116;94;86m\033[38;2;109;86;79m▄\033[48;2;141;116;105m\033[38;2;127;100;92m▄\033[48;2;144;120;110m\033[38;2;141;114;104m▄\033[48;2;128;106;92m\033[38;2;141;117;100m▄\033[48;2;129;105;86m\033[38;2;141;117;95m▄\033[48;2;137;111;89m\033[38;2;129;104;81m▄\033[48;2;121;93;71m\033[38;2;110;84;64m▄\033[48;2;103;75;55m\033[38;2;99;73;54m▄\033[48;2;94;76;62m\033[38;2;111;82;63m▄\033[48;2;40;38;35m\033[38;2;95;79;68m▄\033[48;2;3;3;3m\033[38;2;29;28;26m▄\033[48;2;0;0;0m\033[38;2;2;2;1m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m\033[38;2;9;9;8m▄\033[48;2;14;13;12m\033[38;2;59;50;43m▄\033[48;2;65;57;50m\033[38;2;107;83;67m▄\033[48;2;105;82;64m\033[38;2;106;78;59m▄\033[48;2;116;86;62m\033[38;2;105;80;60m▄\033[48;2;123;98;75m\033[38;2;113;90;69m▄\033[48;2;137;116;93m\033[38;2;107;89;72m▄\033[48;2;119;102;86m\033[38;2;126;109;95m▄\033[48;2;93;80;70m\033[38;2;115;100;86m▄\033[48;2;81;69;60m\033[38;2;86;70;60m▄\033[48;2;67;56;50m\033[38;2;62;48;44m▄\033[48;2;70;56;51m\033[38;2;59;45;42m▄\033[48;2;75;60;55m\033[38;2;69;54;50m▄\033[48;2;94;75;69m\033[38;2;89;70;65m▄\033[48;2;117;94;88m\033[38;2;114;92;86m▄\033[48;2;131;110;102m\033[38;2;126;106;97m▄\033[48;2;131;115;105m\033[38;2;136;119;108m▄\033[48;2;138;121;107m\033[38;2;153;134;118m▄\033[48;2;150;128;105m\033[38;2;153;129;106m▄\033[48;2;150;123;96m\033[38;2;146;119;92m▄\033[48;2;65;52;42m\033[38;2;60;48;39m▄\033[48;2;7;7;7m\033[38;2;6;6;6m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;1;1;1m\033[38;2;1;1;0m▄\033[48;2;32;27;24m\033[38;2;25;22;19m▄\033[48;2;118;92;70m\033[38;2;112;88;67m▄\033[48;2;134;106;82m\033[38;2;140;109;83m▄\033[48;2;118;93;76m\033[38;2;127;100;80m▄\033[48;2;99;83;71m\033[38;2;101;85;71m▄\033[48;2;92;78;69m\033[38;2;90;78;68m▄\033[48;2;74;60;54m\033[38;2;72;59;52m▄\033[48;2;80;63;57m\033[38;2;69;52;48m▄\033[48;2;103;81;74m\033[38;2;89;69;63m▄\033[48;2;121;94;87m\033[38;2;117;90;83m▄\033[48;2;135;106;96m\033[38;2;137;108;97m▄\033[48;2;147;121;105m\033[38;2;142;115;101m▄\033[48;2;148;127;105m\033[38;2;139;116;96m▄\033[48;2;127;104;83m\033[38;2;127;103;82m▄\033[48;2;105;80;61m\033[38;2;131;100;74m▄\033[48;2;99;72;55m\033[38;2;144;105;76m▄\033[48;2;125;90;68m\033[38;2;173;130;94m▄\033[48;2;130;97;75m\033[38;2;167;123;90m▄\033[48;2;76;63;53m\033[38;2;127;94;71m▄\033[48;2;12;11;11m\033[38;2;60;51;44m▄\033[48;2;0;0;0m\033[38;2;16;16;15m▄\033[48;2;0;0;0m\033[38;2;4;4;4m▄\033[48;2;0;0;0m\033[38;2;3;3;3m▄\033[48;2;0;0;0m\033[38;2;3;3;2m▄\033[48;2;0;0;0m\033[38;2;3;2;2m▄\033[48;2;0;0;0m\033[38;2;3;2;2m▄\033[48;2;0;0;0m\033[38;2;3;3;3m▄\033[48;2;0;0;0m\033[38;2;3;3;3m▄\033[48;2;0;0;0m\033[38;2;4;4;4m▄\033[48;2;0;0;0m\033[38;2;6;6;6m▄\033[48;2;0;0;0m\033[38;2;9;8;7m▄\033[48;2;0;0;0m\033[38;2;13;12;11m▄\033[48;2;0;0;0m\033[38;2;24;22;20m▄\033[48;2;4;4;4m\033[38;2;54;49;42m▄\033[48;2;43;40;37m\033[38;2;134;106;82m▄\033[48;2;128;96;73m\033[38;2;182;136;98m▄\033[48;2;143;107;82m\033[38;2;187;140;101m▄\033[48;2;121;90;70m\033[38;2;165;125;91m▄\033[48;2;98;74;58m\033[38;2;119;91;71m▄\033[48;2;98;78;61m \033[48;2;110;93;77m\033[38;2;96;79;63m▄\033[48;2;139;124;109m\033[38;2;128;111;93m▄\033[48;2;126;110;95m\033[38;2;132;113;94m▄\033[48;2;85;68;59m\033[38;2;95;77;66m▄\033[48;2;58;44;40m\033[38;2;61;46;43m▄\033[48;2;57;43;40m\033[38;2;58;45;42m▄\033[48;2;66;50;47m\033[38;2;68;50;49m▄\033[48;2;85;64;61m\033[38;2;86;65;63m▄\033[48;2;111;88;83m\033[38;2;105;82;78m▄\033[48;2;121;101;93m\033[38;2;112;95;86m▄\033[48;2;136;120;108m\033[38;2;131;114;99m▄\033[48;2;152;132;114m\033[38;2;159;133;109m▄\033[48;2;157;130;104m\033[38;2;161;128;99m▄\033[48;2;144;118;92m\033[38;2;131;105;80m▄\033[48;2;52;44;37m\033[38;2;43;39;34m▄\033[48;2;4;5;4m\033[38;2;3;3;2m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
@@ -629,7 +764,7 @@ namespace netxs::app::shared
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;11;11;10m\033[38;2;10;9;9m▄\033[48;2;91;80;71m\033[38;2;86;72;62m▄\033[48;2;107;70;51m\033[38;2;126;86;62m▄\033[48;2;139;94;66m\033[38;2;141;95;67m▄\033[48;2;174;124;85m\033[38;2;170;118;82m▄\033[48;2;183;133;92m\033[38;2;175;124;85m▄\033[48;2;144;105;78m\033[38;2;145;101;73m▄\033[48;2;139;118;101m\033[38;2;179;142;112m▄\033[48;2;52;50;49m\033[38;2;152;127;106m▄\033[48;2;49;43;41m\033[38;2;108;90;76m▄\033[48;2;55;45;41m\033[38;2;97;81;70m▄\033[48;2;61;51;47m\033[38;2;126;100;80m▄\033[48;2;104;79;64m\033[38;2;141;108;83m▄\033[48;2;152;113;87m\033[38;2;138;105;83m▄\033[48;2;149;112;85m\033[38;2;132;101;78m▄\033[48;2;133;99;77m\033[38;2;131;100;77m▄\033[48;2;128;97;74m\033[38;2;123;93;70m▄\033[48;2;126;96;73m\033[38;2;114;84;62m▄\033[48;2;120;90;67m\033[38;2;108;81;62m▄\033[48;2;112;83;62m\033[38;2;91;69;54m▄\033[48;2;102;75;56m\033[38;2;91;69;55m▄\033[48;2;98;71;54m\033[38;2;94;70;55m▄\033[48;2;100;73;54m\033[38;2;95;69;53m▄\033[48;2;105;76;55m\033[38;2;97;70;51m▄\033[48;2;107;78;57m\033[38;2;96;69;50m▄\033[48;2;76;56;44m\033[38;2;98;71;52m▄\033[48;2;54;42;35m\033[38;2;79;58;44m▄\033[48;2;53;41;33m\033[38;2;68;51;40m▄\033[48;2;52;42;36m\033[38;2;75;57;46m▄\033[48;2;46;39;37m\033[38;2;81;65;54m▄\033[48;2;45;41;39m\033[38;2;92;76;63m▄\033[48;2;53;48;44m\033[38;2;102;85;71m▄\033[48;2;60;52;49m\033[38;2;138;116;97m▄\033[48;2;82;72;64m\033[38;2;136;111;90m▄\033[48;2;94;76;61m\033[38;2;135;108;84m▄\033[48;2;103;82;62m\033[38;2;114;87;64m▄\033[48;2;101;76;57m\033[38;2;100;74;55m▄\033[48;2;80;57;42m\033[38;2;91;65;50m▄\033[48;2;62;44;34m\033[38;2;88;61;45m▄\033[48;2;83;58;45m\033[38;2;87;60;44m▄\033[48;2;97;68;51m\033[38;2;94;64;47m▄\033[48;2;105;74;55m\033[38;2;102;71;52m▄\033[48;2;107;75;54m\033[38;2;106;74;54m▄\033[48;2;102;70;50m\033[38;2;103;71;51m▄\033[48;2;99;68;50m\033[38;2;92;62;44m▄\033[48;2;86;60;43m\033[38;2;84;58;41m▄\033[48;2;73;50;38m\033[38;2;72;49;36m▄\033[48;2;86;62;47m\033[38;2;82;58;44m▄\033[48;2;97;70;51m\033[38;2;97;71;54m▄\033[48;2;91;74;60m\033[38;2;83;68;58m▄\033[48;2;24;22;21m\033[38;2;18;16;15m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;3;2;2m\033[38;2;0;0;0m▄\033[48;2;50;45;42m\033[38;2;9;9;9m▄\033[48;2;131;103;82m\033[38;2;80;69;61m▄\033[48;2;152;108;78m\033[38;2;141;107;84m▄\033[48;2;166;115;79m\033[38;2;158;109;75m▄\033[48;2;171;118;80m\033[38;2;176;123;84m▄\033[48;2;166;116;82m\033[38;2;188;137;97m▄\033[48;2;180;138;105m\033[38;2;178;131;96m▄\033[48;2;169;135;106m\033[38;2;181;146;116m▄\033[48;2;146;117;94m\033[38;2;176;142;114m▄\033[48;2;145;116;92m\033[38;2;154;123;100m▄\033[48;2;137;105;82m\033[38;2;121;96;78m▄\033[48;2;123;96;75m\033[38;2;111;88;71m▄\033[48;2;120;92;72m\033[38;2;110;85;65m▄\033[48;2;124;97;74m\033[38;2;111;86;66m▄\033[48;2;116;89;68m\033[38;2;105;82;64m▄\033[48;2;107;80;61m\033[38;2;94;72;57m▄\033[48;2;100;75;59m\033[38;2;86;68;55m▄\033[48;2;93;71;57m\033[38;2;79;63;52m▄\033[48;2;90;71;56m\033[38;2;80;63;52m▄\033[48;2;85;67;53m\033[38;2;79;64;52m▄\033[48;2;86;66;54m\033[38;2;79;62;51m▄\033[48;2;92;69;54m\033[38;2;84;64;51m▄\033[48;2;93;68;50m\033[38;2;87;64;49m▄\033[48;2;87;63;47m\033[38;2;83;60;46m▄\033[48;2;87;62;46m\033[38;2;79;56;42m▄\033[48;2;90;65;48m\033[38;2;83;59;45m▄\033[48;2;80;58;43m\033[38;2;91;66;50m▄\033[48;2;89;66;49m\033[38;2;93;67;50m▄\033[48;2;100;78;61m\033[38;2;101;76;58m▄\033[48;2;117;95;77m\033[38;2;120;95;76m▄\033[48;2;114;92;76m\033[38;2;109;86;67m▄\033[48;2;126;102;82m\033[38;2;100;76;60m▄\033[48;2;118;94;75m\033[38;2;99;76;59m▄\033[48;2;113;87;66m\033[38;2;93;69;51m▄\033[48;2;101;74;55m\033[38;2;91;65;48m▄\033[48;2;92;65;49m\033[38;2;87;61;45m▄\033[48;2;87;60;46m\033[38;2;90;63;46m▄\033[48;2;98;68;49m\033[38;2;113;80;58m▄\033[48;2;103;73;52m\033[38;2;114;81;56m▄\033[48;2;102;71;50m\033[38;2;108;75;53m▄\033[48;2;101;70;50m\033[38;2;106;74;53m▄\033[48;2;109;76;57m\033[38;2;108;76;56m▄\033[48;2;105;73;53m\033[38;2;108;76;55m▄\033[48;2;95;64;45m\033[38;2;101;70;51m▄\033[48;2;84;57;41m\033[38;2;87;58;43m▄\033[48;2;73;49;37m\033[38;2;78;53;39m▄\033[48;2;78;54;40m\033[38;2;85;60;45m▄\033[48;2;98;75;60m\033[38;2;100;77;61m▄\033[48;2;74;66;60m\033[38;2;67;59;53m▄\033[48;2;13;13;12m\033[38;2;11;10;10m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "";
-                text r_grut02 = ""\
+                auto r_grut02 = text{} + ""\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;26;23;22m\033[38;2;4;4;4m▄\033[48;2;94;77;65m\033[38;2;48;42;38m▄\033[48;2;153;111;81m\033[38;2;140;108;84m▄\033[48;2;188;138;97m\033[38;2;192;144;104m▄\033[48;2;202;151;110m\033[38;2;205;156;115m▄\033[48;2;175;123;86m\033[38;2;188;138;99m▄\033[48;2;179;138;106m\033[38;2;165;127;101m▄\033[48;2;163;131;106m\033[38;2;136;125;117m▄\033[48;2;127;107;91m\033[38;2;96;90;86m▄\033[48;2;109;93;81m\033[38;2;81;75;71m▄\033[48;2;104;87;75m\033[38;2;76;71;67m▄\033[48;2;104;87;73m\033[38;2;75;70;67m▄\033[48;2;99;83;69m\033[38;2;84;81;77m▄\033[48;2;87;71;60m\033[38;2;85;80;77m▄\033[48;2;78;63;52m\033[38;2;82;75;71m▄\033[48;2;77;62;52m\033[38;2;69;59;53m▄\033[48;2;75;61;51m\033[38;2;68;58;50m▄\033[48;2;71;57;48m\033[38;2;62;50;44m▄\033[48;2;74;60;50m\033[38;2;65;53;44m▄\033[48;2;78;63;52m\033[38;2;73;59;49m▄\033[48;2;78;61;49m\033[38;2;76;60;48m▄\033[48;2;80;60;46m\033[38;2;75;57;45m▄\033[48;2;78;57;43m\033[38;2;77;56;43m▄\033[48;2;75;55;41m\033[38;2;70;51;37m▄\033[48;2;76;54;42m\033[38;2;72;52;41m▄\033[48;2;87;63;48m\033[38;2;75;55;41m▄\033[48;2;95;69;52m\033[38;2;89;65;49m▄\033[48;2;96;71;53m\033[38;2;97;71;52m▄\033[48;2;103;78;60m\033[38;2;98;71;52m▄\033[48;2;100;76;57m\033[38;2;95;69;50m▄\033[48;2;90;67;51m\033[38;2;86;63;49m▄\033[48;2;89;66;50m\033[38;2;86;63;47m▄\033[48;2;88;64;47m\033[38;2;87;63;46m▄\033[48;2;88;63;47m\033[38;2;92;66;48m▄\033[48;2;90;63;47m\033[38;2;99;70;51m▄\033[48;2;100;72;51m\033[38;2;108;78;55m▄\033[48;2;121;87;62m\033[38;2;123;89;63m▄\033[48;2;123;87;61m\033[38;2;127;92;65m▄\033[48;2;117;83;57m\033[38;2;120;86;60m▄\033[48;2;111;77;55m\033[38;2;115;81;58m▄\033[48;2;113;80;59m\033[38;2;115;83;62m▄\033[48;2;113;81;59m\033[38;2;117;85;63m▄\033[48;2;108;77;55m\033[38;2;118;86;63m▄\033[48;2;94;66;49m\033[38;2;107;77;57m▄\033[48;2;86;59;44m\033[38;2;94;65;48m▄\033[48;2;94;68;51m\033[38;2;104;75;56m▄\033[48;2;103;81;67m\033[38;2;106;84;70m▄\033[48;2;75;69;64m\033[38;2;83;75;70m▄\033[48;2;14;13;13m\033[38;2;22;20;18m▄\033[48;2;0;0;0m\033[38;2;1;1;1m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;1;1;1m \033[48;2;29;25;23m\033[38;2;28;24;21m▄\033[48;2;123;96;74m\033[38;2;125;97;74m▄\033[48;2;194;148;109m\033[38;2;196;152;113m▄\033[48;2;213;167;125m\033[38;2;208;167;127m▄\033[48;2;180;143;112m\033[38;2;104;93;86m▄\033[48;2;93;87;80m\033[38;2;53;54;55m▄\033[48;2;59;59;58m\033[38;2;48;49;49m▄\033[48;2;52;52;51m\033[38;2;46;46;48m▄\033[48;2;49;49;49m\033[38;2;45;45;47m▄\033[48;2;47;46;48m\033[38;2;41;41;43m▄\033[48;2;46;46;46m\033[38;2;37;37;39m▄\033[48;2;47;47;47m\033[38;2;35;36;37m▄\033[48;2;51;50;50m\033[38;2;36;36;36m▄\033[48;2;65;64;62m\033[38;2;43;43;43m▄\033[48;2;77;75;72m\033[38;2;53;53;52m▄\033[48;2;63;59;55m\033[38;2;54;53;52m▄\033[48;2;60;52;46m\033[38;2;52;46;42m▄\033[48;2;58;47;40m\033[38;2;50;41;35m▄\033[48;2;64;51;43m\033[38;2;54;44;37m▄\033[48;2;71;56;45m\033[38;2;68;54;45m▄\033[48;2;74;57;45m\033[38;2;72;56;45m▄\033[48;2;75;57;43m\033[38;2;72;55;44m▄\033[48;2;68;48;36m\033[38;2;70;52;40m▄\033[48;2;69;51;39m \033[48;2;72;53;41m\033[38;2;67;49;38m▄\033[48;2;84;62;47m\033[38;2;76;56;43m▄\033[48;2;91;64;47m\033[38;2;88;63;47m▄\033[48;2;96;69;49m\033[38;2;95;67;47m▄\033[48;2;92;66;48m\033[38;2;93;65;47m▄\033[48;2;84;59;44m\033[38;2;90;63;46m▄\033[48;2;87;61;46m\033[38;2;88;61;46m▄\033[48;2;87;60;44m\033[38;2;89;62;45m▄\033[48;2;93;65;46m\033[38;2;97;69;50m▄\033[48;2;100;70;50m\033[38;2;107;76;55m▄\033[48;2;113;81;58m\033[38;2;116;84;60m▄\033[48;2;128;93;67m\033[38;2;132;98;70m▄\033[48;2;135;100;72m\033[38;2;138;102;74m▄\033[48;2;127;91;65m\033[38;2;130;95;68m▄\033[48;2;116;82;58m\033[38;2;119;86;62m▄\033[48;2;109;77;56m\033[38;2;111;79;58m▄\033[48;2;114;84;61m\033[38;2;112;81;60m▄\033[48;2;118;86;63m\033[38;2;113;81;58m▄\033[48;2;119;87;66m\033[38;2;120;88;67m▄\033[48;2;109;78;58m\033[38;2;123;88;67m▄\033[48;2;106;76;57m\033[38;2;116;83;62m▄\033[48;2;101;74;59m\033[38;2;101;71;53m▄\033[48;2;86;72;63m\033[38;2;91;71;60m▄\033[48;2;41;38;36m\033[38;2;58;51;48m▄\033[48;2;4;3;3m\033[38;2;10;10;9m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;2;2;2m\033[38;2;6;5;5m▄\033[48;2;38;33;27m\033[38;2;60;50;42m▄\033[48;2;138;107;80m\033[38;2;157;121;90m▄\033[48;2;198;153;113m\033[38;2;185;144;107m▄\033[48;2;161;133;107m\033[38;2;92;81;72m▄\033[48;2;56;55;56m\033[38;2;55;55;57m▄\033[48;2;54;55;57m\033[38;2;67;67;69m▄\033[48;2;54;55;57m\033[38;2;60;61;64m▄\033[48;2;53;54;57m\033[38;2;54;54;58m▄\033[48;2;60;61;64m\033[38;2;66;66;71m▄\033[48;2;58;58;61m\033[38;2;59;60;64m▄\033[48;2;37;37;40m\033[38;2;38;40;42m▄\033[48;2;32;32;34m\033[38;2;32;32;35m▄\033[48;2;32;32;32m\033[38;2;31;32;33m▄\033[48;2;34;35;35m\033[38;2;31;32;31m▄\033[48;2;43;43;43m\033[38;2;37;37;37m▄\033[48;2;45;45;45m\033[38;2;48;47;48m▄\033[48;2;43;41;39m\033[38;2;42;41;40m▄\033[48;2;45;39;35m\033[38;2;39;35;33m▄\033[48;2;53;43;37m\033[38;2;48;40;34m▄\033[48;2;63;50;41m\033[38;2;56;46;38m▄\033[48;2;69;55;44m\033[38;2;64;52;43m▄\033[48;2;71;57;46m\033[38;2;70;57;47m▄\033[48;2;72;56;43m\033[38;2;72;56;45m▄\033[48;2;70;52;42m\033[38;2;67;50;40m▄\033[48;2;67;49;39m\033[38;2;67;50;40m▄\033[48;2;69;50;39m\033[38;2;69;50;40m▄\033[48;2;80;57;43m\033[38;2;73;53;40m▄\033[48;2;91;64;47m\033[38;2;87;63;48m▄\033[48;2;98;70;52m\033[38;2;91;65;48m▄\033[48;2;93;65;46m\033[38;2;94;67;49m▄\033[48;2;91;63;45m\033[38;2;96;67;48m▄\033[48;2;96;67;49m\033[38;2;98;67;48m▄\033[48;2;100;71;51m\033[38;2;100;70;50m▄\033[48;2;107;76;55m\033[38;2;109;79;56m▄\033[48;2;123;91;66m\033[38;2;125;92;68m▄\033[48;2;132;98;70m\033[38;2;125;92;67m▄\033[48;2;134;99;72m\033[38;2;127;93;67m▄\033[48;2;126;91;65m\033[38;2;121;88;62m▄\033[48;2;118;85;60m\033[38;2;115;83;59m▄\033[48;2;109;77;57m\033[38;2;108;78;55m▄\033[48;2;117;86;64m\033[38;2;116;87;65m▄\033[48;2;122;90;67m\033[38;2;126;94;70m▄\033[48;2;123;88;66m\033[38;2;126;90;67m▄\033[48;2;126;91;68m\033[38;2;126;91;66m▄\033[48;2;125;91;68m\033[38;2;126;92;65m▄\033[48;2;114;80;60m\033[38;2;120;85;62m▄\033[48;2;102;76;60m\033[38;2;107;76;56m▄\033[48;2;79;68;60m\033[38;2;95;75;62m▄\033[48;2;33;30;28m\033[38;2;63;54;48m▄\033[48;2;4;4;3m\033[38;2;18;17;15m▄\033[48;2;0;0;0m\033[38;2;1;1;1m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
@@ -644,7 +779,7 @@ namespace netxs::app::shared
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;17;12;13m\033[38;2;18;10;11m▄\033[48;2;147;30;55m\033[38;2;149;35;59m▄\033[48;2;216;50;91m\033[38;2;218;50;90m▄\033[48;2;223;63;111m\033[38;2;226;59;107m▄\033[48;2;237;101;151m\033[38;2;236;88;140m▄\033[48;2;244;118;173m\033[38;2;239;69;130m▄\033[48;2;238;88;160m\033[38;2;234;52;131m▄\033[48;2;232;79;149m\033[38;2;227;78;142m▄\033[48;2;224;70;137m\033[38;2;222;80;137m▄\033[48;2;210;59;118m\033[38;2;213;59;117m▄\033[48;2;194;48;98m\033[38;2;209;52;106m▄\033[48;2;196;45;91m\033[38;2;208;54;102m▄\033[48;2;207;43;96m\033[38;2;208;42;94m▄\033[48;2;203;38;98m\033[38;2;202;35;91m▄\033[48;2;191;37;93m\033[38;2;198;36;91m▄\033[48;2;193;39;91m\033[38;2;196;34;88m▄\033[48;2;204;47;98m\033[38;2;197;34;89m▄\033[48;2;199;42;92m\033[38;2;195;34;90m▄\033[48;2;194;39;91m\033[38;2;195;36;89m▄\033[48;2;190;32;82m\033[38;2;196;46;93m▄\033[48;2;189;31;77m\033[38;2;189;27;76m▄\033[48;2;161;27;64m\033[38;2;165;27;68m▄\033[48;2;96;29;48m\033[38;2;108;29;51m▄\033[48;2;88;30;44m\033[38;2;100;35;50m▄\033[48;2;90;42;51m\033[38;2;106;53;62m▄\033[48;2;95;56;60m\033[38;2;119;69;75m▄\033[48;2;99;62;65m\033[38;2;124;75;79m▄\033[48;2;108;71;72m\033[38;2;119;78;79m▄\033[48;2;104;72;70m\033[38;2;98;71;67m▄\033[48;2;65;49;45m\033[38;2;49;40;36m▄\033[48;2;22;20;21m\033[38;2;20;19;19m▄\033[48;2;17;18;18m\033[38;2;19;20;21m▄\033[48;2;19;20;19m \033[48;2;23;23;23m\033[38;2;25;24;23m▄\033[48;2;33;30;28m\033[38;2;41;35;31m▄\033[48;2;55;43;35m\033[38;2;62;46;36m▄\033[48;2;76;56;42m\033[38;2;74;55;41m▄\033[48;2;78;56;41m\033[38;2;73;51;38m▄\033[48;2;75;53;39m\033[38;2;77;55;41m▄\033[48;2;82;59;45m\033[38;2;83;61;45m▄\033[48;2;88;63;46m \033[48;2;92;65;47m\033[38;2;88;61;43m▄\033[48;2;96;67;47m\033[38;2;96;66;46m▄\033[48;2;98;66;46m\033[38;2;100;67;46m▄\033[48;2;95;62;42m\033[38;2;96;62;42m▄\033[48;2;96;61;41m\033[38;2;99;64;44m▄\033[48;2;97;62;42m\033[38;2;94;59;39m▄\033[48;2;92;56;37m\033[38;2;87;51;33m▄\033[48;2;87;52;33m\033[38;2;89;54;35m▄\033[48;2;89;54;34m\033[38;2;92;57;37m▄\033[48;2;92;57;37m\033[38;2;96;60;40m▄\033[48;2;97;60;41m\033[38;2;99;62;42m▄\033[48;2;96;59;40m \033[48;2;97;62;43m\033[38;2;96;61;42m▄\033[48;2;101;75;61m\033[38;2;97;70;55m▄\033[48;2;53;44;39m\033[38;2;49;39;34m▄\033[48;2;3;2;2m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;9;7;8m\033[38;2;2;2;2m▄\033[48;2;105;31;47m\033[38;2;47;23;29m▄\033[48;2;211;47;86m\033[38;2;181;43;75m▄\033[48;2;225;63;111m\033[38;2;222;56;99m▄\033[48;2;227;62;118m\033[38;2;223;56;106m▄\033[48;2;230;57;114m\033[38;2;224;53;106m▄\033[48;2;230;51;112m\033[38;2;226;56;111m▄\033[48;2;223;54;113m\033[38;2;225;55;113m▄\033[48;2;217;58;114m\033[38;2;222;55;114m▄\033[48;2;216;55;110m\033[38;2;222;52;115m▄\033[48;2;215;50;106m\033[38;2;221;48;118m▄\033[48;2;212;49;102m\033[38;2;208;39;103m▄\033[48;2;208;40;92m\033[38;2;202;35;93m▄\033[48;2;204;34;88m\033[38;2;207;36;91m▄\033[48;2;200;36;93m\033[38;2;208;42;102m▄\033[48;2;191;35;94m\033[38;2;191;36;99m▄\033[48;2;191;35;93m\033[38;2;191;37;97m▄\033[48;2;193;35;94m\033[38;2;197;42;101m▄\033[48;2;196;32;86m\033[38;2;204;45;95m▄\033[48;2;201;45;95m\033[38;2;201;41;92m▄\033[48;2;201;30;91m\033[38;2;200;26;83m▄\033[48;2;168;34;79m\033[38;2;144;31;66m▄\033[48;2;120;33;57m\033[38;2;124;38;60m▄\033[48;2;112;43;58m\033[38;2;124;54;69m▄\033[48;2;122;64;74m\033[38;2;136;74;84m▄\033[48;2;140;81;90m\033[38;2;140;83;90m▄\033[48;2;132;81;85m\033[38;2;125;75;78m▄\033[48;2;111;73;73m\033[38;2;87;61;58m▄\033[48;2;60;48;47m\033[38;2;28;26;27m▄\033[48;2;28;27;27m\033[38;2;21;21;23m▄\033[48;2;19;19;20m\033[38;2;21;21;22m▄\033[48;2;21;21;23m\033[38;2;21;21;21m▄\033[48;2;22;22;22m\033[38;2;22;21;22m▄\033[48;2;29;27;26m\033[38;2;30;28;27m▄\033[48;2;44;35;30m\033[38;2;49;38;31m▄\033[48;2;65;48;36m\033[38;2;65;47;35m▄\033[48;2;70;51;38m\033[38;2;65;46;34m▄\033[48;2;70;50;36m\033[38;2;67;48;35m▄\033[48;2;78;56;42m\033[38;2;80;58;43m▄\033[48;2;85;62;46m\033[38;2;90;65;48m▄\033[48;2;87;62;44m\033[38;2;91;63;45m▄\033[48;2;87;60;42m\033[38;2;90;60;42m▄\033[48;2;94;64;45m\033[38;2;92;61;43m▄\033[48;2;98;66;45m\033[38;2;94;63;42m▄\033[48;2;93;60;39m\033[38;2;92;60;39m▄\033[48;2;94;59;39m\033[38;2;93;58;38m▄\033[48;2;91;56;36m\033[38;2;90;56;37m▄\033[48;2;89;54;35m\033[38;2;92;57;37m▄\033[48;2;94;58;39m\033[38;2;95;60;40m▄\033[48;2;100;64;42m\033[38;2;105;67;45m▄\033[48;2;100;63;41m\033[38;2;103;64;40m▄\033[48;2;96;59;38m\033[38;2;88;53;33m▄\033[48;2;88;53;34m\033[38;2;80;47;31m▄\033[48;2;90;57;39m\033[38;2;82;50;34m▄\033[48;2;100;75;61m\033[38;2;91;64;49m▄\033[48;2;56;48;43m\033[38;2;68;55;49m▄\033[48;2;4;3;3m\033[38;2;9;7;7m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "";
-                text r_grut03 = ansi::esc(
+                auto r_grut03 = ansi::esc(
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;15;13;13m\033[38;2;4;4;4m▄\033[48;2;134;38;60m\033[38;2;92;25;39m▄\033[48;2;215;47;85m\033[38;2;199;39;76m▄\033[48;2;223;45;93m\033[38;2;224;43;92m▄\033[48;2;223;48;102m\033[38;2;225;43;102m▄\033[48;2;226;51;114m\033[38;2;223;47;115m▄\033[48;2;223;48;116m\033[38;2;222;53;123m▄\033[48;2;224;50;115m\033[38;2;222;53;120m▄\033[48;2;226;46;119m\033[38;2;232;51;125m▄\033[48;2;222;45;125m\033[38;2;236;52;137m▄\033[48;2;213;43;117m\033[38;2;223;52;131m▄\033[48;2;203;42;103m\033[38;2;215;58;119m▄\033[48;2;210;43;99m\033[38;2;214;49;107m▄\033[48;2;209;40;100m\033[38;2;208;38;98m▄\033[48;2;196;37;99m\033[38;2;201;36;96m▄\033[48;2;196;36;95m\033[38;2;196;33;89m▄\033[48;2;199;34;92m\033[38;2;199;36;90m▄\033[48;2;201;35;85m\033[38;2;198;36;86m▄\033[48;2;194;31;79m\033[38;2;192;31;77m▄\033[48;2;174;23;67m\033[38;2;153;27;63m▄\033[48;2;133;33;61m\033[38;2;122;39;59m▄\033[48;2;126;47;66m\033[38;2;132;61;75m▄\033[48;2;132;67;80m\033[38;2;137;75;85m▄\033[48;2;138;79;87m\033[38;2;129;74;79m▄\033[48;2;126;73;79m\033[38;2;114;67;70m▄\033[48;2;102;65;66m\033[38;2;62;45;46m▄\033[48;2;33;29;30m\033[38;2;16;16;18m▄\033[48;2;20;20;22m\033[38;2;21;21;23m▄\033[48;2;19;19;21m\033[38;2;22;22;23m▄\033[48;2;22;22;24m\033[38;2;23;23;24m▄\033[48;2;23;23;23m\033[38;2;27;25;26m▄\033[48;2;28;27;26m\033[38;2;33;31;30m▄\033[48;2;32;28;27m\033[38;2;36;32;28m▄\033[48;2;54;41;32m\033[38;2;53;39;30m▄\033[48;2;59;43;32m\033[38;2;56;40;30m▄\033[48;2;61;43;31m\033[38;2;58;41;29m▄\033[48;2;68;49;36m\033[38;2;71;51;38m▄\033[48;2;82;59;45m\033[38;2;84;60;45m▄\033[48;2;95;68;50m\033[38;2;92;65;46m▄\033[48;2;98;69;49m\033[38;2;97;66;46m▄\033[48;2;100;68;47m\033[38;2;101;68;47m▄\033[48;2;98;65;45m\033[38;2;97;63;42m▄\033[48;2;96;63;41m\033[38;2;99;63;41m▄\033[48;2;92;58;37m\033[38;2;95;58;37m▄\033[48;2;92;57;37m\033[38;2;90;54;34m▄\033[48;2;93;59;40m\033[38;2;95;59;40m▄\033[48;2;94;59;39m\033[38;2;106;69;46m▄\033[48;2;100;64;42m\033[38;2;113;74;48m▄\033[48;2;107;70;46m\033[38;2;109;68;44m▄\033[48;2;105;66;42m\033[38;2;95;59;38m▄\033[48;2;82;48;31m\033[38;2;77;46;30m▄\033[48;2;75;44;30m\033[38;2;70;41;27m▄\033[48;2;79;47;32m\033[38;2;75;45;30m▄\033[48;2;86;55;40m\033[38;2;84;52;38m▄\033[48;2;80;61;52m\033[38;2;92;71;61m▄\033[48;2;15;13;12m\033[38;2;29;24;22m▄\033[48;2;0;0;0m\033[38;2;1;1;1m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;48;19;25m\033[38;2;24;20;20m▄\033[48;2;164;40;71m\033[38;2;121;71;79m▄\033[48;2;218;37;90m\033[38;2;201;65;100m▄\033[48;2;223;38;98m\033[38;2;222;47;100m▄\033[48;2;224;50;114m\033[38;2;227;55;110m▄\033[48;2;225;58;124m\033[38;2;226;55;113m▄\033[48;2;225;58;126m\033[38;2;229;57;121m▄\033[48;2;232;54;130m\033[38;2;236;60;136m▄\033[48;2;239;53;139m\033[38;2;237;56;140m▄\033[48;2;232;52;134m\033[38;2;227;50;127m▄\033[48;2;220;45;115m\033[38;2;217;41;108m▄\033[48;2;211;37;100m\033[38;2;204;32;93m▄\033[48;2;206;34;94m\033[38;2;207;35;95m▄\033[48;2;195;35;87m\033[38;2;191;30;80m▄\033[48;2;193;35;86m\033[38;2;190;32;80m▄\033[48;2;195;34;85m\033[38;2;193;32;85m▄\033[48;2;194;31;82m\033[38;2;189;33;87m▄\033[48;2;184;29;80m\033[38;2;148;30;71m▄\033[48;2;136;32;61m\033[38;2;144;50;75m▄\033[48;2;130;52;69m\033[38;2;149;75;90m▄\033[48;2;145;77;88m\033[38;2;148;81;89m▄\033[48;2;137;77;84m\033[38;2;147;94;98m▄\033[48;2;117;68;72m\033[38;2;109;76;75m▄\033[48;2;93;57;59m\033[38;2;50;39;39m▄\033[48;2;25;24;25m\033[38;2;29;28;28m▄\033[48;2;22;22;23m\033[38;2;30;29;30m▄\033[48;2;25;25;26m\033[38;2;30;29;29m▄\033[48;2;25;25;26m\033[38;2;27;27;27m▄\033[48;2;25;25;25m\033[38;2;29;28;28m▄\033[48;2;27;26;25m\033[38;2;32;29;27m▄\033[48;2;25;22;22m\033[38;2;35;28;25m▄\033[48;2;41;31;26m\033[38;2;44;32;25m▄\033[48;2;50;36;27m\033[38;2;51;36;27m▄\033[48;2;54;39;30m\033[38;2;57;41;31m▄\033[48;2;63;45;34m\033[38;2;72;52;38m▄\033[48;2;74;54;40m\033[38;2;79;57;41m▄\033[48;2;85;59;44m\033[38;2;83;57;40m▄\033[48;2;96;67;46m\033[38;2;95;64;44m▄\033[48;2;99;67;46m\033[38;2;99;67;45m▄\033[48;2;98;64;42m \033[48;2;100;65;43m\033[38;2;96;61;41m▄\033[48;2;98;62;40m\033[38;2;97;61;40m▄\033[48;2;95;58;36m\033[38;2;99;62;39m▄\033[48;2;97;62;40m\033[38;2;100;64;40m▄\033[48;2;102;64;42m\033[38;2;104;67;43m▄\033[48;2;105;67;43m\033[38;2;106;68;44m▄\033[48;2;111;72;47m\033[38;2;103;65;43m▄\033[48;2;109;69;46m\033[38;2;98;62;41m▄\033[48;2;90;56;35m\033[38;2;82;50;33m▄\033[48;2;72;43;30m\033[38;2;67;40;27m▄\033[48;2;69;41;28m\033[38;2;67;40;27m▄\033[48;2;74;44;30m\033[38;2;71;42;28m▄\033[48;2;79;47;32m\033[38;2;75;45;30m▄\033[48;2;83;54;39m\033[38;2;83;51;34m▄\033[48;2;58;43;36m\033[38;2;84;56;41m▄\033[48;2;10;8;7m\033[38;2;41;31;26m▄\033[48;2;0;0;0m\033[38;2;5;5;4m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
                     "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;16;14;13m\033[38;2;11;10;9m▄\033[48;2;98;77;68m\033[38;2;80;66;57m▄\033[48;2;180;99;94m\033[38;2;162;114;86m▄\033[48;2;214;64;96m\033[38;2;189;102;84m▄\033[48;2;224;49;97m\033[38;2;207;65;86m▄\033[48;2;224;47;100m\033[38;2;215;44;88m▄\033[48;2;227;50;111m\033[38;2;217;45;98m▄\033[48;2;229;52;122m\033[38;2;220;46;106m▄\033[48;2;226;49;122m\033[38;2;221;54;116m▄\033[48;2;215;44;110m\033[38;2;215;52;109m▄\033[48;2;214;40;104m\033[38;2;222;48;116m▄\033[48;2;207;36;96m\033[38;2;212;40;101m▄\033[48;2;212;41;104m\033[38;2;207;47;103m▄\033[48;2;201;36;90m\033[38;2;170;41;72m▄\033[48;2;178;28;71m\033[38;2;136;30;56m▄\033[48;2;169;31;76m\033[38;2;122;34;57m▄\033[48;2;148;34;73m\033[38;2;122;44;64m▄\033[48;2;128;41;66m\033[38;2;144;67;86m▄\033[48;2;161;78;98m\033[38;2;179;106;122m▄\033[48;2;164;90;105m\033[38;2;179;103;118m▄\033[48;2;165;92;100m\033[38;2;201;128;136m▄\033[48;2;195;151;150m\033[38;2;224;183;173m▄\033[48;2;129;111;105m\033[38;2;136;113;103m▄\033[48;2;41;36;36m\033[38;2;45;40;40m▄\033[48;2;37;35;34m\033[38;2;39;35;35m▄\033[48;2;33;31;32m\033[38;2;31;29;29m▄\033[48;2;29;28;29m\033[38;2;28;26;26m▄\033[48;2;30;29;28m\033[38;2;31;28;27m▄\033[48;2;34;31;30m\033[38;2;34;28;25m▄\033[48;2;34;27;25m\033[38;2;36;26;23m▄\033[48;2;39;31;25m\033[38;2;40;31;25m▄\033[48;2;47;33;25m\033[38;2;50;37;28m▄\033[48;2;54;39;30m\033[38;2;57;42;31m▄\033[48;2;61;44;33m\033[38;2;65;46;34m▄\033[48;2;75;54;39m\033[38;2;79;57;39m▄\033[48;2;84;59;42m\033[38;2;92;65;46m▄\033[48;2;94;67;46m\033[38;2;107;77;55m▄\033[48;2;92;61;41m\033[38;2;96;64;43m▄\033[48;2;98;65;44m\033[38;2;95;61;40m▄\033[48;2;102;67;43m\033[38;2;104;68;43m▄\033[48;2;97;63;41m\033[38;2;104;68;44m▄\033[48;2;99;64;43m\033[38;2;105;69;47m▄\033[48;2;111;73;50m\033[38;2;115;77;52m▄\033[48;2;115;76;50m\033[38;2;120;79;51m▄\033[48;2;114;75;49m\033[38;2;114;73;47m▄\033[48;2;109;71;46m\033[38;2;108;69;44m▄\033[48;2;92;57;37m\033[38;2;90;57;37m▄\033[48;2;76;46;30m\033[38;2;68;42;28m▄\033[48;2;68;42;28m\033[38;2;65;42;29m▄\033[48;2;66;40;27m\033[38;2;68;43;29m▄\033[48;2;69;42;29m\033[38;2;74;46;31m▄\033[48;2;74;44;30m\033[38;2;82;51;34m▄\033[48;2;76;46;30m\033[38;2;86;52;34m▄\033[48;2;83;50;33m\033[38;2;89;54;34m▄\033[48;2;92;58;40m\033[38;2;95;58;38m▄\033[48;2;76;53;40m\033[38;2;93;59;40m▄\033[48;2;31;24;20m\033[38;2;72;48;35m▄\033[48;2;4;3;3m\033[38;2;30;22;18m▄\033[48;2;0;0;0m\033[38;2;4;3;2m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
@@ -661,7 +796,7 @@ namespace netxs::app::shared
                     "").nop();
 
                 auto clr = 0xFFFFFFFF;
-                text wiki00 = ansi::wrp(wrap::on).jet(bias::left).fgc(clr).add("ANSI escape code\n\n")
+                auto wiki00 = ansi::wrp(wrap::on).jet(bias::left).fgc(clr).add("ANSI escape code\n\n")
 
                     .nil().add("From Wikipedia, the free encyclopedia\n"
                             "  (Redirected from ANSI CSI)\n\n")
@@ -679,7 +814,7 @@ namespace netxs::app::shared
                     "which the terminal looks for and interprets as commands, not as ")
                     .fgc(clr).add("character codes").nil().add(".\n");
 
-                text wiki01 = ansi::wrp(wrap::on).jet(bias::left).add("\n\n\n"
+                auto wiki01 = ansi::wrp(wrap::on).jet(bias::left).add("\n\n\n"
                     "ANSI sequences were introduced in the 1970s to replace vendor-specific sequences "
                     "and became widespread in the computer equipment market by the early 1980s. "
                     "They were used in development, scientific and commercial applications and later by "
@@ -696,7 +831,7 @@ namespace netxs::app::shared
 
             #pragma endregion
 
-            text truecolor;
+            auto truecolor = text{};
             truecolor += wiki00;
             truecolor += r_grut00;
             truecolor += r_grut01;
@@ -712,6 +847,7 @@ namespace netxs::app::shared
                   ->invoke([](auto& boss)
                     {
                         boss.keybd.accept(true);
+                        closing_on_quit(boss);
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA01f0fc4);
@@ -727,143 +863,94 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_VTM           = [](view v)
+        auto build_Headless      = [](text cwd, text param)
         {
-            auto window = ui::cake::ctor();
+            auto window = ui::cake::ctor()
+                  ->invoke([&](auto& boss)
+                    {
+                        closing_on_quit(boss);
+                    });
             window->plugin<pro::focus>()
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
-                auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                    auto scroll = layers->attach(ui::rail::ctor());
-                    if (app::shared::vtm_count < app::shared::max_vtm)
-                    {
-                        auto c = &app::shared::vtm_count; (*c)++;
-                        scroll->attach(ui::term::ctor("vtm"))
-                              ->colors(whitelt, blackdk)
-                              ->invoke([&](auto& boss)
-                              {
-                                  boss.SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
-                                  {
-                                      (*c)--;
-                                      log("main: vtm recursive conn destoyed");
-                                  };
-                                  boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                                  {
-                                      boss.start();
-                                  };
-                              });
-                    }
-                    else
-                    {
-                        scroll->attach(ui::post::ctor())
-                              ->colors(whitelt, blackdk)
-                              ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                                      .add("\n\nconnection rejected\n\n")
-                                      .nil().wrp(wrap::on)
-                                      .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones."));
-                    }
-                layers->attach(app::shared::scroll_bars(scroll));
-            return window;
-        };
-        auto build_MC            = [](view v)
-        {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
-                auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+            //auto object = window->attach(ui::fork::ctor(axis::Y))
+            //                    ->colors(whitelt, app::shared::term_menu_bg);
+            //    auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
+            //    auto layers = object->attach(slot::_2, ui::cake::ctor())
+            //                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+            auto layers = window->attach(ui::cake::ctor())
+                                ->colors(whitelt, app::shared::term_menu_bg)
+                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
-                    // -c -- force color support
-                    // -x -- force xtrem functionality
-
-                    #if defined(_WIN32)
-
-                        auto inst = scroll->attach(ui::term::ctor("wsl mc"));
-
-                    #else
-                        auto shell = os::get_shell();
-                        #ifndef PROD
-                            auto inst = scroll->attach(ui::term::ctor(shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'"));
-                        #else
-                            auto inst = scroll->attach(ui::term::ctor(shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-                        #endif
-                    #endif
-
-                    inst->colors(whitelt, blackdk)
-                        ->invoke([&](auto& boss)
-                        {
-                            boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                            {
-                                boss.start();
-                            };
-                        });
-                layers->attach(app::shared::scroll_bars(scroll));
-            return window;
-        };
-        auto build_PowerShell    = [](view v)
-        {
-            auto window = app::term::build("powershell");
-            //todo unify
-            auto colors = cell{ whitespace }.fgc(whitelt).bgc(0xFF562401);
-            window->SIGNAL(tier::anycast, app::term::events::colors, colors);
-            return window;
-        };
-        auto build_HeadlessTerm  = [](view v)
-        {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
-                auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                    auto scroll = layers->attach(ui::rail::ctor())
-                                        ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
-                    auto data = v.empty() ? os::get_shell() + "-i"
-                                          : text{ v };
-                    auto inst = scroll->attach(ui::term::ctor(data))
+                    auto data = param.empty() ? os::get_shell() + " -i"
+                                              : param;
+                    auto inst = scroll->attach(ui::term::ctor(cwd, data))
                                       ->colors(whitelt, blackdk)
                                       ->invoke([&](auto& boss)
                                       {
-                                          boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                                          {
-                                              boss.start();
-                                          };
+                                            //todo unify: Same as in app::term (term.hpp).
+                                            boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
+                                            {
+                                                boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::data::in, data)
+                                            {
+                                                boss.data_in(data);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::data::out, data)
+                                            {
+                                                boss.data_out(data);
+                                            };
+                                            //todo add color picker to the menu
+                                            boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
+                                            {
+                                                boss.set_bg_color(bg);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::colors::fg, fg)
+                                            {
+                                                boss.set_fg_color(fg);
+                                            };
+                                            boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
+                                            {
+                                                auto deed = boss.bell::template protos<tier::anycast>();
+                                                     if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::bg, clr);
+                                                else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::fg, clr);
+                                            };
+                                            boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                                            {
+                                                boss.start();
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::search::forward, gear)
+                                            {
+                                                boss.search(gear, feed::fwd);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::search::reverse, gear)
+                                            {
+                                                boss.search(gear, feed::rev);
+                                            };
                                       });
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Fone          = [](view v)
+        auto build_Fone          = [](text cwd, text param)
         {
             return ui::park::ctor()
-                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(MONOTTY_VER)
+                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(DESKTOPIO_MYNAME)
                 ->template plugin<pro::fader>(x8, c8, 0ms))
                 ->template plugin<pro::notes>(" About Environment ")
                 ->invoke([&](auto& boss)
                 {
                     auto shadow = ptr::shadow(boss.This());
-                    auto data = utf::divide(v, ";");
+                    auto data = utf::divide(param, ";");
                     auto type = text{ data.size() > 0 ? data[0] : view{} };
                     auto name = text{ data.size() > 1 ? data[1] : view{} };
                     auto args = text{ data.size() > 2 ? data[2] : view{} };
                     boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         //todo revise/unify
-                        auto world_ptr = decltype(e2::config::whereami)::type{};
+                        auto world_ptr = e2::config::whereami.param();
                         SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                         if (auto boss = shadow.lock())
                         if (world_ptr)
@@ -874,30 +961,34 @@ namespace netxs::app::shared
                             auto viewport = gear.area();
                             gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
                             gear.slot.size = viewport.size * 3 / 4;
+                            gear.slot_forced = faux;
 
-                            auto menu_list_ptr = decltype(e2::bindings::list::apps)::type{};
+                            auto menu_list_ptr = e2::bindings::list::apps.param();
+                            auto conf_list_ptr = e2::bindings::list::links.param();
                             world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
+                            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
                             auto& menu_list = *menu_list_ptr;
-                            
-                            if (app::shared::objs_config.contains(name) && app::shared::objs_config[name].fixed) // Check for Demo label availability.
+                            auto& conf_list = *conf_list_ptr;
+
+                            if (conf_list.contains(name) && !conf_list[name].hidden) // Check for id availability.
                             {
                                 auto i = 1;
-                                text test;
+                                auto test = text{};
                                 do   test = name + " (" + std::to_string(++i) + ")";
-                                while (app::shared::objs_config.contains(test) && app::shared::objs_config[name].fixed);
+                                while (conf_list.contains(test) && !conf_list[name].hidden);
                                 std::swap(test, name);
                             }
-                            auto& m = app::shared::objs_config[name];
-                            m.group = type;
+                            auto& m = conf_list[name];
+                            m.type = type;
                             m.label = name;
                             m.title = name; // Use the same title as the menu label.
                             m.param = args;
-                            m.fixed = faux;
+                            m.hidden = true;
                             menu_list[name];
 
-                            auto current_default = decltype(e2::data::changed)::type{};
+                            auto current_default = e2::data::changed.param();
                             boss->template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
-                            
+
                             if (auto gate = boss->parent())
                             {
                                 gate->SIGNAL(tier::release, e2::data::changed, name);
@@ -909,203 +1000,387 @@ namespace netxs::app::shared
                     };
                 });
         };
+        auto build_DirectVT      = [](text cwd, text param)
+        {
+            auto window = ui::cake::ctor()
+                ->plugin<pro::limit>(dot_11)
+                ->plugin<pro::focus>();
 
-        app::shared::initialize builder_Strobe       { "Strobe"       , build_Strobe        };
-        app::shared::initialize builder_Settings     { "Settings"     , build_Settings      };
-        app::shared::initialize builder_Empty        { "Empty"        , build_Empty         };
-        app::shared::initialize builder_View         { "View"         , build_View          };
-        app::shared::initialize builder_Truecolor    { "Truecolor"    , build_Truecolor     };
-        app::shared::initialize builder_VTM          { "VTM"          , build_VTM           };
-        app::shared::initialize builder_MC           { "MC"           , build_MC            };
-        app::shared::initialize builder_PowerShell   { "PowerShell"   , build_PowerShell    };
-        app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
-        app::shared::initialize builder_HeadlessTerm { "HeadlessTerm" , build_HeadlessTerm  };
-        app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
+            auto direct = ui::dtvt::ctor(cwd, param)
+                ->invoke([](auto& boss)
+                {
+                    boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                    {
+                        boss.start();
+                    };
+                });
+            window->attach(direct);
+            return window;
+        };
+        auto build_ANSIVT        = [](text cwd, text param)
+        {
+            if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
+
+            auto args = os::current_module_file();
+            if (args.find(' ') != text::npos) args = "\"" + args + "\"";
+
+            args += " -r headless ";
+            args += param;
+
+            return build_DirectVT(cwd, args);
+        };
+        auto build_SHELL         = [](text cwd, text param)
+        {
+            auto args = os::current_module_file();
+            if (args.find(' ') != text::npos) args = "\"" + args + "\"";
+
+            args += " -r headless ";
+            if (param.empty())
+            {
+                #if defined(_WIN32)
+                    args += "cmd";
+                #else
+                    args += os::get_shell();
+                #endif
+            }
+            else
+            {
+                #if defined(_WIN32)
+                    args += "cmd /c ";
+                #else
+                    args += os::get_shell() + " -c ";
+                #endif
+                args += param;
+            }
+
+            return build_DirectVT(cwd, args);
+        };
+
+        app::shared::initialize builder_Strobe       { "strobe"                  , build_Strobe     };
+        app::shared::initialize builder_Settings     { "settings"                , build_Settings   };
+        app::shared::initialize builder_Empty        { "empty"                   , build_Empty      };
+        app::shared::initialize builder_Truecolor    { "truecolor"               , build_Truecolor  };
+        app::shared::initialize builder_Headless     { app::shared::type_Headless, build_Headless   };
+        app::shared::initialize builder_Fone         { app::shared::type_Fone    , build_Fone       };
+        app::shared::initialize builder_Region       { app::shared::type_Region  , build_Region     };
+        app::shared::initialize builder_DirectVT     { app::shared::type_DirectVT, build_DirectVT   };
+        app::shared::initialize builder_ANSIVT       { app::shared::type_ANSIVT  , build_ANSIVT     };
+        app::shared::initialize builder_SHELL        { app::shared::type_SHELL   , build_SHELL      };
     }
 
     auto init_app_registry = [](auto& world)
     {
-        auto menu_list_ptr = decltype(e2::bindings::list::apps)::type{};
+        auto menu_list_ptr = e2::bindings::list::apps.param();
+        auto conf_list_ptr = e2::bindings::list::links.param();
         world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
+        world->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
         auto& menu_list = *menu_list_ptr;
+        auto& conf_list = *conf_list_ptr;
+        auto current_module_file = os::current_module_file();
 
-        #ifdef DEMO
-            auto shell = os::get_shell();
-            #ifdef PROD
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(a(\"MC\",\"\",\"\"), h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
-            #else
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(a(\"MC\",\"\",\"\"), h1:1(\"\",\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\")), a(\"Calc\",\"\",\"\"))";
-            #endif
+        struct xml_element
+        {
+            using list = sptr<std::vector<xml_element>>;
+            using umap = std::unordered_map<text, list>;
+            text tag;      // xml_element: Element tag.
+            text value;    // xml_element: Element value.
+            list elements; // xml_element: Random access by id.
+            umap index;    // xml_element: Access by id.
+        };
+        using item_t = std::unordered_map<text, text>;
+        auto list = std::vector<item_t>{};
+        auto sort_list = std::list<std::pair<text, menuitem_t>>{};
+        auto free_list = sort_list;
+        auto temp_list = sort_list;
 
-            for (auto& [menu_item_id, app_data] : app::shared::objs_config)
-                menu_list[menu_item_id];
-        #else
-            #ifdef _WIN32
-                menu_list[objs_lookup["Term"]];
-                menu_list[objs_lookup["PowerShell"]];
-                menu_list[objs_lookup["Tile"]];
-                menu_list[objs_lookup["Logs"]];
-                menu_list[objs_lookup["View"]];
-                menu_list[objs_lookup["Gems"]];
-                menu_list[objs_lookup["Settings"]];
-            #else
-                menu_list[objs_lookup["Term"]];
-                menu_list[objs_lookup["Tile"]];
-                menu_list[objs_lookup["Logs"]];
-                menu_list[objs_lookup["View"]];
-                menu_list[objs_lookup["Gems"]];
-                menu_list[objs_lookup["Settings"]];
-            #endif
-
-            // Add custom commands to the menu.
-            // vtm: Get user defined tiling layouts.
-            auto tiling_profiles = os::get_envars("VTM_PROFILE");
-            if (auto size = tiling_profiles.size())
+        auto take_xml_item = [](text& tag, item_t& item, view& data)
+        {
+            auto type = xml::type::none;
+            if (xml::open(data, type))
             {
-                auto i = 0;
-                log("main: tiling profile", size > 1 ? "s":"", " found");
-                for (auto& p : tiling_profiles)
+                auto attr = text{};
+                if (xml::attr(data, tag, type))
                 {
-                    log("\t", i++, ". profile: ", utf::debase(p));
-                    //todo rewrite
-                    auto v = view{ p };
-                    auto name = utf::get_quote(v, '\"');
-                    if (!name.empty())
+                    while (xml::attr(data, attr, type))
                     {
-                        auto& m = app::shared::objs_config[name];
-                        m.group = "Tile";
-                        m.label = name;
-                        m.title = name; // Use the same title as the menu label.
-                        m.param = text{ p };
-                        menu_list[name];
+                        auto& value = item[attr];
+                        value = xml::value(data);
                     }
                 }
             }
+            return type == xml::type::close;
+        };
+        auto take_elements = [&](view data)
+        {
+            static auto splitter_count = 0;
+            auto defaults = item_t{};
+            auto item = item_t{};
+            auto tag = text{};
+            while (take_xml_item(tag, item, data))
+            {
+                if (tag == tag_menuitem)
+                {
+                    for (auto& [defkey, defval] : defaults)
+                    {
+                        item.try_emplace(defkey, defval);
+                    }
+                    list.emplace_back(std::move(item));
+                }
+                else if (tag == tag_defaults)
+                {
+                    defaults = std::move(item);
+                }
+                else if (tag == tag_splitter)
+                {
+                    item[tag_splitter] = "true";
+                    item[attr_id] = "<splitter_" + std::to_string(splitter_count++) + ">";
+                    list.emplace_back(std::move(item));
+                }
+                else log(" xml: skip element <", utf::debase(tag), ">");
+            }
+        };
+        auto take_path = [](auto const& filename)
+        {
+            auto path = filename.path().string();
+            utf::change(path, "\\", "/");
+            return path;
+        };
+        auto take_config = [&](view data)
+        {
+            auto type = xml::type::none;
+            auto tag = text{};
+            if (xml::open(data, type))
+            {
+                auto attr = text{};
+                if (xml::attr(data, tag, type) && tag == tag_config)
+                {
+                    while (xml::attr(data, attr, type) && attr == attr_selected)
+                    {
+                        get_selected() = xml::value(data);
+                        log("apps: ", attr_selected, " ", get_selected());
+                    }
+                }
+            }
+            take_elements(data);
+        };
 
-        #endif
+        auto ec = std::error_code{};
+        auto config_path = os::homepath() / path_settings;
+        auto config_file = fs::directory_entry(config_path, ec);
+        auto config_path_str = "'" + config_path.string() + "'";
+        utf::change(config_path_str, "\\", "/");
+        if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
+        {
+            auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
+            if (file.seekg(0, std::ios::end).fail())
+            {
+                log("apps: unable to get configuration file size, skip it: ", config_path_str);
+            }
+            else
+            {
+                log("apps: using configuration: ", config_path_str);
+                auto size = file.tellg();
+                auto buff = std::vector<char>(size);
+                file.seekg(0, std::ios::beg);
+                file.read(buff.data(), size);
+                take_config(view(buff.data(), size));
+            }
+        }
+
+        if (list.empty())
+        {
+            log("apps: configuration ", config_path_str, " not found, use default configuration\n", default_config);
+            take_config(default_config);
+        }
+
+        auto tiling_profiles = os::get_envars(tag_profile);
+        if (auto size = tiling_profiles.size())
+        {
+            auto i = 0;
+            log("main: tiling profile", size > 1 ? "s":"", " found:");
+            for (auto& profile : tiling_profiles)
+            {
+                log("\t", i++, ". profile: ", utf::debase(profile));
+                auto data = utf::remain(profile, '=');
+                take_elements(data);
+            }
+        }
+
+        log("apps: ", list.size(), " menu item(s) added");
+        auto dflt_rec = menuitem_t
+        {
+            .index    = -1,
+            .hidden   = faux,
+            .slimmenu = faux,
+            .type     = type_SHELL,
+        };
+        auto find = [&](auto const& id) -> auto&
+        {
+            auto test = [&](auto& p) { return p.first == id; };
+
+            auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
+            if (iter_free != free_list.end()) return iter_free->second;
+
+            auto iter_temp = std::find_if(temp_list.begin(), temp_list.end(), test);
+            if (iter_temp != temp_list.end()) return iter_temp->second;
+
+            auto iter_sort = std::find_if(sort_list.begin(), sort_list.end(), test);
+            if (iter_sort != sort_list.end()) return iter_sort->second;
+
+            return dflt_rec;
+        };
+
+        for (auto& item : list)
+        {
+            if (auto iter = item.find(attr_id); iter != item.end())
+            {
+                auto& id = iter->second;
+                if (id.empty())
+                {
+                    log("apps: attribute '", utf::debase(attr_id), "' missing for ", utf::debase(id));
+                    continue;
+                }
+                auto& label = item[attr_label];
+                auto conf_rec = menuitem_t{};
+                conf_rec.label    = label.empty() ? id : label;
+                conf_rec.id       = id;
+                conf_rec.alias    = xml::take<view>(item, attr_alias);
+                auto& fallback = conf_rec.alias.empty() ? dflt_rec
+                                                        : find(conf_rec.alias);
+                conf_rec.index    = xml::take<si32>(item, attr_index,    fallback.index   );
+                conf_rec.hidden   = xml::take<bool>(item, attr_hidden,   fallback.hidden  );
+                conf_rec.notes    = xml::take<view>(item, attr_notes,    fallback.notes   );
+                conf_rec.title    = xml::take<view>(item, attr_title,    fallback.title   );
+                conf_rec.footer   = xml::take<view>(item, attr_footer,   fallback.footer  );
+                conf_rec.bgcolor  = xml::take<rgba>(item, attr_bgcolor,  fallback.bgcolor );
+                conf_rec.fgcolor  = xml::take<rgba>(item, attr_fgcolor,  fallback.fgcolor );
+                conf_rec.winsize  = xml::take<twod>(item, attr_winsize,  fallback.winsize );
+                conf_rec.wincoor  = xml::take<twod>(item, attr_wincoor,  fallback.wincoor );
+                conf_rec.slimmenu = xml::take<bool>(item, attr_slimmenu, fallback.slimmenu);
+                conf_rec.hotkey   = xml::take<view>(item, attr_hotkey,   fallback.hotkey  ); //todo register hotkey
+                conf_rec.cwd      = xml::take<view>(item, attr_cwd,      fallback.cwd     );
+                conf_rec.param    = xml::take<view>(item, attr_param,    fallback.param   );
+                conf_rec.type     = xml::take<view>(item, attr_type,     fallback.type    );
+
+                conf_rec.splitter = xml::take<bool>(item, tag_splitter,  fallback.splitter);
+
+                utf::to_low(conf_rec.type);
+                utf::change(conf_rec.title,  "$0", current_module_file);
+                utf::change(conf_rec.footer, "$0", current_module_file);
+                utf::change(conf_rec.label,  "$0", current_module_file);
+                utf::change(conf_rec.notes,  "$0", current_module_file);
+                utf::change(conf_rec.param,  "$0", current_module_file);
+
+                     if (conf_rec.hidden)      temp_list.emplace_back(std::move(id), std::move(conf_rec));
+                else if (conf_rec.index == -1) free_list.emplace_back(std::move(id), std::move(conf_rec));
+                else                           sort_list.emplace_back(std::move(id), std::move(conf_rec));
+            }
+            else log("apps: attribute '", utf::debase(attr_id), "' is missing");
+        }
+        sort_list.sort([](auto const& a, auto const& b)
+        {
+            return a.second.index < b.second.index;
+        });
+        for (auto iter = sort_list.begin(); iter != sort_list.end(); ++iter)
+        {
+            auto& [id, conf_rec] = *iter;
+            auto index = std::clamp(conf_rec.index, 0, static_cast<decltype(conf_rec.index)>(free_list.size()));
+            auto insertion_point = free_list.begin();
+            std::advance(insertion_point, index);
+            free_list.insert(insertion_point, std::move(*iter));
+        }
+        for (auto& [id, conf_rec] : free_list)
+        {
+            menu_list[id];
+            conf_list.emplace(std::move(id), std::move(conf_rec));
+        }
+        for (auto& [id, conf_rec] : temp_list)
+        {
+            conf_list.emplace(std::move(id), std::move(conf_rec));
+        }
 
         world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
         {
             static si32 insts_count = 0;
-            if (auto gate_ptr = bell::getref(gear.id))
+            auto& gate = gear.owner;
+            auto location = gear.slot;
+            if (gear.meta(hids::anyCtrl))
             {
-                auto& gate = *gate_ptr;
-                auto location = gear.slot;
-                if (gear.meta(hids::ANYCTRL))
+                log("apps: area copied to clipboard ", location);
+                auto canvas_ptr = sptr<core>{};
+                gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
+                if (canvas_ptr)
                 {
-                    log("host: area copied to clipboard ", location);
-                    sptr<core> canvas_ptr;
-                    gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
-                    if (canvas_ptr)
+                    auto& canvas = *canvas_ptr;
+                    auto data = ansi::esc{};
+                    data.s11n(canvas, location);
+                    if (data.length())
                     {
-                        auto& canvas = *canvas_ptr;
-                        auto data = canvas.meta(location);
-                        if (data.length())
-                        {
-                            gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                            gate.SIGNAL(tier::release, e2::command::clipboard::set, data);
-                        }
+                        gear.set_clip_data(location.size, data);
                     }
                 }
-                else
+            }
+            else
+            {
+                auto what = e2::form::proceed::createat.param();
+                what.square = gear.slot;
+                what.forced = gear.slot_forced;
+                auto data = e2::data::changed.param();
+                gate.SIGNAL(tier::request, e2::data::changed, data);
+                what.menuid = data;
+                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
+                if (auto& frame = what.object)
                 {
-                    auto what = decltype(e2::form::proceed::createat)::type{};
-                    what.square = gear.slot;
-                    auto data = decltype(e2::data::changed)::type{};
-                    gate.SIGNAL(tier::request, e2::data::changed, data);
-                    what.menuid = data;
-                    world->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                    if (auto& frame = what.object)
+                    insts_count++;
+                    frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
                     {
-                        insts_count++;
-                        #ifndef PROD
-                            if (insts_count > APPS_MAX_COUNT)
-                            {
-                                log("inst: max count reached");
-                                auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
-                                auto w_frame = ptr::shadow(frame);
-                                frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
-                                {
-                                    if (timestamp > timeout)
-                                    {
-                                        log("inst: timebomb");
-                                        if (auto frame = w_frame.lock())
-                                        {
-                                            frame->base::detach();
-                                            log("inst: frame detached: ", insts_count);
-                                        }
-                                    }
-                                };
-                            }
-                        #endif
+                        insts_count--;
+                        log("apps: detached: ", insts_count);
+                    };
 
-                        frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
-                        {
-                            insts_count--;
-                            log("inst: detached: ", insts_count);
-                        };
-
-                        gear.kb_focus_taken = faux;
-                        frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                        frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // The Tile should change the menu item.
-                    }
+                    gear.kb_focus_changed = faux;
+                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                 }
             }
         };
         world->SUBMIT(tier::release, e2::form::proceed::createat, what)
         {
-            auto& config = app::shared::objs_config[what.menuid];
-            auto  window = app::shared::base_window(config.title, "", what.menuid);
+            auto& conf_list = app::shared::configs();
+            auto& config = conf_list[what.menuid];
+            auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
 
-            window->extend(what.square);
-            auto& creator = app::shared::creator(config.group);
-            window->attach(creator(config.param));
-            log("host: app type: ", config.group, ", menu item id: ", what.menuid);
-            world->branch(what.menuid, window, config.fixed);
+            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
+            else                                window->extend(what.square);
+            auto& creator = app::shared::creator(config.type);
+
+            //todo pass whole s11n::configuration map
+            auto object = creator(config.cwd, config.param);
+            if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
+            if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
+            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+
+            window->attach(object);
+            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
+            world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 
             what.object = window;
         };
         world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
         {
-            auto& config = app::shared::objs_config[what.menuid];
+            auto& conf_list = app::shared::configs();
+            auto& config = conf_list[what.menuid];
             auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
 
             window->extend(what.square);
             window->attach(what.object);
-            log("host: attach type=", config.group, " menu_item_id=", what.menuid);
-            world->branch(what.menuid, window, config.fixed);
+            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
+            world->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 
             what.object = window;
         };
-
-        #ifdef DEMO
-            auto creator = [&](text const& menu_item_id, rect area)
-            {
-                auto what = decltype(e2::form::proceed::createat)::type{};
-                what.menuid = menu_item_id;
-                what.square = area;
-                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
-            };
-            auto sub_pos = twod{ 12+17, 0 };
-            creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
-            creator(objs_lookup["Test"], { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
-            creator(objs_lookup["Gems"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
-            creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
-            creator(objs_lookup["Text"], { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 68, 22 } });
-            creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
-            creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
-            creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
-            creator(objs_lookup["View"], { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
-            creator(objs_lookup["View"], { twod{ 0,-1 } + sub_pos, { 120, 52 } });
-
-            sub_pos = twod{-120, 60};
-            creator(objs_lookup["Truecolor"  ], { twod{ 20, 15 } + sub_pos, { 70, 30 } });
-            creator(objs_lookup["Logs"       ], { twod{ 52, 33 } + sub_pos, { 45, 12 } });
-            creator(objs_lookup["Settings"   ], { twod{ 60, 41 } + sub_pos, { 35, 10 } });
-        #endif
     };
 }
 

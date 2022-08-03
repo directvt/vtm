@@ -14,7 +14,7 @@ namespace netxs::events::userland
         {
             EVENT_XS( cmd   , si32 ),
             EVENT_XS( selmod, si32 ),
-            EVENT_XS( colors, cell ),
+            GROUP_XS( colors, rgba ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( data  , si32 ),
             GROUP_XS( search, input::hids ),
@@ -35,6 +35,11 @@ namespace netxs::events::userland
                 EVENT_XS( reverse, input::hids ),
                 EVENT_XS( status , si32        ),
             };
+            SUBSET_XS( colors )
+            {
+                EVENT_XS( bg, rgba ),
+                EVENT_XS( fg, rgba ),
+            };
         };
     };
 }
@@ -51,38 +56,6 @@ namespace netxs::app::term
 
         auto items = app::shared::menu_list_type
         {
-        #ifdef DEMO
-            { true, "T1", " Exec `ls /bin` ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto data = "ls /bin\n"s;
-                    boss.SIGNAL(tier::anycast, app::term::events::data::out, data);
-                    gear.dismiss(true);
-                };
-            }},
-            { true, "T2", " Exec `ping -c 3 127.0.0.1 | ccze -A` ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto data = "ping -c 3 127.0.0.1 | ccze -A\n"s;
-                    boss.SIGNAL(tier::anycast, app::term::events::data::out, data);
-                    gear.dismiss(true);
-                };
-            }},
-            { true, "T3", " Exec `curl wttr.in` ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto data = "curl wttr.in\n"s;
-                    boss.SIGNAL(tier::anycast, app::term::events::data::out, data);
-                    gear.dismiss(true);
-                };
-            }},
-        #endif
             { true, "=─", " Align text lines on left side   \n"
                           " - applied to selection if it is ",
             [](ui::pads& boss)
@@ -208,7 +181,6 @@ namespace netxs::app::term
                     boss.color(mode & 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-        #ifdef PROD
             { faux, "  ", " ...empty menu block for safety ",
             [](ui::pads& boss)
             {
@@ -222,7 +194,6 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-        #endif
             { true, "Reset", " Clear scrollback and SGR-attributes ",
             [](ui::pads& boss)
             {
@@ -238,10 +209,12 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             auto window = ui::cake::ctor();
-            auto term_type = shared::app_class(v);
+            auto arg_shadow = view{ arg };
+            auto term_type = shared::app_class(arg_shadow);
+            arg = arg_shadow;
             if (term_type == shared::app_type::normal) window->plugin<pro::focus>()
                                                              ->plugin<pro::track>()
                                                              ->plugin<pro::acryl>()
@@ -268,7 +241,7 @@ namespace netxs::app::term
                                         //    0 -- maximize (toggle)
                                         if (new_size == dot_00) // Toggle maximize/restore terminal window (only if it is focused by someone).
                                         {
-                                            auto gates = decltype(e2::form::state::keybd::enlist)::type{};
+                                            auto gates = e2::form::state::keybd::enlist.param();
                                             boss.SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
                                             if (gates.size())
                                             if (auto gate_ptr = bell::getref(gates.back()))
@@ -289,10 +262,11 @@ namespace netxs::app::term
                                   });
 
                             auto shell = os::get_shell();
-                            auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
-                                                                                : text{ v }));
+                            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell + " -i"
+                                                                                       : arg));
 
-                            inst->attach_property(ui::term::events::colors,          app::term::events::colors)
+                            inst->attach_property(ui::term::events::colors::bg,      app::term::events::colors::bg)
+                                ->attach_property(ui::term::events::colors::fg,      app::term::events::colors::fg)
                                 ->attach_property(ui::term::events::selmod,          app::term::events::selmod)
                                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::layout::wrapln)
                                 ->attach_property(ui::term::events::layout::align,   app::term::events::layout::align)
@@ -312,11 +286,20 @@ namespace netxs::app::term
                                         boss.data_out(data);
                                     };
                                     //todo add color picker to the menu
-                                    boss.SUBMIT(tier::anycast, app::term::events::colors, brush)
+                                    boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
                                     {
-                                        boss.set_color(brush);
+                                        boss.set_bg_color(bg);
                                     };
-
+                                    boss.SUBMIT(tier::anycast, app::term::events::colors::fg, fg)
+                                    {
+                                        boss.set_fg_color(fg);
+                                    };
+                                    boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
+                                    {
+                                        auto deed = boss.bell::template protos<tier::anycast>();
+                                             if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::bg, clr);
+                                        else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::fg, clr);
+                                    };
                                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                                     {
                                         boss.start();
@@ -338,7 +321,7 @@ namespace netxs::app::term
         };
     }
 
-    app::shared::initialize builder{ "Term", build };
+    app::shared::initialize builder{ "term", build };
 }
 
 #endif // NETXS_APP_TERM_HPP

@@ -41,21 +41,20 @@ namespace netxs::app::shop
 
             if (appstore_head.empty())
             {
-                text monotty_logo  = ansi::bgc(blackdk  ).add("▀▄");
-                text textancy_logo = ansi::bgc(cyandk   ).add("▀▄");
-                text cellatix_logo = ansi::bgc(greendk  ).add("▀▄");
-                text informio_logo = ansi::bgc(magentadk).add("▀▄");
-                text ansiplex_logo = ansi::bgc(reddk    ).add("▀▄");
-                text unicodex_logo = ansi::bgc(yellowdk ).add("▀▄");
-                text appstore_logo = ansi::bgc(blacklt  ).add("▀▄");
+                auto textancy_logo = ansi::bgc(cyandk   ).add("▀▄");
+                auto cellatix_logo = ansi::bgc(greendk  ).add("▀▄");
+                auto informio_logo = ansi::bgc(magentadk).add("▀▄");
+                auto ansiplex_logo = ansi::bgc(reddk    ).add("▀▄");
+                auto unicodex_logo = ansi::bgc(yellowdk ).add("▀▄");
+                auto appstore_logo = ansi::bgc(blacklt  ).add("▀▄");
 
-                text line = ansi::wrp(wrap::off).add("──────────────────────────────────────────────────────────────────────────────────────").wrp(wrap::on).eol();
+                auto line = ansi::wrp(wrap::off).add("──────────────────────────────────────────────────────────────────────────────────────").wrp(wrap::on).eol();
                 auto item = [](auto app, auto clr, auto rating, auto price, auto buy, auto desc)
                 {
                     auto clr_light = rgba{ clr };
                     clr_light.mix(0xa7ffffff);
 
-                    text lot = ansi::nil()
+                    auto lot = ansi::nil()
                         .jet(bias::left)
                         .mgl(2).mgr(1).eol()
                         .fgc().jet(bias::left).wrp(wrap::off)
@@ -83,7 +82,7 @@ namespace netxs::app::shop
                 "users to browse and download applications developed with "
                 "Desktopio Framework.\n\n");
 
-                text textancy_text = ansi::nil().add(
+                auto textancy_text = ansi::nil().add(
                 "Hello World!😎\n"
                 "絵文字:\n"
                 "English: /ɪˈmoʊdʒiː/;\n"
@@ -97,14 +96,18 @@ namespace netxs::app::shop
                     item("Tile", bluedk, "3", "Free ", "Get",
                     ansi::add("Meta object. Tiling window manager configurable "
                     "via environment variable ").
-                    fgc(whitelt).bld(true).add("VTM_TILE").fgc().bld(faux).
+                    fgc(whitelt).bld(true).add("VTM_CONFIG").fgc().bld(faux).
                     add(".\n\nConfiguration example:\n\n").
                     mgl(2).fgc(whitelt).bgc(blacklt)
-                    .add(" VTM_PROFILE_1='\"Menu label 1\", \"Window Title 1\", h1:2( v1:1(\"bash -c htop\", \"bash -c mc\"), \"bash\")' \n"
-                        " VTM_PROFILE_2='\"Menu label 2\", \"Window Title 2\", h( v(\"bash -c htop\", \"bash -c mc\"), a(\"Calc\",\"\",\"\"))' ")),
+                   .add("VTM_CONFIG='<splitter label=\"envars\" notes=\" Menu items configured using envar VTM_CONFIG=... \"/>\\n \n"
+                        "            <menuitem id=Term2 notes=\"Run terminal\" type=DirectVT label=\"Virtual \\e[41mTerminal\\e[m Emulator\" param=\"$0 -r term\"/>\\n \n"
+                        "            <menuitem id=View2 label=View notes=\"Desktop region\" type=Region title=\"Region 1\"/>\\n \n"
+                        "            <menuitem id=htop2 label=htop hidden=yes notes=\"htop app\" type=ANSIVT param=\"htop\"/>\\n \n"
+                        "            <menuitem id=mc2 label=mc hidden=1 notes=\"mc app\" type=SHELL param=\"mc\"/>\\n \n"
+                        "            <menuitem id=Tile2 label=Tile notes=\"Tiling Window Manager\" type=Group title=\"Tiling Window Manager\" param=\"h1:2( v1:1(htop2, mc2), Term2)\"/>' ")),
 
                     item("Text", cyandk, "102", "Free ", "Get",
-                    "A simple text editor for Monotty Desktopio environment "
+                    "A simple text editor for Desktopio environment "
                     "and a basic editing tool which enables "
                     "desktop users to create documents that "
                     "contain ANSI-formatted text."),
@@ -126,10 +129,10 @@ namespace netxs::app::shop
                     "codepoints and inspecting their metadata."),
 
                     item(ansi::fgc(0xFFff0000).add("File"), cyanlt, "4", "Free ", "Get",
-                    "An orthodox file manager for Monotty Desktopio environment."),
+                    "An orthodox file manager for Desktopio environment."),
 
                     item("Time", bluedk, "4", "Free ", "Get",
-                    "A calendar application for Monotty Desktopio environment."),
+                    "A calendar application for Desktopio environment."),
 
                     item("Goto", bluedk, "4", "Free ", "Get",
                     "Internet/SSH browser."),
@@ -148,13 +151,13 @@ namespace netxs::app::shop
                     "Software documentation browser."),
 
                     item("Hood", reddk, "1", "Free ", "Get",
-                    "Desktop environment settings configurator."),
+                    "Workspace settings configurator."),
 
                     item("View", cyandk, "1", "Free ", "Get",
-                    "Meta object. Desktop location marker."),
+                    "Meta object. Workspace location marker."),
                 };
 
-                text qr = ansi::esc(
+                auto qr = ansi::esc(
                 "\033[107m                                 \n"
                 "  \033[40m \033[97m▄▄▄▄▄ \033[107m \033[30m▄\033[40;97m▄\033[107m \033[30m▄\033[40m \033[107m  \033[40m \033[97m▄\033[107;30m▄\033[40;97m▄▄\033[107m  \033[40m ▄▄▄▄▄ \033[107m  \n"
                 "  \033[40m \033[107m \033[40m   \033[107m \033[40m \033[107m \033[40m▄   ▄\033[107m \033[40m \033[107;30m▄ \033[40m \033[107m▄\033[40;97m▄\033[107m  \033[40m \033[107m \033[40m   \033[107m \033[40m \033[107m  \n"
@@ -177,16 +180,16 @@ namespace netxs::app::shop
                 .mgl(2).mgr(2).wrp(wrap::off)
                 .fgc(bluedk).jet(bias::left)
                 .bgc(bluedk).fgc(0xFFFFFFFF)
-                .add(" Monotty Desktopio "
+                .add(" Desktopio Environment "
                 "\n\n")
                 .fgc().bgc().jet(bias::left).wrp(wrap::on).add(
-                "Monotty Desktopio is a cross-platform, full-featured desktop environment."
+                "Desktopio Environment is a cross-platform, full-featured desktop environment."
                 " A user interface where by all output is presented in the form of text.\n"
-                "The first biggest advantage of this desktop environment concept that "
+                "The first biggest advantage of this concept that "
                 "it can be used directly over SSH connections, no additional protocol needed.\n"
                 "The second is the flexible multi-user interface "
                 "that serves several users engaged in collaborative applications and enables "
-                "users to view a collaborating user’s workspace.\n"
+                "users to view a collaborating user's workspace.\n"
                 "\n"
                 "If you like the way we think and would like to support the project "
                 "in the spirit of Bitcoin, you can donate at the following public "
@@ -199,7 +202,7 @@ namespace netxs::app::shop
             return std::tuple{ appstore_head, appstore_body, desktopio_body };
         };
 
-        auto build = [](view v)
+        auto build = [](text cwd, text arg)
         {
             const static auto c3 = app::shared::c3;
             const static auto x3 = app::shared::x3;
@@ -214,6 +217,10 @@ namespace netxs::app::shop
                   ->invoke([](auto& boss)
                   {
                         boss.keybd.accept(true);
+                        boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                        {
+                            boss.base::template riseup<tier::release>(e2::form::quit, item);
+                        };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
@@ -240,7 +247,7 @@ namespace netxs::app::shop
         };
     };
 
-    app::shared::initialize builder{ "Gems", build };
+    app::shared::initialize builder{ "gems", build };
 }
 
 #endif // NETXS_APP_SHOP_HPP

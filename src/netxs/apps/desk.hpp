@@ -24,7 +24,7 @@ namespace netxs::events::userland
 namespace netxs::app::desk
 {
     using events = ::netxs::events::userland::desk;
-    
+
     namespace
     {
         auto app_template = [](auto& data_src, auto const& utf8)
@@ -50,7 +50,7 @@ namespace netxs::app::desk
                                 inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
                                 auto& area = inst.base::area();
                                 auto center = area.coor + (area.size / 2);
-                                bell::getref(gear.id)->SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
+                                gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
                                 gear.pass_kb_focus(inst);
                                 gear.dismiss();
                             }
@@ -79,7 +79,7 @@ namespace netxs::app::desk
                 auto label_area = item_area->attach(ui::fork::ctor());
                     auto mark_app = label_area->attach(slot::_1, ui::fork::ctor());
                         auto mark = mark_app->attach(slot::_1, ui::pads::ctor(dent{ 2,1,0,0 }, dent{ 0,0,0,0 }))
-                                            ->attach(ui::item::ctor(ansi::fgc4(0xFF00ff00).add("‣"), faux));
+                                            ->attach(ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣"), faux));
                         auto app_label = mark_app->attach(slot::_2,
                                     ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left), true, true));
                     auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }))
@@ -92,7 +92,7 @@ namespace netxs::app::desk
                                                         {
                                                             if (auto data_src = data_src_shadow.lock())
                                                             {
-                                                                data_src->SIGNAL(tier::release, e2::form::proceed::detach, data_src);
+                                                                data_src->SIGNAL(tier::anycast, e2::form::quit, data_src);
                                                                 gear.dismiss();
                                                             }
                                                         };
@@ -102,6 +102,7 @@ namespace netxs::app::desk
         };
         auto apps_template = [](auto& data_src, auto& apps_map)
         {
+            const static auto cA = app::shared::cA;
             const static auto c3 = app::shared::c3;
             const static auto x3 = app::shared::x3;
 
@@ -110,22 +111,34 @@ namespace netxs::app::desk
                 {
                     boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                     {
-                        auto current_default = decltype(e2::data::changed)::type{};
+                        auto current_default = e2::data::changed.param();
                         boss.template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
                         boss.SIGNAL(tier::anycast, events::ui::selected, current_default);
                     };
                 });
 
+            auto& conf_list = app::shared::configs();
+            auto def_note = text{" Menu item:                           \n"
+                                 "   Left click to start a new instance \n"
+                                 "   Right click to set default app     "};
             for (auto const& [class_id, stat_inst_ptr_list] : *apps_map)
             {
                 auto& [state, inst_ptr_list] = stat_inst_ptr_list;
                 auto inst_id  = class_id;
-                auto obj_desc = app::shared::objs_config[class_id].label;
+                auto& conf = conf_list[class_id];
+                auto& obj_desc = conf.label;
+                auto& obj_note = conf.notes;
+                if (conf.splitter)
+                {
+                    auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
+                                         ->attach(ui::item::ctor(obj_desc, true, faux, true))
+                                         ->colors(cA.fgc(), cA.bgc())
+                                         ->template plugin<pro::notes>(obj_note);
+                    continue;
+                }
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
                                      ->template plugin<pro::fader>(x3, c3, 0ms)
-                                     ->template plugin<pro::notes>(" Menu item:                           \n"
-                                                                   "   Left click to start a new instance \n"
-                                                                   "   Right click to set default app     ")
+                                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
                                      ->invoke([&](auto& boss)
                                      {
                                          boss.mouse.take_all_events(faux);
@@ -144,7 +157,7 @@ namespace netxs::app::desk
                                              {
                                                  boss->SIGNAL(tier::anycast, events::ui::selected, inst_id);
                                              }
-                                             auto world_ptr = decltype(e2::config::whereami)::type{};
+                                             auto world_ptr = e2::config::whereami.param();
                                              SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                                              if (world_ptr)
                                              {
@@ -154,6 +167,7 @@ namespace netxs::app::desk
                                                  auto viewport = gear.area();
                                                  gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
                                                  gear.slot.size = viewport.size * 3 / 4;
+                                                 gear.slot_forced = faux;
                                                  world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
                                                  gear.dismiss();
                                              }
@@ -184,8 +198,7 @@ namespace netxs::app::desk
                                          //           inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
                                          //           auto& area = inst.base::area();
                                          //           auto center = area.coor + (area.size / 2);
-                                         //           bell::getref(gear.id)->
-                                         //           SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
+                                         //           gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
                                          //           gear.pass_kb_focus(inst);
                                          //           gear.dismiss();
                                          //       }
@@ -204,7 +217,7 @@ namespace netxs::app::desk
                                     auto selected = inst_id == data;
                                     if (auto boss = boss_shadow.lock())
                                     {
-                                        boss->set(ansi::fgc4(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
+                                        boss->set(ansi::fgx(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
                                         boss->deface();
                                     }
                                 };
@@ -216,12 +229,12 @@ namespace netxs::app::desk
             return apps;
         };
 
-        auto build = [](view v)
+        auto build = [](text cwd, text v)
         {
             auto lock = netxs::events::sync{}; // Protect access to the world.
 
-            si32 uibar_min_size = 4;
-            si32 uibar_full_size = 31;
+            auto uibar_min_size  = si32{ 4  };
+            auto uibar_full_size = si32{ 31 };
 
             auto window = ui::cake::ctor();
 
@@ -250,9 +263,10 @@ namespace netxs::app::desk
                     const static auto x3 = app::shared::x3;
 
                     auto item_area = ui::pads::ctor(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                            ->plugin<pro::fader>(x3, c3, 150ms);
+                                            ->plugin<pro::fader>(x3, c3, 150ms)
+                                            ->plugin<pro::notes>(" Connected user ");
                         auto user = item_area->attach(ui::item::ctor(ansi::esc(" &").nil().add(" ")
-                                    .fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
+                                    .fgx(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
                     return item_area;
                 };
                 auto branch_template = [user_template](auto& data_src, auto& usr_list)
@@ -264,12 +278,12 @@ namespace netxs::app::desk
 
                 window->invoke([uibar_full_size, uibar_min_size](auto& boss) mutable
                     {
-                        //#ifdef _WIN32
-                        //    auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["CommandPrompt"]);
-                        //    //auto current_default = app::shared::objs_lookup["PowerShell"];
-                        //#else
-                            auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["Term"]);
-                        //#endif
+                        // Always set the first menu item as active.
+                        auto world_ptr = e2::config::whereami.param();
+                        SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+                        auto menu_list_ptr = e2::bindings::list::apps.param();
+                        world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
+                        auto current_default_sptr = std::make_shared<text>(app::shared::get_selected());
                         auto previous_default_sptr = std::make_shared<text>(*current_default_sptr);
                         auto subs_sptr = std::make_shared<subs>();
                         auto shadow = ptr::shadow(boss.This());
@@ -369,7 +383,7 @@ namespace netxs::app::desk
                                                     auto& timer = boss_ptr->template plugins<pro::timer>();
                                                     timer.pacify(faux);
                                                     if (active) apply(true);
-                                                    else timer.actify(faux, MENU_TIMEOUT, apply);
+                                                    else        timer.actify(faux, MENU_TIMEOUT, apply);
                                                 }
                                             };
                                             boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::viewport, viewport)
@@ -381,12 +395,13 @@ namespace netxs::app::desk
                                         });
                         auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
                         {
+                            const static auto cA = app::shared::cA;
                             const static auto c3 = app::shared::c3;
                             const static auto x3 = app::shared::x3;
                             const static auto c6 = app::shared::c6;
                             const static auto x6 = app::shared::x6;
 
-                            auto world_ptr = decltype(e2::config::whereami)::type{};
+                            auto world_ptr = e2::config::whereami.param();
                             SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                             {
                                 auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,0 }, dent{}))
@@ -401,11 +416,12 @@ namespace netxs::app::desk
                             {
                                 auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y));
                                 auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0,0,0,0 }))
-                                                            ->plugin<pro::fader>(x3, c3, 150ms)
                                                             ->plugin<pro::notes>(" List of connected users ");
                                     auto label_bttn = label_pads->attach(ui::fork::ctor());
                                         auto label = label_bttn->attach(slot::_1,
-                                            ui::item::ctor(ansi::fgc(whitelt).add("Users"), faux, faux));
+                                            ui::item::ctor("users", true, faux, true))
+                                                ->plugin<pro::limit>(twod{ 5,-1 })
+                                                ->colors(cA.fgc(), cA.bgc());
                                         auto bttn_area = label_bttn->attach(slot::_2, ui::fork::ctor());
                                             auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,1,1 }))
                                                                       ->plugin<pro::fader>(x6, c6, 150ms)
@@ -459,11 +475,8 @@ namespace netxs::app::desk
                                                             {
                                                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                                                 {
-                                                                    if (auto owner = base::getref(gear.id))
-                                                                    {
-                                                                        owner->SIGNAL(tier::release, e2::conio::quit, "taskbar: logout by button");
-                                                                        gear.dismiss();
-                                                                    }
+                                                                    gear.owner.SIGNAL(tier::release, e2::conio::quit, "taskbar: logout by button");
+                                                                    gear.dismiss();
                                                                 };
                                                             });
                                 auto disconnect_area = disconnect_park->attach(snap::head, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));
@@ -486,7 +499,7 @@ namespace netxs::app::desk
         };
     }
 
-    app::shared::initialize builder{ "Desk", build };
+    app::shared::initialize builder{ "desk", build };
 }
 
 #endif // NETXS_APP_DESK_HPP

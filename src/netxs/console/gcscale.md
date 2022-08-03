@@ -128,7 +128,7 @@ Only those three types of variation sequences are sanctioned for use by conforma
 
 > In a variation sequence the variation selector affects the appearance of the base character. Such changes in appearance may, in turn, have a visual impact on subsequent characters, particularly combining characters applied to that base character.
 
-> The standardization or support of a particular variation sequence does not limit the set of glyphs that can be used to represent the base character alone. 
+> The standardization or support of a particular variation sequence does not limit the set of glyphs that can be used to represent the base character alone.
 
 ##### Placement in the Text
 ```
@@ -177,14 +177,14 @@ Output examples (VT sequence <SCALE;;;>)
   [1/1,1/1]
 - cout “😊” produce 2x1 in buffer:
   [1/2,1/1][2/2,1/1]
-- cout “👨‍👩‍👧‍👦” produce 3x1 in buffer: 
+- cout “👨‍👩‍👧‍👦” produce 3x1 in buffer:
   [1/3,1/1][2/3,1/1][3/3,1/1]
 - cout “<SCALE1;1;1;1>😀” produce 1x1
 - cout “<SCALE3;1;3;1>😀” produce 3x3
 - cout “<SCALE1;1;1;1>👨‍👩‍👧‍👦” produce 1x1
 - cout “<SCALE1;1;1;1>😀X” produce 1x1, 1x1
 - cout “<SCALE2;1;1;1>😀X<SCALE0;0;0;0>H” produce 2x1(😀), 2x1(X), 1x1(H)
-- cout “<SCALE1;2;1;1>😀🌎XH😀😀” produce 
+- cout “<SCALE1;2;1;1>😀🌎XH😀😀” produce
   [1/2,1/1](left half 😀), [2/2,1/1](right half 🌎), [1/2,1/1](left half X) , [2/2,1/1](right half H), [1/2,1/1](left half 😀) , [2/2,1/1](right half 😀)
 ```
 
