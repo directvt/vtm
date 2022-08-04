@@ -55,6 +55,101 @@ R"==(
 </config>
 )==";
 
+    static constexpr auto default_config_v2 = R"==(
+<config>
+    <selected=Term/> /* set selected using menuitem id */
+    <splitter label="apps">
+        <notes> 
+            " Default applications group                         \n"
+            " It can be configured in ~/.config/vtm/settings.xml "
+        </notes>
+    <menuitem* />    /* use asterisk at the end of the element name to set defaults */
+    <menuitem* index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0x0 wincoor=0x0 />
+    <menuitem id=Term label="Term" type=DirectVT notes="Run built-in terminal emulator" title="Terminal Emulator">
+        <hotkeys>
+            <action=start key="Ctrl+t"/>
+            <action=close key="Ctrl+z"/>
+        </hotkeys>
+        <param="vtm -r term">
+            <scrollback>
+                <size=20000/>
+                <growstep="0"/>
+            </scrollback>
+            <colors>
+                <palette>
+                    <color="0xFF101010" index=0/>   /* 0  blackdk   */
+                    <color="0xFF1F0FC4"/>           /* 1  reddk     */
+                    <color="0xFF0EA112"/>           /* 2  greendk   */
+                    <color="0xFF009CC0"/>           /* 3  yellowdk  */
+                    <color="0xFFDB3700"/>           /* 4  bluedk    */
+                    <color="0xFF981787"/>           /* 5  magentadk */
+                    <color="0xFFDD963B"/>           /* 6  cyandk    */
+                    <color="0xFFBBBBBB"/>           /* 7  whitedk   */
+                    <color="0xFF757575"/>           /* 8  blacklt   */
+                    <color="0xFF5648E6"/>           /* 9  redlt     */
+                    <color="0xFF0CC615"/>           /* 10 greenlt   */
+                    <color="0xFFA5F1F8"/>           /* 11 yellowlt  */
+                    <color="0xFFFF783A"/>           /* 12 bluelt    */
+                    <color="0xFF9E00B3"/>           /* 13 magentalt */
+                    <color="0xFFD6D660"/>           /* 14 cyanlt    */
+                    <color="0xFFF3F3F3" index=15/>  /* 15 whitelt   */
+                </palette>
+                <default>
+                    <fg=15/> /* 256-color index is allowed <fg=15/>   */
+                    <bg=0/>  /*                            <fg=0/>    */
+                </default>
+                <match fx=selection bg="0xFF007F00" fg=15/>  /* use cell::shaders: xlight | selection |contrast | invert | reverse */
+                <selection>
+                    <text fx=selection bg=12 fg=15/>
+                    <ansi fx=xlight/>
+                    <none fx=selection bg=8 fg=7/>
+                </selection>
+            </colors>
+            <tablen=8/>      /* Tab length. */
+            <maxline=65535/> /* Max line length. Line splits if it exceeds the limit. */
+            <cursor>
+                <style="underline"/> /* block | underline   */
+                <blink="400"/>       /* blink period in ms  */
+            </cursor>
+            <menu>
+                <enabled="on"/> /* on | off */
+                <slim="off"/>   /* on | off */
+            </menu>
+            <wrap="on | off"/> /* default is on */
+            <selection>
+                <mode="plain"/> /* plain | ansi | disabled */
+            </selection>
+            <hotkeys>
+                <action=findnext key="Alt+Right"/>
+                <action=findprev key="Alt+Left"/>
+            </hotkeys>
+        </param>
+    </menuitem>
+    <menuitem id=mc        label="mc" title="Midnight Commander" notes="Run Midnight Commander in its own window (if it is installed)" type=SHELL param="mc"/>
+    <menuitem id=Tile      label="Tile" notes="Run Tiling Window Manager with two terminals attached" type=Group title="Tiling Window Manager" param="h1:1(Term, Term)"/>
+    <menuitem id=View      label=View notes="Set desktop region" type=Region title="\e[11:3pView: Region"/>"
+    <menuitem id=Settings  label=Settings winsize=50x15 notes="Configure frame rate" type=DirectVT title="Settings"   param="$0 -r settings"/>
+    <menuitem id=Logs      label=Logs                   notes="Run Logs application" type=DirectVT title="Logs Title" param="$0 -r logs"/>
+    <splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/>
+    <menuitem id=Gems      label="Gems"      notes=" App Distribution Hub "   type=DirectVT title="Gems Title" param="$0 -r gems"/>
+    <menuitem id=Text      label="Text"      notes=" Text Editor "            type=DirectVT title="Text Title" param="$0 -r text"/>
+    <menuitem id=Calc      label="Calc"      notes=" Spreadsheet Calculator " type=DirectVT title="Calc Title" param="$0 -r calc"/>
+    <menuitem id=Test      label="Test"      notes=" Test Page "              type=DirectVT title="Test Title" param="$0 -r test"/>
+    <menuitem id=Truecolor label="Truecolor" notes=" Truecolor Test "         type=DirectVT title="True Title" param="$0 -r truecolor"/>
+    <autorun>
+        <item* id=Term winsize=48%,48% />
+        <item wincoor=0,0 />
+        <item wincoor=52%,0 />
+        <item wincoor=0,52% />
+        <item wincoor=52%,52% />
+    </autorun>
+    <hotkeys>
+        <action=prevWindow key="Ctrl+PgUp"/>
+        <action=nextWindow key="Ctrl+PgDn"/>
+    </hotkeys>
+</config>
+)==";
+
     static constexpr auto path_settings = ".config/vtm/settings.xml";
 
     static constexpr auto type_ANSIVT   = "ansivt";
@@ -1078,15 +1173,6 @@ namespace netxs::app::shared
         auto& conf_list = *conf_list_ptr;
         auto current_module_file = os::current_module_file();
 
-        struct xml_element
-        {
-            using list = sptr<std::vector<xml_element>>;
-            using umap = std::unordered_map<text, list>;
-            text tag;      // xml_element: Element tag.
-            text value;    // xml_element: Element value.
-            list elements; // xml_element: Random access by id.
-            umap index;    // xml_element: Access by id.
-        };
         using item_t = std::unordered_map<text, text>;
         auto list = std::vector<item_t>{};
         auto sort_list = std::list<std::pair<text, menuitem_t>>{};
