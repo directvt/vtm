@@ -55,7 +55,6 @@ namespace netxs::xml
     }
     auto open(view& data, type& next)
     {
-        utf::trim_front(data, spaces);
         auto iter = data.find('<');
         if (iter != view::npos)
         {

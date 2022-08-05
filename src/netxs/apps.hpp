@@ -58,13 +58,13 @@ R"==(
     static constexpr auto default_config_v2 = R"==(
 <config>
     <menu>
-        <selected=Term /> /* set selected using menu item id */
+        <selected=Term /> <!-- set selected using menu item id -->
         <item splitter label="apps">
             <notes> 
                 " Default applications group                         \n"
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
-        <item* />    /* use asterisk at the end of the element name to set defaults */
+        <item* />    <!-- use asterisk at the end of the element name to set defaults -->
         <item* index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Run built-in terminal emulator ">
             <hotkeys>
@@ -78,39 +78,39 @@ R"==(
                 </scrollback>
                 <colors>
                     <palette>
-                        <color=0xFF101010 index=0 />  /* 0  blackdk   */
-                        <color=0xFF1F0FC4 />          /* 1  reddk     */
-                        <color=0xFF0EA112 />          /* 2  greendk   */
-                        <color=0xFF009CC0 />          /* 3  yellowdk  */
-                        <color=0xFFDB3700 />          /* 4  bluedk    */
-                        <color=0xFF981787 />          /* 5  magentadk */
-                        <color=0xFFDD963B />          /* 6  cyandk    */
-                        <color=0xFFBBBBBB />          /* 7  whitedk   */
-                        <color=0xFF757575 />          /* 8  blacklt   */
-                        <color=0xFF5648E6 />          /* 9  redlt     */
-                        <color=0xFF0CC615 />          /* 10 greenlt   */
-                        <color=0xFFA5F1F8 />          /* 11 yellowlt  */
-                        <color=0xFFFF783A />          /* 12 bluelt    */
-                        <color=0xFF9E00B3 />          /* 13 magentalt */
-                        <color=0xFFD6D660 />          /* 14 cyanlt    */
-                        <color=0xFFF3F3F3 index=15 /> /* 15 whitelt   */
+                        <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
+                        <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
+                        <color=0xFF0EA112 />          <!-- 2  greendk   -->
+                        <color=0xFF009CC0 />          <!-- 3  yellowdk  -->
+                        <color=0xFFDB3700 />          <!-- 4  bluedk    -->
+                        <color=0xFF981787 />          <!-- 5  magentadk -->
+                        <color=0xFFDD963B />          <!-- 6  cyandk    -->
+                        <color=0xFFBBBBBB />          <!-- 7  whitedk   -->
+                        <color=0xFF757575 />          <!-- 8  blacklt   -->
+                        <color=0xFF5648E6 />          <!-- 9  redlt     -->
+                        <color=0xFF0CC615 />          <!-- 10 greenlt   -->
+                        <color=0xFFA5F1F8 />          <!-- 11 yellowlt  -->
+                        <color=0xFFFF783A />          <!-- 12 bluelt    -->
+                        <color=0xFF9E00B3 />          <!-- 13 magentalt -->
+                        <color=0xFFD6D660 />          <!-- 14 cyanlt    -->
+                        <color=0xFFF3F3F3 index=15 /> <!-- 15 whitelt   -->
                     </palette>
                     <default>
-                        <fg=15 /> /* 256-color index is allowed */
+                        <fg=15 /> <!-- 256-color index is allowed -->
                         <bg=0 />
                     </default>
-                    <match fx=selection bg="0xFF007F00" fg=15 />  /* set fx to use cell::shaders: xlight | selection |contrast | invert | reverse */
+                    <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection |contrast | invert | reverse -->
                     <selection>
                         <text fx=selection bg=12 fg=15 />
                         <ansi fx=xlight/>
                         <none fx=selection bg=8 fg=7 />
                     </selection>
                 </colors>
-                <tablen=8 />      /* Tab length. */
-                <maxline=65535 /> /* Max line length. Line splits if it exceeds the limit. */
+                <tablen=8 />      <!-- Tab length. -->
+                <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
                 <cursor>
-                    <style="underline"/> /* block | underline  */
-                    <blink="400"/>       /* blink period in ms */
+                    <style="underline"/> <!-- block | underline  -->
+                    <blink="400"/>       <!-- blink period in ms -->
                 </cursor>
                 <menu>
                     <enabled="on"/>
@@ -118,7 +118,7 @@ R"==(
                 </menu>
                 <wrap="on"/>
                 <selection>
-                    <mode="plain"/> /* plain | ansi | disabled */
+                    <mode="plain"/> <!-- plain | ansi | disabled -->
                 </selection>
                 <hotkeys>
                     <action=findNext key="Alt+RightArrow"/>
@@ -138,11 +138,11 @@ R"==(
         <item id=Test      label="Test"      type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/>
         <item id=Truecolor label="Truecolor" type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/>
         <autorun>
-            <item* id=Term winsize=48%,48% />
+            <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ -- assign the same _item_id_ to each item by default -->
             <item wincoor=0,0 />
             <item wincoor=52%,0 />
             <item wincoor=0,52% />
-            <item wincoor=52%,52% />
+            <item=mc wincoor=52%,52% />
         </autorun>
     </menu>
     <hotkeys>
@@ -172,6 +172,10 @@ R"==(
                 {
                     return emplace_back(element::create(std::forward<Args>(args)...));
                 }
+                auto& add(sptr item)
+                {
+                    return emplace_back(item);
+                }
             };
 
             using byid = std::unordered_map<text, sptr>;
@@ -191,13 +195,254 @@ R"==(
             text tag;
             text val;
             subs sub;
+
+            static constexpr auto spaces = " \n\r\t";
+
+            enum type
+            {
+                eof,           // end of file
+                token,         // name
+                quoted_text,   // '"'     ex: " text "
+                raw_text,      //         ex: raw text
+                begin_tag,     // '<'     ex: <name ...
+                close_tag,     // '</'    ex: ... </name>
+                comment_begin, // '<!--'  ex: ... <!-- ...
+                close_inline,  // '>'     ex: ... >
+                empty_tag,     // '/>'    ex: ... />
+                comment_close, // '-->'   ex: ... -->
+                equal,         // '='     ex: name=value
+                defaults,      // '*'     ex: name*
+            };
+
+            static constexpr view view_comment_begin = "<!--";
+            static constexpr view view_comment_close = "-->" ;
+            static constexpr view view_close_tag     = "</"  ;
+            static constexpr view view_begin_tag     = "<"   ;
+            static constexpr view view_empty_tag     = "/>"  ;
+            static constexpr view view_close_inline  = ">"   ;
+            static constexpr view view_quoted_text   = "\""  ;
+            static constexpr view view_equal         = "="   ;
+            static constexpr view view_defaults      = "*"   ;
+
+            static auto what_next(view temp, type& what, type& last)
+            {
+                last = what;
+                     if (temp.empty())                         what = type::eof;
+                else if (temp.starts_with(view_comment_begin)) what = type::comment_begin;
+                else if (temp.starts_with(view_close_tag    )) what = type::close_tag;
+                else if (temp.starts_with(view_begin_tag    )) what = type::begin_tag;
+                else if (temp.starts_with(view_empty_tag    )) what = type::empty_tag;
+                else if (temp.starts_with(view_close_inline )) what = type::close_inline;
+                else if (temp.starts_with(view_quoted_text  )) what = type::quoted_text;
+                else if (temp.starts_with(view_equal        )) what = type::equal;
+                else if (temp.starts_with(view_defaults     )
+                      && last == type::token)        what = type::defaults;
+                else if (last == type::close_tag
+                      || last == type::begin_tag
+                      || last == type::token
+                      || last == type::raw_text
+                      || last == type::quoted_text)  what = type::token;
+                else                                 what = type::raw_text;
+            }
+            static void eat(view& data, type what)
+            {
+                switch (what)
+                {
+                    case type::comment_begin: data.remove_prefix(view_comment_begin.size()); break;
+                    case type::close_tag:     data.remove_prefix(view_close_tag    .size()); break;
+                    case type::begin_tag:     data.remove_prefix(view_begin_tag    .size()); break;
+                    case type::empty_tag:     data.remove_prefix(view_empty_tag    .size()); break;
+                    case type::close_inline:  data.remove_prefix(view_close_inline .size()); break;
+                    case type::quoted_text:   data.remove_prefix(view_quoted_text  .size()); break;
+                    case type::equal:         data.remove_prefix(view_equal        .size()); break;
+                    case type::defaults:      data.remove_prefix(view_defaults     .size()); break;
+                    default: break;
+                };
+            }
+            static auto take_token(view& data, text& item)
+            {
+                item.clear();
+                item = utf::get_tail(data, " \t\n\r=*/><");
+                utf::to_low(item);
+            }
+            static auto take_value(view& data, text& value)
+            {
+                value.clear();
+                auto delim = data.front();
+                if (delim != '\'' && delim != '\"') value = utf::get_tail(data, " \t\n\r/><");
+                else                                value = utf::get_quote(data, view(&delim, 1));
+                value = xml::unescape(value);
+            }
+            static auto take_pair(view& data, text& tag, text& val, type& what, type& last, bool& is_defaults)
+            {
+                take_token(data, tag);
+                utf::trim_front(data, spaces);
+                what_next(data, what, last);
+                if (what == type::defaults)
+                {
+                    is_defaults = true;
+                    eat(data, what);
+                    utf::trim_front(data, spaces);
+                    what_next(data, what, last);
+                }
+                if (what == type::equal)
+                {
+                    eat(data, what);
+                    utf::trim_front(data, spaces);
+                    what_next(data, what, last);
+                    if (what == type::quoted_text
+                     || what == type::raw_text)
+                    {
+                        take_value(data, val);
+                        utf::trim_front(data, spaces);
+                        what_next(data, what, last);
+                    }
+                    else
+                    {
+                        log(" xml: unexpected ", what, " after ", last);
+                        return;
+                    }
+                }
+            }
+            auto take(view& data)
+            {
+                auto is_defaults = faux;
+                auto what = type::eof;
+                auto last = type::eof;
+                utf::trim_front(data, spaces);
+                what_next(data, what, last);
+                if (what == type::begin_tag)
+                {
+                    eat(data, what);
+                    utf::trim_front(data, spaces);
+                    what_next(data, what, last);
+                    if (what == type::token)
+                    {
+                        take_pair(data, tag, val, what, last, is_defaults);
+
+                        if (what == type::empty_tag)
+                        {
+                            eat(data, what);
+                            return;
+                        }
+                        else if (what == type::token)
+                        {
+                            do // Proceed inlined subs
+                            {
+                                auto tag = text{};
+                                auto val = text{};
+                                auto is_defaults = faux;
+                                take_pair(data, tag, val, what, last, is_defaults);
+                                if (is_defaults)
+                                {
+                                    //...
+                                }
+                                else sub[tag].add(std::move(tag), std::move(val));
+                            }
+                            while (what == type::token);
+                        }
+
+                        if (what == type::close_inline) // proceed nested subs
+                        {
+                            eat(data, what);
+                            auto temp = data;
+                            utf::trim_front(temp, spaces);
+                            what_next(temp, what, last);
+                            do
+                            {
+                                if (what == type::quoted_text)
+                                {
+                                    data = temp;
+                                    auto crop = text{};
+                                    take_value(data, crop);
+                                    val += crop;
+                                    utf::trim_front(data, spaces);
+                                    temp = data;
+                                }
+                                else if (what == type::raw_text)
+                                {
+                                    auto size = data.find('<');
+                                    val += data.substr(0, size);
+                                    if (size == view::npos)
+                                    {
+                                        data = {};
+                                        what = type::eof;
+                                        log(" xml: unexpected eof after ", what);
+                                        return;
+                                    }
+                                    data.remove_prefix(size);
+                                    temp = data;
+                                }
+                                else if (what == type::begin_tag)
+                                {
+                                    data = temp;
+                                    auto nested = element::create();
+                                    nested->take(data);
+                                    auto& sub_tag = nested->tag;
+                                    sub[sub_tag].add(nested);
+                                    temp = data;
+                                    utf::trim_front(temp, spaces);
+                                }
+                                else if (what == type::comment_begin) // <!--
+                                {
+                                    auto size = data.find(view_comment_close);
+                                    if (size == view::npos)
+                                    {
+                                        data = {};
+                                        what = type::eof;
+                                        log(" xml: unexpected eof after ", what);
+                                        return;
+                                    }
+                                    data.remove_prefix(size + view_comment_close.size());
+                                    temp = data;
+                                    utf::trim_front(temp, spaces);
+                                }
+                                else if (what != type::close_tag
+                                      && what != type::eof)
+                                {
+                                    log(" xml: unexpected ", what, " after ", last);
+                                }
+                                what_next(temp, what, last);
+                            }
+                            while (what != type::close_tag
+                                && what != type::eof);
+
+                            if (what == type::close_tag) // </token>
+                            {
+                                eat(temp, what);
+                                utf::trim_front(temp, spaces);
+                                what_next(temp, what, last);
+                                if (what == type::token)
+                                {
+                                    auto item = text{};
+                                    take_token(temp, item);
+                                    if (item == tag)
+                                    {
+                                        data = temp;
+                                        auto tail = data.find('>');
+                                        if (tail != view::npos) data.remove_prefix(tail + 1);
+                                        else                    data = {};
+                                    }
+                                    else log(" xml: unexpected closing tag '", item, "', expected: '", tag, "'");
+                                }
+                                else log(" xml: unexpected ", what, " after ", last);
+                            }
+                            else log(" xml: unexpected ", what, " after ", last);
+                        }
+                        else log(" xml: unexpected ", what, " after ", last);
+                    }
+                    else log(" xml: unexpected ", what, " after ", last);
+                }
+                else log(" xml: unexpected ", what, " after ", last);
+            }
         };
+
         static void test()
         {
-            /*
+            static constexpr auto data = R"==(
             <document="value" thing="text1">
                 <thing="te" name="a">
-                    "xt2"
+                    "xt2" <!--comment-->
                     <name="b"/>
                     <name id=c_elem>
                         "c"
@@ -207,8 +452,12 @@ R"==(
                     "text"
                 </other>
             </document>
-            */
-            
+)==";
+
+            auto root = element{};
+            auto data_view = view{ data };
+            root.take(data_view);
+
             auto l1 = element::create("document", "value");
                 auto& l2 = l1->sub["thing"];
                 auto& thing1 = l2.add("thing", "text1");
