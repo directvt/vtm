@@ -152,52 +152,80 @@ R"==(
 </config>
 )==";
 
-    struct xml_element
+    namespace poc
     {
-        //using sptr = netxs::sptr<xml_element>;
-        using sptr = xml_element;
-        using subs = std::unordered_map<text, std::vector<sptr>>;
-        using byid = std::unordered_map<text, sptr>;
+        struct element
+        {
+            template<class ...Args>
+            static auto create(Args&&... args)
+            {
+                return std::make_shared<element>(std::forward<Args>(args)...);
+            }
 
-        text tag;
-        text val;
-        subs sub;
-        byid map;
-    };
-    static void poc_test()
-    {
-        /*
-        <document="value" thing="text1">
-            <thing="te" name="a">
-                "xt2"
-                <name="b"/>
-                <name id=c_elem>
-                    "c"
-                </name>
-            </thing>
-            <other>
-                "text"
-            </other>
-        </document>
-        */
-        auto l1 = xml_element{ .tag = "document" };
-        l1.val = "value";
-            auto& l2 = l1.sub["thing"];
-            auto& thing1 = l2.emplace_back("thing", "text1");
-            auto& thing2 = l2.emplace_back("thing", "te");
-                auto& l3 = thing2.sub["name"];
-                auto& name1 = l3.emplace_back("name", "a");
-            thing2.val += "xt2";
-                auto& name2 = l3.emplace_back("name", "b");
-                auto& name3 = l3.emplace_back("name");
-                    auto& l4 = name3.sub["id"];
-                    auto& id1 = l4.emplace_back("id", "c_elem");
-                    if (id1.tag == "id") thing2.map.emplace("c_elem", name3);
-                    name3.val += "c";
-            auto& l2_2 = l1.sub["other"];
-            auto& other1 = l2_2.emplace_back("other", "text");
+            using sptr = netxs::sptr<element>;
+
+            struct vect
+                : public std::vector<sptr>
+            {
+                template<class ...Args>
+                auto& add(Args&&... args)
+                {
+                    return emplace_back(element::create(std::forward<Args>(args)...));
+                }
+            };
+
+            using byid = std::unordered_map<text, sptr>;
+            using subs = std::unordered_map<text, vect>;
+
+            static auto& map()
+            {
+                static byid map;
+                return map;
+            }
+            template<class T>
+            static auto map(T&& key, sptr item)
+            {
+                map().emplace(std::forward<T>(key), item);
+            }
+
+            text tag;
+            text val;
+            subs sub;
+        };
+        static void test()
+        {
+            /*
+            <document="value" thing="text1">
+                <thing="te" name="a">
+                    "xt2"
+                    <name="b"/>
+                    <name id=c_elem>
+                        "c"
+                    </name>
+                </thing>
+                <other>
+                    "text"
+                </other>
+            </document>
+            */
+            
+            auto l1 = element::create("document", "value");
+                auto& l2 = l1->sub["thing"];
+                auto& thing1 = l2.add("thing", "text1");
+                auto& thing2 = l2.add("thing", "te");
+                    auto& l3 = thing2->sub["name"];
+                    auto& name1 = l3.add("name", "a");
+                thing2->val += "xt2";
+                    auto& name2 = l3.add("name", "b");
+                    auto& name3 = l3.add("name");
+                        auto& l4 = name3->sub["id"];
+                        auto& id1 = l4.add("id", "c_elem");
+                        if (id1->tag == "id") element::map("c_elem", name3);
+                        name3->val += "c";
+                auto& l2_2 = l1->sub["other"];
+                auto& other1 = l2_2.add("other", "text");
+        }
     }
-
     static constexpr auto path_settings = ".config/vtm/settings.xml";
 
     static constexpr auto type_ANSIVT   = "ansivt";
