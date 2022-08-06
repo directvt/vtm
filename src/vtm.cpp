@@ -36,9 +36,12 @@ int main(int argc, char* argv[])
         auto root = std::vector<xml::element>(1);
         for (auto& r : root)
         {
-            auto data_view = view{ app::shared::default_config_v2 };
-            //auto data_view = view{ app::shared::test_data };
+            auto temp = view{ app::shared::default_config_v2 };
+            //auto temp = view{ app::shared::test_data };
+            auto data_view = temp;
             r.take(data_view);
+            log(" xml: source data\n", temp);
+            log(" xml: parsed data\n", r.show());
         }
     }
     {

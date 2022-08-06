@@ -22,8 +22,13 @@ namespace netxs::xml
     };
     auto escape(text line)
     {
-        utf::change(line, "\\"s, "\\\\"s);
-        utf::change(line, "\""s, "\\\""s);
+        utf::change(line, "\\"s,   "\\\\"s);
+        utf::change(line, "\""s,   "\\\""s);
+        utf::change(line, "\x1b"s, "\\e"s );
+        utf::change(line, "\n"s,   "\\n"s );
+        utf::change(line, "\r"s,   "\\r"s );
+        utf::change(line, "\t"s,   "\\t"s );
+        utf::change(line, "\a"s,   "\\a"s );
         return line;
     }
     auto unescape(qiew line)
@@ -296,6 +301,8 @@ namespace netxs::xml
         subs sub;
 
         static constexpr auto spaces = " \n\r\t";
+        static constexpr auto rawtext_delims = " \t\n\r/><";
+        static constexpr auto token_delims = " \t\n\r=*/><";
 
         enum type
         {
@@ -323,7 +330,7 @@ namespace netxs::xml
         static constexpr view view_equal         = "="   ;
         static constexpr view view_defaults      = "*"   ;
 
-        static auto peek(view temp, type& what, type& last)
+        auto peek(view temp, type& what, type& last)
         {
             last = what;
                  if (temp.empty())                         what = type::eof;
@@ -344,7 +351,7 @@ namespace netxs::xml
                   || last == type::quoted_text)  what = type::token;
             else                                 what = type::raw_text;
         }
-        static void skip(view& data, type what)
+        void skip(view& data, type what)
         {
             switch (what)
             {
@@ -359,21 +366,21 @@ namespace netxs::xml
                 default: break;
             };
         }
-        static auto take_token(view& data, text& item)
+        auto take_token(view& data, text& item)
         {
             item.clear();
-            item = utf::get_tail(data, " \t\n\r=*/><");
+            item = utf::get_tail(data, token_delims);
             utf::to_low(item);
         }
-        static auto take_value(view& data, text& value)
+        auto take_value(view& data, text& value)
         {
             value.clear();
             auto delim = data.front();
-            if (delim != '\'' && delim != '\"') value = utf::get_tail(data, " \t\n\r/><");
+            if (delim != '\'' && delim != '\"') value = utf::get_tail(data, rawtext_delims);
             else                                value = utf::get_quote(data, view(&delim, 1));
             value = xml::unescape(value);
         }
-        static auto take_pair(view& data, text& tag, text& val, type& what, type& last, bool& is_defaults)
+        auto take_pair(view& data, text& tag, text& val, type& what, type& last, bool& is_defaults)
         {
             take_token(data, tag);
             utf::trim_front(data, spaces);
@@ -533,6 +540,30 @@ namespace netxs::xml
                 else log(" xml: unexpected ", what, " after ", last);
             }
             else log(" xml: unexpected ", what, " after ", last);
+        }
+        text show(sz_t indent = 0)
+        {
+            auto data = text{};
+            data += text(indent, ' ') + '<' + tag;
+            if (val.size())
+            {
+                if (utf::check_any(val, rawtext_delims)) data += "=\"" + xml::escape(val) + "\"";
+                else                                     data += '='   + xml::escape(val) + ' ';
+            }
+            if (sub.empty()) data += "/>\n";
+            else
+            {
+                data += ">\n";
+                for (auto& [sub_tag, sub_list] : sub)
+                {
+                    for (auto& item : sub_list)
+                    {
+                        data += item->show(indent + 4);
+                    }
+                }
+                data += text(indent, ' ') + "</" + tag + ">\n";
+            }
+            return data;
         }
     };
 }
