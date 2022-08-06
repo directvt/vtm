@@ -20,16 +20,18 @@ namespace netxs::xml
         open,
         close,
     };
-    auto escape(text line)
+    template<class T>
+    auto escape(T&& line)
     {
-        utf::change(line, "\\"s,   "\\\\"s);
-        utf::change(line, "\""s,   "\\\""s);
-        utf::change(line, "\x1b"s, "\\e"s );
-        utf::change(line, "\n"s,   "\\n"s );
-        utf::change(line, "\r"s,   "\\r"s );
-        utf::change(line, "\t"s,   "\\t"s );
-        utf::change(line, "\a"s,   "\\a"s );
-        return line;
+        auto temp = text{ std::forward<T>(line) };
+        utf::change(temp, "\\"s,   "\\\\"s);
+        utf::change(temp, "\""s,   "\\\""s);
+        utf::change(temp, "\x1b"s, "\\e"s );
+        utf::change(temp, "\n"s,   "\\n"s );
+        utf::change(temp, "\r"s,   "\\r"s );
+        utf::change(temp, "\t"s,   "\\t"s );
+        utf::change(temp, "\a"s,   "\\a"s );
+        return temp;
     }
     auto unescape(qiew line)
     {
@@ -308,14 +310,14 @@ namespace netxs::xml
         {
             eof,           // end of file
             token,         // name
-            quoted_text,   // '"'     ex: " text "
             raw_text,      //         ex: raw text
+            quoted_text,   // '"'     ex: " text "
             begin_tag,     // '<'     ex: <name ...
             close_tag,     // '</'    ex: ... </name>
             comment_begin, // '<!--'  ex: ... <!-- ...
+            comment_close, // '-->'   ex: ... -->
             close_inline,  // '>'     ex: ... >
             empty_tag,     // '/>'    ex: ... />
-            comment_close, // '-->'   ex: ... -->
             equal,         // '='     ex: name=value
             defaults,      // '*'     ex: name*
         };
@@ -380,6 +382,29 @@ namespace netxs::xml
             else                                value = utf::get_quote(data, view(&delim, 1));
             value = xml::unescape(value);
         }
+        auto fail(type what, type last, view data)
+        {
+            auto str = [&](type what)
+            {
+                switch (what)
+                {
+                    case type::eof:           return view{ "{EOF}" }     ;
+                    case type::token:         return view{ "{token}" }   ;
+                    case type::raw_text:      return view{ "{raw text}" };
+                    case type::quoted_text:   return view_quoted_text    ;
+                    case type::begin_tag:     return view_begin_tag      ;
+                    case type::close_tag:     return view_close_tag      ;
+                    case type::comment_begin: return view_comment_begin  ;
+                    case type::comment_close: return view_comment_close  ;
+                    case type::close_inline:  return view_close_inline   ;
+                    case type::empty_tag:     return view_empty_tag      ;
+                    case type::equal:         return view_equal          ;
+                    case type::defaults:      return view_defaults       ;
+                    default:                  return view{ "{unknown}" } ;
+                };
+            };
+            log(" xml: unexpected '", str(what), "' after '", str(last), "' near '...", xml::escape(data.substr(0, 80)), "...'");
+        }
         auto take_pair(view& data, text& tag, text& val, type& what, type& last, bool& is_defaults)
         {
             take_token(data, tag);
@@ -404,11 +429,7 @@ namespace netxs::xml
                     utf::trim_front(data, spaces);
                     peek(data, what, last);
                 }
-                else
-                {
-                    log(" xml: unexpected ", what, " after ", last);
-                    return;
-                }
+                else fail(what, last, data);
             }
         }
         auto take(view& data)
@@ -473,7 +494,7 @@ namespace netxs::xml
                                 {
                                     data = {};
                                     what = type::eof;
-                                    log(" xml: unexpected eof after ", what);
+                                    fail(type::eof, what, data);
                                     return;
                                 }
                                 data.remove_prefix(size);
@@ -496,7 +517,7 @@ namespace netxs::xml
                                 {
                                     data = {};
                                     what = type::eof;
-                                    log(" xml: unexpected eof after ", what);
+                                    fail(type::eof, what, data);
                                     return;
                                 }
                                 data.remove_prefix(size + view_comment_close.size());
@@ -506,7 +527,9 @@ namespace netxs::xml
                             else if (what != type::close_tag
                                   && what != type::eof)
                             {
-                                log(" xml: unexpected ", what, " after ", last);
+                                fail(what, last, data);
+                                skip(temp, what);
+                                data = temp;
                             }
                             peek(temp, what, last);
                         }
@@ -529,17 +552,17 @@ namespace netxs::xml
                                     if (tail != view::npos) data.remove_prefix(tail + 1);
                                     else                    data = {};
                                 }
-                                else log(" xml: unexpected closing tag '", item, "', expected: '", tag, "'");
+                                else log(" xml: unexpected closing tag name '", item, "', expected: '", tag, "' near '...", xml::escape(data.substr(0, 80)), "...'");
                             }
-                            else log(" xml: unexpected ", what, " after ", last);
+                            else fail(what, last, data);
                         }
-                        else log(" xml: unexpected ", what, " after ", last);
+                        else fail(what, last, data);
                     }
-                    else log(" xml: unexpected ", what, " after ", last);
+                    else fail(what, last, data);
                 }
-                else log(" xml: unexpected ", what, " after ", last);
+                else fail(what, last, data);
             }
-            else log(" xml: unexpected ", what, " after ", last);
+            else fail(what, last, data);
         }
         text show(sz_t indent = 0)
         {
