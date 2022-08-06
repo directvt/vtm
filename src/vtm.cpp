@@ -27,12 +27,20 @@ int main(int argc, char* argv[])
 {
     auto vtmode = os::vt_mode();
     auto syslog = os::ipc::logger(vtmode);
-            app::shared::poc::test();
-
     auto banner = [&]() { log(DESKTOPIO_MYNAME); };
     auto whoami = type::client;
     auto params = text{};
     auto maxfps = si32{ 60 };
+
+    {
+        auto root = std::vector<xml::element>(1);
+        for (auto& r : root)
+        {
+            auto data_view = view{ app::shared::default_config_v2 };
+            //auto data_view = view{ app::shared::test_data };
+            r.take(data_view);
+        }
+    }
     {
         auto daemon = faux;
         auto getopt = os::args{ argc, argv };
