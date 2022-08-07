@@ -260,19 +260,23 @@ namespace netxs::xml
         return result;
     }
 
-    struct element
+    class element
     {
+        using sptr = netxs::sptr<class element>;
+        using wptr = netxs::wptr<class element>;
+        using byid = std::unordered_map<text, sptr>;
+
+    public:
         template<class ...Args>
         static auto create(Args&&... args)
         {
             return std::make_shared<element>(std::forward<Args>(args)...);
         }
 
-        using sptr = netxs::sptr<element>;
-
-        struct vect
+        class vect
             : public std::vector<sptr>
         {
+        public:
             template<class ...Args>
             auto& add(Args&&... args)
             {
@@ -284,7 +288,6 @@ namespace netxs::xml
             }
         };
 
-        using byid = std::unordered_map<text, sptr>;
         using subs = std::unordered_map<text, vect>;
 
         static auto& map()
@@ -301,6 +304,8 @@ namespace netxs::xml
         text tag;
         text val;
         subs sub;
+        wptr def;
+        bool is_template{};
 
         static constexpr auto spaces = " \n\r\t";
         static constexpr auto rawtext_delims = " \t\n\r/><";
@@ -405,14 +410,14 @@ namespace netxs::xml
             };
             log(" xml: unexpected '", str(what), "' after '", str(last), "' near '...", xml::escape(data.substr(0, 80)), "...'");
         }
-        auto take_pair(view& data, text& tag, text& val, type& what, type& last, bool& is_defaults)
+        auto take_pair(view& data, type& what, type& last)
         {
             take_token(data, tag);
             utf::trim_front(data, spaces);
             peek(data, what, last);
             if (what == type::defaults)
             {
-                is_defaults = true;
+                is_template = true;
                 skip(data, what);
                 utf::trim_front(data, spaces);
                 peek(data, what, last);
@@ -434,9 +439,25 @@ namespace netxs::xml
         }
         auto take(view& data)
         {
-            auto is_defaults = faux;
             auto what = type::eof;
             auto last = type::eof;
+            auto defs = std::unordered_map<text, wptr>{};
+
+            auto check_defs = [&](sptr& item)
+            {
+                auto& sub_tag = item->tag;
+                if (item->is_template) defs[sub_tag] = item;
+                else
+                {
+                    auto iter = defs.find(sub_tag);
+                    if (iter != defs.end())
+                    {
+                        item->def = iter->second;
+                    }
+                }
+                sub[sub_tag].add(item);        
+            };
+
             utf::trim_front(data, spaces);
             peek(data, what, last);
             if (what == type::begin_tag)
@@ -446,21 +467,14 @@ namespace netxs::xml
                 peek(data, what, last);
                 if (what == type::token)
                 {
-                    take_pair(data, tag, val, what, last, is_defaults);
-
+                    take_pair(data, what, last);
                     if (what == type::token)
                     {
                         do // Proceed inlined subs
                         {
-                            auto tag = text{};
-                            auto val = text{};
-                            auto is_defaults = faux;
-                            take_pair(data, tag, val, what, last, is_defaults);
-                            if (is_defaults)
-                            {
-                                //...
-                            }
-                            else sub[tag].add(std::move(tag), std::move(val));
+                            auto item = element::create();
+                            item->take_pair(data, what, last);
+                            check_defs(item);
                         }
                         while (what == type::token);
                     }
@@ -503,10 +517,9 @@ namespace netxs::xml
                             else if (what == type::begin_tag)
                             {
                                 data = temp;
-                                auto nested = element::create();
-                                nested->take(data);
-                                auto& sub_tag = nested->tag;
-                                sub[sub_tag].add(nested);
+                                auto item = element::create();
+                                item->take(data);
+                                check_defs(item);
                                 temp = data;
                                 utf::trim_front(temp, spaces);
                             }
@@ -568,6 +581,7 @@ namespace netxs::xml
         {
             auto data = text{};
             data += text(indent, ' ') + '<' + tag;
+            if (is_template) data += view_defaults;
             if (val.size())
             {
                 if (utf::check_any(val, rawtext_delims)) data += "=\"" + xml::escape(val) + "\"";
@@ -587,6 +601,20 @@ namespace netxs::xml
                 data += text(indent, ' ') + "</" + tag + ">\n";
             }
             return data;
+        }
+    };
+
+    class document
+    {
+    public:
+        std::list<sptr<text>> base;
+        element               root;
+
+        template<class T>
+        document(T&& data)
+        {
+            auto shadow = view{ std::forward<T>(data) };
+            root.take(shadow);
         }
     };
 }

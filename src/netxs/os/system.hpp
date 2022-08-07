@@ -3768,7 +3768,7 @@ namespace netxs::os
                         log("xpty: child process waiter ended");
                     });
                     termlink.set(m_pipe_r, m_pipe_w);
-                    log("xpty: conpty created: ", winsz);
+                    log("xpty: pty created: ", winsz);
                 }
                 else log("xpty: child process creation error ", ::GetLastError());
 
@@ -4126,7 +4126,7 @@ namespace netxs::os
                         Proc_id  = procsinf.dwProcessId;
                         hThread  = procsinf.hThread;
                         termlink.set(m_pipe_r, m_pipe_w, m_pipe_l);
-                        log("dtvt: conpty created: ", winsz);
+                        log("dtvt: pty created: ", winsz);
                     }
                     else log("dtvt: child process creation error ", ::GetLastError());
 
