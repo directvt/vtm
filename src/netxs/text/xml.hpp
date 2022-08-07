@@ -267,8 +267,11 @@ namespace netxs::xml
     enum type
     {
         eof,           // end of file
+        top_token,     // open tag name
+        end_token,     // close tag name
         token,         // name
         raw_text,      //         ex: raw text
+        quotes,        // '"'     ex: " or '
         quoted_text,   // '"'     ex: " text "
         begin_tag,     // '<'     ex: <name ...
         close_tag,     // '</'    ex: ... </name>
@@ -459,9 +462,9 @@ namespace netxs::xml
                     auto delim_view = view(&delim, 1);
                     auto crop = utf::get_quote(data, delim_view);
                     item_ptr = std::make_shared<text>(xml::unescape(crop));
-                    page.push(type::tag_value, delim_view);
+                    page.push(type::quotes, delim_view);
                     page.push(type::tag_value, item_ptr);
-                    page.push(type::tag_value, delim_view);
+                    page.push(type::quotes, delim_view);
                 }
             }
             else item_ptr = std::make_shared<text>("");
@@ -490,14 +493,19 @@ namespace netxs::xml
             };
             log(" xml: unexpected '", str(what), "' after '", str(last), "' near '...", xml::escape(data.substr(0, 80)), "...'");
         }
-        auto take_pair(suit& page, view& data, type& what, type& last)
+        auto take_pair(suit& page, view& data, type& what, type& last, type token_kind)
         {
             tag_ptr = take_token(page, data);
+            auto& back = page.back();
+            if (back.kind == type::token) back.kind = token_kind;
             trim(page, data);
             peek(data, what, last);
             if (what == type::defaults)
             {
                 is_template = true;
+                auto& back = page.back();
+                if (back.kind == type::top_token
+                 || back.kind == type::token) back.kind = type::defaults;
                 page.push(type::defaults, skip(data, what));
                 trim(page, data);
                 peek(data, what, last);
@@ -546,13 +554,13 @@ namespace netxs::xml
                 peek(data, what, last);
                 if (what == type::token)
                 {
-                    take_pair(page, data, what, last);
+                    take_pair(page, data, what, last, type::top_token);
                     if (what == type::token)
                     {
                         do // Proceed inlined subs
                         {
                             auto item = element::create();
-                            item->take_pair(page, data, what, last);
+                            item->take_pair(page, data, what, last, type::token);
                             push(item);
                         }
                         while (what == type::token);
@@ -647,7 +655,7 @@ namespace netxs::xml
                                     trim(page, data);
                                     page.push(type::close_tag, skip_frag);
                                     if (trim_frag.size()) page.push(type::whitespaces, trim_frag);
-                                    page.push(type::token, tag_ptr);
+                                    page.push(type::end_token, tag_ptr);
                                     data = temp;
                                     auto tail = data.find('>');
                                     if (tail != view::npos) data.remove_prefix(tail + 1);
@@ -716,12 +724,14 @@ namespace netxs::xml
         auto show()
         {
             auto crop = text{};
-            for (auto& [kind, item] : page)
+            for (auto& [kind, item_ptr] : page)
             {
                 auto color = rgba{};
                 switch (kind)
                 {
                     case eof:           color = redlt;      break;
+                    case top_token:     color = magentalt;  break;
+                    case end_token:     color = magentadk;  break;
                     case token:         color = bluelt;     break;
                     case raw_text:      color = yellowdk;   break;
                     case quoted_text:   color = yellowdk;   break;
@@ -732,13 +742,24 @@ namespace netxs::xml
                     case close_inline:  color = blacklt;    break;
                     case empty_tag:     color = blacklt;    break;
                     case equal:         color = blacklt;    break;
+                    case quotes:        color = whitedk;    break;
                     case defaults:      color = greenlt;    break;
                     case unknown:       color = redlt;      break;
                     case tag_value:     color = yellowdk;   break;
                     default: break;
                 }
-                if (color) crop += ansi::fgc(color).add(*item).nil();
-                else       crop += *item;
+                auto& item = *item_ptr;
+                if (kind == type::tag_value)
+                {
+                    auto temp = item;
+                    if (color) crop += ansi::fgc(color).add(xml::escape(temp)).nil();
+                    else       crop += xml::escape(temp);
+                }
+                else
+                {
+                    if (color) crop += ansi::fgc(color).add(item).nil();
+                    else       crop += item;
+                }
             }
             return crop;
         }
