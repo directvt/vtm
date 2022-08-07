@@ -361,8 +361,9 @@ namespace netxs::xml
                   || last == type::quoted_text)  what = type::token;
             else                                 what = type::raw_text;
         }
-        void skip(view& data, type what)
+        auto skip(view& data, type what)
         {
+            auto temp = data;
             switch (what)
             {
                 case type::comment_begin: data.remove_prefix(view_comment_begin.size()); break;
@@ -375,15 +376,42 @@ namespace netxs::xml
                 case type::defaults:      data.remove_prefix(view_defaults     .size()); break;
                 default: break;
             };
+            return temp.substr(0, temp.size() - data.size());
+        }
+        auto trim(suit& base, view& data)
+        {
+            auto temp = utf::trim_front(data, spaces);
+            if (temp.size()) base.push_back(std::make_shared<text>(std::move(temp)));
+        }
+        auto diff(suit& base, view& data, view& temp)
+        {
+            auto delta = temp.size() - data.size();
+            if (delta > 0)
+            {
+                base.push_back(std::make_shared<text>(temp.substr(0, delta)));
+            }
+            else if (delta < 0)
+            {
+                log(" xml: unexpected data");
+            }
+        }
+        auto take_token(suit& base, view& data)
+        {
+            auto temp = data;
+            auto item = utf::get_tail(data, token_delims);
+            diff(base, data, temp);
+            utf::to_low(item);
+            return std::make_shared<text>(std::move(item));
         }
         auto take_token(view& data)
         {
             auto item = utf::get_tail(data, token_delims);
             utf::to_low(item);
-            return std::make_shared<text>(std::move(item));
+            return std::move(item);
         }
-        auto take_value(view& data)
+        auto take_value(suit& base, view& data)
         {
+            auto temp = data;
             auto crop = text{};
             if (data.size())
             {
@@ -391,6 +419,7 @@ namespace netxs::xml
                 if (delim != '\'' && delim != '\"') crop = utf::get_tail(data, rawtext_delims);
                 else                                crop = utf::get_quote(data, view(&delim, 1));
             }
+            diff(base, data, temp);
             return std::make_shared<text>(xml::unescape(crop));
         }
         auto fail(type what, type last, view data)
@@ -416,34 +445,34 @@ namespace netxs::xml
             };
             log(" xml: unexpected '", str(what), "' after '", str(last), "' near '...", xml::escape(data.substr(0, 80)), "...'");
         }
-        auto take_pair(view& data, type& what, type& last)
+        auto take_pair(suit& base, view& data, type& what, type& last)
         {
-            tag_ptr = take_token(data);
-            utf::trim_front(data, spaces);
+            tag_ptr = take_token(base, data);
+            trim(base, data);
             peek(data, what, last);
             if (what == type::defaults)
             {
                 is_template = true;
-                skip(data, what);
-                utf::trim_front(data, spaces);
+                base.push_back(std::make_shared<text>(skip(data, what)));
+                trim(base, data);
                 peek(data, what, last);
             }
             if (what == type::equal)
             {
-                skip(data, what);
-                utf::trim_front(data, spaces);
+                base.push_back(std::make_shared<text>(skip(data, what)));
+                trim(base, data);
                 peek(data, what, last);
                 if (what == type::quoted_text
                  || what == type::raw_text)
                 {
-                    val_ptr_list.push_back(take_value(data));
-                    utf::trim_front(data, spaces);
+                    val_ptr_list.push_back(take_value(base, data));
+                    trim(base, data);
                     peek(data, what, last);
                 }
                 else fail(what, last, data);
             }
         }
-        auto take(view& data)
+        auto take(suit& base, view& data)
         {
             auto what = type::eof;
             auto last = type::eof;
@@ -463,22 +492,22 @@ namespace netxs::xml
                 sub[sub_tag].add(item);        
             };
 
-            utf::trim_front(data, spaces);
+            trim(base, data);
             peek(data, what, last);
             if (what == type::begin_tag)
             {
-                skip(data, what);
-                utf::trim_front(data, spaces);
+                base.push_back(std::make_shared<text>(skip(data, what)));
+                trim(base, data);
                 peek(data, what, last);
                 if (what == type::token)
                 {
-                    take_pair(data, what, last);
+                    take_pair(base, data, what, last);
                     if (what == type::token)
                     {
                         do // Proceed inlined subs
                         {
                             auto item = element::create();
-                            item->take_pair(data, what, last);
+                            item->take_pair(base, data, what, last);
                             push(item);
                         }
                         while (what == type::token);
@@ -486,11 +515,11 @@ namespace netxs::xml
 
                     if (what == type::empty_tag) // />
                     {
-                        skip(data, what);
+                        base.push_back(std::make_shared<text>(skip(data, what)));
                     }
                     else if (what == type::close_inline) // proceed nested subs
                     {
-                        skip(data, what);
+                        base.push_back(std::make_shared<text>(skip(data, what)));
                         auto temp = data;
                         utf::trim_front(temp, spaces);
                         peek(temp, what, last);
@@ -498,9 +527,10 @@ namespace netxs::xml
                         {
                             if (what == type::quoted_text)
                             {
+                                diff(base, temp, data);
                                 data = temp;
-                                val_ptr_list.push_back(take_value(data));
-                                utf::trim_front(data, spaces);
+                                val_ptr_list.push_back(take_value(base, data));
+                                trim(base, data);
                                 temp = data;
                             }
                             else if (what == type::raw_text)
@@ -509,19 +539,22 @@ namespace netxs::xml
                                 val_ptr_list.push_back(std::make_shared<text>(data.substr(0, size)));
                                 if (size == view::npos)
                                 {
+                                    base.push_back(std::make_shared<text>(data));
                                     data = {};
                                     what = type::eof;
                                     fail(type::eof, what, data);
                                     return;
                                 }
+                                base.push_back(std::make_shared<text>(data.substr(0, size)));
                                 data.remove_prefix(size);
                                 temp = data;
                             }
                             else if (what == type::begin_tag)
                             {
+                                diff(base, temp, data);
                                 data = temp;
                                 auto item = element::create();
-                                item->take(data);
+                                item->take(base, data);
                                 push(item);
                                 temp = data;
                                 utf::trim_front(temp, spaces);
@@ -531,12 +564,15 @@ namespace netxs::xml
                                 auto size = data.find(view_comment_close);
                                 if (size == view::npos)
                                 {
+                                    base.push_back(std::make_shared<text>(data));
                                     data = {};
                                     what = type::eof;
                                     fail(type::eof, what, data);
                                     return;
                                 }
-                                data.remove_prefix(size + view_comment_close.size());
+                                size += view_comment_close.size();
+                                base.push_back(std::make_shared<text>(data.substr(0, size)));
+                                data.remove_prefix(size);
                                 temp = data;
                                 utf::trim_front(temp, spaces);
                             }
@@ -545,6 +581,7 @@ namespace netxs::xml
                             {
                                 fail(what, last, data);
                                 skip(temp, what);
+                                diff(base, temp, data);
                                 data = temp;
                             }
                             peek(temp, what, last);
@@ -554,20 +591,25 @@ namespace netxs::xml
 
                         if (what == type::close_tag) // </token>
                         {
-                            skip(temp, what);
-                            utf::trim_front(temp, spaces);
+                            auto skip_frag = skip(temp, what);
+                            auto trim_frag = utf::trim_front(temp, spaces);
                             peek(temp, what, last);
                             if (what == type::token)
                             {
-                                auto token_ptr = take_token(temp);
-                                if (*token_ptr == *tag_ptr)
+                                auto token = take_token(temp);
+                                if (token == *tag_ptr)
                                 {
+                                    trim(base, data);
+                                    base.push_back(std::make_shared<text>(skip_frag));
+                                    if (trim_frag.size()) base.push_back(std::make_shared<text>(trim_frag));
+                                    base.push_back(std::make_shared<text>(token));
                                     data = temp;
                                     auto tail = data.find('>');
                                     if (tail != view::npos) data.remove_prefix(tail + 1);
                                     else                    data = {};
+                                    diff(base, data, temp);
                                 }
-                                else log(" xml: unexpected closing tag name '", *token_ptr, "', expected: '", *tag_ptr, "' near '...", xml::escape(data.substr(0, 80)), "...'");
+                                else log(" xml: unexpected closing tag name '", token, "', expected: '", *tag_ptr, "' near '...", xml::escape(data.substr(0, 80)), "...'");
                             }
                             else fail(what, last, data);
                         }
@@ -624,7 +666,16 @@ namespace netxs::xml
         document(T&& data)
         {
             auto shadow = view{ std::forward<T>(data) };
-            root.take(shadow);
+            root.take(base, shadow);
+        }
+        auto show()
+        {
+            auto crop = text{};
+            for (auto& item : base)
+            {
+                crop += *item;
+            }
+            return crop;
         }
     };
 }

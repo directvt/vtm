@@ -33,16 +33,13 @@ int main(int argc, char* argv[])
     auto maxfps = si32{ 60 };
 
     {
-        auto root = std::vector<xml::element>(1);
-        for (auto& r : root)
-        {
-            auto temp = view{ app::shared::default_config_v2 };
-            //auto temp = view{ app::shared::test_data };
-            auto data_view = temp;
-            r.take(data_view);
-            log(" xml: source data\n", temp);
-            log(" xml: parsed data\n", r.show());
-        }
+        //auto temp = view{ app::shared::test_data };
+        auto temp = view{ app::shared::default_config_v2 };
+        auto data_view = temp;
+        auto config = xml::document(data_view);
+        //log(" xml: source data\n", temp);
+        //log(" xml: parsed data\n", config.root.show());
+        log(" xml: origin data\n", config.show());
     }
     {
         auto daemon = faux;
