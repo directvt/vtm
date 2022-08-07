@@ -280,7 +280,7 @@ namespace netxs::xml
         defaults,      // '*'     ex: name*
         whitespaces,   // ' '     ex: \s\t\r\n...
         unknown,       //
-        tag_value,         //
+        tag_value,     //
     };
 
     class literal
@@ -718,8 +718,27 @@ namespace netxs::xml
             auto crop = text{};
             for (auto& [kind, item] : page)
             {
-                //todo colorize
-                crop += *item;
+                auto color = rgba{};
+                switch (kind)
+                {
+                    case eof:           color = redlt;      break;
+                    case token:         color = bluelt;     break;
+                    case raw_text:      color = yellowdk;   break;
+                    case quoted_text:   color = yellowdk;   break;
+                    case comment_begin: color = greendk;    break;
+                    case comment_close: color = greendk;    break;
+                    case begin_tag:     color = blacklt;    break;
+                    case close_tag:     color = blacklt;    break;
+                    case close_inline:  color = blacklt;    break;
+                    case empty_tag:     color = blacklt;    break;
+                    case equal:         color = blacklt;    break;
+                    case defaults:      color = greenlt;    break;
+                    case unknown:       color = redlt;      break;
+                    case tag_value:     color = yellowdk;   break;
+                    default: break;
+                }
+                if (color) crop += ansi::fgc(color).add(*item).nil();
+                else       crop += *item;
             }
             return crop;
         }
