@@ -260,6 +260,9 @@ namespace netxs::xml
         return result;
     }
 
+    using frag = netxs::sptr<text>;
+    using suit = std::list<frag>;
+
     class element
     {
         using sptr = netxs::sptr<class element>;
@@ -301,8 +304,8 @@ namespace netxs::xml
             map().emplace(std::forward<T>(key), item);
         }
 
-        text tag;
-        text val;
+        frag tag_ptr;
+        suit val_ptr_list;
         subs sub;
         wptr def;
         bool is_template{};
@@ -373,19 +376,22 @@ namespace netxs::xml
                 default: break;
             };
         }
-        auto take_token(view& data, text& item)
+        auto take_token(view& data)
         {
-            item.clear();
-            item = utf::get_tail(data, token_delims);
+            auto item = utf::get_tail(data, token_delims);
             utf::to_low(item);
+            return std::make_shared<text>(std::move(item));
         }
-        auto take_value(view& data, text& value)
+        auto take_value(view& data)
         {
-            value.clear();
-            auto delim = data.front();
-            if (delim != '\'' && delim != '\"') value = utf::get_tail(data, rawtext_delims);
-            else                                value = utf::get_quote(data, view(&delim, 1));
-            value = xml::unescape(value);
+            auto crop = text{};
+            if (data.size())
+            {
+                auto delim = data.front();
+                if (delim != '\'' && delim != '\"') crop = utf::get_tail(data, rawtext_delims);
+                else                                crop = utf::get_quote(data, view(&delim, 1));
+            }
+            return std::make_shared<text>(xml::unescape(crop));
         }
         auto fail(type what, type last, view data)
         {
@@ -412,7 +418,7 @@ namespace netxs::xml
         }
         auto take_pair(view& data, type& what, type& last)
         {
-            take_token(data, tag);
+            tag_ptr = take_token(data);
             utf::trim_front(data, spaces);
             peek(data, what, last);
             if (what == type::defaults)
@@ -430,7 +436,7 @@ namespace netxs::xml
                 if (what == type::quoted_text
                  || what == type::raw_text)
                 {
-                    take_value(data, val);
+                    val_ptr_list.push_back(take_value(data));
                     utf::trim_front(data, spaces);
                     peek(data, what, last);
                 }
@@ -442,10 +448,9 @@ namespace netxs::xml
             auto what = type::eof;
             auto last = type::eof;
             auto defs = std::unordered_map<text, wptr>{};
-
-            auto check_defs = [&](sptr& item)
+            auto push = [&](sptr& item)
             {
-                auto& sub_tag = item->tag;
+                auto& sub_tag = *(item->tag_ptr);
                 if (item->is_template) defs[sub_tag] = item;
                 else
                 {
@@ -474,7 +479,7 @@ namespace netxs::xml
                         {
                             auto item = element::create();
                             item->take_pair(data, what, last);
-                            check_defs(item);
+                            push(item);
                         }
                         while (what == type::token);
                     }
@@ -494,16 +499,14 @@ namespace netxs::xml
                             if (what == type::quoted_text)
                             {
                                 data = temp;
-                                auto crop = text{};
-                                take_value(data, crop);
-                                val += crop;
+                                val_ptr_list.push_back(take_value(data));
                                 utf::trim_front(data, spaces);
                                 temp = data;
                             }
                             else if (what == type::raw_text)
                             {
                                 auto size = data.find('<');
-                                val += data.substr(0, size);
+                                val_ptr_list.push_back(std::make_shared<text>(data.substr(0, size)));
                                 if (size == view::npos)
                                 {
                                     data = {};
@@ -519,7 +522,7 @@ namespace netxs::xml
                                 data = temp;
                                 auto item = element::create();
                                 item->take(data);
-                                check_defs(item);
+                                push(item);
                                 temp = data;
                                 utf::trim_front(temp, spaces);
                             }
@@ -556,16 +559,15 @@ namespace netxs::xml
                             peek(temp, what, last);
                             if (what == type::token)
                             {
-                                auto item = text{};
-                                take_token(temp, item);
-                                if (item == tag)
+                                auto token_ptr = take_token(temp);
+                                if (*token_ptr == *tag_ptr)
                                 {
                                     data = temp;
                                     auto tail = data.find('>');
                                     if (tail != view::npos) data.remove_prefix(tail + 1);
                                     else                    data = {};
                                 }
-                                else log(" xml: unexpected closing tag name '", item, "', expected: '", tag, "' near '...", xml::escape(data.substr(0, 80)), "...'");
+                                else log(" xml: unexpected closing tag name '", *token_ptr, "', expected: '", *tag_ptr, "' near '...", xml::escape(data.substr(0, 80)), "...'");
                             }
                             else fail(what, last, data);
                         }
@@ -580,12 +582,20 @@ namespace netxs::xml
         text show(sz_t indent = 0)
         {
             auto data = text{};
-            data += text(indent, ' ') + '<' + tag;
+            data += text(indent, ' ') + '<' + *tag_ptr;
             if (is_template) data += view_defaults;
-            if (val.size())
+            if (val_ptr_list.size())
             {
-                if (utf::check_any(val, rawtext_delims)) data += "=\"" + xml::escape(val) + "\"";
-                else                                     data += '='   + xml::escape(val) + ' ';
+                auto val = text{};
+                for (auto& val_ptr : val_ptr_list)
+                {
+                    val += *val_ptr;
+                }
+                if (val.size())
+                {
+                    if (utf::check_any(val, rawtext_delims)) data += "=\"" + xml::escape(val) + "\"";
+                    else                                     data += '='   + xml::escape(val) + ' ';
+                }
             }
             if (sub.empty()) data += "/>\n";
             else
@@ -598,7 +608,7 @@ namespace netxs::xml
                         data += item->show(indent + 4);
                     }
                 }
-                data += text(indent, ' ') + "</" + tag + ">\n";
+                data += text(indent, ' ') + "</" + *tag_ptr + ">\n";
             }
             return data;
         }
@@ -607,8 +617,8 @@ namespace netxs::xml
     class document
     {
     public:
-        std::list<sptr<text>> base;
-        element               root;
+        suit    base;
+        element root;
 
         template<class T>
         document(T&& data)
