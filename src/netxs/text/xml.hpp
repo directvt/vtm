@@ -13,7 +13,7 @@ namespace netxs::xml
     using dict = std::unordered_map<text, text>;
 
     static constexpr auto spaces = " \n\r\t";
-    enum class type
+    enum class type_old
     {
         none,
         token,
@@ -60,26 +60,26 @@ namespace netxs::xml
         }
         return crop;
     }
-    auto open(view& data, type& next)
+    auto open(view& data, type_old& next)
     {
         auto iter = data.find('<');
         if (iter != view::npos)
         {
             data.remove_prefix(iter + 1);
-            next = type::open;
+            next = type_old::open;
             return true;
         }
         else
         {
-            next = type::none;
+            next = type_old::none;
             return faux;
         }
     }
-    auto attr(view& data, text& item, type& next)
+    auto attr(view& data, text& item, type_old& next)
     {
         utf::trim_front(data, spaces);
         item.clear();
-        if (data.empty()) next = type::none;
+        if (data.empty()) next = type_old::none;
         else
         {
             auto c = data.front();
@@ -89,18 +89,18 @@ namespace netxs::xml
                 if (data.size() && data.front() == '>')
                 {
                     data.remove_prefix(1);
-                    next = type::close;
+                    next = type_old::close;
                 }
-                else next = type::none;
+                else next = type_old::none;
             }
             else
             {
                 item = get_tail(data, " \t\n\r=");
-                next = type::token;
+                next = type_old::token;
                 utf::to_low(item);
             }
         }
-        return next == type::token;
+        return next == type_old::token;
     }
     auto value(view& data)
     {
@@ -260,8 +260,57 @@ namespace netxs::xml
         return result;
     }
 
+
     using frag = netxs::sptr<text>;
-    using suit = std::list<frag>;
+    using list = std::vector<frag>;
+
+    enum type
+    {
+        eof,           // end of file
+        token,         // name
+        raw_text,      //         ex: raw text
+        quoted_text,   // '"'     ex: " text "
+        begin_tag,     // '<'     ex: <name ...
+        close_tag,     // '</'    ex: ... </name>
+        comment_begin, // '<!--'  ex: ... <!-- ...
+        comment_close, // '-->'   ex: ... -->
+        close_inline,  // '>'     ex: ... >
+        empty_tag,     // '/>'    ex: ... />
+        equal,         // '='     ex: name=value
+        defaults,      // '*'     ex: name*
+        whitespaces,   // ' '     ex: \s\t\r\n...
+        unknown,       //
+        tag_value,         //
+    };
+
+    class literal
+    {
+    public:
+        type kind;
+        frag part;
+
+        template<class ...Args>
+        literal(type kind, Args&&... args)
+            : kind{ kind },
+              part{ std::make_shared<text>(std::forward<Args>(args)...) }
+        { }
+        literal(type kind, frag part)
+            : kind{ kind },
+              part{ part }
+        { }
+    };
+
+    class suit
+        : public std::list<literal>
+    {
+    public:
+        template<class ...Args>
+        auto push(type kind, Args&&... args)
+        {
+            auto& item = emplace_back(kind, std::forward<Args>(args)...);
+            return item.part;
+        }
+    };
 
     class element
     {
@@ -305,7 +354,7 @@ namespace netxs::xml
         }
 
         frag tag_ptr;
-        suit val_ptr_list;
+        list val_ptr_list;
         subs sub;
         wptr def;
         bool is_template{};
@@ -313,22 +362,6 @@ namespace netxs::xml
         static constexpr auto spaces = " \n\r\t";
         static constexpr auto rawtext_delims = " \t\n\r/><";
         static constexpr auto token_delims = " \t\n\r=*/><";
-
-        enum type
-        {
-            eof,           // end of file
-            token,         // name
-            raw_text,      //         ex: raw text
-            quoted_text,   // '"'     ex: " text "
-            begin_tag,     // '<'     ex: <name ...
-            close_tag,     // '</'    ex: ... </name>
-            comment_begin, // '<!--'  ex: ... <!-- ...
-            comment_close, // '-->'   ex: ... -->
-            close_inline,  // '>'     ex: ... >
-            empty_tag,     // '/>'    ex: ... />
-            equal,         // '='     ex: name=value
-            defaults,      // '*'     ex: name*
-        };
 
         static constexpr view view_comment_begin = "<!--";
         static constexpr view view_comment_close = "-->" ;
@@ -378,29 +411,29 @@ namespace netxs::xml
             };
             return temp.substr(0, temp.size() - data.size());
         }
-        auto trim(suit& base, view& data)
+        auto trim(suit& page, view& data)
         {
             auto temp = utf::trim_front(data, spaces);
-            if (temp.size()) base.push_back(std::make_shared<text>(std::move(temp)));
+            if (temp.size()) page.push(type::whitespaces, std::move(temp));
         }
-        auto diff(suit& base, view& data, view& temp)
+        auto diff(suit& page, view& data, view& temp, type kind = type::whitespaces)
         {
             auto delta = temp.size() - data.size();
             if (delta > 0)
             {
-                base.push_back(std::make_shared<text>(temp.substr(0, delta)));
+                page.push(kind, temp.substr(0, delta));
             }
             else if (delta < 0)
             {
                 log(" xml: unexpected data");
             }
         }
-        auto take_token(suit& base, view& data)
+        auto take_token(suit& page, view& data)
         {
             auto item = utf::get_tail(data, token_delims);
             utf::to_low(item);
             auto item_ptr = std::make_shared<text>(std::move(item));
-            base.push_back(item_ptr);
+            page.push(type::token, item_ptr);
             return item_ptr;
         }
         auto take_token(view& data)
@@ -409,7 +442,7 @@ namespace netxs::xml
             utf::to_low(item);
             return std::move(item);
         }
-        auto take_value(suit& base, view& data)
+        auto take_value(suit& page, view& data)
         {
             auto item_ptr = frag{};
             if (data.size())
@@ -419,16 +452,16 @@ namespace netxs::xml
                 {
                     auto crop = utf::get_tail(data, rawtext_delims);
                     item_ptr = std::make_shared<text>(xml::unescape(crop));
-                    base.push_back(item_ptr);
+                    page.push(type::tag_value, item_ptr);
                 }
                 else
                 {
                     auto delim_view = view(&delim, 1);
                     auto crop = utf::get_quote(data, delim_view);
                     item_ptr = std::make_shared<text>(xml::unescape(crop));
-                    base.push_back(std::make_shared<text>(delim_view));
-                    base.push_back(item_ptr);
-                    base.push_back(std::make_shared<text>(delim_view));
+                    page.push(type::tag_value, delim_view);
+                    page.push(type::tag_value, item_ptr);
+                    page.push(type::tag_value, delim_view);
                 }
             }
             else item_ptr = std::make_shared<text>("");
@@ -457,34 +490,34 @@ namespace netxs::xml
             };
             log(" xml: unexpected '", str(what), "' after '", str(last), "' near '...", xml::escape(data.substr(0, 80)), "...'");
         }
-        auto take_pair(suit& base, view& data, type& what, type& last)
+        auto take_pair(suit& page, view& data, type& what, type& last)
         {
-            tag_ptr = take_token(base, data);
-            trim(base, data);
+            tag_ptr = take_token(page, data);
+            trim(page, data);
             peek(data, what, last);
             if (what == type::defaults)
             {
                 is_template = true;
-                base.push_back(std::make_shared<text>(skip(data, what)));
-                trim(base, data);
+                page.push(type::defaults, skip(data, what));
+                trim(page, data);
                 peek(data, what, last);
             }
             if (what == type::equal)
             {
-                base.push_back(std::make_shared<text>(skip(data, what)));
-                trim(base, data);
+                page.push(type::equal, skip(data, what));
+                trim(page, data);
                 peek(data, what, last);
                 if (what == type::quoted_text
                  || what == type::raw_text)
                 {
-                    val_ptr_list.push_back(take_value(base, data));
-                    trim(base, data);
+                    val_ptr_list.push_back(take_value(page, data));
+                    trim(page, data);
                     peek(data, what, last);
                 }
                 else fail(what, last, data);
             }
         }
-        auto take(suit& base, view& data)
+        auto take(suit& page, view& data)
         {
             auto what = type::eof;
             auto last = type::eof;
@@ -504,22 +537,22 @@ namespace netxs::xml
                 sub[sub_tag].add(item);        
             };
 
-            trim(base, data);
+            trim(page, data);
             peek(data, what, last);
             if (what == type::begin_tag)
             {
-                base.push_back(std::make_shared<text>(skip(data, what)));
-                trim(base, data);
+                page.push(type::begin_tag, skip(data, what));
+                trim(page, data);
                 peek(data, what, last);
                 if (what == type::token)
                 {
-                    take_pair(base, data, what, last);
+                    take_pair(page, data, what, last);
                     if (what == type::token)
                     {
                         do // Proceed inlined subs
                         {
                             auto item = element::create();
-                            item->take_pair(base, data, what, last);
+                            item->take_pair(page, data, what, last);
                             push(item);
                         }
                         while (what == type::token);
@@ -527,11 +560,11 @@ namespace netxs::xml
 
                     if (what == type::empty_tag) // />
                     {
-                        base.push_back(std::make_shared<text>(skip(data, what)));
+                        page.push(type::empty_tag, skip(data, what));
                     }
                     else if (what == type::close_inline) // proceed nested subs
                     {
-                        base.push_back(std::make_shared<text>(skip(data, what)));
+                        page.push(type::close_inline, skip(data, what));
                         auto temp = data;
                         utf::trim_front(temp, spaces);
                         peek(temp, what, last);
@@ -539,10 +572,10 @@ namespace netxs::xml
                         {
                             if (what == type::quoted_text)
                             {
-                                diff(base, temp, data);
+                                diff(page, temp, data, type::quoted_text);
                                 data = temp;
-                                val_ptr_list.push_back(take_value(base, data));
-                                trim(base, data);
+                                val_ptr_list.push_back(take_value(page, data));
+                                trim(page, data);
                                 temp = data;
                             }
                             else if (what == type::raw_text)
@@ -551,22 +584,22 @@ namespace netxs::xml
                                 val_ptr_list.push_back(std::make_shared<text>(data.substr(0, size)));
                                 if (size == view::npos)
                                 {
-                                    base.push_back(std::make_shared<text>(data));
+                                    page.push(type::unknown, data);
                                     data = {};
                                     what = type::eof;
                                     fail(type::eof, what, data);
                                     return;
                                 }
-                                base.push_back(std::make_shared<text>(data.substr(0, size)));
+                                page.push(type::raw_text, data.substr(0, size));
                                 data.remove_prefix(size);
                                 temp = data;
                             }
                             else if (what == type::begin_tag)
                             {
-                                diff(base, temp, data);
+                                diff(page, temp, data, type::begin_tag);
                                 data = temp;
                                 auto item = element::create();
-                                item->take(base, data);
+                                item->take(page, data);
                                 push(item);
                                 temp = data;
                                 utf::trim_front(temp, spaces);
@@ -576,14 +609,14 @@ namespace netxs::xml
                                 auto size = data.find(view_comment_close);
                                 if (size == view::npos)
                                 {
-                                    base.push_back(std::make_shared<text>(data));
+                                    page.push(type::unknown, data);
                                     data = {};
                                     what = type::eof;
                                     fail(type::eof, what, data);
                                     return;
                                 }
                                 size += view_comment_close.size();
-                                base.push_back(std::make_shared<text>(data.substr(0, size)));
+                                page.push(type::comment_begin, data.substr(0, size));
                                 data.remove_prefix(size);
                                 temp = data;
                                 utf::trim_front(temp, spaces);
@@ -593,7 +626,7 @@ namespace netxs::xml
                             {
                                 fail(what, last, data);
                                 skip(temp, what);
-                                diff(base, temp, data);
+                                diff(page, temp, data, type::unknown);
                                 data = temp;
                             }
                             peek(temp, what, last);
@@ -611,15 +644,15 @@ namespace netxs::xml
                                 auto token = take_token(temp);
                                 if (token == *tag_ptr)
                                 {
-                                    trim(base, data);
-                                    base.push_back(std::make_shared<text>(skip_frag));
-                                    if (trim_frag.size()) base.push_back(std::make_shared<text>(trim_frag));
-                                    base.push_back(tag_ptr);
+                                    trim(page, data);
+                                    page.push(type::close_tag, skip_frag);
+                                    if (trim_frag.size()) page.push(type::whitespaces, trim_frag);
+                                    page.push(type::token, tag_ptr);
                                     data = temp;
                                     auto tail = data.find('>');
                                     if (tail != view::npos) data.remove_prefix(tail + 1);
                                     else                    data = {};
-                                    diff(base, data, temp);
+                                    diff(page, data, temp, type::close_tag);
                                 }
                                 else log(" xml: unexpected closing tag name '", token, "', expected: '", *tag_ptr, "' near '...", xml::escape(data.substr(0, 80)), "...'");
                             }
@@ -671,20 +704,21 @@ namespace netxs::xml
     class document
     {
     public:
-        suit    base;
+        suit    page;
         element root;
 
         template<class T>
         document(T&& data)
         {
             auto shadow = view{ std::forward<T>(data) };
-            root.take(base, shadow);
+            root.take(page, shadow);
         }
         auto show()
         {
             auto crop = text{};
-            for (auto& item : base)
+            for (auto& [kind, item] : page)
             {
+                //todo colorize
                 crop += *item;
             }
             return crop;

@@ -1199,7 +1199,7 @@ namespace netxs::app::shared
 
         auto take_xml_item = [](text& tag, item_t& item, view& data)
         {
-            auto type = xml::type::none;
+            auto type = xml::type_old::none;
             if (xml::open(data, type))
             {
                 auto attr = text{};
@@ -1212,7 +1212,7 @@ namespace netxs::app::shared
                     }
                 }
             }
-            return type == xml::type::close;
+            return type == xml::type_old::close;
         };
         auto take_elements = [&](view data)
         {
@@ -1251,7 +1251,7 @@ namespace netxs::app::shared
         };
         auto take_config = [&](view data)
         {
-            auto type = xml::type::none;
+            auto type = xml::type_old::none;
             auto tag = text{};
             if (xml::open(data, type))
             {
