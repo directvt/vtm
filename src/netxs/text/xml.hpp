@@ -397,11 +397,11 @@ namespace netxs::xml
         }
         auto take_token(suit& base, view& data)
         {
-            auto temp = data;
             auto item = utf::get_tail(data, token_delims);
-            diff(base, data, temp);
             utf::to_low(item);
-            return std::make_shared<text>(std::move(item));
+            auto item_ptr = std::make_shared<text>(std::move(item));
+            base.push_back(item_ptr);
+            return item_ptr;
         }
         auto take_token(view& data)
         {
@@ -411,16 +411,28 @@ namespace netxs::xml
         }
         auto take_value(suit& base, view& data)
         {
-            auto temp = data;
-            auto crop = text{};
+            auto item_ptr = frag{};
             if (data.size())
             {
                 auto delim = data.front();
-                if (delim != '\'' && delim != '\"') crop = utf::get_tail(data, rawtext_delims);
-                else                                crop = utf::get_quote(data, view(&delim, 1));
+                if (delim != '\'' && delim != '\"')
+                {
+                    auto crop = utf::get_tail(data, rawtext_delims);
+                    item_ptr = std::make_shared<text>(xml::unescape(crop));
+                    base.push_back(item_ptr);
+                }
+                else
+                {
+                    auto delim_view = view(&delim, 1);
+                    auto crop = utf::get_quote(data, delim_view);
+                    item_ptr = std::make_shared<text>(xml::unescape(crop));
+                    base.push_back(std::make_shared<text>(delim_view));
+                    base.push_back(item_ptr);
+                    base.push_back(std::make_shared<text>(delim_view));
+                }
             }
-            diff(base, data, temp);
-            return std::make_shared<text>(xml::unescape(crop));
+            else item_ptr = std::make_shared<text>("");
+            return item_ptr;
         }
         auto fail(type what, type last, view data)
         {
@@ -602,7 +614,7 @@ namespace netxs::xml
                                     trim(base, data);
                                     base.push_back(std::make_shared<text>(skip_frag));
                                     if (trim_frag.size()) base.push_back(std::make_shared<text>(trim_frag));
-                                    base.push_back(std::make_shared<text>(token));
+                                    base.push_back(tag_ptr);
                                     data = temp;
                                     auto tail = data.find('>');
                                     if (tail != view::npos) data.remove_prefix(tail + 1);
