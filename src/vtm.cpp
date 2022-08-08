@@ -39,9 +39,10 @@ int main(int argc, char* argv[])
         auto config = xml::document(data_view);
         //log(" xml: source data\n", temp);
         //log(" xml: parsed data\n", config.root.show());
-        auto& selected = config.root.sub["menu"][0]->sub["selected"][0]->val_ptr_list.front().operator*();
-        selected = "Tile";
+        //auto& selected = config.root.sub["menu"][0]->sub["selected"][0]->val_ptr_list.front().operator*();
+        //selected = "Tile";
         log(" xml: origin data\n", config.show());
+        //return 0;
     }
     {
         auto daemon = faux;

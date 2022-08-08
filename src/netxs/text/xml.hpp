@@ -723,42 +723,60 @@ namespace netxs::xml
         }
         auto show()
         {
-            auto crop = text{};
+            static const rgba top_token_fg = 0xFFffd799;
+            static const rgba end_token_fg = 0xFFb3966a;
+            static const rgba token_fg     = 0xFFdab883;
+            static const rgba liter_fg     = 0xFF808080;
+            static const rgba comment_fg   = 0xFF4e4e4e;
+            static const rgba defaults_fg  = 0xFF9e9e9e;
+            static const rgba quotes_fg    = 0xFFBBBBBB;
+            static const rgba value_fg     = 0xFFf09690;
+            static const rgba value_bg     = 0xFF202020;
+
+            auto crop = ansi::esc{};
             for (auto& [kind, item_ptr] : page)
             {
-                auto color = rgba{};
+                auto fgc = rgba{};
+                auto bgc = rgba{};
                 switch (kind)
                 {
-                    case eof:           color = redlt;      break;
-                    case top_token:     color = magentalt;  break;
-                    case end_token:     color = magentadk;  break;
-                    case token:         color = bluelt;     break;
-                    case raw_text:      color = yellowdk;   break;
-                    case quoted_text:   color = yellowdk;   break;
-                    case comment_begin: color = greendk;    break;
-                    case comment_close: color = greendk;    break;
-                    case begin_tag:     color = blacklt;    break;
-                    case close_tag:     color = blacklt;    break;
-                    case close_inline:  color = blacklt;    break;
-                    case empty_tag:     color = blacklt;    break;
-                    case equal:         color = blacklt;    break;
-                    case quotes:        color = whitedk;    break;
-                    case defaults:      color = greenlt;    break;
-                    case unknown:       color = redlt;      break;
-                    case tag_value:     color = yellowdk;   break;
+                    case eof:           fgc = redlt;        break;
+                    case top_token:     fgc = top_token_fg; break;
+                    case end_token:     fgc = end_token_fg; break;
+                    case token:         fgc = token_fg;     break;
+                    case raw_text:      fgc = yellowdk;     break;
+                    case quoted_text:   fgc = yellowdk;     break;
+                    case comment_begin: fgc = comment_fg;   break;
+                    case comment_close: fgc = comment_fg;   break;
+                    case begin_tag:     fgc = liter_fg;     break;
+                    case close_tag:     fgc = liter_fg;     break;
+                    case close_inline:  fgc = liter_fg;     break;
+                    case empty_tag:     fgc = liter_fg;     break;
+                    case equal:         fgc = liter_fg;     break;
+                    case quotes:        fgc = quotes_fg;    break;
+                    case defaults:      fgc = defaults_fg;  break;
+                    case unknown:       fgc = redlt;        break;
+                    case tag_value:     fgc = value_fg;
+                                        bgc = value_bg;     break;
                     default: break;
                 }
                 auto& item = *item_ptr;
                 if (kind == type::tag_value)
                 {
                     auto temp = item;
-                    if (color) crop += ansi::fgc(color).add(xml::escape(temp)).nil();
-                    else       crop += xml::escape(temp);
+                    if (fgc)
+                    {
+                        //if (bgc) crop.fgc(fgc).bgc(bgc);
+                        //else     crop.fgc(fgc);
+                        //crop.add(xml::escape(temp)).nil();
+                        crop.fgc(fgc).add(xml::escape(temp)).nil();
+                    }
+                    else crop.add(xml::escape(temp));
                 }
                 else
                 {
-                    if (color) crop += ansi::fgc(color).add(item).nil();
-                    else       crop += item;
+                    if (fgc) crop.fgc(fgc).add(item).nil();
+                    else     crop.add(item);
                 }
             }
             return crop;
