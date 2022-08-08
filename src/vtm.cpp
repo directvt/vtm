@@ -34,13 +34,26 @@ int main(int argc, char* argv[])
 
     {
         //auto temp = view{ app::shared::test_data };
+        //auto data_view = temp;
+        //auto config = xml::document(data_view);
+        ////auto& names = config.root.sub["thing"][1]->sub["name"];
+        ////auto name = names.begin() + 2;// 1;
+        //auto& names = config.root.sub["thing"];
+        //auto name = names.begin() + 1;
+        //names.erase(name);
+
         auto temp = view{ app::shared::default_config_v2 };
         auto data_view = temp;
         auto config = xml::document(data_view);
-        //log(" xml: source data\n", temp);
-        //log(" xml: parsed data\n", config.root.show());
+        auto& items = config.root.sub["menu"][0]->sub["item"];// [3] ->sub["param"][0]->sub["colors"];// [0] ->sub["match"];
+        auto term = items.begin() + 3;
+        items.erase(term);
+
         //auto& selected = config.root.sub["menu"][0]->sub["selected"][0]->val_ptr_list.front().operator*();
         //selected = "Tile";
+
+        //log(" xml: source data\n", temp);
+        //log(" xml: parsed data\n", config.root.show());
         log(" xml: origin data\n", config.show());
         //return 0;
     }
