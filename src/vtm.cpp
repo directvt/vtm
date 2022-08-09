@@ -45,9 +45,20 @@ int main(int argc, char* argv[])
         auto temp = view{ app::shared::default_config_v2 };
         auto data_view = temp;
         auto config = xml::document(data_view);
-        auto& items = config.root.sub["menu"][0]->sub["item"];// [3] ->sub["param"][0]->sub["colors"];// [0] ->sub["match"];
-        auto term = items.begin() + 3;
-        items.erase(term);
+        //auto& items = config.root->sub["menu"][0]->sub["item"];// [3] ->sub["param"][0]->sub["colors"];// [0] ->sub["match"];
+        //auto term = items.begin() + 3;
+        //items.erase(term);
+
+        //auto temp = view{ app::shared::default_config_v2 };
+        //auto data_view = temp;
+        //auto config = xml::document(data_view);
+        //auto iter = config.find("config/menu/item");
+        //if (iter != config.end())
+        //{
+        //    auto& items = *iter;
+        //    auto term = items.begin() + 3;
+        //    items.erase(term);
+        //}
 
         //auto& selected = config.root.sub["menu"][0]->sub["selected"][0]->val_ptr_list.front().operator*();
         //selected = "Tile";

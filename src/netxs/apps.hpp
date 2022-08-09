@@ -122,10 +122,12 @@ R"==(
                     <mode="plain"/> <!-- plain | ansi | disabled -->
                 </selection>
                 <hotkeys>
+                >
                     <action=findNext key="Alt+RightArrow"/>
                     <action=findPrev key="Alt+LeftArrow"/>
                 </hotkeys>
-            </param>
+            </paramss>
+            </paramsss>
         </item>
         <item id=mc        label="mc"        type=SHELL    title="Midnight Commander"    param="mc"               notes=" Run Midnight Commander in its own window (if it is installed) "/>
         <item id=Tile      label="Tile"      type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" Run Tiling Window Manager with two terminals attached "/>

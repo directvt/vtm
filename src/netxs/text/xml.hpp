@@ -338,16 +338,21 @@ namespace netxs::xml
             }
         };
 
-        class elem
-        {
-            using sptr = netxs::sptr<class elem>;
-            using wptr = netxs::wptr<class elem>;
-            using byid = std::unordered_map<text, sptr>;
-            using list = std::vector<frag>;
+        class elem;
+        using sptr = netxs::sptr<elem>;
+        using wptr = netxs::wptr<elem>;
+        using byid = std::unordered_map<text, sptr>;
+        using list = std::vector<frag>;
+        using vect = std::vector<sptr>;
+        using subs = std::unordered_map<text, vect>;
 
+        class elem
+            : public std::enable_shared_from_this<elem>
+        {
         public:
-            elem(suit& page)
-                : page{ page }
+            elem(suit& page, wptr parent_wptr)
+                : page{ page },
+                  parent_wptr{ parent_wptr }
             { }
            ~elem()
             {
@@ -360,13 +365,10 @@ namespace netxs::xml
                 }
             }
 
-            static auto create(suit& page)
+            static auto create(suit& page, wptr parent_wptr = {})
             {
-                return std::make_shared<elem>(page);
+                return std::make_shared<elem>(page, parent_wptr);
             }
-
-            using vect = std::vector<sptr>;
-            using subs = std::unordered_map<text, vect>;
 
             static auto& map()
             {
@@ -385,7 +387,8 @@ namespace netxs::xml
             frag  tag_ptr;
             list  val_ptr_list;
             subs  sub;
-            wptr  def;
+            wptr  parent_wptr;
+            wptr  def_wptr;
             bool  is_template{};
             iter  start_iter;
 
@@ -512,7 +515,7 @@ namespace netxs::xml
                         default:                  return view{ "{unknown}" } ;
                     };
                 };
-                log(" xml: unexpected '", str(what), "' after '", str(last), "' near '...", xml::escape(data.substr(0, 80)), "...'");
+                log(" xml: unexpected '", str(what), "' after '", str(last), "' near '...", xml::escape(data.substr(0, 80)), data.size() >= 80 ? "...'" : "{EOF}'");
             }
             auto check_spaces()
             {
@@ -574,11 +577,12 @@ namespace netxs::xml
                 start_iter->upto = final_iter;
                 final_iter->upto = start_iter;
             }
-            auto parse(view& data)
+            void parse(view& data)
             {
                 auto what = type::eof;
                 auto last = type::eof;
                 auto defs = std::unordered_map<text, wptr>{};
+                auto fire = faux;
                 auto push = [&](sptr& item)
                 {
                     auto& sub_tag = *(item->tag_ptr);
@@ -588,7 +592,7 @@ namespace netxs::xml
                         auto iter = defs.find(sub_tag);
                         if (iter != defs.end())
                         {
-                            item->def = iter->second;
+                            item->def_wptr = iter->second;
                         }
                     }
                     sub[sub_tag].push_back(item);        
@@ -613,7 +617,7 @@ namespace netxs::xml
                         {
                             do // Proceed inlined subs
                             {
-                                auto item = elem::create(page);
+                                auto item = elem::create(page, shared_from_this());
                                 item->open_fragment();
                                 item->take_pair(data, what, last, type::token);
                                 item->close_fragment();
@@ -631,109 +635,134 @@ namespace netxs::xml
                         else if (what == type::close_inline) // proceed nested subs
                         {
                             page.append(type::close_inline, skip(data, what));
-                            auto temp = data;
-                            utf::trim_front(temp, spaces);
-                            peek(temp, what, last);
                             do
                             {
-                                if (what == type::quoted_text)
-                                {
-                                    diff(temp, data, type::quoted_text);
-                                    data = temp;
-                                    val_ptr_list.push_back(take_value(data));
-                                    trim(data);
-                                    temp = data;
-                                }
-                                else if (what == type::raw_text)
-                                {
-                                    auto size = data.find('<');
-                                    val_ptr_list.push_back(std::make_shared<text>(data.substr(0, size)));
-                                    if (size == view::npos)
-                                    {
-                                        page.append(type::unknown, data);
-                                        data = {};
-                                        what = type::eof;
-                                        fail(type::eof, what, data);
-                                        close_fragment();
-                                        return;
-                                    }
-                                    page.append(type::raw_text, data.substr(0, size));
-                                    data.remove_prefix(size);
-                                    temp = data;
-                                }
-                                else if (what == type::begin_tag)
-                                {
-                                    trim(data);
-                                    data = temp;
-                                    auto item = elem::create(page);
-                                    item->parse(data);
-                                    push(item);
-                                    temp = data;
-                                    utf::trim_front(temp, spaces);
-                                }
-                                else if (what == type::comment_begin) // <!--
-                                {
-                                    auto size = data.find(view_comment_close);
-                                    if (size == view::npos)
-                                    {
-                                        page.append(type::unknown, data);
-                                        data = {};
-                                        what = type::eof;
-                                        fail(type::eof, what, data);
-                                        close_fragment();
-                                        return;
-                                    }
-                                    size += view_comment_close.size();
-                                    page.append(type::comment_begin, data.substr(0, size));
-                                    data.remove_prefix(size);
-                                    temp = data;
-                                    utf::trim_front(temp, spaces);
-                                }
-                                else if (what != type::close_tag
-                                      && what != type::eof)
-                                {
-                                    fail(what, last, data);
-                                    skip(temp, what);
-                                    diff(temp, data, type::unknown);
-                                    data = temp;
-                                }
+                                auto temp = data;
+                                utf::trim_front(temp, spaces);
                                 peek(temp, what, last);
-                            }
-                            while (what != type::close_tag
-                                && what != type::eof);
-
-                            if (what == type::close_tag) // </token>
-                            {
-                                auto skip_frag = skip(temp, what);
-                                auto trim_frag = utf::trim_front(temp, spaces);
-                                peek(temp, what, last);
-                                if (what == type::token)
+                                do
                                 {
-                                    auto token = take_token(temp);
-                                    if (token == *tag_ptr)
+                                    if (what == type::quoted_text)
+                                    {
+                                        diff(temp, data, type::quoted_text);
+                                        data = temp;
+                                        val_ptr_list.push_back(take_value(data));
+                                        trim(data);
+                                        temp = data;
+                                    }
+                                    else if (what == type::raw_text)
+                                    {
+                                        auto size = data.find('<');
+                                        val_ptr_list.push_back(std::make_shared<text>(data.substr(0, size)));
+                                        if (size == view::npos)
+                                        {
+                                            page.append(type::unknown, data);
+                                            data = {};
+                                            last = what;
+                                            what = type::eof;
+                                            break;
+                                        }
+                                        page.append(type::raw_text, data.substr(0, size));
+                                        data.remove_prefix(size);
+                                        temp = data;
+                                    }
+                                    else if (what == type::begin_tag)
                                     {
                                         trim(data);
-                                        page.append(type::close_tag, skip_frag);
-                                        if (trim_frag.size()) page.append(type::whitespaces, trim_frag);
-                                        page.append(type::end_token, tag_ptr);
                                         data = temp;
-                                        auto tail = data.find('>');
-                                        if (tail != view::npos) data.remove_prefix(tail + 1);
-                                        else                    data = {};
-                                        diff(data, temp, type::close_tag);
+                                        auto item = elem::create(page, shared_from_this());
+                                        item->parse(data);
+                                        push(item);
+                                        temp = data;
+                                        utf::trim_front(temp, spaces);
                                     }
-                                    else log(" xml: unexpected closing tag name '", token, "', expected: '", *tag_ptr, "' near '...", xml::escape(data.substr(0, 80)), "...'");
+                                    else if (what == type::comment_begin) // <!--
+                                    {
+                                        auto size = data.find(view_comment_close);
+                                        if (size == view::npos)
+                                        {
+                                            page.append(type::unknown, data);
+                                            data = {};
+                                            last = what;
+                                            what = type::eof;
+                                            break;
+                                        }
+                                        size += view_comment_close.size();
+                                        page.append(type::comment_begin, data.substr(0, size));
+                                        data.remove_prefix(size);
+                                        temp = data;
+                                        utf::trim_front(temp, spaces);
+                                    }
+                                    else if (what != type::close_tag
+                                          && what != type::eof)
+                                    {
+                                        fail(what, last, data);
+                                        skip(temp, what);
+                                        diff(temp, data, type::unknown);
+                                        data = temp;
+                                    }
+                                    peek(temp, what, last);
                                 }
-                                else fail(what, last, data);
-                            }
-                            else fail(what, last, data);
-                        }
-                        else fail(what, last, data);
-                    }
-                    else fail(what, last, data);
-                }
-                else fail(what, last, data);
+                                while (what != type::close_tag
+                                    && what != type::eof);
 
+                                if (what == type::close_tag) // </token>
+                                {
+                                    auto skip_frag = skip(temp, what);
+                                    auto trim_frag = utf::trim_front(temp, spaces);
+                                    peek(temp, what, last);
+                                    if (what == type::token)
+                                    {
+                                        auto token = take_token(temp);
+                                        trim(data);
+                                        if (token == *tag_ptr)
+                                        {
+                                                                  page.append(type::close_tag, skip_frag);
+                                            if (trim_frag.size()) page.append(type::whitespaces, trim_frag);
+                                                                  page.append(type::end_token, tag_ptr);
+                                            data = temp;
+                                            auto tail = data.find('>');
+                                            if (tail != view::npos) data.remove_prefix(tail + 1);
+                                            else                    data = {};
+                                            diff(data, temp, type::close_tag);
+                                            break;
+                                        }
+                                        else
+                                        {
+                                            what = type::unknown;
+                                                                  page.append(what, skip_frag);
+                                            if (trim_frag.size()) page.append(what, trim_frag);
+                                                                  page.append(what, token);
+                                            data = temp;
+                                            auto tail = data.find('>');
+                                            if (tail != view::npos) data.remove_prefix(tail + 1);
+                                            else                    data = {};
+                                            diff(data, temp, what);
+                                            log(" xml: unexpected closing tag name '", token, "', expected: '", *tag_ptr, "' near '...", xml::escape(data.substr(0, 80)), data.size() >= 80 ? "...'" : "{EOF}'");
+                                            continue; // Repeat until eof or success.
+                                        }
+                                    }
+                                    else fire = true;
+                                }
+                                else if (what == type::eof)
+                                {
+                                    trim(data);
+                                    if (page.data.size() && page.data.back().kind != type::eof)
+                                    {
+                                        log(" xml: unexpected {EOF}");
+                                    }
+                                }
+                                else fire = true;
+                            } while (!fire && data.size());
+                        }
+                        else fire = true;
+                    }
+                    else fire = true;
+                }
+                else fire = true;
+
+                if (fire) fail(what, last, data);
+                if (what == type::eof) page.append(what, "");
                 close_fragment();
             }
             text show(sz_t indent = 0)
@@ -776,14 +805,14 @@ namespace netxs::xml
 
     public:
         suit page;
-        elem root;
+        sptr root;
 
         template<class T>
         document(T&& data)
-            : root{ page }
+            : root{ elem::create(page) }
         {
             auto shadow = view{ std::forward<T>(data) };
-            root.parse(shadow);
+            root->parse(shadow);
         }
         template<class T>
         auto get(T&& path)
