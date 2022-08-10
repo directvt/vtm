@@ -2642,6 +2642,13 @@ namespace netxs::os
                     r_sock = r;
                     w_sock = w;
 
+                    DWORD inpmode = 0;
+                    ok(::GetConsoleMode(STDIN_FD , &inpmode), "GetConsoleMode(STDIN_FD) failed");
+                    inpmode |= 0
+                            | ENABLE_QUICK_EDIT_MODE
+                            ;
+                    ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
+
                     DWORD outmode = 0
                                 | ENABLE_PROCESSED_OUTPUT
                                 | ENABLE_VIRTUAL_TERMINAL_PROCESSING
