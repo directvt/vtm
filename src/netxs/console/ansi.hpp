@@ -74,7 +74,10 @@ namespace netxs::ansi
 
     static const char CSI_HSH_SCP = 'P'; // CSI n #    P  — Push current palette colors onto stack. n default is 0.
     static const char CSI_HSH_RCP = 'Q'; // CSI n #    Q  — Pop current palette colors from stack. n default is 0.
-    static const char CSI_HSH_RVA = 'q'; // CSI   #    q  — Pop video attributes from stack (XTPOPSGR).
+    static const char CSI_HSH_SVA = 'p'; // CSI   #    p  — Push video attributes from stack (XTPUSHSGR).
+    static const char CSI_HSH_RVA = 'q'; // CSI   #    q  — Pop  video attributes from stack (XTPOPSGR).
+    static const char CSI_HSH_PUSH_SGR = '{'; // CSI # {  — Push SGR attributes onto stack (XTPUSHSGR).
+    static const char CSI_HSH_POP_SGR  = '}'; // CSI # }  — Pop  SGR attributes from stack (XTPOPSGR).
 
     static const char CSI_DQT_SCP = 'q'; // CSI n "    q  — Select character protection attribute.
 
@@ -366,6 +369,8 @@ namespace netxs::ansi
         auto& ocy(si32 n)           { return add("\033[", n, 'd'                    ); } // esc: Caret 1-based vertical absolute.
         auto& scp()                 { return add("\033[s"                           ); } // esc: Save caret position in memory.
         auto& rcp()                 { return add("\033[u"                           ); } // esc: Restore caret position from memory.
+        auto& pushsgr()             { return add("\033[#{"                          ); } // esc: Push SGR attributes onto stack.
+        auto& popsgr()              { return add("\033[#}"                          ); } // esc: Pop  SGR attributes from stack.
         auto& fcs(bool b)           { return add("\033[", b ? 'I' : 'O'             ); } // esc: Terminal window focus.
         auto& eol()                 { return add("\n"                               ); } // esc: EOL.
         auto& edl()                 { return add("\033[K"                           ); } // esc: EDL.
@@ -721,6 +726,8 @@ namespace netxs::ansi
     static auto edl()                 { return esc{}.edl( );        } // ansi: EDL.
     static auto scp()                 { return esc{}.scp( );        } // ansi: Save caret position in memory.
     static auto rcp()                 { return esc{}.rcp( );        } // ansi: Restore caret position from memory.
+    static auto pushsgr()             { return esc{}.pushsgr();     } // ansi: Push SGR attrs onto stack.
+    static auto popsgr()              { return esc{}.popsgr();      } // ansi: Pop  SGR attrs from stack.
     static auto cpp(twod const& n)    { return esc{}.cpp(n);        } // ansi: Caret percent position.
     static auto cpx(si32 n)           { return esc{}.cpx(n);        } // ansi: Caret horizontal percent position.
     static auto cpy(si32 n)           { return esc{}.cpy(n);        } // ansi: Caret vertical percent position.

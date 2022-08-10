@@ -737,12 +737,14 @@ namespace netxs::ui
             static void parser_config(T& vt)
             {
                 using namespace netxs::ansi;
-                vt.csier.table_space[CSI_SPC_SRC] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
-                vt.csier.table_space[CSI_SPC_SLC] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
-                vt.csier.table_space[CSI_SPC_CST] = VT_PROC{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
-                vt.csier.table_hash [CSI_HSH_SCP] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
-                vt.csier.table_hash [CSI_HSH_RCP] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
-                vt.csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
+                vt.csier.table_space[CSI_SPC_SRC     ] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
+                vt.csier.table_space[CSI_SPC_SLC     ] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
+                vt.csier.table_space[CSI_SPC_CST     ] = VT_PROC{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
+                vt.csier.table_hash [CSI_HSH_SCP     ] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [CSI_HSH_RCP     ] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [CSI_HSH_PUSH_SGR] = VT_PROC{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
+                vt.csier.table_hash [CSI_HSH_POP_SGR ] = VT_PROC{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes from stack.
+                vt.csier.table_excl [CSI_EXL_RST     ] = VT_PROC{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
 
                 vt.csier.table[CSI_SGR][SGR_FG_BLK   ] = VT_PROC{ p->owner.ctrack.fgc(tint::blackdk  ); };
                 vt.csier.table[CSI_SGR][SGR_FG_RED   ] = VT_PROC{ p->owner.ctrack.fgc(tint::reddk    ); };
@@ -971,10 +973,13 @@ namespace netxs::ui
             struct redo
             {
                 using mark = ansi::mark;
+                using sgrs = std::list<mark>;
+
                 deco style{}; // Parser style state.
                 mark brush{}; // Parser brush state.
                 twod coord{}; // Screen coord state.
                 bool decom{}; // Origin mode  state.
+                sgrs stack{}; // Stach for saved sgr attributes.
             };
 
             term& owner; // bufferbase: Terminal object reference.
@@ -1619,6 +1624,23 @@ namespace netxs::ui
                     default: // Test: print tab stops.
                         print_tabstops("Tabstops index: `CSI " + std::to_string(n) + " g`");
                         break;
+                }
+            }
+            // bufferbase: CSI # {  Push SGR attributes.
+            void pushsgr()
+            {
+                parser::flush();
+                saved.stack.push_back(parser::brush);
+                if (saved.stack.size() == 10) saved.stack.pop_front();
+            }
+            // bufferbase: CSI # }  Pop SGR attributes.
+            void popsgr()
+            {
+                parser::flush();
+                if (saved.stack.size())
+                {
+                    parser::brush = saved.stack.back();
+                    saved.stack.pop_back();
                 }
             }
             // bufferbase: ESC 7 or CSI s  Save cursor position.

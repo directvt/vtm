@@ -2641,6 +2641,13 @@ namespace netxs::os
 
                     r_sock = r;
                     w_sock = w;
+
+                    DWORD outmode = 0
+                                | ENABLE_PROCESSED_OUTPUT
+                                | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                                | DISABLE_NEWLINE_AUTO_RETURN
+                                ;
+                    ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
                 }
                 else if constexpr (ROLE == role::client)
                 {

@@ -55,7 +55,9 @@ R"==(
 </config>
 )==";
 
-    static constexpr auto default_config_v2 = R"==(
+    static constexpr auto default_config_v2 = R"==(hgfhghfh
+    jkjkljl ergfdgdfror invalid xml data errgfdgfdor
+    fdsjfj sklfjklds fjfkldsj klfds     
 <config>
     <menu>
         <selected=Term /> <!-- set selected using menu item id -->
@@ -117,17 +119,21 @@ R"==(
                     <enabled="on"/>
                     <slim="off"/>
                 </menu>
+                <<<<<<<<<<<<
                 <wrap="on"/>
+                >>>>>>>>>>>>>>
+                <><>,.,.,.<>,.<><>,><.</<<?,?<>?<>?,?///.,.,>,>,.,.,><><./
                 <selection>
                     <mode="plain"/> <!-- plain | ansi | disabled -->
+                    ><
                 </selection>
+                <>
                 <hotkeys>
                 >
                     <action=findNext key="Alt+RightArrow"/>
                     <action=findPrev key="Alt+LeftArrow"/>
                 </hotkeys>
-            </paramss>
-            </paramsss>
+            </param>
         </item>
         <item id=mc        label="mc"        type=SHELL    title="Midnight Commander"    param="mc"               notes=" Run Midnight Commander in its own window (if it is installed) "/>
         <item id=Tile      label="Tile"      type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" Run Tiling Window Manager with two terminals attached "/>
@@ -1185,6 +1191,43 @@ namespace netxs::app::shared
 
     auto init_app_registry = [](auto& world)
     {
+        {
+            //auto temp = view{ app::shared::test_data };
+            //auto data_view = temp;
+            //auto config = xml::document(data_view);
+            ////auto& names = config.root.sub["thing"][1]->sub["name"];
+            ////auto name = names.begin() + 2;// 1;
+            //auto& names = config.root.sub["thing"];
+            //auto name = names.begin() + 1;
+            //names.erase(name);
+
+            auto temp = view{ app::shared::default_config_v2 };
+            auto data_view = temp;
+            auto config = xml::document(data_view, "'default_config_v2'");
+            // //auto& items = config.root->sub["menu"][0]->sub["item"];// [3] ->sub["param"][0]->sub["colors"];// [0] ->sub["match"];
+            // //auto term = items.begin() + 3;
+            // //items.erase(term);
+
+            //auto temp = view{ app::shared::default_config_v2 };
+            //auto data_view = temp;
+            //auto config = xml::document(data_view);
+            //auto iter = config.find("config/menu/item");
+            //if (iter != config.end())
+            //{
+            //    auto& items = *iter;
+            //    auto term = items.begin() + 3;
+            //    items.erase(term);
+            //}
+
+            //auto& selected = config.root.sub["menu"][0]->sub["selected"][0]->val_ptr_list.front().operator*();
+            //selected = "Tile";
+
+            //log(" xml: source data\n", temp);
+            //log(" xml: parsed data\n", config.root.show());
+            //log(" xml: origin data\n", config.show());
+            //return 0;
+        }
+
         auto menu_list_ptr = e2::bindings::list::apps.param();
         auto conf_list_ptr = e2::bindings::list::links.param();
         world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);

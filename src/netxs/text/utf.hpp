@@ -330,7 +330,7 @@ namespace netxs::utf
     }
 
     // utf: Return the first grapheme cluster and its Unicode attributes.
-    static auto letter(view const& utf8)
+    auto letter(view const& utf8)
     {
         if (auto code = cpit{ utf8 })
         {
@@ -671,7 +671,7 @@ namespace netxs::utf
         return std::basic_string_view<T>(c_str, iter - c_str);
     }
 
-    static wide to_utf(char const* utf8, size_t size)
+    wide to_utf(char const* utf8, size_t size)
     {
         // � The standard also recommends replacing each error with the replacement character.
         //
@@ -714,7 +714,7 @@ namespace netxs::utf
         //wide_text.shrink_to_fit();
         return wide_text;
     }
-    static inline utfx tocode(wchar_t c)
+    inline utfx tocode(wchar_t c)
     {
         utfx code;
         if (c >= 0xd800 && c <= 0xdbff)
@@ -731,7 +731,7 @@ namespace netxs::utf
 
     namespace
     {
-        static inline void _to_utf(text& utf8, utfx code)
+        inline void _to_utf(text& utf8, utfx code)
         {
             if (code <= 0x007f)
             {
@@ -757,17 +757,17 @@ namespace netxs::utf
             }
         }
     }
-    static auto to_utf_from_code(utfx code)
+    auto to_utf_from_code(utfx code)
     {
         auto utf8 = text{};
         _to_utf(utf8, code);
         return utf8;
     }
-    static void to_utf_from_code(utfx code, text& utf8_out)
+    void to_utf_from_code(utfx code, text& utf8_out)
     {
         _to_utf(utf8_out, code);
     }
-    static text to_utf(wchar_t const* wide_text, size_t size)
+    text to_utf(wchar_t const* wide_text, size_t size)
     {
         auto utf8 = text{};
         utf8.reserve(size << 2);
@@ -847,7 +847,7 @@ namespace netxs::utf
         }
     }
     //todo deprecate cus too specific
-    static si32 shrink(view& utf8)
+    si32 shrink(view& utf8)
     {
         auto length = si32{ 0 };
         auto size = utf8.size();
@@ -913,7 +913,7 @@ namespace netxs::utf
         }
         return result;
     }
-    auto inline repeat(char letter, size_t count)
+    auto repeat(char letter, size_t count)
     {
         return text(count, letter);
     }
@@ -935,12 +935,10 @@ namespace netxs::utf
     }
 
     template<class W, class R>
-    static void change(text& utf8, W const& what, R const& replace)
+    void change(text& utf8, W const& what, R const& replace)
     {
         auto frag = view{ what };
         auto fill = view{ replace };
-
-        auto const& npos = text::npos;
         auto spot = 0_sz;
         auto line_sz = utf8.length();
         auto what_sz = frag.length();
@@ -950,7 +948,7 @@ namespace netxs::utf
 
         if (what_sz == repl_sz)
         {
-            while ((spot = utf8.find(frag, spot)) != npos)
+            while ((spot = utf8.find(frag, spot)) != text::npos)
             {
                 utf8.replace(spot, what_sz, fill);
                 spot += what_sz;
@@ -964,7 +962,7 @@ namespace netxs::utf
                 auto temp = text{};
                 temp.reserve((line_sz / what_sz + 1) * repl_sz); // In order to avoid allocations.
                 auto shadow = view{ utf8 };
-                while ((spot = utf8.find(frag, last)) != npos)
+                while ((spot = utf8.find(frag, last)) != text::npos)
                 {
                     temp += shadow.substr(last, spot - last);
                     temp += fill;
@@ -985,7 +983,7 @@ namespace netxs::utf
                     auto stop = base + size;
                     while (base != stop) { *dest++ = *base++; }
                 };
-                while ((spot = utf8.find(frag, last)) != npos)
+                while ((spot = utf8.find(frag, last)) != text::npos)
                 {
                     if (last) copy(base + last, dest, spot - last);
                     else      dest += spot;
@@ -1478,6 +1476,7 @@ namespace netxs::utf
         if (!skip.empty()) trim_front(utf8, skip);
         return str;
     }
+    template<bool Lazy = true>
     auto get_tail(view& utf8, view delims)
     {
         auto head = utf8.begin();
@@ -1485,8 +1484,17 @@ namespace netxs::utf
         auto stop = find_char(head, tail, delims);
         if (stop == tail)
         {
-            utf8 = view{};
-            return text{};
+            if constexpr (Lazy)
+            {
+                utf8 = view{};
+                return text{};
+            }
+            else
+            {
+                auto crop = text{ utf8 };
+                utf8 = view{};
+                return crop;
+            }
         }
         auto str = text{ head, stop };
         utf8.remove_prefix(std::distance(head, stop));
@@ -1511,6 +1519,23 @@ namespace netxs::utf
         auto tail = head + std::min(utf8.size(), size);
         std::transform(head, tail, head, [](unsigned char c) { return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c; });
         return utf8;
+    }
+    template<class W, class P>
+    void for_each(text& utf8, W const& what, P proc)
+    {
+        auto frag = view{ what };
+        auto spot = 0_sz;
+        auto line_sz = utf8.length();
+        auto what_sz = frag.length();
+
+        if (!what_sz || line_sz < what_sz) return;
+
+        while ((spot = utf8.find(frag, spot)) != text::npos)
+        {
+            auto fill = proc();
+            utf8.replace(spot, what_sz, fill);
+            spot += what_sz;
+        }
     }
 }
 
