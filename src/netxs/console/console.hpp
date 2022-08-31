@@ -85,8 +85,6 @@ namespace netxs::events::userland
 {
     using namespace netxs::ui::atoms;
     using namespace netxs::datetime;
-    using utf::text;
-    using utf::view;
 
     struct e2
     {
@@ -4905,8 +4903,10 @@ namespace netxs::console
             k.scancod = item.scancod;
             k.pressed = item.pressed;
             k.ctlstat = item.ctlstat;
+            k.winctrl = item.winctrl;
             k.imitate = item.imitate;
             k.cluster = item.cluster;
+            k.winchar = item.winchar;
             notify(e2::conio::keybd, k);
         }
         void handle(s11n::xs::plain       lock)
@@ -4948,6 +4948,7 @@ namespace netxs::console
             m.hzwheel = msflags & (1 << 3); // MOUSE_HWHEELED
             m.wheeldt = wheeldt;
             m.ctlstat = ctlstat;
+            m.winctrl = item.winctrl;
             if (!m.shuffle)
             {
                 m.update_buttons();

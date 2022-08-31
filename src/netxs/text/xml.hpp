@@ -991,12 +991,12 @@ namespace netxs::xml
                 lines /= 10;
                 width++;
             }
-            auto numerate = [&]()
+            auto numerate = [&]
             {
                 return ansi::pushsgr().fgc(liter_fg) + utf::adjust(std::to_string(count++), width, ' ', true) + ": " + ansi::popsgr();
             };
             yield = numerate() + yield;
-            utf::for_each(yield, "\n", [&]() { return "\n" + numerate(); });
+            utf::for_each(yield, "\n", [&]{ return "\n" + numerate(); });
             return yield;
         }
 

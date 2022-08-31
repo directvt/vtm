@@ -47,7 +47,7 @@ namespace netxs::app::test
             dynamix3,
         };
 
-        auto get_text = []()
+        auto get_text = []
         {
             static text topic;
 

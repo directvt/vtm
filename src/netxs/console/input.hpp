@@ -289,6 +289,7 @@ namespace netxs::input
         si32 wheeldt = 0;              // sysmouse: Scroll delta.
         id_t mouseid = 0;              // sysmouse: Gear id.
         ui32 ctlstat = 0;
+        ui32 winctrl = 0;
 
         bool operator != (sysmouse const& m) const
         {
@@ -402,7 +403,9 @@ namespace netxs::input
         ui16 virtcod = {};
         ui16 scancod = {};
         ui32 ctlstat = {};
+        ui32 winctrl = {};
         text cluster = {};
+        wchr winchar = {};
     };
 
     // console: Base focus class.
@@ -761,6 +764,7 @@ namespace netxs::input
     class keybd
     {
     public:
+        wchr winchar = {}; // MS Windows specific.
         text cluster = {};
         bool pressed = {};
         ui16 imitate = {};
@@ -775,6 +779,7 @@ namespace netxs::input
             virtcod = k.virtcod;
             scancod = k.scancod;
             cluster = k.cluster;
+            winchar = k.winchar;
             fire_keybd();
         }
 
@@ -828,6 +833,7 @@ namespace netxs::input
     public:
         bell& owner;
         ui32 ctlstate = 0;
+        ui32 winctrl = {}; // MS Windows specific.
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
@@ -1006,6 +1012,7 @@ namespace netxs::input
         void take(sysmouse const& m)
         {
             ctlstate = m.ctlstat;
+            winctrl  = m.winctrl;
             disabled = faux;
             mouse::update(m);
             push = mouse::get_buttons();
@@ -1013,6 +1020,7 @@ namespace netxs::input
         void take(syskeybd const& k)
         {
             ctlstate = k.ctlstat;
+            winctrl  = k.winctrl;
             keybd::update(k);
         }
         void take(sysfocus const& f)

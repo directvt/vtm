@@ -395,7 +395,7 @@ namespace netxs::app::tile
                                 ->active());
             return node;
         };
-        auto empty_pane = []()
+        auto empty_pane = []
         {
             return ui::park::ctor()
                 ->isroot(true, 2)

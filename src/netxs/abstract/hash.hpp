@@ -36,7 +36,7 @@ namespace netxs
     template<class M, class K>
     typename addref<M>::type get_or(M& map, K const& key, typename addref<M>::type default_value)
     {
-        const auto it = map.find(key);
+        auto const it = map.find(key);
         if (it == map.end())
         {
             return default_value;
@@ -45,6 +45,13 @@ namespace netxs
         {
             return it->second;
         }
+    }
+    template<class Map, class Key, class FBKey>
+    auto& map_or(Map& map, Key const& key, FBKey const& fallback)
+    {
+        auto const it = map.find(key);
+        return it == map.end() ? map[fallback]
+                               : it->second;
     }
 
     // hash: Map that keeps the insertion order.

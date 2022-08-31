@@ -443,7 +443,7 @@ namespace netxs
         auto msize2 = size2 - dot_11;
 
         auto y = 0;
-        auto h_line = [&]()
+        auto h_line = [&]
         {
             auto x = 0;
             while (x != msize0.x)

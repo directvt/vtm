@@ -494,7 +494,7 @@ R"==(
         return menu_block;
     };
 
-    const auto main_menu = []()
+    const auto main_menu = []
     {
         auto items = app::shared::menu_list_type
         {
@@ -667,7 +667,7 @@ R"==(
         if (!size.last) return faux;
 
         auto ground = base::create<host>(tunnel.first, maxfps);
-        auto runapp = [&]()
+        auto runapp = [&]
         {
             auto aclass = utf::cutoff(app_name, ' ');
             utf::to_low(aclass);
@@ -684,7 +684,7 @@ R"==(
         if (direct) runapp();
         else
         {
-            auto thread = std::thread{ [&](){ os::ipc::splice(cons, vtmode); }};
+            auto thread = std::thread{ [&]{ os::ipc::splice(cons, vtmode); }};
             runapp();
             thread.join();
         }

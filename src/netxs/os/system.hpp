@@ -50,6 +50,9 @@
 
     #include <Sddl.h>       //security_descriptor
 
+    #include <winternl.h>   // NtOpenFile
+    #include <wingdi.h>     // TranslateCharsetInfo
+
 #else
 
     #include <errno.h>      // ::errno
@@ -126,65 +129,6 @@ namespace netxs::os
         static const si32 PIPE_BUF = 65536;
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
-
-        template<class T1, class T2 = si32>
-        auto kbstate(si32& modstate, T1 ms_ctrls, T2 scancode = {}, bool pressed = {})
-        {
-            if (scancode == 0x2a)
-            {
-                if (pressed) modstate |= input::hids::LShift;
-                else         modstate &=~input::hids::LShift;
-            }
-            if (scancode == 0x36)
-            {
-                if (pressed) modstate |= input::hids::RShift;
-                else         modstate &=~input::hids::RShift;
-            }
-            auto lshift = modstate & input::hids::LShift;
-            auto rshift = modstate & input::hids::RShift;
-            bool lalt   = ms_ctrls & LEFT_ALT_PRESSED;
-            bool ralt   = ms_ctrls & RIGHT_ALT_PRESSED;
-            bool lctrl  = ms_ctrls & LEFT_CTRL_PRESSED;
-            bool rctrl  = ms_ctrls & RIGHT_CTRL_PRESSED;
-            bool nums   = ms_ctrls & NUMLOCK_ON;
-            bool caps   = ms_ctrls & CAPSLOCK_ON;
-            bool scrl   = ms_ctrls & SCROLLLOCK_ON;
-            auto state  = ui32{};
-            if (lshift) state |= input::hids::LShift;
-            if (rshift) state |= input::hids::RShift;
-            if (lalt  ) state |= input::hids::LAlt;
-            if (ralt  ) state |= input::hids::RAlt;
-            if (lctrl ) state |= input::hids::LCtrl;
-            if (rctrl ) state |= input::hids::RCtrl;
-            if (nums  ) state |= input::hids::NumLock;
-            if (caps  ) state |= input::hids::CapsLock;
-            if (scrl  ) state |= input::hids::ScrlLock;
-            return state;
-        }
-        template<class T1>
-        auto ms_kbstate(T1 ctrls)
-        {
-            bool lshift = ctrls & input::hids::LShift;
-            bool rshift = ctrls & input::hids::RShift;
-            bool lalt   = ctrls & input::hids::LAlt;
-            bool ralt   = ctrls & input::hids::RAlt;
-            bool lctrl  = ctrls & input::hids::LCtrl;
-            bool rctrl  = ctrls & input::hids::RCtrl;
-            bool nums   = ctrls & input::hids::NumLock;
-            bool caps   = ctrls & input::hids::CapsLock;
-            bool scrl   = ctrls & input::hids::ScrlLock;
-            auto state  = ui32{};
-            if (lshift) state |= SHIFT_PRESSED;
-            if (rshift) state |= SHIFT_PRESSED;
-            if (lalt  ) state |= LEFT_ALT_PRESSED;
-            if (ralt  ) state |= RIGHT_ALT_PRESSED;
-            if (lctrl ) state |= LEFT_CTRL_PRESSED;
-            if (rctrl ) state |= RIGHT_CTRL_PRESSED;
-            if (nums  ) state |= NUMLOCK_ON;
-            if (caps  ) state |= CAPSLOCK_ON;
-            if (scrl  ) state |= SCROLLLOCK_ON;
-            return state;
-        }
 
         //static constexpr char* security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -327,6 +271,245 @@ namespace netxs::os
         }
         else return true;
     }
+
+    #if defined(_WIN32)
+
+        template<class T1, class T2 = si32>
+        auto kbstate(si32& modstate, T1 ms_ctrls, T2 scancode = {}, bool pressed = {})
+        {
+            if (scancode == 0x2a)
+            {
+                if (pressed) modstate |= input::hids::LShift;
+                else         modstate &=~input::hids::LShift;
+            }
+            if (scancode == 0x36)
+            {
+                if (pressed) modstate |= input::hids::RShift;
+                else         modstate &=~input::hids::RShift;
+            }
+            auto lshift = modstate & input::hids::LShift;
+            auto rshift = modstate & input::hids::RShift;
+            bool lalt   = ms_ctrls & LEFT_ALT_PRESSED;
+            bool ralt   = ms_ctrls & RIGHT_ALT_PRESSED;
+            bool lctrl  = ms_ctrls & LEFT_CTRL_PRESSED;
+            bool rctrl  = ms_ctrls & RIGHT_CTRL_PRESSED;
+            bool nums   = ms_ctrls & NUMLOCK_ON;
+            bool caps   = ms_ctrls & CAPSLOCK_ON;
+            bool scrl   = ms_ctrls & SCROLLLOCK_ON;
+            auto state  = ui32{};
+            if (lshift) state |= input::hids::LShift;
+            if (rshift) state |= input::hids::RShift;
+            if (lalt  ) state |= input::hids::LAlt;
+            if (ralt  ) state |= input::hids::RAlt;
+            if (lctrl ) state |= input::hids::LCtrl;
+            if (rctrl ) state |= input::hids::RCtrl;
+            if (nums  ) state |= input::hids::NumLock;
+            if (caps  ) state |= input::hids::CapsLock;
+            if (scrl  ) state |= input::hids::ScrlLock;
+            return state;
+        }
+        template<class T1>
+        auto ms_kbstate(T1 ctrls)
+        {
+            bool lshift = ctrls & input::hids::LShift;
+            bool rshift = ctrls & input::hids::RShift;
+            bool lalt   = ctrls & input::hids::LAlt;
+            bool ralt   = ctrls & input::hids::RAlt;
+            bool lctrl  = ctrls & input::hids::LCtrl;
+            bool rctrl  = ctrls & input::hids::RCtrl;
+            bool nums   = ctrls & input::hids::NumLock;
+            bool caps   = ctrls & input::hids::CapsLock;
+            bool scrl   = ctrls & input::hids::ScrlLock;
+            auto state  = ui32{};
+            if (lshift) state |= SHIFT_PRESSED;
+            if (rshift) state |= SHIFT_PRESSED;
+            if (lalt  ) state |= LEFT_ALT_PRESSED;
+            if (ralt  ) state |= RIGHT_ALT_PRESSED;
+            if (lctrl ) state |= LEFT_CTRL_PRESSED;
+            if (rctrl ) state |= RIGHT_CTRL_PRESSED;
+            if (nums  ) state |= NUMLOCK_ON;
+            if (caps  ) state |= CAPSLOCK_ON;
+            if (scrl  ) state |= SCROLLLOCK_ON;
+            return state;
+        }
+
+        class nt
+        {
+            using functor = std::decay<decltype(::NtOpenFile)>::type;
+
+            HMODULE  ntdll_dll{};
+            functor NtOpenFile{};
+
+            nt()
+            {
+                ntdll_dll = ::LoadLibraryEx("ntdll.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                if (!ntdll_dll) os::fail("LoadLibraryEx(ntdll.dll)");
+                else
+                {
+                    NtOpenFile = reinterpret_cast<functor>(::GetProcAddress(ntdll_dll, "NtOpenFile"));
+                    if (!NtOpenFile) os::fail("::GetProcAddress(NtOpenFile)");
+                }
+            }
+
+            void operator=(nt const&) = delete;
+            nt(nt const&)             = delete;
+            nt(nt&& other)
+                : ntdll_dll{ other.ntdll_dll  },
+                 NtOpenFile{ other.NtOpenFile }
+            {
+                other.ntdll_dll  = {};
+                other.NtOpenFile = {};
+            }
+
+            static auto& get_ntdll()
+            {
+                static auto ref = nt{};
+                return ref;
+            }
+
+        public:
+           ~nt()
+            {
+                if (ntdll_dll) ::FreeLibrary(ntdll_dll);
+            }
+
+            constexpr explicit operator bool() const { return NtOpenFile != nullptr; }
+
+            struct status
+            {
+                static constexpr auto success               = (NTSTATUS)0x00000000L;
+                static constexpr auto unsuccessful          = (NTSTATUS)0xC0000001L;
+                static constexpr auto illegal_function      = (NTSTATUS)0xC00000AFL;
+                static constexpr auto not_found             = (NTSTATUS)0xC0000225L;
+                static constexpr auto not_supported         = (NTSTATUS)0xC00000BBL;
+                static constexpr auto buffer_too_small      = (NTSTATUS)0xC0000023L;
+                static constexpr auto invalid_buffer_size   = (NTSTATUS)0xC0000206L;
+                static constexpr auto invalid_handle        = (NTSTATUS)0xC0000008L;
+            };
+
+            template<class ...Args>
+            static auto OpenFile(Args... args)
+            {
+                auto& inst = get_ntdll();
+                return inst ? inst.NtOpenFile(std::forward<Args>(args)...)
+                            : nt::status::not_found;
+            }
+            template<class I = noop, class O = noop>
+            static auto ioctl(DWORD dwIoControlCode, fd_t hDevice, I&& send = {}, O&& recv = {}) -> NTSTATUS
+            {
+                auto BytesReturned   = DWORD{};
+                auto lpInBuffer      = std::is_same_v<std::decay_t<I>, noop> ? nullptr : static_cast<void*>(&send);
+                auto nInBufferSize   = std::is_same_v<std::decay_t<I>, noop> ? 0       : static_cast<DWORD>(sizeof(send));
+                auto lpOutBuffer     = std::is_same_v<std::decay_t<O>, noop> ? nullptr : static_cast<void*>(&recv);
+                auto nOutBufferSize  = std::is_same_v<std::decay_t<O>, noop> ? 0       : static_cast<DWORD>(sizeof(recv));
+                auto lpBytesReturned = &BytesReturned;
+                auto ok = ::DeviceIoControl(hDevice,
+                                            dwIoControlCode,
+                                            lpInBuffer,
+                                            nInBufferSize,
+                                            lpOutBuffer,
+                                            nOutBufferSize,
+                                            lpBytesReturned,
+                                            nullptr);
+                return ok ? ERROR_SUCCESS
+                          : os::error();
+            }
+            static auto object(view        path,
+                               ACCESS_MASK mask,
+                               ULONG       flag,
+                               ULONG       opts = {},
+                               HANDLE      boss = {})
+            {
+                    auto hndl = INVALID_FD;
+                    auto wtxt = utf::to_utf(path);
+                    auto size = wtxt.size() * sizeof(wtxt[0]);
+                    auto attr = OBJECT_ATTRIBUTES{};
+                    auto stat = IO_STATUS_BLOCK{};
+                    auto name = UNICODE_STRING{
+                        .Length        = (decltype(UNICODE_STRING::Length)       )(size),
+                        .MaximumLength = (decltype(UNICODE_STRING::MaximumLength))(size + sizeof(wtxt[0])),
+                        .Buffer        = wtxt.data(),
+                    };
+                    InitializeObjectAttributes(&attr, &name, flag, boss, nullptr);
+                    auto status = nt::OpenFile(&hndl, mask, &attr, &stat, FILE_SHARE_READ
+                                                                        | FILE_SHARE_WRITE
+                                                                        | FILE_SHARE_DELETE, opts);
+                    if (status != nt::status::success)
+                    {
+                        log("  os: unexpected result when access system object '", path, "', ntstatus ", status);
+                        return INVALID_FD;
+                    }
+                    else return hndl;
+            }
+
+            struct console
+            {
+                enum fx
+                {
+                    undef,
+                    connect,
+                    disconnect,
+                    create,
+                    close,
+                    write,
+                    read,
+                    subfx,
+                    flush,
+                    count,
+                };
+                struct op
+                {
+                    static constexpr auto read_io                 = CTL_CODE(FILE_DEVICE_CONSOLE, 1,  METHOD_OUT_DIRECT,  FILE_ANY_ACCESS);
+                    static constexpr auto complete_io             = CTL_CODE(FILE_DEVICE_CONSOLE, 2,  METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto read_input              = CTL_CODE(FILE_DEVICE_CONSOLE, 3,  METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto write_output            = CTL_CODE(FILE_DEVICE_CONSOLE, 4,  METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto issue_user_io           = CTL_CODE(FILE_DEVICE_CONSOLE, 5,  METHOD_OUT_DIRECT,  FILE_ANY_ACCESS);
+                    static constexpr auto disconnect_pipe         = CTL_CODE(FILE_DEVICE_CONSOLE, 6,  METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto set_server_information  = CTL_CODE(FILE_DEVICE_CONSOLE, 7,  METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto get_server_pid          = CTL_CODE(FILE_DEVICE_CONSOLE, 8,  METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto get_display_size        = CTL_CODE(FILE_DEVICE_CONSOLE, 9,  METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto update_display          = CTL_CODE(FILE_DEVICE_CONSOLE, 10, METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto set_cursor              = CTL_CODE(FILE_DEVICE_CONSOLE, 11, METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto allow_via_uiaccess      = CTL_CODE(FILE_DEVICE_CONSOLE, 12, METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto launch_server           = CTL_CODE(FILE_DEVICE_CONSOLE, 13, METHOD_NEITHER,     FILE_ANY_ACCESS);
+                    static constexpr auto get_font_size           = CTL_CODE(FILE_DEVICE_CONSOLE, 14, METHOD_NEITHER,     FILE_ANY_ACCESS);
+                };
+
+                static auto handle(view rootpath)
+                {
+                    return nt::object(rootpath,
+                                      GENERIC_ALL,
+                                      OBJ_CASE_INSENSITIVE | OBJ_INHERIT);
+                }
+                static auto handle(fd_t server, view relpath, bool inheritable = {})
+                {
+                    return nt::object(relpath,
+                                      GENERIC_READ | GENERIC_WRITE | SYNCHRONIZE,
+                                      OBJ_CASE_INSENSITIVE | (inheritable ? OBJ_INHERIT : 0),
+                                      FILE_SYNCHRONOUS_IO_NONALERT,
+                                      server);
+                }
+                static auto handle(fd_t cloned_handle)
+                {
+                    auto handle_clone = INVALID_FD;
+                    auto ok = ::DuplicateHandle(GetCurrentProcess(),
+                                                cloned_handle,
+                                                GetCurrentProcess(),
+                                               &handle_clone,
+                                                0,
+                                                TRUE,
+                                                DUPLICATE_SAME_ACCESS);
+                    if (ok) return handle_clone;
+                    else
+                    {
+                        log("  os: unexpected result when duplicate system object handle, errcode ", os::error());
+                        return INVALID_FD;
+                    }
+                }
+            };
+        };
+
+    #endif
 
     class file
     {
@@ -781,7 +964,7 @@ namespace netxs::os
                     }
                 }
             #else
-                os::select<true>(stdin_fd, [&]()
+                os::select<true>(stdin_fd, [&]
                 {
                     auto buffer = ansi::dtvt::binary::marker{};
                     auto header = os::recv(stdin_fd, buffer.data, buffer.size);
@@ -1116,7 +1299,7 @@ namespace netxs::os
         auto temp = text{};
         temp.reserve(cmdline.length());
 
-        auto push = [&]()
+        auto push = [&]
         {
             args.push_back(temp);
             temp.clear();
@@ -1385,7 +1568,7 @@ namespace netxs::os
                     if (user.length())
                     {
                         ::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSDomainName, &buffer_pointer, &buffer_length);
-                        auto domain = text(utf::to_view(buffer_pointer, buffer_length / sizeof(wchar_t)));
+                        auto domain = text(utf::to_view(buffer_pointer, buffer_length / sizeof(wchr)));
                         ::WTSFreeMemory(buffer_pointer);
 
                         active_users_array += domain;
@@ -1685,7 +1868,7 @@ namespace netxs::os
                                       0,
                                       REG_SZ,
                                       (BYTE*)value.c_str(),
-                                      ((DWORD)value.size() + 1) * sizeof(wchar_t)
+                                      ((DWORD)value.size() + 1) * sizeof(wchr)
             );
 
             ::RegCloseKey(hKey);
@@ -1872,7 +2055,7 @@ namespace netxs::os
         //}
         //else
         //{
-        //	result = utils::to_utf(std::wstring(path)) + '\\';
+        //	result = utils::to_utf(wide(path)) + '\\';
         //	CoTaskMemFree(path);
         //}
 
@@ -1922,7 +2105,7 @@ namespace netxs::os
 
         public:
             operator auto () { return h; }
-            fire()           { ok(h = ::CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error"); }
+            fire(bool i = 1) { ok(h = ::CreateEvent(NULL, i, FALSE, NULL), "CreateEvent error"); }
            ~fire()           { os::close(h); }
             void reset()     { ok(::SetEvent(h), "SetEvent error"); }
             void flush()     { ok(::ResetEvent(h), "ResetEvent error"); }
@@ -2053,7 +2236,7 @@ namespace netxs::os
         {
             auto guard = std::lock_guard{ mutex };
             auto next_id = count++;
-            auto session = std::thread([&, process, next_id]()
+            auto session = std::thread([&, process, next_id]
             {
                 process(next_id);
                 checkout();
@@ -2466,13 +2649,13 @@ namespace netxs::os
                 #else
 
                     auto result = std::shared_ptr<ipc::socket>{};
-                    auto h_proc = [&]()
+                    auto h_proc = [&]
                     {
                         auto h = ::accept(handle.get_r(), 0, 0);
                         auto s = file{ h, h };
                         if (s) result = std::make_shared<ipc::socket>(std::move(s));
                     };
-                    auto f_proc = [&]()
+                    auto f_proc = [&]
                     {
                         log("xipc: signal fired");
                         signal.flush();
@@ -2668,7 +2851,7 @@ namespace netxs::os
                                              0,             // default attributes
                                              NULL);         // no template file
                     };
-                    auto play = [&]()
+                    auto play = [&]
                     {
                         auto w = pipe(to_server, GENERIC_WRITE);
                         if (w == INVALID_FD)
@@ -2730,7 +2913,7 @@ namespace netxs::os
                 auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
                 std::copy(path.begin(), path.end(), sun_path);
 
-                auto play = [&]()
+                auto play = [&]
                 {
                     return -1 != ::connect(r_sock, (struct sockaddr*)&addr, sock_addr_len);
                 };
@@ -3000,16 +3183,19 @@ namespace netxs::os
                                         wired.keybd.send(ipcio,
                                             0,
                                             os::kbstate(kbstate, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
+                                            reply.Event.KeyEvent.dwControlKeyState,
                                             reply.Event.KeyEvent.wVirtualKeyCode,
                                             reply.Event.KeyEvent.wVirtualScanCode,
                                             reply.Event.KeyEvent.bKeyDown,
                                             reply.Event.KeyEvent.wRepeatCount,
-                                            reply.Event.KeyEvent.uChar.UnicodeChar ? utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar) : text{});
+                                            reply.Event.KeyEvent.uChar.UnicodeChar ? utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar) : text{},
+                                            reply.Event.KeyEvent.uChar.UnicodeChar);
                                         break;
                                     case MOUSE_EVENT:
                                         wired.mouse.send(ipcio,
                                             0,
                                             os::kbstate(kbstate, reply.Event.MouseEvent.dwControlKeyState),
+                                            reply.Event.MouseEvent.dwControlKeyState,
                                             xlate_bttns(reply.Event.MouseEvent.dwButtonState),
                                             reply.Event.MouseEvent.dwEventFlags,
                                             static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
@@ -3049,7 +3235,7 @@ namespace netxs::os
                     testy<si32> bttns = 0;
                     si32        flags = 0;
                 } state;
-                auto get_kb_state = []()
+                auto get_kb_state = []
                 {
                     si32 state = 0;
                     #if defined(__linux__)
@@ -3188,11 +3374,13 @@ namespace netxs::os
                                 wired.keybd.send(ipcio,
                                     0,
                                     k.ctlstat,
+                                    0, // winctrl
                                     k.virtcod,
                                     k.scancod,
                                     k.pressed,
                                     k.imitate,
-                                    k.cluster);
+                                    k.cluster,
+                                    0); // winchar
                                 total.clear();
                                 break;
                             }
@@ -3208,11 +3396,13 @@ namespace netxs::os
                                 wired.keybd.send(ipcio,
                                     0,
                                     k.ctlstat,
+                                    0, // winctrl
                                     k.virtcod,
                                     k.scancod,
                                     k.pressed,
                                     k.imitate,
-                                    k.cluster);
+                                    k.cluster,
+                                    0); // winchar
                                 total = strv.substr(1);
                                 break;
                             }
@@ -3322,6 +3512,7 @@ namespace netxs::os
                                                                 wired.mouse.send(ipcio,
                                                                     0,
                                                                     m.ctlstat,
+                                                                    0, // winctrl
                                                                     m.get_sysbuttons(),
                                                                     m.get_msflags(),
                                                                     m.wheeldt,
@@ -3335,6 +3526,7 @@ namespace netxs::os
                                                                 wired.mouse.send(ipcio,
                                                                     0,
                                                                     m.ctlstat,
+                                                                    0, // winctrl
                                                                     m.get_sysbuttons(),
                                                                     m.get_msflags(),
                                                                     m.wheeldt,
@@ -3375,6 +3567,7 @@ namespace netxs::os
                                                                 wired.mouse.send(ipcio,
                                                                     0,
                                                                     m.ctlstat,
+                                                                    0, // winctrl
                                                                     m.get_sysbuttons(),
                                                                     m.get_msflags(),
                                                                     m.wheeldt,
@@ -3432,11 +3625,13 @@ namespace netxs::os
                                 wired.keybd.send(ipcio,
                                     0,
                                     k.ctlstat,
+                                    0, // winctrl
                                     k.virtcod,
                                     k.scancod,
                                     k.pressed,
                                     k.imitate,
-                                    k.cluster);
+                                    k.cluster,
+                                    0); // winchar
                                 total = strv.substr(i);
                                 strv = total;
                             }
@@ -3444,7 +3639,7 @@ namespace netxs::os
                     }
                 };
 
-                auto h_proc = [&]()
+                auto h_proc = [&]
                 {
                     auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
                     if (micefd != INVALID_FD
@@ -3456,7 +3651,7 @@ namespace netxs::os
                     }
                     filter(data);
                 };
-                auto m_proc = [&]()
+                auto m_proc = [&]
                 {
                     auto data = os::recv(micefd, buffer.data(), buffer.size());
                     auto size = data.size();
@@ -3484,6 +3679,7 @@ namespace netxs::os
                                 wired.mouse.send(ipcio,
                                     0,
                                     state.flags,
+                                    0, // winctrl
                                     state.bttns.last,
                                     state.flags,
                                     wheel,
@@ -3493,7 +3689,7 @@ namespace netxs::os
                     #endif
                     }
                 };
-                auto f_proc = [&]()
+                auto f_proc = [&]
                 {
                     signal.flush();
                 };
@@ -3605,7 +3801,7 @@ namespace netxs::os
             os::set_palette(mode);
             os::vgafont_update(mode);
 
-            auto input = std::thread{ [&]() { reader(mode); } };
+            auto input = std::thread{ [&]{ reader(mode); } };
 
             while (output(ipcio.recv()))
             { }
@@ -3622,37 +3818,1607 @@ namespace netxs::os
     template<class V> testy<twod>              tty::_globals<V>::winsz;
     template<class V> ansi::dtvt::binary::s11n tty::_globals<V>::wired;
 
+    template<class Term>
     class pty // Note: STA.
     {
-        #if defined(_WIN32)
+    #if defined(_WIN32)
 
-            DWORD  Proc_id  { 0          };
-            HPCON  hPC      { INVALID_FD };
-            HANDLE hProcess { INVALID_FD };
-            HANDLE hThread  { INVALID_FD };
-            HANDLE gameover { INVALID_FD }; // ConPTY do not close pipe handles when client process exits,
-            std::thread client_exit_waiter; // so we need to catch the process ending.
-            // Note: Not closing STDERR_FD (STDERR_FD and STDIN_FD the same)
-            //       causes the reading process to not stop reading when only STDIN_FD is closed.
-            //       An open STDERR_FD on the client side blocks the read interrupt on the ConPTY side.
+        struct consrv
+        {
+            struct iocomplete
+            {
+                using cptr = void const*;
+                using stat = NTSTATUS;
 
-        #else
+                ui64 taskid;
+                stat status;
+                ui32 _pad_1;
+                ui64 report;
+                cptr buffer;
+                ui32 length;
+                ui32 offset;
 
-            pid_t Proc_id = 0;
+                auto readoffset() const { return static_cast<ui32>(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
+                auto sendoffset() const { return static_cast<ui32>(length ? length : 0); }
+                auto set_status(NTSTATUS s) { status = s; }
+            };
 
-        #endif
+            struct iorequest
+            {
+                using cptr = void const*;
 
-        ipc::ptycon               termlink{};
-        testy<twod>               termsize{};
-        std::thread               stdinput{};
-        std::thread               stdwrite{};
-        std::function<void(view)> receiver{};
-        std::function<void(si32)> shutdown{};
-        text                      writebuf{};
-        std::mutex                writemtx{};
-        std::condition_variable   writesyn{};
+                ui64 taskid;
+                cptr buffer;
+                ui32 length;
+                ui32 offset;
+            };
+
+            struct hndl
+            {
+                enum type
+                {
+                    unused,
+                    events,
+                    scroll,
+                };
+
+                type  kind{ type::unused };
+                void* link{ nullptr      };
+            };
+
+            struct cook
+            {
+                wide wstr{};
+                text ustr{};
+                view rest{};
+                ui32 ctrl{};
+
+                auto save(bool isutf16)
+                {
+                    ustr.clear();
+                    utf::to_utf(wstr, ustr);
+                    if (isutf16) rest = { reinterpret_cast<char*>(wstr.data()), wstr.size() * 2 };
+                    else         rest = ustr;
+                }
+            };
+
+            struct clnt
+            {
+                using list = std::list<hndl>;
+
+                list events;
+                list scroll;
+                ui32 procid;
+                ui32 thread;
+            };
+
+            struct base
+            {
+                ui64  taskid;
+                clnt* client;
+                hndl* target;
+                ui32  fxtype;
+                ui32  packsz;
+                ui32  echosz;
+                ui32  _pad_1;
+            };
+
+            struct task : base
+            {
+                ui32 callfx;
+                ui32 arglen;
+                byte argbuf[96];
+            };
+
+            template<class Payload>
+            struct taker
+            {
+                template<class T>
+                static auto& cast(T& buffer)
+                {
+                    static_assert(sizeof(T) >= sizeof(Payload));
+                    return *reinterpret_cast<Payload*>(&buffer);
+                }
+                template<class T>
+                static auto& cast(T* buffer)
+                {
+                    static_assert(sizeof(T) >= sizeof(Payload));
+                    return *reinterpret_cast<Payload*>(buffer);
+                }
+                template<class T>
+                static auto& cast(std::vector<T>& buffer)
+                {
+                    static_assert(sizeof(T) == sizeof(byte));
+                    buffer.resize(sizeof(Payload));
+                    return *reinterpret_cast<Payload*>(buffer.data());
+                }
+            };
+
+            template<class Payload>
+            struct drvpacket : base, taker<Payload>
+            {
+                ui32 callfx;
+                ui32 arglen;
+            };
+
+            struct event_list
+            {
+                using hist_list = netxs::imap<ui32, std::vector<std::tuple<text, text, text>>>;
+
+                //todo generalize
+                struct enqueue_t
+                {
+                    using func = std::function<void()>;
+
+                    std::mutex              mutex;
+                    std::condition_variable synch;
+                    std::list<func>         queue;
+                    std::list<func>         cache;
+                    bool                    alive;
+                    std::thread             agent;
+
+                    void worker()
+                    {
+                        auto guard = std::unique_lock{ mutex };
+                        while (alive)
+                        {
+                            if (queue.empty()) synch.wait(guard);
+
+                            std::swap(queue, cache);
+                            guard.unlock();
+
+                            while (alive && cache.size())
+                            {
+                                auto& proc = cache.front();
+                                proc();
+                                cache.pop_front();
+                            }
+
+                            guard.lock();
+                        }
+                    }
+
+                    enqueue_t()
+                        : alive{ true },
+                          agent{ &enqueue_t::worker, this }
+                    { }
+                   ~enqueue_t()
+                    {
+                        mutex.lock();
+                        alive = faux;
+                        synch.notify_one();
+                        mutex.unlock();
+                        agent.join();
+                    }
+                    template<class T>
+                    void add(T&& proc)
+                    {
+                        auto guard = std::lock_guard{ mutex };
+                        if constexpr (std::is_copy_constructible_v<T>)
+                        {
+                            queue.emplace_back(std::forward<T>(proc));
+                        }
+                        else
+                        {
+                            auto proxy = std::make_shared<std::decay_t<T>>(std::forward<T>(proc));
+                            queue.emplace_back([proxy](auto&&... args)->decltype(auto)
+                            {
+                                return (*proxy)(decltype(args)(args)...);
+                            });
+                        }
+                        synch.notify_one();
+                    }
+                };
+
+                std::list<INPUT_RECORD> buffer{}; // events_t: Input event buffer.
+                std::condition_variable signal{}; // events_t: Input event append signal.
+                std::condition_variable kbsync{}; // events_t: Keybd event append signal.
+                std::mutex              locker{}; // events_t: Input event buffer mutex.
+                cook                    cooked{}; // events_t: Cooked input string.
+                hist_list               inputs{}; // events_t: Input history.
+                enqueue_t               worker{}; // events_t: Background task executer.
+                bool                    closed{}; // events_t: Console server was shutdown.
+
+                void clear()
+                {
+                    auto lock = std::lock_guard{ locker };
+                    buffer.clear();
+                }
+                void keybd(input::hids& gear)
+                {
+                    auto lock = std::lock_guard{ locker };
+                    buffer.emplace_back(INPUT_RECORD
+                    {
+                        .EventType = KEY_EVENT,
+                        .Event =
+                        {
+                            .KeyEvent =
+                            {
+                                .bKeyDown               = gear.pressed,
+                                .wRepeatCount           = gear.imitate,
+                                .wVirtualKeyCode        = gear.virtcod,
+                                .wVirtualScanCode       = gear.scancod,
+                                .uChar = { .UnicodeChar = gear.winchar },
+                                .dwControlKeyState      = gear.winctrl,
+                            }
+                        }
+                    });
+                    kbsync.notify_one();
+                    signal.notify_one();
+                }
+                auto readline(bool EOFon, bool utf16, ui32 stops)
+                {
+                    auto lock = std::unique_lock{ locker };
+                    auto done = faux;
+                    auto& result = cooked.wstr;
+                    auto& cntrls = cooked.ctrl;
+                    result.clear();
+                    do
+                    {
+                        auto head = buffer.begin();
+                        auto tail = buffer.end();
+                        while (head != tail)
+                        {
+                            auto& rec = *head++;
+                            if (rec.EventType == KEY_EVENT
+                             && rec.Event.KeyEvent.bKeyDown
+                             && rec.Event.KeyEvent.uChar.UnicodeChar != 0)
+                            {
+                                auto c = rec.Event.KeyEvent.uChar.UnicodeChar;
+                                result += c;
+                                if (c == '\r') result += '\n';
+                                cntrls = rec.Event.KeyEvent.dwControlKeyState;
+                                rec.Event.KeyEvent.wRepeatCount--;
+                                if (stops & 1 << c)
+                                {
+                                    done = true;
+                                    if (rec.Event.KeyEvent.wRepeatCount == 0)
+                                    {
+                                        buffer.pop_front();
+                                    }
+                                    break;
+                                }
+                                while (rec.Event.KeyEvent.wRepeatCount--)
+                                {
+                                    result += c;
+                                }
+                            }
+                            buffer.pop_front();
+                        }
+                    }
+                    while (!done && ((void)kbsync.wait(lock, [&]{ return buffer.size(); }), !closed));
+
+                    if (EOFon)
+                    {
+                        static constexpr auto EOFkey = 'Z' - '@';
+                        auto EOFpos = result.find(EOFkey);
+                        if (EOFpos != text::npos) result.resize(EOFpos);
+                    }
+
+                    cooked.save(utf16);
+                    return lock;
+                }
+                template<class Payload>
+                auto placeorder(Payload& packet, iocomplete& answer, fd_t condrv, wiew nameview, view initdata, ui32 readstep)
+                {
+                    auto lock = std::lock_guard{ locker };
+                    if (cooked.rest.empty())
+                    {
+                        // Notes:
+                        //  - input buffer is shared across the process tree
+                        //  - input history menu takes keypresses from the shared input buffer
+                        //  - '\n' is added to the '\r'
+                        worker.add([&, readstep, condrv, packet, answer, initdata = text{ initdata }, nameview = utf::to_utf(nameview)]() mutable
+                        {
+                            static constexpr auto spaces = " \n\r\t";
+                            if (closed) return;
+                            auto lock = readline(packet.input.EOFon, packet.input.utf16, packet.input.stops | 1 << '\r');
+                            if (closed) return;
+                            auto trimmed = utf::trim(cooked.ustr, spaces);
+                            if (trimmed.size() > 0)
+                            {
+                                auto& client = *packet.client;
+                                if (packet.input.utf16)
+                                {
+                                    auto wide_initdata = wiew((wchr*)initdata.data(), initdata.size() / 2);
+                                    inputs[client.procid].emplace_back(nameview, utf::to_utf(wide_initdata), cooked.ustr);
+                                }
+                                else
+                                {
+                                    inputs[client.procid].emplace_back(nameview, initdata, cooked.ustr);
+                                }
+                            }
+                            auto result = iorequest
+                            {
+                                .taskid = packet.taskid,
+                                .buffer = cooked.rest.data(),
+                                .length = std::min((ui32)cooked.rest.size(), readstep),
+                                .offset = answer.sendoffset() + packet.input.affix,
+                            };
+                            auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
+                            cooked.rest.remove_prefix(result.length);
+                            packet.reply.ctrls = cooked.ctrl;
+                            packet.reply.bytes = result.length + packet.input.affix;
+                            answer.report = packet.reply.bytes;
+                            answer.buffer =&packet.input; // Restore after copy.
+                            rc = nt::ioctl(nt::console::op::complete_io, condrv, answer);
+                        });
+                        answer = {};
+                    }
+                    else
+                    {
+                        auto result = iorequest
+                        {
+                            .taskid = packet.taskid,
+                            .buffer = cooked.rest.data(),
+                            .length = std::min((ui32)cooked.rest.size(), readstep),
+                            .offset = answer.sendoffset() + packet.input.affix,
+                        };
+                        auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
+                        cooked.rest.remove_prefix(result.length);
+
+                        packet.reply.ctrls = cooked.ctrl;
+                        packet.reply.bytes = result.length + packet.input.affix;
+                        answer.report = packet.reply.bytes;
+                    }
+                }
+            };
+
+            enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
+
+            auto api_unsupported                     ()
+            {
+                log(prompt, "unsupported consrv request code ", upload.fxtype);
+                answer.set_status(nt::status::illegal_function);
+            }
+            auto api_langid_get                      ()
+            {
+                log(prompt, "GetConsoleLangId");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui16 langid;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+                answer.set_status(nt::status::not_supported);
+            }
+            auto api_mouse_buttons_get_count         ()
+            {
+                log(prompt, "GetNumberOfConsoleMouseButtons");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 count;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_process_attach                  ()
+            {
+                log(prompt, "attach process to console");
+                struct payload : taker<payload>
+                {
+                    ui64 taskid;
+                    ui32 procid;
+                    ui32 _pad_1;
+                    ui32 thread;
+                    ui32 _pad_2;
+                };
+                auto& packet = payload::cast(upload);
+                auto& client = joined[packet.procid];
+                client.procid = packet.procid;
+                client.thread = packet.thread;
+                client.events.push_back({ .kind = hndl::type::events, .link = &uiterm });
+                client.scroll.push_back({ .kind = hndl::type::scroll, .link = &uiterm.target });
+
+                struct connect_info : taker<connect_info>
+                {
+                    clnt* client_id;
+                    hndl* events_id;
+                    hndl* scroll_id;
+                };
+                auto& info = connect_info::cast(buffer);
+                info.client_id = &client;
+                info.events_id = &client.events.back();
+                info.scroll_id = &client.scroll.back();
+
+                answer.buffer = &info;
+                answer.length = sizeof(info);
+                answer.report = sizeof(info);
+                //auto rc = nt::ioctl(nt::console::op::complete_io, condrv, answer);
+                //answer = {};
+            }
+            auto api_process_detach                  ()
+            {
+                log(prompt, "detach process from console");
+            }
+            auto api_process_enlist                  ()
+            {
+                log(prompt, "GetConsoleProcessList");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 count;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_process_create_handle           ()
+            {
+                log(prompt, "create console handle");
+                enum type : ui32
+                {
+                    undefined,
+                    dupevents,
+                    dupscroll,
+                    newscroll,
+                    seerights,
+                };
+                GENERIC_READ | GENERIC_WRITE;
+                struct payload : base, taker<payload>
+                {
+                    type action;
+                    ui32 shared; // Unused
+                    ui32 rights; // GENERIC_READ | GENERIC_WRITE
+                    ui32 _pad_1;
+                    ui32 _pad_2;
+                    ui32 _pad_3;
+                };
+                auto& packet = payload::cast(upload);
+                auto& client = *packet.client;
+                log("\tclient procid ", client.procid);
+
+            }
+            auto api_process_delete_handle           ()
+            {
+                log(prompt, "delete console handle");
+            }
+            auto api_codepage_get                    ()
+            {
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 code_page;
+                    }
+                    reply;
+                    struct
+                    {
+                        byte is_output;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+                packet.input.is_output ? log(prompt, "GetConsoleOutputCP")
+                                       : log(prompt, "GetConsoleCP");
+                if (packet.input.is_output) packet.reply.code_page = sendCP;
+                else                        packet.reply.code_page = readCP;
+            }
+            auto api_codepage_set                    ()
+            {
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 code_page;
+                        byte is_output;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+                packet.input.is_output ? log(prompt, "SetConsoleOutputCP")
+                                       : log(prompt, "SetConsoleCP");
+                if (packet.input.is_output) sendCP = packet.input.code_page;
+                else                        readCP = packet.input.code_page;
+            }
+            auto api_mode_get                        ()
+            {
+                log(prompt, "GetConsoleMode");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 mode;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+            }
+            auto api_mode_set                        ()
+            {
+                log(prompt, "SetConsoleMode");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 mode;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+            }
+            template<bool RawRead = faux>
+            auto api_events_read_as_text             ()
+            {
+                log(prompt, "ReadConsole");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        byte utf16;
+                        byte EOFon;
+                        ui16 exesz;
+                        ui32 affix;
+                        ui32 stops;
+                    }
+                    input;
+                    struct
+                    {
+                        ui32 ctrls;
+                        ui32 bytes;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+                if constexpr (RawRead)
+                {
+                    log("\traw read (ReadFile emulation)");
+                    packet.input = { .EOFon = 1 };
+                }
+                auto namesize = static_cast<ui32>(packet.input.exesz * sizeof(wchr));
+                auto datasize = namesize + packet.input.affix;
+                auto buffsize = packet.echosz - answer.sendoffset();
+                buffer.resize(datasize + buffsize);
+                if (datasize)
+                {
+                    auto request = iorequest
+                    {
+                        .taskid = packet.taskid,
+                        .buffer = buffer.data(),
+                        .length = datasize,
+                        .offset = answer.readoffset(),
+                    };
+                    auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
+                    if (rc != ERROR_SUCCESS)
+                    {
+                        answer.set_status(nt::status::unsuccessful);
+                        return;
+                    }
+                }
+                auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.exesz);
+                auto initdata = view(buffer.data() + namesize, packet.input.affix);
+                auto readstep = buffsize - packet.input.affix;
+                events.placeorder(packet, answer, condrv, nameview, initdata, readstep);
+            }
+            auto api_events_clear                    ()
+            {
+                log(prompt, "FlushConsoleInputBuffer");
+                events.clear();
+            }
+            auto api_events_count_get                ()
+            {
+                log(prompt, "GetNumberOfInputEvents");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 count;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_events_get                      ()
+            {
+                log(prompt, "GetConsoleInput");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 count;
+                    }
+                    reply;
+                    struct
+                    {
+                        ui16 flags;
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_events_add                      ()
+            {
+                log(prompt, "WriteConsoleInput");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 count;
+                    }
+                    reply;
+                    struct
+                    {
+                        byte utf16;
+                        byte totop;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_events_generate_ctrl_event      ()
+            {
+                log(prompt, "GenerateConsoleCtrlEvent");
+                enum type : ui32
+                {
+                    ctrl_c      = CTRL_C_EVENT,
+                    ctrl_break  = CTRL_BREAK_EVENT,
+                    close       = CTRL_CLOSE_EVENT,
+                    logoff      = CTRL_LOGOFF_EVENT,
+                    shutdown    = CTRL_SHUTDOWN_EVENT,
+                };
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        type event;
+                        ui32 group;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            template<bool RawWrite = faux>
+            auto api_scrollback_write_text           ()
+            {
+                log(prompt, "WriteConsole");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 count;
+                    }
+                    reply;
+                    struct
+                    {
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+                if constexpr (RawWrite)
+                {
+                    log("\traw write emulation");
+                    packet.input = {};
+                }
+
+                auto scrollback_handle_ptr = packet.target;
+                if (scrollback_handle_ptr == nullptr)
+                {
+                    answer.set_status(nt::status::invalid_handle);
+                    return;
+                }
+                auto& scrollback_handle = *scrollback_handle_ptr;
+                //todo implement scrollback buffer selection
+                //
+
+                auto readoffset = answer.readoffset();
+                if (readoffset > packet.packsz)
+                {
+                    answer.set_status(nt::status::unsuccessful);
+                    return;
+                }
+
+                auto size = packet.packsz - readoffset;
+                buffer.resize(size);
+                auto data = buffer.data();
+                auto request = iorequest
+                {
+                    .taskid = packet.taskid,
+                    .buffer = data,
+                    .length = size,
+                    .offset = readoffset,
+                };
+                auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
+                if (rc != ERROR_SUCCESS)
+                {
+                    answer.set_status(nt::status::unsuccessful);
+                    return;
+                }
+
+                if (packet.input.utf16)
+                {
+                    //todo purify per process per scrollbuffer
+                    toUTF8.clear();
+                    utf::to_utf(reinterpret_cast<wchr*>(data), size / sizeof(wchr), toUTF8);
+                    uiterm.ondata(toUTF8);
+                    log("\tUTF-16: ", utf::debase(toUTF8));
+                }
+                else
+                {
+                    auto temp = view(reinterpret_cast<char*>(data), size);
+                    //todo purify per process per scrollbuffer
+                    uiterm.ondata(temp);
+                    log("\tUTF-8: ", utf::debase(temp));
+                }
+                packet.reply.count = size;
+                answer.report = packet.reply.count;
+            }
+            auto api_scrollback_write_data           ()
+            {
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        si16 coorx, coory;
+                        type etype;
+                    }
+                    input;
+                    struct
+                    {
+                        ui32 count;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+                packet.input.etype == type::attribute ? log(prompt, "WriteConsoleOutputAttribute")
+                                                      : log(prompt, "WriteConsoleOutputCharacter");
+            }
+            auto api_scrollback_write_block          ()
+            {
+                log(prompt, "WriteConsoleOutput");
+                struct payload : drvpacket<payload>
+                {
+                    union
+                    {
+                        struct
+                        {
+                            si16 rectL, rectT, rectR, rectB;
+                            byte utf16;
+                        }
+                        input;
+                        struct
+                        {
+                            si16 rectL, rectT, rectR, rectB;
+                            byte _pad1;
+                        }
+                        reply;
+                    };
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_attribute_set        ()
+            {
+                log(prompt, "SetConsoleTextAttribute");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui16 color;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_fill                 ()
+            {
+                struct payload : drvpacket<payload>
+                {
+                    union
+                    {
+                        struct
+                        {
+                            si16 coorx, coory;
+                            type etype;
+                            ui16 piece;
+                            ui32 count;
+                        }
+                        input;
+                        struct
+                        {
+                            si16 _pad1, _pad2;
+                            ui32 _pad3;
+                            ui16 _pad4;
+                            ui32 count;
+                        }
+                        reply;
+                    };
+                };
+                auto& packet = payload::cast(upload);
+                packet.input.etype == type::attribute ? log(prompt, "FillConsoleOutputAttribute")
+                                                      : log(prompt, "FillConsoleOutputCharacter");
+            }
+            auto api_scrollback_read_data            ()
+            {
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        si16 coorx, coory;
+                        type etype;
+                    }
+                    input;
+                    struct
+                    {
+                        ui32 count;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+                packet.input.etype == type::attribute ? log(prompt, "ReadConsoleOutputAttribute")
+                                                      : log(prompt, "ReadConsoleOutputCharacter");
+            }
+            auto api_scrollback_read_block           ()
+            {
+                log(prompt, "ReadConsoleOutput");
+                struct payload : drvpacket<payload>
+                {
+                    union
+                    {
+                        struct
+                        {
+                            si16 rectL, rectT, rectR, rectB;
+                            byte utf16;
+                        }
+                        input;
+                        struct
+                        {
+                            si16 rectL, rectT, rectR, rectB;
+                            byte _pad1;
+                        }
+                        reply;
+                    };
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_set_active           ()
+            {
+                log(prompt, "SetConsoleActiveScreenBuffer");
+                struct payload : drvpacket<payload>
+                { };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_cursor_coor_set      ()
+            {
+                log(prompt, "SetConsoleCursorPosition");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        si16 coorx, coory;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_cursor_info_get      ()
+            {
+                log(prompt, "GetConsoleCursorInfo");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 style;
+                        byte alive;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_cursor_info_set      ()
+            {
+                log(prompt, "SetConsoleCursorInfo");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 style;
+                        byte alive;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_info_get             ()
+            {
+                log(prompt, "GetConsoleScreenBufferInfo");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        si16 buffersz_x, buffersz_y;
+                        si16 cursorposx, cursorposy;
+                        si16 windowposx, windowposy;
+                        ui16 attributes;
+                        si16 windowsz_x, windowsz_y;
+                        si16 maxwinsz_x, maxwinsz_y;
+                        ui16 popupcolor;
+                        byte fullscreen;
+                        ui32 rgbpalette[16];
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_info_set             ()
+            {
+                log(prompt, "SetConsoleScreenBufferInfo");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        si16 buffersz_x, buffersz_y;
+                        si16 cursorposx, cursorposy;
+                        si16 windowposx, windowposy;
+                        ui16 attributes;
+                        si16 windowsz_x, windowsz_y;
+                        si16 maxwinsz_x, maxwinsz_y;
+                        ui16 popupcolor;
+                        byte fullscreen;
+                        ui32 rgbpalette[16];
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_size_set             ()
+            {
+                log(prompt, "SetConsoleScreenBufferSize");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        si16 buffersz_x, buffersz_y;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_viewport_get_max_size()
+            {
+                log(prompt, "GetLargestConsoleWindowSize");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        si16 maxwinsz_x, maxwinsz_y;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_viewport_set         ()
+            {
+                log(prompt, "SetConsoleWindowInfo");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        byte isabsolute;
+                        si16 rectL, rectT, rectR, rectB;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_scroll               ()
+            {
+                log(prompt, "ScrollConsoleScreenBuffer");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        si16 scrlL, scrlT, scrlR, scrlB;
+                        si16 clipL, clipT, clipR, clipB;
+                        byte trunc;
+                        byte utf16;
+                        si16 destx, desty;
+                        union
+                        {
+                        wchr wchar;
+                        char ascii;
+                        };
+                        ui16 color;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_scrollback_selection_info_get   ()
+            {
+                log(prompt, "GetConsoleSelectionInfo");
+                static constexpr ui32 mouse_down   = CONSOLE_MOUSE_DOWN;
+                static constexpr ui32 use_mouse    = CONSOLE_MOUSE_SELECTION;
+                static constexpr ui32 no_selection = CONSOLE_NO_SELECTION;
+                static constexpr ui32 in_progress  = CONSOLE_SELECTION_IN_PROGRESS;
+                static constexpr ui32 not_empty    = CONSOLE_SELECTION_NOT_EMPTY;
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 flags;
+                        si16 headx, heady;
+                        si16 rectL, rectT, rectR, rectB;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_window_title_get                ()
+            {
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 nsize;
+                    }
+                    reply;
+                    struct
+                    {
+                        byte utf16;
+                        byte prime;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+                packet.input.prime ? log(prompt, "GetConsoleTitle")
+                                   : log(prompt, "GetConsoleOriginalTitle");
+            }
+            auto api_window_title_set                ()
+            {
+                log(prompt, "SetConsoleTitle");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_window_font_size_get            ()
+            {
+                log(prompt, "GetConsoleFontSize");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 index;
+                    }
+                    input;
+                    struct
+                    {
+                        si16 sizex, sizey;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_window_font_get                 ()
+            {
+                log(prompt, "GetCurrentConsoleFont");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        byte fullscreen;
+                    }
+                    input;
+                    struct
+                    {
+                        ui32 index;
+                        si16 sizex, sizey;
+                        ui32 pitch;
+                        ui32 heavy;
+                        wchr brand[LF_FACESIZE];
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_window_font_set                 ()
+            {
+                log(prompt, "SetConsoleCurrentFont");
+                struct payload : drvpacket<payload>
+                {
+                    union
+                    {
+                        struct
+                        {
+                            byte fullscreen;
+                            ui32 index;
+                            si16 sizex, sizey;
+                            ui32 pitch;
+                            ui32 heavy;
+                            wchr brand[LF_FACESIZE];
+                        }
+                        input;
+                        struct
+                        {
+                            byte _pad1;
+                            ui32 index;
+                            si16 sizex, sizey;
+                            ui32 pitch;
+                            ui32 heavy;
+                            wchr brand[LF_FACESIZE];
+                        }
+                        reply;
+                    };
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_window_mode_get                 ()
+            {
+                log(prompt, "GetConsoleDisplayMode");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 flags;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_window_mode_set                 ()
+            {
+                log(prompt, "SetConsoleDisplayMode");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 flags;
+                    }
+                    input;
+                    struct
+                    {
+                        si16 buffersz_x, buffersz_y;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_window_handle_get               ()
+            {
+                log(prompt, "GetConsoleWindow");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        HWND handle;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_alias_get                       ()
+            {
+                log(prompt, "GetConsoleAlias");
+                struct payload : drvpacket<payload>
+                {
+                    union
+                    {
+                        struct
+                        {
+                            ui16 srcsz;
+                            ui16 _pad1;
+                            ui16 exesz;
+                            byte utf16;
+                        }
+                        input;
+                        struct
+                        {
+                            ui16 _pad1;
+                            ui16 dstsz;
+                            ui16 _pad2;
+                            byte _pad3;
+                        }
+                        reply;
+                    };
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_alias_add                       ()
+            {
+                log(prompt, "AddConsoleAlias");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui16 srcsz;
+                        ui16 dstsz;
+                        ui16 exesz;
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_alias_exes_get_volume           ()
+            {
+                log(prompt, "GetConsoleAliasExesLength");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 bytes;
+                    }
+                    reply;
+                    struct
+                    {
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_alias_exes_get                  ()
+            {
+                log(prompt, "GetConsoleAliasExes");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 bytes;
+                    }
+                    reply;
+                    struct
+                    {
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_aliases_get_volume              ()
+            {
+                log(prompt, "GetConsoleAliasesLength");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 bytes;
+                    }
+                    reply;
+                    struct
+                    {
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_aliases_get                     ()
+            {
+                log(prompt, "GetConsoleAliases");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        byte utf16;
+                    }
+                    input;
+                    struct
+                    {
+                        ui32 bytes;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_input_history_clear             ()
+            {
+                log(prompt, "ClearConsoleCommandHistory");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_input_history_limit_set         ()
+            {
+                log(prompt, "SetConsoleNumberOfCommands");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 count;
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_input_history_get_volume        ()
+            {
+                log(prompt, "GetConsoleCommandHistoryLength");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 count;
+                    }
+                    reply;
+                    struct
+                    {
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_input_history_get               ()
+            {
+                log(prompt, "GetConsoleCommandHistory");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 bytes;
+                    }
+                    reply;
+                    struct
+                    {
+                        byte utf16;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_input_history_info_get          ()
+            {
+                log(prompt, "GetConsoleHistory");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 limit;
+                        ui32 count;
+                        ui32 flags;
+                    }
+                    reply;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+            auto api_input_history_info_set          ()
+            {
+                log(prompt, "SetConsoleHistory");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        ui32 limit;
+                        ui32 count;
+                        ui32 flags;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+
+            }
+
+            using func_list = std::vector<void(consrv::*)()>;
+            using proc_list = netxs::imap<ui32, clnt>;
+
+            Term&             uiterm;
+            fd_t&             condrv;
+            ui32              oem_cp{ ::GetOEMCP() };
+            ui32              win_cp{ ::GetACP()   };
+            ui32              readCP{ CP_UTF8 };
+            ui32              sendCP{ CP_UTF8 };
+            os::fire          ondata{ true }; // Signal on input buffer data.
+            view              prompt{ " pty: consrv: " };
+            proc_list         joined{};
+            std::thread       server{};
+            iocomplete        answer{};
+            task              upload{};
+            std::vector<char> buffer{};
+            text              toUTF8{}; // Buffer for UTF-16-UTF-8 conversion.
+            event_list        events{}; // Input event list.
+            func_list         apimap{};
+
+            void start()
+            {
+                server = std::thread{ [&]
+                {
+                    while (condrv != INVALID_FD)
+                    {
+                        auto rc = nt::ioctl(nt::console::op::read_io, condrv, answer, upload);
+                        answer = { .taskid = upload.taskid, .status = nt::status::success };
+                        switch (rc)
+                        {
+                            case ERROR_SUCCESS:
+                            {
+                                if (upload.fxtype == nt::console::fx::subfx)
+                                {
+                                    upload.fxtype = upload.callfx / 0x55555 + upload.callfx;
+                                    answer.buffer = upload.argbuf;
+                                    answer.length = upload.arglen;
+                                }
+                                auto lock = netxs::events::sync{};
+                                auto proc = apimap[upload.fxtype & 255];
+                                (this->*proc)();
+                                break;
+                            }
+                            case ERROR_IO_PENDING:         log(prompt, "operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
+                            case ERROR_PIPE_NOT_CONNECTED: log(prompt, "client disconnected"); return;
+                            default:                       log(prompt, "unexpected nt::ioctl result ", rc); break;
+                        }
+                    }
+                }};
+            }
+            void resize()
+            {
+
+            }
+            void stop()
+            {
+                os::close(condrv);
+                //todo abort events input
+                if (server.joinable())
+                {
+                    server.join();
+                }
+                log(prompt, "stop()");
+            }
+
+            consrv(Term& uiterm, fd_t& condrv)
+                : uiterm{ uiterm },
+                  condrv{ condrv }
+            {
+                using _ = consrv;
+                apimap.resize(0xFF, &_::api_unsupported);
+                apimap[0x38] = &_::api_langid_get;
+                apimap[0x91] = &_::api_mouse_buttons_get_count;
+                apimap[0x01] = &_::api_process_attach;
+                apimap[0x02] = &_::api_process_detach;
+                apimap[0xB9] = &_::api_process_enlist;
+                apimap[0x03] = &_::api_process_create_handle;
+                apimap[0x04] = &_::api_process_delete_handle;
+                apimap[0x30] = &_::api_codepage_get;
+                apimap[0x64] = &_::api_codepage_set;
+                apimap[0x31] = &_::api_mode_get;
+                apimap[0x32] = &_::api_mode_set;
+                apimap[0x06] = &_::api_events_read_as_text<true>;
+                apimap[0x35] = &_::api_events_read_as_text;
+                apimap[0x08] = &_::api_events_clear;
+                apimap[0x63] = &_::api_events_clear;
+                apimap[0x33] = &_::api_events_count_get;
+                apimap[0x34] = &_::api_events_get;
+                apimap[0x70] = &_::api_events_add;
+                apimap[0x61] = &_::api_events_generate_ctrl_event;
+                apimap[0x05] = &_::api_scrollback_write_text<true>;
+                apimap[0x36] = &_::api_scrollback_write_text;
+                apimap[0x72] = &_::api_scrollback_write_data;
+                apimap[0x71] = &_::api_scrollback_write_block;
+                apimap[0x6D] = &_::api_scrollback_attribute_set;
+                apimap[0x60] = &_::api_scrollback_fill;
+                apimap[0x6F] = &_::api_scrollback_read_data;
+                apimap[0x73] = &_::api_scrollback_read_block;
+                apimap[0x62] = &_::api_scrollback_set_active;
+                apimap[0x6A] = &_::api_scrollback_cursor_coor_set;
+                apimap[0x65] = &_::api_scrollback_cursor_info_get;
+                apimap[0x66] = &_::api_scrollback_cursor_info_set;
+                apimap[0x67] = &_::api_scrollback_info_get;
+                apimap[0x68] = &_::api_scrollback_info_set;
+                apimap[0x69] = &_::api_scrollback_size_set;
+                apimap[0x6B] = &_::api_scrollback_viewport_get_max_size;
+                apimap[0x6E] = &_::api_scrollback_viewport_set;
+                apimap[0x6C] = &_::api_scrollback_scroll;
+                apimap[0xB8] = &_::api_scrollback_selection_info_get;
+                apimap[0x74] = &_::api_window_title_get;
+                apimap[0x75] = &_::api_window_title_set;
+                apimap[0x93] = &_::api_window_font_size_get;
+                apimap[0x94] = &_::api_window_font_get;
+                apimap[0xBC] = &_::api_window_font_set;
+                apimap[0xA1] = &_::api_window_mode_get;
+                apimap[0x9D] = &_::api_window_mode_set;
+                apimap[0xAF] = &_::api_window_handle_get;
+                apimap[0xA3] = &_::api_alias_get;
+                apimap[0xA2] = &_::api_alias_add;
+                apimap[0xA5] = &_::api_alias_exes_get_volume;
+                apimap[0xA7] = &_::api_alias_exes_get;
+                apimap[0xA4] = &_::api_aliases_get_volume;
+                apimap[0xA6] = &_::api_aliases_get;
+                apimap[0xA8] = &_::api_input_history_clear;
+                apimap[0xA9] = &_::api_input_history_limit_set;
+                apimap[0xAA] = &_::api_input_history_get_volume;
+                apimap[0xAB] = &_::api_input_history_get;
+                apimap[0xBA] = &_::api_input_history_info_get;
+                apimap[0xBB] = &_::api_input_history_info_set;
+            }
+        };
+
+        consrv      con_serv;
+        DWORD       proc_pid{ 0          };
+        HANDLE      prochndl{ INVALID_FD };
+        HANDLE      srv_hndl{ INVALID_FD };
+        HANDLE      ref_hndl{ INVALID_FD };
+        std::thread waitexit;
+
+    #else
+
+        pid_t proc_pid = 0;
+
+    #endif
+
+        Term&                     terminal;
+        ipc::ptycon               termlink;
+        testy<twod>               termsize;
+        std::thread               stdinput;
+        std::thread               stdwrite;
+        text                      writebuf;
+        std::mutex                writemtx;
+        std::condition_variable   writesyn;
 
     public:
+
+    #if defined(_WIN32)
+
+        pty(Term& terminal)
+            : terminal{ terminal },
+              con_serv{ terminal, srv_hndl }
+        { }
+
+    #else
+
+        pty(Term& terminal)
+            : terminal{ terminal }
+
+        { }
+
+    #endif
+
        ~pty()
         {
             log("xpty: dtor started");
@@ -3672,11 +5438,11 @@ namespace netxs::os
                 stdinput.join();
             }
             #if defined(_WIN32)
-                auto id = client_exit_waiter.get_id();
-                if (client_exit_waiter.joinable())
+                auto id = waitexit.get_id();
+                if (waitexit.joinable())
                 {
                     log("xpty: id: ", id, " child process waiter thread joining");
-                    client_exit_waiter.join();
+                    waitexit.join();
                 }
                 log("xpty: id: ", id, " child process waiter thread joined");
             #endif
@@ -3685,109 +5451,99 @@ namespace netxs::os
 
         operator bool () { return termlink; }
 
-        void start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
-                                                       std::function<void(si32)> shutdown_hndl)
+        void start(twod winsz)
         {
-            receiver = input_hndl;
-            shutdown = shutdown_hndl;
+            auto cwd     = terminal.curdir;
+            auto cmdline = terminal.cmdarg;
             utf::change(cmdline, "\\\"", "\"");
             log("xpty: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
                                                                                              : "'" + cwd + "'");
             #if defined(_WIN32)
 
                 termsize(winsz);
-                auto s_pipe_r = INVALID_FD;
-                auto s_pipe_w = INVALID_FD;
-                auto m_pipe_r = INVALID_FD;
-                auto m_pipe_w = INVALID_FD;
                 auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
                 auto procsinf = PROCESS_INFORMATION{};
                 auto attrbuff = std::vector<uint8_t>{};
+                auto attrsize = SIZE_T{ 0 };
 
-                auto pseudo = [&]()
-                {
-                    auto errcode = HRESULT{ E_UNEXPECTED };
-                    auto dwFlags = DWORD{ 0 };
+                srv_hndl = nt::console::handle("\\Device\\ConDrv\\Server");
+                ref_hndl = nt::console::handle(srv_hndl, "\\Reference");
 
-                    if (::CreatePipe(&m_pipe_r, &s_pipe_w, nullptr, 0)
-                     && ::CreatePipe(&s_pipe_r, &m_pipe_w, nullptr, 0))
-                    {
-                        auto consz = COORD{};
-                        consz.X = winsz.x;
-                        consz.Y = winsz.y;
-                        errcode = ::CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, dwFlags, &hPC);
-                        os::close(s_pipe_w);
-                        os::close(s_pipe_r);
-                    }
-                    return errcode ? faux : true;
-                };
-                auto fillup = [&]()
+                if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, con_serv.ondata))
                 {
-                    auto attr_size = SIZE_T{ 0 };
-                    ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
-                    attrbuff.resize(attr_size);
-                    startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
-
-                    if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attr_size)
-                     && ::UpdateProcThreadAttribute( startinf.lpAttributeList,
-                                                     0,
-                                                     PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                                                     hPC,
-                                                     sizeof(hPC),
-                                                     nullptr,
-                                                     nullptr))
-                    {
-                        return true;
-                    }
-                    else return faux;
-                };
-                auto create = [&]()
-                {
-                    startinf.StartupInfo.dwFlags |= STARTF_USESTDHANDLES; // Force the new process to not inherit the redirected default handles.
-                                                                          // https://github.com/microsoft/terminal/issues/11276#issuecomment-923207186
-                    auto result = ::CreateProcessA( nullptr,                             // lpApplicationName
-                                                    cmdline.data(),                      // lpCommandLine
-                                                    nullptr,                             // lpProcessAttributes
-                                                    nullptr,                             // lpThreadAttributes
-                                                    FALSE,                               // bInheritHandles
-                                                    EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
-                                                    nullptr,                             // lpEnvironment
-                                                    cwd.empty() ? nullptr
-                                                                : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
-                                                    &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFOEX)
-                                                    &procsinf);                          // lpProcessInformation
-                    return result;
-                };
-                if (pseudo()
-                 && fillup()
-                 && create())
-                {
-                    hProcess = procsinf.hProcess;
-                    Proc_id  = procsinf.dwProcessId;
-                    hThread  = procsinf.hThread;
-                    gameover = ::CreateEvent( NULL,   // security attributes
-                                              FALSE,  // auto-reset
-                                              FALSE,  // initial state
-                                              NULL);
-                    client_exit_waiter = std::thread([&] // ConPTY do not catch the process ending. Or write-handle leaks on ConPTY side.
-                    {
-                        os::select(hProcess, [](){ log("xpty: child process terminated itself"); },
-                                   gameover, [](){ log("xpty: child process will be terminated forcibly"); });
-                        os::close(gameover);
-                        if (termlink)
-                        {
-                            auto exit_code = wait_child();
-                            shutdown(exit_code);
-                        }
-                        log("xpty: child process waiter ended");
-                    });
-                    termlink.set(m_pipe_r, m_pipe_w);
-                    log("xpty: pty created: ", winsz);
+                    auto errcode = os::error();
+                    log("xpty: console server creation error ", errcode);
+                    terminal.onexit(errcode);
+                    return;
                 }
-                else log("xpty: child process creation error ", ::GetLastError());
 
-                //todo workaround for GH#10400 (resolved) https://github.com/microsoft/terminal/issues/10400
-                std::this_thread::sleep_for(250ms);
+                con_serv.start();
+                startinf.StartupInfo.dwX = 0;
+                startinf.StartupInfo.dwY = 0;
+                startinf.StartupInfo.dwXCountChars = 0;
+                startinf.StartupInfo.dwYCountChars = 0;
+                startinf.StartupInfo.dwXSize = winsz.x;
+                startinf.StartupInfo.dwYSize = winsz.y;
+                startinf.StartupInfo.dwFillAttribute = 1;
+                startinf.StartupInfo.hStdInput  = nt::console::handle(srv_hndl, "\\Input",  true);
+                startinf.StartupInfo.hStdOutput = nt::console::handle(srv_hndl, "\\Output", true);
+                startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput);
+                startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
+                                             | STARTF_USESIZE
+                                             | STARTF_USEPOSITION
+                                             | STARTF_USECOUNTCHARS
+                                             | STARTF_USEFILLATTRIBUTE;
+                ::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
+                attrbuff.resize(attrsize);
+                startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
+                ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
+                ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                            0,
+                                            PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                           &startinf.StartupInfo.hStdInput,
+                                     sizeof(startinf.StartupInfo.hStdInput) * 3,
+                                            nullptr,
+                                            nullptr);
+                ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                            0,                              
+                                            ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
+                                           &ref_hndl,
+                                     sizeof(ref_hndl),
+                                            nullptr,
+                                            nullptr);
+                auto ret = ::CreateProcessA(nullptr,                             // lpApplicationName
+                                            cmdline.data(),                      // lpCommandLine
+                                            nullptr,                             // lpProcessAttributes
+                                            nullptr,                             // lpThreadAttributes
+                                            TRUE,                                // bInheritHandles
+                                            EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
+                                            nullptr,                             // lpEnvironment
+                                            cwd.empty() ? nullptr
+                                                        : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
+                                           &startinf.StartupInfo,                // lpStartupInfo (ptr to STARTUPINFOEX)
+                                           &procsinf);                           // lpProcessInformation
+                if (ret == 0)
+                {
+                    auto errcode = os::error();
+                    log("xpty: child process creation error ", errcode);
+                    con_serv.stop();
+                    terminal.onexit(errcode);
+                    return;
+                }
+
+                os::close( procsinf.hThread );
+                prochndl = procsinf.hProcess;
+                proc_pid = procsinf.dwProcessId;
+                waitexit = std::thread([&]
+                {
+                    os::select(prochndl, []{ log("xpty: child process terminated"); });
+                    if (srv_hndl != INVALID_FD)
+                    {
+                        auto exit_code = wait_child();
+                        terminal.onexit(exit_code);
+                    }
+                    log("xpty: child process waiter ended");
+                });
 
             #else
 
@@ -3799,8 +5555,8 @@ namespace netxs::os
                 termlink.set(fdm, fdm);
                 resize(winsz);
 
-                Proc_id = ::fork();
-                if (Proc_id == 0) // Child branch.
+                proc_pid = ::fork();
+                if (proc_pid == 0) // Child branch.
                 {
                     os::close(fdm); // os::fdcleanup();
                     auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
@@ -3854,51 +5610,49 @@ namespace netxs::os
                 // Parent branch.
                 os::close(fds);
 
+                stdinput = std::thread([&] { read_socket_thread(); });
+                stdwrite = std::thread([&] { send_socket_thread(); });
+                writesyn.notify_one(); // Flush temp buffer.
+
             #endif
 
-            stdinput = std::thread([&] { read_socket_thread(); });
-            stdwrite = std::thread([&] { send_socket_thread(); });
-
-            writesyn.notify_one(); // Flush temp buffer.
+            log("xpty: new pty created with size ", winsz);
         }
-
         si32 wait_child()
         {
             auto exit_code = si32{};
             log("xpty: wait child process, tty=", termlink);
             termlink.stop();
 
-            if (Proc_id != 0)
+            if (proc_pid != 0)
             {
             #if defined(_WIN32)
 
-                ::ClosePseudoConsole(hPC);
+                con_serv.stop();
                 auto code = DWORD{ 0 };
-                if (!::GetExitCodeProcess(hProcess, &code))
+                if (!::GetExitCodeProcess(prochndl, &code))
                 {
                     log("xpty: GetExitCodeProcess() return code: ", ::GetLastError());
                 }
                 else if (code == STILL_ACTIVE)
                 {
                     log("xpty: child process still running");
-                    auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(hProcess, 10000 /*10 seconds*/);
-                    if (!result || !::GetExitCodeProcess(hProcess, &code))
+                    auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
+                    if (!result || !::GetExitCodeProcess(prochndl, &code))
                     {
-                        ::TerminateProcess(hProcess, 0);
+                        ::TerminateProcess(prochndl, 0);
                         code = 0;
                     }
                 }
                 else log("xpty: child process exit code ", code);
                 exit_code = code;
-                if (gameover != INVALID_FD) ::SetEvent(gameover);
-                os::close(hProcess);
-                os::close(hThread);
+                os::close(prochndl);
 
             #else
 
                 auto status = int{};
-                ok(::kill(Proc_id, SIGKILL), "kill(pid, SIGKILL) failed");
-                ok(::waitpid(Proc_id, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
+                ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                 if (WIFEXITED(status))
                 {
                     exit_code = WEXITSTATUS(status);
@@ -3926,7 +5680,7 @@ namespace netxs::os
                 {
                     flow += shot;
                     auto crop = ansi::purify(flow);
-                    receiver(crop);
+                    terminal.ondata(crop);
                     flow.erase(0, crop.size()); // Delete processed data.
                 }
                 else break;
@@ -3934,7 +5688,7 @@ namespace netxs::os
             if (termlink)
             {
                 auto exit_code = wait_child();
-                shutdown(exit_code);
+                terminal.onexit(exit_code);
             }
             log("xpty: id: ", stdinput.get_id(), " reading thread ended");
         }
@@ -3961,11 +5715,7 @@ namespace netxs::os
             {
                 #if defined(_WIN32)
 
-                    auto winsz = COORD{};
-                    winsz.X = newsize.x;
-                    winsz.Y = newsize.y;
-                    auto hr = ::ResizePseudoConsole(hPC, winsz);
-                    if (hr != S_OK) log("xpty: ResizePseudoConsole error, ", hr);
+                    con_serv.resize();
 
                 #else
 
@@ -3976,6 +5726,12 @@ namespace netxs::os
 
                 #endif
             }
+        }
+        void keybd(input::hids& gear)
+        {
+            #if defined(_WIN32)
+            con_serv.events.keybd(gear);
+            #endif
         }
         void write(view data)
         {
@@ -3991,13 +5747,12 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                HANDLE hProcess { INVALID_FD };
-                HANDLE hThread  { INVALID_FD };
-                DWORD  Proc_id  { 0          };
+                HANDLE prochndl{ INVALID_FD };
+                DWORD  proc_pid{ 0          };
 
             #else
 
-                pid_t Proc_id = 0;
+                pid_t proc_pid = 0;
 
             #endif
 
@@ -4068,7 +5823,7 @@ namespace netxs::os
                     auto attrsize = SIZE_T{ 0 };
                     auto stdhndls = std::array<HANDLE, 3>{};
 
-                    auto tunnel = [&]()
+                    auto tunnel = [&]
                     {
                         auto sa = SECURITY_ATTRIBUTES{};
                         sa.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -4094,7 +5849,7 @@ namespace netxs::os
                             return faux;
                         }
                     };
-                    auto fillup = [&]()
+                    auto fillup = [&]
                     {
                         stdhndls[0] = s_pipe_r;
                         stdhndls[1] = s_pipe_w;
@@ -4116,7 +5871,7 @@ namespace netxs::os
                         }
                         else return faux;
                     };
-                    auto create = [&]()
+                    auto create = [&]
                     {
                         return ::CreateProcessA( nullptr,                             // lpApplicationName
                                                  cmdline.data(),                      // lpCommandLine
@@ -4136,9 +5891,9 @@ namespace netxs::os
                      && fillup()
                      && create())
                     {
-                        hProcess = procsinf.hProcess;
-                        Proc_id  = procsinf.dwProcessId;
-                        hThread  = procsinf.hThread;
+                        os::close( procsinf.hThread );
+                        prochndl = procsinf.hProcess;
+                        proc_pid = procsinf.dwProcessId;
                         termlink.set(m_pipe_r, m_pipe_w, m_pipe_l);
                         log("dtvt: pty created: ", winsz);
                     }
@@ -4160,8 +5915,8 @@ namespace netxs::os
                     termlink.set(to_server[0], to_client[1], to_srvlog[0]);
                     os::legacy::send_dmd(to_client[1], winsz);
 
-                    Proc_id = ::fork();
-                    if (Proc_id == 0) // Child branch.
+                    proc_pid = ::fork();
+                    if (proc_pid == 0) // Child branch.
                     {
                         os::close(to_client[1]); // os::fdcleanup();
                         os::close(to_server[0]);
@@ -4218,7 +5973,7 @@ namespace netxs::os
 
                 writesyn.notify_one(); // Flush temp buffer.
 
-                return Proc_id;
+                return proc_pid;
             }
 
             void stop()
@@ -4235,12 +5990,12 @@ namespace netxs::os
                     termlink.shut();
                 }
 
-                if (Proc_id != 0)
+                if (proc_pid != 0)
                 {
                 #if defined(_WIN32)
 
                     auto code = DWORD{ 0 };
-                    if (!::GetExitCodeProcess(hProcess, &code))
+                    if (!::GetExitCodeProcess(prochndl, &code))
                     {
                         log("dtvt: GetExitCodeProcess() return code: ", ::GetLastError());
                     }
@@ -4248,23 +6003,22 @@ namespace netxs::os
                     {
                         log("dtvt: child process still running");
                         //std::this_thread::sleep_for(15s);
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(hProcess, 10000 /*10 seconds*/);
-                        if (!result || !::GetExitCodeProcess(hProcess, &code))
+                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
+                        if (!result || !::GetExitCodeProcess(prochndl, &code))
                         {
-                            ::TerminateProcess(hProcess, 0);
+                            ::TerminateProcess(prochndl, 0);
                             code = 0;
                         }
                     }
                     else log("dtvt: child process exit code ", code);
                     exit_code = code;
-                    os::close(hProcess);
-                    os::close(hThread);
+                    os::close(prochndl);
 
                 #else
 
                     int status;
-                    ok(::kill(Proc_id, SIGKILL), "kill(pid, SIGKILL) failed");
-                    ok(::waitpid(Proc_id, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                    ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
+                    ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                     if (WIFEXITED(status))
                     {
                         exit_code = WEXITSTATUS(status);
@@ -4284,7 +6038,7 @@ namespace netxs::os
             void logs_socket_thread()
             {
                 auto thread_id = stderror.get_id();
-                log("dtvt: id: ", thread_id, " logging thread for process:", Proc_id, " started");
+                log("dtvt: id: ", thread_id, " logging thread for process:", proc_pid, " started");
                 auto buff = std::vector<char>(PIPE_BUF);
                 while (termlink)
                 {

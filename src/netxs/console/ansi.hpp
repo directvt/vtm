@@ -475,13 +475,13 @@ namespace netxs::ansi
         template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
         auto& s11n(core const& canvas, rect region, cell& state)
         {
-            auto badfx = [&]()
+            auto badfx = [&]
             {
                 add(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
                 state.set_gc();
                 state.wdt(1);
             };
-            auto side_badfx = [&]() // Restoring the halves on the side
+            auto side_badfx = [&] // Restoring the halves on the side
             {
                 add(state.txt());
                 state.set_gc();
@@ -524,7 +524,7 @@ namespace netxs::ansi
                     }
                 }
             };
-            auto eolfx = [&]()
+            auto eolfx = [&]
             {
                 if (state.wdt() == 2) side_badfx();  // Left part alone at the right side
                 state.set_gc();
@@ -2290,8 +2290,8 @@ namespace netxs::ansi
             STRUCT(clipdata,          (id_t, gear_id) (text, data))
             STRUCT(plain,             (id_t, gear_id) (text, utf8txt))
             STRUCT(ctrls,             (id_t, gear_id) (ui32, ctlstat))
-            STRUCT(keybd,             (id_t, gear_id) (ui32, ctlstat) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster))
-            STRUCT(mouse,             (id_t, gear_id) (ui32, ctlstat) (ui32, buttons) (ui32, msflags) (ui32, wheeldt) (twod, coordxy))
+            STRUCT(keybd,             (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
+            STRUCT(mouse,             (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, buttons) (ui32, msflags) (ui32, wheeldt) (twod, coordxy))
             STRUCT(mouse_stop,        (id_t, gear_id))
             STRUCT(mouse_halt,        (id_t, gear_id))
             STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
@@ -2357,7 +2357,7 @@ namespace netxs::ansi
                     auto mid = src + csz.x * min.y;
                     bool bad = true;
                     auto sum = sz_t{ 0 };
-                    auto rep = [&]()
+                    auto rep = [&]
                     {
                         if (sum < sizeof(subtype::rep) + sizeof(sum))
                         {

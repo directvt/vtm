@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 {
     auto vtmode = os::vt_mode();
     auto syslog = os::ipc::logger(vtmode);
-    auto banner = [&]() { log(DESKTOPIO_MYNAME); };
+    auto banner = [&]{ log(DESKTOPIO_MYNAME); };
     auto whoami = type::client;
     auto params = text{};
     auto maxfps = si32{ 60 };
@@ -151,7 +151,7 @@ int main(int argc, char* argv[])
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
             auto prefix = utf::concat(DESKTOPIO_PREFIX, userid);
-            auto client = os::ipc::open<os::client>(prefix, 10s, [&]()
+            auto client = os::ipc::open<os::client>(prefix, 10s, [&]
                         {
                             log("main: new desktopio environment for user ", userid);
                             auto binary = os::current_module_file();

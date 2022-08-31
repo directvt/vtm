@@ -17,7 +17,10 @@ namespace netxs::ui::atoms
     using netxs::events::id_t;
     using netxs::utf::text;
     using netxs::utf::view;
+    using netxs::utf::wiew;
     using netxs::utf::qiew;
+    using netxs::utf::wchr;
+    using netxs::utf::wide;
 
     static const char whitespace = 0x20;
     //static const char whitespace = '.';
@@ -2172,7 +2175,7 @@ namespace netxs::ui::atoms
                 chan.a = (uint8_t)((float)c1.chan.a + da * dt);
                 ++x;
             };
-            auto eolfx = [&]()
+            auto eolfx = [&]
             {
                 x = 0;
                 ++y;

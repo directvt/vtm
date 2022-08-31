@@ -2855,7 +2855,7 @@ namespace netxs::ui
                     auto range1 = std::abs(delta1);
                     auto range2 = std::abs(delta2);
                     auto range3 = std::abs(delta3);
-                    auto lookup = [&]()
+                    auto lookup = [&]
                     {
                         auto idpos = batch.index_by_id(batch.ancid);
                         auto start = batch.begin() + idpos;
@@ -5787,7 +5787,9 @@ namespace netxs::ui
             }
         };
 
+    public:
         using buffer_ptr = bufferbase*;
+        using vtty = os::pty<term>;
 
         pro::timer worker; // term: Linear animation controller.
         pro::robot dynamo; // term: Linear animation controller.
@@ -5813,7 +5815,7 @@ namespace netxs::ui
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
         si32       selmod; // term: Selection mode (ui::term::xsgr).
-        os::pty    ptycon; // term: PTY device. Should be destroyed first.
+        vtty       ptycon; // term: PTY device. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
@@ -6381,7 +6383,7 @@ namespace netxs::ui
             }
         }
 
-    public:
+    //public:
         void search(hids& gear, feed dir)
         {
             selection_search(gear, dir);
@@ -6472,8 +6474,7 @@ namespace netxs::ui
                     if (unique != timer)
                     {
                         auto initsz = target->panel;
-                        ptycon.start(curdir, cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                             [&](auto exit_reason) { onexit(exit_reason); } );
+                        ptycon.start(initsz);
                         unique = timer;
                         oneoff.reset();
                     }
@@ -6497,6 +6498,7 @@ namespace netxs::ui
               ftrack{ *this },
               wtrack{ *this },
               ctrack{ *this },
+              ptycon{ *this },
               follow{  0, 1 },
               active{  true },
               decckm{  faux },
@@ -6566,32 +6568,7 @@ namespace netxs::ui
 
                 #if defined(_WIN32)
 
-                    auto ctlstate = os::ms_kbstate(gear.ctlstate);
-                    if (gear.keybd::cluster.empty())
-                    {
-                        w32key.w32keybd(gear.keybd::virtcod,
-                                        gear.keybd::scancod,
-                                        0,
-                                        gear.keybd::pressed,
-                                        ctlstate,
-                                        gear.keybd::imitate);
-                    }
-                    else
-                    {
-                        auto iter = utf::cpit(gear.keybd::cluster);
-                        while (iter)
-                        {
-                            auto cp = iter.take();
-                            if (cp.correct) w32key.w32keybd(gear.keybd::virtcod,
-                                                            gear.keybd::scancod,
-                                                            cp.cdpoint,
-                                                            gear.keybd::pressed,
-                                                            ctlstate,
-                                                            gear.keybd::imitate);
-                            iter.step();
-                        }
-                    }
-                    answer(w32key);
+                    ptycon.keybd(gear);
 
                 #else
 
@@ -6801,7 +6778,7 @@ namespace netxs::ui
                     auto wheeldt = gear.whldt;
                     auto msflags =(gear.whldt ? (1 << 2) : 0)
                                 | (gear.hzwhl ? (1 << 3) : 0);
-                    s11n::mouse.send(owner, gear.id, ctlstat, buttons, msflags, wheeldt, coordxy);
+                    s11n::mouse.send(owner, gear.id, ctlstat, gear.winctrl, buttons, msflags, wheeldt, coordxy);
                 }
             }
 
@@ -7016,11 +6993,13 @@ namespace netxs::ui
                     #endif
                     s11n::keybd.send(owner, gear.id,
                                             gear.ctlstate,
+                                            gear.winctrl,
                                             gear.virtcod,
                                             gear.scancod,
                                             gear.pressed,
                                             gear.imitate,
-                                            gear.cluster);
+                                            gear.cluster,
+                                            gear.winchar);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
                 {
