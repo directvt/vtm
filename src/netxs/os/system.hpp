@@ -35,10 +35,7 @@
     #include <Windows.h>
     #include <Psapi.h>      // GetModuleFileNameEx
     #include <Wtsapi32.h>   // WTSEnumerateSessions, get_logged_usres
-
     #include <Shlwapi.h>
-    #include <algorithm>
-    #include <Wtsapi32.h>
     #include <shobjidl.h>   // IShellLink
     #include <shlguid.h>    // IID_IShellLink
     #include <Shlobj.h>     // create_shortcut: SHGetFolderLocation / (SHGetFolderPathW - vist and later) CLSID_ShellLink
@@ -335,19 +332,25 @@ namespace netxs::os
 
         class nt
         {
-            using functor = std::decay<decltype(::NtOpenFile)>::type;
+            using NtOpenFile_ptr = std::decay<decltype(::NtOpenFile)>::type;
+            using ConsoleCtl_ptr = NTSTATUS(*)(ui32, void*, ui32);
 
-            HMODULE  ntdll_dll{};
-            functor NtOpenFile{};
+            HMODULE         ntdll_dll{};
+            HMODULE        user32_dll{};
+            NtOpenFile_ptr NtOpenFile{};
+            ConsoleCtl_ptr ConsoleCtl{};
 
             nt()
             {
-                ntdll_dll = ::LoadLibraryEx("ntdll.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                if (!ntdll_dll) os::fail("LoadLibraryEx(ntdll.dll)");
+                ntdll_dll  = ::LoadLibraryEx("ntdll.dll",  nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                user32_dll = ::LoadLibraryEx("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
                 else
                 {
-                    NtOpenFile = reinterpret_cast<functor>(::GetProcAddress(ntdll_dll, "NtOpenFile"));
+                    NtOpenFile = reinterpret_cast<NtOpenFile_ptr>(::GetProcAddress( ntdll_dll, "NtOpenFile"));
+                    ConsoleCtl = reinterpret_cast<ConsoleCtl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
                     if (!NtOpenFile) os::fail("::GetProcAddress(NtOpenFile)");
+                    if (!ConsoleCtl) os::fail("::GetProcAddress(ConsoleControl)");
                 }
             }
 
@@ -355,10 +358,14 @@ namespace netxs::os
             nt(nt const&)             = delete;
             nt(nt&& other)
                 : ntdll_dll{ other.ntdll_dll  },
-                 NtOpenFile{ other.NtOpenFile }
+                 user32_dll{ other.user32_dll },
+                 NtOpenFile{ other.NtOpenFile },
+                 ConsoleCtl{ other.ConsoleCtl }
             {
                 other.ntdll_dll  = {};
+                other.user32_dll = {};
                 other.NtOpenFile = {};
+                other.ConsoleCtl = {};
             }
 
             static auto& get_ntdll()
@@ -370,7 +377,8 @@ namespace netxs::os
         public:
            ~nt()
             {
-                if (ntdll_dll) ::FreeLibrary(ntdll_dll);
+                if (ntdll_dll ) ::FreeLibrary(ntdll_dll );
+                if (user32_dll) ::FreeLibrary(user32_dll);
             }
 
             constexpr explicit operator bool() const { return NtOpenFile != nullptr; }
@@ -385,6 +393,7 @@ namespace netxs::os
                 static constexpr auto buffer_too_small      = (NTSTATUS)0xC0000023L;
                 static constexpr auto invalid_buffer_size   = (NTSTATUS)0xC0000206L;
                 static constexpr auto invalid_handle        = (NTSTATUS)0xC0000008L;
+                static constexpr auto control_c_exit        = (NTSTATUS)0xC000013AL;
             };
 
             template<class ...Args>
@@ -392,6 +401,13 @@ namespace netxs::os
             {
                 auto& inst = get_ntdll();
                 return inst ? inst.NtOpenFile(std::forward<Args>(args)...)
+                            : nt::status::not_found;
+            }
+            template<class ...Args>
+            static auto UserConsoleControl(Args... args)
+            {
+                auto& inst = get_ntdll();
+                return inst ? inst.ConsoleCtl(std::forward<Args>(args)...)
                             : nt::status::not_found;
             }
             template<class I = noop, class O = noop>
@@ -492,9 +508,9 @@ namespace netxs::os
                 static auto handle(fd_t cloned_handle)
                 {
                     auto handle_clone = INVALID_FD;
-                    auto ok = ::DuplicateHandle(GetCurrentProcess(),
+                    auto ok = ::DuplicateHandle(::GetCurrentProcess(),
                                                 cloned_handle,
-                                                GetCurrentProcess(),
+                                                ::GetCurrentProcess(),
                                                &handle_clone,
                                                 0,
                                                 TRUE,
@@ -3067,16 +3083,17 @@ namespace netxs::os
                             wired.plain.send(*ipcio, 0, text(1, ansi::C0_ETX));
                             break;
                         case CTRL_BREAK_EVENT:
+                            //todo send ctrl+break
                             wired.plain.send(*ipcio, 0, text(1, ansi::C0_ETX));
                             break;
                         case CTRL_CLOSE_EVENT:
                             /**/
                             break;
                         case CTRL_LOGOFF_EVENT:
-                            /**/
+                            /* todo signal global */
                             break;
                         case CTRL_SHUTDOWN_EVENT:
-                            /**/
+                            /* todo signal global */
                             break;
                         default:
                             break;
@@ -4019,6 +4036,12 @@ namespace netxs::os
                 enqueue_t               worker{}; // events_t: Background task executer.
                 bool                    closed{}; // events_t: Console server was shutdown.
 
+                void stop()
+                {
+                    auto lock = std::lock_guard{ locker };
+                    closed = true;
+                    kbsync.notify_all();
+                }
                 void clear()
                 {
                     auto lock = std::lock_guard{ locker };
@@ -4086,7 +4109,7 @@ namespace netxs::os
                             buffer.pop_front();
                         }
                     }
-                    while (!done && ((void)kbsync.wait(lock, [&]{ return buffer.size(); }), !closed));
+                    while (!done && ((void)kbsync.wait(lock, [&]{ return buffer.size() || closed; }), !closed));
 
                     if (EOFon)
                     {
@@ -5295,6 +5318,7 @@ namespace netxs::os
                             default:                       log(prompt, "unexpected nt::ioctl result ", rc); break;
                         }
                     }
+                    log(prompt, "condrv main loop ended");
                 }};
             }
             void resize()
@@ -5303,8 +5327,23 @@ namespace netxs::os
             }
             void stop()
             {
-                os::close(condrv);
-                //todo abort events input
+                struct nttask
+                {
+                    ui32 procid;
+                    ui32 _pad_1;
+                    ui64 _pad_2;
+                    ui32 action;
+                    ui32 _pad_3;
+                };
+
+                for (auto& [id, client] : joined)
+                {
+                    auto task = nttask{ .procid = client.procid, .action = CTRL_CLOSE_EVENT};
+                    auto stat = os::nt::UserConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
+                    log(prompt, "ending status 0x", utf::to_hex(stat));
+                }
+
+                events.stop();
                 if (server.joinable())
                 {
                     server.join();
@@ -5414,15 +5453,27 @@ namespace netxs::os
 
         pty(Term& terminal)
             : terminal{ terminal }
-
         { }
 
     #endif
 
+        auto connected()
+        {
+        #if defined(_WIN32)
+
+            return srv_hndl != INVALID_FD;
+
+        #else
+
+            return !!termlink;
+
+        #endif
+        }
+
        ~pty()
         {
             log("xpty: dtor started");
-            if (termlink)
+            if (connected())
             {
                 wait_child();
             }
@@ -5628,6 +5679,8 @@ namespace netxs::os
             {
             #if defined(_WIN32)
 
+                os::close( srv_hndl );
+                os::close( ref_hndl );
                 con_serv.stop();
                 auto code = DWORD{ 0 };
                 if (!::GetExitCodeProcess(prochndl, &code))
@@ -5644,7 +5697,7 @@ namespace netxs::os
                         code = 0;
                     }
                 }
-                else log("xpty: child process exit code ", code);
+                else log("xpty: child process exit code 0x", utf::to_hex(code), " (", code, ")");
                 exit_code = code;
                 os::close(prochndl);
 
