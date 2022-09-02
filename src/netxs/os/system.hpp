@@ -4027,15 +4027,21 @@ namespace netxs::os
                     }
                 };
 
-                std::list<INPUT_RECORD> buffer{}; // events_t: Input event buffer.
-                std::condition_variable signal{}; // events_t: Input event append signal.
-                std::condition_variable kbsync{}; // events_t: Keybd event append signal.
-                std::mutex              locker{}; // events_t: Input event buffer mutex.
-                cook                    cooked{}; // events_t: Cooked input string.
-                hist_list               inputs{}; // events_t: Input history.
-                enqueue_t               worker{}; // events_t: Background task executer.
-                bool                    closed{}; // events_t: Console server was shutdown.
+                std::list<INPUT_RECORD>     buffer{}; // events_t: Input event buffer.
+                std::condition_variable_any signal{}; // events_t: Input event append signal.
+                std::condition_variable_any kbsync{}; // events_t: Keybd event append signal.
+                std::recursive_mutex        locker{}; // events_t: Input event buffer mutex.
+                cook                        cooked{}; // events_t: Cooked input string.
+                hist_list                   inputs{}; // events_t: Input history.
+                enqueue_t                   worker{}; // events_t: Background task executer.
+                bool                        closed{}; // events_t: Console server was shutdown.
+                os::fire                    ondata{ true }; // events_t: Signal on input buffer data.
 
+                auto count()
+                {
+                    auto lock = std::lock_guard{ locker };
+                    return static_cast<ui32>(buffer.size());
+                }
                 void stop()
                 {
                     auto lock = std::lock_guard{ locker };
@@ -4045,6 +4051,7 @@ namespace netxs::os
                 void clear()
                 {
                     auto lock = std::lock_guard{ locker };
+                    ondata.flush();
                     buffer.clear();
                 }
                 void keybd(input::hids& gear)
@@ -4066,6 +4073,7 @@ namespace netxs::os
                             }
                         }
                     });
+                    ondata.reset();
                     kbsync.notify_one();
                     signal.notify_one();
                 }
@@ -4119,6 +4127,7 @@ namespace netxs::os
                     }
 
                     cooked.save(utf16);
+                    if (buffer.empty()) ondata.flush();
                     return lock;
                 }
                 template<class Payload>
@@ -4324,6 +4333,7 @@ namespace netxs::os
                 packet.input.is_output ? log(prompt, "GetConsoleOutputCP")
                                        : log(prompt, "GetConsoleCP");
                 packet.reply.code_page = CP_UTF8;
+                log("\treply.code_page ", CP_UTF8);
             }
             auto api_process_codepage_set            ()
             {
@@ -4339,7 +4349,9 @@ namespace netxs::os
                 auto& packet = payload::cast(upload);
                 packet.input.is_output ? log(prompt, "SetConsoleOutputCP")
                                        : log(prompt, "SetConsoleCP");
-                answer.set_status(nt::status::not_supported);
+                log("\tinput.code_page ", packet.input.code_page);
+                //wsl depends on this - always reply success
+                //answer.set_status(nt::status::not_supported);
             }
             auto api_process_mode_get                ()
             {
@@ -4420,6 +4432,19 @@ namespace netxs::os
                 auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.exesz);
                 auto initdata = view(buffer.data() + namesize, packet.input.affix);
                 auto readstep = buffsize - packet.input.affix;
+
+                log("\tnameview: ", utf::debase(utf::to_utf(nameview)));
+                log("\treadstep: ", readstep);
+                if (packet.input.utf16)
+                {
+                    auto wide_initdata = wiew((wchr*)initdata.data(), initdata.size() / 2);
+                    log("\tinitdata utf-16: ", utf::debase(utf::to_utf(wide_initdata)));
+                }
+                else
+                {
+                    log("\tinitdata utf-8: ", utf::debase(initdata));
+                }
+
                 events.placeorder(packet, answer, condrv, nameview, initdata, readstep);
             }
             auto api_events_clear                    ()
@@ -4439,11 +4464,13 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
-
+                packet.reply.count = events.count();
+                log("\treply.count ", packet.reply.count);
             }
             auto api_events_get                      ()
             {
-                log(prompt, "GetConsoleInput");
+                static constexpr auto peek = ui16{ 1 };
+                static constexpr auto fast = ui16{ 2 };
                 struct payload : drvpacket<payload>
                 {
                     struct
@@ -4459,7 +4486,83 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
+                if (packet.input.flags & peek) log(prompt, "PeekConsoleInput");
+                else                           log(prompt, "ReadConsoleInput");
 
+                log("\tinput.flags ", utf::to_hex(packet.input.flags));
+
+                auto client_ptr = packet.client;
+                if (client_ptr == nullptr)
+                {
+                    log("\tabort: packet.client = invalid_value (0)");
+                    answer.set_status(nt::status::invalid_handle);
+                    return;
+                }
+                auto& client = packet.client;
+                //todo validate
+
+                auto events_handle_ptr = packet.target;
+                if (events_handle_ptr == nullptr)
+                {
+                    log("\tabort: events_handle_ptr = invalid_value (0)");
+                    answer.set_status(nt::status::invalid_handle);
+                    return;
+                }
+                auto& events_handle = *events_handle_ptr;
+                //todo validate
+
+                auto lock = std::unique_lock{ events.locker };
+                if (events.buffer.empty())
+                {
+                    log("\tevents buffer is empty");
+                    if (packet.input.flags & fast)
+                    {
+                        log("\treply.count = 0");
+                        packet.reply.count = 0;
+                        return;
+                    }
+                    //todo place order
+                    log("\twaiting input events");
+                    while ((void)events.signal.wait(lock, [&]{ return events.buffer.size() || events.closed; }), !events.closed && events.buffer.empty())
+                    { }
+                }
+
+                auto buffsize = packet.echosz - answer.sendoffset();
+                auto reccount = std::min<ui32>(events.count(), buffsize / sizeof(INPUT_RECORD));
+                buffsize = reccount * sizeof(INPUT_RECORD);
+                buffer.resize(buffsize);
+                auto destbuff = reinterpret_cast<INPUT_RECORD*>(buffer.data());
+                auto endevent = destbuff + reccount;
+                auto event_it = events.buffer.begin();
+                if (packet.input.flags & peek)
+                {
+                    while (destbuff != endevent)
+                    {
+                        *destbuff++ = *event_it++;
+                    }
+                }
+                else
+                {
+                    while (destbuff != endevent)
+                    {
+                        *destbuff++ = *event_it++;
+                        events.buffer.pop_front();
+                    }
+                    if (events.buffer.empty()) events.ondata.flush();
+                }
+                auto result = iorequest
+                {
+                    .taskid = packet.taskid,
+                    .buffer = buffer.data(),
+                    .length = buffsize,
+                    .offset = answer.sendoffset(),
+                };
+                auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
+                log("\tconsole::op::write_output rc = ", rc);
+
+                packet.reply.count = reccount;
+                answer.report = result.length;
+                log("\treply.count = ", packet.reply.count);
             }
             auto api_events_add                      ()
             {
@@ -4528,19 +4631,30 @@ namespace netxs::os
                     packet.input = {};
                 }
 
-                auto scrollback_handle_ptr = packet.target;
-                if (scrollback_handle_ptr == nullptr)
+                auto client_ptr = packet.client;
+                if (client_ptr == nullptr)
                 {
+                    log("\tabort: packet.client = invalid_value (0)");
                     answer.set_status(nt::status::invalid_handle);
                     return;
                 }
-                auto& scrollback_handle = *scrollback_handle_ptr;
-                //todo implement scrollback buffer selection
-                //
+                else
+                {
+                    auto& client_ptr = packet.client;
+                    //todo something
+                }
+
+                auto scrollback_handle_ptr = packet.target;
+                if (scrollback_handle_ptr != nullptr)
+                {
+                    //todo implement scrollback buffer selection
+                    auto& scrollback_handle = *scrollback_handle_ptr;
+                }
 
                 auto readoffset = answer.readoffset();
                 if (readoffset > packet.packsz)
                 {
+                    log("\tabort: readoffset > packet.packsz");
                     answer.set_status(nt::status::unsuccessful);
                     return;
                 }
@@ -4558,6 +4672,7 @@ namespace netxs::os
                 auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
                 if (rc != ERROR_SUCCESS)
                 {
+                    log("\tabort: read_input (condrv, request) rc=", rc);
                     answer.set_status(nt::status::unsuccessful);
                     return;
                 }
@@ -4720,7 +4835,6 @@ namespace netxs::os
             }
             auto api_scrollback_cursor_coor_set      ()
             {
-                log(prompt, "SetConsoleCursorPosition");
                 struct payload : drvpacket<payload>
                 {
                     struct
@@ -4730,7 +4844,10 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-
+                log(prompt, "SetConsoleCursorPosition ");
+                auto caretpos = twod{ packet.input.coorx, packet.input.coory };
+                log("\tinput.cursor_coor ", caretpos);
+                uiterm.target->cup(caretpos + uiterm.origin + dot_11);
             }
             auto api_scrollback_cursor_info_get      ()
             {
@@ -4782,6 +4899,25 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
+                auto viewport = rect{-uiterm.origin, uiterm.target->panel };
+                auto buffsize = std::max(viewport.size, uiterm.size());
+                auto caretpos = viewport.coor + uiterm.target->coord;
+                packet.reply.cursorposx = caretpos.x;
+                packet.reply.cursorposy = caretpos.y;
+                packet.reply.buffersz_x = buffsize.x;
+                packet.reply.buffersz_y = buffsize.y;
+                packet.reply.windowsz_x = viewport.size.x;
+                packet.reply.windowsz_y = viewport.size.y;
+                packet.reply.windowposx = viewport.coor.x;
+                packet.reply.windowposy = viewport.coor.y;
+                packet.reply.fullscreen = faux;
+                //packet.reply.attributes = ;
+                //packet.reply.popupcolor = ;
+                //packet.reply.rgbpalette = ;
+
+                log("\treply.cursor_coor ", caretpos);
+                log("\treply.buffer_size ", buffsize);
+                log("\treply.window_area ", viewport);
 
             }
             auto api_scrollback_info_set             ()
@@ -5275,7 +5411,6 @@ namespace netxs::os
 
             Term&             uiterm;
             fd_t&             condrv;
-            os::fire          ondata{ true }; // Signal on input buffer data.
             view              prompt{ " pty: consrv: " };
             proc_list         joined{};
             std::thread       server{};
@@ -5304,9 +5439,8 @@ namespace netxs::os
                                     answer.buffer = upload.argbuf;
                                     answer.length = upload.arglen;
                                 }
-                                auto lock = netxs::events::sync{};
                                 auto proc = apimap[upload.fxtype & 255];
-                                (this->*proc)();
+                                uiterm.update([&] { (this->*proc)(); });
                                 break;
                             }
                             case ERROR_IO_PENDING:         log(prompt, "operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
@@ -5516,7 +5650,7 @@ namespace netxs::os
                 srv_hndl = nt::console::handle("\\Device\\ConDrv\\Server");
                 ref_hndl = nt::console::handle(srv_hndl, "\\Reference");
 
-                if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, con_serv.ondata))
+                if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, con_serv.events.ondata))
                 {
                     auto errcode = os::error();
                     log("xpty: console server creation error ", errcode);

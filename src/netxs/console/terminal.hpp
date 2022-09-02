@@ -3452,6 +3452,7 @@ namespace netxs::ui
             }
 
             void cup (fifo& q) override { bufferbase::cup (q); sync_coord<faux>(); }
+            void cup (twod  p) override { bufferbase::cup (p); sync_coord<faux>(); }
             void cuf (si32  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
             void cub (si32  n) override { bufferbase::cub (n); sync_coord<faux>(); }
             void chx (si32  n) override { bufferbase::chx (n); sync_coord<faux>(); }
@@ -6052,25 +6053,24 @@ namespace netxs::ui
                 origin.y = -console.get_slide();
             }
         }
-        // term: Proceed terminal input.
-        void ondata(view data)
+        // term: Proceed terminal changes.
+        template<class P>
+        void update(P proc)
         {
             while (active)
             {
                 auto guard = netxs::events::try_sync{};
                 if (guard)
                 {
-                    if (onlogs) SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
-
                     if (follow[axis::Y])
                     {
-                        ansi::parse(data, target);
+                        proc();
                     }
                     else
                     {
                         auto last_basis = target->get_basis();
                         auto last_slide = target->get_slide();
-                        ansi::parse(data, target);
+                        proc();
                         auto next_basis = target->get_basis();
                         follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
                                        || (next_basis <= last_slide && last_slide <= last_basis);
@@ -6081,6 +6081,15 @@ namespace netxs::ui
                 }
                 else std::this_thread::yield();
             }
+        }
+        // term: Proceed terminal input.
+        void ondata(view data)
+        {
+            update([&]
+            {
+                if (onlogs) SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                ansi::parse(data, target);
+            });
         }
         // term: Shutdown callback handler.
         void onexit(si32 code)
