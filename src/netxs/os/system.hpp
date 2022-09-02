@@ -45,7 +45,7 @@
     #include <LMCons.h>     // DsGetDcName
     #include <Lmapibuf.h>   // DsGetDcName
 
-    #include <Sddl.h>       //security_descriptor
+    #include <Sddl.h>       // security_descriptor
 
     #include <winternl.h>   // NtOpenFile
     #include <wingdi.h>     // TranslateCharsetInfo
@@ -4194,7 +4194,7 @@ namespace netxs::os
                 log(prompt, "unsupported consrv request code ", upload.fxtype);
                 answer.set_status(nt::status::illegal_function);
             }
-            auto api_langid_get                      ()
+            auto api_system_langid_get               ()
             {
                 log(prompt, "GetConsoleLangId");
                 struct payload : drvpacket<payload>
@@ -4208,7 +4208,7 @@ namespace netxs::os
                 auto& packet = payload::cast(upload);
                 answer.set_status(nt::status::not_supported);
             }
-            auto api_mouse_buttons_get_count         ()
+            auto api_system_mouse_buttons_get_count  ()
             {
                 log(prompt, "GetNumberOfConsoleMouseButtons");
                 struct payload : drvpacket<payload>
@@ -4220,7 +4220,7 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
-
+                packet.reply.count = ::GetSystemMetrics(SM_CMOUSEBUTTONS);
             }
             auto api_process_attach                  ()
             {
@@ -4305,7 +4305,7 @@ namespace netxs::os
             {
                 log(prompt, "delete console handle");
             }
-            auto api_codepage_get                    ()
+            auto api_process_codepage_get            ()
             {
                 struct payload : drvpacket<payload>
                 {
@@ -4323,10 +4323,9 @@ namespace netxs::os
                 auto& packet = payload::cast(upload);
                 packet.input.is_output ? log(prompt, "GetConsoleOutputCP")
                                        : log(prompt, "GetConsoleCP");
-                if (packet.input.is_output) packet.reply.code_page = sendCP;
-                else                        packet.reply.code_page = readCP;
+                packet.reply.code_page = CP_UTF8;
             }
-            auto api_codepage_set                    ()
+            auto api_process_codepage_set            ()
             {
                 struct payload : drvpacket<payload>
                 {
@@ -4340,10 +4339,9 @@ namespace netxs::os
                 auto& packet = payload::cast(upload);
                 packet.input.is_output ? log(prompt, "SetConsoleOutputCP")
                                        : log(prompt, "SetConsoleCP");
-                if (packet.input.is_output) sendCP = packet.input.code_page;
-                else                        readCP = packet.input.code_page;
+                answer.set_status(nt::status::not_supported);
             }
-            auto api_mode_get                        ()
+            auto api_process_mode_get                ()
             {
                 log(prompt, "GetConsoleMode");
                 struct payload : drvpacket<payload>
@@ -4355,8 +4353,9 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
+                //todo process get its own mode (inherited)
             }
-            auto api_mode_set                        ()
+            auto api_process_mode_set                ()
             {
                 log(prompt, "SetConsoleMode");
                 struct payload : drvpacket<payload>
@@ -4368,6 +4367,7 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
+                //todo process set its own mode
             }
             template<bool RawRead = faux>
             auto api_events_read_as_text             ()
@@ -5275,10 +5275,6 @@ namespace netxs::os
 
             Term&             uiterm;
             fd_t&             condrv;
-            ui32              oem_cp{ ::GetOEMCP() };
-            ui32              win_cp{ ::GetACP()   };
-            ui32              readCP{ CP_UTF8 };
-            ui32              sendCP{ CP_UTF8 };
             os::fire          ondata{ true }; // Signal on input buffer data.
             view              prompt{ " pty: consrv: " };
             proc_list         joined{};
@@ -5357,17 +5353,17 @@ namespace netxs::os
             {
                 using _ = consrv;
                 apimap.resize(0xFF, &_::api_unsupported);
-                apimap[0x38] = &_::api_langid_get;
-                apimap[0x91] = &_::api_mouse_buttons_get_count;
+                apimap[0x38] = &_::api_system_langid_get;
+                apimap[0x91] = &_::api_system_mouse_buttons_get_count;
                 apimap[0x01] = &_::api_process_attach;
                 apimap[0x02] = &_::api_process_detach;
                 apimap[0xB9] = &_::api_process_enlist;
                 apimap[0x03] = &_::api_process_create_handle;
                 apimap[0x04] = &_::api_process_delete_handle;
-                apimap[0x30] = &_::api_codepage_get;
-                apimap[0x64] = &_::api_codepage_set;
-                apimap[0x31] = &_::api_mode_get;
-                apimap[0x32] = &_::api_mode_set;
+                apimap[0x30] = &_::api_process_codepage_get;
+                apimap[0x64] = &_::api_process_codepage_set;
+                apimap[0x31] = &_::api_process_mode_get;
+                apimap[0x32] = &_::api_process_mode_set;
                 apimap[0x06] = &_::api_events_read_as_text<true>;
                 apimap[0x35] = &_::api_events_read_as_text;
                 apimap[0x08] = &_::api_events_clear;
