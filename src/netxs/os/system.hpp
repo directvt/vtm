@@ -4028,6 +4028,7 @@ namespace netxs::os
                 };
 
                 std::list<INPUT_RECORD>     buffer{}; // events_t: Input event buffer.
+                std::vector<INPUT_RECORD>   recbuf{}; // events_t: Temporary buffer for copying event records.
                 std::condition_variable_any signal{}; // events_t: Input event append signal.
                 std::condition_variable_any kbsync{}; // events_t: Keybd event append signal.
                 std::recursive_mutex        locker{}; // events_t: Input event buffer mutex.
@@ -4192,6 +4193,79 @@ namespace netxs::os
                         packet.reply.ctrls = cooked.ctrl;
                         packet.reply.bytes = result.length + packet.input.affix;
                         answer.report = packet.reply.bytes;
+                    }
+                }
+                template<class Payload>
+                auto readevents(Payload& packet, iocomplete& answer, fd_t condrv)
+                {
+                    auto avail = packet.echosz - answer.sendoffset();
+                    auto limit = std::min<ui32>(count(), avail / sizeof(recbuf.front()));
+                    recbuf.resize(limit);
+                    auto srcit = buffer.begin();
+                    auto dstit = recbuf.begin();
+                    auto endit = recbuf.end();
+                    if (packet.input.flags & Payload::peek)
+                    {
+                        while (dstit != endit)
+                        {
+                            *dstit++ = *srcit++;
+                        }
+                    }
+                    else
+                    {
+                        while (dstit != endit)
+                        {
+                            *dstit++ = *srcit++;
+                            buffer.pop_front();
+                        }
+                        if (buffer.empty()) ondata.flush();
+                    }
+                    auto result = iorequest
+                    {
+                        .taskid = packet.taskid,
+                        .buffer = recbuf.data(),
+                        .length = sizeof(recbuf.front()) * limit,
+                        .offset = answer.sendoffset(),
+                    };
+                    auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
+                    answer.report = result.length;
+                    log("\tconsole::op::write_output rc = ", rc);
+                    return limit;
+                }
+                template<class Payload>
+                auto take(Payload& packet, iocomplete& answer, fd_t condrv)
+                {
+                    auto lock = std::lock_guard{ locker };
+                    if (buffer.empty())
+                    {
+                        log("\tevents buffer is empty");
+                        if (packet.input.flags & Payload::fast)
+                        {
+                            log("\treply.count = 0");
+                            packet.reply.count = 0;
+                            return;
+                        }
+                        else
+                        {
+                            worker.add([&, condrv, packet, answer]() mutable
+                            {
+                                auto lock = std::unique_lock{ locker };
+                                if (closed) return;
+                                while ((void)signal.wait(lock, [&]{ return buffer.size() || closed; }), !closed && buffer.empty())
+                                { }
+                                if (closed) return;
+                                packet.reply.count = readevents(packet, answer, condrv);
+                                answer.buffer =&packet.input; // Restore after copy.
+                                auto rc = nt::ioctl(nt::console::op::complete_io, condrv, answer);
+                                log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count, ", rc ", rc);
+                            });
+                            answer = {};
+                        }
+                    }
+                    else
+                    {
+                        packet.reply.count = readevents(packet, answer, condrv);
+                        log("\treply.count = ", packet.reply.count);
                     }
                 }
             };
@@ -4469,10 +4543,14 @@ namespace netxs::os
             }
             auto api_events_get                      ()
             {
-                static constexpr auto peek = ui16{ 1 };
-                static constexpr auto fast = ui16{ 2 };
                 struct payload : drvpacket<payload>
                 {
+                    enum
+                    {
+                        none,
+                        peek,
+                        fast,
+                    };
                     struct
                     {
                         ui32 count;
@@ -4486,83 +4564,32 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-                if (packet.input.flags & peek) log(prompt, "PeekConsoleInput");
-                else                           log(prompt, "ReadConsoleInput");
+                if (packet.input.flags & payload::peek) log(prompt, "PeekConsoleInput");
+                else                                    log(prompt, "ReadConsoleInput");
 
                 log("\tinput.flags ", utf::to_hex(packet.input.flags));
 
-                auto client_ptr = packet.client;
-                if (client_ptr == nullptr)
-                {
-                    log("\tabort: packet.client = invalid_value (0)");
-                    answer.set_status(nt::status::invalid_handle);
-                    return;
-                }
-                auto& client = packet.client;
-                //todo validate
+                //todo revise necessity
+                //auto client_ptr = packet.client;
+                //if (client_ptr == nullptr)
+                //{
+                //    log("\tabort: packet.client = invalid_value (0)");
+                //    answer.set_status(nt::status::invalid_handle);
+                //    return;
+                //}
+                //auto& client = packet.client;
+                ////todo validate
+                //auto events_handle_ptr = packet.target;
+                //if (events_handle_ptr == nullptr)
+                //{
+                //    log("\tabort: events_handle_ptr = invalid_value (0)");
+                //    answer.set_status(nt::status::invalid_handle);
+                //    return;
+                //}
+                //auto& events_handle = *events_handle_ptr;
+                ////todo validate
 
-                auto events_handle_ptr = packet.target;
-                if (events_handle_ptr == nullptr)
-                {
-                    log("\tabort: events_handle_ptr = invalid_value (0)");
-                    answer.set_status(nt::status::invalid_handle);
-                    return;
-                }
-                auto& events_handle = *events_handle_ptr;
-                //todo validate
-
-                auto lock = std::unique_lock{ events.locker };
-                if (events.buffer.empty())
-                {
-                    log("\tevents buffer is empty");
-                    if (packet.input.flags & fast)
-                    {
-                        log("\treply.count = 0");
-                        packet.reply.count = 0;
-                        return;
-                    }
-                    //todo place order
-                    log("\twaiting input events");
-                    while ((void)events.signal.wait(lock, [&]{ return events.buffer.size() || events.closed; }), !events.closed && events.buffer.empty())
-                    { }
-                }
-
-                auto buffsize = packet.echosz - answer.sendoffset();
-                auto reccount = std::min<ui32>(events.count(), buffsize / sizeof(INPUT_RECORD));
-                buffsize = reccount * sizeof(INPUT_RECORD);
-                buffer.resize(buffsize);
-                auto destbuff = reinterpret_cast<INPUT_RECORD*>(buffer.data());
-                auto endevent = destbuff + reccount;
-                auto event_it = events.buffer.begin();
-                if (packet.input.flags & peek)
-                {
-                    while (destbuff != endevent)
-                    {
-                        *destbuff++ = *event_it++;
-                    }
-                }
-                else
-                {
-                    while (destbuff != endevent)
-                    {
-                        *destbuff++ = *event_it++;
-                        events.buffer.pop_front();
-                    }
-                    if (events.buffer.empty()) events.ondata.flush();
-                }
-                auto result = iorequest
-                {
-                    .taskid = packet.taskid,
-                    .buffer = buffer.data(),
-                    .length = buffsize,
-                    .offset = answer.sendoffset(),
-                };
-                auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
-                log("\tconsole::op::write_output rc = ", rc);
-
-                packet.reply.count = reccount;
-                answer.report = result.length;
-                log("\treply.count = ", packet.reply.count);
+                events.take(packet, answer, condrv);
             }
             auto api_events_add                      ()
             {
