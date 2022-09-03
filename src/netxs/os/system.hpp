@@ -5219,8 +5219,39 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-                packet.input.prime ? log(prompt, "GetConsoleTitle")
-                                   : log(prompt, "GetConsoleOriginalTitle");
+                packet.input.prime ? log(prompt, "GetConsoleOriginalTitle")
+                                   : log(prompt, "GetConsoleTitle");
+                //todo differentiate titles by category
+                auto& title = uiterm.wtrack.get(ansi::OSC_TITLE);
+                log("\treply title (", title.size(), "): ", title);
+                if (packet.input.utf16)
+                {
+                    toWIDE.clear();
+                    utf::to_utf(title, toWIDE);
+                    auto result = iorequest
+                    {
+                        .taskid = packet.taskid,
+                        .buffer = toWIDE.data(),
+                        .length = (ui32)toWIDE.size() * sizeof(wchr),
+                        .offset = answer.sendoffset(),
+                    };
+                    auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
+                    packet.reply.nsize = (ui32)toWIDE.size() /*chars*/;
+                    answer.report = result.length /*bytes*/;
+                }
+                else
+                {
+                    auto result = iorequest
+                    {
+                        .taskid = packet.taskid,
+                        .buffer = title.data(),
+                        .length = (ui32)title.size(),
+                        .offset = answer.sendoffset(),
+                    };
+                    auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
+                    packet.reply.nsize = result.length /*chars*/;
+                    answer.report = result.length /*bytes*/;
+                }
             }
             auto api_window_title_set                ()
             {
@@ -5235,6 +5266,38 @@ namespace netxs::os
                 };
                 auto& packet = payload::cast(upload);
 
+                auto readoffset = answer.readoffset();
+                auto size = packet.packsz - readoffset;
+                buffer.resize(size);
+                auto data = buffer.data();
+                auto request = iorequest
+                {
+                    .taskid = packet.taskid,
+                    .buffer = data,
+                    .length = size,
+                    .offset = readoffset,
+                };
+                auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
+                if (rc != ERROR_SUCCESS)
+                {
+                    log("\tabort: read_input (condrv, request) rc=", rc);
+                    answer.set_status(nt::status::unsuccessful);
+                    return;
+                }
+
+                if (packet.input.utf16)
+                {
+                    toUTF8.clear();
+                    utf::to_utf(reinterpret_cast<wchr*>(data), size / sizeof(wchr), toUTF8);
+                    uiterm.wtrack.set(ansi::OSC_TITLE, toUTF8);
+                    log("\tUTF-16 title: ", utf::debase(toUTF8));
+                }
+                else
+                {
+                    auto temp = view(reinterpret_cast<char*>(data), size);
+                    uiterm.wtrack.set(ansi::OSC_TITLE, temp);
+                    log("\tUTF-8 title: ", utf::debase(temp));
+                }
             }
             auto api_window_font_size_get            ()
             {
@@ -5590,6 +5653,7 @@ namespace netxs::os
             task              upload{};
             std::vector<char> buffer{};
             text              toUTF8{}; // Buffer for UTF-16-UTF-8 conversion.
+            wide              toWIDE{}; // Buffer for UTF-8-UTF-16 conversion.
             event_list        events{}; // Input event list.
             func_list         apimap{};
 

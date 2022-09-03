@@ -6482,6 +6482,7 @@ namespace netxs::ui
                 {
                     if (unique != timer)
                     {
+                        this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
                         auto initsz = target->panel;
                         ptycon.start(initsz);
                         unique = timer;
@@ -6542,10 +6543,6 @@ namespace netxs::ui
             SUBMIT(tier::anycast, e2::debug::count::any, count)
             {
                 onlogs = count > 0;
-            };
-            SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
-            {
-                this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
             };
             SUBMIT(tier::preview, e2::coor::set, new_coor)
             {
