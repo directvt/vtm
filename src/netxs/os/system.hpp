@@ -4101,6 +4101,27 @@ namespace netxs::os
                     ondata.flush();
                     buffer.clear();
                 }
+                void winsz(twod const& winsize)
+                {
+                    auto lock = std::lock_guard{ locker };
+                    buffer.emplace_back(INPUT_RECORD
+                    {
+                        .EventType = WINDOW_BUFFER_SIZE_EVENT,
+                        .Event =
+                        {
+                            .WindowBufferSizeEvent =
+                            {
+                                .dwSize = 
+                                {
+                                    .X = (si16)std::min<si32>(winsize.x, std::numeric_limits<si16>::max()),
+                                    .Y = (si16)std::min<si32>(winsize.y, std::numeric_limits<si16>::max()),
+                                }
+                            }
+                        }
+                    });
+                    ondata.reset();
+                    signal.notify_one();
+                }
                 void keybd(input::hids& gear)
                 {
                     auto lock = std::lock_guard{ locker };
@@ -4336,6 +4357,7 @@ namespace netxs::os
                 };
                 auto& packet = payload::cast(upload);
                 answer.set_status(nt::status::not_supported);
+                log("\tlangid not supported");
             }
             auto api_system_mouse_buttons_get_count  ()
             {
@@ -4350,6 +4372,7 @@ namespace netxs::os
                 };
                 auto& packet = payload::cast(upload);
                 packet.reply.count = ::GetSystemMetrics(SM_CMOUSEBUTTONS);
+                log("\treply.count ", packet.reply.count);
             }
             auto api_process_attach                  ()
             {
@@ -4363,6 +4386,7 @@ namespace netxs::os
                     ui32 _pad_2;
                 };
                 auto& packet = payload::cast(upload);
+                log("\tprocess id ", packet.procid, ", thread id ", packet.thread);
                 auto& client = joined[packet.procid];
                 client.procid = packet.procid;
                 client.thread = packet.thread;
@@ -4418,17 +4442,60 @@ namespace netxs::os
                 GENERIC_READ | GENERIC_WRITE;
                 struct payload : base, taker<payload>
                 {
-                    type action;
-                    ui32 shared; // Unused
-                    ui32 rights; // GENERIC_READ | GENERIC_WRITE
-                    ui32 _pad_1;
-                    ui32 _pad_2;
-                    ui32 _pad_3;
+                    struct
+                    {
+                        type action;
+                        ui32 shared; // Unused
+                        ui32 rights; // GENERIC_READ | GENERIC_WRITE
+                        ui32 _pad_1;
+                        ui32 _pad_2;
+                        ui32 _pad_3;
+                    }
+                    input;
                 };
                 auto& packet = payload::cast(upload);
                 auto& client = *packet.client;
                 log("\tclient procid ", client.procid);
-
+                switch (packet.input.action)
+                {
+                    case type::dupevents:
+                    {
+                        auto& h = client.events.emplace_back(hndl::type::events, &uiterm);
+                        answer.report = reinterpret_cast<ui64>(&h);
+                        log("\tdup events handle ", &h);
+                        break;
+                    }
+                    case type::dupscroll:
+                    {
+                        auto& h = client.scroll.emplace_back(hndl::type::scroll, &uiterm.target);
+                        answer.report = reinterpret_cast<ui64>(&h);
+                        log("\tdup scroll handle ", &h);
+                        break;
+                    }
+                    case type::newscroll:
+                    {
+                        //todo create additional scroll buffer
+                        auto& h = client.scroll.emplace_back(hndl::type::scroll, &uiterm.target);
+                        answer.report = reinterpret_cast<ui64>(&h);
+                        log("\tnew scroll handle ", &h);
+                        break;
+                    }
+                    default:
+                    {
+                        if (packet.input.rights & GENERIC_READ)
+                        {
+                            auto& h = client.events.emplace_back(hndl::type::events, &uiterm);
+                            answer.report = reinterpret_cast<ui64>(&h);
+                            log("\tdup (GENERIC_READ) events handle ", &h);
+                        }
+                        else
+                        {
+                            auto& h = client.scroll.emplace_back(hndl::type::scroll, &uiterm.target);
+                            answer.report = reinterpret_cast<ui64>(&h);
+                            log("\tdup (GENERIC_WRITE) scroll handle ", &h);
+                        }
+                    }
+                }
             }
             auto api_process_delete_handle           ()
             {
@@ -4773,17 +4840,28 @@ namespace netxs::os
 
                 if (packet.input.utf16)
                 {
-                    //todo purify per process per scrollbuffer
                     toUTF8.clear();
                     utf::to_utf(reinterpret_cast<wchr*>(data), size / sizeof(wchr), toUTF8);
-                    uiterm.ondata(toUTF8);
+                    //uiterm.ondata(toUTF8);
+                    auto p = ansi::purify(toUTF8);
+                    if (p.size() != toUTF8.size())
+                    {
+                        throw;
+                    }
+                    uiterm.ondata(p);
                     log("\tUTF-16: ", utf::debase(toUTF8));
                 }
                 else
                 {
                     auto temp = view(reinterpret_cast<char*>(data), size);
-                    //todo purify per process per scrollbuffer
-                    uiterm.ondata(temp);
+                    //uiterm.ondata(temp);
+                    auto p = ansi::purify(temp);
+                    if (p.size() != temp.size())
+                    {
+                        throw;
+                    }
+                    uiterm.ondata(p);
+
                     log("\tUTF-8: ", utf::debase(temp));
                 }
                 packet.reply.count = size;
@@ -5545,9 +5623,9 @@ namespace netxs::os
                     log(prompt, "condrv main loop ended");
                 }};
             }
-            void resize()
+            void resize(twod const& newsize)
             {
-
+                events.winsz(newsize);
             }
             void stop()
             {
@@ -5988,11 +6066,11 @@ namespace netxs::os
         }
         void resize(twod const& newsize)
         {
-            if (termlink && termsize(newsize))
+            if (connected() && termsize(newsize))
             {
                 #if defined(_WIN32)
 
-                    con_serv.resize();
+                    con_serv.resize(termsize);
 
                 #else
 
