@@ -4168,7 +4168,7 @@ namespace netxs::os
                                 if (c == '\r') result += '\n';
                                 cntrls = rec.Event.KeyEvent.dwControlKeyState;
                                 rec.Event.KeyEvent.wRepeatCount--;
-                                if (stops & 1 << c)
+                                if (c < ' ' && stops & 1 << c)
                                 {
                                     done = true;
                                     if (rec.Event.KeyEvent.wRepeatCount == 0)
