@@ -3879,8 +3879,54 @@ namespace netxs::os
                     scroll,
                 };
 
-                type  kind{ type::unused };
-                void* link{ nullptr      };
+                type  kind;
+                void* link;
+                ui32  mode;
+
+                hndl(type kind, void* link)
+                    : kind{ kind },
+                      link{ link }
+                {
+                    mode = kind == type::events ? 0
+                         | ENABLE_PROCESSED_INPUT
+                         | ENABLE_LINE_INPUT
+                         | ENABLE_ECHO_INPUT
+                         | ENABLE_MOUSE_INPUT
+                         | ENABLE_INSERT_MODE
+                         | ENABLE_QUICK_EDIT_MODE
+                        : 0
+                         | ENABLE_PROCESSED_OUTPUT
+                         | ENABLE_WRAP_AT_EOL_OUTPUT
+                         | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                        ;
+                }
+                friend auto& operator << (std::ostream& s, hndl const& h)
+                {
+                    if (h.kind == hndl::type::events)
+                    {
+                        s << "events 0";
+                        if (h.mode & ENABLE_ECHO_INPUT            ) s << " | ENABLE_ECHO_INPUT";
+                        if (h.mode & ENABLE_INSERT_MODE           ) s << " | ENABLE_INSERT_MODE";
+                        if (h.mode & ENABLE_LINE_INPUT            ) s << " | ENABLE_LINE_INPUT";
+                        if (h.mode & ENABLE_MOUSE_INPUT           ) s << " | ENABLE_MOUSE_INPUT";
+                        if (h.mode & ENABLE_PROCESSED_INPUT       ) s << " | ENABLE_PROCESSED_INPUT";
+                        if (h.mode & ENABLE_QUICK_EDIT_MODE       ) s << " | ENABLE_QUICK_EDIT_MODE";
+                        if (h.mode & ENABLE_WINDOW_INPUT          ) s << " | ENABLE_WINDOW_INPUT";
+                        if (h.mode & ENABLE_VIRTUAL_TERMINAL_INPUT) s << " | ENABLE_VIRTUAL_TERMINAL_INPUT";
+                        s << " }";
+                    }
+                    else
+                    {
+                        s << "scroll 0";
+                        if (h.mode & ENABLE_PROCESSED_OUTPUT           ) s << " | ENABLE_PROCESSED_OUTPUT";
+                        if (h.mode & ENABLE_WRAP_AT_EOL_OUTPUT         ) s << " | ENABLE_WRAP_AT_EOL_OUTPUT";
+                        if (h.mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) s << " | ENABLE_VIRTUAL_TERMINAL_PROCESSING";
+                        if (h.mode & DISABLE_NEWLINE_AUTO_RETURN       ) s << " | DISABLE_NEWLINE_AUTO_RETURN";
+                        if (h.mode & ENABLE_LVB_GRID_WORLDWIDE         ) s << " | ENABLE_LVB_GRID_WORLDWIDE";
+                        s << " }";
+                    }
+                    return s;
+                }
             };
 
             struct cook
@@ -4320,8 +4366,8 @@ namespace netxs::os
                 auto& client = joined[packet.procid];
                 client.procid = packet.procid;
                 client.thread = packet.thread;
-                client.events.push_back({ .kind = hndl::type::events, .link = &uiterm });
-                client.scroll.push_back({ .kind = hndl::type::scroll, .link = &uiterm.target });
+                client.events.emplace_back(hndl::type::events, &uiterm);
+                client.scroll.emplace_back(hndl::type::scroll, &uiterm.target);
 
                 struct connect_info : taker<connect_info>
                 {
@@ -4439,7 +4485,16 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
-                //todo process get its own mode (inherited)
+                auto handle_ptr = packet.target;
+                if (handle_ptr == nullptr)
+                {
+                    log("\tabort: handle_ptr = invalid_value (0)");
+                    answer.set_status(nt::status::invalid_handle);
+                    return;
+                }
+                auto& handle = *handle_ptr;
+                packet.reply.mode = handle.mode;
+                log("\treply.mode ", handle);
             }
             auto api_process_mode_set                ()
             {
@@ -4453,7 +4508,16 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-                //todo process set its own mode
+                auto handle_ptr = packet.target;
+                if (handle_ptr == nullptr)
+                {
+                    log("\tabort: handle_ptr = invalid_value (0)");
+                    answer.set_status(nt::status::invalid_handle);
+                    return;
+                }
+                auto& handle = *handle_ptr;
+                handle.mode = packet.input.mode;
+                log("\tinput.mode ", handle);
             }
             template<bool RawRead = faux>
             auto api_events_read_as_text             ()
@@ -4518,7 +4582,7 @@ namespace netxs::os
                 {
                     log("\tinitdata utf-8: ", utf::debase(initdata));
                 }
-
+                //todo respect ENABLE_LINE_INPUT
                 events.placeorder(packet, answer, condrv, nameview, initdata, readstep);
             }
             auto api_events_clear                    ()
@@ -4547,7 +4611,7 @@ namespace netxs::os
                 {
                     enum
                     {
-                        none,
+                        take,
                         peek,
                         fast,
                     };
@@ -4569,26 +4633,29 @@ namespace netxs::os
 
                 log("\tinput.flags ", utf::to_hex(packet.input.flags));
 
-                //todo revise necessity
-                //auto client_ptr = packet.client;
-                //if (client_ptr == nullptr)
-                //{
-                //    log("\tabort: packet.client = invalid_value (0)");
-                //    answer.set_status(nt::status::invalid_handle);
-                //    return;
-                //}
-                //auto& client = packet.client;
-                ////todo validate
-                //auto events_handle_ptr = packet.target;
-                //if (events_handle_ptr == nullptr)
-                //{
-                //    log("\tabort: events_handle_ptr = invalid_value (0)");
-                //    answer.set_status(nt::status::invalid_handle);
-                //    return;
-                //}
-                //auto& events_handle = *events_handle_ptr;
-                ////todo validate
+                auto client_ptr = packet.client;
+                if (client_ptr == nullptr)
+                {
+                    log("\tabort: packet.client = invalid_value (0)");
+                    answer.set_status(nt::status::invalid_handle);
+                    return;
+                }
+                auto& client = packet.client;
+                //todo validate client
+                auto events_handle_ptr = packet.target;
+                if (events_handle_ptr == nullptr)
+                {
+                    log("\tabort: events_handle_ptr = invalid_value (0)");
+                    answer.set_status(nt::status::invalid_handle);
+                    return;
+                }
+                //todo validate events_handle
+                auto& events_handle = *events_handle_ptr;
 
+                //todo filter events by client's input mode
+                //  ENABLE_MOUSE_INPUT 
+                //  ENABLE_WINDOW_INPUT
+                //  
                 events.take(packet, answer, condrv);
             }
             auto api_events_add                      ()
