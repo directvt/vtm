@@ -1593,7 +1593,7 @@ namespace netxs::ansi
     };
 
     // ansi: Checking ANSI/UTF-8 integrity and return a valid view.
-    auto purify(view utf8)
+    auto purify(qiew utf8)
     {
         if (utf8.size())
         {

@@ -3868,13 +3868,13 @@ namespace netxs::os
                 auto readoffset() const { return _pad_1; }
                 auto sendoffset() const { return length; }
                 template<class T>
-                auto recv_data(fd_t condrv, T& buffer)
+                auto recv_data(fd_t condrv, T&& buffer)
                 {
                     auto request = order
                     {
                         .taskid = taskid,
                         .buffer = buffer.data(),
-                        .length = static_cast<decltype(order::length)>(buffer.size()),
+                        .length = static_cast<decltype(order::length)>(buffer.size() * sizeof(buffer.front())),
                         .offset = readoffset(),
                     };
                     auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
@@ -3887,7 +3887,7 @@ namespace netxs::os
                     return true;
                 }
                 template<bool Complete = faux, class T>
-                auto send_data(fd_t condrv, T& buffer, bool inc_nul_terminator = faux)
+                auto send_data(fd_t condrv, T&& buffer, bool inc_nul_terminator = faux)
                 {
                     auto result = order
                     {
@@ -3924,6 +3924,7 @@ namespace netxs::os
                 type  kind;
                 void* link;
                 ui32  mode;
+                text  rest;
 
                 hndl(type kind, void* link)
                     : kind{ kind },
@@ -4794,39 +4795,38 @@ namespace netxs::os
                     answer.status = nt::status::invalid_handle;
                     return;
                 }
-                else
-                {
-                    auto& client_ptr = packet.client;
-                    //todo something
-                }
+                auto& client = *client_ptr;
 
-                auto scrollback_handle_ptr = packet.target;
-                if (scrollback_handle_ptr != nullptr)
+                auto scroll_handle_ptr = packet.target;
+                if (scroll_handle_ptr == nullptr)
                 {
-                    //todo implement scrollback buffer selection
-                    auto& scrollback_handle = *scrollback_handle_ptr;
+                    log("\tabort: packet.target = invalid_value (0)");
+                    answer.status = nt::status::invalid_handle;
+                    return;
                 }
+                //todo implement scrollback buffer selection
+                auto& scroll_handle = *scroll_handle_ptr;
 
                 if (!size_check(packet.packsz,  answer.readoffset())) return;
                 auto datasize = packet.packsz - answer.readoffset();
-                buffer.resize(datasize);
-                if (answer.recv_data(condrv, buffer) == faux) return;
+                auto initsize = scroll_handle.rest.size();
                 if (packet.input.utf16)
                 {
-                    toUTF8.clear();
-                    utf::to_utf(reinterpret_cast<wchr*>(buffer.data()), buffer.size() / sizeof(wchr), toUTF8);
-                    //todo per proc
-                    auto p = ansi::purify(toUTF8);
-                    uiterm.ondata(p);
-                    log("\tUTF-16: ", utf::debase(toUTF8));
+                    toWIDE.resize(datasize / sizeof(wchr));
+                    if (answer.recv_data(condrv, toWIDE) == faux) return;
+                    utf::to_utf(toWIDE, scroll_handle.rest);
                 }
                 else
                 {
-                    //todo per proc
-                    auto p = ansi::purify(buffer);
-                    uiterm.ondata(p);
+                    scroll_handle.rest.resize(initsize + datasize);
+                    if (answer.recv_data(condrv, view{ scroll_handle.rest.data() + initsize, datasize }) == faux) return;
+                }
 
-                    log("\tUTF-8: ", utf::debase(buffer));
+                if (auto crop = ansi::purify(scroll_handle.rest))
+                {
+                    uiterm.ondata(crop);
+                    log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", utf::debase(crop));
+                    scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
                 }
                 packet.reply.count = datasize;
                 answer.report = packet.reply.count;
