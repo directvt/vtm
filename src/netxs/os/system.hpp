@@ -3842,10 +3842,18 @@ namespace netxs::os
 
         struct consrv
         {
-            struct iocomplete
+            struct cdrw
             {
                 using cptr = void const*;
                 using stat = NTSTATUS;
+
+                struct order
+                {
+                    ui64 taskid;
+                    cptr buffer;
+                    ui32 length;
+                    ui32 offset;
+                };
 
                 ui64 taskid;
                 stat status;
@@ -3855,22 +3863,38 @@ namespace netxs::os
                 ui32 length;
                 ui32 offset;
 
-                auto readoffset() const { return static_cast<ui32>(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
-                auto sendoffset() const { return static_cast<ui32>(length ? length : 0); }
+                //auto readoffset() const { return static_cast<ui32>(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
+                //auto sendoffset() const { return length; }
+                auto readoffset() const { return _pad_1; }
+                auto sendoffset() const { return length; }
                 auto set_status(NTSTATUS s) { status = s; }
                 template<class T>
-                auto recvdata(fd_t condrv, T& block)
+                auto recv_data(fd_t condrv, T& buffer)
                 {
-
-                }
-                template<bool Complete = faux, class T>
-                auto senddata(fd_t condrv, T& block)
-                {
-                    auto result = iorequest
+                    auto request = order
                     {
                         .taskid = taskid,
-                        .buffer = static_cast<decltype(iorequest::buffer)>(block.data()),
-                        .length = static_cast<decltype(iorequest::length)>(block.size() * sizeof(block.front())),
+                        .buffer = buffer.data(),
+                        .length = static_cast<decltype(order::length)>(buffer.size()),
+                        .offset = readoffset(),
+                    };
+                    auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
+                    if (rc != ERROR_SUCCESS)
+                    {
+                        log("\tabort: read_input (condrv, request) rc=", rc);
+                        set_status(nt::status::unsuccessful);
+                        return faux;
+                    }
+                    return true;
+                }
+                template<bool Complete = faux, class T>
+                auto send_data(fd_t condrv, T& buffer, bool inc_nul_terminator = faux)
+                {
+                    auto result = order
+                    {
+                        .taskid = taskid,
+                        .buffer = static_cast<decltype(order::buffer)>( buffer.data()),
+                        .length = static_cast<decltype(order::length)>((buffer.size() + inc_nul_terminator) * sizeof(buffer.front())),
                         .offset = sendoffset(),
                     };
                     auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
@@ -3887,16 +3911,6 @@ namespace netxs::os
                     }
                     return result.length;
                 }
-            };
-
-            struct iorequest
-            {
-                using cptr = void const*;
-
-                ui64 taskid;
-                cptr buffer;
-                ui32 length;
-                ui32 offset;
             };
 
             struct hndl
@@ -4254,7 +4268,7 @@ namespace netxs::os
                             cooked.rest.remove_prefix(data.size());
                             answer.buffer = &packet.input; // Restore after copy.
                             packet.reply.ctrls = cooked.ctrl;
-                            packet.reply.bytes = answer.senddata<true>(server.condrv, data);
+                            packet.reply.bytes = answer.send_data<true>(server.condrv, data);
                         });
                         server.answer = {};
                     }
@@ -4263,11 +4277,11 @@ namespace netxs::os
                         auto data = view{ cooked.rest.data(), std::min((ui32)cooked.rest.size(), readstep) };
                         cooked.rest.remove_prefix(data.size());
                         packet.reply.ctrls = cooked.ctrl;
-                        packet.reply.bytes = server.answer.senddata(server.condrv, data);
+                        packet.reply.bytes = server.answer.send_data(server.condrv, data);
                     }
                 }
                 template<bool Complete = faux, class Payload>
-                auto readevents(Payload& packet, iocomplete& answer)
+                auto readevents(Payload& packet, cdrw& answer)
                 {
                     auto avail = packet.echosz - answer.sendoffset();
                     auto limit = std::min<ui32>(count(), avail / sizeof(recbuf.front()));
@@ -4291,7 +4305,7 @@ namespace netxs::os
                         }
                         if (buffer.empty()) ondata.flush();
                     }
-                    answer.senddata<Complete>(server.condrv, recbuf);
+                    answer.send_data<Complete>(server.condrv, recbuf);
                     return limit;
                 }
                 template<class Payload>
@@ -4609,29 +4623,18 @@ namespace netxs::os
                     packet.input = { .EOFon = 1 };
                 }
                 auto namesize = static_cast<ui32>(packet.input.exesz * sizeof(wchr));
+                if (!size_check(packet.echosz,  packet.input.affix)
+                 || !size_check(packet.echosz,  answer.sendoffset())) return;
+                auto readstep = packet.echosz - answer.sendoffset();
                 auto datasize = namesize + packet.input.affix;
-                auto buffsize = packet.echosz - answer.sendoffset();
-                buffer.resize(datasize + buffsize);
-                if (datasize)
-                {
-                    auto request = iorequest
-                    {
-                        .taskid = packet.taskid,
-                        .buffer = buffer.data(),
-                        .length = datasize,
-                        .offset = answer.readoffset(),
-                    };
-                    auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
-                    if (rc != ERROR_SUCCESS)
-                    {
-                        answer.set_status(nt::status::unsuccessful);
-                        return;
-                    }
-                }
+                buffer.resize(datasize);
+                if (answer.recv_data(condrv, buffer) == faux) return;
+
                 auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.exesz);
                 auto initdata = view(buffer.data() + namesize, packet.input.affix);
+                log("\tnamesize: ", namesize);
                 log("\tnameview: ", utf::debase(utf::to_utf(nameview)));
-                log("\tbuffsize: ", buffsize);
+                log("\treadstep: ", readstep);
                 if (packet.input.utf16)
                 {
                     auto wide_initdata = wiew((wchr*)initdata.data(), initdata.size() / 2);
@@ -4642,7 +4645,7 @@ namespace netxs::os
                     log("\tinitdata utf-8: ", utf::debase(initdata));
                 }
                 //todo respect ENABLE_LINE_INPUT
-                events.placeorder(packet, nameview, initdata, buffsize);
+                events.placeorder(packet, nameview, initdata, readstep);
             }
             auto api_events_clear                    ()
             {
@@ -4804,57 +4807,28 @@ namespace netxs::os
                     auto& scrollback_handle = *scrollback_handle_ptr;
                 }
 
-                auto readoffset = answer.readoffset();
-                if (readoffset > packet.packsz)
-                {
-                    log("\tabort: readoffset > packet.packsz");
-                    answer.set_status(nt::status::unsuccessful);
-                    return;
-                }
-
-                auto size = packet.packsz - readoffset;
-                buffer.resize(size);
-                auto data = buffer.data();
-                auto request = iorequest
-                {
-                    .taskid = packet.taskid,
-                    .buffer = data,
-                    .length = size,
-                    .offset = readoffset,
-                };
-                auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
-                if (rc != ERROR_SUCCESS)
-                {
-                    log("\tabort: read_input (condrv, request) rc=", rc);
-                    answer.set_status(nt::status::unsuccessful);
-                    return;
-                }
-
+                if (!size_check(packet.packsz,  answer.readoffset())) return;
+                auto datasize = packet.packsz - answer.readoffset();
+                buffer.resize(datasize);
+                if (answer.recv_data(condrv, buffer) == faux) return;
                 if (packet.input.utf16)
                 {
                     toUTF8.clear();
-                    utf::to_utf(reinterpret_cast<wchr*>(data), size / sizeof(wchr), toUTF8);
-                    //uiterm.ondata(toUTF8);
+                    utf::to_utf(reinterpret_cast<wchr*>(buffer.data()), buffer.size() / sizeof(wchr), toUTF8);
+                    //todo per proc
                     auto p = ansi::purify(toUTF8);
-                    if (p.size() != toUTF8.size())
-                    {
-                        throw;
-                    }
                     uiterm.ondata(p);
                     log("\tUTF-16: ", utf::debase(toUTF8));
                 }
                 else
                 {
+                    //todo per proc
                     auto p = ansi::purify(buffer);
-                    if (p.size() != buffer.size())
-                    {
-                        throw;
-                    }
                     uiterm.ondata(p);
 
                     log("\tUTF-8: ", utf::debase(buffer));
                 }
-                packet.reply.count = size;
+                packet.reply.count = datasize;
                 answer.report = packet.reply.count;
             }
             auto api_scrollback_write_data           ()
@@ -5218,11 +5192,11 @@ namespace netxs::os
                 {
                     toWIDE.clear();
                     utf::to_utf(title, toWIDE);
-                    packet.reply.nsize = answer.senddata(condrv, toWIDE);
+                    packet.reply.nsize = answer.send_data(condrv, toWIDE, true);
                 }
                 else
                 {
-                    packet.reply.nsize = answer.senddata(condrv, title);
+                    packet.reply.nsize = answer.send_data(condrv, title, true);
                 }
             }
             auto api_window_title_set                ()
@@ -5237,30 +5211,14 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-
-                auto readoffset = answer.readoffset();
-                auto size = packet.packsz - readoffset;
-                buffer.resize(size);
-                auto data = buffer.data();
-                auto request = iorequest
-                {
-                    .taskid = packet.taskid,
-                    .buffer = data,
-                    .length = size,
-                    .offset = readoffset,
-                };
-                auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
-                if (rc != ERROR_SUCCESS)
-                {
-                    log("\tabort: read_input (condrv, request) rc=", rc);
-                    answer.set_status(nt::status::unsuccessful);
-                    return;
-                }
-
+                if (!size_check(packet.packsz,  answer.readoffset())) return;
+                auto datasize = packet.packsz - answer.readoffset();
+                buffer.resize(datasize);
+                if (answer.recv_data(condrv, buffer) == faux) return;
                 if (packet.input.utf16)
                 {
                     toUTF8.clear();
-                    utf::to_utf(reinterpret_cast<wchr*>(data), size / sizeof(wchr), toUTF8);
+                    utf::to_utf(reinterpret_cast<wchr*>(buffer.data()), buffer.size() / sizeof(wchr), toUTF8);
                     uiterm.wtrack.set(ansi::OSC_TITLE, toUTF8);
                     log("\tUTF-16 title: ", utf::debase(toUTF8));
                 }
@@ -5621,7 +5579,7 @@ namespace netxs::os
             view        prompt; // consrv: Log prompt.
             proc_list   joined; // consrv: Attached processes.
             std::thread server; // consrv: Main thread.
-            iocomplete  answer; // consrv: Reply cue.
+            cdrw        answer; // consrv: Reply cue.
             task        upload; // consrv: Console driver request.
             text        buffer; // consrv: Temp buffer.
             text        toUTF8; // consrv: Buffer for UTF-16-UTF-8 conversion.
@@ -5645,6 +5603,7 @@ namespace netxs::os
                                     upload.fxtype = upload.callfx / 0x55555 + upload.callfx;
                                     answer.buffer = upload.argbuf;
                                     answer.length = upload.arglen;
+                                    answer._pad_1 = upload.arglen + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/;
                                 }
                                 auto proc = apimap[upload.fxtype & 255];
                                 uiterm.update([&] { (this->*proc)(); });
@@ -5686,6 +5645,17 @@ namespace netxs::os
                     server.join();
                 }
                 log(prompt, "stop()");
+            }
+            template<class T>
+            auto size_check(T upto, T from)
+            {
+                auto test = upto >= from;
+                if (!test)
+                {
+                    log("\tabort: negative size");
+                    answer.set_status(nt::status::unsuccessful);
+                }
+                return test;
             }
 
             consrv(Term& uiterm, fd_t& condrv)
