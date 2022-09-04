@@ -3867,7 +3867,6 @@ namespace netxs::os
                 //auto sendoffset() const { return length; }
                 auto readoffset() const { return _pad_1; }
                 auto sendoffset() const { return length; }
-                auto set_status(NTSTATUS s) { status = s; }
                 template<class T>
                 auto recv_data(fd_t condrv, T& buffer)
                 {
@@ -3882,7 +3881,7 @@ namespace netxs::os
                     if (rc != ERROR_SUCCESS)
                     {
                         log("\tabort: read_input (condrv, request) rc=", rc);
-                        set_status(nt::status::unsuccessful);
+                        status = nt::status::unsuccessful;
                         return faux;
                     }
                     return true;
@@ -3893,7 +3892,7 @@ namespace netxs::os
                     auto result = order
                     {
                         .taskid = taskid,
-                        .buffer = static_cast<decltype(order::buffer)>( buffer.data()),
+                        .buffer = buffer.data(),
                         .length = static_cast<decltype(order::length)>((buffer.size() + inc_nul_terminator) * sizeof(buffer.front())),
                         .offset = sendoffset(),
                     };
@@ -3901,7 +3900,7 @@ namespace netxs::os
                     if (rc != ERROR_SUCCESS)
                     {
                         log("\tnt::console::op::write_output returns unexpected result ", utf::to_hex(rc));
-                        set_status(nt::status::unsuccessful);
+                        status = nt::status::unsuccessful;
                         result.length = 0;
                     }
                     report = result.length;
@@ -4283,6 +4282,7 @@ namespace netxs::os
                 template<bool Complete = faux, class Payload>
                 auto readevents(Payload& packet, cdrw& answer)
                 {
+                    if (!server.size_check(packet.echosz, answer.sendoffset())) return ui32{ 0 };
                     auto avail = packet.echosz - answer.sendoffset();
                     auto limit = std::min<ui32>(count(), avail / sizeof(recbuf.front()));
                     recbuf.resize(limit);
@@ -4350,7 +4350,7 @@ namespace netxs::os
             auto api_unsupported                     ()
             {
                 log(prompt, "unsupported consrv request code ", upload.fxtype);
-                answer.set_status(nt::status::illegal_function);
+                answer.status = nt::status::illegal_function;
             }
             auto api_system_langid_get               ()
             {
@@ -4364,7 +4364,7 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
-                answer.set_status(nt::status::not_supported);
+                answer.status = nt::status::not_supported;
                 log("\tlangid not supported");
             }
             auto api_system_mouse_buttons_get_count  ()
@@ -4546,7 +4546,7 @@ namespace netxs::os
                                        : log(prompt, "SetConsoleCP");
                 log("\tinput.code_page ", packet.input.code_page);
                 //wsl depends on this - always reply success
-                //answer.set_status(nt::status::not_supported);
+                //answer.status = nt::status::not_supported;
             }
             auto api_process_mode_get                ()
             {
@@ -4564,7 +4564,7 @@ namespace netxs::os
                 if (handle_ptr == nullptr)
                 {
                     log("\tabort: handle_ptr = invalid_value (0)");
-                    answer.set_status(nt::status::invalid_handle);
+                    answer.status = nt::status::invalid_handle;
                     return;
                 }
                 auto& handle = *handle_ptr;
@@ -4587,7 +4587,7 @@ namespace netxs::os
                 if (handle_ptr == nullptr)
                 {
                     log("\tabort: handle_ptr = invalid_value (0)");
-                    answer.set_status(nt::status::invalid_handle);
+                    answer.status = nt::status::invalid_handle;
                     return;
                 }
                 auto& handle = *handle_ptr;
@@ -4699,7 +4699,7 @@ namespace netxs::os
                 if (client_ptr == nullptr)
                 {
                     log("\tabort: packet.client = invalid_value (0)");
-                    answer.set_status(nt::status::invalid_handle);
+                    answer.status = nt::status::invalid_handle;
                     return;
                 }
                 auto& client = packet.client;
@@ -4708,7 +4708,7 @@ namespace netxs::os
                 if (events_handle_ptr == nullptr)
                 {
                     log("\tabort: events_handle_ptr = invalid_value (0)");
-                    answer.set_status(nt::status::invalid_handle);
+                    answer.status = nt::status::invalid_handle;
                     return;
                 }
                 //todo validate events_handle
@@ -4791,7 +4791,7 @@ namespace netxs::os
                 if (client_ptr == nullptr)
                 {
                     log("\tabort: packet.client = invalid_value (0)");
-                    answer.set_status(nt::status::invalid_handle);
+                    answer.status = nt::status::invalid_handle;
                     return;
                 }
                 else
@@ -5653,7 +5653,7 @@ namespace netxs::os
                 if (!test)
                 {
                     log("\tabort: negative size");
-                    answer.set_status(nt::status::unsuccessful);
+                    answer.status = nt::status::unsuccessful;
                 }
                 return test;
             }
