@@ -3858,6 +3858,35 @@ namespace netxs::os
                 auto readoffset() const { return static_cast<ui32>(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
                 auto sendoffset() const { return static_cast<ui32>(length ? length : 0); }
                 auto set_status(NTSTATUS s) { status = s; }
+                template<class T>
+                auto recvdata(fd_t condrv, T& block)
+                {
+
+                }
+                template<bool Complete = faux, class T>
+                auto senddata(fd_t condrv, T& block)
+                {
+                    auto result = iorequest
+                    {
+                        .taskid = taskid,
+                        .buffer = static_cast<decltype(iorequest::buffer)>(block.data()),
+                        .length = static_cast<decltype(iorequest::length)>(block.size() * sizeof(block.front())),
+                        .offset = sendoffset(),
+                    };
+                    auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
+                    if (rc != ERROR_SUCCESS)
+                    {
+                        log("\tnt::console::op::write_output returns unexpected result ", utf::to_hex(rc));
+                        set_status(nt::status::unsuccessful);
+                        result.length = 0;
+                    }
+                    report = result.length;
+                    if constexpr (Complete)
+                    {
+                        auto rc = nt::ioctl(nt::console::op::complete_io, condrv, *this);
+                    }
+                    return result.length;
+                }
             };
 
             struct iorequest
@@ -3988,10 +4017,8 @@ namespace netxs::os
                     static_assert(sizeof(T) >= sizeof(Payload));
                     return *reinterpret_cast<Payload*>(buffer);
                 }
-                template<class T>
-                static auto& cast(std::vector<T>& buffer)
+                static auto& cast(text& buffer)
                 {
-                    static_assert(sizeof(T) == sizeof(byte));
                     buffer.resize(sizeof(Payload));
                     return *reinterpret_cast<Payload*>(buffer.data());
                 }
@@ -4006,7 +4033,7 @@ namespace netxs::os
 
             struct event_list
             {
-                using hist_list = netxs::imap<ui32, std::vector<std::tuple<text, text, text>>>;
+                using hist_list = netxs::imap<ui32, std::vector<std::pair<text, text>>>;
 
                 //todo generalize
                 struct enqueue_t
@@ -4073,15 +4100,16 @@ namespace netxs::os
                     }
                 };
 
-                std::list<INPUT_RECORD>     buffer{}; // events_t: Input event buffer.
-                std::vector<INPUT_RECORD>   recbuf{}; // events_t: Temporary buffer for copying event records.
-                std::condition_variable_any signal{}; // events_t: Input event append signal.
-                std::condition_variable_any kbsync{}; // events_t: Keybd event append signal.
-                std::recursive_mutex        locker{}; // events_t: Input event buffer mutex.
-                cook                        cooked{}; // events_t: Cooked input string.
-                hist_list                   inputs{}; // events_t: Input history.
-                enqueue_t                   worker{}; // events_t: Background task executer.
-                bool                        closed{}; // events_t: Console server was shutdown.
+                consrv&                     server;
+                std::list<INPUT_RECORD>     buffer; // events_t: Input event buffer.
+                std::vector<INPUT_RECORD>   recbuf; // events_t: Temporary buffer for copying event records.
+                std::condition_variable_any signal; // events_t: Input event append signal.
+                std::condition_variable_any kbsync; // events_t: Keybd event append signal.
+                std::recursive_mutex        locker; // events_t: Input event buffer mutex.
+                cook                        cooked; // events_t: Cooked input string.
+                hist_list                   inputs; // events_t: Input history.
+                enqueue_t                   worker; // events_t: Background task executer.
+                bool                        closed{ faux }; // events_t: Console server was shutdown.
                 os::fire                    ondata{ true }; // events_t: Signal on input buffer data.
 
                 auto count()
@@ -4145,13 +4173,10 @@ namespace netxs::os
                     kbsync.notify_one();
                     signal.notify_one();
                 }
-                auto readline(bool EOFon, bool utf16, ui32 stops)
+                template<class L>
+                auto readline(L& lock, bool EOFon, bool utf16, ui32 stops)
                 {
-                    auto lock = std::unique_lock{ locker };
                     auto done = faux;
-                    auto& result = cooked.wstr;
-                    auto& cntrls = cooked.ctrl;
-                    result.clear();
                     do
                     {
                         auto head = buffer.begin();
@@ -4164,9 +4189,9 @@ namespace netxs::os
                              && rec.Event.KeyEvent.uChar.UnicodeChar != 0)
                             {
                                 auto c = rec.Event.KeyEvent.uChar.UnicodeChar;
-                                result += c;
-                                if (c == '\r') result += '\n';
-                                cntrls = rec.Event.KeyEvent.dwControlKeyState;
+                                cooked.wstr += c;
+                                if (c == '\r') cooked.wstr += '\n';
+                                cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
                                 rec.Event.KeyEvent.wRepeatCount--;
                                 if (c < ' ' && stops & 1 << c)
                                 {
@@ -4179,7 +4204,7 @@ namespace netxs::os
                                 }
                                 while (rec.Event.KeyEvent.wRepeatCount--)
                                 {
-                                    result += c;
+                                    cooked.wstr += c;
                                 }
                             }
                             buffer.pop_front();
@@ -4190,16 +4215,15 @@ namespace netxs::os
                     if (EOFon)
                     {
                         static constexpr auto EOFkey = 'Z' - '@';
-                        auto EOFpos = result.find(EOFkey);
-                        if (EOFpos != text::npos) result.resize(EOFpos);
+                        auto EOFpos = cooked.wstr.find(EOFkey);
+                        if (EOFpos != text::npos) cooked.wstr.resize(EOFpos);
                     }
 
                     cooked.save(utf16);
                     if (buffer.empty()) ondata.flush();
-                    return lock;
                 }
                 template<class Payload>
-                auto placeorder(Payload& packet, iocomplete& answer, fd_t condrv, wiew nameview, view initdata, ui32 readstep)
+                auto placeorder(Payload& packet, wiew nameview, view initdata, ui32 readstep)
                 {
                     auto lock = std::lock_guard{ locker };
                     if (cooked.rest.empty())
@@ -4208,62 +4232,42 @@ namespace netxs::os
                         //  - input buffer is shared across the process tree
                         //  - input history menu takes keypresses from the shared input buffer
                         //  - '\n' is added to the '\r'
-                        worker.add([&, readstep, condrv, packet, answer, initdata = text{ initdata }, nameview = utf::to_utf(nameview)]() mutable
+                        worker.add([&, answer = server.answer, readstep, packet, initdata = text{ initdata }, nameview = utf::to_utf(nameview)]() mutable
                         {
+                            auto lock = std::unique_lock{ locker };
                             static constexpr auto spaces = " \n\r\t";
                             if (closed) return;
-                            auto lock = readline(packet.input.EOFon, packet.input.utf16, packet.input.stops | 1 << '\r');
+                            
+                            if (packet.input.utf16) cooked.wstr = wiew((wchr*)initdata.data(), initdata.size() / 2);
+                            else                    cooked.wstr = utf::to_utf(initdata);
+
+                            readline(lock, packet.input.EOFon, packet.input.utf16, packet.input.stops | 1 << '\r');
                             if (closed) return;
+
                             auto trimmed = utf::trim(cooked.ustr, spaces);
                             if (trimmed.size() > 0)
                             {
                                 auto& client = *packet.client;
-                                if (packet.input.utf16)
-                                {
-                                    auto wide_initdata = wiew((wchr*)initdata.data(), initdata.size() / 2);
-                                    inputs[client.procid].emplace_back(nameview, utf::to_utf(wide_initdata), cooked.ustr);
-                                }
-                                else
-                                {
-                                    inputs[client.procid].emplace_back(nameview, initdata, cooked.ustr);
-                                }
+                                inputs[client.procid].emplace_back(nameview, cooked.ustr);
                             }
-                            auto result = iorequest
-                            {
-                                .taskid = packet.taskid,
-                                .buffer = cooked.rest.data(),
-                                .length = std::min((ui32)cooked.rest.size(), readstep),
-                                .offset = answer.sendoffset() + packet.input.affix,
-                            };
-                            auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
-                            cooked.rest.remove_prefix(result.length);
+                            auto data = view{ cooked.rest.data(), std::min((ui32)cooked.rest.size(), readstep) };
+                            cooked.rest.remove_prefix(data.size());
+                            answer.buffer = &packet.input; // Restore after copy.
                             packet.reply.ctrls = cooked.ctrl;
-                            packet.reply.bytes = result.length + packet.input.affix;
-                            answer.report = packet.reply.bytes;
-                            answer.buffer =&packet.input; // Restore after copy.
-                            rc = nt::ioctl(nt::console::op::complete_io, condrv, answer);
+                            packet.reply.bytes = answer.senddata<true>(server.condrv, data);
                         });
-                        answer = {};
+                        server.answer = {};
                     }
                     else
                     {
-                        auto result = iorequest
-                        {
-                            .taskid = packet.taskid,
-                            .buffer = cooked.rest.data(),
-                            .length = std::min((ui32)cooked.rest.size(), readstep),
-                            .offset = answer.sendoffset() + packet.input.affix,
-                        };
-                        auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
-                        cooked.rest.remove_prefix(result.length);
-
+                        auto data = view{ cooked.rest.data(), std::min((ui32)cooked.rest.size(), readstep) };
+                        cooked.rest.remove_prefix(data.size());
                         packet.reply.ctrls = cooked.ctrl;
-                        packet.reply.bytes = result.length + packet.input.affix;
-                        answer.report = packet.reply.bytes;
+                        packet.reply.bytes = server.answer.senddata(server.condrv, data);
                     }
                 }
-                template<class Payload>
-                auto readevents(Payload& packet, iocomplete& answer, fd_t condrv)
+                template<bool Complete = faux, class Payload>
+                auto readevents(Payload& packet, iocomplete& answer)
                 {
                     auto avail = packet.echosz - answer.sendoffset();
                     auto limit = std::min<ui32>(count(), avail / sizeof(recbuf.front()));
@@ -4287,20 +4291,11 @@ namespace netxs::os
                         }
                         if (buffer.empty()) ondata.flush();
                     }
-                    auto result = iorequest
-                    {
-                        .taskid = packet.taskid,
-                        .buffer = recbuf.data(),
-                        .length = sizeof(recbuf.front()) * limit,
-                        .offset = answer.sendoffset(),
-                    };
-                    auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
-                    answer.report = result.length;
-                    log("\tconsole::op::write_output rc = ", rc);
+                    answer.senddata<Complete>(server.condrv, recbuf);
                     return limit;
                 }
                 template<class Payload>
-                auto take(Payload& packet, iocomplete& answer, fd_t condrv)
+                auto take(Payload& packet)
                 {
                     auto lock = std::lock_guard{ locker };
                     if (buffer.empty())
@@ -4314,24 +4309,23 @@ namespace netxs::os
                         }
                         else
                         {
-                            worker.add([&, condrv, packet, answer]() mutable
+                            worker.add([&, packet, answer = server.answer]() mutable
                             {
                                 auto lock = std::unique_lock{ locker };
                                 if (closed) return;
                                 while ((void)signal.wait(lock, [&]{ return buffer.size() || closed; }), !closed && buffer.empty())
                                 { }
                                 if (closed) return;
-                                packet.reply.count = readevents(packet, answer, condrv);
-                                answer.buffer =&packet.input; // Restore after copy.
-                                auto rc = nt::ioctl(nt::console::op::complete_io, condrv, answer);
-                                log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count, ", rc ", rc);
+                                answer.buffer = &packet.input; // Restore after copy.
+                                packet.reply.count = readevents<true>(packet, answer);
+                                log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count);
                             });
-                            answer = {};
+                            server.answer = {};
                         }
                     }
                     else
                     {
-                        packet.reply.count = readevents(packet, answer, condrv);
+                        packet.reply.count = readevents(packet, server.answer);
                         log("\treply.count = ", packet.reply.count);
                     }
                 }
@@ -4636,10 +4630,8 @@ namespace netxs::os
                 }
                 auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.exesz);
                 auto initdata = view(buffer.data() + namesize, packet.input.affix);
-                auto readstep = buffsize - packet.input.affix;
-
                 log("\tnameview: ", utf::debase(utf::to_utf(nameview)));
-                log("\treadstep: ", readstep);
+                log("\tbuffsize: ", buffsize);
                 if (packet.input.utf16)
                 {
                     auto wide_initdata = wiew((wchr*)initdata.data(), initdata.size() / 2);
@@ -4650,7 +4642,7 @@ namespace netxs::os
                     log("\tinitdata utf-8: ", utf::debase(initdata));
                 }
                 //todo respect ENABLE_LINE_INPUT
-                events.placeorder(packet, answer, condrv, nameview, initdata, readstep);
+                events.placeorder(packet, nameview, initdata, buffsize);
             }
             auto api_events_clear                    ()
             {
@@ -4723,7 +4715,7 @@ namespace netxs::os
                 //  ENABLE_MOUSE_INPUT 
                 //  ENABLE_WINDOW_INPUT
                 //  
-                events.take(packet, answer, condrv);
+                events.take(packet);
             }
             auto api_events_add                      ()
             {
@@ -4853,16 +4845,14 @@ namespace netxs::os
                 }
                 else
                 {
-                    auto temp = view(reinterpret_cast<char*>(data), size);
-                    //uiterm.ondata(temp);
-                    auto p = ansi::purify(temp);
-                    if (p.size() != temp.size())
+                    auto p = ansi::purify(buffer);
+                    if (p.size() != buffer.size())
                     {
                         throw;
                     }
                     uiterm.ondata(p);
 
-                    log("\tUTF-8: ", utf::debase(temp));
+                    log("\tUTF-8: ", utf::debase(buffer));
                 }
                 packet.reply.count = size;
                 answer.report = packet.reply.count;
@@ -5228,29 +5218,11 @@ namespace netxs::os
                 {
                     toWIDE.clear();
                     utf::to_utf(title, toWIDE);
-                    auto result = iorequest
-                    {
-                        .taskid = packet.taskid,
-                        .buffer = toWIDE.data(),
-                        .length = (ui32)toWIDE.size() * sizeof(wchr),
-                        .offset = answer.sendoffset(),
-                    };
-                    auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
-                    packet.reply.nsize = (ui32)toWIDE.size() /*chars*/;
-                    answer.report = result.length /*bytes*/;
+                    packet.reply.nsize = answer.senddata(condrv, toWIDE);
                 }
                 else
                 {
-                    auto result = iorequest
-                    {
-                        .taskid = packet.taskid,
-                        .buffer = title.data(),
-                        .length = (ui32)title.size(),
-                        .offset = answer.sendoffset(),
-                    };
-                    auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
-                    packet.reply.nsize = result.length /*chars*/;
-                    answer.report = result.length /*bytes*/;
+                    packet.reply.nsize = answer.senddata(condrv, title);
                 }
             }
             auto api_window_title_set                ()
@@ -5294,9 +5266,8 @@ namespace netxs::os
                 }
                 else
                 {
-                    auto temp = view(reinterpret_cast<char*>(data), size);
-                    uiterm.wtrack.set(ansi::OSC_TITLE, temp);
-                    log("\tUTF-8 title: ", utf::debase(temp));
+                    uiterm.wtrack.set(ansi::OSC_TITLE, buffer);
+                    log("\tUTF-8 title: ", utf::debase(buffer));
                 }
             }
             auto api_window_font_size_get            ()
@@ -5644,18 +5615,18 @@ namespace netxs::os
             using func_list = std::vector<void(consrv::*)()>;
             using proc_list = netxs::imap<ui32, clnt>;
 
-            Term&             uiterm;
-            fd_t&             condrv;
-            view              prompt{ " pty: consrv: " };
-            proc_list         joined{};
-            std::thread       server{};
-            iocomplete        answer{};
-            task              upload{};
-            std::vector<char> buffer{};
-            text              toUTF8{}; // Buffer for UTF-16-UTF-8 conversion.
-            wide              toWIDE{}; // Buffer for UTF-8-UTF-16 conversion.
-            event_list        events{}; // Input event list.
-            func_list         apimap{};
+            Term&       uiterm; // consrv: Terminal reference.
+            fd_t&       condrv; // consrv: Console driver handle.
+            event_list  events; // consrv: Input event list.
+            view        prompt; // consrv: Log prompt.
+            proc_list   joined; // consrv: Attached processes.
+            std::thread server; // consrv: Main thread.
+            iocomplete  answer; // consrv: Reply cue.
+            task        upload; // consrv: Console driver request.
+            text        buffer; // consrv: Temp buffer.
+            text        toUTF8; // consrv: Buffer for UTF-16-UTF-8 conversion.
+            wide        toWIDE; // consrv: Buffer for UTF-8-UTF-16 conversion.
+            func_list   apimap; // consrv: Fx reference.
 
             void start()
             {
@@ -5719,7 +5690,10 @@ namespace netxs::os
 
             consrv(Term& uiterm, fd_t& condrv)
                 : uiterm{ uiterm },
-                  condrv{ condrv }
+                  condrv{ condrv },
+                  events{ *this  },
+                  answer{        },
+                  prompt{ " pty: consrv: " }
             {
                 using _ = consrv;
                 apimap.resize(0xFF, &_::api_unsupported);
