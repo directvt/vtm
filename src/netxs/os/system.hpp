@@ -4017,7 +4017,7 @@ namespace netxs::os
             };
 
             template<class Payload>
-            struct taker
+            struct wrap
             {
                 template<class T>
                 static auto& cast(T& buffer)
@@ -4039,7 +4039,7 @@ namespace netxs::os
             };
 
             template<class Payload>
-            struct drvpacket : base, taker<Payload>
+            struct drvpacket : base, wrap<Payload>
             {
                 ui32 callfx;
                 ui32 arglen;
@@ -4386,7 +4386,7 @@ namespace netxs::os
             auto api_process_attach                  ()
             {
                 log(prompt, "attach process to console");
-                struct payload : taker<payload>
+                struct payload : wrap<payload>
                 {
                     ui64 taskid;
                     ui32 procid;
@@ -4402,7 +4402,7 @@ namespace netxs::os
                 client.events.emplace_back(hndl::type::events, &uiterm);
                 client.scroll.emplace_back(hndl::type::scroll, &uiterm.target);
 
-                struct connect_info : taker<connect_info>
+                struct connect_info : wrap<connect_info>
                 {
                     clnt* client_id;
                     hndl* events_id;
@@ -4449,7 +4449,7 @@ namespace netxs::os
                     seerights,
                 };
                 GENERIC_READ | GENERIC_WRITE;
-                struct payload : base, taker<payload>
+                struct payload : base, wrap<payload>
                 {
                     struct
                     {
