@@ -781,7 +781,7 @@ namespace netxs::utf
     }
     void to_utf(wchr const* wide_text, size_t size, text& utf8)
     {
-        utf8.reserve(utf8.size() + size << 2);
+        utf8.reserve(utf8.size() + (size << 2));
         auto code = utfx{ 0 };
         auto tail = wide_text + size;
         while (wide_text < tail)
