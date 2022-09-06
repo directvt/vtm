@@ -3033,6 +3033,8 @@ namespace netxs::os
             static conmode                  state; // _globals: .
             static testy<twod>              winsz; // _globals: .
             static ansi::dtvt::binary::s11n wired; // _globals: Serialization buffers.
+            static si32                     kbmod; // _globals: Keyboard modifiers state.
+
             static void resize_handler()
             {
                 static constexpr auto winsz_fallback = twod{ 132, 60 };
@@ -3080,14 +3082,33 @@ namespace netxs::os
                     switch (signal)
                     {
                         case CTRL_C_EVENT:
-                            wired.plain.send(*ipcio, 0, text(1, ansi::C0_ETX));
+                        {
+                            /* placed to the input buffer - ENABLE_PROCESSED_INPUT is disabled */
+                            /* never happen */
                             break;
+                        }
                         case CTRL_BREAK_EVENT:
-                            //todo send ctrl+break
-                            wired.plain.send(*ipcio, 0, text(1, ansi::C0_ETX));
+                        {
+                            auto dwControlKeyState = kbmod;
+                            auto wVirtualKeyCode  = ansi::ctrl_break;
+                            auto wVirtualScanCode = ansi::ctrl_break;
+                            auto bKeyDown = faux;
+                            auto wRepeatCount = 1;
+                            auto UnicodeChar = L'\x03'; // ansi::C0_ETX
+                            wired.keybd.send(*ipcio,
+                                0,
+                                os::kbstate(kbmod, dwControlKeyState),
+                                dwControlKeyState,
+                                wVirtualKeyCode,
+                                wVirtualScanCode,
+                                bKeyDown,
+                                wRepeatCount,
+                                UnicodeChar ? utf::to_utf(UnicodeChar) : text{},
+                                UnicodeChar);
                             break;
+                        }
                         case CTRL_CLOSE_EVENT:
-                            /**/
+                            /* do nothing */
                             break;
                         case CTRL_LOGOFF_EVENT:
                             /* todo signal global */
@@ -3164,7 +3185,7 @@ namespace netxs::os
                     return b;
                 };
 
-                auto kbstate = si32{};
+                auto& kbstate = _globals<void>::kbmod;
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
                     if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
@@ -3765,19 +3786,18 @@ namespace netxs::os
                 ok(::GetConsoleMode(STDOUT_FD, &omode), "GetConsoleMode(STDOUT_FD) failed");
                 ok(::GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode(STDIN_FD) failed");
 
-                DWORD inpmode = 0
+                auto inpmode = DWORD{ 0
                               | ENABLE_EXTENDED_FLAGS
-                              | ENABLE_PROCESSED_INPUT
                               | ENABLE_WINDOW_INPUT
                               | ENABLE_MOUSE_INPUT
-                              ;
+                              };
                 ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
 
-                DWORD outmode = 0
+                auto outmode = DWORD{ 0
                               | ENABLE_PROCESSED_OUTPUT
                               | ENABLE_VIRTUAL_TERMINAL_PROCESSING
                               | DISABLE_NEWLINE_AUTO_RETURN
-                              ;
+                              };
                 ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
                 ok(::SetConsoleCtrlHandler(sig_hndl, TRUE), "SetConsoleCtrlHandler failed");
 
@@ -3830,10 +3850,11 @@ namespace netxs::os
         }
     };
 
-    template<class V> xipc                     tty::_globals<V>::ipcio;
-    template<class V> conmode                  tty::_globals<V>::state;
-    template<class V> testy<twod>              tty::_globals<V>::winsz;
-    template<class V> ansi::dtvt::binary::s11n tty::_globals<V>::wired;
+    template<class V> xipc                     tty::_globals<V>::ipcio{};
+    template<class V> conmode                  tty::_globals<V>::state{};
+    template<class V> testy<twod>              tty::_globals<V>::winsz{};
+    template<class V> ansi::dtvt::binary::s11n tty::_globals<V>::wired{};
+    template<class V> si32                     tty::_globals<V>::kbmod{};
 
     template<class Term>
     class pty // Note: STA.
@@ -3921,28 +3942,16 @@ namespace netxs::os
                     scroll,
                 };
 
+                ui32& mode;
                 type  kind;
                 void* link;
-                ui32  mode;
                 text  rest;
 
-                hndl(type kind, void* link)
-                    : kind{ kind },
+                hndl(ui32& mode, type kind, void* link)
+                    : mode{ mode },
+                      kind{ kind },
                       link{ link }
-                {
-                    mode = kind == type::events ? 0
-                         | ENABLE_PROCESSED_INPUT
-                         | ENABLE_LINE_INPUT
-                         | ENABLE_ECHO_INPUT
-                         | ENABLE_MOUSE_INPUT
-                         | ENABLE_INSERT_MODE
-                         | ENABLE_QUICK_EDIT_MODE
-                        : 0
-                         | ENABLE_PROCESSED_OUTPUT
-                         | ENABLE_WRAP_AT_EOL_OUTPUT
-                         | ENABLE_VIRTUAL_TERMINAL_PROCESSING
-                        ;
-                }
+                { }
                 friend auto& operator << (std::ostream& s, hndl const& h)
                 {
                     if (h.kind == hndl::type::events)
@@ -4049,6 +4058,15 @@ namespace netxs::os
             {
                 using hist_list = netxs::imap<ui32, std::vector<std::pair<text, text>>>;
 
+                struct nttask
+                {
+                    ui32 procid;
+                    ui32 _pad_1;
+                    ui64 _pad_2;
+                    si32 action;
+                    ui32 _pad_3;
+                };
+
                 //todo generalize
                 struct enqueue_t
                 {
@@ -4131,9 +4149,23 @@ namespace netxs::os
                     auto lock = std::lock_guard{ locker };
                     return static_cast<ui32>(buffer.size());
                 }
+                void alert(si32 what)
+                {
+                    log(server.prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
+                                     : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
+                                     : what == CTRL_CLOSE_EVENT ? "CtrlClose"
+                                                                : "unknown", " event");
+                    for (auto& client : server.joined)
+                    {
+                        auto task = nttask{ .procid = client.procid, .action = what };
+                        auto stat = os::nt::UserConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
+                        log("\tclient proc id ", client.procid,  ", control status 0x", utf::to_hex(stat));
+                    }
+                }
                 void stop()
                 {
                     auto lock = std::lock_guard{ locker };
+                    alert(CTRL_CLOSE_EVENT);
                     closed = true;
                     kbsync.notify_all();
                 }
@@ -4146,6 +4178,7 @@ namespace netxs::os
                 void winsz(twod const& winsize)
                 {
                     auto lock = std::lock_guard{ locker };
+                    //if (server.inpmod & ENABLE_WINDOW_INPUT) ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
                     buffer.emplace_back(INPUT_RECORD
                     {
                         .EventType = WINDOW_BUFFER_SIZE_EVENT,
@@ -4183,6 +4216,24 @@ namespace netxs::os
                             }
                         }
                     });
+
+                    if (gear.keybd::winchar == ansi::C0_ETX)
+                    {
+                        if (gear.keybd::scancod == ansi::ctrl_break)
+                        {
+                            alert(CTRL_BREAK_EVENT);
+                            buffer.pop_back();
+                        }
+                        else
+                        {
+                            if (server.inpmod & ENABLE_PROCESSED_INPUT)
+                            {
+                                if (gear.pressed) alert(CTRL_C_EVENT);
+                                buffer.pop_back();
+                            }
+                        }
+                    }
+
                     ondata.reset();
                     kbsync.notify_one();
                     signal.notify_one();
@@ -4396,11 +4447,14 @@ namespace netxs::os
                 };
                 auto& packet = payload::cast(upload);
                 log("\tprocess id ", packet.procid, ", thread id ", packet.thread);
-                auto& client = joined[packet.procid];
+
+                auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client) { return client.procid == packet.procid; });
+                auto& client = iter != joined.end() ? *iter
+                                                    : joined.emplace_front();
                 client.procid = packet.procid;
                 client.thread = packet.thread;
-                client.events.emplace_back(hndl::type::events, &uiterm);
-                client.scroll.emplace_back(hndl::type::scroll, &uiterm.target);
+                client.events.emplace_back(inpmod, hndl::type::events, &events);
+                client.scroll.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
 
                 struct connect_info : wrap<connect_info>
                 {
@@ -4469,14 +4523,14 @@ namespace netxs::os
                 {
                     case type::dupevents:
                     {
-                        auto& h = client.events.emplace_back(hndl::type::events, &uiterm);
+                        auto& h = client.events.emplace_back(inpmod, hndl::type::events, &uiterm);
                         answer.report = reinterpret_cast<ui64>(&h);
                         log("\tdup events handle ", &h);
                         break;
                     }
                     case type::dupscroll:
                     {
-                        auto& h = client.scroll.emplace_back(hndl::type::scroll, &uiterm.target);
+                        auto& h = client.scroll.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
                         answer.report = reinterpret_cast<ui64>(&h);
                         log("\tdup scroll handle ", &h);
                         break;
@@ -4484,7 +4538,7 @@ namespace netxs::os
                     case type::newscroll:
                     {
                         //todo create additional scroll buffer
-                        auto& h = client.scroll.emplace_back(hndl::type::scroll, &uiterm.target);
+                        auto& h = client.scroll.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
                         answer.report = reinterpret_cast<ui64>(&h);
                         log("\tnew scroll handle ", &h);
                         break;
@@ -4493,13 +4547,13 @@ namespace netxs::os
                     {
                         if (packet.input.rights & GENERIC_READ)
                         {
-                            auto& h = client.events.emplace_back(hndl::type::events, &uiterm);
+                            auto& h = client.events.emplace_back(inpmod, hndl::type::events, &uiterm);
                             answer.report = reinterpret_cast<ui64>(&h);
                             log("\tdup (GENERIC_READ) events handle ", &h);
                         }
                         else
                         {
-                            auto& h = client.scroll.emplace_back(hndl::type::scroll, &uiterm.target);
+                            auto& h = client.scroll.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
                             answer.report = reinterpret_cast<ui64>(&h);
                             log("\tdup (GENERIC_WRITE) scroll handle ", &h);
                         }
@@ -4593,6 +4647,8 @@ namespace netxs::os
                 }
                 auto& handle = *handle_ptr;
                 handle.mode = packet.input.mode;
+                //todo signal to uiterm about resizing mode changed (do not change buffer width if ENABLE_WINDOW_INPUT is enabled).
+                // ENABLE_WINDOW_INPUT is a global flag - if someone has set it, they keep track the buffer size, so we can only change the viewport.
                 log("\tinput.mode ", handle);
             }
             template<bool RawRead = faux>
@@ -5570,21 +5626,23 @@ namespace netxs::os
 
             }
 
-            using func_list = std::vector<void(consrv::*)()>;
-            using proc_list = netxs::imap<ui32, clnt>;
+            using apis = std::vector<void(consrv::*)()>;
+            using list = std::list<clnt>;
 
             Term&       uiterm; // consrv: Terminal reference.
             fd_t&       condrv; // consrv: Console driver handle.
             event_list  events; // consrv: Input event list.
             view        prompt; // consrv: Log prompt.
-            proc_list   joined; // consrv: Attached processes.
+            list        joined; // consrv: Attached processes list.
             std::thread server; // consrv: Main thread.
             cdrw        answer; // consrv: Reply cue.
             task        upload; // consrv: Console driver request.
             text        buffer; // consrv: Temp buffer.
             text        toUTF8; // consrv: Buffer for UTF-16-UTF-8 conversion.
             wide        toWIDE; // consrv: Buffer for UTF-8-UTF-16 conversion.
-            func_list   apimap; // consrv: Fx reference.
+            apis        apimap; // consrv: Fx reference.
+            ui32        inpmod; // consrv: Events mode flag set.
+            ui32        outmod; // consrv: Scrollbuffer mode flag set.
 
             void start()
             {
@@ -5619,26 +5677,10 @@ namespace netxs::os
             }
             void resize(twod const& newsize)
             {
-                events.winsz(newsize);
+                events.winsz(newsize); // We inform about viewport resize only.
             }
             void stop()
             {
-                struct nttask
-                {
-                    ui32 procid;
-                    ui32 _pad_1;
-                    ui64 _pad_2;
-                    ui32 action;
-                    ui32 _pad_3;
-                };
-
-                for (auto& [id, client] : joined)
-                {
-                    auto task = nttask{ .procid = client.procid, .action = CTRL_CLOSE_EVENT};
-                    auto stat = os::nt::UserConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
-                    log(prompt, "ending status 0x", utf::to_hex(stat));
-                }
-
                 events.stop();
                 if (server.joinable())
                 {
@@ -5665,6 +5707,19 @@ namespace netxs::os
                   answer{        },
                   prompt{ " pty: consrv: " }
             {
+                inpmod = 0
+                        | ENABLE_PROCESSED_INPUT
+                        | ENABLE_LINE_INPUT
+                        | ENABLE_ECHO_INPUT
+                        | ENABLE_MOUSE_INPUT
+                        | ENABLE_INSERT_MODE
+                        | ENABLE_QUICK_EDIT_MODE
+                        ;
+                outmod = 0
+                        | ENABLE_PROCESSED_OUTPUT
+                        | ENABLE_WRAP_AT_EOL_OUTPUT
+                        | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                        ;
                 using _ = consrv;
                 apimap.resize(0xFF, &_::api_unsupported);
                 apimap[0x38] = &_::api_system_langid_get;
@@ -5810,7 +5865,7 @@ namespace netxs::os
             log("xpty: dtor complete");
         }
 
-        operator bool () { return termlink; }
+        operator bool () { return connected(); }
 
         void start(twod winsz)
         {

@@ -156,6 +156,8 @@ namespace netxs::ansi
     static const char C0_RS  = '\x1E'; // Record Separator.
     static const char C0_US  = '\x1F'; // Unit Separator.
 
+    static const si32 ctrl_break = 0xE046; // Pressed Ctrl+Break scancode.
+
     static const auto OSC_LABEL_TITLE  = "0"   ; // Set icon label and title.
     static const auto OSC_LABEL        = "1"   ; // Set icon label.
     static const auto OSC_TITLE        = "2"   ; // Set title.

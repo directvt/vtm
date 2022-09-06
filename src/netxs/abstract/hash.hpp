@@ -94,8 +94,8 @@ namespace netxs
         auto     end()       { return iter<      imap>{ *this, forward.end()   }; }
         auto   begin() const { return iter<const imap>{ *this, forward.begin() }; }
         auto     end() const { return iter<const imap>{ *this, forward.end()   }; }
-        auto& length() const { return forward.size();                             }
-        auto&   size() const { return forward.size();                             }
+        auto  length() const { return forward.size();                             }
+        auto    size() const { return forward.size();                             }
         auto&   back()       { return storage[std::prev(forward.end()) ->second]; }
         auto&  front()       { return storage[          forward.begin()->second]; }
         //todo implement erase and friends

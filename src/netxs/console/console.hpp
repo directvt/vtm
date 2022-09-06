@@ -4917,6 +4917,8 @@ namespace netxs::console
             k.cluster = item.utf8txt;
             k.pressed = true;
             notify(e2::conio::keybd, k);
+            k.pressed = faux;
+            notify(e2::conio::keybd, k);
         }
         void handle(s11n::xs::ctrls       lock)
         {

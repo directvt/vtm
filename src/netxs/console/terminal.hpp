@@ -6094,11 +6094,18 @@ namespace netxs::ui
         // term: Shutdown callback handler.
         void onexit(si32 code)
         {
-            log("term: exit code ", code);
+            log("term: exit code 0x", utf::to_hex(code));
             if (code)
             {
-                auto error = ansi::bgc(reddk).fgc(whitelt).add("\r\nterm: exit code ", code, " ");
+                auto error = ansi::bgc(reddk).fgc(whitelt).add("\r\nterm: exit code 0x", utf::to_hex(code), " ");
                 ondata(error);
+                this->SUBMIT(tier::release, hids::events::keybd::any, gear)
+                {
+                    if (gear.cluster.size() && gear.cluster.front() == ansi::C0_ESC)
+                    {
+                        onexit(0);
+                    }
+                };
             }
             else
             {
@@ -7084,8 +7091,8 @@ namespace netxs::ui
             if (active)
             {
                 active = faux;
-                if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code ", code, " ").nil());
-                else      log("dtvt: exit code ", code);
+                if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
+                else      log("dtvt: exit code 0x", utf::to_hex(code));
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
                 {
                     auto backup = This();
