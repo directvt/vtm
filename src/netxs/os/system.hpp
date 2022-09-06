@@ -4514,21 +4514,21 @@ namespace netxs::os
                 client.detail.header = utf::to_utf(details.header_data, details.header_size / sizeof(wchr));
                 client.detail.curexe = utf::to_utf(details.curexe_data, details.curexe_size / sizeof(wchr));
                 client.detail.curdir = utf::to_utf(details.curdir_data, details.curdir_size / sizeof(wchr));
-                log("\tclient procid ", client.procid, "\n",
-                    "\tclient thread ", client.thread, "\n",
-                    "\tclient pgroup ", client.pgroup, "\n",
-                    "\tclient iconid ", client.detail.iconid, "\n",
-                    "\tclient hotkey ", client.detail.hotkey, "\n",
-                    "\tclient config ", client.detail.config, "\n",
-                    "\tclient colors ", client.detail.colors, "\n",
-                    "\tclient format ", client.detail.format, "\n",
-                    "\tclient scroll ", client.detail.scroll, "\n",
-                    "\tclient cliapp ", client.detail.cliapp, "\n",
-                    "\tclient expose ", client.detail.expose, "\n",
-                    "\tclient window ", client.detail.window, "\n",
-                    "\tclient header ", client.detail.header, "\n",
-                    "\tclient apname ", client.detail.curexe, "\n",
-                    "\tclient curdir ", client.detail.curdir);
+                log("\tprocid ", client.procid, "\n",
+                    "\tthread ", client.thread, "\n",
+                    "\tpgroup ", client.pgroup, "\n",
+                    "\ticonid ", client.detail.iconid, "\n",
+                    "\thotkey ", client.detail.hotkey, "\n",
+                    "\tconfig ", client.detail.config, "\n",
+                    "\tcolors ", client.detail.colors, "\n",
+                    "\tformat ", client.detail.format, "\n",
+                    "\tscroll ", client.detail.scroll, "\n",
+                    "\tcliapp ", client.detail.cliapp, "\n",
+                    "\texpose ", client.detail.expose, "\n",
+                    "\twindow ", client.detail.window, "\n",
+                    "\theader ", client.detail.header, "\n",
+                    "\tapname ", client.detail.curexe, "\n",
+                    "\tcurdir ", client.detail.curdir);
 
                 struct connect_info : wrap<connect_info>
                 {
