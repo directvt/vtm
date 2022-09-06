@@ -4001,10 +4001,28 @@ namespace netxs::os
             {
                 using list = std::list<hndl>;
 
+                struct info
+                {
+                    ui32 iconid{};
+                    ui32 hotkey{};
+                    ui32 config{};
+                    ui16 colors{};
+                    ui16 format{};
+                    twod scroll{};
+                    rect window{};
+                    bool cliapp{};
+                    bool expose{};
+                    text header{};
+                    text curexe{};
+                    text curdir{};
+                };
+
                 list events;
                 list scroll;
                 ui32 procid;
                 ui32 thread;
+                ui32 pgroup;
+                info detail;
             };
 
             struct base
@@ -4149,7 +4167,7 @@ namespace netxs::os
                     auto lock = std::lock_guard{ locker };
                     return static_cast<ui32>(buffer.size());
                 }
-                void alert(si32 what)
+                void alert(si32 what, ui32 pgroup = 0)
                 {
                     log(server.prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
                                      : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
@@ -4157,9 +4175,12 @@ namespace netxs::os
                                                                 : "unknown", " event");
                     for (auto& client : server.joined)
                     {
-                        auto task = nttask{ .procid = client.procid, .action = what };
-                        auto stat = os::nt::UserConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
-                        log("\tclient proc id ", client.procid,  ", control status 0x", utf::to_hex(stat));
+                        if (!pgroup || pgroup == client.pgroup)
+                        {
+                            auto task = nttask{ .procid = client.procid, .action = what };
+                            auto stat = os::nt::UserConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
+                            log("\tclient proc id ", client.procid,  ", control status 0x", utf::to_hex(stat));
+                        }
                     }
                 }
                 void stop()
@@ -4178,7 +4199,7 @@ namespace netxs::os
                 void winsz(twod const& winsize)
                 {
                     auto lock = std::lock_guard{ locker };
-                    //if (server.inpmod & ENABLE_WINDOW_INPUT) ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
+                    // Ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
                     buffer.emplace_back(INPUT_RECORD
                     {
                         .EventType = WINDOW_BUFFER_SIZE_EVENT,
@@ -4446,15 +4467,68 @@ namespace netxs::os
                     ui32 _pad_2;
                 };
                 auto& packet = payload::cast(upload);
-                log("\tprocess id ", packet.procid, ", thread id ", packet.thread);
+                struct exec_info : wrap<exec_info>
+                {
+                    ui32 win_icon_id;
+                    ui32 used_hotkey;
+                    ui32 start_flags;
+                    ui16 fill_colors;
+                    ui16 window_mode;
+                    si16 scroll_sz_x, scroll_sz_y;
+                    si16 window_sz_x, window_sz_y;
+                    si16 window_at_x, window_at_y;
+                    ui32 app_groupid;
+                    byte climode_app;
+                    byte win_visible;
+                    ui16 header_size;
+                    wchr header_data[261];
+                    ui16 curexe_size;
+                    wchr curexe_data[128];
+                    ui16 curdir_size;
+                    wchr curdir_data[261];
+                };
+                auto& details = exec_info::cast(buffer);
+                if (!answer.recv_data(condrv, buffer)) return;
+
+                details.curexe_size = std::min<ui16>(details.curexe_size, sizeof(details.curexe_data));
+                details.header_size = std::min<ui16>(details.header_size, sizeof(details.header_data));
+                details.curdir_size = std::min<ui16>(details.curdir_size, sizeof(details.curdir_data));
 
                 auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client) { return client.procid == packet.procid; });
                 auto& client = iter != joined.end() ? *iter
                                                     : joined.emplace_front();
                 client.procid = packet.procid;
                 client.thread = packet.thread;
+                client.pgroup = details.app_groupid;
                 client.events.emplace_back(inpmod, hndl::type::events, &events);
                 client.scroll.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
+                client.detail.iconid = details.win_icon_id;
+                client.detail.hotkey = details.used_hotkey;
+                client.detail.config = details.start_flags;
+                client.detail.colors = details.fill_colors;
+                client.detail.format = details.window_mode;
+                client.detail.cliapp = details.climode_app;
+                client.detail.expose = details.win_visible;
+                client.detail.scroll = twod{ details.scroll_sz_x, details.scroll_sz_y };
+                client.detail.window = rect{{ details.window_at_x, details.window_at_y }, { details.window_sz_x, details.window_sz_y }};
+                client.detail.header = utf::to_utf(details.header_data, details.header_size / sizeof(wchr));
+                client.detail.curexe = utf::to_utf(details.curexe_data, details.curexe_size / sizeof(wchr));
+                client.detail.curdir = utf::to_utf(details.curdir_data, details.curdir_size / sizeof(wchr));
+                log("\tclient procid ", client.procid, "\n",
+                    "\tclient thread ", client.thread, "\n",
+                    "\tclient pgroup ", client.pgroup, "\n",
+                    "\tclient iconid ", client.detail.iconid, "\n",
+                    "\tclient hotkey ", client.detail.hotkey, "\n",
+                    "\tclient config ", client.detail.config, "\n",
+                    "\tclient colors ", client.detail.colors, "\n",
+                    "\tclient format ", client.detail.format, "\n",
+                    "\tclient scroll ", client.detail.scroll, "\n",
+                    "\tclient cliapp ", client.detail.cliapp, "\n",
+                    "\tclient expose ", client.detail.expose, "\n",
+                    "\tclient window ", client.detail.window, "\n",
+                    "\tclient header ", client.detail.header, "\n",
+                    "\tclient apname ", client.detail.curexe, "\n",
+                    "\tclient curdir ", client.detail.curdir);
 
                 struct connect_info : wrap<connect_info>
                 {
@@ -4818,7 +4892,7 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-
+                events.alert(packet.input.event, packet.input.group);
             }
             template<bool RawWrite = faux>
             auto api_scrollback_write_text           ()
