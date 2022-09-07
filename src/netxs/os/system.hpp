@@ -3931,53 +3931,11 @@ namespace netxs::os
                     }
                     return result.length;
                 }
-            };
-
-            struct hndl
-            {
-                enum type
+                auto interrupt(fd_t condrv)
                 {
-                    unused,
-                    events,
-                    scroll,
-                };
-
-                ui32& mode;
-                type  kind;
-                void* link;
-                text  rest;
-
-                hndl(ui32& mode, type kind, void* link)
-                    : mode{ mode },
-                      kind{ kind },
-                      link{ link }
-                { }
-                friend auto& operator << (std::ostream& s, hndl const& h)
-                {
-                    if (h.kind == hndl::type::events)
-                    {
-                        s << "events 0";
-                        if (h.mode & ENABLE_ECHO_INPUT            ) s << " | ENABLE_ECHO_INPUT";
-                        if (h.mode & ENABLE_INSERT_MODE           ) s << " | ENABLE_INSERT_MODE";
-                        if (h.mode & ENABLE_LINE_INPUT            ) s << " | ENABLE_LINE_INPUT";
-                        if (h.mode & ENABLE_MOUSE_INPUT           ) s << " | ENABLE_MOUSE_INPUT";
-                        if (h.mode & ENABLE_PROCESSED_INPUT       ) s << " | ENABLE_PROCESSED_INPUT";
-                        if (h.mode & ENABLE_QUICK_EDIT_MODE       ) s << " | ENABLE_QUICK_EDIT_MODE";
-                        if (h.mode & ENABLE_WINDOW_INPUT          ) s << " | ENABLE_WINDOW_INPUT";
-                        if (h.mode & ENABLE_VIRTUAL_TERMINAL_INPUT) s << " | ENABLE_VIRTUAL_TERMINAL_INPUT";
-                        s << " }";
-                    }
-                    else
-                    {
-                        s << "scroll 0";
-                        if (h.mode & ENABLE_PROCESSED_OUTPUT           ) s << " | ENABLE_PROCESSED_OUTPUT";
-                        if (h.mode & ENABLE_WRAP_AT_EOL_OUTPUT         ) s << " | ENABLE_WRAP_AT_EOL_OUTPUT";
-                        if (h.mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) s << " | ENABLE_VIRTUAL_TERMINAL_PROCESSING";
-                        if (h.mode & DISABLE_NEWLINE_AUTO_RETURN       ) s << " | DISABLE_NEWLINE_AUTO_RETURN";
-                        if (h.mode & ENABLE_LVB_GRID_WORLDWIDE         ) s << " | ENABLE_LVB_GRID_WORLDWIDE";
-                        s << " }";
-                    }
-                    return s;
+                    status = nt::status::invalid_handle;
+                    auto rc = nt::ioctl(nt::console::op::complete_io, condrv, *this);
+                    log("\tpending operation aborted");
                 }
             };
 
@@ -3999,7 +3957,55 @@ namespace netxs::os
 
             struct clnt
             {
-                using list = std::list<hndl>;
+                struct hndl
+                {
+                    enum type
+                    {
+                        unused,
+                        events,
+                        scroll,
+                    };
+
+                    clnt& boss;
+                    ui32& mode;
+                    type  kind;
+                    void* link;
+                    text  rest;
+
+                    hndl(clnt& boss, ui32& mode, type kind, void* link)
+                        : boss{ boss },
+                          mode{ mode },
+                          kind{ kind },
+                          link{ link }
+                    { }
+                    friend auto& operator << (std::ostream& s, hndl const& h)
+                    {
+                        if (h.kind == hndl::type::events)
+                        {
+                            s << "events 0";
+                            if (h.mode & ENABLE_ECHO_INPUT            ) s << " | ENABLE_ECHO_INPUT";
+                            if (h.mode & ENABLE_INSERT_MODE           ) s << " | ENABLE_INSERT_MODE";
+                            if (h.mode & ENABLE_LINE_INPUT            ) s << " | ENABLE_LINE_INPUT";
+                            if (h.mode & ENABLE_MOUSE_INPUT           ) s << " | ENABLE_MOUSE_INPUT";
+                            if (h.mode & ENABLE_PROCESSED_INPUT       ) s << " | ENABLE_PROCESSED_INPUT";
+                            if (h.mode & ENABLE_QUICK_EDIT_MODE       ) s << " | ENABLE_QUICK_EDIT_MODE";
+                            if (h.mode & ENABLE_WINDOW_INPUT          ) s << " | ENABLE_WINDOW_INPUT";
+                            if (h.mode & ENABLE_VIRTUAL_TERMINAL_INPUT) s << " | ENABLE_VIRTUAL_TERMINAL_INPUT";
+                            s << " }";
+                        }
+                        else
+                        {
+                            s << "scroll 0";
+                            if (h.mode & ENABLE_PROCESSED_OUTPUT           ) s << " | ENABLE_PROCESSED_OUTPUT";
+                            if (h.mode & ENABLE_WRAP_AT_EOL_OUTPUT         ) s << " | ENABLE_WRAP_AT_EOL_OUTPUT";
+                            if (h.mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) s << " | ENABLE_VIRTUAL_TERMINAL_PROCESSING";
+                            if (h.mode & DISABLE_NEWLINE_AUTO_RETURN       ) s << " | DISABLE_NEWLINE_AUTO_RETURN";
+                            if (h.mode & ENABLE_LVB_GRID_WORLDWIDE         ) s << " | ENABLE_LVB_GRID_WORLDWIDE";
+                            s << " }";
+                        }
+                        return s;
+                    }
+                };
 
                 struct info
                 {
@@ -4017,12 +4023,16 @@ namespace netxs::os
                     text curdir{};
                 };
 
+                using list = std::list<hndl>;
+
                 list tokens;
                 ui32 procid;
                 ui32 thread;
                 ui32 pgroup;
                 info detail;
             };
+            
+            using hndl = clnt::hndl;
 
             struct base
             {
@@ -4074,7 +4084,7 @@ namespace netxs::os
             struct event_list
             {
                 using hist = netxs::imap<ui32, std::vector<std::pair<text, text>>>;
-                using jobs = netxs::jobs<std::tuple<decltype(base{}.taskid), decltype(base{}.target), bool>>;
+                using jobs = netxs::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
                 using fire = netxs::os::fire;
                 using lock = std::recursive_mutex;
                 using sync = std::condition_variable_any;
@@ -4111,6 +4121,22 @@ namespace netxs::os
                 {
                     auto lock = std::lock_guard{ locker };
                     return static_cast<ui32>(buffer.size());
+                }
+                void abort(hndl* handle_ptr)
+                {
+                    auto lock = std::lock_guard{ locker };
+                    worker.cancel([&](auto& token)
+                    {
+                        auto& answer = std::get<0>(token);
+                        auto& target = std::get<1>(token);
+                        auto& cancel = std::get<2>(token);
+                        if (target == handle_ptr)
+                        {
+                            cancel = true;
+                            answer.interrupt(server.condrv);
+                        }
+                    });
+                    signal.notify_all();
                 }
                 void alert(si32 what, ui32 pgroup = 0)
                 {
@@ -4266,30 +4292,22 @@ namespace netxs::os
                         //  - input history menu takes keypresses from the shared input buffer
                         //  - '\n' is added to the '\r'
 
-                        auto token = std::tuple(packet.taskid, packet.target, faux);
-                        worker.add(token, [&, answer = server.answer, readstep, packet, initdata = text{ initdata }, nameview = utf::to_utf(nameview)](auto& token) mutable
+                        auto token = jobs::token(server.answer, packet.target, faux);
+                        worker.add(token, [&, readstep, packet, initdata = text{ initdata }, nameview = utf::to_utf(nameview)](auto& token) mutable
                         {
                             auto lock = std::unique_lock{ locker };
-                            answer.buffer = &packet.input; // Restore after copy.
+                            auto& answer = std::get<0>(token);
                             auto& cancel = std::get<2>(token);
+                            answer.buffer = &packet.input; // Restore after copy.
+
                             static constexpr auto spaces = " \n\r\t";
-                                 if (closed) return;
-                            else if (cancel)
-                            {
-                                //...
-                                return;
-                            }
+                            if (closed || cancel) return;
                             
                             if (packet.input.utf16) cooked.wstr = wiew((wchr*)initdata.data(), initdata.size() / 2);
                             else                    cooked.wstr = utf::to_utf(initdata);
 
                             readline(lock, packet.input.EOFon, packet.input.utf16, packet.input.stops | 1 << '\r', cancel);
-                                 if (closed) return;
-                            else if (cancel)
-                            {
-                                //...
-                                return;
-                            }
+                            if (closed || cancel) return;
 
                             auto trimmed = utf::trim(cooked.ustr, spaces);
                             if (trimmed.size() > 0)
@@ -4356,26 +4374,19 @@ namespace netxs::os
                         }
                         else
                         {
-                            auto token = std::tuple(packet.taskid, packet.target, faux);
-                            worker.add(token, [&, answer = server.answer, packet](auto& token) mutable
+                            auto token = jobs::token(server.answer, packet.target, faux);
+                            worker.add(token, [&, packet](auto& token) mutable
                             {
                                 auto lock = std::unique_lock{ locker };
-                                answer.buffer = &packet.input; // Restore after copy.
+                                auto& answer = std::get<0>(token);
                                 auto& cancel = std::get<2>(token);
-                                     if (closed) return;
-                                else if (cancel)
-                                {
-                                    //...
-                                    return;
-                                }
+                                answer.buffer = &packet.input; // Restore after copy.
+
+                                if (closed || cancel) return;
                                 while ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel && buffer.empty())
                                 { }
-                                     if (closed) return;
-                                else if (cancel)
-                                {
-                                    //...
-                                    return;
-                                }
+                                if (closed || cancel) return;
+
                                 packet.reply.count = readevents<true>(packet, answer);
                                 log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count);
                             });
@@ -4469,8 +4480,8 @@ namespace netxs::os
                 auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client) { return client.procid == packet.procid; });
                 auto& client = iter != joined.end() ? *iter
                                                     : joined.emplace_front();
-                auto& inphndl = client.tokens.emplace_front(inpmod, hndl::type::events, &events);
-                auto& outhndl = client.tokens.emplace_front(outmod, hndl::type::scroll, &uiterm.target);
+                auto& inphndl = client.tokens.emplace_front(client, inpmod, hndl::type::events, &events);
+                auto& outhndl = client.tokens.emplace_front(client, outmod, hndl::type::scroll, &uiterm.target);
                 client.procid = packet.procid;
                 client.thread = packet.thread;
                 client.pgroup = details.app_groupid;
@@ -4567,8 +4578,8 @@ namespace netxs::os
                 log("\tclient procid ", client.procid);
                 auto create = [&](auto type, auto msg)
                 {
-                    auto& h = type == hndl::type::events ? client.tokens.emplace_back(inpmod, hndl::type::events, &uiterm)
-                                                         : client.tokens.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
+                    auto& h = type == hndl::type::events ? client.tokens.emplace_back(client, inpmod, hndl::type::events, &uiterm)
+                                                         : client.tokens.emplace_back(client, outmod, hndl::type::scroll, &uiterm.target);
                     answer.report = reinterpret_cast<ui64>(&h);
                     log(msg, &h);
                 };
@@ -4583,7 +4594,26 @@ namespace netxs::os
             }
             auto api_process_delete_handle           ()
             {
+                struct payload : drvpacket<payload>
+                { };
+                auto& packet = payload::cast(upload);
                 log(prompt, "delete console handle");
+                auto handle_ptr = packet.target;
+                if (handle_ptr == nullptr)
+                {
+                    log("\tabort: handle_ptr = invalid_value (0)");
+                    answer.status = nt::status::invalid_handle;
+                    return;
+                }
+                auto& client = handle_ptr->boss;
+                auto iter = std::find_if(client.tokens.begin(), client.tokens.end(), [&](auto& token){ return handle_ptr == &token; });
+                if (iter != client.tokens.end())
+                {
+                    log("\tdeactivate handle 0x", utf::to_hex(handle_ptr));
+                    events.abort(handle_ptr);
+                    client.tokens.erase(iter);
+                }
+                else log("\trequested handle 0x", utf::to_hex(handle_ptr), " not found");
             }
             auto api_process_codepage_get            ()
             {

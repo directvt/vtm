@@ -74,34 +74,40 @@ namespace netxs
     class jobs
     {
     public:
-        using func = std::function<void(T&)>;
-        using item = std::pair<T, func>;
+        using token = T;
+        using func = std::function<void(token&)>;
+        using item = std::pair<token, func>;
 
         std::mutex              mutex;
         std::condition_variable synch;
         std::list<item>         queue;
-        std::list<item>         cache;
         bool                    alive;
         std::thread             agent;
 
+        template<class P>
+        void cancel(P&& deactivate)
+        {
+            auto guard = std::unique_lock{ mutex };
+            for (auto& job : queue)
+            {
+                auto& token = job.first;
+                deactivate(token);
+            }
+        }
         void worker()
         {
             auto guard = std::unique_lock{ mutex };
             while (alive)
             {
                 if (queue.empty()) synch.wait(guard);
-
-                std::swap(queue, cache);
-                guard.unlock();
-
-                while (alive && cache.size())
+                while (alive && queue.size())
                 {
-                    auto& [token, proc] = cache.front();
+                    auto& [token, proc] = queue.front();
+                    guard.unlock();
                     proc(token);
-                    cache.pop_front();
+                    guard.lock();
+                    queue.pop_front();
                 }
-
-                guard.lock();
             }
         }
 

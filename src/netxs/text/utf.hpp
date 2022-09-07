@@ -1119,6 +1119,11 @@ namespace netxs::utf
         }
         return crop;
     }
+    template <class T, class ...Args>
+    auto to_hex(T* ptr, Args&&... args)
+    {
+        return to_hex(reinterpret_cast<std::uintptr_t>(ptr), std::forward<Args>(args)...);
+    }
     // utf: to_hex without allocations (the crop should has a reserved capacity).
     template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(text& crop, V number, size_t width = sizeof(V) * 2, char filler = '0')
