@@ -4739,8 +4739,6 @@ namespace netxs::os
                 }
                 auto& handle = *handle_ptr;
                 handle.mode = packet.input.mode;
-                //todo signal to uiterm about resizing mode changed (do not change buffer width if ENABLE_WINDOW_INPUT is enabled).
-                // ENABLE_WINDOW_INPUT is a global flag - if someone has set it, they keep track the buffer size, so we can only change the viewport.
                 log("\tinput.mode ", handle);
             }
             template<bool RawRead = faux>
@@ -5131,7 +5129,7 @@ namespace netxs::os
                 log(prompt, "SetConsoleCursorPosition ");
                 auto caretpos = twod{ packet.input.coorx, packet.input.coory };
                 log("\tinput.cursor_coor ", caretpos);
-                uiterm.target->cup(caretpos + uiterm.origin + dot_11);
+                uiterm.target->cup(caretpos + dot_11);
             }
             auto api_scrollback_cursor_info_get      ()
             {
@@ -5183,25 +5181,25 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
-                auto viewport = rect{-uiterm.origin, uiterm.target->panel };
-                auto buffsize = std::max(viewport.size, uiterm.size());
-                auto caretpos = viewport.coor + uiterm.target->coord;
+                auto viewport = uiterm.target->panel;
+                auto caretpos = uiterm.target->coord;
                 packet.reply.cursorposx = caretpos.x;
                 packet.reply.cursorposy = caretpos.y;
-                packet.reply.buffersz_x = buffsize.x;
-                packet.reply.buffersz_y = buffsize.y;
-                packet.reply.windowsz_x = viewport.size.x;
-                packet.reply.windowsz_y = viewport.size.y;
-                packet.reply.windowposx = viewport.coor.x;
-                packet.reply.windowposy = viewport.coor.y;
+                packet.reply.buffersz_x = viewport.x;
+                packet.reply.buffersz_y = viewport.y;
+                packet.reply.windowsz_x = viewport.x;
+                packet.reply.windowsz_y = viewport.y;
+                packet.reply.maxwinsz_x = viewport.x;
+                packet.reply.maxwinsz_y = viewport.y;
+                packet.reply.windowposx = 0;
+                packet.reply.windowposy = 0;
                 packet.reply.fullscreen = faux;
                 //packet.reply.attributes = ;
                 //packet.reply.popupcolor = ;
                 //packet.reply.rgbpalette = ;
 
                 log("\treply.cursor_coor ", caretpos);
-                log("\treply.buffer_size ", buffsize);
-                log("\treply.window_area ", viewport);
+                log("\treply.window_size ", viewport);
 
             }
             auto api_scrollback_info_set             ()
@@ -5224,6 +5222,24 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
+                auto caretpos = twod{ packet.input.cursorposx, packet.input.cursorposy };
+                uiterm.target->cup(caretpos + dot_11);
+                log("\tbuffer size ", twod{ packet.input.buffersz_x, packet.input.buffersz_y });
+                log("\tcursor coor ", twod{ packet.input.cursorposx, packet.input.cursorposy });
+                log("\twindow coor ", twod{ packet.input.windowposx, packet.input.windowposy });
+                log("\tattributes x", utf::to_hex(packet.input.attributes));
+                log("\twindow size ", twod{ packet.input.windowsz_x, packet.input.windowsz_y });
+                log("\tmaxwin size ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y });
+                log("\tpopup color ", packet.input.popupcolor);
+                log("\tfull screen ", packet.input.fullscreen);
+                log("\trgb palette ");
+                auto i = 0;
+                for (auto c : packet.input.rgbpalette)
+                {
+                    log("\t\t", utf::to_hex(i), " ", rgba{ c });
+                }
+                //todo set palette
+                //todo set attributes
 
             }
             auto api_scrollback_size_set             ()
@@ -5252,7 +5268,10 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
-
+                auto viewport = uiterm.target->panel;
+                packet.reply.maxwinsz_x = viewport.x;
+                packet.reply.maxwinsz_y = viewport.y;
+                log("\tmaxwin size ", viewport);
             }
             auto api_scrollback_viewport_set         ()
             {
