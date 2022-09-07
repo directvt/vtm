@@ -619,9 +619,9 @@ namespace netxs::events
                 {
                     auto lock = events::sync{};
                     auto& [ptr, proc] = cache.front();
-                    if (auto item = ptr.lock())
+                    if (auto token = ptr.lock())
                     {
-                        proc(*item);
+                        proc(*token);
                     }
                     cache.pop_front();
                 }
@@ -642,18 +642,18 @@ namespace netxs::events
             mutex.unlock();
             agent.join();
         }
-        template<class T>
-        void add(enqueue_t::wptr object_ptr, T&& proc)
+        template<class P>
+        void add(enqueue_t::wptr object_ptr, P&& proc)
         {
             auto guard = std::lock_guard{ mutex };
-            if constexpr (std::is_copy_constructible_v<T>)
+            if constexpr (std::is_copy_constructible_v<P>)
             {
-                queue.emplace_back(object_ptr, std::forward<T>(proc));
+                queue.emplace_back(object_ptr, std::forward<P>(proc));
             }
             else
             {
                 //todo issue with MSVC: Generalized lambda capture does't work.
-                auto proxy = std::make_shared<std::decay_t<T>>(std::forward<T>(proc));
+                auto proxy = std::make_shared<std::decay_t<P>>(std::forward<P>(proc));
                 queue.emplace_back(object_ptr, [proxy](auto&&... args)->decltype(auto)
                 {
                     return (*proxy)(decltype(args)(args)...);

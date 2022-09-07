@@ -4084,15 +4084,16 @@ namespace netxs::os
                     ui32 _pad_3;
                 };
 
-                //todo generalize
+                template<class T>
                 struct enqueue_t
                 {
-                    using func = std::function<void()>;
+                    using func = std::function<void(T&)>;
+                    using item = std::pair<T, func>;
 
                     std::mutex              mutex;
                     std::condition_variable synch;
-                    std::list<func>         queue;
-                    std::list<func>         cache;
+                    std::list<item>         queue;
+                    std::list<item>         cache;
                     bool                    alive;
                     std::thread             agent;
 
@@ -4108,8 +4109,8 @@ namespace netxs::os
 
                             while (alive && cache.size())
                             {
-                                auto& proc = cache.front();
-                                proc();
+                                auto& [token, proc] = cache.front();
+                                proc(token);
                                 cache.pop_front();
                             }
 
@@ -4129,18 +4130,19 @@ namespace netxs::os
                         mutex.unlock();
                         agent.join();
                     }
-                    template<class T>
-                    void add(T&& proc)
+                    template<class TT, class P>
+                    void add(TT&& token, P&& proc)
                     {
                         auto guard = std::lock_guard{ mutex };
-                        if constexpr (std::is_copy_constructible_v<T>)
+                        if constexpr (std::is_copy_constructible_v<P>)
                         {
-                            queue.emplace_back(std::forward<T>(proc));
+                            queue.emplace_back(std::forward<TT>(token), std::forward<P>(proc));
                         }
                         else
                         {
-                            auto proxy = std::make_shared<std::decay_t<T>>(std::forward<T>(proc));
-                            queue.emplace_back([proxy](auto&&... args)->decltype(auto)
+                            //todo issue with MSVC: Generalized lambda capture does't work.
+                            auto proxy = std::make_shared<std::decay_t<P>>(std::forward<P>(proc));
+                            queue.emplace_back(std::forward<TT>(token), [proxy](auto&&... args)->decltype(auto)
                             {
                                 return (*proxy)(decltype(args)(args)...);
                             });
@@ -4149,6 +4151,8 @@ namespace netxs::os
                     }
                 };
 
+                using jobs = enqueue_t<std::tuple<decltype(base{}.taskid), decltype(base{}.target), bool>>;
+
                 consrv&                     server;
                 std::list<INPUT_RECORD>     buffer; // events_t: Input event buffer.
                 std::vector<INPUT_RECORD>   recbuf; // events_t: Temporary buffer for copying event records.
@@ -4156,7 +4160,7 @@ namespace netxs::os
                 std::recursive_mutex        locker; // events_t: Input event buffer mutex.
                 cook                        cooked; // events_t: Cooked input string.
                 hist_list                   inputs; // events_t: Input history.
-                enqueue_t                   worker; // events_t: Background task executer.
+                jobs                        worker; // events_t: Background task executer.
                 bool                        closed{ faux }; // events_t: Console server was shutdown.
                 os::fire                    ondata{ true }; // events_t: Signal on input buffer data.
 
@@ -4253,11 +4257,14 @@ namespace netxs::os
                         }
                     }
 
-                    ondata.reset();
-                    signal.notify_one();
+                    if (!buffer.empty())
+                    {
+                        ondata.reset();
+                        signal.notify_one();
+                    }
                 }
                 template<class L>
-                auto readline(L& lock, bool EOFon, bool utf16, ui32 stops)
+                auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
                     auto done = faux;
                     do
@@ -4293,7 +4300,7 @@ namespace netxs::os
                             buffer.pop_front();
                         }
                     }
-                    while (!done && ((void)signal.wait(lock, [&]{ return buffer.size() || closed; }), !closed));
+                    while (!done && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
 
                     if (EOFon)
                     {
@@ -4315,17 +4322,31 @@ namespace netxs::os
                         //  - input buffer is shared across the process tree
                         //  - input history menu takes keypresses from the shared input buffer
                         //  - '\n' is added to the '\r'
-                        worker.add([&, answer = server.answer, readstep, packet, initdata = text{ initdata }, nameview = utf::to_utf(nameview)]() mutable
+
+                        auto token = std::tuple(packet.taskid, packet.target, faux);
+                        worker.add(token, [&, answer = server.answer, readstep, packet, initdata = text{ initdata }, nameview = utf::to_utf(nameview)](auto& token) mutable
                         {
                             auto lock = std::unique_lock{ locker };
+                            answer.buffer = &packet.input; // Restore after copy.
+                            auto& cancel = std::get<2>(token);
                             static constexpr auto spaces = " \n\r\t";
-                            if (closed) return;
+                                 if (closed) return;
+                            else if (cancel)
+                            {
+                                //...
+                                return;
+                            }
                             
                             if (packet.input.utf16) cooked.wstr = wiew((wchr*)initdata.data(), initdata.size() / 2);
                             else                    cooked.wstr = utf::to_utf(initdata);
 
-                            readline(lock, packet.input.EOFon, packet.input.utf16, packet.input.stops | 1 << '\r');
-                            if (closed) return;
+                            readline(lock, packet.input.EOFon, packet.input.utf16, packet.input.stops | 1 << '\r', cancel);
+                                 if (closed) return;
+                            else if (cancel)
+                            {
+                                //...
+                                return;
+                            }
 
                             auto trimmed = utf::trim(cooked.ustr, spaces);
                             if (trimmed.size() > 0)
@@ -4335,7 +4356,6 @@ namespace netxs::os
                             }
                             auto data = view{ cooked.rest.data(), std::min((ui32)cooked.rest.size(), readstep) };
                             cooked.rest.remove_prefix(data.size());
-                            answer.buffer = &packet.input; // Restore after copy.
                             packet.reply.ctrls = cooked.ctrl;
                             packet.reply.bytes = answer.send_data<true>(server.condrv, data);
                         });
@@ -4393,14 +4413,26 @@ namespace netxs::os
                         }
                         else
                         {
-                            worker.add([&, packet, answer = server.answer]() mutable
+                            auto token = std::tuple(packet.taskid, packet.target, faux);
+                            worker.add(token, [&, answer = server.answer, packet](auto& token) mutable
                             {
                                 auto lock = std::unique_lock{ locker };
-                                if (closed) return;
-                                while ((void)signal.wait(lock, [&]{ return buffer.size() || closed; }), !closed && buffer.empty())
-                                { }
-                                if (closed) return;
                                 answer.buffer = &packet.input; // Restore after copy.
+                                auto& cancel = std::get<2>(token);
+                                     if (closed) return;
+                                else if (cancel)
+                                {
+                                    //...
+                                    return;
+                                }
+                                while ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel && buffer.empty())
+                                { }
+                                     if (closed) return;
+                                else if (cancel)
+                                {
+                                    //...
+                                    return;
+                                }
                                 packet.reply.count = readevents<true>(packet, answer);
                                 log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count);
                             });
