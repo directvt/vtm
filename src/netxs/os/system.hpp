@@ -4073,7 +4073,13 @@ namespace netxs::os
 
             struct event_list
             {
-                using hist_list = netxs::imap<ui32, std::vector<std::pair<text, text>>>;
+                using hist = netxs::imap<ui32, std::vector<std::pair<text, text>>>;
+                using jobs = netxs::jobs<std::tuple<decltype(base{}.taskid), decltype(base{}.target), bool>>;
+                using fire = netxs::os::fire;
+                using lock = std::recursive_mutex;
+                using sync = std::condition_variable_any;
+                using vect = std::vector<INPUT_RECORD>;
+                using list = std::list<INPUT_RECORD>;
 
                 struct nttask
                 {
@@ -4084,85 +4090,22 @@ namespace netxs::os
                     ui32 _pad_3;
                 };
 
-                template<class T>
-                struct enqueue_t
-                {
-                    using func = std::function<void(T&)>;
-                    using item = std::pair<T, func>;
+                consrv& server; // events_t: Console server reference.
+                list    buffer; // events_t: Input event list.
+                vect    recbuf; // events_t: Temporary buffer for copying event records.
+                sync    signal; // events_t: Input event append signal.
+                lock    locker; // events_t: Input event buffer mutex.
+                cook    cooked; // events_t: Cooked input string.
+                hist    inputs; // events_t: Input history.
+                jobs    worker; // events_t: Background task executer.
+                bool    closed; // events_t: Console server was shutdown.
+                fire    ondata; // events_t: Signal on input buffer data.
 
-                    std::mutex              mutex;
-                    std::condition_variable synch;
-                    std::list<item>         queue;
-                    std::list<item>         cache;
-                    bool                    alive;
-                    std::thread             agent;
-
-                    void worker()
-                    {
-                        auto guard = std::unique_lock{ mutex };
-                        while (alive)
-                        {
-                            if (queue.empty()) synch.wait(guard);
-
-                            std::swap(queue, cache);
-                            guard.unlock();
-
-                            while (alive && cache.size())
-                            {
-                                auto& [token, proc] = cache.front();
-                                proc(token);
-                                cache.pop_front();
-                            }
-
-                            guard.lock();
-                        }
-                    }
-
-                    enqueue_t()
-                        : alive{ true },
-                          agent{ &enqueue_t::worker, this }
-                    { }
-                   ~enqueue_t()
-                    {
-                        mutex.lock();
-                        alive = faux;
-                        synch.notify_one();
-                        mutex.unlock();
-                        agent.join();
-                    }
-                    template<class TT, class P>
-                    void add(TT&& token, P&& proc)
-                    {
-                        auto guard = std::lock_guard{ mutex };
-                        if constexpr (std::is_copy_constructible_v<P>)
-                        {
-                            queue.emplace_back(std::forward<TT>(token), std::forward<P>(proc));
-                        }
-                        else
-                        {
-                            //todo issue with MSVC: Generalized lambda capture does't work.
-                            auto proxy = std::make_shared<std::decay_t<P>>(std::forward<P>(proc));
-                            queue.emplace_back(std::forward<TT>(token), [proxy](auto&&... args)->decltype(auto)
-                            {
-                                return (*proxy)(decltype(args)(args)...);
-                            });
-                        }
-                        synch.notify_one();
-                    }
-                };
-
-                using jobs = enqueue_t<std::tuple<decltype(base{}.taskid), decltype(base{}.target), bool>>;
-
-                consrv&                     server;
-                std::list<INPUT_RECORD>     buffer; // events_t: Input event buffer.
-                std::vector<INPUT_RECORD>   recbuf; // events_t: Temporary buffer for copying event records.
-                std::condition_variable_any signal; // events_t: Input event append signal.
-                std::recursive_mutex        locker; // events_t: Input event buffer mutex.
-                cook                        cooked; // events_t: Cooked input string.
-                hist_list                   inputs; // events_t: Input history.
-                jobs                        worker; // events_t: Background task executer.
-                bool                        closed{ faux }; // events_t: Console server was shutdown.
-                os::fire                    ondata{ true }; // events_t: Signal on input buffer data.
+                event_list(consrv& serv)
+                    :  server{ serv },
+                       closed{ faux },
+                       ondata{ true }
+                { }
 
                 auto count()
                 {

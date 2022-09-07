@@ -68,6 +68,75 @@ namespace netxs
             return *this;
         }
     };
+
+    // queue: Separate thread for executing deferred tasks.
+    template<class T>
+    class jobs
+    {
+    public:
+        using func = std::function<void(T&)>;
+        using item = std::pair<T, func>;
+
+        std::mutex              mutex;
+        std::condition_variable synch;
+        std::list<item>         queue;
+        std::list<item>         cache;
+        bool                    alive;
+        std::thread             agent;
+
+        void worker()
+        {
+            auto guard = std::unique_lock{ mutex };
+            while (alive)
+            {
+                if (queue.empty()) synch.wait(guard);
+
+                std::swap(queue, cache);
+                guard.unlock();
+
+                while (alive && cache.size())
+                {
+                    auto& [token, proc] = cache.front();
+                    proc(token);
+                    cache.pop_front();
+                }
+
+                guard.lock();
+            }
+        }
+
+        jobs()
+            : alive{ true },
+              agent{ &jobs::worker, this }
+        { }
+       ~jobs()
+        {
+            mutex.lock();
+            alive = faux;
+            synch.notify_one();
+            mutex.unlock();
+            agent.join();
+        }
+        template<class TT, class P>
+        void add(TT&& token, P&& proc)
+        {
+            auto guard = std::lock_guard{ mutex };
+            if constexpr (std::is_copy_constructible_v<P>)
+            {
+                queue.emplace_back(std::forward<TT>(token), std::forward<P>(proc));
+            }
+            else
+            {
+                //todo issue with MSVC: Generalized lambda capture does't work.
+                auto proxy = std::make_shared<std::decay_t<P>>(std::forward<P>(proc));
+                queue.emplace_back(std::forward<TT>(token), [proxy](auto&&... args)->decltype(auto)
+                {
+                    return (*proxy)(decltype(args)(args)...);
+                });
+            }
+            synch.notify_one();
+        }
+    };
 }
 
 #endif // NETXS_QUEUE_HPP
