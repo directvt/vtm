@@ -5516,6 +5516,28 @@ namespace netxs::os
                 auto& packet = payload::cast(upload);
 
             }
+            auto api_window_xkeys                    ()
+            {
+                log(prompt, "SetConsoleKeyShortcuts");
+                struct payload : drvpacket<payload>
+                {
+                    struct
+                    {
+                        byte enabled;
+                        byte keyflag;
+                    }
+                    input;
+                };
+                auto& packet = payload::cast(upload);
+                log("\trequest ", packet.input.enabled ? "set" : "unset", " xkeys");
+                if (packet.input.keyflag & 0x01) log("\t\tAlt+Tab"  );
+                if (packet.input.keyflag & 0x02) log("\t\tAlt+Esc"  );
+                if (packet.input.keyflag & 0x04) log("\t\tAlt+Space");
+                if (packet.input.keyflag & 0x08) log("\t\tAlt+Enter");
+                if (packet.input.keyflag & 0x10) log("\t\tAlt+Prtsc");
+                if (packet.input.keyflag & 0x20) log("\t\tPrtsc"    );
+                if (packet.input.keyflag & 0x40) log("\t\tCtrl+Esc" );
+            }
             auto api_alias_get                       ()
             {
                 log(prompt, "GetConsoleAlias");
@@ -5879,6 +5901,7 @@ namespace netxs::os
                 apimap[0xA1] = &_::api_window_mode_get;
                 apimap[0x9D] = &_::api_window_mode_set;
                 apimap[0xAF] = &_::api_window_handle_get;
+                apimap[0xAC] = &_::api_window_xkeys;
                 apimap[0xA3] = &_::api_alias_get;
                 apimap[0xA2] = &_::api_alias_add;
                 apimap[0xA5] = &_::api_alias_exes_get_volume;
