@@ -3953,6 +3953,12 @@ namespace netxs::os
                     if (isutf16) rest = { reinterpret_cast<char*>(wstr.data()), wstr.size() * 2 };
                     else         rest = ustr;
                 }
+                auto drop()
+                {
+                    ustr.clear();
+                    wstr.clear();
+                    rest = ustr;
+                }
             };
 
             struct clnt
@@ -4307,7 +4313,13 @@ namespace netxs::os
                             else                    cooked.wstr = utf::to_utf(initdata);
 
                             readline(lock, packet.input.EOFon, packet.input.utf16, packet.input.stops | 1 << '\r', cancel);
-                            if (closed || cancel) return;
+                            if (cooked.ustr.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
+
+                            if (closed || cancel)
+                            {
+                                cooked.drop();
+                                return;
+                            }
 
                             auto trimmed = utf::trim(cooked.ustr, spaces);
                             if (trimmed.size() > 0)
@@ -4325,6 +4337,7 @@ namespace netxs::os
                     else
                     {
                         auto data = view{ cooked.rest.data(), std::min((ui32)cooked.rest.size(), readstep) };
+                        if (cooked.rest.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read rest line: ", utf::debase(cooked.rest));
                         cooked.rest.remove_prefix(data.size());
                         packet.reply.ctrls = cooked.ctrl;
                         packet.reply.bytes = server.answer.send_data(server.condrv, data);
@@ -4532,7 +4545,27 @@ namespace netxs::os
             }
             auto api_process_detach                  ()
             {
-                log(prompt, "detach process from console");
+                struct payload : drvpacket<payload>
+                { };
+                auto& packet = payload::cast(upload);
+                auto client_ptr = packet.client;
+                log(prompt, "detach process from console 0x", utf::to_hex(client_ptr));
+                auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
+                if (iter != joined.end())
+                {
+                    auto& client = *client_ptr;
+                    log("\tproc id ", client.procid);
+                    for (auto& handle : client.tokens)
+                    {
+                        auto handle_ptr = &handle;
+                        log("\tdeactivate handle 0x", utf::to_hex(handle_ptr));
+                        events.abort(handle_ptr);
+                    }
+                    client.tokens.clear();
+                    joined.erase(iter);
+                    log("\tprocess 0x", utf::to_hex(client_ptr), " detached");
+                }
+                else log("\trequested process 0x", utf::to_hex(client_ptr), " not found");
             }
             auto api_process_enlist                  ()
             {
@@ -4602,6 +4635,14 @@ namespace netxs::os
                 if (handle_ptr == nullptr)
                 {
                     log("\tabort: handle_ptr = invalid_value (0)");
+                    answer.status = nt::status::invalid_handle;
+                    return;
+                }
+                auto client_ptr = &handle_ptr->boss;
+                auto client_iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
+                if (client_iter == joined.end())
+                {
+                    log("\tbad handle 0x", utf::to_hex(handle_ptr));
                     answer.status = nt::status::invalid_handle;
                     return;
                 }
