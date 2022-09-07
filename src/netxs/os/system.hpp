@@ -4017,8 +4017,7 @@ namespace netxs::os
                     text curdir{};
                 };
 
-                list events;
-                list scroll;
+                list tokens;
                 ui32 procid;
                 ui32 thread;
                 ui32 pgroup;
@@ -4154,7 +4153,6 @@ namespace netxs::os
                 std::list<INPUT_RECORD>     buffer; // events_t: Input event buffer.
                 std::vector<INPUT_RECORD>   recbuf; // events_t: Temporary buffer for copying event records.
                 std::condition_variable_any signal; // events_t: Input event append signal.
-                std::condition_variable_any kbsync; // events_t: Keybd event append signal.
                 std::recursive_mutex        locker; // events_t: Input event buffer mutex.
                 cook                        cooked; // events_t: Cooked input string.
                 hist_list                   inputs; // events_t: Input history.
@@ -4188,7 +4186,7 @@ namespace netxs::os
                     auto lock = std::lock_guard{ locker };
                     alert(CTRL_CLOSE_EVENT);
                     closed = true;
-                    kbsync.notify_all();
+                    signal.notify_all();
                 }
                 void clear()
                 {
@@ -4256,7 +4254,6 @@ namespace netxs::os
                     }
 
                     ondata.reset();
-                    kbsync.notify_one();
                     signal.notify_one();
                 }
                 template<class L>
@@ -4296,7 +4293,7 @@ namespace netxs::os
                             buffer.pop_front();
                         }
                     }
-                    while (!done && ((void)kbsync.wait(lock, [&]{ return buffer.size() || closed; }), !closed));
+                    while (!done && ((void)signal.wait(lock, [&]{ return buffer.size() || closed; }), !closed));
 
                     if (EOFon)
                     {
@@ -4497,11 +4494,11 @@ namespace netxs::os
                 auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client) { return client.procid == packet.procid; });
                 auto& client = iter != joined.end() ? *iter
                                                     : joined.emplace_front();
+                auto& inphndl = client.tokens.emplace_front(inpmod, hndl::type::events, &events);
+                auto& outhndl = client.tokens.emplace_front(outmod, hndl::type::scroll, &uiterm.target);
                 client.procid = packet.procid;
                 client.thread = packet.thread;
                 client.pgroup = details.app_groupid;
-                client.events.emplace_back(inpmod, hndl::type::events, &events);
-                client.scroll.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
                 client.detail.iconid = details.win_icon_id;
                 client.detail.hotkey = details.used_hotkey;
                 client.detail.config = details.start_flags;
@@ -4538,8 +4535,8 @@ namespace netxs::os
                 };
                 auto& info = connect_info::cast(buffer);
                 info.client_id = &client;
-                info.events_id = &client.events.back();
-                info.scroll_id = &client.scroll.back();
+                info.events_id = &inphndl;
+                info.scroll_id = &outhndl;
 
                 answer.buffer = &info;
                 answer.length = sizeof(info);
@@ -4593,45 +4590,20 @@ namespace netxs::os
                 auto& packet = payload::cast(upload);
                 auto& client = *packet.client;
                 log("\tclient procid ", client.procid);
+                auto create = [&](auto type, auto msg)
+                {
+                    auto& h = type == hndl::type::events ? client.tokens.emplace_back(inpmod, hndl::type::events, &uiterm)
+                                                         : client.tokens.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
+                    answer.report = reinterpret_cast<ui64>(&h);
+                    log(msg, &h);
+                };
                 switch (packet.input.action)
                 {
-                    case type::dupevents:
-                    {
-                        auto& h = client.events.emplace_back(inpmod, hndl::type::events, &uiterm);
-                        answer.report = reinterpret_cast<ui64>(&h);
-                        log("\tdup events handle ", &h);
-                        break;
-                    }
-                    case type::dupscroll:
-                    {
-                        auto& h = client.scroll.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
-                        answer.report = reinterpret_cast<ui64>(&h);
-                        log("\tdup scroll handle ", &h);
-                        break;
-                    }
-                    case type::newscroll:
-                    {
-                        //todo create additional scroll buffer
-                        auto& h = client.scroll.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
-                        answer.report = reinterpret_cast<ui64>(&h);
-                        log("\tnew scroll handle ", &h);
-                        break;
-                    }
-                    default:
-                    {
-                        if (packet.input.rights & GENERIC_READ)
-                        {
-                            auto& h = client.events.emplace_back(inpmod, hndl::type::events, &uiterm);
-                            answer.report = reinterpret_cast<ui64>(&h);
-                            log("\tdup (GENERIC_READ) events handle ", &h);
-                        }
-                        else
-                        {
-                            auto& h = client.scroll.emplace_back(outmod, hndl::type::scroll, &uiterm.target);
-                            answer.report = reinterpret_cast<ui64>(&h);
-                            log("\tdup (GENERIC_WRITE) scroll handle ", &h);
-                        }
-                    }
+                    case type::dupevents: create(hndl::type::events, "\tdup events handle "); break;
+                    case type::dupscroll: create(hndl::type::scroll, "\tdup scroll handle "); break;
+                    case type::newscroll: create(hndl::type::scroll, "\tnew scroll handle "); break;
+                    default: if (packet.input.rights & GENERIC_READ) create(hndl::type::events, "\tdup (GENERIC_READ) events handle ");
+                             else                                    create(hndl::type::scroll, "\tdup (GENERIC_WRITE) scroll handle ");
                 }
             }
             auto api_process_delete_handle           ()
