@@ -4262,7 +4262,7 @@ namespace netxs::os
                                 {
                                     if (auto n = std::min((si32)cooked.wstr.size(), (si32)rec.Event.KeyEvent.wRepeatCount))
                                     {
-                                        ustr.cub(n).dch(n);
+                                        ustr.del(n);
                                         while (n--) cooked.wstr.pop_back();
                                     }
                                 }
@@ -4301,7 +4301,9 @@ namespace netxs::os
                         auto size = ustr.size();
                         if (last != size)
                         {
+                            lock.unlock();
                             server.uiterm.ondata(view{ ustr.data() + last, ustr.size() - last });
+                            lock.lock();
                             last = size;
                         }
                     }

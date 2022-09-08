@@ -1734,10 +1734,7 @@ namespace netxs::ui
             // bufferbase: CSI n P  Delete (not Erase) letters under the cursor.
     virtual void dch(si32 n) = 0;
             // bufferbase: '\x7F'  Delete characters backwards.
-            void del(si32 n)
-            {
-                log("bufferbase: not implemented: '\\x7F' Delete characters backwards.");
-            }
+    virtual void del(si32 n) = 0;
             // bufferbase: Move cursor forward by n.
     virtual void cuf(si32 n)
             {
@@ -2095,6 +2092,20 @@ namespace netxs::ui
             {
                 bufferbase::flush();
                 canvas.cutoff(coord, n, brush.nul());
+            }
+            // alt_screen: '\x7F'  Delete letter backward.
+            void del(si32 n) override
+            {
+                bufferbase::flush();
+                n = std::max(0, n);
+                coord.x -= n;
+                if (coord.x < 0)
+                {
+                    coord.y += coord.x / panel.x;
+                    coord.x  = coord.x % panel.x + panel.x;
+                }
+                canvas.backsp(coord, n, brush.nul());
+                if (coord.y < 0) coord = dot_00;
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(si32 n, char c = '\0') override
@@ -3629,6 +3640,62 @@ namespace netxs::ui
                     index.push_back(newid, 0, panel.x);
                 }
             }
+            // scroll_buf: .
+            template<feed Dir>
+            auto xconv(si32 x, bias align, si32 remain)
+            {
+                // forward: screen -> offset
+                // reverse: offset -> screen
+                auto map = [](auto& a, auto b)
+                {
+                    Dir == feed::fwd ? a -= b
+                                     : a += b;
+                };
+                switch (align)
+                {
+                    case bias::none:
+                    case bias::left:   break;
+                    case bias::right:  map(x, panel.x     - remain    ); break;
+                    case bias::center: map(x, panel.x / 2 - remain / 2); break;
+                };
+                return x;
+            }
+            // scroll_buf: .
+            auto screen_to_offset(line& curln, twod coor)
+            {
+                auto length = curln.length();
+                auto adjust = curln.style.jet();
+                if (curln.wrapped() && length > panel.x)
+                {
+                    auto endpos = length - 1;
+                    auto height = endpos / panel.x;
+                    auto remain = endpos % panel.x + 1;
+                    coor.x = coor.y < height ? std::clamp(coor.x, 0, panel.x - 1)
+                                             : std::clamp(xconv<feed::fwd>(coor.x, adjust, remain), 0, remain - 1);
+                    coor.x+= coor.y * panel.x;
+                }
+                else
+                {
+                    coor.x = std::clamp(xconv<feed::fwd>(coor.x, adjust, length), 0, length ? length - 1 : 0);
+                }
+                return coor.x;
+            }
+            // scroll_buf: .
+            auto offset_to_screen(line& curln, si32 offset)
+            {
+                auto size = curln.length();
+                auto last = size ? size - 1 : 0;
+                auto coor = twod{ std::clamp(offset, 0, last), 0 };
+                if (size > 1 && curln.wrapped())
+                {
+                    coor.y = coor.x / panel.x;
+                    coor.x = coor.x % panel.x;
+                    if (coor.y < last / panel.x) return coor;
+                    size = last % panel.x + 1;
+                }
+                coor.x = xconv<feed::rev>(coor.x, curln.style.jet(), size);
+                return coor;
+            }
             // scroll_buf: Update current SGR attributes. (! Check coord.y context)
             void _set_style(deco const& new_style)
             {
@@ -3816,6 +3883,29 @@ namespace netxs::ui
                     batch.recalc(curln);
                 }
                 else ctx.block.cutoff(coord, n, blank);
+            }
+            // scroll_buf: '\x7F'  Delete letters backward and move cursor back.
+            void del(si32 n) override
+            {
+                bufferbase::flush();
+                n = std::min(n, batch.caret);
+                if (batch.caret > 0 && n > 0)
+                {
+                    auto& curln = batch.current();
+                    auto p1 = offset_to_screen(curln, batch.caret);
+                    if (batch.caret == curln.length()) p1.x++;
+                    batch.caret -= n;
+                    auto p2 = offset_to_screen(curln, batch.caret);
+                    curln.splice<faux>(batch.caret, n, brush.nul());
+                    coord -= p1 - p2;
+                    if (coord.y < 0)
+                    {
+                        batch.basis -= std::abs(coord.y);
+                        assert(batch.basis >= 0);
+                        coord.y = 0;
+                        index_rebuild();
+                    }
+                }
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(si32 n, char c = '\0') override
@@ -4075,62 +4165,6 @@ namespace netxs::ui
                 static constexpr auto BOTTOM_ANCHORED = true;
                 batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
                 index_rebuild();
-            }
-            // scroll_buf: .
-            template<feed DIR>
-            auto xconv(si32 x, bias align, si32 remain)
-            {
-                // forward: screen -> offset
-                // reverse: offset -> screen
-                auto map = [](auto& a, auto b)
-                {
-                    DIR == feed::fwd ? a -= b
-                                     : a += b;
-                };
-                switch (align)
-                {
-                    case bias::none:
-                    case bias::left:   break;
-                    case bias::right:  map(x, panel.x     - remain    ); break;
-                    case bias::center: map(x, panel.x / 2 - remain / 2); break;
-                };
-                return x;
-            }
-            // scroll_buf: .
-            auto screen_to_offset(line& curln, twod coor)
-            {
-                auto length = curln.length();
-                auto adjust = curln.style.jet();
-                if (curln.wrapped() && length > panel.x)
-                {
-                    auto endpos = length - 1;
-                    auto height = endpos / panel.x;
-                    auto remain = endpos % panel.x + 1;
-                    coor.x = coor.y < height ? std::clamp(coor.x, 0, panel.x - 1)
-                                             : std::clamp(xconv<feed::fwd>(coor.x, adjust, remain), 0, remain - 1);
-                    coor.x+= coor.y * panel.x;
-                }
-                else
-                {
-                    coor.x = std::clamp(xconv<feed::fwd>(coor.x, adjust, length), 0, length ? length - 1 : 0);
-                }
-                return coor.x;
-            }
-            // scroll_buf: .
-            auto offset_to_screen(line& curln, si32 offset)
-            {
-                auto size = curln.length();
-                auto last = size ? size - 1 : 0;
-                auto coor = twod{ std::clamp(offset, 0, last), 0 };
-                if (size > 1 && curln.wrapped())
-                {
-                    coor.y = coor.x / panel.x;
-                    coor.x = coor.x % panel.x;
-                    if (coor.y < last / panel.x) return coor;
-                    size = last % panel.x + 1;
-                }
-                coor.x = xconv<feed::rev>(coor.x, curln.style.jet(), size);
-                return coor;
             }
             // scroll_buf: Render to the canvas.
             void output(face& target) override

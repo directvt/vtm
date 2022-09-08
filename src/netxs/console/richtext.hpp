@@ -843,6 +843,23 @@ namespace netxs::console
             auto end = dst + vol;
             while (dst != end) *dst++ = blank;
         }
+        // rich: Put n blanks on top of the chars and wrap them at the right edge.
+        void backsp(twod const& at, si32 count, cell const& blank)
+        {
+            auto len = size();
+            if (at.y >= len.y || (at.y == len.y - 1 && at.x >= len.x)) return;
+            auto ps = std::clamp(at, dot_00, len - dot_11);
+            auto d1 = at.y * len.x + ps.x;
+            auto d2 = ps.y * len.x + ps.x;
+            auto dt = d1 - d2;
+            count -= dt;
+            if (count <= 0) return;
+            auto vol = std::min(count, len.x * len.y - d2);
+            auto ptr = iter();
+            auto dst = ptr + d2;
+            auto end = dst + vol;
+            while (dst != end) *dst++ = blank;
+        }
         // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
         void insert(twod const& at, si32 count, cell const& blank)
         {
