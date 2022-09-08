@@ -4241,6 +4241,9 @@ namespace netxs::os
                 template<class L>
                 auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
+                    auto ustr = ansi::esc{};
+                    utf::to_utf(cooked.wstr, ustr);
+                    auto last = ustr.size();
                     auto done = faux;
                     do
                     {
@@ -4254,25 +4257,52 @@ namespace netxs::os
                              && rec.Event.KeyEvent.uChar.UnicodeChar != 0)
                             {
                                 auto c = rec.Event.KeyEvent.uChar.UnicodeChar;
-                                cooked.wstr += c;
-                                if (c == '\r') cooked.wstr += '\n';
                                 cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
-                                rec.Event.KeyEvent.wRepeatCount--;
-                                if (c < ' ' && stops & 1 << c)
+                                if (c == '\x08')
                                 {
-                                    done = true;
-                                    if (rec.Event.KeyEvent.wRepeatCount == 0)
+                                    if (auto n = std::min((si32)cooked.wstr.size(), (si32)rec.Event.KeyEvent.wRepeatCount))
                                     {
-                                        buffer.pop_front();
+                                        ustr.cub(n).dch(n);
+                                        while (n--) cooked.wstr.pop_back();
                                     }
-                                    break;
                                 }
-                                while (rec.Event.KeyEvent.wRepeatCount--)
+                                else
                                 {
+                                    rec.Event.KeyEvent.wRepeatCount--;
+                                    if (c < ' ')
+                                    {
+                                             if (stops & 1 << c) cooked.wstr += c;
+                                        else if (c == '\r')
+                                        {
+                                            ustr += "\r\n";
+                                            cooked.wstr += L"\r\n";
+                                        }
+
+                                        if (rec.Event.KeyEvent.wRepeatCount == 0)
+                                        {
+                                            buffer.pop_front();
+                                        }
+                                        done = true;
+                                        break;
+                                    }
+
+                                    utf::to_utf(c, ustr);
                                     cooked.wstr += c;
+                                    while (rec.Event.KeyEvent.wRepeatCount--)
+                                    {
+                                        utf::to_utf(c, ustr);
+                                        cooked.wstr += c;
+                                    }
                                 }
                             }
                             buffer.pop_front();
+                        }
+
+                        auto size = ustr.size();
+                        if (last != size)
+                        {
+                            server.uiterm.ondata(view{ ustr.data() + last, ustr.size() - last });
+                            last = size;
                         }
                     }
                     while (!done && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
@@ -4312,7 +4342,7 @@ namespace netxs::os
                             if (packet.input.utf16) cooked.wstr = wiew((wchr*)initdata.data(), initdata.size() / 2);
                             else                    cooked.wstr = utf::to_utf(initdata);
 
-                            readline(lock, packet.input.EOFon, packet.input.utf16, packet.input.stops | 1 << '\r', cancel);
+                            readline(lock, packet.input.EOFon, packet.input.utf16, packet.input.stops, cancel);
                             if (cooked.ustr.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
 
                             if (closed || cancel)

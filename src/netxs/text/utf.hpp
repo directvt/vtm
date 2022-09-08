@@ -829,6 +829,10 @@ namespace netxs::utf
     {
         return to_utf(&wc, 1);
     }
+    void to_utf(wchr wc, text& utf8)
+    {
+        to_utf(&wc, 1, utf8);
+    }
 
     template<class TEXT_OR_VIEW>
     auto length(TEXT_OR_VIEW&& utf8)

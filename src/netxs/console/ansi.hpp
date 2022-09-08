@@ -369,6 +369,7 @@ namespace netxs::ansi
         auto& cpl(si32 n)           { return add("\033[", n, 'F'                    ); } // esc: Caret previous line.
         auto& ocx(si32 n)           { return add("\033[", n, 'G'                    ); } // esc: Caret 1-based horizontal absolute.
         auto& ocy(si32 n)           { return add("\033[", n, 'd'                    ); } // esc: Caret 1-based vertical absolute.
+        auto& dch(si32 n)           { return add("\033[", n, 'P'                    ); } // esc: DCH
         auto& scp()                 { return add("\033[s"                           ); } // esc: Save caret position in memory.
         auto& rcp()                 { return add("\033[u"                           ); } // esc: Restore caret position from memory.
         auto& pushsgr()             { return add("\033[#{"                          ); } // esc: Push SGR attributes onto stack.
@@ -707,6 +708,7 @@ namespace netxs::ansi
     static auto ocy(si32 n)           { return esc{}.ocy(n);        } // ansi: Caret 1-based vertical absolute.
     static auto chx(si32 n)           { return esc{}.chx(n);        } // ansi: Caret 0-based horizontal absolute.
     static auto chy(si32 n)           { return esc{}.chy(n);        } // ansi: Caret 0-based vertical absolute.
+    static auto dch(si32 n)           { return esc{}.dch(n);        } // ansi: Delete (not Erase) letters under the cursor.
     static auto bld(bool b = true)    { return esc{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     static auto und(si32 n = 1   )    { return esc{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
     static auto blk(bool b = true)    { return esc{}.blk(b);        } // ansi: SGR Blink attribute.
