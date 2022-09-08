@@ -963,12 +963,6 @@ namespace netxs::ui
                         && wrapped() ? (len + width - 1) / width
                                      : 1;
                 }
-                auto to_txt() // For debug.
-                {
-                    auto utf8 = utf::text{};
-                    each([&](cell& c){ utf8 += c.txt(); });
-                    return utf8;
-                }
             };
             struct redo
             {

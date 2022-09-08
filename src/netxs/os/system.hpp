@@ -17,7 +17,7 @@
 #include "../text/logger.hpp"
 #include "../console/input.hpp"
 #include "../abstract/ptr.hpp"
-#include "../console/ansi.hpp"
+#include "../console/richtext.hpp"
 #include "../ui/layout.hpp"
 
 #include <type_traits>
@@ -109,6 +109,7 @@ namespace netxs::os
     using namespace std::chrono_literals;
     using namespace std::literals;
     using namespace netxs::ui::atoms;
+    using para = console::para;
 
     enum role { client, server };
 
@@ -3948,8 +3949,8 @@ namespace netxs::os
 
                 auto save(bool isutf16)
                 {
-                    ustr.clear();
-                    utf::to_utf(wstr, ustr);
+                    wstr.clear();
+                    utf::to_utf(ustr, wstr);
                     if (isutf16) rest = { reinterpret_cast<char*>(wstr.data()), wstr.size() * 2 };
                     else         rest = ustr;
                 }
@@ -4241,9 +4242,10 @@ namespace netxs::os
                 template<class L>
                 auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
-                    auto ustr = ansi::esc{};
-                    utf::to_utf(cooked.wstr, ustr);
-                    auto last = ustr.size();
+                    auto temp = text{};
+                    auto xmit = ansi::esc{};
+                    auto line = para{ cooked.ustr };
+                    auto last = xmit.size();
                     auto done = faux;
                     do
                     {
@@ -4260,10 +4262,20 @@ namespace netxs::os
                                 cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
                                 if (c == '\x08')
                                 {
-                                    if (auto n = std::min((si32)cooked.wstr.size(), (si32)rec.Event.KeyEvent.wRepeatCount))
+                                    auto& data = line.content();
+                                    auto  size = data.length();
+                                    //log("size ", size);
+                                    while (rec.Event.KeyEvent.wRepeatCount-- && size)
                                     {
-                                        ustr.del(n);
-                                        while (n--) cooked.wstr.pop_back();
+                                        auto& c = data.back();
+                                        if (--size > 0 && c.wdt() == 3)
+                                        {
+                                            xmit.del();
+                                            --size;
+                                        }
+                                        xmit.del();
+                                        data.crop(size);
+                                        line.caret = size;
                                     }
                                 }
                                 else
@@ -4271,38 +4283,65 @@ namespace netxs::os
                                     rec.Event.KeyEvent.wRepeatCount--;
                                     if (c < ' ')
                                     {
-                                             if (stops & 1 << c) cooked.wstr += c;
+                                        auto cook = [&](auto c)
+                                        {
+                                            cooked.ustr.clear();
+                                            line.lyric->utf8(cooked.ustr);
+                                            cooked.ustr.push_back((char)c);
+                                            if (c == '\r') cooked.ustr.push_back('\n');
+                                            if (rec.Event.KeyEvent.wRepeatCount == 0)
+                                            {
+                                                buffer.pop_front();
+                                            }
+                                            done = true;
+                                        };
+                                        if (stops & 1 << c)
+                                        {
+                                            cook(c);
+                                            break;
+                                        }
                                         else if (c == '\r')
                                         {
-                                            ustr += "\r\n";
-                                            cooked.wstr += L"\r\n";
+                                            cook(c);
+                                            xmit += "\r\n";
+                                            break;
                                         }
-
-                                        if (rec.Event.KeyEvent.wRepeatCount == 0)
+                                        else
                                         {
-                                            buffer.pop_front();
+                                            auto& data = line.content();
+                                            auto chr = static_cast<char>(c);
+                                            xmit += '^';
+                                            xmit += chr + '@';
+                                            auto s = cell{ chr };
+                                            data.push(s.wdt(2));
+                                            data.push(s.wdt(3));
+                                            line.caret += 2;
                                         }
-                                        done = true;
-                                        break;
                                     }
-
-                                    utf::to_utf(c, ustr);
-                                    cooked.wstr += c;
-                                    while (rec.Event.KeyEvent.wRepeatCount--)
+                                    else
                                     {
-                                        utf::to_utf(c, ustr);
-                                        cooked.wstr += c;
+                                        temp.clear();
+                                        utf::to_utf(c, temp);
+                                        line += temp;
+                                        xmit += temp;
+                                        while (rec.Event.KeyEvent.wRepeatCount--)
+                                        {
+                                            line += temp;
+                                            xmit += temp;
+                                        }
                                     }
                                 }
                             }
+                            //auto& data = line.content();
+                            //log("new size ", data.length());
                             buffer.pop_front();
                         }
 
-                        auto size = ustr.size();
+                        auto size = xmit.size();
                         if (last != size)
                         {
                             lock.unlock();
-                            server.uiterm.ondata(view{ ustr.data() + last, ustr.size() - last });
+                            server.uiterm.ondata(view{ xmit.data() + last, xmit.size() - last });
                             lock.lock();
                             last = size;
                         }
@@ -4312,8 +4351,8 @@ namespace netxs::os
                     if (EOFon)
                     {
                         static constexpr auto EOFkey = 'Z' - '@';
-                        auto EOFpos = cooked.wstr.find(EOFkey);
-                        if (EOFpos != text::npos) cooked.wstr.resize(EOFpos);
+                        auto EOFpos = cooked.ustr.find(EOFkey);
+                        if (EOFpos != text::npos) cooked.ustr.resize(EOFpos);
                     }
 
                     cooked.save(utf16);
@@ -4341,8 +4380,9 @@ namespace netxs::os
                             static constexpr auto spaces = " \n\r\t";
                             if (closed || cancel) return;
                             
-                            if (packet.input.utf16) cooked.wstr = wiew((wchr*)initdata.data(), initdata.size() / 2);
-                            else                    cooked.wstr = utf::to_utf(initdata);
+                            cooked.ustr.clear();
+                            if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
+                            else                    cooked.ustr = initdata;
 
                             readline(lock, packet.input.EOFon, packet.input.utf16, packet.input.stops, cancel);
                             if (cooked.ustr.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));

@@ -982,7 +982,7 @@ namespace netxs::ui::atoms
             gc.wipe();
             st.wipe();
         }
-        auto& data() const{ return *this;} // cell: Return the const reference of the base cell.
+        auto& data() const { return *this;} // cell: Return the const reference of the base cell.
 
         // cell: Merge the two cells according to visibility and other attributes.
         inline void fuse(cell const& c)
@@ -1086,6 +1086,12 @@ namespace netxs::ui::atoms
             {
                 return faux;
             }
+        }
+        // cell: Convert to text. Ignore right half.
+        void scan(text& dest) const
+        {
+                 if (wdt() == 0) dest += whitespace;
+            else if (wdt() != 3) dest += gc.get();
         }
         // cell: Delight both foreground and background.
         void xlight()
@@ -2028,6 +2034,7 @@ namespace netxs::ui::atoms
         void  move(twod const& newcoor)     { region.coor = newcoor;     } // core: Change the location of the face.
         void  step(twod const& delta)       { region.coor += delta;      } // core: Shift location of the face by delta.
         void  back(twod const& delta)       { region.coor -= delta;      } // core: Shift location of the face by -delta.
+        auto& back()                        { return canvas.back();      } // core: Return last cell.
         void  link(id_t id)                 { marker.link(id);           } // core: Set the default object ID.
         auto  link(twod const& coord) const { return test(coord) ? (*(data(coord))).link() : 0; } // core: Return ID of the object in cell at the specified coordinates.
         auto  view() const                  { return client;             }
@@ -2050,6 +2057,10 @@ namespace netxs::ui::atoms
             client.size = region.size;
             canvas.resize(newsizex, c);
             digest++;
+        }
+        void push(cell const& c) // core: Push cell back.
+        {
+            crop(region.size.x + 1, c);
         }
         template<bool BOTTOM_ANCHORED = faux>
         void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
@@ -2100,6 +2111,10 @@ namespace netxs::ui::atoms
         void each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
         {
             netxs::onrect(*this, region, proc);
+        }
+        void utf8(text& crop) // core: Convert to raw utf-8 text. Ignore right halves.
+        {
+            each([&](cell& c) { c.scan(crop); });
         }
         auto copy(grid& target) const // core: Copy only grid of the canvas to the specified grid bitmap.
         {
