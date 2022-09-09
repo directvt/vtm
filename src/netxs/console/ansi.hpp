@@ -155,6 +155,7 @@ namespace netxs::ansi
     static const char C0_GS  = '\x1D'; // Group Separator.
     static const char C0_RS  = '\x1E'; // Record Separator.
     static const char C0_US  = '\x1F'; // Unit Separator.
+    static const char C0_DEL = '\x7F'; // Delete cell backward.
 
     static const si32 ctrl_break = 0xE046; // Pressed Ctrl+Break scancode.
 
@@ -265,6 +266,8 @@ namespace netxs::ansi
     static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
     static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
 
+    static const si32 CCC_FWD    = 31 ; // CSI 31: n       p  - Move caret n cell in line.
+
     template<class Base>
     class basevt
     {
@@ -370,7 +373,7 @@ namespace netxs::ansi
         auto& ocx(si32 n)           { return add("\033[", n, 'G'                    ); } // esc: Caret 1-based horizontal absolute.
         auto& ocy(si32 n)           { return add("\033[", n, 'd'                    ); } // esc: Caret 1-based vertical absolute.
         auto& dch(si32 n)           { return add("\033[", n, 'P'                    ); } // esc: DCH
-        auto& del()                 { return add('\x7F'                             ); } // esc: Delete characters backwards.
+        auto& del()                 { return add('\x7F'                             ); } // esc: Delete cell backwards.
         auto& scp()                 { return add("\033[s"                           ); } // esc: Save caret position in memory.
         auto& rcp()                 { return add("\033[u"                           ); } // esc: Restore caret position from memory.
         auto& pushsgr()             { return add("\033[#{"                          ); } // esc: Push SGR attributes onto stack.
@@ -694,6 +697,7 @@ namespace netxs::ansi
         auto& ref(si32 i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
         auto& ext(si32 b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
         auto& show_mouse(si32 b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
+        auto& fwd(si32 n)        { return add("\033[31:", n  , CSI_CCC); } // esc: Move caret n cell in line.
     };
 
     template<class ...Args>
@@ -709,8 +713,9 @@ namespace netxs::ansi
     static auto ocy(si32 n)           { return esc{}.ocy(n);        } // ansi: Caret 1-based vertical absolute.
     static auto chx(si32 n)           { return esc{}.chx(n);        } // ansi: Caret 0-based horizontal absolute.
     static auto chy(si32 n)           { return esc{}.chy(n);        } // ansi: Caret 0-based vertical absolute.
+    static auto fwd(si32 n)           { return esc{}.fwd(n);        } // ansi: Move caret n cell in line.
     static auto dch(si32 n)           { return esc{}.dch(n);        } // ansi: Delete (not Erase) letters under the cursor.
-    static auto del()                 { return esc{}.del( );        } // ansi: Delete character backwards ('\x7F').
+    static auto del()                 { return esc{}.del( );        } // ansi: Delete cell backwards ('\x7F').
     static auto bld(bool b = true)    { return esc{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     static auto und(si32 n = 1   )    { return esc{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
     static auto blk(bool b = true)    { return esc{}.blk(b);        } // ansi: SGR Blink attribute.

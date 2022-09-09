@@ -4245,7 +4245,6 @@ namespace netxs::os
                     auto temp = text{};
                     auto xmit = ansi::esc{};
                     auto line = para{ cooked.ustr };
-                    auto last = xmit.size();
                     auto done = faux;
                     do
                     {
@@ -4267,7 +4266,8 @@ namespace netxs::os
                             {
                                 auto c = rec.Event.KeyEvent.uChar.UnicodeChar;
                                 cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
-                                auto contrl = cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED);
+                                auto cntrl = cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED);
+                                auto caret = line.caret;
                                 switch (rec.Event.KeyEvent.wVirtualKeyCode)
                                 {
                                     case VK_CONTROL:
@@ -4296,15 +4296,16 @@ namespace netxs::os
                                         break;
                                     case VK_ESCAPE:
                                         log("Esc");
-                                        line.move_to_home();
                                         break;
                                     case VK_HOME:
                                         log("home");
                                         line.move_to_home();
+                                        xmit.fwd(line.caret - caret);
                                         break;
                                     case VK_END:
                                         log("end");
                                         line.move_to_end();
+                                        xmit.fwd(line.caret - caret);
                                         break;
                                     case VK_PRIOR:
                                         log("PgUP");
@@ -4320,13 +4321,15 @@ namespace netxs::os
                                         break;
                                     case VK_LEFT:
                                         log("left");
-                                        if (contrl) while(rec.Event.KeyEvent.wRepeatCount-- && line.step_by_word_rev()) { }
-                                        else        while(rec.Event.KeyEvent.wRepeatCount-- && line.step_by_gc_rev  ()) { }
+                                        if (cntrl) while (rec.Event.KeyEvent.wRepeatCount-- && line.step_by_word_rev()) { }
+                                        else       while (rec.Event.KeyEvent.wRepeatCount-- && line.step_by_gc_rev  ()) { }
+                                        xmit.fwd(line.caret - caret);
                                         break;
                                     case VK_RIGHT:
                                         log("right");
-                                        if (contrl) while(rec.Event.KeyEvent.wRepeatCount-- && line.step_by_word_fwd()) { }
-                                        else        while(rec.Event.KeyEvent.wRepeatCount-- && line.step_by_gc_fwd  ()) { }
+                                        if (cntrl) while (rec.Event.KeyEvent.wRepeatCount-- && line.step_by_word_fwd()) { }
+                                        else       while (rec.Event.KeyEvent.wRepeatCount-- && line.step_by_gc_fwd  ()) { }
+                                        xmit.fwd(line.caret - caret);
                                         break;
                                     case VK_UP:
                                         log("up");
@@ -4336,11 +4339,10 @@ namespace netxs::os
                                         break;
                                     case VK_BACK:
                                     {
-                                        auto caret = line.caret;
-                                        if (contrl) while(rec.Event.KeyEvent.wRepeatCount-- && line.del_word_rev()) { }
-                                        else        while(rec.Event.KeyEvent.wRepeatCount-- && line.del_gc_rev  ()) { }
-                                        auto count = caret - line.caret;
-                                        while (count--) xmit.del();
+                                        if (cntrl) while (rec.Event.KeyEvent.wRepeatCount-- && line.del_word_rev()) { }
+                                        else       while (rec.Event.KeyEvent.wRepeatCount-- && line.del_gc_rev  ()) { }
+                                        auto count = std::abs(caret - line.caret);
+                                        while (count--) xmit.add(ansi::C0_DEL);
                                         break;
                                     }
                                     default:
@@ -4407,14 +4409,12 @@ namespace netxs::os
                             }
                         }
 
-                        auto size = xmit.size();
-                        if (last != size)
+                        if (xmit.size())
                         {
                             lock.unlock();
-                            //todo sync cursor
-                            server.uiterm.ondata(view{ xmit.data() + last, xmit.size() - last });
+                            server.uiterm.ondata(xmit);
                             lock.lock();
-                            last = size;
+                            xmit.clear();
                         }
                     }
                     while (!done && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));

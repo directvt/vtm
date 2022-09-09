@@ -824,6 +824,7 @@ namespace netxs::ui
                 vt.csier.table[CSI_CCC][CCC_SGR] = VT_PROC{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
                 vt.csier.table[CSI_CCC][CCC_SEL] = VT_PROC{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
                 vt.csier.table[CSI_CCC][CCC_PAD] = VT_PROC{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
+                vt.csier.table[CSI_CCC][CCC_FWD] = VT_PROC{ p->fwd(q(0));     };                // CCC_FWD: Move caret n cell in line.
 
                 vt.intro[ctrl::ESC][ESC_IND   ] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
                 vt.intro[ctrl::ESC][ESC_IR    ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
@@ -1729,6 +1730,8 @@ namespace netxs::ui
     virtual void dch(si32 n) = 0;
             // bufferbase: '\x7F'  Delete characters backwards.
     virtual void del(si32 n) = 0;
+            // bufferbase: Move cursor by n in line.
+    virtual void fwd(si32 n) = 0;
             // bufferbase: Move cursor forward by n.
     virtual void cuf(si32 n)
             {
@@ -2100,6 +2103,24 @@ namespace netxs::ui
                 }
                 canvas.backsp(coord, n, brush.nul());
                 if (coord.y < 0) coord = dot_00;
+            }
+            // alt_screen: Move cursor by n in line.
+            void fwd(si32 n) override
+            {
+                bufferbase::flush();
+                coord.x += n;
+                if (coord.x < 0)
+                {
+                    coord.y += coord.x / panel.x - 1;
+                    coord.x  = coord.x % panel.x + panel.x;
+                }
+                else if (coord.x > panel.x)
+                {
+                    coord.y += coord.x / panel.x;
+                    coord.x  = coord.x % panel.x;
+                }
+                     if (coord.y < 0)        coord = dot_00;
+                else if (coord.y >= panel.y) coord = panel - dot_01;
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(si32 n, char c = '\0') override
@@ -3878,6 +3899,36 @@ namespace netxs::ui
                 }
                 else ctx.block.cutoff(coord, n, blank);
             }
+            // scroll_buf: Move internal caret by n.
+            void _fwd(si32 n)
+            {
+                auto& curln = batch.current();
+                auto  cursz = curln.length();
+                auto  pos_1 = offset_to_screen(curln, batch.caret);
+                if (batch.caret == cursz) pos_1.x++;
+                batch.caret += n;
+                auto  pos_2 = offset_to_screen(curln, batch.caret);
+                if (batch.caret == cursz) pos_2.x++;
+                coord += pos_2 - pos_1;
+                if (coord.y < 0)
+                {
+                    batch.basis -= std::abs(coord.y);
+                    assert(batch.basis >= 0);
+                    coord.y = 0;
+                    index_rebuild();
+                }
+                else
+                {
+                    auto max_y = arena - 1;
+                    if (coord.y > max_y)
+                    {
+                        batch.basis += coord.y - max_y;
+                        coord.y = max_y;
+                        index_rebuild();
+                    }
+                }
+                assert(test_coord());
+            }
             // scroll_buf: '\x7F'  Delete letters backward and move cursor back.
             void del(si32 n) override
             {
@@ -3885,21 +3936,17 @@ namespace netxs::ui
                 n = std::min(n, batch.caret);
                 if (batch.caret > 0 && n > 0)
                 {
+                    _fwd(-n);
                     auto& curln = batch.current();
-                    auto p1 = offset_to_screen(curln, batch.caret);
-                    if (batch.caret == curln.length()) p1.x++;
-                    batch.caret -= n;
-                    auto p2 = offset_to_screen(curln, batch.caret);
                     curln.splice<faux>(batch.caret, n, brush.nul());
-                    coord -= p1 - p2;
-                    if (coord.y < 0)
-                    {
-                        batch.basis -= std::abs(coord.y);
-                        assert(batch.basis >= 0);
-                        coord.y = 0;
-                        index_rebuild();
-                    }
                 }
+            }
+            // scroll_buf: Move cursor by n in line.
+            void fwd(si32 n) override
+            {
+                bufferbase::flush();
+                if (n == 0) return;
+                _fwd(n);
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(si32 n, char c = '\0') override

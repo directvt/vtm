@@ -1004,7 +1004,7 @@ namespace netxs::console
         //todo unify
         auto& at(si32 p) const { return lyric->data(p); } // para: .
 
-        // para: Move caret one cell to the left.
+        // para: Normalize caret position.
         auto caret_check()
         {
             caret = std::clamp(caret, 0, length());
@@ -1111,7 +1111,7 @@ namespace netxs::console
             if (caret > 0)
             {
                 auto& line = content();
-                caret = line.word<feed::rev>(caret);
+                caret = line.word<feed::rev>(caret - 1);
                 return true;
             }
             else return faux;
@@ -1137,7 +1137,8 @@ namespace netxs::console
             if (caret < length())
             {
                 auto& line = content();
-                caret = line.word<feed::fwd>(caret);
+                caret = line.word<feed::fwd>(caret) + 1;
+                caret_check();
                 return true;
             }
             else return faux;
