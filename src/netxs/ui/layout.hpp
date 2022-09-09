@@ -2212,16 +2212,14 @@ namespace netxs::ui::atoms
             }
             return region.size;
         }
-        template<feed DIRECTION>
+        template<feed Direction>
         auto word(twod coord) // core: Detect a word bound.
         {
             if (!region) return 0;
-            static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
-
-            //todo unify
+            static constexpr auto rev = Direction == feed::fwd ? faux : true;
             auto is_empty = [&](auto txt)
             {
-                return txt.empty() || txt.front() == whitespace;
+                return txt.empty() || txt.front() <= whitespace;
             };
             auto empty = [&](auto txt)
             {
@@ -2275,6 +2273,7 @@ namespace netxs::ui::atoms
             };
             auto func = [&](auto check)
             {
+                static constexpr auto right_half = rev ? 2 : 3;
                 coord.x += rev ? 1 : 0;
                 auto count = decltype(coord.x){};
                 auto width = (rev ? 0 : region.size.x) - coord.x;
@@ -2282,7 +2281,8 @@ namespace netxs::ui::atoms
                 auto allfx = [&](auto& c)
                 {
                     auto txt = c.txt();
-                    if (!check(txt)) return true;
+                    auto not_right_half = c.wdt() != right_half;
+                    if (not_right_half && !check(txt)) return true;
                     count++;
                     return faux;
                 };
@@ -2298,6 +2298,11 @@ namespace netxs::ui::atoms
             is_empty(test) ? func(empty) :
                              func(alpha);
             return coord.x;
+        }
+        template<feed Direction>
+        auto word(si32 offset) // core: Detect a word bound.
+        {
+            return word<Direction>(twod{ offset, 0 });
         }
         template<class P>
         void cage(rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.

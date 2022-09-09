@@ -802,6 +802,22 @@ namespace netxs::console
                 while (dst != end) *dst++ = blank;
             }
         }
+        // rich: (current segment) Delete n chars.
+        void cutoff(si32 at, si32 count)
+        {
+            if (count <= 0) return;
+            auto len = length();
+            if (at < len)
+            {
+                auto rem = len - at;
+                auto vol = std::min(count, rem);
+                auto dst = iter() + at;
+                auto end = dst + rem;
+                auto src = dst + vol;
+                while (src != end) *dst++ = *src++;
+                crop(len - vol);
+            }
+        }
         // rich: (whole line) Delete n chars and add blanks at the right margin.
         void cutoff_full(si32 at, si32 count, cell const& blank, si32 margin)
         {
@@ -987,6 +1003,145 @@ namespace netxs::console
 
         //todo unify
         auto& at(si32 p) const { return lyric->data(p); } // para: .
+
+        // para: Move caret one cell to the left.
+        auto caret_check()
+        {
+            caret = std::clamp(caret, 0, length());
+        }
+        // para: Move caret to the beginning.
+        auto move_to_home()
+        {
+            caret = 0;
+        }
+        // para: Move caret to the end.
+        auto move_to_end()
+        {
+            caret = length();
+        }
+        // para: Move caret one cell to the left.
+        auto step_by_cell_rev()
+        {
+            caret_check();
+            if (caret > 0)
+            {
+                caret--;
+                return true;
+            }
+            else return faux;
+        }
+        // para: Move caret one cell to the right.
+        auto step_by_cell_fwd()
+        {
+            caret_check();
+            if (caret < length())
+            {
+                caret++;
+                return true;
+            }
+            else return faux;
+        }
+        // para: Move caret one grapheme cluster to the left.
+        auto step_by_gc_rev()
+        {
+            caret_check();
+            if (caret > 0)
+            {
+                caret--;
+                auto& line = content();
+                auto  iter = line.iter() + caret;
+                if (iter->wdt() == 3 && caret > 0 && (--iter)->wdt() == 2)
+                {
+                    caret--;
+                }
+                return true;
+            }
+            else return faux;
+        }
+        // para: Delete one grapheme cluster to the left.
+        auto del_gc_rev()
+        {
+            caret_check();
+            auto oldpos = caret;
+            if (step_by_gc_rev())
+            {
+                auto newpos = caret;
+                auto& line = content();
+                line.cutoff(newpos, oldpos - newpos);
+                return true;
+            }
+            else return faux;
+        }
+        // para: Insert one proto cell before caret (the proto means that it will be expanded if it is wide - wdt == 2).
+        auto insert_proto_cell(cell c)
+        {
+            caret_check();
+            auto wdt = c.wdt();
+            auto& line = content();
+            if (wdt == 2)
+            {
+                line.insert_full(caret, 2, c);
+                caret++;
+                line.data(caret).wdt(3);
+                caret++;
+            }
+            else line.insert_full(caret, 1, c.wdt(1));
+        }
+        // para: Move caret one grapheme cluster to the right.
+        auto step_by_gc_fwd()
+        {
+            caret_check();
+            if (caret < length())
+            {
+                auto& line = content();
+                auto  iter = line.iter() + caret;
+                caret++;
+                if (iter->wdt() == 2 && caret < length() && (++iter)->wdt() == 3)
+                {
+                    caret++;
+                }
+                return true;
+            }
+            else return faux;
+        }
+        // para: Move caret one word to the left.
+        auto step_by_word_rev()
+        {
+            caret_check();
+            if (caret > 0)
+            {
+                auto& line = content();
+                caret = line.word<feed::rev>(caret);
+                return true;
+            }
+            else return faux;
+        }
+        // para: Delete one word to the left.
+        auto del_word_rev()
+        {
+            caret_check();
+            auto oldpos = caret;
+            if (step_by_word_rev())
+            {
+                auto newpos = caret;
+                auto& line = content();
+                line.cutoff(newpos, oldpos - newpos);
+                return true;
+            }
+            else return faux;
+        }
+        // para: Move caret one word to the right.
+        auto step_by_word_fwd()
+        {
+            caret_check();
+            if (caret < length())
+            {
+                auto& line = content();
+                caret = line.word<feed::fwd>(caret);
+                return true;
+            }
+            else return faux;
+        }
     };
 
     // richtext: Cascade of the identical paragraphs.

@@ -4254,93 +4254,164 @@ namespace netxs::os
                         while (head != tail)
                         {
                             auto& rec = *head++;
+                            if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
+                                log(" ============================",
+                                    "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
+                                    "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
+                                    "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
+                                    "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
+                                    "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true":"faux");
+
                             if (rec.EventType == KEY_EVENT
-                             && rec.Event.KeyEvent.bKeyDown
-                             && rec.Event.KeyEvent.uChar.UnicodeChar != 0)
+                             && rec.Event.KeyEvent.bKeyDown)
                             {
                                 auto c = rec.Event.KeyEvent.uChar.UnicodeChar;
                                 cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
-                                if (c == '\x08')
+                                auto contrl = cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED);
+                                switch (rec.Event.KeyEvent.wVirtualKeyCode)
                                 {
-                                    auto& data = line.content();
-                                    auto  size = data.length();
-                                    //log("size ", size);
-                                    while (rec.Event.KeyEvent.wRepeatCount-- && size)
+                                    case VK_CONTROL:
+                                    case VK_SHIFT:
+                                    case VK_MENU:
+                                    case VK_PAUSE:
+                                    case VK_LWIN:
+                                    case VK_RWIN:
+                                    case VK_APPS:
+                                    case VK_NUMLOCK:
+                                    case VK_CAPITAL:
+                                    case VK_SCROLL:
+                                    case VK_CLEAR:/*NUMPAD 5*/
+                                    case VK_F1:
+                                    case VK_F2:
+                                    case VK_F3:
+                                    case VK_F4:
+                                    case VK_F5:
+                                    case VK_F6:
+                                    case VK_F7:
+                                    case VK_F8:
+                                    case VK_F9:
+                                    case VK_F10:
+                                    case VK_F11:
+                                    case VK_F12:
+                                        break;
+                                    case VK_ESCAPE:
+                                        log("Esc");
+                                        line.move_to_home();
+                                        break;
+                                    case VK_HOME:
+                                        log("home");
+                                        line.move_to_home();
+                                        break;
+                                    case VK_END:
+                                        log("end");
+                                        line.move_to_end();
+                                        break;
+                                    case VK_PRIOR:
+                                        log("PgUP");
+                                        break;
+                                    case VK_NEXT:
+                                        log("PgDn");
+                                        break;
+                                    case VK_INSERT:
+                                        log("Insert");
+                                        break;
+                                    case VK_DELETE:
+                                        log("Delete");
+                                        break;
+                                    case VK_LEFT:
+                                        log("left");
+                                        if (contrl) while(rec.Event.KeyEvent.wRepeatCount-- && line.step_by_word_rev()) { }
+                                        else        while(rec.Event.KeyEvent.wRepeatCount-- && line.step_by_gc_rev  ()) { }
+                                        break;
+                                    case VK_RIGHT:
+                                        log("right");
+                                        if (contrl) while(rec.Event.KeyEvent.wRepeatCount-- && line.step_by_word_fwd()) { }
+                                        else        while(rec.Event.KeyEvent.wRepeatCount-- && line.step_by_gc_fwd  ()) { }
+                                        break;
+                                    case VK_UP:
+                                        log("up");
+                                        break;
+                                    case VK_DOWN:
+                                        log("down");
+                                        break;
+                                    case VK_BACK:
                                     {
-                                        auto& c = data.back();
-                                        if (--size > 0 && c.wdt() == 3)
-                                        {
-                                            xmit.del();
-                                            --size;
-                                        }
-                                        xmit.del();
-                                        data.crop(size);
-                                        line.caret = size;
+                                        auto caret = line.caret;
+                                        if (contrl) while(rec.Event.KeyEvent.wRepeatCount-- && line.del_word_rev()) { }
+                                        else        while(rec.Event.KeyEvent.wRepeatCount-- && line.del_gc_rev  ()) { }
+                                        auto count = caret - line.caret;
+                                        while (count--) xmit.del();
+                                        break;
                                     }
-                                }
-                                else
-                                {
-                                    rec.Event.KeyEvent.wRepeatCount--;
-                                    if (c < ' ')
+                                    default:
                                     {
-                                        auto cook = [&](auto c)
+                                        rec.Event.KeyEvent.wRepeatCount--;
+                                        if (c < ' ')
                                         {
-                                            cooked.ustr.clear();
-                                            line.lyric->utf8(cooked.ustr);
-                                            cooked.ustr.push_back((char)c);
-                                            if (c == '\r') cooked.ustr.push_back('\n');
-                                            if (rec.Event.KeyEvent.wRepeatCount == 0)
+                                            auto cook = [&](auto c)
                                             {
-                                                buffer.pop_front();
+                                                cooked.ustr.clear();
+                                                line.lyric->utf8(cooked.ustr);
+                                                cooked.ustr.push_back((char)c);
+                                                if (c == '\r') cooked.ustr.push_back('\n');
+                                                if (rec.Event.KeyEvent.wRepeatCount == 0)
+                                                {
+                                                    buffer.pop_front();
+                                                }
+                                                done = true;
+                                            };
+                                            if (stops & 1 << c)
+                                            {
+                                                cook(c);
                                             }
-                                            done = true;
-                                        };
-                                        if (stops & 1 << c)
-                                        {
-                                            cook(c);
-                                            break;
-                                        }
-                                        else if (c == '\r')
-                                        {
-                                            cook(c);
-                                            xmit += "\r\n";
-                                            break;
+                                            else if (c == '\r')
+                                            {
+                                                cook(c);
+                                                xmit += "\r\n";
+                                            }
+                                            else
+                                            {
+                                                auto chr = static_cast<char>(c);
+                                                xmit += '^';
+                                                xmit += chr + '@';
+                                                auto s = cell{ chr }.wdt(2);
+                                                //if (server.inpmode & ENABLE_INSERT_MODE)
+                                                line.insert_proto_cell(s);
+                                            }
                                         }
                                         else
                                         {
-                                            auto& data = line.content();
-                                            auto chr = static_cast<char>(c);
-                                            xmit += '^';
-                                            xmit += chr + '@';
-                                            auto s = cell{ chr };
-                                            data.push(s.wdt(2));
-                                            data.push(s.wdt(3));
-                                            line.caret += 2;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        temp.clear();
-                                        utf::to_utf(c, temp);
-                                        line += temp;
-                                        xmit += temp;
-                                        while (rec.Event.KeyEvent.wRepeatCount--)
-                                        {
+                                            temp.clear();
+                                            utf::to_utf(c, temp);
+                                            //if (server.inpmode & ENABLE_INSERT_MODE)
                                             line += temp;
                                             xmit += temp;
+                                            while (rec.Event.KeyEvent.wRepeatCount--)
+                                            {
+                                                //if (server.inpmode & ENABLE_INSERT_MODE)
+                                                //{
+                                                //
+                                                //}
+                                                line += temp;
+                                                xmit += temp;
+                                            }
                                         }
                                     }
                                 }
                             }
-                            //auto& data = line.content();
-                            //log("new size ", data.length());
-                            buffer.pop_front();
+                            if (!done)
+                            {
+                                auto& data = line.content();
+                                log("new size ", data.length());
+                                buffer.pop_front();
+                            }
                         }
 
                         auto size = xmit.size();
                         if (last != size)
                         {
                             lock.unlock();
+                            //todo sync cursor
                             server.uiterm.ondata(view{ xmit.data() + last, xmit.size() - last });
                             lock.lock();
                             last = size;
