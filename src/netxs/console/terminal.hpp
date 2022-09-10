@@ -781,8 +781,8 @@ namespace netxs::ui
 
                 vt.csier.table[CSI_CUU] = VT_PROC{ p->up (q(1)); }; // CSI n A  (CUU)
                 vt.csier.table[CSI_CUD] = VT_PROC{ p->dn (q(1)); }; // CSI n B  (CUD)
-                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf(q(1)); }; // CSI n C  (CUF)
-                vt.csier.table[CSI_CUB] = VT_PROC{ p->cub(q(1)); }; // CSI n D  (CUB)
+                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf(q(1)); }; // CSI n C  (CUF)  Negative values can wrap to the prev line.
+                vt.csier.table[CSI_CUB] = VT_PROC{ p->cub(q(1)); }; // CSI n D  (CUB)  Negative values can wrap to the next line.
 
                 vt.csier.table[CSI_CHT]           = VT_PROC{ p->tab( q(1)); }; // CSI n I  Caret forward  n tabs, default n=1.
                 vt.csier.table[CSI_CBT]           = VT_PROC{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
@@ -824,7 +824,6 @@ namespace netxs::ui
                 vt.csier.table[CSI_CCC][CCC_SGR] = VT_PROC{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
                 vt.csier.table[CSI_CCC][CCC_SEL] = VT_PROC{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
                 vt.csier.table[CSI_CCC][CCC_PAD] = VT_PROC{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
-                vt.csier.table[CSI_CCC][CCC_FWD] = VT_PROC{ p->fwd(q(0));     };                // CCC_FWD: Move caret n cell in line.
 
                 vt.intro[ctrl::ESC][ESC_IND   ] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
                 vt.intro[ctrl::ESC][ESC_IR    ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
@@ -1735,17 +1734,25 @@ namespace netxs::ui
             // bufferbase: Move cursor forward by n.
     virtual void cuf(si32 n)
             {
-                parser::flush();
-                if (n == 0) n = 1;
-                coord.x += n;
+                if (n < 0) fwd(n);
+                else
+                {
+                    parser::flush();
+                    if (n == 0) n = 1;
+                    coord.x += n;
+                }
             }
             // bufferbase: Move cursor backward by n.
     virtual void cub(si32 n)
             {
-                parser::flush();
-                if (n == 0) n = 1;
-                else if (coord.x == panel.x && parser::style.wrp() == wrap::on && n > 0) ++n;
-                coord.x -= n;
+                if (n < 0) fwd(-n);
+                else
+                {
+                    parser::flush();
+                    if (n == 0) n = 1;
+                    else if (coord.x == panel.x && parser::style.wrp() == wrap::on && n > 0) ++n;
+                    coord.x -= n;
+                }
             }
             // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
     virtual void chx(si32 n)

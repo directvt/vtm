@@ -266,8 +266,6 @@ namespace netxs::ansi
     static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
     static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
 
-    static const si32 CCC_FWD    = 31 ; // CSI 31: n       p  - Move caret n cell in line.
-
     template<class Base>
     class basevt
     {
@@ -366,13 +364,15 @@ namespace netxs::ansi
         auto& locate(twod const& p) { return add("\033[", p.y + 1, ';', p.x + 1, 'H'); } // esc: 0-Based caret position.
         auto& cuu(si32 n)           { return add("\033[", n, 'A'                    ); } // esc: Caret up.
         auto& cud(si32 n)           { return add("\033[", n, 'B'                    ); } // esc: Caret down.
-        auto& cuf(si32 n)           { return add("\033[", n, 'C'                    ); } // esc: Caret forward.
-        auto& cub(si32 n)           { return add("\033[", n, 'D'                    ); } // esc: Caret backward.
+        auto& cuf(si32 n)           { return add("\033[", n, 'C'                    ); } // esc: Caret forward.  Negative values can wrap to the prev line.
+        auto& cub(si32 n)           { return add("\033[", n, 'D'                    ); } // esc: Caret backward. Negative values can wrap to the next line.
         auto& cnl(si32 n)           { return add("\033[", n, 'E'                    ); } // esc: caret next line.
         auto& cpl(si32 n)           { return add("\033[", n, 'F'                    ); } // esc: Caret previous line.
         auto& ocx(si32 n)           { return add("\033[", n, 'G'                    ); } // esc: Caret 1-based horizontal absolute.
         auto& ocy(si32 n)           { return add("\033[", n, 'd'                    ); } // esc: Caret 1-based vertical absolute.
         auto& dch(si32 n)           { return add("\033[", n, 'P'                    ); } // esc: DCH
+        auto& fwd(si32 n)           { return n > 0 ? add("\033[",-n, 'D')
+                                           : n < 0 ? add("\033[", n, 'C') : *this;     } // esc: Move caret n cell in line with wrapping.
         auto& del()                 { return add('\x7F'                             ); } // esc: Delete cell backwards.
         auto& scp()                 { return add("\033[s"                           ); } // esc: Save caret position in memory.
         auto& rcp()                 { return add("\033[u"                           ); } // esc: Restore caret position from memory.
@@ -697,7 +697,6 @@ namespace netxs::ansi
         auto& ref(si32 i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
         auto& ext(si32 b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
         auto& show_mouse(si32 b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
-        auto& fwd(si32 n)        { return add("\033[31:", n  , CSI_CCC); } // esc: Move caret n cell in line.
     };
 
     template<class ...Args>
