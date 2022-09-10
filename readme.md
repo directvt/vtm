@@ -34,9 +34,9 @@ Text-based desktop environment inside your terminal*
   - NetBSD
   - OpenBSD
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
-- Windows
-  - Windows 10 or later
-  - Windows Server 2019 or later
+- MS Windows
+  - Windows 8.1 or later
+  - Windows Server 2012 R2 or later
 
 # Building from Source
 
