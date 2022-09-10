@@ -4243,31 +4243,34 @@ namespace netxs::os
                 auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
                     auto temp = text{};
-                    auto xmit = ansi::esc{};
+                    auto xmit = core{};
                     auto line = para{ cooked.ustr };
                     auto done = faux;
+                    auto crlf = faux;
                     do
                     {
+                        auto caret = line.caret;
+                        auto oldsz = line.length();
                         auto head = buffer.begin();
                         auto tail = buffer.end();
                         while (head != tail)
                         {
                             auto& rec = *head++;
-                            if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
-                                log(" ============================",
-                                    "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
-                                    "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
-                                    "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
-                                    "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
-                                    "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true":"faux");
+                            //if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
+                            //    log(" ============================",
+                            //        "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
+                            //        "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
+                            //        "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
+                            //        "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
+                            //        "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true":"faux");
 
                             if (rec.EventType == KEY_EVENT
                              && rec.Event.KeyEvent.bKeyDown)
                             {
-                                auto c = rec.Event.KeyEvent.uChar.UnicodeChar;
+                                auto& c = rec.Event.KeyEvent.uChar.UnicodeChar;
+                                auto& n = rec.Event.KeyEvent.wRepeatCount;
                                 cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
-                                auto cntrl = cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED);
-                                auto caret = line.caret;
+                                auto contrl = cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED);
                                 switch (rec.Event.KeyEvent.wVirtualKeyCode)
                                 {
                                     case VK_CONTROL:
@@ -4294,60 +4297,21 @@ namespace netxs::os
                                     case VK_F11:
                                     case VK_F12:
                                         break;
-                                    case VK_ESCAPE:
-                                        log("Esc");
-                                        break;
-                                    case VK_HOME:
-                                        log("home");
-                                        line.move_to_home();
-                                        xmit.fwd(line.caret - caret);
-                                        break;
-                                    case VK_END:
-                                        log("end");
-                                        line.move_to_end();
-                                        xmit.fwd(line.caret - caret);
-                                        break;
-                                    case VK_PRIOR:
-                                        log("PgUP");
-                                        break;
-                                    case VK_NEXT:
-                                        log("PgDn");
-                                        break;
-                                    case VK_INSERT:
-                                        log("Insert");
-                                        break;
-                                    case VK_DELETE:
-                                        log("Delete");
-                                        break;
-                                    case VK_LEFT:
-                                        log("left");
-                                        if (cntrl) while (rec.Event.KeyEvent.wRepeatCount-- && line.step_by_word_rev()) { }
-                                        else       while (rec.Event.KeyEvent.wRepeatCount-- && line.step_by_gc_rev  ()) { }
-                                        xmit.fwd(line.caret - caret);
-                                        break;
-                                    case VK_RIGHT:
-                                        log("right");
-                                        if (cntrl) while (rec.Event.KeyEvent.wRepeatCount-- && line.step_by_word_fwd()) { }
-                                        else       while (rec.Event.KeyEvent.wRepeatCount-- && line.step_by_gc_fwd  ()) { }
-                                        xmit.fwd(line.caret - caret);
-                                        break;
-                                    case VK_UP:
-                                        log("up");
-                                        break;
-                                    case VK_DOWN:
-                                        log("down");
-                                        break;
-                                    case VK_BACK:
-                                    {
-                                        if (cntrl) while (rec.Event.KeyEvent.wRepeatCount-- && line.del_word_rev()) { }
-                                        else       while (rec.Event.KeyEvent.wRepeatCount-- && line.del_gc_rev  ()) { }
-                                        auto count = std::abs(caret - line.caret);
-                                        while (count--) xmit.add(ansi::C0_DEL);
-                                        break;
-                                    }
+                                    case VK_ESCAPE: line.wipe();            break;
+                                    case VK_HOME:   line.move_to_home();    break;
+                                    case VK_END:    line.move_to_end();     break;
+                                    case VK_LEFT:   while (n-- && line.step_rev(contrl)) { } break;
+                                    case VK_RIGHT:  while (n-- && line.step_fwd(contrl)) { } break;
+                                    case VK_BACK:   while (n-- && line.back_rev(contrl)) { } break;
+                                    case VK_PRIOR:  log("PgUP");    break;
+                                    case VK_NEXT:   log("PgDn");    break;
+                                    case VK_INSERT: log("Insert");  break;
+                                    case VK_DELETE: log("Delete");  break;
+                                    case VK_UP:     log("up");      break;
+                                    case VK_DOWN:   log("down");    break;
                                     default:
                                     {
-                                        rec.Event.KeyEvent.wRepeatCount--;
+                                        n--;
                                         if (c < ' ')
                                         {
                                             auto cook = [&](auto c)
@@ -4356,10 +4320,7 @@ namespace netxs::os
                                                 line.lyric->utf8(cooked.ustr);
                                                 cooked.ustr.push_back((char)c);
                                                 if (c == '\r') cooked.ustr.push_back('\n');
-                                                if (rec.Event.KeyEvent.wRepeatCount == 0)
-                                                {
-                                                    buffer.pop_front();
-                                                }
+                                                if (n == 0) buffer.pop_front();
                                                 done = true;
                                             };
                                             if (stops & 1 << c)
@@ -4369,14 +4330,12 @@ namespace netxs::os
                                             else if (c == '\r')
                                             {
                                                 cook(c);
-                                                xmit += "\r\n";
+                                                crlf = true;
                                             }
                                             else
                                             {
                                                 auto chr = static_cast<char>(c);
-                                                xmit += '^';
-                                                xmit += chr + '@';
-                                                auto s = cell{ chr }.wdt(2);
+                                                auto s = cell{}.c0_to_txt(chr);
                                                 //if (server.inpmode & ENABLE_INSERT_MODE)
                                                 line.insert_proto_cell(s);
                                             }
@@ -4387,35 +4346,40 @@ namespace netxs::os
                                             utf::to_utf(c, temp);
                                             //if (server.inpmode & ENABLE_INSERT_MODE)
                                             line += temp;
-                                            xmit += temp;
-                                            while (rec.Event.KeyEvent.wRepeatCount--)
+                                            while (n--)
                                             {
                                                 //if (server.inpmode & ENABLE_INSERT_MODE)
-                                                //{
-                                                //
-                                                //}
                                                 line += temp;
-                                                xmit += temp;
                                             }
                                         }
                                     }
                                 }
                             }
-                            if (!done)
-                            {
-                                auto& data = line.content();
-                                log("new size ", data.length());
-                                buffer.pop_front();
-                            }
+                            if (!done) buffer.pop_front();
                         }
 
-                        if (xmit.size())
+                        lock.unlock();
+                        server.uiterm.update([&]
                         {
-                            lock.unlock();
-                            server.uiterm.ondata(xmit);
-                            lock.lock();
-                            xmit.clear();
-                        }
+                            static auto blank = cell{ '\0' }.wdt(1);
+                            auto& term = *server.uiterm.target;
+                            term.move(-caret);
+                            xmit.crop(oldsz, blank);
+                            term.data(xmit);
+                            term.move(-oldsz);
+                            term.data(line.content());
+
+                            if (done && crlf)
+                            {
+                                term.cr();
+                                term.lf(1);
+                            }
+                            else
+                            {
+                                term.move(line.caret - line.length());
+                            }
+                        });
+                        lock.lock();
                     }
                     while (!done && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
 

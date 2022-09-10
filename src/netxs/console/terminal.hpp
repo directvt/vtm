@@ -1730,11 +1730,11 @@ namespace netxs::ui
             // bufferbase: '\x7F'  Delete characters backwards.
     virtual void del(si32 n) = 0;
             // bufferbase: Move cursor by n in line.
-    virtual void fwd(si32 n) = 0;
+    virtual void move(si32 n) = 0;
             // bufferbase: Move cursor forward by n.
     virtual void cuf(si32 n)
             {
-                if (n < 0) fwd(n);
+                if (n < 0) move(n);
                 else
                 {
                     parser::flush();
@@ -1745,7 +1745,7 @@ namespace netxs::ui
             // bufferbase: Move cursor backward by n.
     virtual void cub(si32 n)
             {
-                if (n < 0) fwd(-n);
+                if (n < 0) move(-n);
                 else
                 {
                     parser::flush();
@@ -2010,6 +2010,16 @@ namespace netxs::ui
                 }
                 return changed;
             }
+            void wrapdn()
+            {
+                coord.y += (coord.x + panel.x - 1) / panel.x - 1;
+                coord.x  = (coord.x           - 1) % panel.x + 1;
+            }
+            void wrapup()
+            {
+                coord.y += coord.x / panel.x - 1;
+                coord.x  = coord.x % panel.x + panel.x;
+            }
         };
 
         // term: Alternate screen buffer implementation.
@@ -2112,20 +2122,12 @@ namespace netxs::ui
                 if (coord.y < 0) coord = dot_00;
             }
             // alt_screen: Move cursor by n in line.
-            void fwd(si32 n) override
+            void move(si32 n) override
             {
                 bufferbase::flush();
                 coord.x += n;
-                if (coord.x < 0)
-                {
-                    coord.y += coord.x / panel.x - 1;
-                    coord.x  = coord.x % panel.x + panel.x;
-                }
-                else if (coord.x > panel.x)
-                {
-                    coord.y += coord.x / panel.x;
-                    coord.x  = coord.x % panel.x;
-                }
+                     if (coord.x < 0)       wrapup();
+                else if (coord.x > panel.x) wrapdn();
                      if (coord.y < 0)        coord = dot_00;
                 else if (coord.y >= panel.y) coord = panel - dot_01;
             }
@@ -2152,9 +2154,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    coord.y += (coord.x + panel.x - 1) / panel.x - 1;
-                    coord.x  = (coord.x           - 1) % panel.x + 1;
-
+                    wrapdn();
                     if (saved.y < y_top)
                     {
                         if (coord.y >= y_top)
@@ -3906,31 +3906,103 @@ namespace netxs::ui
                 }
                 else ctx.block.cutoff(coord, n, blank);
             }
-            // scroll_buf: Move internal caret by n.
-            void _fwd(si32 n)
+            // scroll_buf: Move internal caret by count with wrapping.
+            void _fwd(si32 count)
             {
-                auto& curln = batch.current();
-                auto  cursz = curln.length();
-                auto  pos_1 = offset_to_screen(curln, batch.caret);
-                if (batch.caret == cursz) pos_1.x++;
-                batch.caret += n;
-                auto  pos_2 = offset_to_screen(curln, batch.caret);
-                if (batch.caret == cursz) pos_2.x++;
-                coord += pos_2 - pos_1;
-                if (coord.y < 0)
+                if (count > 0)
                 {
-                    batch.basis -= std::abs(coord.y);
-                    assert(batch.basis >= 0);
-                    coord.y = 0;
-                    index_rebuild();
-                }
-                else
-                {
-                    auto max_y = arena - 1;
-                    if (coord.y > max_y)
+                    if (coord.y < y_top)
                     {
-                        batch.basis += coord.y - max_y;
-                        coord.y = max_y;
+                        coord.x += count;
+                        if (coord.x > panel.x)
+                        {
+                            wrapdn();
+                            if (coord.y >= y_top)
+                            {
+                                count -= coord.x + (coord.y - y_top) * panel.x;
+                                set_coord(twod{ 0, y_top });
+                                _fwd(count);
+                            }
+                        }
+                    }
+                    else if (coord.y <= y_end)
+                    {
+                        auto& curln = batch.current();
+                        coord.x += count;
+                        if (coord.x >= panel.x && curln.wrapped())
+                        {
+                            wrapdn();
+                            if (coord.y > y_end)
+                            {
+                                batch.basis += coord.y - y_end;
+                                coord.y = y_end;
+                                index_rebuild();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        coord.x += count;
+                        if (coord.x > panel.x)
+                        {
+                            wrapdn();
+                            if (coord.y >= panel.y) coord = panel - dot_01;
+                        }
+                    }
+                }
+                else if (count < 0)
+                {
+                    if (coord.y < y_top)
+                    {
+                        coord.x += count;
+                        if (coord.x < 0)
+                        {
+                            wrapup();
+                            if (coord.y < 0) coord = dot_00;
+                        }
+                    }
+                    else if (coord.y <= y_end)
+                    {
+                        auto& curln = batch.current();
+                        coord.x += count;
+                        if (coord.x < 0 && curln.wrapped())
+                        {
+                            wrapup();
+                            if (coord.y < y_top)
+                            {
+                                batch.basis -= std::abs(y_top - coord.y);
+                                if (batch.basis < 0) batch.basis = 0;
+                                coord.y = y_top;
+                                index_rebuild();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        coord.x += count;
+                        if (coord.x < 0)
+                        {
+                            wrapup();
+                            if (coord.y <= y_end)
+                            {
+                                count += coord.x + (coord.y - y_end) * panel.x;
+                                set_coord(twod{ panel.x, y_end });
+                                _fwd(count);
+                            }
+                        }
+                    }
+                }
+
+                if (count) sync_coord();
+                auto& curln = batch.current();
+                if (coord.x == panel.x && curln.wrapped() && batch.caret < curln.length())
+                {
+                    coord.x = 0;
+                    coord.y++;
+                    if (coord.y > y_end)
+                    {
+                        batch.basis += coord.y - y_end;
+                        coord.y = y_end;
                         index_rebuild();
                     }
                 }
@@ -3949,10 +4021,9 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Move cursor by n in line.
-            void fwd(si32 n) override
+            void move(si32 n) override
             {
                 bufferbase::flush();
-                if (n == 0) return;
                 _fwd(n);
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
@@ -3997,9 +4068,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        coord.y += (coord.x + panel.x - 1) / panel.x - 1;
-                        coord.x  = (coord.x           - 1) % panel.x + 1;
-
+                        wrapdn();
                         if (coord.y >= y_top)
                         {
                             auto n = coord.x + (coord.y - y_top) * panel.x;
@@ -4026,7 +4095,7 @@ namespace netxs::ui
                     {
                         curln.splice(start, count, proto);
                         auto& mapln = index[coord.y];
-                        assert(coord.x == batch.caret && mapln.index == curln.index);
+                        assert(coord.x % panel.x == batch.caret % panel.x && mapln.index == curln.index);
                         if (coord.x > mapln.width)
                         {
                             mapln.width = coord.x;
@@ -4038,8 +4107,7 @@ namespace netxs::ui
                     {
                         auto max_y = arena - 1;
                         auto saved = coord.y + batch.basis;
-                        coord.y += (coord.x + panel.x - 1) / panel.x - 1;
-                        coord.x  = (coord.x           - 1) % panel.x + 1;
+                        wrapdn();
 
                         auto query = coord.y - (index.size - 1);
                         if (query > 0)
@@ -4184,9 +4252,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        coord.y += (coord.x + panel.x - 1) / panel.x - 1;
-                        coord.x  = (coord.x           - 1) % panel.x + 1;
-
+                        wrapdn();
                         auto data = proto.begin();
                         auto size = count;
                         auto seek = saved.x + saved.y * panel.x;

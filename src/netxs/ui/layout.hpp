@@ -622,6 +622,14 @@ namespace netxs::ui::atoms
                 state.count = 1;
                 glyph[1]    = c;
             }
+            constexpr void set_c0(char c)
+            {
+                token       = 0;
+                state.width = 2;
+                state.count = 2;
+                glyph[1]    = '^';
+                glyph[2]    = '@' + (c & 0b00011111);
+            }
             void set(view const& utf8, size_t cwidth)
             {
                 auto count = utf8.size();
@@ -1087,11 +1095,26 @@ namespace netxs::ui::atoms
                 return faux;
             }
         }
-        // cell: Convert to text. Ignore right half.
+        // cell: Convert to text. Ignore right half. Convert binary clusters (eg: ^C -> 0x03).
         void scan(text& dest) const
         {
                  if (wdt() == 0) dest += whitespace;
-            else if (wdt() != 3) dest += gc.get();
+            else if (wdt() == 1) dest += gc.get();
+            else if (wdt() == 2)
+            {
+                auto shadow = gc.get();
+                if (shadow.size() == 2 && shadow.front() == '^')
+                {
+                    dest += shadow[1] & 0b00011111;
+                }
+                else dest += shadow;
+            }
+        }
+        // cell: Convert non-printable chars to escaped.
+        auto& c0_to_txt(char c)
+        {
+            if (c < ' ') gc.set_c0(c);
+            return *this;
         }
         // cell: Delight both foreground and background.
         void xlight()
@@ -2219,7 +2242,9 @@ namespace netxs::ui::atoms
             static constexpr auto rev = Direction == feed::fwd ? faux : true;
             auto is_empty = [&](auto txt)
             {
-                return txt.empty() || txt.front() <= whitespace;
+                return txt.empty()
+                    || txt.front() <= whitespace // Binary C0 characters.
+                    || txt.front() == '^' && txt.size() == 2; // Textual C0 characters.
             };
             auto empty = [&](auto txt)
             {

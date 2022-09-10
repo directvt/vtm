@@ -635,9 +635,9 @@ namespace netxs::console
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    do set(c);
-                    while (--w && size > 0);
+                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //do set(c);
+                    //while (--w && size > 0);
                 }
             }
         }
@@ -677,9 +677,9 @@ namespace netxs::console
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    do *--dest = c;
-                    while (--w && dest != tail - 1);
+                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //do *--dest = c;
+                    //while (--w && dest != tail - 1);
                 }
             }
             if (dest == tail) // Last cell; tail + 1.
@@ -1142,6 +1142,24 @@ namespace netxs::console
                 return true;
             }
             else return faux;
+        }
+        // para: Move caret one word(true) or grapheme cluster(faux) to the left.
+        auto step_rev(bool by_word)
+        {
+            return by_word ? step_by_word_rev()
+                           : step_by_gc_rev();
+        }
+        // para: Move caret one word(true) or grapheme cluster(faux) to the right.
+        auto step_fwd(bool by_word)
+        {
+            return by_word ? step_by_word_fwd()
+                           : step_by_gc_fwd();
+        }
+        // para: Delete one word(true) or grapheme cluster(faux) to the left.
+        auto back_rev(bool by_word)
+        {
+            return by_word ? del_word_rev()
+                           : del_gc_rev();
         }
     };
 

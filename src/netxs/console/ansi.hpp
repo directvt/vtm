@@ -1508,6 +1508,14 @@ namespace netxs::ansi
             }
         };
 
+        void data(core& cooked)
+        {
+            if (auto count = cooked.size().x)
+            {
+                cooked.each([&](cell& c) { c.meta(brush); });
+                data(count, cooked.pick());
+            }
+        }
         void post(utf::frag const& cluster)
         {
             static ansi::marker marker;
