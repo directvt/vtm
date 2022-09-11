@@ -4242,6 +4242,7 @@ namespace netxs::os
                 template<class L>
                 auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
+                    auto mode = testy<bool>{ true };
                     auto buff = text{};
                     auto pair = wide{};
                     auto xmit = core{};
@@ -4312,7 +4313,7 @@ namespace netxs::os
                                     case VK_BACK:   burn(); while (n-- && line.back_rev(contrl)) { } break;
                                     case VK_PRIOR:  log("PgUP");    break;
                                     case VK_NEXT:   log("PgDn");    break;
-                                    case VK_INSERT: log("Insert");  break;
+                                    case VK_INSERT: mode(!mode);    break;
                                     case VK_DELETE: log("Delete");  break;
                                     case VK_UP:     log("up");      break;
                                     case VK_DOWN:   log("down");    break;
@@ -4351,10 +4352,10 @@ namespace netxs::os
                                         }
                                         else
                                         {
-                                            auto step = utf::to_utf(c, pair, buff);
-                                            if (step && n > 1)
+                                            auto grow = utf::to_utf(c, pair, buff);
+                                            if (grow && n > 1)
                                             {
-                                                auto temp = view{ buff.data() + step, buff.size() - step };
+                                                auto temp = view{ buff.data() + grow, buff.size() - grow };
                                                 while (--n)
                                                 {
                                                     buff += temp;
@@ -4388,6 +4389,11 @@ namespace netxs::os
                             else
                             {
                                 term.move(line.caret - line.length());
+                            }
+
+                            if (mode.reset())
+                            {
+                                server.uiterm.cursor.toggle();
                             }
                         });
                         lock.lock();

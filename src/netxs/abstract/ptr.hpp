@@ -24,6 +24,12 @@ namespace netxs
             return test;
         }
         operator T& () { return last; }
+        auto reset()
+        {
+            auto temp = test;
+            test = faux;
+            return temp;
+        }
         testy() = default;
         testy(T const& value)
             : prev{ value },

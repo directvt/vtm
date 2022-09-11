@@ -2568,6 +2568,11 @@ namespace netxs::console
                         break;
                 }
             }
+            void toggle()
+            {
+                style(!form);
+                reset();
+            }
             // pro::caret: Set caret position.
             void coor(twod const& coor)
             {
