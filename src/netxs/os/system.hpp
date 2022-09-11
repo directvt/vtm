@@ -4275,7 +4275,7 @@ namespace netxs::os
                                 {
                                     case VK_CONTROL:
                                     case VK_SHIFT:
-                                    case VK_MENU:
+                                    case VK_MENU:/*Alt*/
                                     case VK_PAUSE:
                                     case VK_LWIN:
                                     case VK_RWIN:

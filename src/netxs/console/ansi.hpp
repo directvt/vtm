@@ -2717,19 +2717,17 @@ namespace netxs::ansi
                         //todo
                         return !cache.scan<VGAMODE>(front, state, *this);
                     };
-                    auto fallback = [&](cell const& cache)
-                    {
-                        auto dumb = cache;
-                        dumb.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                        put(dumb);
-                    };
                     auto left_half = [&](cell const& cache)
                     {
-                        fallback(cache);
+                        auto temp = cache;
+                        temp.txt(cache.get_c0_left());
+                        put(temp);
                     };
                     auto right_half = [&](cell const& cache)
                     {
-                        fallback(cache);
+                        auto temp = cache;
+                        temp.txt(cache.get_c0_right());
+                        put(temp);
                     };
                     auto tie = [&](cell const& fore, cell const& next)
                     {

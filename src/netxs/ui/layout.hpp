@@ -1110,6 +1110,32 @@ namespace netxs::ui::atoms
                 else dest += shadow;
             }
         }
+        // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
+        auto get_c0_left() const
+        {
+            if (wdt() == 2)
+            {
+                auto shadow = gc.get();
+                if (shadow.size() == 2 && shadow.front() == '^')
+                {
+                    return view{ "^" };
+                }
+            }
+            return utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+        }
+        // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
+        auto get_c0_right() const
+        {
+            if (wdt() == 3)
+            {
+                auto shadow = gc.get();
+                if (shadow.size() == 2 && shadow.front() == '^')
+                {
+                    return shadow.substr(1, 1);
+                }
+            }
+            return utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+        }
         // cell: Convert non-printable chars to escaped.
         auto& c0_to_txt(char c)
         {
