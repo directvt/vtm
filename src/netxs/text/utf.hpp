@@ -833,6 +833,35 @@ namespace netxs::utf
     {
         to_utf(&wc, 1, utf8);
     }
+    auto to_utf(wchr wc, wide& pair, text& utf8)
+    {
+        if (wc >= 0xd800 && wc <= 0xdbff) // First part of surrogate pair.
+        {
+            pair.clear();
+            pair.push_back(wc);
+            return 0_sz;
+        }
+        else
+        {
+            auto step = utf8.size();
+            if (wc >= 0xdc00 && wc <= 0xdfff) // Second part of surrogate pair.
+            {
+                if (pair.empty()) // Broken surrogate pair.
+                {
+                    utf8 += utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+                }
+                else
+                {
+                    pair.push_back(wc);
+                    to_utf(pair, utf8);
+                    pair.clear();
+                }
+            }
+            else to_utf(wc, utf8);
+
+            return utf8.size() - step;
+        }
+    }
 
     template<class TEXT_OR_VIEW>
     auto length(TEXT_OR_VIEW&& utf8)

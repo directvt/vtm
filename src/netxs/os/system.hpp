@@ -4242,7 +4242,6 @@ namespace netxs::os
                 template<class L>
                 auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
-                    auto temp = text{};
                     auto buff = text{};
                     auto pair = wide{};
                     auto xmit = core{};
@@ -4352,31 +4351,11 @@ namespace netxs::os
                                         }
                                         else
                                         {
-                                            temp.clear();
-                                            if (c >= 0xd800 && c <= 0xdbff) // First part of surrogate pair.
+                                            auto step = utf::to_utf(c, pair, buff);
+                                            if (step && n > 1)
                                             {
-                                                pair.clear();
-                                                pair.push_back(c);
-                                            }
-                                            else if (c >= 0xdc00 && c <= 0xdfff)
-                                            {
-                                                if (pair.empty()) // Broken surrogate pair.
-                                                {
-                                                    buff += utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
-                                                }
-                                                else
-                                                {
-                                                    pair.push_back(c);
-                                                    utf::to_utf(pair, temp);
-                                                    pair.clear();
-                                                    buff += temp;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                utf::to_utf(c, temp);
-                                                buff += temp;
-                                                while (n--)
+                                                auto temp = view{ buff.data() + step, buff.size() - step };
+                                                while (--n)
                                                 {
                                                     buff += temp;
                                                 }
