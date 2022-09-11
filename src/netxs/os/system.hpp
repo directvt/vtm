@@ -4243,10 +4243,18 @@ namespace netxs::os
                 auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
                     auto temp = text{};
+                    auto buff = text{};
+                    auto pair = wide{};
                     auto xmit = core{};
                     auto line = para{ cooked.ustr };
                     auto done = faux;
                     auto crlf = faux;
+                    auto burn = [&]
+                    {
+                        //if (server.inpmode & ENABLE_INSERT_MODE)
+                        line += buff;
+                        buff.clear();
+                    };
                     do
                     {
                         auto caret = line.caret;
@@ -4256,13 +4264,13 @@ namespace netxs::os
                         while (head != tail)
                         {
                             auto& rec = *head++;
-                            //if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
-                            //    log(" ============================",
-                            //        "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
-                            //        "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
-                            //        "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
-                            //        "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
-                            //        "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true":"faux");
+                            if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
+                                log(" ============================",
+                                    "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
+                                    "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
+                                    "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
+                                    "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
+                                    "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true":"faux");
 
                             if (rec.EventType == KEY_EVENT
                              && rec.Event.KeyEvent.bKeyDown)
@@ -4297,12 +4305,12 @@ namespace netxs::os
                                     case VK_F11:
                                     case VK_F12:
                                         break;
-                                    case VK_ESCAPE: line.wipe();            break;
-                                    case VK_HOME:   line.move_to_home();    break;
-                                    case VK_END:    line.move_to_end();     break;
-                                    case VK_LEFT:   while (n-- && line.step_rev(contrl)) { } break;
-                                    case VK_RIGHT:  while (n-- && line.step_fwd(contrl)) { } break;
-                                    case VK_BACK:   while (n-- && line.back_rev(contrl)) { } break;
+                                    case VK_ESCAPE: burn(); line.wipe();            break;
+                                    case VK_HOME:   burn(); line.move_to_home();    break;
+                                    case VK_END:    burn(); line.move_to_end();     break;
+                                    case VK_LEFT:   burn(); while (n-- && line.step_rev(contrl)) { } break;
+                                    case VK_RIGHT:  burn(); while (n-- && line.step_fwd(contrl)) { } break;
+                                    case VK_BACK:   burn(); while (n-- && line.back_rev(contrl)) { } break;
                                     case VK_PRIOR:  log("PgUP");    break;
                                     case VK_NEXT:   log("PgDn");    break;
                                     case VK_INSERT: log("Insert");  break;
@@ -4317,6 +4325,7 @@ namespace netxs::os
                                             auto cook = [&](auto c)
                                             {
                                                 cooked.ustr.clear();
+                                                burn();
                                                 line.lyric->utf8(cooked.ustr);
                                                 cooked.ustr.push_back((char)c);
                                                 if (c == '\r') cooked.ustr.push_back('\n');
@@ -4334,6 +4343,7 @@ namespace netxs::os
                                             }
                                             else
                                             {
+                                                burn();
                                                 auto chr = static_cast<char>(c);
                                                 auto s = cell{}.c0_to_txt(chr);
                                                 //if (server.inpmode & ENABLE_INSERT_MODE)
@@ -4343,13 +4353,33 @@ namespace netxs::os
                                         else
                                         {
                                             temp.clear();
-                                            utf::to_utf(c, temp);
-                                            //if (server.inpmode & ENABLE_INSERT_MODE)
-                                            line += temp;
-                                            while (n--)
+                                            if (c >= 0xd800 && c <= 0xdbff) // First part of surrogate pair.
                                             {
-                                                //if (server.inpmode & ENABLE_INSERT_MODE)
-                                                line += temp;
+                                                pair.clear();
+                                                pair.push_back(c);
+                                            }
+                                            else if (c >= 0xdc00 && c <= 0xdfff)
+                                            {
+                                                if (pair.empty()) // Broken surrogate pair.
+                                                {
+                                                    buff += utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+                                                }
+                                                else
+                                                {
+                                                    pair.push_back(c);
+                                                    utf::to_utf(pair, temp);
+                                                    pair.clear();
+                                                    buff += temp;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                utf::to_utf(c, temp);
+                                                buff += temp;
+                                                while (n--)
+                                                {
+                                                    buff += temp;
+                                                }
                                             }
                                         }
                                     }
@@ -4357,6 +4387,8 @@ namespace netxs::os
                             }
                             if (!done) buffer.pop_front();
                         }
+
+                        burn();
 
                         lock.unlock();
                         server.uiterm.update([&]
