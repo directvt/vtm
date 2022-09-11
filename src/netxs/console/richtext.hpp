@@ -1023,13 +1023,27 @@ namespace netxs::console
             caret = std::clamp(caret, 0, length());
         }
         // para: Move caret to the beginning.
-        auto move_to_home()
+        auto move_to_home(bool erase)
         {
+            if (erase)
+            {
+                caret_check();
+                auto oldpos = caret;
+                auto& line = content();
+                line.cutoff(0, oldpos);
+            }
             caret = 0;
         }
         // para: Move caret to the end.
-        auto move_to_end()
+        auto move_to_end(bool erase)
         {
+            if (erase)
+            {
+                caret_check();
+                auto oldpos = caret;
+                auto& line = content();
+                line.cutoff(oldpos, length() - oldpos);
+            }
             caret = length();
         }
         // para: Move caret one cell to the left.

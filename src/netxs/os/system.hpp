@@ -4334,8 +4334,8 @@ namespace netxs::os
                                         break;
                                     case VK_F6:     burn(); save();               line.insert_proto_cell(cell{}.c0_to_txt('Z' - '@')); break;
                                     case VK_ESCAPE: burn(); save();               line.wipe();               break;
-                                    case VK_HOME:   burn();                       line.move_to_home();       break;
-                                    case VK_END:    burn();                       line.move_to_end();        break;
+                                    case VK_HOME:   burn(); save();               line.move_to_home(contrl); break;
+                                    case VK_END:    burn(); save();               line.move_to_end (contrl); break;
                                     case VK_LEFT:   burn();         while (n-- && line.step_rev(contrl)) { } break;
                                     case VK_RIGHT:  burn();         while (n-- && line.step_fwd(contrl)) { } break;
                                     case VK_BACK:   burn(); save(); while (n-- && line.wipe_rev(contrl)) { } break;
@@ -4351,7 +4351,7 @@ namespace netxs::os
                                         n--;
                                         if (c < ' ')
                                         {
-                                            auto cook = [&](auto c)
+                                            auto cook = [&](auto c, bool crlf_value)
                                             {
                                                 cooked.ustr.clear();
                                                 burn();
@@ -4360,29 +4360,20 @@ namespace netxs::os
                                                 if (c == '\r') cooked.ustr.push_back('\n');
                                                 if (n == 0) buffer.pop_front();
                                                 done = true;
+                                                crlf = crlf_value;
                                             };
-                                            if (stops & 1 << c)
-                                            {
-                                                cook(c);
-                                            }
-                                            else if (c == '\r')
-                                            {
-                                                cook(c);
-                                                crlf = true;
-                                            }
+                                                 if (stops & 1 << c) cook(c, faux);
+                                            else if (c == '\r'     ) cook(c, true);
+                                            else if (c == 'Z' - '@') swap(faux);
+                                            else if (c == 'Y' - '@') swap(true);
                                             else
                                             {
-                                                     if (c == 'Z' - '@') swap(faux);
-                                                else if (c == 'Y' - '@') swap(true);
-                                                else
-                                                {
-                                                    burn();
-                                                    auto chr = static_cast<char>(c);
-                                                    auto s = cell{}.c0_to_txt(chr);
-                                                    //if (server.inpmode & ENABLE_INSERT_MODE)
-                                                    save(); 
-                                                    line.insert_proto_cell(s);
-                                                }
+                                                burn();
+                                                save(); 
+                                                auto chr = static_cast<char>(c);
+                                                auto s = cell{}.c0_to_txt(chr);
+                                                //if (server.inpmode & ENABLE_INSERT_MODE)
+                                                line.insert_proto_cell(s);
                                             }
                                         }
                                         else
@@ -4495,6 +4486,9 @@ namespace netxs::os
                     }
                     else
                     {
+                        //todo
+                        // inpmode & ENABLE_LINE_INPUT == true - readline
+                        // inpmode & ENABLE_LINE_INPUT == faux - readchar
                         auto data = view{ cooked.rest.data(), std::min((ui32)cooked.rest.size(), readstep) };
                         if (cooked.rest.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read rest line: ", utf::debase(cooked.rest));
                         cooked.rest.remove_prefix(data.size());
