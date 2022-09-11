@@ -110,6 +110,7 @@ namespace netxs::os
     using namespace std::literals;
     using namespace netxs::ui::atoms;
     using para = console::para;
+    using rich = console::rich;
 
     enum role { client, server };
 
@@ -4247,18 +4248,45 @@ namespace netxs::os
                     auto pair = wide{};
                     auto xmit = core{};
                     auto line = para{ cooked.ustr };
+                    auto undo = std::list<std::pair<si32, rich>>{ { line.caret, line.content() } };
+                    auto redo = std::list<std::pair<si32, rich>>{};
                     auto done = faux;
                     auto crlf = faux;
+                    auto save = [&]
+                    {
+                        auto& data = line.content();
+                        if (undo.empty() || undo.back().second != data)
+                        {
+                            undo.emplace_back(line.caret, data);
+                            redo.clear();
+                        }
+                    };
+                    auto swap = [&](bool back)
+                    {
+                        if (back) std::swap(undo, redo);
+                        if (undo.size())
+                        {
+                            redo.emplace_back(line.caret, line.content());
+                            line.caret = undo.back().first;
+                            line.content(undo.back().second);
+                            undo.pop_back();
+                        }
+                        if (back) std::swap(undo, redo);
+                    };
                     auto burn = [&]
                     {
-                        //if (server.inpmode & ENABLE_INSERT_MODE)
-                        line += buff;
-                        buff.clear();
+                        if (buff.size())
+                        {
+                            save();
+                            //if (server.inpmode & ENABLE_INSERT_MODE)
+                            line += buff;
+                            buff.clear();
+                        }
                     };
                     do
                     {
-                        auto caret = line.caret;
-                        auto oldsz = line.length();
+                        auto coor = line.caret;
+                        auto size = line.length();
                         auto head = buffer.begin();
                         auto tail = buffer.end();
                         while (head != tail)
@@ -4297,7 +4325,6 @@ namespace netxs::os
                                     case VK_F3:
                                     case VK_F4:
                                     case VK_F5:
-                                    case VK_F6:
                                     case VK_F7:
                                     case VK_F8:
                                     case VK_F9:
@@ -4305,14 +4332,15 @@ namespace netxs::os
                                     case VK_F11:
                                     case VK_F12:
                                         break;
-                                    case VK_ESCAPE: burn(); line.wipe();            break;
-                                    case VK_HOME:   burn(); line.move_to_home();    break;
-                                    case VK_END:    burn(); line.move_to_end();     break;
-                                    case VK_LEFT:   burn(); while (n-- && line.step_rev(contrl)) { } break;
-                                    case VK_RIGHT:  burn(); while (n-- && line.step_fwd(contrl)) { } break;
-                                    case VK_BACK:   burn(); while (n-- && line.wipe_rev(contrl)) { } break;
-                                    case VK_DELETE: burn(); while (n-- && line.wipe_fwd(contrl)) { } break;
-                                    case VK_INSERT: burn(); mode(!mode);    break;
+                                    case VK_F6:     burn(); save();               line.insert_proto_cell(cell{}.c0_to_txt('Z' - '@')); break;
+                                    case VK_ESCAPE: burn(); save();               line.wipe();               break;
+                                    case VK_HOME:   burn();                       line.move_to_home();       break;
+                                    case VK_END:    burn();                       line.move_to_end();        break;
+                                    case VK_LEFT:   burn();         while (n-- && line.step_rev(contrl)) { } break;
+                                    case VK_RIGHT:  burn();         while (n-- && line.step_fwd(contrl)) { } break;
+                                    case VK_BACK:   burn(); save(); while (n-- && line.wipe_rev(contrl)) { } break;
+                                    case VK_DELETE: burn(); save(); while (n-- && line.wipe_fwd(contrl)) { } break;
+                                    case VK_INSERT: burn(); mode(!mode);                                     break;
                                     
                                     case VK_PRIOR:  burn(); log("PgUP");    break;
                                     case VK_NEXT:   burn(); log("PgDn");    break;
@@ -4344,20 +4372,26 @@ namespace netxs::os
                                             }
                                             else
                                             {
-                                                burn();
-                                                auto chr = static_cast<char>(c);
-                                                auto s = cell{}.c0_to_txt(chr);
-                                                //if (server.inpmode & ENABLE_INSERT_MODE)
-                                                line.insert_proto_cell(s);
+                                                     if (c == 'Z' - '@') swap(faux);
+                                                else if (c == 'Y' - '@') swap(true);
+                                                else
+                                                {
+                                                    burn();
+                                                    auto chr = static_cast<char>(c);
+                                                    auto s = cell{}.c0_to_txt(chr);
+                                                    //if (server.inpmode & ENABLE_INSERT_MODE)
+                                                    save(); 
+                                                    line.insert_proto_cell(s);
+                                                }
                                             }
                                         }
                                         else
                                         {
                                             auto grow = utf::to_utf(c, pair, buff);
-                                            if (grow && n > 1)
+                                            if (grow && n)
                                             {
                                                 auto temp = view{ buff.data() + grow, buff.size() - grow };
-                                                while (--n)
+                                                while (n--)
                                                 {
                                                     buff += temp;
                                                 }
@@ -4374,13 +4408,13 @@ namespace netxs::os
                         lock.unlock();
                         server.uiterm.update([&]
                         {
-                            static auto blank = cell{ '\0' }.wdt(1);
+                            static auto zero = cell{ '\0' }.wdt(1);
                             auto& term = *server.uiterm.target;
-                            term.move(-caret);
-                            xmit.crop(oldsz, blank);
-                            term.data(xmit);
-                            term.move(-oldsz);
-                            term.data(line.content());
+                            term.move(-coor);
+                            xmit.crop( size, zero);
+                            term.data( xmit);
+                            term.move(-size);
+                            term.data( line.content());
 
                             if (done && crlf)
                             {

@@ -500,6 +500,18 @@ namespace netxs::console
         auto substr(si32 at, si32 width = netxs::maxsi32) const { return shadow().substr(at, width);       }
         void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
         void reserv(si32 oversize)                              { if (oversize > length()) crop(oversize); }
+        auto operator != (rich const& r) const
+        {
+            if (size() != r.size()) return true;
+            auto head = iter();
+            auto tail = iend();
+            auto dest = r.iter();
+            while (head != tail)
+            {
+                if (*head++ != *dest++) return true;
+            }
+            return faux;
+        }
         auto empty()
         {
             return canvas.empty();
@@ -964,6 +976,7 @@ namespace netxs::console
         operator writ const& () const { return locus; }
 
         void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
+        void  content(rich& r){ *lyric = r;    } // para: Set paragraph content.
         auto& content() const { return *lyric; } // para: Return paragraph content.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
         shot   substr(si32 start, si32 width) const // para: Return paragraph substring shadow.
