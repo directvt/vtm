@@ -1137,8 +1137,10 @@ namespace netxs::ui::atoms
             return utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
         }
         // cell: Convert non-printable chars to escaped.
-        auto& c0_to_txt(char c)
+        template<class C>
+        auto& c0_to_txt(C chr)
         {
+            auto c = static_cast<char>(chr);
             if (c < ' ') gc.set_c0(c);
             return *this;
         }

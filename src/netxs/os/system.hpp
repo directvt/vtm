@@ -4229,7 +4229,8 @@ namespace netxs::os
                             if (server.inpmod & ENABLE_PROCESSED_INPUT)
                             {
                                 if (gear.pressed) alert(CTRL_C_EVENT);
-                                buffer.pop_back();
+                                //todo revise
+                                //buffer.pop_back();
                             }
                         }
                     }
@@ -4251,7 +4252,7 @@ namespace netxs::os
                     auto undo = std::list<std::pair<si32, rich>>{ { line.caret, line.content() } };
                     auto redo = std::list<std::pair<si32, rich>>{};
                     auto done = faux;
-                    auto crlf = faux;
+                    auto crlf = 0;
                     auto save = [&]
                     {
                         auto& data = line.content();
@@ -4351,29 +4352,35 @@ namespace netxs::os
                                         n--;
                                         if (c < ' ')
                                         {
-                                            auto cook = [&](auto c, bool crlf_value)
+                                            auto cook = [&](auto c, auto crlf_value)
                                             {
-                                                cooked.ustr.clear();
+                                                done = true;
+                                                crlf = crlf_value;
                                                 burn();
+                                                cooked.ustr.clear();
                                                 line.lyric->utf8(cooked.ustr);
                                                 cooked.ustr.push_back((char)c);
                                                 if (c == '\r') cooked.ustr.push_back('\n');
                                                 if (n == 0) buffer.pop_front();
-                                                done = true;
-                                                crlf = crlf_value;
                                             };
-                                                 if (stops & 1 << c) cook(c, faux);
-                                            else if (c == '\r'     ) cook(c, true);
+                                                 if (stops & 1 << c) cook(c, 0);
+                                            else if (c == '\r'     ) cook(c, 1);
                                             else if (c == 'Z' - '@') swap(faux);
                                             else if (c == 'Y' - '@') swap(true);
+                                            else if (c == 'C' - '@')
+                                            {
+                                                cooked.ustr = "\n";
+                                                done = true;
+                                                crlf = 2;
+                                                line.insert_proto_cell(cell{}.c0_to_txt(c));
+                                                if (n == 0) buffer.pop_front();
+                                            }
                                             else
                                             {
                                                 burn();
                                                 save(); 
-                                                auto chr = static_cast<char>(c);
-                                                auto s = cell{}.c0_to_txt(chr);
                                                 //if (server.inpmode & ENABLE_INSERT_MODE)
-                                                line.insert_proto_cell(s);
+                                                line.insert_proto_cell(cell{}.c0_to_txt(c));
                                             }
                                         }
                                         else
@@ -4410,7 +4417,7 @@ namespace netxs::os
                             if (done && crlf)
                             {
                                 term.cr();
-                                term.lf(1);
+                                term.lf(crlf);
                             }
                             else
                             {
