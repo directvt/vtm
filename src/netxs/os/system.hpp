@@ -4242,7 +4242,7 @@ namespace netxs::os
                 template<class L>
                 auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
-                    auto mode = testy<bool>{ true };
+                    auto mode = testy<bool>{ !!(server.inpmod & ENABLE_INSERT_MODE) };
                     auto buff = text{};
                     auto pair = wide{};
                     auto xmit = core{};
@@ -4310,8 +4310,8 @@ namespace netxs::os
                                     case VK_END:    burn(); line.move_to_end();     break;
                                     case VK_LEFT:   burn(); while (n-- && line.step_rev(contrl)) { } break;
                                     case VK_RIGHT:  burn(); while (n-- && line.step_fwd(contrl)) { } break;
-                                    case VK_BACK:   burn(); while (n-- && line.back_rev(contrl)) { } break;
-                                    case VK_DELETE: burn(); while (n-- && line.step_fwd(contrl) && line.back_rev(contrl)) { } break;
+                                    case VK_BACK:   burn(); while (n-- && line.wipe_rev(contrl)) { } break;
+                                    case VK_DELETE: burn(); while (n-- && line.wipe_fwd(contrl)) { } break;
                                     case VK_INSERT: burn(); mode(!mode);    break;
                                     
                                     case VK_PRIOR:  burn(); log("PgUP");    break;

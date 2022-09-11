@@ -1104,6 +1104,21 @@ namespace netxs::console
             }
             else return faux;
         }
+        // para: Delete one grapheme cluster to the right.
+        auto del_gc_fwd()
+        {
+            caret_check();
+            auto oldpos = caret;
+            if (step_by_gc_fwd())
+            {
+                auto newpos = caret;
+                auto& line = content();
+                line.cutoff(oldpos, newpos - oldpos);
+                caret = oldpos;
+                return true;
+            }
+            else return faux;
+        }
         // para: Move caret one word to the left.
         auto step_by_word_rev()
         {
@@ -1143,6 +1158,21 @@ namespace netxs::console
             }
             else return faux;
         }
+        // para: Delete one word to the right.
+        auto del_word_fwd()
+        {
+            caret_check();
+            auto oldpos = caret;
+            if (step_by_word_fwd())
+            {
+                auto newpos = caret;
+                auto& line = content();
+                line.cutoff(oldpos, newpos - oldpos);
+                caret = oldpos;
+                return true;
+            }
+            else return faux;
+        }
         // para: Move caret one word(true) or grapheme cluster(faux) to the left.
         auto step_rev(bool by_word)
         {
@@ -1156,10 +1186,16 @@ namespace netxs::console
                            : step_by_gc_fwd();
         }
         // para: Delete one word(true) or grapheme cluster(faux) to the left.
-        auto back_rev(bool by_word)
+        auto wipe_rev(bool by_word)
         {
             return by_word ? del_word_rev()
                            : del_gc_rev();
+        }
+        // para: Delete one word(true) or grapheme cluster(faux) to the right.
+        auto wipe_fwd(bool by_word)
+        {
+            return by_word ? del_word_fwd()
+                           : del_gc_fwd();
         }
     };
 
