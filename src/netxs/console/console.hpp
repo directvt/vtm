@@ -2622,6 +2622,31 @@ namespace netxs::console
                             point.coor += field.coor + boss.base::coor();
                             if (auto area = field.clip(point))
                             {
+                                auto& test = canvas.peek(point.coor);
+                                if (test.wdt() == 2) // Extend cursor to adjacent halves.
+                                {
+                                    if (field.hittest(point.coor + dot_10))
+                                    {
+                                        auto& next = canvas.peek(point.coor + dot_10);
+                                        if (next.wdt() == 3 && test.same_txt(next))
+                                        {
+                                            area.size.x++;
+                                        }
+                                    }
+                                }
+                                else if (test.wdt() == 3)
+                                {
+                                    if (field.hittest(point.coor - dot_10))
+                                    {
+                                        auto& prev = canvas.peek(point.coor - dot_10);
+                                        if (prev.wdt() == 2 && test.same_txt(prev))
+                                        {
+                                            area.size.x++;
+                                            area.coor.x--;
+                                        }
+                                    }
+                                }
+
                                 if (form)
                                 {
                                     canvas.fill(area, [](cell& c)

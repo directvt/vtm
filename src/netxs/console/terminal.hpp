@@ -6677,7 +6677,7 @@ namespace netxs::ui
         {
             linux_console = os::local_mode();
             target = &normal;
-            //cursor.style(commands::cursor::def_style); // default=blinking_box
+            //cursor.style(commands::cursor::blinking_box); // default=blinking_box
             cursor.style(def_cursor); //todo make it via props like selmod
             cursor.show(); //todo revise (possible bug)
             form::keybd.accept(true); // Subscribe on keybd offers.

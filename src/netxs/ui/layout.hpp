@@ -2203,6 +2203,11 @@ namespace netxs::ui::atoms
                 netxs::inbody<faux>(*this, block, joint, place, fuse);
             }
         }
+        auto& peek(twod const& p) // core: Take the cell at the specified coor.
+        {
+            auto& c = *(iter() + p.x + p.y * region.size.x);
+            return c;
+        }
         template<class P>
         void fill(rect block, P fuse) // core: Process the specified region by the specified proc.
         {
