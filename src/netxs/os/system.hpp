@@ -4311,12 +4311,13 @@ namespace netxs::os
                                     case VK_LEFT:   burn(); while (n-- && line.step_rev(contrl)) { } break;
                                     case VK_RIGHT:  burn(); while (n-- && line.step_fwd(contrl)) { } break;
                                     case VK_BACK:   burn(); while (n-- && line.back_rev(contrl)) { } break;
-                                    case VK_PRIOR:  log("PgUP");    break;
-                                    case VK_NEXT:   log("PgDn");    break;
-                                    case VK_INSERT: mode(!mode);    break;
-                                    case VK_DELETE: log("Delete");  break;
-                                    case VK_UP:     log("up");      break;
-                                    case VK_DOWN:   log("down");    break;
+                                    case VK_DELETE: burn(); while (n-- && line.step_fwd(contrl) && line.back_rev(contrl)) { } break;
+                                    case VK_INSERT: burn(); mode(!mode);    break;
+                                    
+                                    case VK_PRIOR:  burn(); log("PgUP");    break;
+                                    case VK_NEXT:   burn(); log("PgDn");    break;
+                                    case VK_UP:     burn(); log("up");      break;
+                                    case VK_DOWN:   burn(); log("down");    break;
                                     default:
                                     {
                                         n--;
