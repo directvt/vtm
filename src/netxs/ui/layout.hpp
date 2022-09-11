@@ -2274,8 +2274,8 @@ namespace netxs::ui::atoms
             auto is_empty = [&](auto txt)
             {
                 return txt.empty()
-                    || txt.front() <= whitespace // Binary C0 characters.
-                    || txt.front() == '^' && txt.size() == 2; // Textual C0 characters.
+                    || txt.front() == whitespace
+                    || txt.front() == '^' && txt.size() == 2; // C0 characters.
             };
             auto empty = [&](auto txt)
             {
