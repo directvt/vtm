@@ -4421,8 +4421,10 @@ namespace netxs::os
                         {
                             static auto zero = cell{ '\0' }.wdt(1);
                             auto& term = *server.uiterm.target;
+                            auto& data = line.content();
+                            data.crop(line.length() + 1, zero); // To avoid pendind cursor.
                             term.move(-coor);
-                            term.data(line.content());
+                            term.data(data);
                             term.el(3 /*ui::term::commands::erase::line::wraps*/);
 
                             if (done && crlf)
@@ -4439,6 +4441,7 @@ namespace netxs::os
                             {
                                 server.uiterm.cursor.toggle();
                             }
+                            data.crop(line.length() - 1);
                         });
                         lock.lock();
                     }
@@ -5233,8 +5236,20 @@ namespace netxs::os
                     };
                 };
                 auto& packet = payload::cast(upload);
-                packet.input.etype == type::attribute ? log(prompt, "FillConsoleOutputAttribute")
-                                                      : log(prompt, "FillConsoleOutputCharacter");
+                auto coord = twod{ packet.input.coorx, packet.input.coory };
+                if (packet.input.etype == type::attribute)
+                {
+                    log(prompt, "FillConsoleOutputAttribute");
+                    log("\tcoord ", coord);
+                    log("\tcount ", packet.input.count);
+                }
+                else
+                {
+                    log(prompt, "FillConsoleOutputCharacter");
+                    log("\tcoord ", coord);
+                    log("\tcount ", packet.input.count);
+                    log("\tvalue ", packet.input.piece);
+                }
             }
             auto api_scrollback_read_data            ()
             {
