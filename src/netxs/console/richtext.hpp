@@ -1067,9 +1067,8 @@ namespace netxs::console
             if (erase)
             {
                 caret_check();
-                auto oldpos = caret;
                 auto& line = content();
-                line.cutoff(oldpos, length() - oldpos);
+                line.crop(caret);
             }
             caret = length();
         }

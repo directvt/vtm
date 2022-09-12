@@ -4247,7 +4247,6 @@ namespace netxs::os
                     auto mode = testy<bool>{ !!(server.inpmod & ENABLE_INSERT_MODE) };
                     auto buff = text{};
                     auto pair = wide{};
-                    auto xmit = core{};
                     auto line = para{ cooked.ustr };
                     auto undo = std::list<std::pair<si32, rich>>{ { line.caret, line.content() } };
                     auto redo = std::list<std::pair<si32, rich>>{};
@@ -4357,9 +4356,18 @@ namespace netxs::os
                                                 crlf = crlf_value;
                                                 burn();
                                                 cooked.ustr.clear();
-                                                line.lyric->utf8(cooked.ustr);
-                                                cooked.ustr.push_back((char)c);
-                                                if (c == '\r') cooked.ustr.push_back('\n');
+                                                if (c == '\r')
+                                                {
+                                                    line.lyric->utf8(cooked.ustr);
+                                                    cooked.ustr.push_back('\r');
+                                                    cooked.ustr.push_back('\n');
+                                                }
+                                                else
+                                                {
+                                                    line.move_to_end(true);
+                                                    line.lyric->utf8(cooked.ustr);
+                                                    cooked.ustr.push_back((char)c);
+                                                }
                                                 if (n == 0) buffer.pop_front();
                                             };
                                                  if (stops & 1 << c) cook(c, 0);
@@ -4407,10 +4415,8 @@ namespace netxs::os
                             static auto zero = cell{ '\0' }.wdt(1);
                             auto& term = *server.uiterm.target;
                             term.move(-coor);
-                            xmit.crop( size, zero);
-                            term.data( xmit);
-                            term.move(-size);
-                            term.data( line.content());
+                            term.data(line.content());
+                            term.el(3 /*ui::term::commands::erase::line::wraps*/);
 
                             if (done && crlf)
                             {

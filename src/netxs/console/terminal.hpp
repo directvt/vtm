@@ -65,6 +65,7 @@ namespace netxs::ui
                         right = 0,
                         left  = 1,
                         all   = 2,
+                        wraps = 3,
                     };
                 };
                 struct display
@@ -3854,6 +3855,10 @@ namespace netxs::ui
                                           : 0;
                             count = wraps ? panel.x
                                           : std::max(panel.x, batch->length());
+                            break;
+                        case commands::erase::line::wraps: // n = 3  Erase wrapped line.
+                            start = caret;
+                            count = width - caret;
                             break;
                     }
                     if (count)
