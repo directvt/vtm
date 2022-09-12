@@ -4279,8 +4279,7 @@ namespace netxs::os
                         if (buff.size())
                         {
                             save();
-                            //if (server.inpmode & ENABLE_INSERT_MODE)
-                            line += buff;
+                            line.insert(buff, mode);
                             buff.clear();
                         }
                     };
@@ -4333,7 +4332,7 @@ namespace netxs::os
                                     case VK_F11:
                                     case VK_F12:
                                         break;
-                                    case VK_F6:     burn(); save();               line.insert_proto_cell(cell{}.c0_to_txt('Z' - '@')); break;
+                                    case VK_F6:     burn(); save();               line.insert(cell{}.c0_to_txt('Z' - '@'), mode); break;
                                     case VK_ESCAPE: burn(); save();               line.wipe();               break;
                                     case VK_HOME:   burn(); save();               line.move_to_home(contrl); break;
                                     case VK_END:    burn(); save();               line.move_to_end (contrl); break;
@@ -4372,15 +4371,14 @@ namespace netxs::os
                                                 cooked.ustr = "\n";
                                                 done = true;
                                                 crlf = 2;
-                                                line.insert_proto_cell(cell{}.c0_to_txt(c));
+                                                line.insert(cell{}.c0_to_txt(c), mode);
                                                 if (n == 0) buffer.pop_front();
                                             }
                                             else
                                             {
                                                 burn();
                                                 save(); 
-                                                //if (server.inpmode & ENABLE_INSERT_MODE)
-                                                line.insert_proto_cell(cell{}.c0_to_txt(c));
+                                                line.insert(cell{}.c0_to_txt(c), mode);
                                             }
                                         }
                                         else
@@ -4442,6 +4440,8 @@ namespace netxs::os
 
                     cooked.save(utf16);
                     if (buffer.empty()) ondata.flush();
+
+                    server.inpmod = (server.inpmod & ~ENABLE_INSERT_MODE) | (mode ? ENABLE_INSERT_MODE : 0);
                 }
                 template<class Payload>
                 auto placeorder(Payload& packet, wiew nameview, view initdata, ui32 readstep)

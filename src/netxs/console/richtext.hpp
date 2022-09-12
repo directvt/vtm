@@ -763,6 +763,33 @@ namespace netxs::console
                 while (dst != src) *--src = clr;
             }
         }
+        // rich: Shift 1D substring inside the line.
+        void scroll(si32 from, si32 size, si32 step)
+        {
+            if (step == 0 || size == 0) return;
+            if (step < 0)
+            {
+                std::swap(size, step);
+                size = -size;
+                from -= size;
+            }
+            auto need = from + size + step;
+            if (need > core::size().x) crop(need);
+
+            auto tail = core::iter() + from;
+            auto iter = tail + size;
+            while (iter != tail)
+            {
+                auto head = --iter;
+                auto tail = head + step;
+                while (head != tail)
+                {
+                    auto& src = *head;
+                    auto& dst = *++head;
+                    std::swap(src, dst);
+                }
+            }
+        }
         // rich: (current segment) Insert n blanks at the specified position. Autogrow within segment only.
         void insert(si32 at, si32 count, cell const& blank, si32 margin)
         {
@@ -1099,21 +1126,6 @@ namespace netxs::console
             }
             else return faux;
         }
-        // para: Insert one proto cell before caret (the proto means that it will be expanded if it is wide - wdt == 2).
-        auto insert_proto_cell(cell c)
-        {
-            caret_check();
-            auto wdt = c.wdt();
-            auto& line = content();
-            if (wdt == 2)
-            {
-                line.insert_full(caret, 2, c);
-                caret++;
-                line.data(caret).wdt(3);
-                caret++;
-            }
-            else line.insert_full(caret, 1, c.wdt(1));
-        }
         // para: Move caret one grapheme cluster to the right.
         auto step_by_gc_fwd()
         {
@@ -1145,6 +1157,54 @@ namespace netxs::console
                 return true;
             }
             else return faux;
+        }
+        // para: Insert one proto cell before caret (the proto means that it will be expanded if it is wide - wdt == 2).
+        auto insert(cell c, bool inserting)
+        {
+            if (!inserting) del_gc_fwd();
+            else            caret_check();
+            auto wdt = c.wdt();
+            auto& line = content();
+            if (wdt == 2)
+            {
+                line.insert_full(caret, 2, c);
+                caret++;
+                line.data(caret).wdt(3);
+                caret++;
+            }
+            else line.insert_full(caret, 1, c.wdt(1));
+        }
+        // para: Insert text.
+        void insert(view utf8, bool inserting)
+        {
+            caret_check();
+            if (caret != length())
+            {
+                if (inserting)
+                {
+                    auto coor = caret;
+                    auto size = length();
+                    caret = size;
+                    operator+=(utf8);
+                    auto& line = content();
+                    auto  grow = length() - size;
+                    line.scroll(coor, size - coor, grow);
+                    caret = coor + grow;
+                }
+                else
+                {
+                    operator+=(utf8);
+                    auto size = length();
+                    if (caret < size && at(caret).wdt() == 3) // Broken cluster.
+                    {
+                        auto& line = content();
+                        size--;
+                        line.scroll(caret, 1, size - caret);
+                        line.crop(size);
+                    }
+                }
+            }
+            else operator+=(utf8);
         }
         // para: Move caret one word to the left.
         auto step_by_word_rev()
