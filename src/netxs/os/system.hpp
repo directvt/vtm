@@ -4302,11 +4302,12 @@ namespace netxs::os
                             if (rec.EventType == KEY_EVENT
                              && rec.Event.KeyEvent.bKeyDown)
                             {
+                                auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
                                 auto& c = rec.Event.KeyEvent.uChar.UnicodeChar;
                                 auto& n = rec.Event.KeyEvent.wRepeatCount;
                                 cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
                                 auto contrl = cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED);
-                                switch (rec.Event.KeyEvent.wVirtualKeyCode)
+                                switch (v)
                                 {
                                     case VK_CONTROL:
                                     case VK_SHIFT:
@@ -4374,6 +4375,12 @@ namespace netxs::os
                                             else if (c == '\r'     ) cook(c, 1);
                                             else if (c == 'Z' - '@') swap(faux);
                                             else if (c == 'Y' - '@') swap(true);
+                                            else if (c == 'I' - '@' && v == VK_TAB)
+                                            {
+                                                burn();
+                                                save(); 
+                                                line.insert("        ", mode);
+                                            }
                                             else if (c == 'C' - '@')
                                             {
                                                 cooked.ustr = "\n";
