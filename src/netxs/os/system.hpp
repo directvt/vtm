@@ -492,6 +492,27 @@ namespace netxs::os
                     static constexpr auto launch_server           = CTL_CODE(FILE_DEVICE_CONSOLE, 13, METHOD_NEITHER,     FILE_ANY_ACCESS);
                     static constexpr auto get_font_size           = CTL_CODE(FILE_DEVICE_CONSOLE, 14, METHOD_NEITHER,     FILE_ANY_ACCESS);
                 };
+                struct inmode
+                {
+                    static constexpr auto preprocess    = 0x0001; // ENABLE_PROCESSED_INPUT
+                    static constexpr auto cooked        = 0x0002; // ENABLE_LINE_INPUT
+                    static constexpr auto echo          = 0x0004; // ENABLE_ECHO_INPUT
+                    static constexpr auto winsize       = 0x0008; // ENABLE_WINDOW_INPUT
+                    static constexpr auto mouse         = 0x0010; // ENABLE_MOUSE_INPUT
+                    static constexpr auto insert        = 0x0020; // ENABLE_INSERT_MODE
+                    static constexpr auto quickedit     = 0x0040; // ENABLE_QUICK_EDIT_MODE
+                    static constexpr auto extended      = 0x0080; // ENABLE_EXTENDED_FLAGS
+                    static constexpr auto auto_position = 0x0100; // ENABLE_AUTO_POSITION
+                    static constexpr auto vt            = 0x0200; // ENABLE_VIRTUAL_TERMINAL_INPUT
+                };
+                struct outmode
+                {
+                    static constexpr auto preprocess    = 0x0001; // ENABLE_PROCESSED_OUTPUT
+                    static constexpr auto wrap_at_eol   = 0x0002; // ENABLE_WRAP_AT_EOL_OUTPUT
+                    static constexpr auto vt            = 0x0004; // ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                    static constexpr auto no_auto_cr    = 0x0008; // DISABLE_NEWLINE_AUTO_RETURN
+                    static constexpr auto lvb_grid      = 0x0010; // ENABLE_LVB_GRID_WORLDWIDE
+                };
 
                 static auto handle(view rootpath)
                 {
@@ -2846,14 +2867,14 @@ namespace netxs::os
                     DWORD inpmode = 0;
                     ok(::GetConsoleMode(STDIN_FD , &inpmode), "GetConsoleMode(STDIN_FD) failed");
                     inpmode |= 0
-                            | ENABLE_QUICK_EDIT_MODE
+                            | nt::console::inmode::quickedit
                             ;
                     ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
 
                     DWORD outmode = 0
-                                | ENABLE_PROCESSED_OUTPUT
-                                | ENABLE_VIRTUAL_TERMINAL_PROCESSING
-                                | DISABLE_NEWLINE_AUTO_RETURN
+                                | nt::console::outmode::preprocess
+                                | nt::console::outmode::vt
+                                | nt::console::outmode::no_auto_cr
                                 ;
                     ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
                 }
@@ -3789,16 +3810,16 @@ namespace netxs::os
                 ok(::GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode(STDIN_FD) failed");
 
                 auto inpmode = DWORD{ 0
-                              | ENABLE_EXTENDED_FLAGS
-                              | ENABLE_WINDOW_INPUT
-                              | ENABLE_MOUSE_INPUT
+                              | nt::console::inmode::extended
+                              | nt::console::inmode::winsize
+                              | nt::console::inmode::mouse
                               };
                 ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
 
                 auto outmode = DWORD{ 0
-                              | ENABLE_PROCESSED_OUTPUT
-                              | ENABLE_VIRTUAL_TERMINAL_PROCESSING
-                              | DISABLE_NEWLINE_AUTO_RETURN
+                              | nt::console::outmode::preprocess
+                              | nt::console::outmode::vt
+                              | nt::console::outmode::no_auto_cr
                               };
                 ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
                 ok(::SetConsoleCtrlHandler(sig_hndl, TRUE), "SetConsoleCtrlHandler failed");
@@ -3991,24 +4012,24 @@ namespace netxs::os
                         if (h.kind == hndl::type::events)
                         {
                             s << "events 0";
-                            if (h.mode & ENABLE_ECHO_INPUT            ) s << " | ENABLE_ECHO_INPUT";
-                            if (h.mode & ENABLE_INSERT_MODE           ) s << " | ENABLE_INSERT_MODE";
-                            if (h.mode & ENABLE_LINE_INPUT            ) s << " | ENABLE_LINE_INPUT";
-                            if (h.mode & ENABLE_MOUSE_INPUT           ) s << " | ENABLE_MOUSE_INPUT";
-                            if (h.mode & ENABLE_PROCESSED_INPUT       ) s << " | ENABLE_PROCESSED_INPUT";
-                            if (h.mode & ENABLE_QUICK_EDIT_MODE       ) s << " | ENABLE_QUICK_EDIT_MODE";
-                            if (h.mode & ENABLE_WINDOW_INPUT          ) s << " | ENABLE_WINDOW_INPUT";
-                            if (h.mode & ENABLE_VIRTUAL_TERMINAL_INPUT) s << " | ENABLE_VIRTUAL_TERMINAL_INPUT";
+                            if (h.mode & nt::console::inmode::echo      ) s << " | ECHO";
+                            if (h.mode & nt::console::inmode::insert    ) s << " | INSERT";
+                            if (h.mode & nt::console::inmode::cooked    ) s << " | COOKED_READ";
+                            if (h.mode & nt::console::inmode::mouse     ) s << " | MOUSE_INPUT";
+                            if (h.mode & nt::console::inmode::preprocess) s << " | PROCESSED_INPUT";
+                            if (h.mode & nt::console::inmode::quickedit ) s << " | QUICK_EDIT";
+                            if (h.mode & nt::console::inmode::winsize   ) s << " | WINSIZE";
+                            if (h.mode & nt::console::inmode::vt        ) s << " | VIRTUAL_TERMINAL_INPUT";
                             s << " }";
                         }
                         else
                         {
                             s << "scroll 0";
-                            if (h.mode & ENABLE_PROCESSED_OUTPUT           ) s << " | ENABLE_PROCESSED_OUTPUT";
-                            if (h.mode & ENABLE_WRAP_AT_EOL_OUTPUT         ) s << " | ENABLE_WRAP_AT_EOL_OUTPUT";
-                            if (h.mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) s << " | ENABLE_VIRTUAL_TERMINAL_PROCESSING";
-                            if (h.mode & DISABLE_NEWLINE_AUTO_RETURN       ) s << " | DISABLE_NEWLINE_AUTO_RETURN";
-                            if (h.mode & ENABLE_LVB_GRID_WORLDWIDE         ) s << " | ENABLE_LVB_GRID_WORLDWIDE";
+                            if (h.mode & nt::console::outmode::preprocess ) s << " | PROCESSED_OUTPUT";
+                            if (h.mode & nt::console::outmode::wrap_at_eol) s << " | WRAP_AT_EOL";
+                            if (h.mode & nt::console::outmode::vt         ) s << " | VIRTUAL_TERMINAL_PROCESSING";
+                            if (h.mode & nt::console::outmode::no_auto_cr ) s << " | NO_AUTO_CR";
+                            if (h.mode & nt::console::outmode::lvb_grid   ) s << " | LVB_GRID_WORLDWIDE";
                             s << " }";
                         }
                         return s;
@@ -4226,7 +4247,7 @@ namespace netxs::os
                         }
                         else
                         {
-                            if (server.inpmod & ENABLE_PROCESSED_INPUT)
+                            if (server.inpmod & nt::console::inmode::preprocess)
                             {
                                 if (gear.pressed) alert(CTRL_C_EVENT);
                                 //todo revise
@@ -4244,7 +4265,7 @@ namespace netxs::os
                 template<class L>
                 auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
-                    auto mode = testy<bool>{ !!(server.inpmod & ENABLE_INSERT_MODE) };
+                    auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
                     auto buff = text{};
                     auto pair = wide{};
                     auto line = para{ cooked.ustr };
@@ -4457,7 +4478,7 @@ namespace netxs::os
                     cooked.save(utf16);
                     if (buffer.empty()) ondata.flush();
 
-                    server.inpmod = (server.inpmod & ~ENABLE_INSERT_MODE) | (mode ? ENABLE_INSERT_MODE : 0);
+                    server.inpmod = (server.inpmod & ~nt::console::inmode::insert) | (mode ? nt::console::inmode::insert : 0);
                 }
                 template<bool Complete = faux, class Payload>
                 auto reply(Payload& packet, cdrw& answer, ui32 readstep)
@@ -4919,8 +4940,8 @@ namespace netxs::os
                 auto& handle = *handle_ptr;
                 if (handle.kind == hndl::type::scroll)
                 {
-                    auto cur_mode = handle.mode       & DISABLE_NEWLINE_AUTO_RETURN;
-                    auto new_mode = packet.input.mode & DISABLE_NEWLINE_AUTO_RETURN;
+                    auto cur_mode = handle.mode       & nt::console::outmode::no_auto_cr;
+                    auto new_mode = packet.input.mode & nt::console::outmode::no_auto_cr;
                     if (cur_mode != new_mode)
                     {
                         auto autocr = !new_mode;
@@ -6047,19 +6068,19 @@ namespace netxs::os
                   prompt{ " pty: consrv: " }
             {
                 inpmod = 0
-                        | ENABLE_PROCESSED_INPUT
-                        | ENABLE_LINE_INPUT
-                        | ENABLE_ECHO_INPUT
-                        | ENABLE_MOUSE_INPUT
-                        | ENABLE_INSERT_MODE
-                        | ENABLE_QUICK_EDIT_MODE
+                        | nt::console::inmode::preprocess
+                        | nt::console::inmode::cooked
+                        | nt::console::inmode::echo
+                        | nt::console::inmode::mouse
+                        | nt::console::inmode::insert
+                        | nt::console::inmode::quickedit
                         ;
                 outmod = 0
-                        | ENABLE_PROCESSED_OUTPUT
-                        | ENABLE_WRAP_AT_EOL_OUTPUT
-                        | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                        | nt::console::outmode::preprocess
+                        | nt::console::outmode::wrap_at_eol
+                        | nt::console::outmode::vt
                         ;
-                uiterm.normal.set_autocr(!(outmod & DISABLE_NEWLINE_AUTO_RETURN));
+                uiterm.normal.set_autocr(!(outmod & nt::console::outmode::no_auto_cr));
 
                 using _ = consrv;
                 apimap.resize(0xFF, &_::api_unsupported);
