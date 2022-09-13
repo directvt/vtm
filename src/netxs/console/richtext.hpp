@@ -556,8 +556,8 @@ namespace netxs::console
             auto src = fragment.data();
             while (dst != end) *dst++ = *src++;
         }
-        template<class SRC_IT, class DST_IT>
-        static void forward_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
+        template<class SRC_IT, class DST_IT, class Shader>
+        static void forward_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail, Shader fuse)
         {
             //  + evaluate TAB etc
             //  + bidi
@@ -576,12 +576,12 @@ namespace netxs::console
                 auto w = c.wdt();
                 if (w == 1)
                 {
-                    *dest++ = c;
+                    fuse(*dest++, c);
                 }
                 else if (w == 2)
                 {
-                    *dest++ = c.wdt(2);
-                    *dest++ = c.wdt(3);
+                    fuse(*dest++, c.wdt(2));
+                    fuse(*dest++, c.wdt(3));
                 }
                 else if (w == 0)
                 {
@@ -593,7 +593,7 @@ namespace netxs::console
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
                     c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    do *dest++ = c;
+                    do fuse(*dest++, c);
                     while (--w && dest != tail + 1);
                 }
             }
@@ -601,13 +601,13 @@ namespace netxs::console
             {
                 auto c = *data;
                 auto w = c.wdt();
-                     if (w == 1) *dest = c;
-                else if (w == 2) *dest = c.wdt(3);
-                else if (w >  2) *dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                     if (w == 1) fuse(*dest, c);
+                else if (w == 2) fuse(*dest, c.wdt(3));
+                else if (w >  2) fuse(*dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
             }
         }
-        template<class SRC_IT, class DST_IT>
-        static void unlimit_fill_proc(SRC_IT data, si32 size, DST_IT dest, DST_IT tail, si32 back)
+        template<class SRC_IT, class DST_IT, class Shader>
+        static void unlimit_fill_proc(SRC_IT data, si32 size, DST_IT dest, DST_IT tail, si32 back, Shader fuse)
         {
             //  + evaluate TAB etc
             //  + bidi
@@ -622,7 +622,7 @@ namespace netxs::console
             auto set = [&](auto const& c)
             {
                 if (dest == tail) dest -= back;
-                *dest++ = c;
+                fuse(*dest++, c);
                 --size;
             };
             while (size > 0)
@@ -653,8 +653,8 @@ namespace netxs::console
                 }
             }
         }
-        template<class SRC_IT, class DST_IT>
-        static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
+        template<class SRC_IT, class DST_IT, class Shader>
+        static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail, Shader fuse)
         {
             //  + evaluate TAB etc
             //  + bidi
@@ -673,12 +673,12 @@ namespace netxs::console
                 auto w = c.wdt();
                 if (w == 1)
                 {
-                    *--dest = c;
+                    fuse(*--dest, c);
                 }
                 else if (w == 2)
                 {
-                    *--dest = c.wdt(3);
-                    *--dest = c.wdt(2);
+                    fuse(*--dest, c.wdt(3));
+                    fuse(*--dest, c.wdt(2));
                 }
                 else if (w == 0)
                 {
@@ -698,27 +698,29 @@ namespace netxs::console
             {
                 auto c = *--data;
                 auto w = c.wdt();
-                     if (w == 1) *--dest = c;
-                else if (w == 2) *--dest = c.wdt(3);
-                else if (w >  2) *--dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                     if (w == 1) fuse(*--dest, c);
+                else if (w == 2) fuse(*--dest, c.wdt(3));
+                else if (w >  2) fuse(*--dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
             }
         }
-        void splice(si32 at, si32 count, grid const& proto)
+        template<class Shader>
+        void splice(si32 at, si32 count, grid const& proto, Shader fuse)
         {
             if (count <= 0) return;
             reserv(at + count);
             auto end = iter() + at;
             auto dst = end + count;
             auto src = proto.end();
-            reverse_fill_proc(src, dst, end);
+            reverse_fill_proc(src, dst, end, fuse);
         }
-        void splice(twod at, si32 count, grid const& proto)
+        template<class Shader>
+        void splice(twod at, si32 count, grid const& proto, Shader fuse)
         {
             if (count <= 0) return;
             auto end = iter() + at.x + at.y * size().x;
             auto dst = end + count;
             auto src = proto.end();
-            reverse_fill_proc(src, dst, end);
+            reverse_fill_proc(src, dst, end, fuse);
         }
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
         void scroll(si32 top, si32 end, si32 gap, cell const& clr)
@@ -1033,7 +1035,7 @@ namespace netxs::console
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void data(si32 count, grid const& proto) override
         {
-            lyric->splice(caret, count, proto);
+            lyric->splice(caret, count, proto, cell::shaders::full);
             caret += count;
         }
         void id(ui32 newid) { index = newid; }
@@ -1599,7 +1601,7 @@ namespace netxs::console
         void data(si32 count, grid const& proto) override
         {
             auto& item = **layer;
-            item.lyric->splice(item.caret, count, proto);
+            item.lyric->splice(item.caret, count, proto, cell::shaders::full);
             item.caret += count;
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.

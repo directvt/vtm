@@ -957,7 +957,7 @@ namespace netxs::ui
                     _size = {};
                     _kind = {};
                 }
-                auto wrapped() const
+                bool wrapped() const
                 {
                     assert(_kind == style.get_kind());
                     return _kind == type::autowrap;
@@ -2146,8 +2146,9 @@ namespace netxs::ui
                 blank.txt(c);
                 canvas.splice(coord, n, blank);
             }
-            // alt_screen: Parser callback.
-            void data(si32 count, grid const& proto) override
+            // alt_screen: Proceed new text using specified cell shader.
+            template<class Shader>
+            void _data(si32 count, grid const& proto, Shader fuse)
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
@@ -2157,7 +2158,7 @@ namespace netxs::ui
                 if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                 {
                     auto n = std::min(count, panel.x - std::max(0, saved.x));
-                    canvas.splice(saved, n, proto);
+                    canvas.splice(saved, n, proto, fuse);
                 }
                 else
                 {
@@ -2175,7 +2176,7 @@ namespace netxs::ui
                         auto seek = saved.x + saved.y * panel.x;
                         auto dest = canvas.iter() + seek;
                         auto tail = dest + count;
-                        rich::forward_fill_proc(data, dest, tail);
+                        rich::forward_fill_proc(data, dest, tail, fuse);
                     }
                     else if (saved.y <= y_end)
                     {
@@ -2193,7 +2194,7 @@ namespace netxs::ui
                         auto dest = canvas.iter() + seek;
                         auto tail = dest - count;
                         auto data = proto.end();
-                        rich::reverse_fill_proc(data, dest, tail);
+                        rich::reverse_fill_proc(data, dest, tail, fuse);
                     }
                     else
                     {
@@ -2205,9 +2206,14 @@ namespace netxs::ui
                         auto dest = canvas.iter() + seek;
                         auto tail = canvas.iend();
                         auto back = panel.x;
-                        rich::unlimit_fill_proc(data, size, dest, tail, back);
+                        rich::unlimit_fill_proc(data, size, dest, tail, back, fuse);
                     }
                 }
+            }
+            // alt_screen: Parser callback.
+            void data(si32 count, grid const& proto) override
+            {
+                _data(count, proto, cell::shaders::full);
             }
             // alt_screen: Clear viewport.
             void clear_all() override
@@ -4060,8 +4066,9 @@ namespace netxs::ui
                 }
                 else ctx.block.splice(coord, n, blank);
             }
-            // scroll_buf: Proceed new text (parser callback).
-            void data(si32 count, grid const& proto) override
+            // scroll_buf: Proceed new text using specified cell shader.
+            template<class Shader>
+            void _data(si32 count, grid const& proto, Shader fuse)
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
@@ -4075,7 +4082,7 @@ namespace netxs::ui
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, saved.x));
-                        upbox.splice(saved, n, proto);
+                        upbox.splice(saved, n, proto, fuse);
                     }
                     else
                     {
@@ -4085,13 +4092,13 @@ namespace netxs::ui
                             auto n = coord.x + (coord.y - y_top) * panel.x;
                             count -= n;
                             set_coord(twod{ 0, y_top });
-                            data(n, proto); // Reversed fill using the last part of the proto.
+                            _data(n, proto, fuse); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
                         auto seek = saved.x + saved.y * panel.x;
                         auto dest = upbox.iter() + seek;
                         auto tail = dest + count;
-                        rich::forward_fill_proc(data, dest, tail);
+                        rich::forward_fill_proc(data, dest, tail, fuse);
                     }
                     // Note: coord can be unsync due to scroll regions.
                 }
@@ -4104,7 +4111,7 @@ namespace netxs::ui
                     coord.x     += count;
                     if (batch.caret <= panel.x || ! curln.wrapped()) // case 0.
                     {
-                        curln.splice(start, count, proto);
+                        curln.splice(start, count, proto, fuse);
                         auto& mapln = index[coord.y];
                         assert(coord.x % panel.x == batch.caret % panel.x && mapln.index == curln.index);
                         if (coord.x > mapln.width)
@@ -4127,7 +4134,7 @@ namespace netxs::ui
                             query   -= avail;
                             coord.y -= avail;
                         }
-                        curln.splice(start, count, proto);
+                        curln.splice(start, count, proto, fuse);
                         auto curid = curln.index;
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
@@ -4259,7 +4266,7 @@ namespace netxs::ui
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, saved.x));
-                        dnbox.splice(saved, n, proto);
+                        dnbox.splice(saved, n, proto, fuse);
                     }
                     else
                     {
@@ -4270,12 +4277,17 @@ namespace netxs::ui
                         auto dest = dnbox.iter() + seek;
                         auto tail = dnbox.iend();
                         auto back = panel.x;
-                        rich::unlimit_fill_proc(data, size, dest, tail, back);
+                        rich::unlimit_fill_proc(data, size, dest, tail, back, cell::shaders::full);
                     }
                     coord.y = std::min(coord.y + y_end + 1, panel.y - 1);
                     // Note: coord can be unsync due to scroll regions.
                 }
                 assert(test_coord());
+            }
+            // scroll_buf: Proceed new text (parser callback).
+            void data(si32 count, grid const& proto) override
+            {
+                _data(count, proto, cell::shaders::full);
             }
             // scroll_buf: Clear scrollback.
             void clear_all() override
@@ -6248,6 +6260,16 @@ namespace netxs::ui
             {
                 if (onlogs) SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
                 ansi::parse(data, target);
+            });
+        }
+        // term: Proceed direct terminal input.
+        template<class Shader>
+        void direct(si32 count, grid const& proto, Shader fuse)
+        {
+            update([&]
+            {
+                if (target == &normal) normal._data(count, proto, fuse);
+                else                   altbuf._data(count, proto, fuse);
             });
         }
         // term: Shutdown callback handler.

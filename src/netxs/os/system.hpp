@@ -5272,21 +5272,49 @@ namespace netxs::os
                     };
                 };
                 auto& packet = payload::cast(upload);
-                auto coord = twod{ packet.input.coorx, packet.input.coory };
+                auto& count = packet.input.count;
+                auto  coord = twod{ packet.input.coorx, packet.input.coory };
+                auto  piece = packet.input.piece;
                 if (packet.input.etype == type::attribute)
                 {
                     log(prompt, "FillConsoleOutputAttribute");
                     log("\tcoord ", coord);
-                    log("\tcount ", packet.input.count);
+                    log("\tcount ", count);
                 }
                 else
                 {
                     log(prompt, "FillConsoleOutputCharacter");
                     log("\tcoord ", coord);
-                    log("\tcount ", packet.input.count);
-                    log("\tvalue ", packet.input.piece);
+                    log("\tcount ", count);
+                    log("\tvalue ", piece);
+                    auto& console = *uiterm.target;
+                    auto viewport = console.panel;
+                    auto maxcount = viewport.x - coord.x + viewport.x * (viewport.y - 1 - coord.y);
+                    auto savecoor = console.coord;
+                    console.cup(coord + dot_11);
+                    if (piece <  ' ' || piece == 0x7F) piece = ' ';
+                    if (piece == ' ' && (si32)count > maxcount)
+                    {
+                        log("\terase below");
+                        console.ed(0 /*commands::erase::display::below*/);
+                    }
+                    else
+                    {
+                        toUTF8.clear();
+                        utf::to_utf((wchr)piece, toUTF8);
+                        log("\tsimple filling by ", toUTF8);
+                        auto c = cell{ toUTF8 };
+                        auto w = c.wdt();
+                        if (w == 1 || w == 2)
+                        {
+                            if ((si32)count > maxcount) count = std::max(0, maxcount);
+                            filler.kill();
+                            filler.crop(count / w, c);
+                            uiterm.direct(count, filler.pick(), cell::shaders::text);
+                        }
+                    }
+                    console.set_coord(savecoor);
                 }
-                //todo clamp count by viewport
             }
             auto api_scrollback_read_data            ()
             {
@@ -6000,6 +6028,7 @@ namespace netxs::os
             text        buffer; // consrv: Temp buffer.
             text        toUTF8; // consrv: Buffer for UTF-16-UTF-8 conversion.
             wide        toWIDE; // consrv: Buffer for UTF-8-UTF-16 conversion.
+            rich        filler; // consrv: Buffer for filling operations.
             apis        apimap; // consrv: Fx reference.
             ui32        inpmod; // consrv: Events mode flag set.
             ui32        outmod; // consrv: Scrollbuffer mode flag set.

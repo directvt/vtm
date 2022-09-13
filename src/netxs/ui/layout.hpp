@@ -1204,6 +1204,7 @@ namespace netxs::ui::atoms
         auto& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
         auto& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
         auto& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
+        auto& txt (cell const& c) { gc = c.gc;          return *this; } // cell: Set Grapheme cluster from cell.
         auto& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
         auto& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
         auto& rst () // cell: Reset view attributes of the cell to zero.
@@ -1355,6 +1356,16 @@ namespace netxs::ui::atoms
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fusefull(src); }
             };
+            struct text_t : public brush_t<text_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.txt(src); }
+            };
+            struct meta_t : public brush_t<meta_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.meta(src); }
+            };
             struct xlight_t
             {
                 template<class D> inline void operator () (D& dst) const { dst.xlight(); }
@@ -1441,6 +1452,8 @@ namespace netxs::ui::atoms
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};
+            static constexpr auto     text =     text_t{};
+            static constexpr auto     meta =     meta_t{};
             static constexpr auto   xlight =   xlight_t{};
             static constexpr auto   invert =   invert_t{};
             static constexpr auto  reverse =  reverse_t{};
