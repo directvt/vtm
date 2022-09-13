@@ -734,6 +734,12 @@ namespace netxs::ui
         struct bufferbase
             : public ansi::parser
         {
+            static void set_autocr(bool autocr)
+            {
+                auto& parser = ansi::get_parser<bufferbase>();
+                autocr ? parser.intro[ansi::ctrl::EOL] = VT_PROC{ p->cr(); p->lf(q.pop_all(ansi::ctrl::EOL)); }
+                       : parser.intro[ansi::ctrl::EOL] = VT_PROC{          p->lf(q.pop_all(ansi::ctrl::EOL)); };
+            }
             template<class T>
             static void parser_config(T& vt)
             {

@@ -4917,6 +4917,17 @@ namespace netxs::os
                     return;
                 }
                 auto& handle = *handle_ptr;
+                if (handle.kind == hndl::type::scroll)
+                {
+                    auto cur_mode = handle.mode       & DISABLE_NEWLINE_AUTO_RETURN;
+                    auto new_mode = packet.input.mode & DISABLE_NEWLINE_AUTO_RETURN;
+                    if (cur_mode != new_mode)
+                    {
+                        auto autocr = !new_mode;
+                        uiterm.normal.set_autocr(autocr);
+                        log("\tauto_crlf ", autocr ? "enabled" : "disabled");
+                    }
+                }
                 handle.mode = packet.input.mode;
                 log("\tinput.mode ", handle);
             }
@@ -5149,6 +5160,7 @@ namespace netxs::os
 
                 if (auto crop = ansi::purify(scroll_handle.rest))
                 {
+                    //todo ENABLE_WRAP_AT_EOL_OUTPUT
                     uiterm.ondata(crop);
                     log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", utf::debase(crop));
                     scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
@@ -5253,6 +5265,7 @@ namespace netxs::os
                     log("\tcount ", packet.input.count);
                     log("\tvalue ", packet.input.piece);
                 }
+                //todo clamp count by viewport
             }
             auto api_scrollback_read_data            ()
             {
@@ -6046,6 +6059,8 @@ namespace netxs::os
                         | ENABLE_WRAP_AT_EOL_OUTPUT
                         | ENABLE_VIRTUAL_TERMINAL_PROCESSING
                         ;
+                uiterm.normal.set_autocr(!(outmod & DISABLE_NEWLINE_AUTO_RETURN));
+
                 using _ = consrv;
                 apimap.resize(0xFF, &_::api_unsupported);
                 apimap[0x38] = &_::api_system_langid_get;

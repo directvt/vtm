@@ -1178,6 +1178,7 @@ namespace netxs::ansi
 
     template<class T> inline void parse(view utf8, T*&  dest) { _glb<T>::vt_parser.parse(utf8, dest); }
     template<class T> inline void parse(view utf8, T*&& dest) { T* dptr = dest;    parse(utf8, dptr); }
+    template<class T> inline auto& get_parser()               { return _glb<T>::vt_parser; }
 
     template<class T> using esc_t = func<qiew, T>;
     template<class T> using osc_h = std::function<void(view&, T*&)>;
