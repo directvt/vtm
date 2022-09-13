@@ -3929,9 +3929,9 @@ namespace netxs::os
                     report = result.length;
                     if constexpr (Complete)
                     {
+                        //Note: Be sure that packet.reply.bytes or count is set.
                         auto rc = nt::ioctl(nt::console::op::complete_io, condrv, *this);
                     }
-                    return result.length;
                 }
                 auto interrupt(fd_t condrv)
                 {
@@ -4357,7 +4357,7 @@ namespace netxs::os
                                                 crlf = crlf_value;
                                                 burn();
                                                 cooked.ustr.clear();
-                                                if (c == '\r')
+                                                if (crlf_value)
                                                 {
                                                     line.lyric->utf8(cooked.ustr);
                                                     cooked.ustr.push_back('\r');
@@ -4459,6 +4459,21 @@ namespace netxs::os
 
                     server.inpmod = (server.inpmod & ~ENABLE_INSERT_MODE) | (mode ? ENABLE_INSERT_MODE : 0);
                 }
+                template<bool Complete = faux, class Payload>
+                auto reply(Payload& packet, cdrw& answer, ui32 readstep)
+                {
+                    //todo
+                    // inpmode & ENABLE_LINE_INPUT == true - readline
+                    // inpmode & ENABLE_LINE_INPUT == faux - readchar
+                    auto size = std::min((ui32)cooked.rest.size(), readstep);
+                    auto data = view{ cooked.rest.data(), size };
+                    log("\thandle 0x", utf::to_hex(packet.target), ": read rest line: ", utf::debase(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
+                                                                                                                        : data));
+                    cooked.rest.remove_prefix(size);
+                    packet.reply.ctrls = cooked.ctrl;
+                    packet.reply.bytes = size;
+                    answer.send_data<Complete>(server.condrv, data);
+                }
                 template<class Payload>
                 auto placeorder(Payload& packet, wiew nameview, view initdata, ui32 readstep)
                 {
@@ -4500,29 +4515,17 @@ namespace netxs::os
                                 auto& client = *packet.client;
                                 inputs[client.procid].emplace_back(nameview, cooked.ustr);
                             }
-                            auto data = view{ cooked.rest.data(), std::min((ui32)cooked.rest.size(), readstep) };
-                            cooked.rest.remove_prefix(data.size());
-                            packet.reply.ctrls = cooked.ctrl;
-                            packet.reply.bytes = answer.send_data<true>(server.condrv, data);
+
+                            reply<true>(packet, answer, readstep);
                         });
                         server.answer = {};
                     }
-                    else
-                    {
-                        //todo
-                        // inpmode & ENABLE_LINE_INPUT == true - readline
-                        // inpmode & ENABLE_LINE_INPUT == faux - readchar
-                        auto data = view{ cooked.rest.data(), std::min((ui32)cooked.rest.size(), readstep) };
-                        if (cooked.rest.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read rest line: ", utf::debase(cooked.rest));
-                        cooked.rest.remove_prefix(data.size());
-                        packet.reply.ctrls = cooked.ctrl;
-                        packet.reply.bytes = server.answer.send_data(server.condrv, data);
-                    }
+                    else reply(packet, server.answer, readstep);
                 }
                 template<bool Complete = faux, class Payload>
                 auto readevents(Payload& packet, cdrw& answer)
                 {
-                    if (!server.size_check(packet.echosz, answer.sendoffset())) return ui32{ 0 };
+                    if (!server.size_check(packet.echosz, answer.sendoffset())) return;
                     auto avail = packet.echosz - answer.sendoffset();
                     auto limit = std::min<ui32>(count(), avail / sizeof(recbuf.front()));
                     recbuf.resize(limit);
@@ -4545,8 +4548,8 @@ namespace netxs::os
                         }
                         if (buffer.empty()) ondata.flush();
                     }
+                    packet.reply.count = limit;
                     answer.send_data<Complete>(server.condrv, recbuf);
-                    return limit;
                 }
                 template<class Payload>
                 auto take(Payload& packet)
@@ -4576,7 +4579,7 @@ namespace netxs::os
                                 { }
                                 if (closed || cancel) return;
 
-                                packet.reply.count = readevents<true>(packet, answer);
+                                readevents<true>(packet, answer);
                                 log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count);
                             });
                             server.answer = {};
@@ -4584,7 +4587,7 @@ namespace netxs::os
                     }
                     else
                     {
-                        packet.reply.count = readevents(packet, server.answer);
+                        readevents(packet, server.answer);
                         log("\treply.count = ", packet.reply.count);
                     }
                 }
@@ -5527,7 +5530,7 @@ namespace netxs::os
                 {
                     struct
                     {
-                        ui32 nsize;
+                        ui32 count;
                     }
                     reply;
                     struct
@@ -5547,11 +5550,13 @@ namespace netxs::os
                 {
                     toWIDE.clear();
                     utf::to_utf(title, toWIDE);
-                    packet.reply.nsize = answer.send_data(condrv, toWIDE, true);
+                    packet.reply.count = static_cast<ui32>(toWIDE.size() + 1 /*null terminator*/);
+                    answer.send_data(condrv, toWIDE, true);
                 }
                 else
                 {
-                    packet.reply.nsize = answer.send_data(condrv, title, true);
+                    packet.reply.count = static_cast<ui32>(title.size() + 1 /*null terminator*/);
+                    answer.send_data(condrv, title, true);
                 }
             }
             auto api_window_title_set                ()
