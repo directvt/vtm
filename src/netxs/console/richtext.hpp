@@ -1006,7 +1006,7 @@ namespace netxs::console
         operator writ const& () const { return locus; }
 
         void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
-        void  content(rich& r){ *lyric = r;    } // para: Set paragraph content.
+        void  content(rich& r){ *lyric = r; caret = r.length(); } // para: Set paragraph content.
         auto& content() const { return *lyric; } // para: Return paragraph content.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
         shot   substr(si32 start, si32 width) const // para: Return paragraph substring shadow.
@@ -1048,7 +1048,7 @@ namespace netxs::console
         auto& at(si32 p) const { return lyric->data(p); } // para: .
 
         // para: Normalize caret position.
-        auto caret_check()
+        void caret_check()
         {
             caret = std::clamp(caret, 0, length());
         }

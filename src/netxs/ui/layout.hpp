@@ -2180,6 +2180,12 @@ namespace netxs::ui::atoms
         {
             each([&](cell& c) { c.scan(crop); });
         }
+        auto utf8() // core: Convert to raw utf-8 text. Ignore right halves.
+        {
+            auto crop = utf::text{};
+            each([&](cell& c) { c.scan(crop); });
+            return crop;
+        }
         auto copy(grid& target) const // core: Copy only grid of the canvas to the specified grid bitmap.
         {
             target = canvas;

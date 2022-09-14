@@ -3984,6 +3984,62 @@ namespace netxs::os
                 }
             };
 
+            struct memo
+            {
+                size_t                           seek{};
+                std::list<std::pair<si32, rich>> undo{};
+                std::list<std::pair<si32, rich>> redo{};
+                std::vector<rich>                data{};
+
+                auto save(para& line)
+                {
+                    auto& data = line.content();
+                    //todo compare text only
+                    if (undo.empty() || undo.back().second != data)
+                    {
+                        undo.emplace_back(line.caret, data);
+                        redo.clear();
+                    }
+                };
+                auto swap(para& line, bool back)
+                {
+                    if (back) std::swap(undo, redo);
+                    if (undo.size())
+                    {
+                        redo.emplace_back(line.caret, line.content());
+                        line.content(undo.back().second);
+                        line.caret = undo.back().first;
+                        undo.pop_back();
+                    }
+                    if (back) std::swap(undo, redo);
+                };
+                auto done(para& line)
+                {
+                    auto& new_data = line.content();
+                    auto trimmed = utf::trim(new_data.utf8(), utf::spaces);
+
+                    if (trimmed.size() && (data.empty() || data.back() != new_data))
+                    {
+                        data.push_back(new_data);
+                    }
+                    seek = data.size();
+                    undo.clear();
+                    redo.clear();
+                }
+                auto deal(para& line, size_t i)
+                {
+                    if (i < data.size())
+                    {
+                        save(line);
+                        line.content(data[seek = i]);
+                    }
+                }
+                auto prev(para& line) { deal(line, seek - 1       ); }
+                auto pgup(para& line) { deal(line, 0              ); }
+                auto next(para& line) { deal(line, seek + 1       ); }
+                auto pgdn(para& line) { deal(line, data.size() - 1); }
+            };
+
             struct clnt
             {
                 struct hndl
@@ -4054,11 +4110,11 @@ namespace netxs::os
 
                 using list = std::list<hndl>;
 
-                list tokens;
-                ui32 procid;
-                ui32 thread;
-                ui32 pgroup;
-                info detail;
+                list tokens; // clnt: .
+                ui32 procid; // clnt: .
+                ui32 thread; // clnt: .
+                ui32 pgroup; // clnt: .
+                info detail; // clnt: .
             };
             
             using hndl = clnt::hndl;
@@ -4112,7 +4168,7 @@ namespace netxs::os
 
             struct event_list
             {
-                using hist = netxs::imap<ui32, std::vector<std::pair<text, text>>>;
+                using hist = netxs::imap<text, memo>;
                 using jobs = netxs::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
                 using fire = netxs::os::fire;
                 using lock = std::recursive_mutex;
@@ -4263,46 +4319,25 @@ namespace netxs::os
                     }
                 }
                 template<class L>
-                auto readline(L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
+                auto readline(memo& hist, L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
                 {
                     auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
                     auto buff = text{};
                     auto pair = wide{};
                     auto line = para{ cooked.ustr };
-                    auto undo = std::list<std::pair<si32, rich>>{ { line.caret, line.content() } };
-                    auto redo = std::list<std::pair<si32, rich>>{};
                     auto done = faux;
                     auto crlf = 0;
-                    auto save = [&]
-                    {
-                        auto& data = line.content();
-                        if (undo.empty() || undo.back().second != data)
-                        {
-                            undo.emplace_back(line.caret, data);
-                            redo.clear();
-                        }
-                    };
-                    auto swap = [&](bool back)
-                    {
-                        if (back) std::swap(undo, redo);
-                        if (undo.size())
-                        {
-                            redo.emplace_back(line.caret, line.content());
-                            line.caret = undo.back().first;
-                            line.content(undo.back().second);
-                            undo.pop_back();
-                        }
-                        if (back) std::swap(undo, redo);
-                    };
                     auto burn = [&]
                     {
                         if (buff.size())
                         {
-                            save();
+                            hist.save(line);
                             line.insert(buff, mode);
                             buff.clear();
                         }
                     };
+
+                    if (line.length()) hist.save(line);
                     do
                     {
                         auto coor = line.caret;
@@ -4353,20 +4388,20 @@ namespace netxs::os
                                     case VK_F11:
                                     case VK_F12:
                                         break;
-                                    case VK_F6:     burn(); save();               line.insert(cell{}.c0_to_txt('Z' - '@'), mode); break;
-                                    case VK_ESCAPE: burn(); save();               line.wipe();               break;
-                                    case VK_HOME:   burn(); save();               line.move_to_home(contrl); break;
-                                    case VK_END:    burn(); save();               line.move_to_end (contrl); break;
-                                    case VK_LEFT:   burn();         while (n-- && line.step_rev(contrl)) { } break;
-                                    case VK_RIGHT:  burn();         while (n-- && line.step_fwd(contrl)) { } break;
-                                    case VK_BACK:   burn(); save(); while (n-- && line.wipe_rev(contrl)) { } break;
-                                    case VK_DELETE: burn(); save(); while (n-- && line.wipe_fwd(contrl)) { } break;
-                                    case VK_INSERT: burn(); mode(!mode);                                     break;
-                                    
-                                    case VK_PRIOR:  burn(); log("PgUP");    break;
-                                    case VK_NEXT:   burn(); log("PgDn");    break;
-                                    case VK_UP:     burn(); log("up");      break;
-                                    case VK_DOWN:   burn(); log("down");    break;
+                                    case VK_F6:     burn(); hist.save(line);               line.insert(cell{}.c0_to_txt('Z' - '@'), mode); break;
+                                    case VK_ESCAPE: burn(); hist.save(line);               line.wipe();                                    break;
+                                    case VK_HOME:   burn(); hist.save(line);               line.move_to_home(contrl);                      break;
+                                    case VK_END:    burn(); hist.save(line);               line.move_to_end (contrl);                      break;
+                                    case VK_LEFT:   burn();                  while (n-- && line.step_rev(contrl)) { }                      break;
+                                    //todo take chars from history after end
+                                    case VK_RIGHT:  burn();                  while (n-- && line.step_fwd(contrl)) { }                      break;
+                                    case VK_BACK:   burn(); hist.save(line); while (n-- && line.wipe_rev(contrl)) { }                      break;
+                                    case VK_DELETE: burn(); hist.save(line); while (n-- && line.wipe_fwd(contrl)) { }                      break;
+                                    case VK_INSERT: burn(); mode(!mode);                                                                   break;
+                                    case VK_PRIOR:  burn(); hist.pgup(line);                                                               break;
+                                    case VK_NEXT:   burn(); hist.pgdn(line);                                                               break;
+                                    case VK_UP:     burn(); hist.prev(line);                                                               break;
+                                    case VK_DOWN:   burn(); hist.next(line);                                                               break;
                                     default:
                                     {
                                         n--;
@@ -4386,24 +4421,21 @@ namespace netxs::os
                                                 }
                                                 else
                                                 {
+                                                    hist.save(line);
                                                     line.move_to_end(true);
                                                     line.lyric->utf8(cooked.ustr);
                                                     cooked.ustr.push_back((char)c);
                                                 }
                                                 if (n == 0) buffer.pop_front();
                                             };
-                                                 if (stops & 1 << c) cook(c, 0);
-                                            else if (c == '\r'     ) cook(c, 1);
-                                            else if (c == 'Z' - '@') swap(faux);
-                                            else if (c == 'Y' - '@') swap(true);
-                                            else if (c == 'I' - '@' && v == VK_TAB)
-                                            {
-                                                burn();
-                                                save(); 
-                                                line.insert("        ", mode);
-                                            }
+                                                 if (stops & 1 << c)                { cook(c, 0); hist.save(line);                                }
+                                            else if (c == '\r'     )                { cook(c, 1); hist.done(line);                                }
+                                            else if (c == 'Z' - '@')                {             hist.swap(line, faux);                          }
+                                            else if (c == 'Y' - '@')                {             hist.swap(line, true);                          }
+                                            else if (c == 'I' - '@' && v == VK_TAB) { burn();     hist.save(line); line.insert("        ", mode); }
                                             else if (c == 'C' - '@')
                                             {
+                                                hist.save(line);
                                                 cooked.ustr = "\n";
                                                 done = true;
                                                 crlf = 2;
@@ -4413,7 +4445,7 @@ namespace netxs::os
                                             else
                                             {
                                                 burn();
-                                                save(); 
+                                                hist.save(line); 
                                                 line.insert(cell{}.c0_to_txt(c), mode);
                                             }
                                         }
@@ -4512,29 +4544,23 @@ namespace netxs::os
                             auto lock = std::unique_lock{ locker };
                             auto& answer = std::get<0>(token);
                             auto& cancel = std::get<2>(token);
+                            auto& client = *packet.client;
                             answer.buffer = &packet.input; // Restore after copy.
 
-                            static constexpr auto spaces = " \n\r\t";
                             if (closed || cancel) return;
                             
                             cooked.ustr.clear();
                             if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
                             else                    cooked.ustr = initdata;
 
-                            readline(lock, packet.input.EOFon, packet.input.utf16, packet.input.stops, cancel);
+                            auto& hist = inputs[utf::to_low(nameview)]; // For CMD.EXE <-> cmd.exe only.
+                            readline(hist, lock, packet.input.EOFon, packet.input.utf16, packet.input.stops, cancel);
                             if (cooked.ustr.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
 
                             if (closed || cancel)
                             {
                                 cooked.drop();
                                 return;
-                            }
-
-                            auto trimmed = utf::trim(cooked.ustr, spaces);
-                            if (trimmed.size() > 0)
-                            {
-                                auto& client = *packet.client;
-                                inputs[client.procid].emplace_back(nameview, cooked.ustr);
                             }
 
                             reply<true>(packet, answer, readstep);
