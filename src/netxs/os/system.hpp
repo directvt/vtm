@@ -4110,11 +4110,12 @@ namespace netxs::os
 
                 using list = std::list<hndl>;
 
-                list tokens; // clnt: .
-                ui32 procid; // clnt: .
-                ui32 thread; // clnt: .
-                ui32 pgroup; // clnt: .
-                info detail; // clnt: .
+                list tokens; // clnt: Taked handles.
+                ui32 procid; // clnt: Process id.
+                ui32 thread; // clnt: Process thread id.
+                ui32 pgroup; // clnt: Process group id.
+                info detail; // clnt: Process details.
+                memo inputs; // clnt: Input history.
             };
             
             using hndl = clnt::hndl;
@@ -4168,7 +4169,6 @@ namespace netxs::os
 
             struct event_list
             {
-                using hist = netxs::imap<text, memo>;
                 using jobs = netxs::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
                 using fire = netxs::os::fire;
                 using lock = std::recursive_mutex;
@@ -4191,7 +4191,6 @@ namespace netxs::os
                 sync    signal; // events_t: Input event append signal.
                 lock    locker; // events_t: Input event buffer mutex.
                 cook    cooked; // events_t: Cooked input string.
-                hist    inputs; // events_t: Input history.
                 jobs    worker; // events_t: Background task executer.
                 bool    closed; // events_t: Console server was shutdown.
                 fire    ondata; // events_t: Signal on input buffer data.
@@ -4553,8 +4552,7 @@ namespace netxs::os
                             if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
                             else                    cooked.ustr = initdata;
 
-                            auto& hist = inputs[utf::to_low(nameview)]; // For CMD.EXE <-> cmd.exe only.
-                            readline(hist, lock, packet.input.EOFon, packet.input.utf16, packet.input.stops, cancel);
+                            readline(client.inputs, lock, packet.input.EOFon, packet.input.utf16, packet.input.stops, cancel);
                             if (cooked.ustr.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
 
                             if (closed || cancel)
