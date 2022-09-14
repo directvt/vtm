@@ -5291,15 +5291,14 @@ namespace netxs::os
                         reply;
                     };
                 };
+                auto& screen = *uiterm.target;
                 auto& packet = payload::cast(upload);
-                auto& console = *uiterm.target;
-                auto viewport = console.panel;
-                auto& count = packet.input.count;
-                auto  coord = std::clamp(twod{ packet.input.coorx, packet.input.coory }, dot_00, viewport);
-                auto  piece = packet.input.piece;
-                auto maxcount = viewport.x * (viewport.y - coord.y) - coord.x;
-                auto savecoor = console.coord;
-                console.set_coord(coord);
+                auto count = packet.input.count;
+                auto coord = std::clamp(twod{ packet.input.coorx, packet.input.coory }, dot_00, screen.panel - dot_11);
+                auto piece = packet.input.piece;
+                auto maxsz = screen.panel.x * (screen.panel.y - coord.y) - coord.x;
+                auto saved = screen.coord;
+                screen.set_coord(coord);
                 if (packet.input.etype == type::attribute)
                 {
                     log(prompt, "FillConsoleOutputAttribute",
@@ -5311,7 +5310,7 @@ namespace netxs::os
                         .inv(          piece      & 0x4000u  /* COMMON_LVB_REVERSE_VIDEO */)
                         .und(          piece      & 0x8000u  /* COMMON_LVB_UNDERSCORE    */);
                     log("\tfill using attributes 0x", utf::to_hex(piece));
-                    if ((si32)count > maxcount) count = std::max(0, maxcount);
+                    if ((si32)count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.crop(count, c);
                     uiterm.direct(count, filler.pick(), cell::shaders::meta);
@@ -5324,10 +5323,10 @@ namespace netxs::os
                                 "\tvalue ", piece);
 
                     if (piece <  ' ' || piece == 0x7F) piece = ' ';
-                    if (piece == ' ' && (si32)count > maxcount)
+                    if (piece == ' ' && (si32)count > maxsz)
                     {
                         log("\terase below");
-                        console.ed(0 /*commands::erase::display::below*/);
+                        screen.ed(0 /*commands::erase::display::below*/);
                     }
                     else
                     {
@@ -5338,14 +5337,15 @@ namespace netxs::os
                         auto w = c.wdt();
                         if (w == 1 || w == 2)
                         {
-                            if ((si32)count > maxcount) count = std::max(0, maxcount);
+                            if ((si32)count > maxsz) count = std::max(0, maxsz);
                             filler.kill();
                             filler.crop(count / w, c);
                             uiterm.direct(count, filler.pick(), cell::shaders::text);
                         }
                     }
                 }
-                console.set_coord(savecoor);
+                screen.set_coord(saved);
+                packet.reply.count = count;
             }
             auto api_scrollback_read_data            ()
             {
