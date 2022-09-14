@@ -499,7 +499,7 @@ namespace netxs::console
         auto shadow() const                                     { return shot{ *this };                    }
         auto substr(si32 at, si32 width = netxs::maxsi32) const { return shadow().substr(at, width);       }
         void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
-        void reserv(si32 oversize)                              { if (oversize > length()) crop(oversize); }
+        void resize(si32 oversize)                              { if (oversize > length()) crop(oversize); }
         auto operator != (rich const& r) const
         {
             if (size() != r.size()) return true;
@@ -534,7 +534,7 @@ namespace netxs::console
             auto len = length();
             if constexpr (AUTOGROW)
             {
-                reserv(at + count);
+                resize(at + count);
             }
             else
             {
@@ -549,7 +549,7 @@ namespace netxs::console
         void splice(si32 at, shot const& fragment)
         {
             auto len = fragment.length();
-            reserv(len + at);
+            resize(len + at);
             auto ptr = iter();
             auto dst = ptr + at;
             auto end = dst + len;
@@ -703,11 +703,12 @@ namespace netxs::console
                 else if (w >  2) fuse(*--dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
             }
         }
+        // rich: Splice proto with auto grow.
         template<class Shader>
         void splice(si32 at, si32 count, grid const& proto, Shader fuse)
         {
             if (count <= 0) return;
-            reserv(at + count);
+            resize(at + count);
             auto end = iter() + at;
             auto dst = end + count;
             auto src = proto.end();
@@ -800,7 +801,7 @@ namespace netxs::console
             auto pos = at % margin;
             auto vol = std::min(count, margin - pos);
             auto max = std::min(len + vol, at + margin - pos);
-            reserv(max);
+            resize(max);
             auto ptr = iter();
             auto dst = ptr + max;
             auto src = dst - vol;
@@ -877,7 +878,7 @@ namespace netxs::console
                 }
                 else
                 {
-                    reserv(margin + at);
+                    resize(margin + at);
                     auto ptr = iter();
                     auto dst = ptr + at;
                     auto src = dst + count;

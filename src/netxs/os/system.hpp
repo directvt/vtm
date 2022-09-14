@@ -4616,6 +4616,26 @@ namespace netxs::os
 
             enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
 
+            static constexpr ui32 doscolors[] =
+            {
+                0xFF101010,	// 0  blackdk
+                0xFFDB3700,	// 4  bluedk
+                0xFF0EA112,	// 2  greendk
+                0xFFDD963B,	// 6  cyandk
+                0xFF1F0FC4,	// 1  reddk
+                0xFF981787,	// 5  magentadk
+                0xFF009CC0,	// 3  yellowdk
+                0xFFBBBBBB,	// 7  whitedk
+                0xFF757575,	// 8  blacklt
+                0xFFFF783A,	// 12 bluelt
+                0xFF0CC615,	// 10 greenlt
+                0xFFD6D660,	// 14 cyanlt
+                0xFF5648E6,	// 9  redlt
+                0xFF9E00B3,	// 13 magentalt
+                0xFFA5F1F8,	// 11 yellowlt
+                0xFFF3F3F3,	// 15 whitelt
+            };
+
             auto api_unsupported                     ()
             {
                 log(prompt, "unsupported consrv request code ", upload.fxtype);
@@ -5272,26 +5292,37 @@ namespace netxs::os
                     };
                 };
                 auto& packet = payload::cast(upload);
+                auto& console = *uiterm.target;
+                auto viewport = console.panel;
                 auto& count = packet.input.count;
-                auto  coord = twod{ packet.input.coorx, packet.input.coory };
+                auto  coord = std::clamp(twod{ packet.input.coorx, packet.input.coory }, dot_00, viewport);
                 auto  piece = packet.input.piece;
+                auto maxcount = viewport.x * (viewport.y - coord.y) - coord.x;
+                auto savecoor = console.coord;
+                console.set_coord(coord);
                 if (packet.input.etype == type::attribute)
                 {
-                    log(prompt, "FillConsoleOutputAttribute");
-                    log("\tcoord ", coord);
-                    log("\tcount ", count);
+                    log(prompt, "FillConsoleOutputAttribute",
+                                "\tcoord ", coord,
+                                "\tcount ", count);
+                    auto c = cell{ whitespace }
+                        .fgc(doscolors[piece      & 0x000Fu] /* FOREGROUND_ . . .        */)
+                        .bgc(doscolors[piece >> 4 & 0x000Fu] /* BACKGROUND_ . . .        */)
+                        .inv(          piece      & 0x4000u  /* COMMON_LVB_REVERSE_VIDEO */)
+                        .und(          piece      & 0x8000u  /* COMMON_LVB_UNDERSCORE    */);
+                    log("\tfill using attributes 0x", utf::to_hex(piece));
+                    if ((si32)count > maxcount) count = std::max(0, maxcount);
+                    filler.kill();
+                    filler.crop(count, c);
+                    uiterm.direct(count, filler.pick(), cell::shaders::meta);
                 }
                 else
                 {
-                    log(prompt, "FillConsoleOutputCharacter");
-                    log("\tcoord ", coord);
-                    log("\tcount ", count);
-                    log("\tvalue ", piece);
-                    auto& console = *uiterm.target;
-                    auto viewport = console.panel;
-                    auto maxcount = viewport.x - coord.x + viewport.x * (viewport.y - 1 - coord.y);
-                    auto savecoor = console.coord;
-                    console.cup(coord + dot_11);
+                    log(prompt, "FillConsoleOutputCharacter",
+                                "\tcoord ", coord,
+                                "\tcount ", count,
+                                "\tvalue ", piece);
+
                     if (piece <  ' ' || piece == 0x7F) piece = ' ';
                     if (piece == ' ' && (si32)count > maxcount)
                     {
@@ -5302,7 +5333,7 @@ namespace netxs::os
                     {
                         toUTF8.clear();
                         utf::to_utf((wchr)piece, toUTF8);
-                        log("\tsimple filling by ", toUTF8);
+                        log("\tfill using char ", toUTF8);
                         auto c = cell{ toUTF8 };
                         auto w = c.wdt();
                         if (w == 1 || w == 2)
@@ -5313,8 +5344,8 @@ namespace netxs::os
                             uiterm.direct(count, filler.pick(), cell::shaders::text);
                         }
                     }
-                    console.set_coord(savecoor);
                 }
+                console.set_coord(savecoor);
             }
             auto api_scrollback_read_data            ()
             {

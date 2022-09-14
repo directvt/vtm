@@ -4066,10 +4066,26 @@ namespace netxs::ui
                 }
                 else ctx.block.splice(coord, n, blank);
             }
+            // scroll_buf: Merge curln with its neighbors.
+            void _merge(line& curln, si32 oldsz, ui32 curid, si32 count)
+            {
+                auto coor = oldsz + panel.x - (oldsz - 1) % panel.x - 1;
+                auto iter = batch.iter_by_id(curid);
+                while (count-- > 0)
+                {
+                    auto& line = *++iter;
+                    //todo respect line alignment
+                    if (line.wrapped()) curln.splice(coor, line);
+                    else                curln.splice(coor, line.substr(0, panel.x));
+                    coor += line.height(panel.x) * panel.x;
+                }
+            }
             // scroll_buf: Proceed new text using specified cell shader.
             template<class Shader>
             void _data(si32 count, grid const& proto, Shader fuse)
             {
+                static constexpr auto mixer = !std::is_same_v<Shader, decltype(cell::shaders::full)>;
+
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
                 assert(test_coord());
@@ -4109,7 +4125,7 @@ namespace netxs::ui
                     auto  start = batch.caret;
                     batch.caret += count;
                     coord.x     += count;
-                    if (batch.caret <= panel.x || ! curln.wrapped()) // case 0.
+                    if (batch.caret <= panel.x || !curln.wrapped()) // case 0.
                     {
                         curln.splice(start, count, proto, fuse);
                         auto& mapln = index[coord.y];
@@ -4134,19 +4150,23 @@ namespace netxs::ui
                             query   -= avail;
                             coord.y -= avail;
                         }
-                        curln.splice(start, count, proto, fuse);
+
+                        auto oldsz = curln.length();
                         auto curid = curln.index;
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
+                            curln.resize(batch.caret);
                             batch.recalc(curln);
                             if (auto count = static_cast<si32>(batch.back().index - curid))
                             {
+                                if constexpr (mixer) _merge(curln, oldsz, curid, count);
                                 assert(count > 0);
                                 while (count-- > 0) batch.pop_back();
                             }
 
                             auto width = curln.length();
                             auto trail = width - panel.x;
+                            auto start = panel.x;
 
                             saved -= batch.basis;
                             if (saved > 0)
@@ -4155,12 +4175,12 @@ namespace netxs::ui
                                 while (count-- > 0) index.pop_back();
                                 auto& mapln = index.back();
                                 mapln.width = panel.x;
-                                start = mapln.start + panel.x;
+                                start += mapln.start;
                             }
                             else // saved has scrolled out.
                             {
                                 index.clear();
-                                start = std::abs(saved) * panel.x;
+                                start *= std::abs(saved);
                             }
 
                             while (start < trail)
@@ -4183,6 +4203,7 @@ namespace netxs::ui
                             auto& mapln = index[coord.y];
                             if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                             {
+                                curln.resize(batch.caret);
                                 if (batch.caret - coord.x == mapln.start)
                                 {
                                     if (coord.x > mapln.width)
@@ -4204,13 +4225,20 @@ namespace netxs::ui
                             else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
                             {
                                 auto& target = batch.item_by_id(mapln.index);
+                                //todo respect target alignment
                                 auto  shadow = target.wrapped() ? target.substr(mapln.start + coord.x)
                                                                 : target.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
-                                curln.splice(curln.length(), shadow);
+
+                                if constexpr (mixer) curln.resize(batch.caret +shadow.length());
+                                else                 curln.splice(batch.caret, shadow);
+
                                 batch.recalc(curln);
                                 auto width = curln.length();
                                 auto spoil = static_cast<si32>(mapln.index - curid);
                                 assert(spoil > 0);
+
+                                if constexpr (mixer) _merge(curln, oldsz, curid, spoil);
+
                                 auto after = batch.index() + 1;
                                      spoil = batch.remove(after, spoil);
 
@@ -4253,6 +4281,7 @@ namespace netxs::ui
                                 assert(test_futures());
                             } // case 2 done.
                         }
+                        batch.current().splice(start, count, proto, fuse);
                     }
                     assert(coord.y >= 0 && coord.y < arena);
                     coord.y += y_top;
