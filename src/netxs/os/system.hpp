@@ -5307,8 +5307,8 @@ namespace netxs::os
                     auto c = cell{ whitespace }
                         .fgc(doscolors[piece      & 0x000Fu] /* FOREGROUND_ . . .        */)
                         .bgc(doscolors[piece >> 4 & 0x000Fu] /* BACKGROUND_ . . .        */)
-                        .inv(          piece      & 0x4000u  /* COMMON_LVB_REVERSE_VIDEO */)
-                        .und(          piece      & 0x8000u  /* COMMON_LVB_UNDERSCORE    */);
+                        .inv(!!(       piece      & 0x4000u  /* COMMON_LVB_REVERSE_VIDEO */))
+                        .und(!!(       piece      & 0x8000u  /* COMMON_LVB_UNDERSCORE    */));
                     log("\tfill using attributes 0x", utf::to_hex(piece));
                     if ((si32)count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
