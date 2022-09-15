@@ -4384,15 +4384,12 @@ namespace netxs::os
                                     case VK_CAPITAL:
                                     case VK_SCROLL:
                                     case VK_CLEAR:/*NUMPAD 5*/
-                                    case VK_F1:
-                                    case VK_F2:
-                                    case VK_F3:
-                                    case VK_F4:
-                                    case VK_F5:
-                                    case VK_F7:
-                                    case VK_F8:
-                                    case VK_F9:
-                                    case VK_F10:
+                                    case VK_F2:  //todo menu
+                                    case VK_F4:  //todo menu
+                                    case VK_F7:  //todo menu
+                                    case VK_F8:  //todo match history
+                                    case VK_F9:  //todo menu
+                                    case VK_F10: //todo clear exes aliases
                                     case VK_F11:
                                     case VK_F12:
                                         break;
@@ -4404,9 +4401,12 @@ namespace netxs::os
                                     case VK_BACK:   burn(); hist.save(line); while (n-- && line.wipe_rev(contrl)) { }                      break;
                                     case VK_DELETE: burn(); hist.save(line); while (n-- && line.wipe_fwd(contrl)) { }                      break;
                                     case VK_LEFT:   burn();                  while (n-- && line.step_rev(contrl)) { }                      break;
+                                    case VK_F1:     contrl = faux;
                                     case VK_RIGHT:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
+                                    case VK_F3:     burn(); hist.save(line); while (       line.step_fwd(faux,   hist.fallback())) { }     break;
                                     case VK_PRIOR:  burn(); hist.pgup(line);                                                               break;
                                     case VK_NEXT:   burn(); hist.pgdn(line);                                                               break;
+                                    case VK_F5:
                                     case VK_UP:     burn(); hist.prev(line);                                                               break;
                                     case VK_DOWN:   burn(); hist.next(line);                                                               break;
                                     default:
