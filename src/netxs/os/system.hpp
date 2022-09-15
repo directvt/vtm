@@ -3995,8 +3995,7 @@ namespace netxs::os
                 auto save(para& line)
                 {
                     auto& data = line.content();
-                    //todo compare text only
-                    if (undo.empty() || undo.back().second != data)
+                    if (undo.empty() || !data.same(undo.back().second))
                     {
                         undo.emplace_back(line.caret, data);
                         redo.clear();
@@ -4007,10 +4006,15 @@ namespace netxs::os
                     if (back) std::swap(undo, redo);
                     if (undo.size())
                     {
-                        redo.emplace_back(line.caret, line.content());
-                        line.content(undo.back().second);
-                        line.caret = undo.back().first;
-                        undo.pop_back();
+                        auto& data = line.content();
+                        while (undo.size() && data.same(undo.back().second)) undo.pop_back();
+                        if (undo.size())
+                        {
+                            redo.emplace_back(line.caret, data);
+                            line.content(undo.back().second);
+                            line.caret = undo.back().first;
+                            undo.pop_back();
+                        }
                     }
                     if (back) std::swap(undo, redo);
                 }
@@ -4342,7 +4346,6 @@ namespace netxs::os
                         }
                     };
 
-                    if (line.length()) hist.save(line);
                     do
                     {
                         auto coor = line.caret;
