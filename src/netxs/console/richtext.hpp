@@ -500,18 +500,6 @@ namespace netxs::console
         auto substr(si32 at, si32 width = netxs::maxsi32) const { return shadow().substr(at, width);       }
         void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
         void resize(si32 oversize)                              { if (oversize > length()) crop(oversize); }
-        auto operator != (rich const& r) const
-        {
-            if (size() != r.size()) return true;
-            auto head = iter();
-            auto tail = iend();
-            auto dest = r.iter();
-            while (head != tail)
-            {
-                if (*head++ != *dest++) return true;
-            }
-            return faux;
-        }
         auto empty()
         {
             return canvas.empty();

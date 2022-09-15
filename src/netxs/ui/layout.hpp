@@ -2077,34 +2077,49 @@ namespace netxs::ui::atoms
             std::swap(lhs.canvas, rhs.canvas);
             std::swap(lhs.client, rhs.client);
         }
-        constexpr auto& size() const        { return region.size;        }
-        auto& coor() const                  { return region.coor;        }
-        auto& area() const                  { return region;             }
-        auto  data() const                  { return canvas.data();      }
-        auto  data()                        { return canvas.data();      }
-        auto& pick()                        { return canvas;             }
-        auto  iter()                        { return canvas.begin();     }
-        auto  iend()                        { return canvas.end();       }
-        auto  iter() const                  { return canvas.begin();     }
-        auto  iend() const                  { return canvas.end();       }
-        auto  test(twod const& coord) const { return region.size.inside(coord); } // core: Check the coor inside the canvas.
-        auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates.
-        auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell.
-        auto& data(size_t offset)           { return*(data() + offset);  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
-        auto& operator [] (twod const& c)   { return*(data(c));          } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
-        auto& mark()                        { return marker;             } // core: Return a reference to the default cell value.
-        auto& mark() const                  { return marker;             } // core: Return a reference to the default cell value.
-        auto& mark(cell const& c)           { marker = c; return marker; } // core: Set the default cell value.
-        void  move(twod const& newcoor)     { region.coor = newcoor;     } // core: Change the location of the face.
-        void  step(twod const& delta)       { region.coor += delta;      } // core: Shift location of the face by delta.
-        void  back(twod const& delta)       { region.coor -= delta;      } // core: Shift location of the face by -delta.
-        auto& back()                        { return canvas.back();      } // core: Return last cell.
-        void  link(id_t id)                 { marker.link(id);           } // core: Set the default object ID.
-        auto  link(twod const& coord) const { return test(coord) ? (*(data(coord))).link() : 0; } // core: Return ID of the object in cell at the specified coordinates.
-        auto  view() const                  { return client;             }
-        void  view(rect const& viewreg)     { client = viewreg;          }
-        auto  hash() const                  { return digest;             } // core: Return the digest value that associatated with the current canvas size.
-        auto  hash(si32 d)                  { return digest != d ? ((void)(digest = d), true) : faux; } // core: Check and the digest value that associatated with the current canvas size.
+        template<class P>
+        auto same(core const& c, P compare) const // core: Compare content.
+        {
+            if (region.size != c.region.size) return faux;
+            auto dest = c.canvas.begin();
+            auto head =   canvas.begin();
+            auto tail =   canvas.end();
+            while (head != tail)
+            {
+                if (!compare(*head++, *dest++)) return faux;
+            }
+            return true;
+        }
+        auto operator == (core const& c) const { return same(c, [](auto const& a, auto const& b){ return a == b;        }); }
+        auto  same       (core const& c) const { return same(c, [](auto const& a, auto const& b){ return a.same_txt(b); }); }
+        constexpr auto& size() const           { return region.size;                                                        }
+        auto& coor() const                     { return region.coor;                                                        }
+        auto& area() const                     { return region;                                                             }
+        auto  data() const                     { return canvas.data();                                                      }
+        auto  data()                           { return canvas.data();                                                      }
+        auto& pick()                           { return canvas;                                                             }
+        auto  iter()                           { return canvas.begin();                                                     }
+        auto  iend()                           { return canvas.end();                                                       }
+        auto  iter() const                     { return canvas.begin();                                                     }
+        auto  iend() const                     { return canvas.end();                                                       }
+        auto  test(twod const& coord) const    { return region.size.inside(coord);                                          } // core: Check the coor inside the canvas.
+        auto  data(twod const& coord)          { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the offset of the cell corresponding to the specified coordinates.
+        auto  data(twod const& coord) const    { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the const offset value of the cell.
+        auto& data(size_t offset)              { return*(data() + offset);                                                  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
+        auto& operator [] (twod const& c)      { return*(data(c));                                                          } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
+        auto& mark()                           { return marker;                                                             } // core: Return a reference to the default cell value.
+        auto& mark() const                     { return marker;                                                             } // core: Return a reference to the default cell value.
+        auto& mark(cell const& c)              { marker = c; return marker;                                                 } // core: Set the default cell value.
+        void  move(twod const& newcoor)        { region.coor = newcoor;                                                     } // core: Change the location of the face.
+        void  step(twod const& delta)          { region.coor += delta;                                                      } // core: Shift location of the face by delta.
+        void  back(twod const& delta)          { region.coor -= delta;                                                      } // core: Shift location of the face by -delta.
+        auto& back()                           { return canvas.back();                                                      } // core: Return last cell.
+        void  link(id_t id)                    { marker.link(id);                                                           } // core: Set the default object ID.
+        auto  link(twod const& coord) const    { return test(coord) ? (*(data(coord))).link() : 0;                          } // core: Return ID of the object in cell at the specified coordinates.
+        auto  view() const                     { return client;                                                             }
+        void  view(rect const& viewreg)        { client = viewreg;                                                          }
+        auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
+        auto  hash(si32 d)                     { return digest != d ? ((void)(digest = d), true) : faux;                    } // core: Check and the digest value that associatated with the current canvas size.
         void  size(twod const& newsize) // core: Change the size of the face.
         {
             if (region.size(std::max(dot_00, newsize)))
