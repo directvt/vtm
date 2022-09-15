@@ -1161,7 +1161,7 @@ namespace netxs::console
             else return faux;
         }
         // para: Insert one proto cell before caret (the proto means that it will be expanded if it is wide - wdt == 2).
-        auto insert(cell c, bool inserting)
+        auto insert(cell c, bool inserting = true)
         {
             if (!inserting) del_gc_fwd();
             else            caret_check();
@@ -1174,7 +1174,7 @@ namespace netxs::console
                 line.data(caret).wdt(3);
                 caret++;
             }
-            else line.insert_full(caret, 1, c.wdt(1));
+            else line.insert_full(caret++, 1, c.wdt(1));
         }
         // para: Insert text.
         void insert(view utf8, bool inserting)
@@ -1269,10 +1269,29 @@ namespace netxs::console
                            : step_by_gc_rev();
         }
         // para: Move caret one word(true) or grapheme cluster(faux) to the right.
-        auto step_fwd(bool by_word)
+        auto step_fwd(bool by_word, rich const& fallback)
         {
-            return by_word ? step_by_word_fwd()
-                           : step_by_gc_fwd();
+                 if (by_word)           return step_by_word_fwd();
+            else if (caret != length()) return step_by_gc_fwd();
+            else
+            {
+                auto& data = content();
+                auto iter1 = data.iter();
+                auto end_1 = iter1 + length();
+                auto iter2 = fallback.iter();
+                auto end_2 = iter2 + fallback.length();
+                while (iter2 != end_2)
+                {
+                    if (iter1 == end_1)
+                    {
+                        insert(*iter2);
+                        return true;
+                    }
+                    if ((iter1++)->wdt() == 2 && iter1 != end_1 && (iter1++)->wdt() != 3) log("para: corrupted glyph");
+                    if ((iter2++)->wdt() == 2 && iter2 != end_2 && (iter2++)->wdt() != 3) log("para: corrupted glyph");
+                }
+            }
+            return faux;
         }
         // para: Delete one word(true) or grapheme cluster(faux) to the left.
         auto wipe_rev(bool by_word)

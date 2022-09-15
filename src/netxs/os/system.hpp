@@ -3990,6 +3990,7 @@ namespace netxs::os
                 std::list<std::pair<si32, rich>> undo{};
                 std::list<std::pair<si32, rich>> redo{};
                 std::vector<rich>                data{};
+                rich                             idle{};
 
                 auto save(para& line)
                 {
@@ -4000,7 +4001,7 @@ namespace netxs::os
                         undo.emplace_back(line.caret, data);
                         redo.clear();
                     }
-                };
+                }
                 auto swap(para& line, bool back)
                 {
                     if (back) std::swap(undo, redo);
@@ -4012,7 +4013,7 @@ namespace netxs::os
                         undo.pop_back();
                     }
                     if (back) std::swap(undo, redo);
-                };
+                }
                 auto done(para& line)
                 {
                     auto& new_data = line.content();
@@ -4021,10 +4022,15 @@ namespace netxs::os
                     if (trimmed.size() && (data.empty() || data.back() != new_data))
                     {
                         data.push_back(new_data);
+                        seek = data.size();
                     }
-                    seek = data.size();
                     undo.clear();
                     redo.clear();
+                }
+                auto& fallback() const
+                {
+                    if (data.size()) return data[std::min(seek, data.size() - 1)];
+                    else             return idle;
                 }
                 auto deal(para& line, size_t i)
                 {
@@ -4387,16 +4393,15 @@ namespace netxs::os
                                     case VK_F11:
                                     case VK_F12:
                                         break;
+                                    case VK_INSERT: burn(); mode(!mode);                                                                   break;
                                     case VK_F6:     burn(); hist.save(line);               line.insert(cell{}.c0_to_txt('Z' - '@'), mode); break;
                                     case VK_ESCAPE: burn(); hist.save(line);               line.wipe();                                    break;
                                     case VK_HOME:   burn(); hist.save(line);               line.move_to_home(contrl);                      break;
                                     case VK_END:    burn(); hist.save(line);               line.move_to_end (contrl);                      break;
-                                    case VK_LEFT:   burn();                  while (n-- && line.step_rev(contrl)) { }                      break;
-                                    //todo take chars from history after end
-                                    case VK_RIGHT:  burn();                  while (n-- && line.step_fwd(contrl)) { }                      break;
                                     case VK_BACK:   burn(); hist.save(line); while (n-- && line.wipe_rev(contrl)) { }                      break;
                                     case VK_DELETE: burn(); hist.save(line); while (n-- && line.wipe_fwd(contrl)) { }                      break;
-                                    case VK_INSERT: burn(); mode(!mode);                                                                   break;
+                                    case VK_LEFT:   burn();                  while (n-- && line.step_rev(contrl)) { }                      break;
+                                    case VK_RIGHT:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
                                     case VK_PRIOR:  burn(); hist.pgup(line);                                                               break;
                                     case VK_NEXT:   burn(); hist.pgdn(line);                                                               break;
                                     case VK_UP:     burn(); hist.prev(line);                                                               break;
