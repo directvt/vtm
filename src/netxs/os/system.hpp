@@ -4112,7 +4112,6 @@ namespace netxs::os
                             if (h.mode & nt::console::inmode::quickedit ) s << " | QUICK_EDIT";
                             if (h.mode & nt::console::inmode::winsize   ) s << " | WINSIZE";
                             if (h.mode & nt::console::inmode::vt        ) s << " | VIRTUAL_TERMINAL_INPUT";
-                            s << " }";
                         }
                         else
                         {
@@ -4122,7 +4121,6 @@ namespace netxs::os
                             if (h.mode & nt::console::outmode::vt         ) s << " | VIRTUAL_TERMINAL_PROCESSING";
                             if (h.mode & nt::console::outmode::no_auto_cr ) s << " | NO_AUTO_CR";
                             if (h.mode & nt::console::outmode::lvb_grid   ) s << " | LVB_GRID_WORLDWIDE";
-                            s << " }";
                         }
                         return s;
                     }
@@ -4286,6 +4284,14 @@ namespace netxs::os
                     auto lock = std::lock_guard{ locker };
                     ondata.flush();
                     buffer.clear();
+                }
+                void focus(bool state)
+                {
+                    //todo
+                }
+                void mouse(input::hids& gear)
+                {
+                    //todo
                 }
                 void winsz(twod const& winsize)
                 {
@@ -4502,34 +4508,37 @@ namespace netxs::os
 
                         burn();
 
-                        lock.unlock();
-                        server.uiterm.update([&]
+                        if (server.inpmod & nt::console::inmode::echo)
                         {
-                            static auto zero = cell{ '\0' }.wdt(1);
-                            auto& term = *server.uiterm.target;
-                            auto& data = line.content();
-                            data.crop(line.length() + 1, zero); // To avoid pendind cursor.
-                            term.move(-coor);
-                            term.data(data);
-                            term.el(3 /*ui::term::commands::erase::line::wraps*/);
+                            lock.unlock();
+                            server.uiterm.update([&]
+                            {
+                                static auto zero = cell{ '\0' }.wdt(1);
+                                auto& term = *server.uiterm.target;
+                                auto& data = line.content();
+                                data.crop(line.length() + 1, zero); // To avoid pendind cursor.
+                                term.move(-coor);
+                                term.data(data);
+                                term.el(3 /*ui::term::commands::erase::line::wraps*/);
 
-                            if (done && crlf)
-                            {
-                                term.cr();
-                                term.lf(crlf);
-                            }
-                            else
-                            {
-                                term.move(line.caret - line.length());
-                            }
+                                if (done && crlf)
+                                {
+                                    term.cr();
+                                    term.lf(crlf);
+                                }
+                                else
+                                {
+                                    term.move(line.caret - line.length());
+                                }
 
-                            if (mode.reset())
-                            {
-                                server.uiterm.cursor.toggle();
-                            }
-                            data.crop(line.length() - 1);
-                        });
-                        lock.lock();
+                                if (mode.reset())
+                                {
+                                    server.uiterm.cursor.toggle();
+                                }
+                                data.crop(line.length() - 1);
+                            });
+                            lock.lock();
+                        }
                     }
                     while (!done && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
 
@@ -4607,6 +4616,7 @@ namespace netxs::os
                     if (!server.size_check(packet.echosz, answer.sendoffset())) return;
                     auto avail = packet.echosz - answer.sendoffset();
                     auto limit = std::min<ui32>(count(), avail / sizeof(recbuf.front()));
+                    log("\tuser limit: ", limit);
                     recbuf.resize(limit);
                     auto srcit = buffer.begin();
                     auto dstit = recbuf.begin();
