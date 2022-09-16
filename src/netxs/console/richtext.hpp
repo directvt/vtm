@@ -452,9 +452,9 @@ namespace netxs::console
         constexpr auto  size  () const { return  basis.size();         }
         constexpr auto  empty () const { return !width;                }
         constexpr auto  length() const { return  width;                }
-
+        // shot: Compare content.
         template<class P>
-        auto same(shot const& s, P compare) const // core: Compare content.
+        auto same(shot const& s, P compare) const
         {
             if (width != s.width) return faux;
             auto dest = s.basis.iter();
