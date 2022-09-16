@@ -4026,15 +4026,40 @@ namespace netxs::os
                     if (trimmed.size() && (data.empty() || data.back() != new_data))
                     {
                         data.push_back(new_data);
-                        seek = data.size();
+                        seek = data.size() - 1;
                     }
                     undo.clear();
                     redo.clear();
                 }
                 auto& fallback() const
                 {
-                    if (data.size()) return data[std::min(seek, data.size() - 1)];
+                    if (data.size()) return data[seek];
                     else             return idle;
+                }
+                auto roll()
+                {
+                    if (data.size())
+                    {
+                        if (seek == 0) seek = data.size() - 1;
+                        else           seek--;
+                    }
+                }
+                auto find(para& line)
+                {
+                    if (data.empty()) return faux;
+                    auto stop = seek;
+                    auto size = line.caret;
+                    while (!line.substr(0, size).same(data[seek].substr(0, size))
+                         || line.content()      .same(data[seek]))
+                    {
+                        roll();
+                        if (seek == stop) return faux;
+                    }
+                    save(line);
+                    line.content() = data[seek];
+                    line.caret = size;
+                    line.caret_check();
+                    return true;
                 }
                 auto deal(para& line, size_t i)
                 {
@@ -4044,7 +4069,7 @@ namespace netxs::os
                         line.content(data[seek = i]);
                     }
                 }
-                auto prev(para& line) { deal(line, seek - 1       ); }
+                auto prev(para& line) { deal(line, seek           ); if (seek) seek--; }
                 auto pgup(para& line) { deal(line, 0              ); }
                 auto next(para& line) { deal(line, seek + 1       ); }
                 auto pgdn(para& line) { deal(line, data.size() - 1); }
@@ -4387,7 +4412,6 @@ namespace netxs::os
                                     case VK_F2:  //todo menu
                                     case VK_F4:  //todo menu
                                     case VK_F7:  //todo menu
-                                    case VK_F8:  //todo match history
                                     case VK_F9:  //todo menu
                                     case VK_F10: //todo clear exes aliases
                                     case VK_F11:
@@ -4404,6 +4428,7 @@ namespace netxs::os
                                     case VK_F1:     contrl = faux;
                                     case VK_RIGHT:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
                                     case VK_F3:     burn(); hist.save(line); while (       line.step_fwd(faux,   hist.fallback())) { }     break;
+                                    case VK_F8:     burn();                  while (n-- && hist.find(line)) { };                           break;
                                     case VK_PRIOR:  burn(); hist.pgup(line);                                                               break;
                                     case VK_NEXT:   burn(); hist.pgdn(line);                                                               break;
                                     case VK_F5:

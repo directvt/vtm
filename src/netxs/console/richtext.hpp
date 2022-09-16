@@ -453,6 +453,22 @@ namespace netxs::console
         constexpr auto  empty () const { return !width;                }
         constexpr auto  length() const { return  width;                }
 
+        template<class P>
+        auto same(shot const& s, P compare) const // core: Compare content.
+        {
+            if (width != s.width) return faux;
+            auto dest = s.basis.iter();
+            auto head =   basis.iter();
+            auto tail = head + width;
+            while (head != tail)
+            {
+                if (!compare(*head++, *dest++)) return faux;
+            }
+            return true;
+        }
+        auto operator == (shot const& s) const { return same(s, [](auto const& a, auto const& b){ return a == b;        }); }
+        auto  same       (shot const& s) const { return same(s, [](auto const& a, auto const& b){ return a.same_txt(b); }); }
+
         template<bool RtoL, class P = noop>
         auto output(core& canvas, twod const& pos, P print = P()) const  // shot: Print the source content using the specified print proc, which returns the number of characters printed.
         {
