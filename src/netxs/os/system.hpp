@@ -4069,7 +4069,8 @@ namespace netxs::os
                         line.content(data[seek = i]);
                     }
                 }
-                auto prev(para& line) { deal(line, seek           ); if (seek) seek--; }
+                auto prev(para& line) { if (seek > 0 && line.content().same(data[seek])) roll();
+                                        deal(line, seek           ); }
                 auto pgup(para& line) { deal(line, 0              ); }
                 auto next(para& line) { deal(line, seek + 1       ); }
                 auto pgdn(para& line) { deal(line, data.size() - 1); }
