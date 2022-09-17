@@ -699,14 +699,13 @@ namespace netxs::utf
             {
                 if (utf8 == tail || (*utf8 & 0xc0) != 0x80)
                 {
-                    if (code < 0xd800 || code >= 0xe000
-                        || sizeof(wchr) > 2) // single | wchr == char32_t
+                    if (code < 0xd800 || (code >= 0xe000 && code <= 0xffff) || sizeof(wchr) > 2) // single | wchr == char32_t
                     {
                         wide_text.push_back(static_cast<wchr>(code));
                     }
                     else if (code > 0xffff) // surrogate pair
                     {
-                        wide_text.append({ static_cast<wchr>(0xd800 + (code >> 10)),
+                        wide_text.append({ static_cast<wchr>(0xd800 + ((code - 0x10000) >> 10)),
                                            static_cast<wchr>(0xdc00 + (code & 0x03ff)) });
                     }
                 }
