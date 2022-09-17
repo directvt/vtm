@@ -1416,7 +1416,7 @@ namespace netxs::utf
     }
 
     // utf: Return a string without control chars (replace all ctrls with printables).
-    template<bool SPLIT = true>
+    template<bool Split = true, bool Multiline = true>
     auto debase(view utf8)
     {
         auto buff = text{};
@@ -1428,7 +1428,7 @@ namespace netxs::utf
             switch (traits.cdpoint)
             {
                 case 033:
-                    if constexpr (SPLIT)
+                    if constexpr (Split)
                     {
                         if (head == utf8.size()) buff += "\\e";
                         else                     buff += "\n\\e";
@@ -1436,16 +1436,18 @@ namespace netxs::utf
                     else buff += "\\e";
                     break;
                 case '\n':
-                    if constexpr (SPLIT)
+                    if constexpr (Split)
                     {
                         if (utf8.size() && utf8.front() == '\033')
                         {
-                            buff += "\\n\n\\e";
+                            if constexpr (Multiline) buff += "\\n\n\\e";
+                            else                     buff += "\\n\\e";
                             utf8.remove_prefix(1);
+                            break;
                         }
-                        else buff += "\\n\n";
                     }
-                    else buff += "\\n\n";
+                    if constexpr (Multiline) buff += "\\n\n";
+                    else                     buff += "\\n";
                     break;
                 case '\r': buff += "\\r"; break;
                 case 8:    buff += "\\b"; break;
@@ -1461,9 +1463,10 @@ namespace netxs::utf
         };
         auto y = [&](frag const& cluster)
         {
-            if (cluster.text.front() == '\\')     buff += "\\\\";
+                 if (cluster.text.front() == '\\') buff += "\\\\";
+            else if (cluster.text.front() == '\0') buff += "\\0";
             //else if (cluster.text.front() == ' ') buff += "\x20";
-            else                                  buff += cluster.text;
+            else                                   buff += cluster.text;
         };
         decode<faux>(s, y, utf8);
 

@@ -4360,7 +4360,7 @@ namespace netxs::os
                     }
                 }
                 template<class L>
-                auto readline(memo& hist, L& lock, bool EOFon, bool utf16, ui32 stops, bool& cancel)
+                auto readline(memo& hist, L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops)
                 {
                     auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
                     auto buff = text{};
@@ -4554,12 +4554,86 @@ namespace netxs::os
 
                     server.inpmod = (server.inpmod & ~nt::console::inmode::insert) | (mode ? nt::console::inmode::insert : 0);
                 }
+                auto truenull(ui16 v, ui32 s)
+                {
+                    static auto z = ::VkKeyScanW(L'\0');
+                    static auto need_shift = !!(z & 0x0100);
+                    static auto need__ctrl = !!(z & 0x0200);
+                    static auto need___alt = !!(z & 0x0400);
+                    return v == (z & 0xff) && need_shift == !!(s & (SHIFT_PRESSED))
+                                           && need__ctrl == !!(s & (RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED))
+                                           && need___alt == !!(s & (RIGHT_ALT_PRESSED  | LEFT_ALT_PRESSED));
+                }
+                template<class L>
+                auto readchar(memo& hist, L& lock, bool& cancel, bool utf16)
+                {
+                    auto pair = wide{};
+                    do
+                    {
+                        auto head = buffer.begin();
+                        auto tail = buffer.end();
+                        while (head != tail)
+                        {
+                            auto& rec = *head++;
+                            switch (rec.EventType)
+                            {
+                                case KEY_EVENT:
+                                {
+                                    //todo ENABLE_VT_INPUT
+                                    log(" ============================",
+                                        "\n rec.Event.KeyEvent.uChar.UnicodeChar ",          (int)rec.Event.KeyEvent.uChar.UnicodeChar,
+                                        "\n rec.Event.KeyEvent.wVirtualKeyCode   ",          (int)rec.Event.KeyEvent.wVirtualKeyCode,
+                                        "\n rec.Event.KeyEvent.wVirtualScanCode  ",          (int)rec.Event.KeyEvent.wVirtualScanCode,
+                                        "\n rec.Event.KeyEvent.wRepeatCount      ",          (int)rec.Event.KeyEvent.wRepeatCount,
+                                        "\n rec.Event.KeyEvent.dwControlKeyState 0x", utf::to_hex(rec.Event.KeyEvent.dwControlKeyState),
+                                        "\n rec.Event.KeyEvent.Pressed           ",               rec.Event.KeyEvent.bKeyDown ? "true":"faux");
+
+                                    auto& s = rec.Event.KeyEvent.dwControlKeyState;
+                                    auto& d = rec.Event.KeyEvent.bKeyDown;
+                                    auto& n = rec.Event.KeyEvent.wRepeatCount;
+                                    auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
+                                    auto& c = rec.Event.KeyEvent.uChar.UnicodeChar;
+                                    cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
+                                    if (n-- && (d && (c || truenull(v, s))
+                                            || !d &&  c && v == VK_MENU))
+                                    {
+                                        auto grow = utf::to_utf(c, pair, cooked.ustr);
+                                        if (grow && n)
+                                        {
+                                            auto temp = view{ cooked.ustr.data() + cooked.ustr.size() - grow, grow };
+                                            while (n--) cooked.ustr += temp;
+                                        }
+                                    }
+                                    break;
+                                }
+                                case MOUSE_EVENT:
+                                {
+                                    break;
+                                }
+                                case FOCUS_EVENT:
+                                {
+                                    break;
+                                }
+                                case WINDOW_BUFFER_SIZE_EVENT:
+                                {
+                                    break;
+                                }
+                                case MENU_EVENT:
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        buffer.clear();
+                    }
+                    while (cooked.ustr.empty() && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
+
+                    cooked.save(utf16);
+                    ondata.flush();
+                }
                 template<bool Complete = faux, class Payload>
                 auto reply(Payload& packet, cdrw& answer, ui32 readstep)
                 {
-                    //todo
-                    // inpmode & ENABLE_LINE_INPUT == true - readline
-                    // inpmode & ENABLE_LINE_INPUT == faux - readchar
                     auto size = std::min((ui32)cooked.rest.size(), readstep);
                     auto data = view{ cooked.rest.data(), size };
                     log("\thandle 0x", utf::to_hex(packet.target), ": read rest line: ", utf::debase(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
@@ -4592,10 +4666,14 @@ namespace netxs::os
                             if (closed || cancel) return;
                             
                             cooked.ustr.clear();
-                            if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
-                            else                    cooked.ustr = initdata;
+                            if (server.inpmod & nt::console::inmode::cooked)
+                            {
+                                if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
+                                else                    cooked.ustr = initdata;
+                                readline(client.inputs, lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops);
+                            }
+                            else readchar(client.inputs, lock, cancel, packet.input.utf16);
 
-                            readline(client.inputs, lock, packet.input.EOFon, packet.input.utf16, packet.input.stops, cancel);
                             if (cooked.ustr.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
 
                             if (closed || cancel)
@@ -5090,7 +5168,6 @@ namespace netxs::os
                 {
                     log("\tinitdata utf-8: ", utf::debase(initdata));
                 }
-                //todo respect ENABLE_LINE_INPUT
                 events.placeorder(packet, nameview, initdata, readstep);
             }
             auto api_events_clear                    ()
