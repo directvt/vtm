@@ -4228,6 +4228,7 @@ namespace netxs::os
                 jobs    worker; // events_t: Background task executer.
                 bool    closed; // events_t: Console server was shutdown.
                 fire    ondata; // events_t: Signal on input buffer data.
+                wide    wcpair; // events_t: Surrogate pair buffer.
 
                 event_list(consrv& serv)
                     :  server{ serv },
@@ -4364,7 +4365,6 @@ namespace netxs::os
                 {
                     auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
                     auto buff = text{};
-                    auto pair = wide{};
                     auto line = para{ cooked.ustr };
                     auto done = faux;
                     auto crlf = 0;
@@ -4490,7 +4490,7 @@ namespace netxs::os
                                         }
                                         else
                                         {
-                                            auto grow = utf::to_utf(c, pair, buff);
+                                            auto grow = utf::to_utf(c, wcpair, buff);
                                             if (grow && n)
                                             {
                                                 auto temp = view{ buff.data() + grow, buff.size() - grow };
@@ -4567,7 +4567,6 @@ namespace netxs::os
                 template<class L>
                 auto readchar(memo& hist, L& lock, bool& cancel, bool utf16)
                 {
-                    auto pair = wide{};
                     do
                     {
                         auto head = buffer.begin();
@@ -4597,7 +4596,7 @@ namespace netxs::os
                                     if (n-- && (d && (c || truenull(v, s))
                                             || !d &&  c && v == VK_MENU))
                                     {
-                                        auto grow = utf::to_utf(c, pair, cooked.ustr);
+                                        auto grow = utf::to_utf(c, wcpair, cooked.ustr);
                                         if (grow && n)
                                         {
                                             auto temp = view{ cooked.ustr.data() + cooked.ustr.size() - grow, grow };
