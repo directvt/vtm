@@ -4208,7 +4208,7 @@ namespace netxs::os
                 using lock = std::recursive_mutex;
                 using sync = std::condition_variable_any;
                 using vect = std::vector<INPUT_RECORD>;
-                using list = std::list<INPUT_RECORD>;
+                using list = std::vector<INPUT_RECORD>;
 
                 struct nttask
                 {
@@ -4286,19 +4286,55 @@ namespace netxs::os
                     ondata.flush();
                     buffer.clear();
                 }
+                auto generate(wiew wstr)
+                {
+                    buffer.reserve(wstr.size());
+                    for (auto c : wstr)
+                    {
+                        buffer.emplace_back(INPUT_RECORD
+                        {
+                            .EventType = KEY_EVENT,
+                            .Event =
+                            {
+                                .KeyEvent =
+                                {
+                                    .bKeyDown               = 1,
+                                    .wRepeatCount           = 1,
+                                    .wVirtualKeyCode        = 0,
+                                    .wVirtualScanCode       = 0,
+                                    .uChar = { .UnicodeChar = c },
+                                    .dwControlKeyState      = cooked.ctrl,
+                                }
+                            }
+                        });
+                    }
+                }
                 void focus(bool state)
                 {
-                    //todo
+                    if (server.inpmod & nt::console::inmode::vt)
+                    {
+                        //...
+                    }
+                    else
+                    {
+                        //,,,
+                    }
                 }
                 void mouse(input::hids& gear)
                 {
-                    //todo
+                    if (server.inpmod & nt::console::inmode::vt)
+                    {
+                        //...
+                    }
+                    else
+                    {
+                        //,,,
+                    }
                 }
                 void winsz(twod const& winsize)
                 {
                     auto lock = std::lock_guard{ locker };
-                    // Ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
-                    buffer.emplace_back(INPUT_RECORD
+                    buffer.emplace_back(INPUT_RECORD // Ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
                     {
                         .EventType = WINDOW_BUFFER_SIZE_EVENT,
                         .Event =
@@ -4319,22 +4355,53 @@ namespace netxs::os
                 void keybd(input::hids& gear)
                 {
                     auto lock = std::lock_guard{ locker };
-                    buffer.emplace_back(INPUT_RECORD
+                    log(" ============================",
+                        "\n rec.Event.KeyEvent.uChar.UnicodeChar ",          (int)gear.winchar,
+                        "\n rec.Event.KeyEvent.wVirtualKeyCode   ",          (int)gear.virtcod,
+                        "\n rec.Event.KeyEvent.wVirtualScanCode  ",          (int)gear.scancod,
+                        "\n rec.Event.KeyEvent.wRepeatCount      ",          (int)gear.imitate,
+                        "\n rec.Event.KeyEvent.dwControlKeyState 0x", utf::to_hex(gear.winctrl),
+                        "\n rec.Event.KeyEvent.Pressed           ",               gear.pressed ? "true":"faux");
+
+                    if (server.inpmod & nt::console::inmode::vt)
                     {
-                        .EventType = KEY_EVENT,
-                        .Event =
+                        //todo decode
+                        buffer.emplace_back(INPUT_RECORD
                         {
-                            .KeyEvent =
+                            .EventType = KEY_EVENT,
+                            .Event =
                             {
-                                .bKeyDown               = gear.pressed,
-                                .wRepeatCount           = gear.imitate,
-                                .wVirtualKeyCode        = gear.virtcod,
-                                .wVirtualScanCode       = gear.scancod,
-                                .uChar = { .UnicodeChar = gear.winchar },
-                                .dwControlKeyState      = gear.winctrl,
+                                .KeyEvent =
+                                {
+                                    .bKeyDown               = gear.pressed,
+                                    .wRepeatCount           = gear.imitate,
+                                    .wVirtualKeyCode        = gear.virtcod,
+                                    .wVirtualScanCode       = gear.scancod,
+                                    .uChar = { .UnicodeChar = gear.winchar },
+                                    .dwControlKeyState      = gear.winctrl,
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
+                    else
+                    {
+                        buffer.emplace_back(INPUT_RECORD
+                        {
+                            .EventType = KEY_EVENT,
+                            .Event =
+                            {
+                                .KeyEvent =
+                                {
+                                    .bKeyDown               = gear.pressed,
+                                    .wRepeatCount           = gear.imitate,
+                                    .wVirtualKeyCode        = gear.virtcod,
+                                    .wVirtualScanCode       = gear.scancod,
+                                    .uChar = { .UnicodeChar = gear.winchar },
+                                    .dwControlKeyState      = gear.winctrl,
+                                }
+                            }
+                        });
+                    }
 
                     if (gear.keybd::winchar == ansi::C0_ETX)
                     {
@@ -4361,7 +4428,7 @@ namespace netxs::os
                     }
                 }
                 template<class L>
-                auto readline(memo& hist, L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops)
+                auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, memo& hist)
                 {
                     auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
                     auto buff = text{};
@@ -4382,11 +4449,9 @@ namespace netxs::os
                     {
                         auto coor = line.caret;
                         auto size = line.length();
-                        auto head = buffer.begin();
-                        auto tail = buffer.end();
-                        while (head != tail)
+                        auto pops = 0_sz;
+                        for (auto& rec : buffer)
                         {
-                            auto& rec = *head++;
                             if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
                                 log(" ============================",
                                     "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
@@ -4465,7 +4530,7 @@ namespace netxs::os
                                                     line.lyric->utf8(cooked.ustr);
                                                     cooked.ustr.push_back((char)c);
                                                 }
-                                                if (n == 0) buffer.pop_front();
+                                                if (n == 0) pops++;
                                             };
                                                  if (stops & 1 << c)                { cook(c, 0); hist.save(line);                                }
                                             else if (c == '\r'     )                { cook(c, 1); hist.done(line);                                }
@@ -4479,7 +4544,7 @@ namespace netxs::os
                                                 done = true;
                                                 crlf = 2;
                                                 line.insert(cell{}.c0_to_txt(c), mode);
-                                                if (n == 0) buffer.pop_front();
+                                                if (n == 0) pops++;
                                             }
                                             else
                                             {
@@ -4503,7 +4568,15 @@ namespace netxs::os
                                     }
                                 }
                             }
-                            if (!done) buffer.pop_front();
+                            if (!done) pops++;
+                        }
+
+                        if (pops)
+                        {
+                            auto head = buffer.begin();
+                            auto tail = head + pops;
+                            buffer.erase(head, tail);
+                            pops = {};
                         }
 
                         burn();
@@ -4565,61 +4638,26 @@ namespace netxs::os
                                            && need___alt == !!(s & (RIGHT_ALT_PRESSED  | LEFT_ALT_PRESSED));
                 }
                 template<class L>
-                auto readchar(memo& hist, L& lock, bool& cancel, bool utf16)
+                auto readchar(L& lock, bool& cancel, bool utf16)
                 {
                     do
                     {
-                        auto head = buffer.begin();
-                        auto tail = buffer.end();
-                        while (head != tail)
+                        for (auto& rec : buffer) if (rec.EventType == KEY_EVENT)
                         {
-                            auto& rec = *head++;
-                            switch (rec.EventType)
+                            auto& s = rec.Event.KeyEvent.dwControlKeyState;
+                            auto& d = rec.Event.KeyEvent.bKeyDown;
+                            auto& n = rec.Event.KeyEvent.wRepeatCount;
+                            auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
+                            auto& c = rec.Event.KeyEvent.uChar.UnicodeChar;
+                            cooked.ctrl = s;
+                            if (n-- && (d && (c || truenull(v, s))
+                                    || !d &&  c && v == VK_MENU))
                             {
-                                case KEY_EVENT:
+                                auto grow = utf::to_utf(c, wcpair, cooked.ustr);
+                                if (grow && n)
                                 {
-                                    //todo ENABLE_VT_INPUT
-                                    log(" ============================",
-                                        "\n rec.Event.KeyEvent.uChar.UnicodeChar ",          (int)rec.Event.KeyEvent.uChar.UnicodeChar,
-                                        "\n rec.Event.KeyEvent.wVirtualKeyCode   ",          (int)rec.Event.KeyEvent.wVirtualKeyCode,
-                                        "\n rec.Event.KeyEvent.wVirtualScanCode  ",          (int)rec.Event.KeyEvent.wVirtualScanCode,
-                                        "\n rec.Event.KeyEvent.wRepeatCount      ",          (int)rec.Event.KeyEvent.wRepeatCount,
-                                        "\n rec.Event.KeyEvent.dwControlKeyState 0x", utf::to_hex(rec.Event.KeyEvent.dwControlKeyState),
-                                        "\n rec.Event.KeyEvent.Pressed           ",               rec.Event.KeyEvent.bKeyDown ? "true":"faux");
-
-                                    auto& s = rec.Event.KeyEvent.dwControlKeyState;
-                                    auto& d = rec.Event.KeyEvent.bKeyDown;
-                                    auto& n = rec.Event.KeyEvent.wRepeatCount;
-                                    auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
-                                    auto& c = rec.Event.KeyEvent.uChar.UnicodeChar;
-                                    cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
-                                    if (n-- && (d && (c || truenull(v, s))
-                                            || !d &&  c && v == VK_MENU))
-                                    {
-                                        auto grow = utf::to_utf(c, wcpair, cooked.ustr);
-                                        if (grow && n)
-                                        {
-                                            auto temp = view{ cooked.ustr.data() + cooked.ustr.size() - grow, grow };
-                                            while (n--) cooked.ustr += temp;
-                                        }
-                                    }
-                                    break;
-                                }
-                                case MOUSE_EVENT:
-                                {
-                                    break;
-                                }
-                                case FOCUS_EVENT:
-                                {
-                                    break;
-                                }
-                                case WINDOW_BUFFER_SIZE_EVENT:
-                                {
-                                    break;
-                                }
-                                case MENU_EVENT:
-                                {
-                                    break;
+                                    auto temp = view{ cooked.ustr.data() + cooked.ustr.size() - grow, grow };
+                                    while (n--) cooked.ustr += temp;
                                 }
                             }
                         }
@@ -4669,9 +4707,9 @@ namespace netxs::os
                             {
                                 if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
                                 else                    cooked.ustr = initdata;
-                                readline(client.inputs, lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops);
+                                readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, client.inputs);
                             }
-                            else readchar(client.inputs, lock, cancel, packet.input.utf16);
+                            else readchar(lock, cancel, packet.input.utf16);
 
                             if (cooked.ustr.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
 
@@ -4698,20 +4736,13 @@ namespace netxs::os
                     auto srcit = buffer.begin();
                     auto dstit = recbuf.begin();
                     auto endit = recbuf.end();
-                    if (packet.input.flags & Payload::peek)
+                    while (dstit != endit)
                     {
-                        while (dstit != endit)
-                        {
-                            *dstit++ = *srcit++;
-                        }
+                        *dstit++ = *srcit++;
                     }
-                    else
+                    if (!(packet.input.flags & Payload::peek))
                     {
-                        while (dstit != endit)
-                        {
-                            *dstit++ = *srcit++;
-                            buffer.pop_front();
-                        }
+                        buffer.erase(buffer.begin(), srcit);
                         if (buffer.empty()) ondata.flush();
                     }
                     packet.reply.count = limit;
