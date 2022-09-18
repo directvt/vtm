@@ -4208,7 +4208,6 @@ namespace netxs::os
                 using lock = std::recursive_mutex;
                 using sync = std::condition_variable_any;
                 using vect = std::vector<INPUT_RECORD>;
-                using list = std::vector<INPUT_RECORD>;
 
                 struct nttask
                 {
@@ -4220,7 +4219,7 @@ namespace netxs::os
                 };
 
                 consrv& server; // events_t: Console server reference.
-                list    buffer; // events_t: Input event list.
+                vect    buffer; // events_t: Input event list.
                 vect    recbuf; // events_t: Temporary buffer for copying event records.
                 sync    signal; // events_t: Input event append signal.
                 lock    locker; // events_t: Input event buffer mutex.
