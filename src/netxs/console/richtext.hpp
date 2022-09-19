@@ -526,8 +526,13 @@ namespace netxs::console
             auto head = iter();
             auto tail = iend();
             auto stop = head + min_size;
-            while (stop != tail-- && *tail == blank) { }
-            auto new_size = static_cast<si32>(tail - head + 1);
+            while (stop != tail)
+            {
+                auto next = tail - 1;
+                if (*next != blank) break;
+                tail = next;
+            }
+            auto new_size = static_cast<si32>(tail - head);
             if (max_size && max_size < new_size) new_size = max_size;
             if (new_size != length()) crop(new_size);
         }
