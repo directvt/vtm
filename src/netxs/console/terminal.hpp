@@ -840,10 +840,12 @@ namespace netxs::ui
                 vt.intro[ctrl::ESC][ESC_NEL   ] = VT_PROC{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
                 vt.intro[ctrl::ESC][ESC_DECDHL] = VT_PROC{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::ESC][ESC_APC   ] = VT_PROC{ p->msg(ESC_APC, q); }; // ESC _ ... ST  APC.
-                vt.intro[ctrl::ESC][ESC_DSC   ] = VT_PROC{ p->msg(ESC_DSC, q); }; // ESC P ... ST  DSC.
-                vt.intro[ctrl::ESC][ESC_SOS   ] = VT_PROC{ p->msg(ESC_SOS, q); }; // ESC X ... ST  SOS.
-                vt.intro[ctrl::ESC][ESC_PM    ] = VT_PROC{ p->msg(ESC_PM , q); }; // ESC ^ ... ST  PM.
+                vt.intro[ctrl::ESC][ESC_APC   ] = VT_PROC{ p->msg(ESC_APC, q);      }; // ESC _ ... ST  APC.
+                vt.intro[ctrl::ESC][ESC_DSC   ] = VT_PROC{ p->msg(ESC_DSC, q);      }; // ESC P ... ST  DSC.
+                vt.intro[ctrl::ESC][ESC_SOS   ] = VT_PROC{ p->msg(ESC_SOS, q);      }; // ESC X ... ST  SOS.
+                vt.intro[ctrl::ESC][ESC_PM    ] = VT_PROC{ p->msg(ESC_PM , q);      }; // ESC ^ ... ST  PM.
+                vt.intro[ctrl::ESC][ESC_KEY_A ] = VT_PROC{ p->owner.decset(DECNKM); }; // ESC =  Enable application mode for keypad. Same as DECNKM = DECSET 66
+                vt.intro[ctrl::ESC][ESC_KEY_N ] = VT_PROC{ p->owner.decrst(DECNKM); }; // ESC >  Enable numeric     mode for keypad. Same as DECNKM = DECRST 66
 
                 vt.intro[ctrl::BS ] = VT_PROC{ p->cub(q.pop_all(ctrl::BS )); };
                 vt.intro[ctrl::DEL] = VT_PROC{ p->del(q.pop_all(ctrl::DEL)); };
@@ -1016,7 +1018,6 @@ namespace netxs::ui
                   y_end{ 0      },
                   n_top{ 0      },
                   n_end{ 0      },
-                  stops{ {0, 0} },
                   notab{ faux   },
                   decom{ faux   },
                   boxed{ faux   },
@@ -1452,12 +1453,16 @@ namespace netxs::ui
                 auto size = static_cast<si32>(stops.size());
                 if (!forced && new_size <= size) return;
 
-                auto back = stops.back();
-                auto last_size = back.first > 0 ? 0 // Custom tabstop -- don't touch it.
-                                                : -back.first - back.second;
-                auto last_stop = forced ? 0
-                                        : size - last_size;
-                stops.resize(last_stop); // Trim.
+                auto last_stop = si32{};
+                if (!stops.empty())
+                {
+                    auto back = stops.back();
+                    auto last_size = back.first > 0 ? 0 // Custom tabstop -- don't touch it.
+                                                    : -back.first - back.second;
+                    last_stop = forced ? 0
+                                       : size - last_size;
+                    stops.resize(last_stop); // Trim.
+                }
 
                 if (notab) // Preserve existing tabstops.
                 {
@@ -6011,6 +6016,7 @@ namespace netxs::ui
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
+        bool       decnkm; // term: Keypad      Application(true)/Numeric(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       onlogs; // term: Avoid logs if no subscriptions.
         bool       unsync; // term: Viewport is out of sync.
@@ -6043,173 +6049,196 @@ namespace netxs::ui
             target = &normal;
             invert = faux;
             decckm = faux;
+            decnkm = faux;
             bpmode = faux;
             normal.brush.reset();
+        }
+        // term: Set termnail parameters. (DECSET).
+        void _decset(si32 n)
+        {
+            switch (n)
+            {
+                case 1:    // Cursor keys application mode.
+                    decckm = true;
+                    break;
+                case 3:    // Set 132 column window size (DECCOLM).
+                    window_resize({ 132, 0 });
+                    target->ed(commands::erase::display::viewport);
+                    break;
+                case 5:    // Inverted rendering (DECSCNM).
+                    invert = true;
+                    break;
+                case 6:    // Enable origin mode (DECOM).
+                    target->decom = true;
+                    target->cup(dot_11);
+                    break;
+                case 7:    // Enable auto-wrap.
+                    target->style.wrp(wrap::on);
+                    break;
+                case 12:   // Enable cursor blinking.
+                    cursor.blink_period();
+                    break;
+                case 25:   // Caret on.
+                    cursor.show();
+                    break;
+                case ansi::DECNKM:    // Enable application mode for keypad.
+                    decnkm = true;
+                    break;
+                case 9:    // Enable X10 mouse reporting protocol.
+                    log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
+                    break;
+                case 1000: // Enable mouse buttons reporting mode.
+                    mtrack.enable(m_tracking::buttons_press);
+                    break;
+                case 1001: // Use Hilite mouse tracking mode.
+                    log("decset: CSI ? 1001 h  Hilite mouse tracking mode is not supported");
+                    break;
+                case 1002: // Enable mouse buttons and drags reporting mode.
+                    mtrack.enable(m_tracking::buttons_drags);
+                    break;
+                case 1003: // Enable all mouse events reporting mode.
+                    mtrack.enable(m_tracking::all_movements);
+                    break;
+                case 1004: // Enable focus tracking.
+                    ftrack.set(true);
+                    break;
+                case 1005: // Enable UTF-8 mouse reporting protocol.
+                    log("decset: CSI ? 1005 h  UTF-8 mouse reporting protocol is not supported");
+                    break;
+                case 1006: // Enable SGR mouse reporting protocol.
+                    mtrack.setmode(m_tracking::sgr);
+                    break;
+                case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
+                    mtrack.enable(m_tracking::negative_args);
+                    break;
+                case 1015: // Enable URXVT mouse reporting protocol.
+                    log("decset: CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
+                    break;
+                case 1016: // Enable Pixels (subcell) mouse mode.
+                    log("decset: CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
+                    break;
+                case 1048: // Save cursor pos.
+                    target->scp();
+                    break;
+                case 1047: // Use alternate screen buffer.
+                case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
+                    altbuf.style = target->style;
+                    altbuf.clear_all();
+                    altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
+                    target = &altbuf;
+                    follow[axis::Y] = true;
+                    break;
+                case 2004: // Set bracketed paste mode.
+                    bpmode = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+        // term: Set termnail parameters. (DECSET).
+        void decset(si32 n)
+        {
+            target->flush();
+            _decset(n);
         }
         // term: Set termnail parameters. (DECSET).
         void decset(fifo& queue)
         {
             target->flush();
-            while (auto q = queue(0))
+            while (auto q = queue(0)) _decset(q);
+        }
+        // term: Reset termnail parameters. (DECRST).
+        void _decrst(si32 n)
+        {
+            switch (n)
             {
-                switch (q)
-                {
-                    case 1:    // Cursor keys application mode.
-                        decckm = true;
-                        break;
-                    case 3:    // Set 132 column window size (DECCOLM).
-                        window_resize({ 132, 0 });
-                        target->ed(commands::erase::display::viewport);
-                        break;
-                    case 5:    // Inverted rendering (DECSCNM).
-                        invert = true;
-                        break;
-                    case 6:    // Enable origin mode (DECOM).
-                        target->decom = true;
-                        target->cup(dot_11);
-                        break;
-                    case 7:    // Enable auto-wrap.
-                        target->style.wrp(wrap::on);
-                        break;
-                    case 12:   // Enable cursor blinking.
-                        cursor.blink_period();
-                        break;
-                    case 25:   // Caret on.
-                        cursor.show();
-                        break;
-                    case 9:    // Enable X10 mouse reporting protocol.
-                        log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
-                        break;
-                    case 1000: // Enable mouse buttons reporting mode.
-                        mtrack.enable(m_tracking::buttons_press);
-                        break;
-                    case 1001: // Use Hilite mouse tracking mode.
-                        log("decset: CSI ? 1001 h  Hilite mouse tracking mode is not supported");
-                        break;
-                    case 1002: // Enable mouse buttons and drags reporting mode.
-                        mtrack.enable(m_tracking::buttons_drags);
-                        break;
-                    case 1003: // Enable all mouse events reporting mode.
-                        mtrack.enable(m_tracking::all_movements);
-                        break;
-                    case 1004: // Enable focus tracking.
-                        ftrack.set(true);
-                        break;
-                    case 1005: // Enable UTF-8 mouse reporting protocol.
-                        log("decset: CSI ? 1005 h  UTF-8 mouse reporting protocol is not supported");
-                        break;
-                    case 1006: // Enable SGR mouse reporting protocol.
-                        mtrack.setmode(m_tracking::sgr);
-                        break;
-                    case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
-                        mtrack.enable(m_tracking::negative_args);
-                        break;
-                    case 1015: // Enable URXVT mouse reporting protocol.
-                        log("decset: CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
-                        break;
-                    case 1016: // Enable Pixels (subcell) mouse mode.
-                        log("decset: CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
-                        break;
-                    case 1048: // Save cursor pos.
-                        target->scp();
-                        break;
-                    case 1047: // Use alternate screen buffer.
-                    case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
-                        altbuf.style = target->style;
-                        altbuf.clear_all();
-                        altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
-                        target = &altbuf;
-                        follow[axis::Y] = true;
-                        break;
-                    case 2004: // Set bracketed paste mode.
-                        bpmode = true;
-                        break;
-                    default:
-                        break;
-                }
+                case 1:    // Cursor keys ANSI mode.
+                    decckm = faux;
+                    break;
+                case 3:    // Set 80 column window size (DECCOLM).
+                    window_resize({ 80, 0 });
+                    target->ed(commands::erase::display::viewport);
+                    break;
+                case 5:    // Inverted rendering (DECSCNM).
+                    invert = faux;
+                    break;
+                case 6:    // Disable origin mode (DECOM).
+                    target->decom = faux;
+                    target->cup(dot_11);
+                    break;
+                case 7:    // Disable auto-wrap.
+                    target->style.wrp(wrap::off);
+                    break;
+                case 12:   // Disable cursor blinking.
+                    cursor.blink_period(period::zero());
+                    break;
+                case 25:   // Caret off.
+                    cursor.hide();
+                    break;
+                case ansi::DECNKM:    // Enable numeric mode for keypad.
+                    decnkm = faux;
+                    break;
+                case 9:    // Disable X10 mouse reporting protocol.
+                    log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
+                    break;
+                case 1000: // Disable mouse buttons reporting mode.
+                    mtrack.disable(m_tracking::buttons_press);
+                    break;
+                case 1001: // Don't use Hilite(c) mouse tracking mode.
+                    log("decset: CSI ? 1001 l  Hilite mouse tracking mode is not supported");
+                    break;
+                case 1002: // Disable mouse buttons and drags reporting mode.
+                    mtrack.disable(m_tracking::buttons_drags);
+                    break;
+                case 1003: // Disable all mouse events reporting mode.
+                    mtrack.disable(m_tracking::all_movements);
+                    break;
+                case 1004: // Disable focus tracking.
+                    ftrack.set(faux);
+                    break;
+                case 1005: // Disable UTF-8 mouse reporting protocol.
+                    log("decset: CSI ? 1005 l  UTF-8 mouse reporting protocol is not supported");
+                    break;
+                case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
+                    mtrack.setmode(m_tracking::x11);
+                    break;
+                case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
+                    mtrack.disable(m_tracking::negative_args);
+                    break;
+                case 1015: // Disable URXVT mouse reporting protocol.
+                    log("decset: CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
+                    break;
+                case 1016: // Disable Pixels (subcell) mouse mode.
+                    log("decset: CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
+                    break;
+                case 1048: // Restore cursor pos.
+                    target->rcp();
+                    break;
+                case 1047: // Use normal screen buffer.
+                case 1049: // Use normal screen buffer and restore cursor.
+                    normal.style = target->style;
+                    normal.resize_viewport(target->panel); // Reset viewport to the basis.
+                    target = &normal;
+                    follow[axis::Y] = true;
+                    break;
+                case 2004: // Disable bracketed paste mode.
+                    bpmode = faux;
+                    break;
+                default:
+                    break;
             }
+        }
+        // term: Reset termnail parameters. (DECRST).
+        void decrst(si32 n)
+        {
+            target->flush();
+            _decrst(n);
         }
         // term: Reset termnail parameters. (DECRST).
         void decrst(fifo& queue)
         {
             target->flush();
-            while (auto q = queue(0))
-            {
-                switch (q)
-                {
-                    case 1:    // Cursor keys ANSI mode.
-                        decckm = faux;
-                        break;
-                    case 3:    // Set 80 column window size (DECCOLM).
-                        window_resize({ 80, 0 });
-                        target->ed(commands::erase::display::viewport);
-                        break;
-                    case 5:    // Inverted rendering (DECSCNM).
-                        invert = faux;
-                        break;
-                    case 6:    // Disable origin mode (DECOM).
-                        target->decom = faux;
-                        target->cup(dot_11);
-                        break;
-                    case 7:    // Disable auto-wrap.
-                        target->style.wrp(wrap::off);
-                        break;
-                    case 12:   // Disable cursor blinking.
-                        cursor.blink_period(period::zero());
-                        break;
-                    case 25:   // Caret off.
-                        cursor.hide();
-                        break;
-                    case 9:    // Disable X10 mouse reporting protocol.
-                        log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
-                        break;
-                    case 1000: // Disable mouse buttons reporting mode.
-                        mtrack.disable(m_tracking::buttons_press);
-                        break;
-                    case 1001: // Don't use Hilite(c) mouse tracking mode.
-                        log("decset: CSI ? 1001 l  Hilite mouse tracking mode is not supported");
-                        break;
-                    case 1002: // Disable mouse buttons and drags reporting mode.
-                        mtrack.disable(m_tracking::buttons_drags);
-                        break;
-                    case 1003: // Disable all mouse events reporting mode.
-                        mtrack.disable(m_tracking::all_movements);
-                        break;
-                    case 1004: // Disable focus tracking.
-                        ftrack.set(faux);
-                        break;
-                    case 1005: // Disable UTF-8 mouse reporting protocol.
-                        log("decset: CSI ? 1005 l  UTF-8 mouse reporting protocol is not supported");
-                        break;
-                    case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
-                        mtrack.setmode(m_tracking::x11);
-                        break;
-                    case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
-                        mtrack.disable(m_tracking::negative_args);
-                        break;
-                    case 1015: // Disable URXVT mouse reporting protocol.
-                        log("decset: CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
-                        break;
-                    case 1016: // Disable Pixels (subcell) mouse mode.
-                        log("decset: CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
-                        break;
-                    case 1048: // Restore cursor pos.
-                        target->rcp();
-                        break;
-                    case 1047: // Use normal screen buffer.
-                    case 1049: // Use normal screen buffer and restore cursor.
-                        normal.style = target->style;
-                        normal.resize_viewport(target->panel); // Reset viewport to the basis.
-                        target = &normal;
-                        follow[axis::Y] = true;
-                        break;
-                    case 2004: // Disable bracketed paste mode.
-                        bpmode = faux;
-                        break;
-                    default:
-                        break;
-                }
-            }
+            while (auto q = queue(0)) _decrst(q);
         }
         // term: Set scrollback buffer size and grow step.
         void sbsize(fifo& queue)
@@ -6729,6 +6758,7 @@ namespace netxs::ui
               follow{  0, 1 },
               active{  true },
               decckm{  faux },
+              decnkm{  faux },
               bpmode{  faux },
               onlogs{  faux },
               unsync{  faux },
@@ -6791,7 +6821,7 @@ namespace netxs::ui
 
                 #if defined(_WIN32)
 
-                    ptycon.keybd(gear);
+                    ptycon.keybd(gear, decckm, decnkm);
 
                 #else
 
@@ -6812,6 +6842,10 @@ namespace netxs::ui
                         utf::change(data, "\033[1B", "\033OB");
                         utf::change(data, "\033[1C", "\033OC");
                         utf::change(data, "\033[1D", "\033OD");
+                    }
+                    if (decnkm)
+                    {
+                        //todo
                     }
                     if (linux_console)
                     {
