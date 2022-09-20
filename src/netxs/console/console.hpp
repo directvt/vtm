@@ -488,6 +488,7 @@ namespace netxs::events::userland
                         EVENT_XS( handover, console::gear_id_list_t ), // request: Handover all available foci.
                         EVENT_XS( enlist  , console::gear_id_list_t ), // anycast: Enumerate all available foci.
                         EVENT_XS( find    , console::focus_test_t   ), // request: Check the focus.
+                        EVENT_XS( check   , bool                    ), // anycast: Check any focus.
                     };
                 };
             };
@@ -4050,6 +4051,10 @@ namespace netxs::console
                         }
                         boss.base::deface();
                     }
+                };
+                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::check, memo, state)
+                {
+                    state = !pool.empty();
                 };
                 boss.SUBMIT_T(tier::anycast, e2::form::highlight::set, memo, state)
                 {

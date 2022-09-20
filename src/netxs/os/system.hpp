@@ -4332,18 +4332,6 @@ namespace netxs::os
                         signal.notify_one();
                     }
                 }
-                void focus(bool state)
-                {
-                    if (server.inpmod & nt::console::inmode::vt)
-                    {
-                        state ? generate(L"\033[I")
-                              : generate(L"\033[O");
-                    }
-                    else
-                    {
-                        //,,,
-                    }
-                }
                 void mouse(input::hids& gear)
                 {
                     if (server.inpmod & nt::console::inmode::vt)
@@ -6952,12 +6940,6 @@ namespace netxs::os
         {
             #if defined(_WIN32)
             con_serv.events.keybd(gear, decckm);
-            #endif
-        }
-        void focus(bool state)
-        {
-            #if defined(_WIN32)
-            con_serv.events.focus(state);
             #endif
         }
         void write(view data)

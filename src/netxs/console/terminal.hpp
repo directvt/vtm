@@ -422,14 +422,16 @@ namespace netxs::ui
                     {
                         owner.SUBMIT_T(tier::release, hids::events::notify::keybd::any, token, gear)
                         {
+                            auto s = state;
                             switch (owner.bell::protos<tier::release>())
                             {
-                                case hids::events::notify::keybd::got .id: queue.fcs(true); break;
-                                case hids::events::notify::keybd::lost.id: queue.fcs(faux); break;
-                                default: break;
+                                case hids::events::notify::keybd::got .id: state = true; break;
+                                case hids::events::notify::keybd::lost.id: state = faux; break;
+                                default: return;
                             }
-                            owner.answer(queue);
+                            if (s != state) owner.answer(queue.fcs(state));
                         };
+                        owner.SIGNAL(tier::anycast, e2::form::state::keybd::check, state);
                     }
                 }
                 else token.reset();
