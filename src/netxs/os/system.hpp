@@ -4322,10 +4322,14 @@ namespace netxs::os
                 }
                 auto generate(view ustr)
                 {
-                    auto lock = std::lock_guard{ locker };
                     server.toWIDE.clear();
                     utf::to_utf(ustr, server.toWIDE);
                     generate(server.toWIDE);
+                }
+                auto write(view ustr)
+                {
+                    auto lock = std::lock_guard{ locker };
+                    generate(ustr);
                     if (!buffer.empty())
                     {
                         ondata.reset();
@@ -4334,14 +4338,51 @@ namespace netxs::os
                 }
                 void mouse(input::hids& gear)
                 {
-                    if (server.inpmod & nt::console::inmode::vt)
+                    auto xlate_bttns = [&]()
                     {
-                        //...
-                    }
-                    else
+                        auto b = ui32{};
+                        b |= gear.buttons[input::sysmouse::left  ].pressed ? FROM_LEFT_1ST_BUTTON_PRESSED : 0;
+                        b |= gear.buttons[input::sysmouse::right ].pressed ? RIGHTMOST_BUTTON_PRESSED     : 0;
+                        b |= gear.buttons[input::sysmouse::middle].pressed ? FROM_LEFT_2ND_BUTTON_PRESSED : 0;
+                        b |= gear.buttons[input::sysmouse::wheel ].pressed ? FROM_LEFT_3RD_BUTTON_PRESSED : 0;
+                        b |= gear.buttons[input::sysmouse::win   ].pressed ? FROM_LEFT_4TH_BUTTON_PRESSED : 0;
+                        return b;
+                    };
+                    auto xlate_state = [&]()
                     {
-                        //,,,
-                    }
+                        return os::ms_kbstate(gear.ctlstate);
+                    };
+                    auto xlate_flags = [&]()
+                    {
+                        auto f = ui32{};
+                        //f |= gear.ismoved ? MOUSE_MOVED    : 0;
+                        //f |= gear.doubled ? DOUBLE_CLICK   : 0;
+                        //f |= gear.wheeled ? MOUSE_WHEELED  : 0;
+                        //f |= gear.hzwheel ? MOUSE_HWHEELED : 0;
+                        return f;
+                    };
+
+                    auto lock = std::lock_guard{ locker };
+                    buffer.emplace_back(INPUT_RECORD
+                    {
+                        .EventType = MOUSE_EVENT,
+                        .Event =
+                        {
+                            .MouseEvent =
+                            {
+                                .dwMousePosition =
+                                {
+                                    .X = (si16)std::min<si32>(gear.coord.x, std::numeric_limits<si16>::max()),
+                                    .Y = (si16)std::min<si32>(gear.coord.y, std::numeric_limits<si16>::max()),
+                                },
+                                .dwButtonState     = xlate_bttns(),
+                                .dwControlKeyState = xlate_state(),
+                                .dwEventFlags      = xlate_flags(),
+                            }
+                        }
+                    });
+                    ondata.reset();
+                    signal.notify_one();
                 }
                 void winsz(twod const& winsize)
                 {
@@ -5331,6 +5372,17 @@ namespace netxs::os
                         uiterm.normal.set_autocr(autocr);
                         log("\tauto_crlf ", autocr ? "enabled" : "disabled");
                     }
+                }
+                else if (handle.kind == hndl::type::events)
+                {
+                    auto mouse_mode = packet.input.mode & nt::console::inmode::mouse;
+                    if (mouse_mode)
+                    {
+                        uiterm.mtrack.enable (decltype(uiterm.mtrack)::all_movements);
+                        uiterm.mtrack.setmode(decltype(uiterm.mtrack)::w32);
+                    }
+                    else uiterm.mtrack.disable(decltype(uiterm.mtrack)::all_movements);
+                    log("\tmouse_input ", mouse_mode ? "enabled" : "disabled");
                 }
                 handle.mode = packet.input.mode;
                 log("\tinput.mode ", handle);
@@ -6907,7 +6959,7 @@ namespace netxs::os
                 guard.unlock();
 
             #if defined(_WIN32)
-                con_serv.events.generate(cache);
+                con_serv.events.write(cache);
                 cache.clear();
             #else
                 if (termlink.send(cache)) cache.clear();
@@ -6940,6 +6992,12 @@ namespace netxs::os
         {
             #if defined(_WIN32)
             con_serv.events.keybd(gear, decckm);
+            #endif
+        }
+        void mouse(input::hids& gear)
+        {
+            #if defined(_WIN32)
+            con_serv.events.mouse(gear);
             #endif
         }
         void write(view data)

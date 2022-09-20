@@ -200,6 +200,7 @@ namespace netxs::ui
             {
                 x11,
                 sgr,
+                w32,
             };
 
             m_tracking(term& owner)
@@ -246,7 +247,7 @@ namespace netxs::ui
             void enable(mode m)
             {
                 state |= m;
-                if (state && !token.count()) // Do not subscribe if it is already subscribed
+                if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
                     owner.SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
                     {
@@ -293,15 +294,17 @@ namespace netxs::ui
                         moved = coord((state & mode::over) ? c
                                                            : std::clamp(c, dot_00, console.panel - dot_11));
                         auto cause = owner.bell::protos<tier::release>();
-                        if (proto == sgr) serialize<sgr>(gear, cause);
-                        else              serialize<x11>(gear, cause);
+                             if (proto == sgr) serialize<sgr>(gear, cause);
+                        else if (proto == x11) serialize<x11>(gear, cause);
+                        else                   serialize<w32>(gear, cause);
                         owner.answer(queue);
                     };
                     owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                     {
                         auto cause = hids::events::halt.id;
-                        if (proto == sgr) serialize<sgr>(gear, cause);
-                        else              serialize<x11>(gear, cause);
+                             if (proto == sgr) serialize<sgr>(gear, cause);
+                        else if (proto == x11) serialize<x11>(gear, cause);
+                        else                   serialize<w32>(gear, cause);
                         owner.answer(queue);
                     };
                     smode = owner.selmod;
@@ -347,6 +350,7 @@ namespace netxs::ui
                 {
                     case prot::x11: queue.mouse_x11(meta, coord);            break;
                     case prot::sgr: queue.mouse_sgr(meta, coord, ispressed); break;
+                    case prot::w32: owner.ptycon.mouse(gear);                break;
                     default: break;
                 }
             }
