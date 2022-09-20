@@ -3387,7 +3387,7 @@ namespace netxs::os
                     //{
                     //    close = faux;
                     //    notify(e2::conio::preclose, close);
-                    //    if (total.front() == '\x1b') // two consecutive escapes
+                    //    if (total.front() == '\033') // two consecutive escapes
                     //    {
                     //        log("\t - two consecutive escapes: \n\tstrv:        ", strv);
                     //        notify(e2::conio::quit, "pipe two consecutive escapes");
@@ -3402,7 +3402,7 @@ namespace netxs::os
                         auto pos = 0_sz;
                         auto unk = faux;
 
-                        if (strv.at(0) == '\x1b')
+                        if (strv.at(0) == '\033')
                         {
                             ++pos;
 
@@ -3415,7 +3415,7 @@ namespace netxs::os
                             //    notify(e2::conio::preclose, close);
                             //    break;
                             //}
-                            //else if (strv.at(pos) == '\x1b') // two consecutive escapes
+                            //else if (strv.at(pos) == '\033') // two consecutive escapes
                             //{
                             //    total.clear();
                             //    log("\t - two consecutive escapes: ", canal);
@@ -3445,7 +3445,7 @@ namespace netxs::os
                                 total.clear();
                                 break;
                             }
-                            else if (strv.at(pos) == '\x1b') // two consecutive escapes
+                            else if (strv.at(pos) == '\033') // two consecutive escapes
                             {
                                 // Pass Esc.
                                 auto id = 0;
@@ -3663,7 +3663,7 @@ namespace netxs::os
                         if (auto size = strv.size())
                         {
                             auto i = unk ? 1_sz : 0_sz;
-                            while (i != size && (strv.at(i) != '\x1b'))
+                            while (i != size && (strv.at(i) != '\033'))
                             {
                                 // Pass SIGINT inside the desktop
                                 //if (strv.at(i) == 3 /*3 - SIGINT*/)
@@ -4209,6 +4209,11 @@ namespace netxs::os
                 using sync = std::condition_variable_any;
                 using vect = std::vector<INPUT_RECORD>;
 
+                static constexpr ui32 shift_pressed = SHIFT_PRESSED;
+                static constexpr ui32 alt___pressed = LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED;
+                static constexpr ui32 ctrl__pressed = LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED;
+                static constexpr ui32 altgr_pressed = alt___pressed | ctrl__pressed;
+
                 struct nttask
                 {
                     ui32 procid;
@@ -4285,34 +4290,54 @@ namespace netxs::os
                     ondata.flush();
                     buffer.clear();
                 }
-                auto generate(wiew wstr)
+                auto generate(wchr c, ui32 s = 0, ui16 v = 0)
+                {
+                    buffer.emplace_back(INPUT_RECORD
+                    {
+                        .EventType = KEY_EVENT,
+                        .Event =
+                        {
+                            .KeyEvent =
+                            {
+                                .bKeyDown               = 1,
+                                .wRepeatCount           = 1,
+                                .wVirtualKeyCode        = v,
+                                .wVirtualScanCode       = 0,
+                                .uChar = { .UnicodeChar = c },
+                                .dwControlKeyState      = s,
+                            }
+                        }
+                    });
+                }
+                auto generate(wchr c1, wchr c2)
+                {
+                    buffer.reserve(buffer.size() + 2);
+                    generate(c1);
+                    generate(c2);
+                }
+                auto generate(wiew wstr, ui32 s = 0)
                 {
                     buffer.reserve(wstr.size());
-                    for (auto c : wstr)
+                    for (auto c : wstr) generate(c, s);
+                }
+                auto generate(view ustr)
+                {
+                    auto lock = std::lock_guard{ locker };
+                    server.toWIDE.clear();
+                    utf::to_utf(ustr, server.toWIDE);
+                    generate(server.toWIDE);
+                    if (!buffer.empty())
                     {
-                        buffer.emplace_back(INPUT_RECORD
-                        {
-                            .EventType = KEY_EVENT,
-                            .Event =
-                            {
-                                .KeyEvent =
-                                {
-                                    .bKeyDown               = 1,
-                                    .wRepeatCount           = 1,
-                                    .wVirtualKeyCode        = 0,
-                                    .wVirtualScanCode       = 0,
-                                    .uChar = { .UnicodeChar = c },
-                                    .dwControlKeyState      = cooked.ctrl,
-                                }
-                            }
-                        });
+                        ondata.reset();
+                        signal.notify_one();
                     }
                 }
                 void focus(bool state)
                 {
                     if (server.inpmod & nt::console::inmode::vt)
                     {
-                        //...
+                        state ? generate(L"\033[I")
+                              : generate(L"\033[O");
                     }
                     else
                     {
@@ -4351,38 +4376,223 @@ namespace netxs::os
                     ondata.reset();
                     signal.notify_one();
                 }
-                void keybd(input::hids& gear)
+                template<char C>
+                auto takevkey()
                 {
-                    auto lock = std::lock_guard{ locker };
-                    log(" ============================",
-                        "\n rec.Event.KeyEvent.uChar.UnicodeChar ",          (int)gear.winchar,
-                        "\n rec.Event.KeyEvent.wVirtualKeyCode   ",          (int)gear.virtcod,
-                        "\n rec.Event.KeyEvent.wVirtualScanCode  ",          (int)gear.scancod,
-                        "\n rec.Event.KeyEvent.wRepeatCount      ",          (int)gear.imitate,
-                        "\n rec.Event.KeyEvent.dwControlKeyState 0x", utf::to_hex(gear.winctrl),
-                        "\n rec.Event.KeyEvent.Pressed           ",               gear.pressed ? "true":"faux");
-
-                    if (server.inpmod & nt::console::inmode::vt)
+                    struct vkey { si16 key, vkey; };
+                    static auto x = ::VkKeyScanW(C);
+                    static auto k = vkey{ x, x & 0xff };
+                    return k;
+                }
+                template<char C>
+                auto truechar(ui16 v, ui32 s)
+                {
+                    static auto x = takevkey<C>();
+                    static auto need_shift = !!(x.key & 0x100);
+                    static auto need__ctrl = !!(x.key & 0x200);
+                    static auto need___alt = !!(x.key & 0x400);
+                    return v == x.vkey && need_shift == !!(s & shift_pressed)
+                                       && need__ctrl == !!(s & ctrl__pressed)
+                                       && need___alt == !!(s & alt___pressed);
+                }
+                template<char C>
+                auto samechar(ui16 v, ui32 s)
+                {
+                    static auto x = takevkey<C>();
+                    auto y = v & 0xff;
+                    if (s & shift_pressed) y |= 0x100;
+                    if (s & ctrl__pressed) y |= 0x200;
+                    if (s & alt___pressed) y |= 0x400;
+                    return v == x.vkey && (y & x.key) == x.key;
+                }
+                auto vtencode(input::hids& gear, bool decckm)
+                {
+                    static auto truenull = takevkey<'\0'>().vkey;
+                    static auto alonekey = std::unordered_map<ui16, wide>
                     {
-                        //todo decode
-                        buffer.emplace_back(INPUT_RECORD
+                        { VK_BACK,   L"\x7f"     },
+                        { VK_TAB,    L"\x09"     },
+                        { VK_PAUSE,  L"\x1a"     },
+                        { VK_ESCAPE, L"\033"     },
+                        { VK_PRIOR,  L"\033[5~"  },
+                        { VK_NEXT,   L"\033[6~"  },
+                        { VK_END,    L"\033[F"   },
+                        { VK_HOME,   L"\033[H"   },
+                        { VK_LEFT,   L"\033[D"   },
+                        { VK_UP,     L"\033[A"   },
+                        { VK_RIGHT,  L"\033[C"   },
+                        { VK_DOWN,   L"\033[B"   },
+                        { VK_INSERT, L"\033[2~"  },
+                        { VK_DELETE, L"\033[3~"  },
+                        { VK_F1,     L"\033OP"   },
+                        { VK_F2,     L"\033OQ"   },
+                        { VK_F3,     L"\033OR"   },
+                        { VK_F4,     L"\033OS"   },
+                        { VK_F5,     L"\033[15~" },
+                        { VK_F6,     L"\033[17~" },
+                        { VK_F7,     L"\033[18~" },
+                        { VK_F8,     L"\033[19~" },
+                        { VK_F9,     L"\033[20~" },
+                        { VK_F10,    L"\033[21~" },
+                        { VK_F11,    L"\033[23~" },
+                        { VK_F12,    L"\033[24~" },
+                    };
+                    static auto shiftkey = std::unordered_map<ui16, wide>
+                    {
+                        { VK_PRIOR,  L"\033[5; ~"  },
+                        { VK_NEXT,   L"\033[6; ~"  },
+                        { VK_END,    L"\033[1; F"  },
+                        { VK_HOME,   L"\033[1; H"  },
+                        { VK_LEFT,   L"\033[1; D"  },
+                        { VK_UP,     L"\033[1; A"  },
+                        { VK_RIGHT,  L"\033[1; C"  },
+                        { VK_DOWN,   L"\033[1; B"  },
+                        { VK_INSERT, L"\033[2; ~"  },
+                        { VK_DELETE, L"\033[3; ~"  },
+                        { VK_F1,     L"\033[1; P"  },
+                        { VK_F2,     L"\033[1; Q"  },
+                        { VK_F3,     L"\033[1; R"  },
+                        { VK_F4,     L"\033[1; S"  },
+                        { VK_F5,     L"\033[15; ~" },
+                        { VK_F6,     L"\033[17; ~" },
+                        { VK_F7,     L"\033[18; ~" },
+                        { VK_F8,     L"\033[19; ~" },
+                        { VK_F9,     L"\033[20; ~" },
+                        { VK_F10,    L"\033[21; ~" },
+                        { VK_F11,    L"\033[23; ~" },
+                        { VK_F12,    L"\033[24; ~" },
+                    };
+                    struct vmap { ui32 mods; wide data; };
+                    static auto specials = std::unordered_map<ui32, vmap>
+                    {
+                        { VK_BACK,   { ctrl__pressed, L"\x08"      }},
+                        { VK_BACK,   { alt___pressed, L"\033\x7f"  }},
+                        { VK_BACK,   { altgr_pressed, L"\033\x08"  }},
+                        { VK_TAB,    { ctrl__pressed, L"\t"        }},
+                        { VK_TAB,    { shift_pressed, L"\033[Z"    }},
+                        { VK_TAB,    { alt___pressed, L"\033[1;3I" }},
+                        { VK_ESCAPE, { alt___pressed, L"\033\033"  }},
+                        { '1',       { ctrl__pressed, L"1"         }},
+                        { '3',       { ctrl__pressed, L"\x1b"      }},
+                        { '4',       { ctrl__pressed, L"\x1c"      }},
+                        { '5',       { ctrl__pressed, L"\x1d"      }},
+                        { '6',       { ctrl__pressed, L"\x1e"      }},
+                        { '7',       { ctrl__pressed, L"\x1f"      }},
+                        { '8',       { ctrl__pressed, L"\x7f"      }},
+                        { '9',       { ctrl__pressed, L"9"         }},
+                        { VK_DIVIDE, { ctrl__pressed, L"\x1f"      }},
+                    };
+                    static auto ctrl_alt_quest = L"\033\x7F";
+                    static auto ctrl_____quest = L"\x7F";
+                    static auto ctrl_alt_slash = L"\033\x1f";
+                    static auto ctrl_____slash = L"\x1f";
+
+                    if (server.inpmod & nt::console::inmode::vt && gear.pressed)
+                    {
+                        auto& s = gear.winctrl;
+                        auto& v = gear.virtcod;
+                        auto& c = gear.winchar;
+
+                        if (s & LEFT_CTRL_PRESSED && s & RIGHT_ALT_PRESSED) // This combination is already translated.
                         {
-                            .EventType = KEY_EVENT,
-                            .Event =
+                            s &= ~(LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED);
+                        }
+
+                        auto shift = s & shift_pressed;
+                        auto alt   = s & alt___pressed; 
+                        auto ctrl  = s & ctrl__pressed;
+                        if (shift || alt || ctrl)
+                        {
+                            if (ctrl && alt) // c == 0 for ctrl+alt+key combinationsons on windows.
                             {
-                                .KeyEvent =
+                                auto vc = c ? c : v; // Chars and vkeys for ' '(0x20),'A'-'Z'(0x41-5a) are the same on windows.
+                                if (vc == 0x20 || (vc >= 0x41 && vc <= 0x5a))
                                 {
-                                    .bKeyDown               = gear.pressed,
-                                    .wRepeatCount           = gear.imitate,
-                                    .wVirtualKeyCode        = gear.virtcod,
-                                    .wVirtualScanCode       = gear.scancod,
-                                    .uChar = { .UnicodeChar = gear.winchar },
-                                    .dwControlKeyState      = gear.winctrl,
+                                    generate('\033', (wchr)(vc & 0b00011111)); // Alt causes to prepend '\033'. Ctrl trims by 0b00011111.
+                                    return true;
+                                }
+                                else if (c == '\0' && v == truenull) // Map ctrl+alt+@ to ^[^@;
+                                {
+                                    generate('\033', (wchr)('@' & 0b00011111));
+                                    return true;
                                 }
                             }
-                        });
+
+                            if (auto iter = shiftkey.find(v); iter != shiftkey.end())
+                            {
+                                auto& data = iter->second;
+                                auto& mods = *++data.rbegin();
+                                mods = '1';
+                                if (shift) mods += 1;
+                                if (alt  ) mods += 2;
+                                if (ctrl ) mods += 4;
+                                generate(data);
+                                return true;
+                            }
+                            else if (auto iter = specials.find(v); iter != specials.end()
+                                       && iter->second.mods == ((shift ? shift_pressed : 0)
+                                                              | (alt   ? alt___pressed : 0)
+                                                              | (ctrl  ? ctrl__pressed : 0)))
+                            {
+                                generate(iter->second.data);
+                                return true;
+                            }
+                            else if (ctrl) // There are no unique VKEYs for '/','?' characters.
+                            {
+                                if (samechar<'?'>(v, s)) //todo unify - static gen
+                                {
+                                    if (alt) generate(ctrl_alt_quest);
+                                    else     generate(ctrl_____quest);
+                                    return true;
+                                }
+                                else if (samechar<'/'>(v, s))
+                                {
+                                    if (alt) generate(ctrl_alt_slash);
+                                    else     generate(ctrl_____slash);
+                                    return true;
+                                }
+                            }
+
+                            if (c && alt && !ctrl)
+                            {
+                                generate('\033', c);
+                                return true;
+                            }
+                            else if (ctrl && !alt)
+                            {
+                                if (c == ' ' || (c == '\0' && v == truenull)) // Detect ctrl+@ and ctrl+space.
+                                {
+                                    generate('@' & 0b00011111, s, truenull);
+                                    return true;
+                                }
+                                else if (c == '\0' && !(v == VK_CONTROL || v == VK_SHIFT) // Emulate ctrl+key mapping to C0 if current kb layout does not contain it.
+                                     && (c = ::MapVirtualKeyW(v, MAPVK_VK_TO_CHAR) & 0xffff))
+                                {
+                                    generate(c & 0b00011111);
+                                    return true;
+                                }
+                            }
+                        }
+
+                        if (auto iter = alonekey.find(v); iter != alonekey.end())
+                        {
+                            auto& data = iter->second;
+                            if (v >= VK_END && v <= VK_DOWN) data[1] = decckm ? 'O' : '[';
+                            generate(data);
+                            return true;
+                        }
+                        else if (c)
+                        {
+                            generate(c); //todo check surrogate pairs
+                            return true;
+                        }
                     }
-                    else
+                    return faux;
+                }
+                void keybd(input::hids& gear, bool decckm)
+                {
+                    auto lock = std::lock_guard{ locker };
+                    if (!vtencode(gear, decckm))
                     {
                         buffer.emplace_back(INPUT_RECORD
                         {
@@ -4626,16 +4836,6 @@ namespace netxs::os
 
                     server.inpmod = (server.inpmod & ~nt::console::inmode::insert) | (mode ? nt::console::inmode::insert : 0);
                 }
-                auto truenull(ui16 v, ui32 s)
-                {
-                    static auto z = ::VkKeyScanW(L'\0');
-                    static auto need_shift = !!(z & 0x0100);
-                    static auto need__ctrl = !!(z & 0x0200);
-                    static auto need___alt = !!(z & 0x0400);
-                    return v == (z & 0xff) && need_shift == !!(s & (SHIFT_PRESSED))
-                                           && need__ctrl == !!(s & (RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED))
-                                           && need___alt == !!(s & (RIGHT_ALT_PRESSED  | LEFT_ALT_PRESSED));
-                }
                 template<class L>
                 auto readchar(L& lock, bool& cancel, bool utf16)
                 {
@@ -4649,7 +4849,7 @@ namespace netxs::os
                             auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
                             auto& c = rec.Event.KeyEvent.uChar.UnicodeChar;
                             cooked.ctrl = s;
-                            if (n-- && (d && (c || truenull(v, s))
+                            if (n-- && (d && (c || truechar<'\0'>(v, s))
                                     || !d &&  c && v == VK_MENU))
                             {
                                 auto grow = utf::to_utf(c, wcpair, cooked.ustr);
@@ -6624,10 +6824,11 @@ namespace netxs::os
                 os::close(fds);
 
                 stdinput = std::thread([&] { read_socket_thread(); });
-                stdwrite = std::thread([&] { send_socket_thread(); });
-                writesyn.notify_one(); // Flush temp buffer.
 
             #endif
+
+            stdwrite = std::thread([&] { send_socket_thread(); });
+            writesyn.notify_one(); // Flush temp buffer.
 
             log("xpty: new pty created with size ", winsz);
         }
@@ -6712,13 +6913,18 @@ namespace netxs::os
             log("xpty: id: ", stdwrite.get_id(), " writing thread started");
             auto guard = std::unique_lock{ writemtx };
             auto cache = text{};
-            while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
+            while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !connected(); }), connected())
             {
                 std::swap(cache, writebuf);
                 guard.unlock();
 
+            #if defined(_WIN32)
+                con_serv.events.generate(cache);
+                cache.clear();
+            #else
                 if (termlink.send(cache)) cache.clear();
                 else                      break;
+            #endif
 
                 guard.lock();
             }
@@ -6742,17 +6948,23 @@ namespace netxs::os
                 #endif
             }
         }
-        void keybd(input::hids& gear)
+        void keybd(input::hids& gear, bool decckm)
         {
             #if defined(_WIN32)
-            con_serv.events.keybd(gear);
+            con_serv.events.keybd(gear, decckm);
+            #endif
+        }
+        void focus(bool state)
+        {
+            #if defined(_WIN32)
+            con_serv.events.focus(state);
             #endif
         }
         void write(view data)
         {
             auto guard = std::lock_guard{ writemtx };
             writebuf += data;
-            if (termlink) writesyn.notify_one();
+            if (connected()) writesyn.notify_one();
         }
     };
 

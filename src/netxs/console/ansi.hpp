@@ -766,7 +766,7 @@ namespace netxs::ansi
     static auto header(view t)        { return esc{}.header(t);     } // ansi: Window title.
     static auto altbuf(bool b)        { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
     static auto cursor(bool b)        { return esc{}.cursor(b);     } // ansi: Caret visibility.
-    static auto appkey(bool b)        { return esc{}.appkey(b);     } // ansi: Application Caret Keys (DECCKM).
+    static auto appkey(bool b)        { return esc{}.appkey(b);     } // ansi: Application cursor Keys (DECCKM).
     static auto setbuf(view t)        { return esc{}.setbuf(t);     } // ansi: Set clipboard.
     static auto ref(si32 i)           { return esc{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     static auto idx(si32 i)           { return esc{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.

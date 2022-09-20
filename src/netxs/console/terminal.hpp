@@ -844,8 +844,6 @@ namespace netxs::ui
                 vt.intro[ctrl::ESC][ESC_DSC   ] = VT_PROC{ p->msg(ESC_DSC, q);      }; // ESC P ... ST  DSC.
                 vt.intro[ctrl::ESC][ESC_SOS   ] = VT_PROC{ p->msg(ESC_SOS, q);      }; // ESC X ... ST  SOS.
                 vt.intro[ctrl::ESC][ESC_PM    ] = VT_PROC{ p->msg(ESC_PM , q);      }; // ESC ^ ... ST  PM.
-                vt.intro[ctrl::ESC][ESC_KEY_A ] = VT_PROC{ p->owner.decset(DECNKM); }; // ESC =  Enable application mode for keypad. Same as DECNKM = DECSET 66
-                vt.intro[ctrl::ESC][ESC_KEY_N ] = VT_PROC{ p->owner.decrst(DECNKM); }; // ESC >  Enable numeric     mode for keypad. Same as DECNKM = DECRST 66
 
                 vt.intro[ctrl::BS ] = VT_PROC{ p->cub(q.pop_all(ctrl::BS )); };
                 vt.intro[ctrl::DEL] = VT_PROC{ p->del(q.pop_all(ctrl::DEL)); };
@@ -6016,7 +6014,6 @@ namespace netxs::ui
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
-        bool       decnkm; // term: Keypad      Application(true)/Numeric(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       onlogs; // term: Avoid logs if no subscriptions.
         bool       unsync; // term: Viewport is out of sync.
@@ -6049,7 +6046,6 @@ namespace netxs::ui
             target = &normal;
             invert = faux;
             decckm = faux;
-            decnkm = faux;
             bpmode = faux;
             normal.brush.reset();
         }
@@ -6080,9 +6076,6 @@ namespace netxs::ui
                     break;
                 case 25:   // Caret on.
                     cursor.show();
-                    break;
-                case ansi::DECNKM:    // Enable application mode for keypad.
-                    decnkm = true;
                     break;
                 case 9:    // Enable X10 mouse reporting protocol.
                     log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
@@ -6174,9 +6167,6 @@ namespace netxs::ui
                     break;
                 case 25:   // Caret off.
                     cursor.hide();
-                    break;
-                case ansi::DECNKM:    // Enable numeric mode for keypad.
-                    decnkm = faux;
                     break;
                 case 9:    // Disable X10 mouse reporting protocol.
                     log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
@@ -6758,7 +6748,6 @@ namespace netxs::ui
               follow{  0, 1 },
               active{  true },
               decckm{  faux },
-              decnkm{  faux },
               bpmode{  faux },
               onlogs{  faux },
               unsync{  faux },
@@ -6821,7 +6810,7 @@ namespace netxs::ui
 
                 #if defined(_WIN32)
 
-                    ptycon.keybd(gear, decckm, decnkm);
+                    ptycon.keybd(gear, decckm);
 
                 #else
 
@@ -6842,10 +6831,6 @@ namespace netxs::ui
                         utf::change(data, "\033[1B", "\033OB");
                         utf::change(data, "\033[1C", "\033OC");
                         utf::change(data, "\033[1D", "\033OD");
-                    }
-                    if (decnkm)
-                    {
-                        //todo
                     }
                     if (linux_console)
                     {
