@@ -60,7 +60,7 @@ namespace netxs::ui
             {
                 struct line
                 {
-                    enum : si32
+                    enum type : si32
                     {
                         right = 0,
                         left  = 1,
