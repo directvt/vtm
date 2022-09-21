@@ -6054,6 +6054,7 @@ namespace netxs::ui
             decckm = faux;
             bpmode = faux;
             normal.brush.reset();
+            ptycon.reset();
         }
         // term: Set termnail parameters. (DECSET).
         void _decset(si32 n)

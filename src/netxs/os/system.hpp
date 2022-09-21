@@ -6505,13 +6505,7 @@ namespace netxs::os
                 }
                 return test;
             }
-
-            consrv(Term& uiterm, fd_t& condrv)
-                : uiterm{ uiterm },
-                  condrv{ condrv },
-                  events{ *this  },
-                  answer{        },
-                  prompt{ " pty: consrv: " }
+            auto reset()
             {
                 inpmod = 0
                         | nt::console::inmode::preprocess
@@ -6527,7 +6521,16 @@ namespace netxs::os
                         | nt::console::outmode::vt
                         ;
                 uiterm.normal.set_autocr(!(outmod & nt::console::outmode::no_auto_cr));
+            }
 
+            consrv(Term& uiterm, fd_t& condrv)
+                : uiterm{ uiterm },
+                  condrv{ condrv },
+                  events{ *this  },
+                  answer{        },
+                  prompt{ " pty: consrv: " }
+            {
+                reset();
                 using _ = consrv;
                 apimap.resize(0xFF, &_::api_unsupported);
                 apimap[0x38] = &_::api_system_langid_get;
@@ -6959,6 +6962,12 @@ namespace netxs::os
 
                 #endif
             }
+        }
+        void reset()
+        {
+            #if defined(_WIN32)
+            con_serv.reset();
+            #endif
         }
         void keybd(input::hids& gear, bool decckm)
         {
