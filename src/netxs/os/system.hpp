@@ -3884,6 +3884,9 @@ namespace netxs::os
     {
     #if defined(_WIN32)
 
+        #if not defined(_DEBUG)
+            #define log(...)
+        #endif
         struct consrv
         {
             struct cdrw
@@ -4663,12 +4666,14 @@ namespace netxs::os
                         for (auto& rec : buffer)
                         {
                             if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
+                            {
                                 log(" ============================",
                                     "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
                                     "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
                                     "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
                                     "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
-                                    "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true":"faux");
+                                    "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true" : "faux");
+                            }
 
                             if (rec.EventType == KEY_EVENT
                              && rec.Event.KeyEvent.bKeyDown)
@@ -4911,7 +4916,10 @@ namespace netxs::os
                             }
                             else readchar(lock, cancel, packet.input.utf16);
 
-                            if (cooked.ustr.size()) log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
+                            if (cooked.ustr.size())
+                            {
+                                log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
+                            }
 
                             if (closed || cancel)
                             {
@@ -5268,8 +5276,8 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-                packet.input.is_output ? log(prompt, "GetConsoleOutputCP")
-                                       : log(prompt, "GetConsoleCP");
+                log(prompt, packet.input.is_output ? "GetConsoleOutputCP"
+                                                   : "GetConsoleCP");
                 packet.reply.code_page = CP_UTF8;
                 log("\treply.code_page ", CP_UTF8);
             }
@@ -5285,8 +5293,8 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-                packet.input.is_output ? log(prompt, "SetConsoleOutputCP")
-                                       : log(prompt, "SetConsoleCP");
+                log(prompt, packet.input.is_output ? "SetConsoleOutputCP"
+                                                   : "SetConsoleCP");
                 log("\tinput.code_page ", packet.input.code_page);
                 //wsl depends on this - always reply success
                 //answer.status = nt::status::not_supported;
@@ -5612,8 +5620,8 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
-                packet.input.etype == type::attribute ? log(prompt, "WriteConsoleOutputAttribute")
-                                                      : log(prompt, "WriteConsoleOutputCharacter");
+                log(prompt, packet.input.etype == type::attribute ? "WriteConsoleOutputAttribute"
+                                                                  : "WriteConsoleOutputCharacter");
             }
             auto api_scrollback_write_block          ()
             {
@@ -5750,8 +5758,8 @@ namespace netxs::os
                     reply;
                 };
                 auto& packet = payload::cast(upload);
-                packet.input.etype == type::attribute ? log(prompt, "ReadConsoleOutputAttribute")
-                                                      : log(prompt, "ReadConsoleOutputCharacter");
+                log(prompt, packet.input.etype == type::attribute ? "ReadConsoleOutputAttribute"
+                                                                  : "ReadConsoleOutputCharacter");
             }
             auto api_scrollback_read_block           ()
             {
@@ -6020,8 +6028,8 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-                packet.input.prime ? log(prompt, "GetConsoleOriginalTitle")
-                                   : log(prompt, "GetConsoleTitle");
+                log(prompt, packet.input.prime ? "GetConsoleOriginalTitle"
+                                               : "GetConsoleTitle");
                 //todo differentiate titles by category
                 auto& title = uiterm.wtrack.get(ansi::OSC_TITLE);
                 log("\treply title (", title.size(), "): ", title);
@@ -6201,14 +6209,14 @@ namespace netxs::os
                     input;
                 };
                 auto& packet = payload::cast(upload);
-                log("\trequest ", packet.input.enabled ? "set" : "unset", " xkeys");
-                if (packet.input.keyflag & 0x01) log("\t\tAlt+Tab"  );
-                if (packet.input.keyflag & 0x02) log("\t\tAlt+Esc"  );
-                if (packet.input.keyflag & 0x04) log("\t\tAlt+Space");
-                if (packet.input.keyflag & 0x08) log("\t\tAlt+Enter");
-                if (packet.input.keyflag & 0x10) log("\t\tAlt+Prtsc");
-                if (packet.input.keyflag & 0x20) log("\t\tPrtsc"    );
-                if (packet.input.keyflag & 0x40) log("\t\tCtrl+Esc" );
+                log("\trequest ", packet.input.enabled ? "set" : "unset", " xkeys\n",
+                    packet.input.keyflag & 0x01 ? "\t\tAlt+Tab\n"   : "",
+                    packet.input.keyflag & 0x02 ? "\t\tAlt+Esc\n"   : "",
+                    packet.input.keyflag & 0x04 ? "\t\tAlt+Space\n" : "",
+                    packet.input.keyflag & 0x08 ? "\t\tAlt+Enter\n" : "",
+                    packet.input.keyflag & 0x10 ? "\t\tAlt+Prtsc\n" : "",
+                    packet.input.keyflag & 0x20 ? "\t\tPrtsc\n"     : "",
+                    packet.input.keyflag & 0x40 ? "\t\tCtrl+Esc\n"  : "");
             }
             auto api_alias_get                       ()
             {
@@ -6594,6 +6602,9 @@ namespace netxs::os
                 apimap[0xBB] = &_::api_input_history_info_set;
             }
         };
+        #if not defined(_DEBUG)
+            #undef log
+        #endif
 
         consrv      con_serv;
         DWORD       proc_pid{ 0          };
