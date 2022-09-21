@@ -4406,15 +4406,17 @@ namespace netxs::os
                     signal.notify_one();
                 }
                 template<char C>
-                auto takevkey()
+                static auto takevkey()
                 {
-                    struct vkey { si16 key, vkey; };
+                    struct vkey { si16 key, vkey; ui32 base; };
                     static auto x = ::VkKeyScanW(C);
-                    static auto k = vkey{ x, x & 0xff };
+                    static auto k = vkey{ x, x & 0xff, x & 0xff |((x & 0x0100 ? shift_pressed : 0)
+                                                                | (x & 0x0200 ? ctrl__pressed : 0)
+                                                                | (x & 0x0400 ? alt___pressed : 0)) << 8 };
                     return k;
                 }
                 template<char C>
-                auto truechar(ui16 v, ui32 s)
+                static auto truechar(ui16 v, ui32 s)
                 {
                     static auto x = takevkey<C>();
                     static auto need_shift = !!(x.key & 0x100);
@@ -4423,16 +4425,6 @@ namespace netxs::os
                     return v == x.vkey && need_shift == !!(s & shift_pressed)
                                        && need__ctrl == !!(s & ctrl__pressed)
                                        && need___alt == !!(s & alt___pressed);
-                }
-                template<char C>
-                auto samechar(ui16 v, ui32 s)
-                {
-                    static auto x = takevkey<C>();
-                    auto y = v & 0xff;
-                    if (s & shift_pressed) y |= 0x100;
-                    if (s & ctrl__pressed) y |= 0x200;
-                    if (s & alt___pressed) y |= 0x400;
-                    return v == x.vkey && (y & x.key) == x.key;
                 }
                 auto vtencode(input::hids& gear, bool decckm)
                 {
@@ -4491,30 +4483,29 @@ namespace netxs::os
                         { VK_F11,    L"\033[23; ~" },
                         { VK_F12,    L"\033[24; ~" },
                     };
-                    struct vmap { ui32 mods; wide data; };
-                    static auto specials = std::unordered_map<ui32, vmap>
+                    static auto specials = std::unordered_map<ui32, wide>
                     {
-                        { VK_BACK,   { ctrl__pressed, L"\x08"      }},
-                        { VK_BACK,   { alt___pressed, L"\033\x7f"  }},
-                        { VK_BACK,   { altgr_pressed, L"\033\x08"  }},
-                        { VK_TAB,    { ctrl__pressed, L"\t"        }},
-                        { VK_TAB,    { shift_pressed, L"\033[Z"    }},
-                        { VK_TAB,    { alt___pressed, L"\033[1;3I" }},
-                        { VK_ESCAPE, { alt___pressed, L"\033\033"  }},
-                        { '1',       { ctrl__pressed, L"1"         }},
-                        { '3',       { ctrl__pressed, L"\x1b"      }},
-                        { '4',       { ctrl__pressed, L"\x1c"      }},
-                        { '5',       { ctrl__pressed, L"\x1d"      }},
-                        { '6',       { ctrl__pressed, L"\x1e"      }},
-                        { '7',       { ctrl__pressed, L"\x1f"      }},
-                        { '8',       { ctrl__pressed, L"\x7f"      }},
-                        { '9',       { ctrl__pressed, L"9"         }},
-                        { VK_DIVIDE, { ctrl__pressed, L"\x1f"      }},
+                        { VK_BACK              | ctrl__pressed << 8, { L"\x08"      }},
+                        { VK_BACK              | alt___pressed << 8, { L"\033\x7f"  }},
+                        { VK_BACK              | altgr_pressed << 8, { L"\033\x08"  }},
+                        { VK_TAB               | ctrl__pressed << 8, { L"\t"        }},
+                        { VK_TAB               | shift_pressed << 8, { L"\033[Z"    }},
+                        { VK_TAB               | alt___pressed << 8, { L"\033[1;3I" }},
+                        { VK_ESCAPE            | alt___pressed << 8, { L"\033\033"  }},
+                        { '1'                  | ctrl__pressed << 8, { L"1"         }},
+                        { '3'                  | ctrl__pressed << 8, { L"\x1b"      }},
+                        { '4'                  | ctrl__pressed << 8, { L"\x1c"      }},
+                        { '5'                  | ctrl__pressed << 8, { L"\x1d"      }},
+                        { '6'                  | ctrl__pressed << 8, { L"\x1e"      }},
+                        { '7'                  | ctrl__pressed << 8, { L"\x1f"      }},
+                        { '8'                  | ctrl__pressed << 8, { L"\x7f"      }},
+                        { '9'                  | ctrl__pressed << 8, { L"9"         }},
+                        { VK_DIVIDE            | ctrl__pressed << 8, { L"\x1f"      }},
+                        { takevkey<'?'>().base | altgr_pressed << 8, { L"\033\x7f"  }},
+                        { takevkey<'?'>().base | ctrl__pressed << 8, { L"\x7f"      }},
+                        { takevkey<'/'>().base | altgr_pressed << 8, { L"\033\x1f"  }},
+                        { takevkey<'/'>().base | ctrl__pressed << 8, { L"\x1f"      }},
                     };
-                    static auto ctrl_alt_quest = L"\033\x7F";
-                    static auto ctrl_____quest = L"\x7F";
-                    static auto ctrl_alt_slash = L"\033\x1f";
-                    static auto ctrl_____slash = L"\x1f";
 
                     if (server.inpmod & nt::console::inmode::vt && gear.pressed)
                     {
@@ -4527,9 +4518,9 @@ namespace netxs::os
                             s &= ~(LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED);
                         }
 
-                        auto shift = s & shift_pressed;
-                        auto alt   = s & alt___pressed; 
-                        auto ctrl  = s & ctrl__pressed;
+                        auto shift = s & shift_pressed ? shift_pressed : 0;
+                        auto alt   = s & alt___pressed ? alt___pressed : 0; 
+                        auto ctrl  = s & ctrl__pressed ? ctrl__pressed : 0;
                         if (shift || alt || ctrl)
                         {
                             if (ctrl && alt) // c == 0 for ctrl+alt+key combinationsons on windows.
@@ -4558,31 +4549,12 @@ namespace netxs::os
                                 generate(data);
                                 return true;
                             }
-                            else if (auto iter = specials.find(v); iter != specials.end()
-                                       && iter->second.mods == ((shift ? shift_pressed : 0)
-                                                              | (alt   ? alt___pressed : 0)
-                                                              | (ctrl  ? ctrl__pressed : 0)))
+                            else if (auto iter = specials.find(v | (shift | alt | ctrl) << 8); iter != specials.end())
                             {
-                                generate(iter->second.data);
+                                generate(iter->second);
                                 return true;
                             }
-                            else if (ctrl) // There are no unique VKEYs for '/','?' characters.
-                            {
-                                if (samechar<'?'>(v, s)) //todo unify - static gen
-                                {
-                                    if (alt) generate(ctrl_alt_quest);
-                                    else     generate(ctrl_____quest);
-                                    return true;
-                                }
-                                else if (samechar<'/'>(v, s))
-                                {
-                                    if (alt) generate(ctrl_alt_slash);
-                                    else     generate(ctrl_____slash);
-                                    return true;
-                                }
-                            }
-
-                            if (c && alt && !ctrl)
+                            else if (c && alt && !ctrl)
                             {
                                 generate('\033', c);
                                 return true;
