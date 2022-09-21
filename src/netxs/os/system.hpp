@@ -4375,8 +4375,8 @@ namespace netxs::os
                             {
                                 .dwMousePosition =
                                 {
-                                    .X = (si16)std::min<si32>(gear.coord.x, std::numeric_limits<si16>::max()),
-                                    .Y = (si16)std::min<si32>(gear.coord.y, std::numeric_limits<si16>::max()),
+                                    .X = (si16)std::min<si32>(gear.coord.x + server.uiterm.origin.x, std::numeric_limits<si16>::max()),
+                                    .Y = (si16)std::min<si32>(gear.coord.y + server.uiterm.origin.y, std::numeric_limits<si16>::max()),
                                 },
                                 .dwButtonState     = xlate_bttns(),
                                 .dwControlKeyState = xlate_state(),
