@@ -60,7 +60,7 @@ namespace netxs::ui
             {
                 struct line
                 {
-                    enum type : si32
+                    enum : si32
                     {
                         right = 0,
                         left  = 1,
@@ -340,7 +340,7 @@ namespace netxs::ui
                 gear.dismiss();
             }
             template<prot PROT>
-            void proceed(hids& gear, si32 meta, bool ispressed = faux)
+            void proceed(hids& gear, si32 meta, bool ispressed = faux, bool wheel = faux)
             {
                 auto m = gear.meta();
                 if (m & hids::anyShift) meta |= 0x04;
@@ -350,7 +350,7 @@ namespace netxs::ui
                 {
                     case prot::x11: queue.mouse_x11(meta, coord);            break;
                     case prot::sgr: queue.mouse_sgr(meta, coord, ispressed); break;
-                    case prot::w32: owner.ptycon.mouse(gear);                break;
+                    case prot::w32: owner.ptycon.mouse(gear, moved, wheel);  break;
                     default: break;
                 }
             }
@@ -390,8 +390,8 @@ namespace netxs::ui
                     case b::up::middle   .id:   release(gear); proceed<PROT>(gear, up_mddl); break;
                     case b::up::right    .id:   release(gear); proceed<PROT>(gear, up_rght); break;
                     // Wheel
-                    case m::scroll::up  .id: proceed<PROT>(gear, wheel_up, true); break;
-                    case m::scroll::down.id: proceed<PROT>(gear, wheel_dn, true); break;
+                    case m::scroll::up  .id: proceed<PROT>(gear, wheel_up, true, true); break;
+                    case m::scroll::down.id: proceed<PROT>(gear, wheel_dn, true, true); break;
                     // Gone
                     case hids::events::halt.id:
                         release(gear);

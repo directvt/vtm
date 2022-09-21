@@ -462,31 +462,22 @@ struct consrv
                 signal.notify_one();
             }
         }
-        void mouse(input::hids& gear)
+        void mouse(input::hids& gear, bool moved, bool wheel)
         {
-            auto xlate_bttns = [&]()
+            auto state = os::ms_kbstate(gear.ctlstate);
+            auto bttns = ui32{};
+            if (gear.buttons[input::sysmouse::left  ].pressed) bttns |= FROM_LEFT_1ST_BUTTON_PRESSED;
+            if (gear.buttons[input::sysmouse::right ].pressed) bttns |= RIGHTMOST_BUTTON_PRESSED;
+            if (gear.buttons[input::sysmouse::middle].pressed) bttns |= FROM_LEFT_2ND_BUTTON_PRESSED;
+            if (gear.buttons[input::sysmouse::wheel ].pressed) bttns |= FROM_LEFT_3RD_BUTTON_PRESSED;
+            if (gear.buttons[input::sysmouse::win   ].pressed) bttns |= FROM_LEFT_4TH_BUTTON_PRESSED;
+            auto flags = ui32{};
+            if (moved) flags |= MOUSE_MOVED; // DOUBLE_CLICK   not used.
+            if (wheel)                       // MOUSE_HWHEELED not used.
             {
-                auto b = ui32{};
-                b |= gear.buttons[input::sysmouse::left  ].pressed ? FROM_LEFT_1ST_BUTTON_PRESSED : 0;
-                b |= gear.buttons[input::sysmouse::right ].pressed ? RIGHTMOST_BUTTON_PRESSED     : 0;
-                b |= gear.buttons[input::sysmouse::middle].pressed ? FROM_LEFT_2ND_BUTTON_PRESSED : 0;
-                b |= gear.buttons[input::sysmouse::wheel ].pressed ? FROM_LEFT_3RD_BUTTON_PRESSED : 0;
-                b |= gear.buttons[input::sysmouse::win   ].pressed ? FROM_LEFT_4TH_BUTTON_PRESSED : 0;
-                return b;
-            };
-            auto xlate_state = [&]()
-            {
-                return os::ms_kbstate(gear.ctlstate);
-            };
-            auto xlate_flags = [&]()
-            {
-                auto f = ui32{};
-                //f |= gear.ismoved ? MOUSE_MOVED    : 0;
-                //f |= gear.doubled ? DOUBLE_CLICK   : 0;
-                //f |= gear.wheeled ? MOUSE_WHEELED  : 0;
-                //f |= gear.hzwheel ? MOUSE_HWHEELED : 0;
-                return f;
-            };
+                flags |= MOUSE_WHEELED;
+                bttns |= gear.whldt << 16;
+            }
 
             auto lock = std::lock_guard{ locker };
             buffer.emplace_back(INPUT_RECORD
@@ -501,9 +492,9 @@ struct consrv
                             .X = (si16)std::min<si32>(gear.coord.x + server.uiterm.origin.x, std::numeric_limits<si16>::max()),
                             .Y = (si16)std::min<si32>(gear.coord.y + server.uiterm.origin.y, std::numeric_limits<si16>::max()),
                         },
-                        .dwButtonState     = xlate_bttns(),
-                        .dwControlKeyState = xlate_state(),
-                        .dwEventFlags      = xlate_flags(),
+                        .dwButtonState     = bttns,
+                        .dwControlKeyState = state,
+                        .dwEventFlags      = flags,
                     }
                 }
             });

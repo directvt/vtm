@@ -3885,6 +3885,7 @@ namespace netxs::os
     #if defined(_WIN32)
 
         #include "consrv.hpp"
+
         consrv      con_serv;
         DWORD       proc_pid{ 0          };
         HANDLE      prochndl{ INVALID_FD };
@@ -4265,10 +4266,10 @@ namespace netxs::os
             con_serv.events.keybd(gear, decckm);
             #endif
         }
-        void mouse(input::hids& gear)
+        void mouse(input::hids& gear, bool moved, bool wheeled)
         {
             #if defined(_WIN32)
-            con_serv.events.mouse(gear);
+            con_serv.events.mouse(gear, moved, wheeled);
             #endif
         }
         void write(view data)
