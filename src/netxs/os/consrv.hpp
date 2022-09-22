@@ -1083,26 +1083,6 @@ struct consrv
 
     enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
 
-    static constexpr ui32 doscolors[] =
-    {
-        0xFF101010,	// 0  blackdk
-        0xFFDB3700,	// 4  bluedk
-        0xFF0EA112,	// 2  greendk
-        0xFFDD963B,	// 6  cyandk
-        0xFF1F0FC4,	// 1  reddk
-        0xFF981787,	// 5  magentadk
-        0xFF009CC0,	// 3  yellowdk
-        0xFFBBBBBB,	// 7  whitedk
-        0xFF757575,	// 8  blacklt
-        0xFFFF783A,	// 12 bluelt
-        0xFF0CC615,	// 10 greenlt
-        0xFFD6D660,	// 14 cyanlt
-        0xFF5648E6,	// 9  redlt
-        0xFF9E00B3,	// 13 magentalt
-        0xFFA5F1F8,	// 11 yellowlt
-        0xFFF3F3F3,	// 15 whitelt
-    };
-
     auto api_unsupported                     ()
     {
         log(prompt, "unsupported consrv request code ", upload.fxtype);
@@ -1762,6 +1742,7 @@ struct consrv
         };
         auto& screen = *uiterm.target;
         auto& packet = payload::cast(upload);
+        auto& colors = uiterm.ctrack.color;
         auto count = packet.input.count;
         auto coord = std::clamp(twod{ packet.input.coorx, packet.input.coory }, dot_00, screen.panel - dot_11);
         auto piece = packet.input.piece;
@@ -1773,10 +1754,10 @@ struct consrv
             log(prompt, "FillConsoleOutputAttribute",
                         "\tcoord ", coord,
                         "\tcount ", count);
-            auto c = cell{ whitespace }.fgc(doscolors[piece      & 0x000Fu] /* FOREGROUND_ . . .        */)
-                                       .bgc(doscolors[piece >> 4 & 0x000Fu] /* BACKGROUND_ . . .        */)
-                                       .inv(!!(       piece      & 0x4000u  /* COMMON_LVB_REVERSE_VIDEO */))
-                                       .und(!!(       piece      & 0x8000u  /* COMMON_LVB_UNDERSCORE    */));
+            auto c = cell{ whitespace }.fgc(colors[netxs::swap_bits<0, 2>(piece      & 0x000Fu)]) // FOREGROUND_ . . .
+                                       .bgc(colors[netxs::swap_bits<0, 2>(piece >> 4 & 0x000Fu)]) // BACKGROUND_ . . .
+                                       .inv(!!(piece & COMMON_LVB_REVERSE_VIDEO))
+                                       .und(!!(piece & COMMON_LVB_UNDERSCORE));
             log("\tfill using attributes 0x", utf::to_hex(piece));
             if ((si32)count > maxsz) count = std::max(0, maxsz);
             filler.kill();
@@ -1948,33 +1929,29 @@ struct consrv
         packet.reply.fullscreen = faux;
         packet.reply.popupcolor = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
         auto& rgbpalette = packet.reply.rgbpalette;
-        auto brush = uiterm.target->brush;
-        auto frgb = brush.fgc().token;
-        auto brgb = brush.bgc().token;
-        auto base = std::begin(uiterm.ctrack.color);
-        auto dest = std::begin(rgbpalette);
-        auto tail = std::end  (rgbpalette);
-        auto head = dest;
-        auto fgcx = 9_sz;
+        auto mark = uiterm.target->brush;
+        auto frgb = mark.fgc().token;
+        auto brgb = mark.bgc().token;
+        auto head = std::begin(uiterm.ctrack.color);
+        auto fgcx = 8_sz; // Fallback for true colors.
         auto bgcx = 0_sz;
-        while (head != tail)
+        for (auto i = 0; i < 16; i++)
         {
-            auto& src = *base++;
-            auto& dst = *head++;
-            dst = src;
-            if (src == frgb) fgcx = head - dest;
-            if (src == brgb) bgcx = head - dest;
+            auto const& c = *head++;
+            auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
+            rgbpalette[m] = c;
+            if (c == frgb) fgcx = m;
+            if (c == brgb) bgcx = m + 1;
         }
-        if (!bgcx--)
+        if (!bgcx--) // Reset background if true colors are used.
         {
             bgcx = 0;
             uiterm.ctrack.color[bgcx] = brgb;
             rgbpalette         [bgcx] = brgb;
         }
-        fgcx--;
-        netxs::swap_bits<0, 2>(fgcx); // ANSI<->DOS color scheme.
-        netxs::swap_bits<0, 2>(bgcx);
         packet.reply.attributes = static_cast<ui16>(fgcx + (bgcx << 4));
+        if (mark.inv()) packet.reply.attributes |= COMMON_LVB_REVERSE_VIDEO;
+        if (mark.und()) packet.reply.attributes |= COMMON_LVB_UNDERSCORE;
         log("\treply.attributes 0x", utf::to_hex(packet.reply.attributes),
             "\n\treply.cursor_coor ", caretpos,
             "\n\treply.window_size ", viewport);

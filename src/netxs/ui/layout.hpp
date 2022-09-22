@@ -388,22 +388,22 @@ namespace netxs::ui::atoms
         };
         static constexpr ui32 color256[] =
         {
-            0xFF101010,	// 0  blackdk
-            0xFF1F0FC4,	// 1  reddk
-            0xFF0EA112,	// 2  greendk
-            0xFF009CC0,	// 3  yellowdk
-            0xFFDB3700,	// 4  bluedk
-            0xFF981787,	// 5  magentadk
-            0xFFDD963B,	// 6  cyandk
-            0xFFBBBBBB,	// 7  whitedk
-            0xFF757575,	// 8  blacklt
-            0xFF5648E6,	// 9  redlt
-            0xFF0CC615,	// 10 greenlt
-            0xFFA5F1F8,	// 11 yellowlt
-            0xFFFF783A,	// 12 bluelt
-            0xFF9E00B3,	// 13 magentalt
-            0xFFD6D660,	// 14 cyanlt
-            0xFFF3F3F3,	// 15 whitelt
+            0xFF101010, // 0  blackdk
+            0xFF1F0FC4, // 1  reddk
+            0xFF0EA112, // 2  greendk
+            0xFF009CC0, // 3  yellowdk
+            0xFFDB3700, // 4  bluedk
+            0xFF981787, // 5  magentadk
+            0xFFDD963B, // 6  cyandk
+            0xFFBBBBBB, // 7  whitedk
+            0xFF757575, // 8  blacklt
+            0xFF5648E6, // 9  redlt
+            0xFF0CC615, // 10 greenlt
+            0xFFA5F1F8, // 11 yellowlt
+            0xFFFF783A, // 12 bluelt
+            0xFF9E00B3, // 13 magentalt
+            0xFFD6D660, // 14 cyanlt
+            0xFFF3F3F3, // 15 whitelt
             // 6×6×6 RGB-cube (216 colors), index = 16 + 36r + 6g + b, r,g,b=[0, 5]
             0xFF000000, 0xFF5F0000, 0xFF870000, 0xFFAF0000, 0xFFD70000, 0xFFFF0000,
             0xFF005F00, 0xFF5F5F00, 0xFF875F00, 0xFFAF5F00, 0xFFD75F00, 0xFFFF5F00,
