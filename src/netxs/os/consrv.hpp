@@ -1672,7 +1672,7 @@ struct consrv
         {
             //todo ENABLE_WRAP_AT_EOL_OUTPUT
             uiterm.ondata(crop);
-            log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", utf::debase(crop));
+            log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", utf::debase<faux, faux>(crop));
             scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
         }
         packet.reply.count = datasize;
@@ -1946,13 +1946,43 @@ struct consrv
         packet.reply.windowposx = 0;
         packet.reply.windowposy = 0;
         packet.reply.fullscreen = faux;
-        //packet.reply.attributes = ;
-        //packet.reply.popupcolor = ;
-        //packet.reply.rgbpalette = ;
-
-        log("\treply.cursor_coor ", caretpos);
-        log("\treply.window_size ", viewport);
-
+        packet.reply.popupcolor = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+        auto& rgbpalette = packet.reply.rgbpalette;
+        auto brush = uiterm.target->brush;
+        auto frgb = brush.fgc().token;
+        auto brgb = brush.bgc().token;
+        auto base = std::begin(uiterm.ctrack.color);
+        auto dest = std::begin(rgbpalette);
+        auto tail = std::end  (rgbpalette);
+        auto head = dest;
+        auto fgcx = 0_sz;
+        auto bgcx = 0_sz;
+        while (head != tail)
+        {
+            auto& src = *base++;
+            auto& dst = *head++;
+            dst = src;
+            if (src == frgb) fgcx = head - dest;
+            if (src == brgb) bgcx = head - dest;
+        }
+        if (!fgcx--)
+        {
+            fgcx = 7;
+            uiterm.ctrack.color[fgcx] = frgb;
+            rgbpalette         [fgcx] = frgb;
+        }
+        if (!bgcx--)
+        {
+            bgcx = 8;
+            uiterm.ctrack.color[bgcx] = brgb;
+            rgbpalette         [bgcx] = brgb;
+        }
+        netxs::swap_bits<0, 2>(fgcx); // ANSI<->DOS color scheme.
+        netxs::swap_bits<0, 2>(bgcx);
+        packet.reply.attributes = (ui16)(fgcx + (bgcx << 4));
+        log("\treply.attributes 0x", utf::to_hex(packet.reply.attributes),
+            "\n\treply.cursor_coor ", caretpos,
+            "\n\treply.window_size ", viewport);
     }
     auto api_scrollback_info_set             ()
     {

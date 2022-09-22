@@ -33,10 +33,19 @@ namespace netxs
 
     struct noop { template<class ...T> constexpr void operator()(T...) {}; };
 
-    template <class T>
+    template<class T>
     using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si16>::max(), si16,
                         std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si32>::max(), si32, si64>>;
 
+    // intmath: Swap two bits.
+    template<unsigned int p1, unsigned int p2, class T>
+    auto swap_bits(T n)
+    {
+        auto a = 1 & (n >> p1);
+        auto b = 1 & (n >> p2);
+        auto x = a ^ b;
+        return n ^ (x << p1 | x << p2);
+    }
     // intmath: Convert LE to host endianness.
     template<class T>
     constexpr void letoh(byte* buff, T& i)
