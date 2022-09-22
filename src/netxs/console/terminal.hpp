@@ -6198,6 +6198,7 @@ namespace netxs::ui
                     break;
                 case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
                     mtrack.setmode(m_tracking::x11);
+                    mtrack.disable(m_tracking::all_movements);
                     break;
                 case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
                     mtrack.disable(m_tracking::negative_args);
