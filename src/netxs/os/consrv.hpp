@@ -2270,7 +2270,7 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.handle = std::numeric_limits<HWND>::max(); // Fake window handle to tell powershell that everything is under console control.
+        packet.reply.handle = HWND{}; // Fake window handle to tell powershell that everything is under console control.
         log("\tfake window handle 0x", utf::to_hex(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
