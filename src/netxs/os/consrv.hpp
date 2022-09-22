@@ -1955,7 +1955,7 @@ struct consrv
         auto dest = std::begin(rgbpalette);
         auto tail = std::end  (rgbpalette);
         auto head = dest;
-        auto fgcx = 0_sz;
+        auto fgcx = 9_sz;
         auto bgcx = 0_sz;
         while (head != tail)
         {
@@ -1965,21 +1965,16 @@ struct consrv
             if (src == frgb) fgcx = head - dest;
             if (src == brgb) bgcx = head - dest;
         }
-        if (!fgcx--)
-        {
-            fgcx = 7;
-            uiterm.ctrack.color[fgcx] = frgb;
-            rgbpalette         [fgcx] = frgb;
-        }
         if (!bgcx--)
         {
-            bgcx = 8;
+            bgcx = 0;
             uiterm.ctrack.color[bgcx] = brgb;
             rgbpalette         [bgcx] = brgb;
         }
+        fgcx--;
         netxs::swap_bits<0, 2>(fgcx); // ANSI<->DOS color scheme.
         netxs::swap_bits<0, 2>(bgcx);
-        packet.reply.attributes = (ui16)(fgcx + (bgcx << 4));
+        packet.reply.attributes = static_cast<ui16>(fgcx + (bgcx << 4));
         log("\treply.attributes 0x", utf::to_hex(packet.reply.attributes),
             "\n\treply.cursor_coor ", caretpos,
             "\n\treply.window_size ", viewport);
