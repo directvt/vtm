@@ -198,6 +198,7 @@ struct consrv
         ui32 pgroup; // clnt: Process group id.
         info detail; // clnt: Process details.
         memo inputs; // clnt: Input history.
+        cell backup; // clnt: Text attributes to restore on detach.
     };
     
     using hndl = clnt::hndl;
@@ -1083,6 +1084,14 @@ struct consrv
 
     enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
 
+    auto attr_to_brush(ui16 attr)
+    {
+        auto& colors = uiterm.ctrack.color;
+        return cell{ whitespace }.fgc(colors[netxs::swap_bits<0, 2>(attr      & 0x000Fu)]) // FOREGROUND_ . . .
+                                 .bgc(colors[netxs::swap_bits<0, 2>(attr >> 4 & 0x000Fu)]) // BACKGROUND_ . . .
+                                 .inv(!!(attr & COMMON_LVB_REVERSE_VIDEO))
+                                 .und(!!(attr & COMMON_LVB_UNDERSCORE));
+    }
     auto api_unsupported                     ()
     {
         log(prompt, "unsupported consrv request code ", upload.fxtype);
@@ -1165,6 +1174,7 @@ struct consrv
         client.procid = packet.procid;
         client.thread = packet.thread;
         client.pgroup = details.app_groupid;
+        client.backup = uiterm.target->brush;
         client.detail.iconid = details.win_icon_id;
         client.detail.hotkey = details.used_hotkey;
         client.detail.config = details.start_flags;
@@ -1228,6 +1238,7 @@ struct consrv
                 log("\tdeactivate handle 0x", utf::to_hex(handle_ptr));
                 events.abort(handle_ptr);
             }
+            uiterm.target->brush = client.backup;
             client.tokens.clear();
             joined.erase(iter);
             log("\tprocess 0x", utf::to_hex(client_ptr), " detached");
@@ -1714,7 +1725,8 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        uiterm.target->brush = attr_to_brush(packet.input.color);
+        log("\tset default attributes: ", uiterm.target->brush);
     }
     auto api_scrollback_fill                 ()
     {
@@ -1740,9 +1752,8 @@ struct consrv
                 reply;
             };
         };
-        auto& screen = *uiterm.target;
         auto& packet = payload::cast(upload);
-        auto& colors = uiterm.ctrack.color;
+        auto& screen = *uiterm.target;
         auto count = packet.input.count;
         auto coord = std::clamp(twod{ packet.input.coorx, packet.input.coory }, dot_00, screen.panel - dot_11);
         auto piece = packet.input.piece;
@@ -1754,11 +1765,8 @@ struct consrv
             log(prompt, "FillConsoleOutputAttribute",
                         "\tcoord ", coord,
                         "\tcount ", count);
-            auto c = cell{ whitespace }.fgc(colors[netxs::swap_bits<0, 2>(piece      & 0x000Fu)]) // FOREGROUND_ . . .
-                                       .bgc(colors[netxs::swap_bits<0, 2>(piece >> 4 & 0x000Fu)]) // BACKGROUND_ . . .
-                                       .inv(!!(piece & COMMON_LVB_REVERSE_VIDEO))
-                                       .und(!!(piece & COMMON_LVB_UNDERSCORE));
-            log("\tfill using attributes 0x", utf::to_hex(piece));
+            auto c = attr_to_brush(piece);
+            log("\tfill using attributes: ", c);
             if ((si32)count > maxsz) count = std::max(0, maxsz);
             filler.kill();
             filler.crop(count, c);

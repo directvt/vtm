@@ -1252,7 +1252,7 @@ namespace netxs::ui::atoms
         auto  bld() const  { return st.bld();      } // cell: Return Bold attribute.
         auto  itc() const  { return st.itc();      } // cell: Return Italic attribute.
         auto  und() const  { return st.und();      } // cell: Return Underline/Underscore attribute.
-        auto  ovr() const  { return st.ovr();      } // cell: Return Underline/Underscore attribute.
+        auto  ovr() const  { return st.ovr();      } // cell: Return Overline attribute.
         auto  inv() const  { return st.inv();      } // cell: Return Negative attribute.
         auto  stk() const  { return st.stk();      } // cell: Return Strikethrough attribute.
         auto  blk() const  { return st.blk();      } // cell: Return Blink attribute.
@@ -1288,6 +1288,21 @@ namespace netxs::ui::atoms
         cell nul() const
         {
             return cell{ *this }.txt('\0');
+        }
+        friend auto& operator << (std::ostream& s, cell const& c)
+        {
+            return s << "\n\tfgc " << c.fgc()
+                     << "\n\tbgc " << c.bgc()
+                     << "\n\ttxt " <<(c.isspc() ? text{ "whitespace" } : utf::debase<faux, faux>(c.txt()))
+                     << "\n\tstk " <<(c.stk() ? "true" : "faux")
+                     << "\n\titc " <<(c.itc() ? "true" : "faux")
+                     << "\n\tovr " <<(c.ovr() ? "true" : "faux")
+                     << "\n\tblk " <<(c.blk() ? "true" : "faux")
+                     << "\n\tinv " <<(c.inv() ? "true" : "faux")
+                     << "\n\tbld " <<(c.bld() ? "true" : "faux")
+                     << "\n\tund " <<(c.und() == 0 ? "none" 
+                                    : c.und() == 1 ? "single"
+                                                   : "double");
         }
 
         class shaders
