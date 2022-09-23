@@ -1089,8 +1089,9 @@ struct consrv
         auto& colors = uiterm.ctrack.color;
         return cell{ whitespace }.fgc(colors[netxs::swap_bits<0, 2>(attr      & 0x000Fu)]) // FOREGROUND_ . . .
                                  .bgc(colors[netxs::swap_bits<0, 2>(attr >> 4 & 0x000Fu)]) // BACKGROUND_ . . .
-                                 .inv(!!(attr & COMMON_LVB_REVERSE_VIDEO))
-                                 .und(!!(attr & COMMON_LVB_UNDERSCORE));
+                                 .inv(!!(attr & COMMON_LVB_REVERSE_VIDEO  ))
+                                 .und(!!(attr & COMMON_LVB_UNDERSCORE     ))
+                                 .ovr(!!(attr & COMMON_LVB_GRID_HORIZONTAL));
     }
     auto api_unsupported                     ()
     {
@@ -1960,6 +1961,7 @@ struct consrv
         packet.reply.attributes = static_cast<ui16>(fgcx + (bgcx << 4));
         if (mark.inv()) packet.reply.attributes |= COMMON_LVB_REVERSE_VIDEO;
         if (mark.und()) packet.reply.attributes |= COMMON_LVB_UNDERSCORE;
+        if (mark.ovr()) packet.reply.attributes |= COMMON_LVB_GRID_HORIZONTAL;
         log("\treply.attributes 0x", utf::to_hex(packet.reply.attributes),
             "\n\treply.cursor_coor ", caretpos,
             "\n\treply.window_size ", viewport);
