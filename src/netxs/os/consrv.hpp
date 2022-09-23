@@ -1017,6 +1017,20 @@ struct consrv
             }
             else reply(packet, server.answer, readstep);
         }
+        template<class T>
+        auto sendevents(T&& recs)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto size = static_cast<ui32>(recs.size() / sizeof(vect::value_type));
+            auto data = std::span{ reinterpret_cast<vect::value_type*>(recs.data()), size };
+            buffer.insert(buffer.end(), data.begin(), data.end());
+            if (!buffer.empty())
+            {
+                ondata.reset();
+                signal.notify_one();
+            }
+            return size;
+        }
         template<bool Complete = faux, class Payload>
         auto readevents(Payload& packet, cdrw& answer)
         {
@@ -1092,6 +1106,27 @@ struct consrv
                                  .inv(!!(attr & COMMON_LVB_REVERSE_VIDEO  ))
                                  .und(!!(attr & COMMON_LVB_UNDERSCORE     ))
                                  .ovr(!!(attr & COMMON_LVB_GRID_HORIZONTAL));
+    }
+    auto brush_to_attr(cell const& brush)
+    {
+        auto attr = ui16{};
+        auto frgb = brush.fgc().token;
+        auto brgb = brush.bgc().token;
+        auto head = std::begin(uiterm.ctrack.color);
+        auto fgcx = 8_sz; // Fallback for true colors.
+        auto bgcx = 0_sz;
+        for (auto i = 0; i < 16; i++)
+        {
+            auto const& c = *head++;
+            auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
+            if (c == frgb) fgcx = m;
+            if (c == brgb) bgcx = m;
+        }
+        attr = static_cast<ui16>(fgcx + (bgcx << 4));
+        if (brush.inv()) attr |= COMMON_LVB_REVERSE_VIDEO;
+        if (brush.und()) attr |= COMMON_LVB_UNDERSCORE;
+        if (brush.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
+        return attr;
     }
     auto api_unsupported                     ()
     {
@@ -1541,8 +1576,7 @@ struct consrv
             answer.status = nt::status::invalid_handle;
             return;
         }
-        auto& client = packet.client;
-        //todo validate client
+        auto& client = packet.client; //todo validate client
         auto events_handle_ptr = packet.target;
         if (events_handle_ptr == nullptr)
         {
@@ -1550,13 +1584,7 @@ struct consrv
             answer.status = nt::status::invalid_handle;
             return;
         }
-        //todo validate events_handle
-        auto& events_handle = *events_handle_ptr;
-
-        //todo filter events by client's input mode
-        //  ENABLE_MOUSE_INPUT 
-        //  ENABLE_WINDOW_INPUT
-        //  
+        auto& events_handle = *events_handle_ptr; //todo validate events_handle
         events.take(packet);
     }
     auto api_events_add                      ()
@@ -1577,7 +1605,13 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        if (!size_check(packet.packsz,  answer.readoffset())) return;
+        auto datasize = packet.packsz - answer.readoffset();
+        assert(datasize % sizeof(INPUT_RECORD) == 0);
+        buffer.resize(datasize);
+        if (answer.recv_data(condrv, buffer) == faux) return;
+        packet.reply.count = events.sendevents(buffer); //todo convert to wide - is it necessary?
+        log("\twritten events count ", packet.reply.count);
     }
     auto api_events_generate_ctrl_event      ()
     {
@@ -2331,7 +2365,7 @@ struct consrv
             };
         };
         auto& packet = payload::cast(upload);
-
+        packet.reply.dstsz = 0; // Far crashed if it is not set.
     }
     auto api_alias_add                       ()
     {
