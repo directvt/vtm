@@ -45,6 +45,7 @@ namespace netxs::ui
     {
     public:
         using events = netxs::events::userland::uiterm;
+        using face = netxs::console::face;
 
         enum xsgr
         {
@@ -465,7 +466,7 @@ namespace netxs::ui
                 return props[property];
             }
             // w_tracking: Set terminal window property.
-            void set(text const& property, view txt)
+            void set(text const& property, qiew txt)
             {
                 static auto jet_left = ansi::jet(bias::left);
                 owner.target->flush();
@@ -1032,6 +1033,9 @@ namespace netxs::ui
             {
                 parser::style = ansi::def_style;
             }
+
+            // bufferbase: Make a viewport screen copy.
+            virtual void do_viewport_copy(face& target) = 0;
 
             virtual void selection_create(twod coor, bool mode)           = 0;
             virtual bool selection_extend(twod coor, bool mode)           = 0;
@@ -2284,6 +2288,12 @@ namespace netxs::ui
             {
                 bufferbase::tab(n);
                 coord.x = std::clamp(coord.x, 0, panel.x - 1);
+            }
+
+            // alt_screen: Make a viewport screen copy.
+            void do_viewport_copy(face& target) override
+            {
+                //todo
             }
 
             // alt_screen: Start text selection.
@@ -5367,6 +5377,40 @@ namespace netxs::ui
                 }
                 return coor.x + coor.y * panel.x + close;
             }
+            // scroll_buf: Make a viewport screen copy.
+            void do_viewport_copy(face& target) override
+            {
+                auto full = target.full();
+                auto view = target.view().clip(full);
+                target.view(view);
+                auto vpos = view.coor.y - y_top;
+                if (vpos >= 0 && vpos < arena)
+                {
+                    auto& mapln = index[vpos];
+                    auto  ancid = mapln.index;
+                    auto  ancdy = mapln.start / panel.x;
+                    auto  coord = twod{ 0, view.coor.y - ancdy };
+                    auto  limit = view.coor.y + view.size.y;
+                    auto head = batch.iter_by_id(ancid);
+                    auto tail = batch.end();
+                    while (head != tail && coord.y < limit)
+                    {
+                        auto& curln = *head++;
+                        auto height = curln.height(panel.x);
+                        target.output(curln, coord);
+                        coord.y += height;
+                    }
+                }
+                upbox.move({ 0, y_top - sctop });
+                dnbox.move({ 0, y_end + 1     });
+                target.plot(upbox, cell::shaders::full);
+                target.plot(dnbox, cell::shaders::full);
+                //test
+                //auto temp = ansi::esc{};
+                //auto mark = cell{};
+                //temp.s11n<true, faux, true>(target, mark);
+                //owner.forward_clipboard<faux>(temp);
+            }
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(ansi::esc& yield, si32 selmod)
             {
@@ -6028,6 +6072,7 @@ namespace netxs::ui
         vtty       ptycon; // term: PTY device. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
+        template<bool Decode = true>
         void forward_clipboard(view data)
         {
             // Take all foci.
@@ -6039,7 +6084,8 @@ namespace netxs::ui
                 if (auto ptr = bell::getref(gate_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    gear_ptr->set_clip_data(target->panel, utf::unbase64(utf::remain(data, ';')));
+                    if constexpr (Decode) gear_ptr->set_clip_data(target->panel, utf::unbase64(utf::remain(data, ';')));
+                    else                  gear_ptr->set_clip_data(target->panel, data);
                 }
             }
         }

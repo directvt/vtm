@@ -2156,21 +2156,21 @@ namespace netxs::ui::atoms
         {
             crop(region.size.x + 1, c);
         }
-        template<bool BOTTOM_ANCHORED = faux>
+        template<bool Bottom_anchored = faux>
         void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
         {
             auto block = core{ region.coor, newsize, c };
-            if constexpr (BOTTOM_ANCHORED) block.step({ 0, region.size.y - newsize.y });
+            if constexpr (Bottom_anchored) block.step({ 0, region.size.y - newsize.y });
             netxs::onbody(block, *this, cell::shaders::full);
             region.size = newsize;
             client.size = region.size;
             swap(block);
             digest++;
         }
-        template<bool BOTTOM_ANCHORED = faux>
+        template<bool Bottom_anchored = faux>
         void crop(twod const& newsize) // core: Resize while saving the bitmap.
         {
-            crop(newsize, marker);
+            crop<Bottom_anchored>(newsize, marker);
         }
         void kill() // core: Collapse canvas to size zero (see para).
         {

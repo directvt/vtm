@@ -15,6 +15,7 @@
 #include <charconv>
 #include <optional>
 #include <sstream>
+#include <span>
 
 #define GRAPHEME_CLUSTER_LIMIT (31) // Limits the number of code points in a grapheme cluster to a number sufficient for any possible linguistic situation.
 #define CLUSTER_FIELD_SIZE     (5)
@@ -378,16 +379,19 @@ namespace netxs::utf
 
     struct qiew : public view
     {
+        using span = std::span<char>;
+
         auto     pop_front () { auto c = view::front(); view::remove_prefix(1); return c; }
         si32     front     () const { return static_cast<unsigned char>(view::front()); }
         operator bool      () const { return view::length(); }
         operator text      () const { return text{ static_cast<view>(*this) }; }
 
         constexpr qiew() noexcept : view() { }
+        constexpr qiew(span const& v) noexcept : view(v.data(), v.size()) { }
         constexpr qiew(view const& v) noexcept : view(v) { }
                   qiew(text const& v) noexcept : view(v) { }
-        template<class INT>
-        constexpr qiew(char const* ptr, INT len) noexcept: view(ptr, len) { }
+        template<class T, class ...Args>
+        constexpr qiew(T* ptr, Args&&... len) noexcept : view(ptr, std::forward<Args>(len)...) { }
         constexpr qiew& operator = (qiew const&) noexcept = default;
 
         // Pop front a sequence of the same control points and return their count + 1.
@@ -804,6 +808,10 @@ namespace netxs::utf
     }
     template<template<class...> class WIDE_TEXT_OR_VIEW, class ...Args>
     void to_utf(WIDE_TEXT_OR_VIEW<wchr, Args...> const& wide_text, text& utf8)
+    {
+        to_utf(wide_text.data(), wide_text.size(), utf8);
+    }
+    void to_utf(std::span<wchr> wide_text, text& utf8)
     {
         to_utf(wide_text.data(), wide_text.size(), utf8);
     }
@@ -1417,7 +1425,7 @@ namespace netxs::utf
 
     // utf: Return a string without control chars (replace all ctrls with printables).
     template<bool Split = true, bool Multiline = true>
-    auto debase(view utf8)
+    auto debase(qiew utf8)
     {
         auto buff = text{};
         auto size = utf8.size();

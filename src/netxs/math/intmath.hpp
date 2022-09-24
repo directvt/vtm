@@ -499,8 +499,8 @@ namespace netxs
     // intmath: Intersect two sprites and
     //          invoking handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<bool RtoL, class T, class R, class C, class P>
-    void inbody(T& canvas, T const& bitmap, R const& region, C const& base2, P handle)
+    template<bool RtoL, class T, class D, class R, class C, class P>
+    void inbody(T& canvas, D const& bitmap, R const& region, C const& base2, P handle)
     {
         auto& base1 = region.coor;
 
@@ -539,8 +539,8 @@ namespace netxs
     // intmath: Intersect two sprites and invoking
     //          handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<class T, class P>
-    void onbody(T& canvas, T const& bitmap, P handle)
+    template<class T, class D, class P>
+    void onbody(T& canvas, D const& bitmap, P handle)
     {
         auto& rect1 = canvas.area();
         auto& rect2 = bitmap.area();

@@ -1021,15 +1021,12 @@ struct consrv
         auto sendevents(T&& recs)
         {
             auto lock = std::lock_guard{ locker };
-            auto size = static_cast<ui32>(recs.size() / sizeof(vect::value_type));
-            auto data = std::span{ reinterpret_cast<vect::value_type*>(recs.data()), size };
-            buffer.insert(buffer.end(), data.begin(), data.end());
+            buffer.insert(buffer.end(), recs.begin(), recs.end());
             if (!buffer.empty())
             {
                 ondata.reset();
                 signal.notify_one();
             }
-            return size;
         }
         template<bool Complete = faux, class Payload>
         auto readevents(Payload& packet, cdrw& answer)
@@ -1113,7 +1110,7 @@ struct consrv
         auto frgb = brush.fgc().token;
         auto brgb = brush.bgc().token;
         auto head = std::begin(uiterm.ctrack.color);
-        auto fgcx = 8_sz; // Fallback for true colors.
+        auto fgcx = 7_sz; // Fallback for true colors.
         auto bgcx = 0_sz;
         for (auto i = 0; i < 16; i++)
         {
@@ -1128,6 +1125,22 @@ struct consrv
         if (brush.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
         return attr;
     }
+    template<class RecType, feed Input, class T>
+    auto take_buffer(T&& packet) -> std::span<RecType>
+    {
+        auto offset = Input == feed::fwd ? answer.readoffset()
+                                         : answer.sendoffset();
+        auto length = Input == feed::fwd ? packet.packsz
+                                         : packet.echosz;
+        if (!size_check(length,  offset)) return {};
+        auto datasize = length - offset;
+        assert(datasize % sizeof(RecType) == 0);
+        buffer.resize(datasize);
+        if (answer.recv_data(condrv, buffer) == faux) return {};
+        auto count = buffer.size() / sizeof(RecType);
+        return { reinterpret_cast<RecType*>(buffer.data()), count };
+    }
+
     auto api_unsupported                     ()
     {
         log(prompt, "unsupported consrv request code ", upload.fxtype);
@@ -1605,12 +1618,9 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        if (!size_check(packet.packsz,  answer.readoffset())) return;
-        auto datasize = packet.packsz - answer.readoffset();
-        assert(datasize % sizeof(INPUT_RECORD) == 0);
-        buffer.resize(datasize);
-        if (answer.recv_data(condrv, buffer) == faux) return;
-        packet.reply.count = events.sendevents(buffer); //todo convert to wide - is it necessary?
+        auto recs = take_buffer<INPUT_RECORD, feed::fwd>(packet);
+        if (!recs.empty()) events.sendevents(recs); //todo convert to wide - is it necessary?
+        packet.reply.count = static_cast<ui32>(recs.size());
         log("\twritten events count ", packet.reply.count);
     }
     auto api_events_generate_ctrl_event      ()
@@ -1881,7 +1891,44 @@ struct consrv
             };
         };
         auto& packet = payload::cast(upload);
-
+        auto& window = *(uiterm.target);
+        auto view = rect{{ packet.input.rectL, packet.input.rectT }, { packet.input.rectR - packet.input.rectL + 1, packet.input.rectB - packet.input.rectT + 1 }};
+        //todo no need to read user buffer
+        auto recs = take_buffer<CHAR_INFO, feed::rev>(packet);
+        auto crop = rect{};
+        if (!recs.empty() && recs.size() == view.size.x * view.size.y)
+        {
+            mirror.size(window.panel);
+            mirror.view(view);
+            window.do_viewport_copy(mirror);
+            crop = mirror.view();
+            assert(view.size == crop.size);
+            struct legacy_buffer
+            {
+                std::span<CHAR_INFO> _data;
+                twod _size;
+                rect _area;
+                auto  data() { return _data.begin(); }
+                auto& size() { return _size; }
+                auto& area() { return _area; }
+            };
+            auto target = legacy_buffer{ recs, view.size, crop };
+            if (packet.input.utf16)
+            {
+                //...
+            }
+            netxs::onbody(target, (rich)mirror, [&](auto& dst, auto& src){ dst.Attributes = brush_to_attr(src);
+                                                                           auto txt = src.txt();
+                                                                           dst.Char.AsciiChar = txt.size() ? txt.front() : ' '; });
+            answer.send_data(condrv, recs);
+        }
+        packet.reply.rectL = crop.coor.x;
+        packet.reply.rectT = crop.coor.y;
+        packet.reply.rectR = crop.coor.x + crop.size.x - 1;
+        packet.reply.rectB = crop.coor.y + crop.size.y - 1;
+        log("\twindow size ", window.panel,
+            "\n\tinput.rect ", view,
+            "\n\treply.rect ", crop);
     }
     auto api_scrollback_set_active           ()
     {
@@ -1976,7 +2023,7 @@ struct consrv
         auto frgb = mark.fgc().token;
         auto brgb = mark.bgc().token;
         auto head = std::begin(uiterm.ctrack.color);
-        auto fgcx = 8_sz; // Fallback for true colors.
+        auto fgcx = 7_sz; // Fallback for true colors.
         auto bgcx = 0_sz;
         for (auto i = 0; i < 16; i++)
         {
@@ -2178,21 +2225,19 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        if (!size_check(packet.packsz,  answer.readoffset())) return;
-        auto datasize = packet.packsz - answer.readoffset();
-        buffer.resize(datasize);
-        if (answer.recv_data(condrv, buffer) == faux) return;
         if (packet.input.utf16)
         {
             toUTF8.clear();
-            utf::to_utf(reinterpret_cast<wchr*>(buffer.data()), buffer.size() / sizeof(wchr), toUTF8);
+            auto title = take_buffer<wchr, feed::fwd>(packet);
+            utf::to_utf(title, toUTF8);
             uiterm.wtrack.set(ansi::OSC_TITLE, toUTF8);
             log("\tUTF-16 title: ", utf::debase(toUTF8));
         }
         else
         {
-            uiterm.wtrack.set(ansi::OSC_TITLE, buffer);
-            log("\tUTF-8 title: ", utf::debase(buffer));
+            auto title = take_buffer<char, feed::fwd>(packet);
+            uiterm.wtrack.set(ansi::OSC_TITLE, title);
+            log("\tUTF-8 title: ", utf::debase(title));
         }
     }
     auto api_window_font_size_get            ()
@@ -2562,6 +2607,7 @@ struct consrv
 
     using apis = std::vector<void(consrv::*)()>;
     using list = std::list<clnt>;
+    using face = Term::face;
 
     Term&       uiterm; // consrv: Terminal reference.
     fd_t&       condrv; // consrv: Console driver handle.
@@ -2578,6 +2624,7 @@ struct consrv
     apis        apimap; // consrv: Fx reference.
     ui32        inpmod; // consrv: Events mode flag set.
     ui32        outmod; // consrv: Scrollbuffer mode flag set.
+    face        mirror; // consrv: Viewport bitmap buffer.
 
     void start()
     {
