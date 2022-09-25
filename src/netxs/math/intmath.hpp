@@ -536,6 +536,21 @@ namespace netxs
         }
     }
 
+    // intmath: Wild bitmap.
+    template<class T, class Rect>
+    struct raster
+    {
+        T    _data;
+        Rect _area;
+        auto  data() { return _data.begin(); }
+        auto& size() { return _area.size;    }
+        auto& area() { return _area;         }
+        raster(T data, Rect area)
+            : _data{ data },
+              _area{ area }
+        { }
+    };
+
     // intmath: Intersect two sprites and invoking
     //          handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.

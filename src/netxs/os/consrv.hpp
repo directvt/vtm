@@ -241,6 +241,11 @@ struct consrv
             buffer.resize(sizeof(Payload));
             return *reinterpret_cast<Payload*>(buffer.data());
         }
+        static auto cast(text& buffer, size_t count)
+        {
+            buffer.resize(sizeof(Payload) * count);
+            return std::span{ reinterpret_cast<Payload*>(buffer.data()), count };
+        }
     };
 
     template<class Payload>
@@ -1126,19 +1131,23 @@ struct consrv
         return attr;
     }
     template<class RecType, feed Input, class T>
-    auto take_buffer(T&& packet) -> std::span<RecType>
+    auto take_buffer(T&& packet)
     {
         auto offset = Input == feed::fwd ? answer.readoffset()
                                          : answer.sendoffset();
         auto length = Input == feed::fwd ? packet.packsz
                                          : packet.echosz;
-        if (!size_check(length,  offset)) return {};
-        auto datasize = length - offset;
-        assert(datasize % sizeof(RecType) == 0);
-        buffer.resize(datasize);
-        if (answer.recv_data(condrv, buffer) == faux) return {};
-        auto count = buffer.size() / sizeof(RecType);
-        return { reinterpret_cast<RecType*>(buffer.data()), count };
+        auto count = 0_sz;
+        if (auto datasize = size_check(length,  offset))
+        {
+            assert(datasize % sizeof(RecType) == 0);
+            buffer.resize(datasize);
+            if (answer.recv_data(condrv, buffer))
+            {
+                count = buffer.size() / sizeof(RecType);
+            }
+        }
+        return wrap<RecType>::cast(buffer, count);
     }
 
     auto api_unsupported                     ()
@@ -1513,6 +1522,7 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.bytes = 0;
         if constexpr (RawRead)
         {
             log("\traw read (ReadFile emulation)");
@@ -1664,6 +1674,8 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.count = 0;
+
         if constexpr (RawWrite)
         {
             log("\traw write emulation");
@@ -1689,30 +1701,30 @@ struct consrv
         //todo implement scrollback buffer selection
         auto& scroll_handle = *scroll_handle_ptr;
 
-        if (!size_check(packet.packsz,  answer.readoffset())) return;
-        auto datasize = packet.packsz - answer.readoffset();
-        auto initsize = scroll_handle.rest.size();
-        if (packet.input.utf16)
+        if (auto datasize = size_check(packet.packsz,  answer.readoffset()))
         {
-            toWIDE.resize(datasize / sizeof(wchr));
-            if (answer.recv_data(condrv, toWIDE) == faux) return;
-            utf::to_utf(toWIDE, scroll_handle.rest);
-        }
-        else
-        {
-            scroll_handle.rest.resize(initsize + datasize);
-            if (answer.recv_data(condrv, view{ scroll_handle.rest.data() + initsize, datasize }) == faux) return;
-        }
+            auto initsize = scroll_handle.rest.size();
+            if (packet.input.utf16)
+            {
+                toWIDE.resize(datasize / sizeof(wchr));
+                if (answer.recv_data(condrv, toWIDE) == faux) return;
+                utf::to_utf(toWIDE, scroll_handle.rest);
+            }
+            else
+            {
+                scroll_handle.rest.resize(initsize + datasize);
+                if (answer.recv_data(condrv, view{ scroll_handle.rest.data() + initsize, datasize }) == faux) return;
+            }
 
-        if (auto crop = ansi::purify(scroll_handle.rest))
-        {
-            //todo ENABLE_WRAP_AT_EOL_OUTPUT
-            uiterm.ondata(crop);
-            log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", utf::debase<faux, faux>(crop));
-            scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
+            if (auto crop = ansi::purify(scroll_handle.rest))
+            {
+                uiterm.ondata(crop);
+                log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", utf::debase<faux, faux>(crop));
+                scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
+            }
+            packet.reply.count = datasize;
+            answer.report = packet.reply.count;
         }
-        packet.reply.count = datasize;
-        answer.report = packet.reply.count;
     }
     auto api_scrollback_write_data           ()
     {
@@ -1871,7 +1883,6 @@ struct consrv
     }
     auto api_scrollback_read_block           ()
     {
-        log(prompt, "ReadConsoleOutput");
         struct payload : drvpacket<payload>
         {
             union
@@ -1892,41 +1903,61 @@ struct consrv
         };
         auto& packet = payload::cast(upload);
         auto& window = *(uiterm.target);
-        auto view = rect{{ packet.input.rectL, packet.input.rectT }, { packet.input.rectR - packet.input.rectL + 1, packet.input.rectB - packet.input.rectT + 1 }};
-        //todo no need to read user buffer
-        auto recs = take_buffer<CHAR_INFO, feed::rev>(packet);
+        auto view = rect{{ packet.input.rectL, packet.input.rectT },
+                         { std::max(0, packet.input.rectR - packet.input.rectL + 1),
+                           std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
         auto crop = rect{};
-        if (!recs.empty() && recs.size() == view.size.x * view.size.y)
+        auto recs = wrap<CHAR_INFO>::cast(buffer, view.size.x * view.size.y);
+        if (!recs.empty())
         {
             mirror.size(window.panel);
             mirror.view(view);
             window.do_viewport_copy(mirror);
             crop = mirror.view();
-            assert(view.size == crop.size);
-            struct legacy_buffer
-            {
-                std::span<CHAR_INFO> _data;
-                twod _size;
-                rect _area;
-                auto  data() { return _data.begin(); }
-                auto& size() { return _size; }
-                auto& area() { return _area; }
-            };
-            auto target = legacy_buffer{ recs, view.size, crop };
+            auto& copy = (rich&)mirror;
+            auto  dest = netxs::raster(recs, view);
+            auto  attr = ui16{};
+            auto  mark = cell{};
             if (packet.input.utf16)
             {
-                //...
+                netxs::onbody(dest, copy, [&](auto& dst, auto& src)
+                {
+                    if (!src.like(mark))
+                    {
+                        attr = brush_to_attr(src);
+                        mark = src;
+                    }
+                    dst.Attributes = attr;
+                    toWIDE.clear();
+                    utf::to_utf(src.txt(), toWIDE);
+                    auto wdt = src.wdt();
+                         if (wdt == 1) dst.Char.UnicodeChar = toWIDE.size() ? toWIDE.front() : ' ';
+                    else if (wdt == 2) dst.Char.UnicodeChar = toWIDE.size() ? toWIDE.front() : ' ';
+                    else if (wdt == 3) dst.Char.UnicodeChar = toWIDE.size() > 1 ? toWIDE[1]  : ' ';
+                });
             }
-            netxs::onbody(target, (rich)mirror, [&](auto& dst, auto& src){ dst.Attributes = brush_to_attr(src);
-                                                                           auto txt = src.txt();
-                                                                           dst.Char.AsciiChar = txt.size() ? txt.front() : ' '; });
+            else
+            {
+                netxs::onbody(dest, copy, [&](auto& dst, auto& src)
+                {
+                    if (!src.like(mark))
+                    {
+                        attr = brush_to_attr(src);
+                        mark = src;
+                    }
+                    dst.Attributes = attr;
+                    auto acsii = src.txt();
+                    dst.Char.AsciiChar = acsii.size() ? acsii.front() : ' ';
+                });
+            }
             answer.send_data(condrv, recs);
         }
         packet.reply.rectL = crop.coor.x;
         packet.reply.rectT = crop.coor.y;
         packet.reply.rectR = crop.coor.x + crop.size.x - 1;
         packet.reply.rectB = crop.coor.y + crop.size.y - 1;
-        log("\twindow size ", window.panel,
+        log(prompt, "ReadConsoleOutput",
+            "\n\tpanel size ", window.panel,
             "\n\tinput.rect ", view,
             "\n\treply.rect ", crop);
     }
@@ -2678,8 +2709,9 @@ struct consrv
         {
             log("\tabort: negative size");
             answer.status = nt::status::unsuccessful;
+            return T{};
         }
-        return test;
+        return upto - from;
     }
     auto reset()
     {
