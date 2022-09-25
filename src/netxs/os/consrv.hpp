@@ -1722,9 +1722,15 @@ struct consrv
                 log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", utf::debase<faux, faux>(crop));
                 scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
             }
+            else
+            {
+                log("\trest: ", utf::debase<faux, faux>(scroll_handle.rest),
+                  "\n\tsize: ", scroll_handle.rest.size());
+            }
             packet.reply.count = datasize;
-            answer.report = packet.reply.count;
         }
+        else log("\tunexpected: packet.packsz=", packet.packsz, " answer.readoffset=", answer.readoffset());
+        answer.report = packet.reply.count;
     }
     auto api_scrollback_write_data           ()
     {
@@ -1987,7 +1993,6 @@ struct consrv
     }
     auto api_scrollback_cursor_info_get      ()
     {
-        log(prompt, "GetConsoleCursorInfo");
         struct payload : drvpacket<payload>
         {
             struct
@@ -1998,11 +2003,15 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-
+        auto [form, show] = uiterm.cursor.style();
+        packet.reply.style = form ? 100 : 1;
+        packet.reply.alive = show;
+        log(prompt, "GetConsoleCursorInfo",
+            "\n\treply.style = ", packet.reply.style,
+            "\n\treply.alive = ", packet.reply.alive ? "true" : "faux");
     }
     auto api_scrollback_cursor_info_set      ()
     {
-        log(prompt, "SetConsoleCursorInfo");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2013,7 +2022,12 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        uiterm.cursor.style(packet.input.style > 50);
+        packet.input.alive ? uiterm.cursor.show()
+                           : uiterm.cursor.hide();
+        log(prompt, "SetConsoleCursorInfo",
+            "\n\tinput.style = ", packet.input.style,
+            "\n\tinput.alive = ", packet.input.alive ? "true" : "faux");
     }
     auto api_scrollback_info_get             ()
     {
@@ -2120,7 +2134,6 @@ struct consrv
     }
     auto api_scrollback_size_set             ()
     {
-        log(prompt, "SetConsoleScreenBufferSize");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2130,11 +2143,15 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
+        auto viewport = uiterm.target->panel;
+        packet.input.buffersz_x = viewport.x;
+        packet.input.buffersz_y = viewport.y;
+        log(prompt, "SetConsoleScreenBufferSize",
+            "\n\tinput.size ", size);
     }
     auto api_scrollback_viewport_get_max_size()
     {
-        log(prompt, "GetLargestConsoleWindowSize");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2147,11 +2164,11 @@ struct consrv
         auto viewport = uiterm.target->panel;
         packet.reply.maxwinsz_x = viewport.x;
         packet.reply.maxwinsz_y = viewport.y;
-        log("\tmaxwin size ", viewport);
+        log(prompt, "GetLargestConsoleWindowSize",
+            "\n\tmaxwin size ", viewport);
     }
     auto api_scrollback_viewport_set         ()
     {
-        log(prompt, "SetConsoleWindowInfo");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2162,7 +2179,18 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        auto area = rect{{ packet.input.rectL, packet.input.rectT },
+                         { std::max(0, packet.input.rectR - packet.input.rectL + 1),
+                           std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
+        log(prompt, "SetConsoleWindowInfo",
+            "\n\tinput.area ", area,
+            "\n\tinput.isabsolute ", packet.input.isabsolute ? "true" : "faux");
+        auto viewport = uiterm.target->panel;
+        packet.input.rectL = 0;
+        packet.input.rectT = 0;
+        packet.input.rectR = viewport.y - 1;
+        packet.input.rectB = viewport.y - 1;
+        packet.input.isabsolute = 1;
     }
     auto api_scrollback_scroll               ()
     {

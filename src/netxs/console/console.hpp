@@ -2588,6 +2588,11 @@ namespace netxs::console
             {
                 return body.coor;
             }
+            // pro::caret: Get caret style.
+            auto style() const
+            {
+                return std::pair{ form, !!(*this) };
+            }
             // pro::caret: Force to redraw caret.
             void reset()
             {
