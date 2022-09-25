@@ -2289,13 +2289,14 @@ namespace netxs::ui
                 bufferbase::tab(n);
                 coord.x = std::clamp(coord.x, 0, panel.x - 1);
             }
-
             // alt_screen: Make a viewport screen copy.
             void do_viewport_copy(face& target) override
             {
-                //todo
+                auto full = target.full();
+                auto view = target.view().clip(full);
+                target.view(view);
+                target.plot(canvas, cell::shaders::full);
             }
-
             // alt_screen: Start text selection.
             void selection_create(twod coor, bool mode) override
             {

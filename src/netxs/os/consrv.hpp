@@ -1912,8 +1912,9 @@ struct consrv
         auto view = rect{{ packet.input.rectL, packet.input.rectT },
                          { std::max(0, packet.input.rectR - packet.input.rectL + 1),
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
-        auto crop = rect{};
+        buffer.clear();
         auto recs = wrap<CHAR_INFO>::cast(buffer, view.size.x * view.size.y);
+        auto crop = rect{};
         if (!recs.empty())
         {
             mirror.size(window.panel);
@@ -1937,9 +1938,8 @@ struct consrv
                     toWIDE.clear();
                     utf::to_utf(src.txt(), toWIDE);
                     auto wdt = src.wdt();
-                         if (wdt == 1) dst.Char.UnicodeChar = toWIDE.size() ? toWIDE.front() : ' ';
-                    else if (wdt == 2) dst.Char.UnicodeChar = toWIDE.size() ? toWIDE.front() : ' ';
-                    else if (wdt == 3) dst.Char.UnicodeChar = toWIDE.size() > 1 ? toWIDE[1]  : ' ';
+                    if (wdt != 3) dst.Char.UnicodeChar = toWIDE.size() ? toWIDE.front() : ' ';
+                    else          dst.Char.UnicodeChar = toWIDE.size() > 1 ? toWIDE[1]  : ' ';
                 });
             }
             else
