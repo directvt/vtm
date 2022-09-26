@@ -340,13 +340,22 @@ namespace netxs::ui
                 gear.dismiss();
             }
             template<prot PROT>
-            void proceed(hids& gear, si32 meta, bool ispressed = faux, bool wheel = faux)
+            void proceed(hids& gear, si32 meta, bool ispressed = faux, bool wheel = faux, ui32 dblclick = -1)
             {
                 auto m = gear.meta();
                 if (m & hids::anyShift) meta |= 0x04;
                 if (m & hids::anyAlt  ) meta |= 0x08;
                 if (m & hids::anyCtrl ) meta |= 0x10;
-                switch (PROT)
+                if (dblclick != -1)
+                {
+                    if constexpr (PROT == prot::w32)
+                    {
+                        gear.buttons[dblclick].pressed = true;
+                        owner.ptycon.mouse(gear, moved, wheel, dblclick + 1);
+                        gear.buttons[dblclick].pressed = faux;
+                    }
+                }
+                else switch (PROT)
                 {
                     case prot::x11: queue.mouse_x11(meta, coord);            break;
                     case prot::sgr: queue.mouse_sgr(meta, coord, ispressed); break;
@@ -385,6 +394,10 @@ namespace netxs::ui
                     case b::down::left     .id: capture(gear); proceed<PROT>(gear, left, true); break;
                     case b::down::middle   .id: capture(gear); proceed<PROT>(gear, mddl, true); break;
                     case b::down::right    .id: capture(gear); proceed<PROT>(gear, rght, true); break;
+                    // Dbl click
+                    case b::dblclick::left  .id: proceed<PROT>(gear, left, true, faux, input::sysmouse::left  ); break;
+                    case b::dblclick::middle.id: proceed<PROT>(gear, mddl, true, faux, input::sysmouse::middle); break;
+                    case b::dblclick::right .id: proceed<PROT>(gear, rght, true, faux, input::sysmouse::right ); break;
                     // Release
                     case b::up::left     .id:   release(gear); proceed<PROT>(gear, up_left); break;
                     case b::up::middle   .id:   release(gear); proceed<PROT>(gear, up_mddl); break;

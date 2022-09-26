@@ -4266,10 +4266,10 @@ namespace netxs::os
             con_serv.events.keybd(gear, decckm);
             #endif
         }
-        void mouse(input::hids& gear, bool moved, bool wheeled)
+        void mouse(input::hids& gear, bool moved, bool wheeled, bool dblclick = faux)
         {
             #if defined(_WIN32)
-            con_serv.events.mouse(gear, moved, wheeled);
+            con_serv.events.mouse(gear, moved, wheeled, dblclick);
             #endif
         }
         void write(view data)

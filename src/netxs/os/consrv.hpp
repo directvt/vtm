@@ -471,7 +471,7 @@ struct consrv
                 signal.notify_one();
             }
         }
-        void mouse(input::hids& gear, bool moved, bool wheel)
+        void mouse(input::hids& gear, bool moved, bool wheel, bool duple)
         {
             auto state = os::ms_kbstate(gear.ctlstate);
             auto bttns = ui32{};
@@ -481,8 +481,9 @@ struct consrv
             if (gear.buttons[input::sysmouse::wheel ].pressed) bttns |= FROM_LEFT_3RD_BUTTON_PRESSED;
             if (gear.buttons[input::sysmouse::win   ].pressed) bttns |= FROM_LEFT_4TH_BUTTON_PRESSED;
             auto flags = ui32{};
-            if (moved) flags |= MOUSE_MOVED; // DOUBLE_CLICK   not used.
-            if (wheel)                       // MOUSE_HWHEELED not used.
+            if (duple) flags |= DOUBLE_CLICK;
+            if (moved) flags |= MOUSE_MOVED;
+            if (wheel) // MOUSE_HWHEELED not used.
             {
                 flags |= MOUSE_WHEELED;
                 bttns |= gear.whldt << 16;
