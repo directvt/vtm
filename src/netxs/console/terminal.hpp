@@ -112,7 +112,6 @@ namespace netxs::ui
             };
         };
 
-    private:
         static constexpr si32 max_length = 65535; // term: Max line length.
         static constexpr si32 def_length = 20000; // term: Default scrollback history length.
         static constexpr si32 def_growup = 0;     // term: Default scrollback history grow step.
@@ -834,7 +833,7 @@ namespace netxs::ui
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q);    }; // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); }; // CCC_EXT: Setup extended functionality.
-                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->owner.setdef();     }; // CCC_RST: Reset tot defaults.
+                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->owner.setdef();     }; // CCC_RST: Reset to defaults.
                 vt.csier.table[CSI_CCC][CCC_SGR] = VT_PROC{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
                 vt.csier.table[CSI_CCC][CCC_SEL] = VT_PROC{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
                 vt.csier.table[CSI_CCC][CCC_PAD] = VT_PROC{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
@@ -1035,15 +1034,15 @@ namespace netxs::ui
             }
 
             // bufferbase: Make a viewport screen copy.
-            virtual void do_viewport_copy(face& target) = 0;
+            virtual void do_viewport_copy(face& dest) = 0;
 
             virtual void selection_create(twod coor, bool mode)           = 0;
             virtual bool selection_extend(twod coor, bool mode)           = 0;
             virtual void selection_follow(twod coor, bool lock)           = 0;
             virtual void selection_byword(twod coor)                      = 0;
             virtual void selection_byline(twod coor)                      = 0;
-            virtual text selection_pickup(si32  selmod)                   = 0;
-            virtual void selection_render(face& target)                   = 0;
+            virtual text selection_pickup(si32 selmod)                    = 0;
+            virtual void selection_render(face& dest)                     = 0;
             virtual void selection_status(term_state& status) const       = 0;
             virtual twod selection_gonext(feed direction)                 = 0;
             virtual twod selection_gofind(feed direction, view data = {}) = 0;
@@ -1893,13 +1892,13 @@ namespace netxs::ui
                 return origin_x;
             };
             // bufferbase: Rasterize selection with grips.
-            void selection_raster(face& target, auto curtop, auto curend, bool ontop = true, bool onend = true)
+            void selection_raster(face& dest, auto curtop, auto curend, bool ontop = true, bool onend = true)
             {
                 if (selection_active())
                 {
                     auto mode = owner.selmod;
-                    auto view = target.view();
-                    auto full = target.full();
+                    auto view = dest.view();
+                    auto full = dest.full();
                     auto grip_1 = rect{ curtop + full.coor, dot_11 };
                     auto grip_2 = rect{ curend + full.coor, dot_11 };
                     auto square = grip_1 | grip_2;
@@ -1926,11 +1925,11 @@ namespace netxs::ui
                             east.coor += full.coor;
                             west = west.clip(view);
                             east = east.clip(view);
-                            target.fill(west, fill);
-                            target.fill(east, fill);
+                            dest.fill(west, fill);
+                            dest.fill(east, fill);
                         }
                         square = square.clip(view);
-                        target.fill(square, fill);
+                        dest.fill(square, fill);
                     };
                     mode == xsgr::ansitext ? work(cell::shaders::xlight) :
                     mode == xsgr::textonly ? work(cell::shaders::selection(def_selclr)) :
@@ -2235,33 +2234,33 @@ namespace netxs::ui
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
             }
-            // alt_screen: Render to the target.
-            void output(face& target) override
+            // alt_screen: Render to the dest.
+            void output(face& dest) override
             {
-                auto full = target.full();
-                auto view = target.view();
+                auto full = dest.full();
+                auto view = dest.view();
                 auto find = selection_active()
                          && match.length()
                          && owner.selmod == xsgr::textonly;
                 canvas.move(full.coor);
-                target.plot(canvas, cell::shaders::fuse);
+                dest.plot(canvas, cell::shaders::fuse);
                 if (find)
                 {
                     if (auto area = canvas.area())
                     {
-                        target.full(area);
+                        dest.full(area);
                         auto offset = si32{};
                         while (canvas.find(match, offset))
                         {
                             auto c = canvas.toxy(offset);
-                            target.output(match, c, cell::shaders::selection(def_dupclr));
+                            dest.output(match, c, cell::shaders::selection(def_dupclr));
                             offset += match.length();
                         }
-                        target.full(full);
+                        dest.full(full);
                     }
                 }
 
-                selection_render(target);
+                selection_render(dest);
             }
             // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
@@ -2290,12 +2289,12 @@ namespace netxs::ui
                 coord.x = std::clamp(coord.x, 0, panel.x - 1);
             }
             // alt_screen: Make a viewport screen copy.
-            void do_viewport_copy(face& target) override
+            void do_viewport_copy(face& dest) override
             {
-                auto full = target.full();
-                auto view = target.view().clip(full);
-                target.view(view);
-                target.plot(canvas, cell::shaders::full);
+                auto full = dest.full();
+                auto view = dest.view().clip(full);
+                dest.view(view);
+                dest.plot(canvas, cell::shaders::full);
             }
             // alt_screen: Start text selection.
             void selection_create(twod coor, bool mode) override
@@ -2392,12 +2391,12 @@ namespace netxs::ui
                 return std::move(data);
             }
             // alt_screen: Highlight selection.
-            void selection_render(face& target) override
+            void selection_render(face& dest) override
             {
                 auto limits = panel - dot_11;
                 auto curtop = std::clamp(seltop, dot_00, limits);
                 auto curend = std::clamp(selend, dot_00, limits);
-                selection_raster(target, curtop, curend);
+                selection_raster(dest, curtop, curend);
             }
             // alt_screen: Update selection status.
             void selection_status(term_state& status) const override
@@ -4244,10 +4243,10 @@ namespace netxs::ui
                             } // case 1 done.
                             else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
                             {
-                                auto& target = batch.item_by_id(mapln.index);
-                                //todo respect target alignment
-                                auto  shadow = target.wrapped() ? target.substr(mapln.start + coord.x)
-                                                                : target.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
+                                auto& destln = batch.item_by_id(mapln.index);
+                                //todo respect destln alignment
+                                auto  shadow = destln.wrapped() ? destln.substr(mapln.start + coord.x)
+                                                                : destln.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
 
                                 if constexpr (mixer) curln.resize(batch.caret +shadow.length());
                                 else                 curln.splice(batch.caret, shadow);
@@ -4353,11 +4352,11 @@ namespace netxs::ui
                 index_rebuild();
             }
             // scroll_buf: Render to the canvas.
-            void output(face& target) override
+            void output(face& dest) override
             {
-                target.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
-                auto view = target.view();
-                auto full = target.full();
+                dest.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
+                auto view = dest.view();
+                auto full = dest.full();
                 auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
                 auto stop = view.coor.y + view.size.y;
                 auto head = batch.iter_by_id(batch.ancid);
@@ -4367,7 +4366,7 @@ namespace netxs::ui
                 {
                     if (auto r = view.clip(area))
                     {
-                        target.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
+                        dest.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
                     }
                 };
                 auto left_edge = view.coor.x;
@@ -4383,10 +4382,10 @@ namespace netxs::ui
                     auto height = curln.height(panel.x);
                     auto length = curln.length();
                     auto adjust = curln.style.jet();
-                    target.output(curln, coor);
-                    //target.output_proxy(curln, coor, [&](auto const& coord, auto const& subblock, auto isr_to_l)
+                    dest.output(curln, coor);
+                    //dest.output_proxy(curln, coor, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                     //{
-                    //    target.text(coord, subblock, isr_to_l, cell::shaders::fusefull);
+                    //    dest.text(coord, subblock, isr_to_l, cell::shaders::fusefull);
                     //});
                     if (find)
                     {
@@ -4395,7 +4394,7 @@ namespace netxs::ui
                         while (curln.find(match, offset))
                         {
                             auto c = coor + offset_to_screen(curln, offset);
-                            target.output(match, c, cell::shaders::selection(def_dupclr));
+                            dest.output(match, c, cell::shaders::selection(def_dupclr));
                             offset += match.length();
                         }
                     }
@@ -4447,30 +4446,30 @@ namespace netxs::ui
                 auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
                 upbox.move(top_coor);
                 dnbox.move(end_coor);
-                target.plot(upbox, cell::shaders::xlucent(def_lucent));
-                target.plot(dnbox, cell::shaders::xlucent(def_lucent));
+                dest.plot(upbox, cell::shaders::xlucent(def_lucent));
+                dest.plot(dnbox, cell::shaders::xlucent(def_lucent));
                 if (find && panel.y != arena)
                 {
                     auto draw = [&](auto const& block)
                     {
                         if (auto area = block.area())
                         {
-                            target.full(area);
+                            dest.full(area);
                             auto offset = si32{};
                             while (block.find(match, offset))
                             {
                                 auto c = block.toxy(offset);
-                                target.output(match, c, cell::shaders::selection(def_dupclr));
+                                dest.output(match, c, cell::shaders::selection(def_dupclr));
                                 offset += match.length();
                             }
                         }
                     };
                     draw(upbox);
                     draw(dnbox);
-                    target.full(full);
+                    dest.full(full);
                 }
 
-                selection_render(target);
+                selection_render(dest);
             }
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
@@ -5379,11 +5378,11 @@ namespace netxs::ui
                 return coor.x + coor.y * panel.x + close;
             }
             // scroll_buf: Make a viewport screen copy.
-            void do_viewport_copy(face& target) override
+            void do_viewport_copy(face& dest) override
             {
-                auto full = target.full();
-                auto view = target.view().clip(full);
-                target.view(view);
+                auto full = dest.full();
+                auto view = dest.view().clip(full);
+                dest.view(view);
                 auto vpos = view.coor.y - y_top;
                 if (vpos >= 0 && vpos < arena)
                 {
@@ -5398,18 +5397,18 @@ namespace netxs::ui
                     {
                         auto& curln = *head++;
                         auto height = curln.height(panel.x);
-                        target.output(curln, coord);
+                        dest.output(curln, coord);
                         coord.y += height;
                     }
                 }
                 upbox.move({ 0, y_top - sctop });
                 dnbox.move({ 0, y_end + 1     });
-                target.plot(upbox, cell::shaders::full);
-                target.plot(dnbox, cell::shaders::full);
+                dest.plot(upbox, cell::shaders::full);
+                dest.plot(dnbox, cell::shaders::full);
                 //test
                 //auto temp = ansi::esc{};
                 //auto mark = cell{};
-                //temp.s11n<true, faux, true>(target, mark);
+                //temp.s11n<true, faux, true>(dest, mark);
                 //owner.forward_clipboard<faux>(temp);
             }
             // scroll_buf: Materialize selection of the scrollbuffer part.
@@ -5535,19 +5534,19 @@ namespace netxs::ui
                 return std::move(yield);
             }
             // scroll_buf: Highlight selection.
-            void selection_render(face& target) override
+            void selection_render(face& dest) override
             {
                 if (selection_active())
                 {
                     auto mode = owner.selmod;
-                    auto view = target.view();
-                    auto full = target.full();
+                    auto view = dest.view();
+                    auto full = dest.full();
 
                     if (panel.y != arena)
                     {
                         auto temp = full;
                         temp.coor.x = 0;
-                        target.full(temp);
+                        dest.full(temp);
                         auto draw_area = [&](auto grip_1, auto grip_2, auto offset)
                         {
                             if (grip_1.role != grip::idle)
@@ -5555,12 +5554,12 @@ namespace netxs::ui
                                 grip_1.coor.y += offset;
                                 grip_2.coor.y += offset;
                                 grip::sort(grip_1, grip_2);
-                                bufferbase::selection_raster(target, grip_1.coor, grip_2.coor, grip_1.role == grip::base, grip_2.role == grip::base);
+                                bufferbase::selection_raster(dest, grip_1.coor, grip_2.coor, grip_1.role == grip::base, grip_2.role == grip::base);
                             }
                         };
                         draw_area(uptop, dntop, batch.slide);
                         draw_area(upend, dnend, batch.slide + y_top + arena);
-                        target.full(full);
+                        dest.full(full);
                     }
                     if (upmid.role == grip::idle) return;
                     auto scrolling_region = rect{ { -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
@@ -5578,9 +5577,9 @@ namespace netxs::ui
                     if (selection_selbox())
                     {
                         auto square = grip_1 | grip_2;
-                        mode == xsgr::ansitext ? target.fill(square.clip(view), cell::shaders::xlight) :
-                        mode == xsgr::textonly ? target.fill(square.clip(view), cell::shaders::selection(def_selclr)) :
-                                                 target.fill(square.clip(view), cell::shaders::selection(def_offclr)) ;
+                        mode == xsgr::ansitext ? dest.fill(square.clip(view), cell::shaders::xlight) :
+                        mode == xsgr::textonly ? dest.fill(square.clip(view), cell::shaders::selection(def_selclr)) :
+                                                 dest.fill(square.clip(view), cell::shaders::selection(def_offclr)) ;
                     }
                     else
                     {
@@ -5589,7 +5588,7 @@ namespace netxs::ui
                         {
                             std::swap(curtop, curend);
                         }
-                        target.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
+                        dest.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
                         auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
                         auto stop = batch.slide + arena + y_top;
                         auto head = batch.iter_by_id(batch.ancid);
@@ -5616,7 +5615,7 @@ namespace netxs::ui
                                         bound.size.x += 1;
                                         block = block.clip(bound);
                                     }
-                                    target.fill(block.clip(view), fill);
+                                    dest.fill(block.clip(view), fill);
                                 }
                             };
                             while (head != tail && coor.y < stop)
@@ -5626,7 +5625,7 @@ namespace netxs::ui
                                 auto height = curln.height(panel.x);
                                 if (length)
                                 {
-                                    target.output_proxy(curln, coor, draw);
+                                    dest.output_proxy(curln, coor, draw);
                                 }
                                 else
                                 {
@@ -6042,7 +6041,6 @@ namespace netxs::ui
             }
         };
 
-    public:
         using buffer_ptr = bufferbase*;
         using vtty = os::pty<term>;
 
@@ -6194,6 +6192,21 @@ namespace netxs::ui
             target->flush();
             while (auto q = queue(0)) _decset(q);
         }
+        // term: Switch buffer to normal and reset viewport to the basis.
+        template<class T>
+        void reset_to_normal(T& a)
+        {
+            normal.resize_viewport(a.panel);
+            target = &normal;
+            follow[axis::Y] = true;
+        }
+        // term: Switch buffer to altbuf.
+        template<class T>
+        void reset_to_altbuf(T& altbuf)
+        {
+            altbuf.resize_viewport(target->panel);
+            target = &altbuf;
+        }
         // term: Reset termnail parameters. (DECRST).
         void _decrst(si32 n)
         {
@@ -6262,9 +6275,7 @@ namespace netxs::ui
                 case 1047: // Use normal screen buffer.
                 case 1049: // Use normal screen buffer and restore cursor.
                     normal.style = target->style;
-                    normal.resize_viewport(target->panel); // Reset viewport to the basis.
-                    target = &normal;
-                    follow[axis::Y] = true;
+                    reset_to_normal(*target);
                     break;
                 case 2004: // Disable bracketed paste mode.
                     bpmode = faux;
@@ -6357,7 +6368,7 @@ namespace netxs::ui
             }
         }
         // term: Proceed terminal input.
-        void ondata(view data)
+        void ondata(view data, bufferbase* target)
         {
             update([&]
             {
@@ -6365,14 +6376,13 @@ namespace netxs::ui
                 ansi::parse(data, target);
             });
         }
-        // term: Proceed direct terminal input.
-        template<class Shader>
-        void direct(si32 count, grid const& proto, Shader fuse)
+        // term: Proceed terminal input.
+        void ondata(view data)
         {
             update([&]
             {
-                if (target == &normal) normal._data(count, proto, fuse);
-                else                   altbuf._data(count, proto, fuse);
+                if (onlogs) SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                ansi::parse(data, target);
             });
         }
         // term: Shutdown callback handler.
@@ -6589,7 +6599,7 @@ namespace netxs::ui
             auto& console = *target;
             auto boxed = gear.meta(hids::anyAlt);
             auto coord = gear.coord;
-            auto vport = rect{ -origin, target->panel };
+            auto vport = rect{ -origin, console.panel };
             auto delta = dot_00;
             for (auto a : { axis::X, axis::Y })
             {
@@ -6683,7 +6693,6 @@ namespace netxs::ui
             }
         }
 
-    //public:
         void search(hids& gear, feed dir)
         {
             selection_search(gear, dir);

@@ -133,6 +133,7 @@ struct consrv
                 unused,
                 events,
                 scroll,
+                altbuf,
             };
 
             clnt& boss;
@@ -191,6 +192,7 @@ struct consrv
         };
 
         using list = std::list<hndl>;
+        using bufs = std::list<typename Term::alt_screen>;
 
         list tokens; // clnt: Taked handles.
         ui32 procid; // clnt: Process id.
@@ -199,6 +201,7 @@ struct consrv
         info detail; // clnt: Process details.
         memo inputs; // clnt: Input history.
         cell backup; // clnt: Text attributes to restore on detach.
+        bufs alters; // clnt: Additional scrollback buffers.
     };
     
     using hndl = clnt::hndl;
@@ -1149,6 +1152,73 @@ struct consrv
         }
         return wrap<RecType>::cast(buffer, count);
     }
+    template<class T, class P>
+    auto direct(T* handle_ptr, P proc)
+    {
+        if (handle_ptr)
+        {
+            if (handle_ptr->link == &uiterm.target)
+            {
+                     if (uiterm.target == &uiterm.normal) uiterm.update([&] { proc(uiterm.normal); });
+                else if (uiterm.target == &uiterm.altbuf) uiterm.update([&] { proc(uiterm.altbuf); });
+                return true;
+            }
+            else
+            {
+                auto client_ptr = &handle_ptr->boss;
+                if (auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
+                    iter != joined.end()) // Client exists.
+                {
+                    auto& client = handle_ptr->boss;
+                    if (auto iter = std::find_if(client.tokens.begin(), client.tokens.end(), [&](auto& token){ return handle_ptr == &token; });
+                        iter != client.tokens.end()) // Handle allocated.
+                    {
+                        auto link = handle_ptr->link;
+                        if (auto iter = std::find_if(client.alters.begin(), client.alters.end(), [&](auto& altbuf){ return link == &altbuf; });
+                            iter != client.alters.end()) // Buffer exists.
+                        {
+                            uiterm.update([&] { proc(*iter); });
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        log("\tabort: invalid handle 0x", utf::to_hex(handle_ptr));
+        answer.status = nt::status::invalid_handle;
+        return faux;
+    }
+    template<class T>
+    auto select_buffer(T* handle_ptr)
+    {
+        using base_ptr = typename Term::bufferbase*;
+        auto result = base_ptr{};
+        if (handle_ptr)
+        {
+            if (handle_ptr->link == &uiterm.target) result = uiterm.target;
+            else
+            {
+                auto client_ptr = &handle_ptr->boss;
+                if (auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
+                    iter != joined.end()) // Client exists.
+                {
+                    auto& client = handle_ptr->boss;
+                    if (auto iter = std::find_if(client.tokens.begin(), client.tokens.end(), [&](auto& token){ return handle_ptr == &token; });
+                        iter != client.tokens.end()) // Handle allocated.
+                    {
+                        auto link = handle_ptr->link;
+                        if (auto iter = std::find_if(client.alters.begin(), client.alters.end(), [&](auto& altbuf){ return link == &altbuf; });
+                            iter != client.alters.end()) // Buffer exists.
+                        {
+                            result = &(*iter);
+                        }
+                    }
+                }
+            }
+        }
+        if (!result) log("\tinvalid handle 0x", utf::to_hex(handle_ptr));
+        return result;
+    }
 
     auto api_unsupported                     ()
     {
@@ -1297,6 +1367,14 @@ struct consrv
                 events.abort(handle_ptr);
             }
             uiterm.target->brush = client.backup;
+            for (auto& a : client.alters) // Switch from client's scrollback buffer if it is active.
+            {
+                if (uiterm.target == &a)
+                {
+                    uiterm.reset_to_normal(a);
+                    break;
+                }
+            }
             client.tokens.clear();
             joined.erase(iter);
             log("\tprocess 0x", utf::to_hex(client_ptr), " detached");
@@ -1345,10 +1423,18 @@ struct consrv
         auto& packet = payload::cast(upload);
         auto& client = *packet.client;
         log("\tclient procid ", client.procid);
+        auto newbuf = [&]()
+        {
+            auto& console = client.alters.emplace_back(uiterm);
+            console.resize_viewport(uiterm.target->panel);
+            console.style = uiterm.target->style;
+            return &console;
+        };
         auto create = [&](auto type, auto msg)
         {
             auto& h = type == hndl::type::events ? client.tokens.emplace_back(client, inpmod, hndl::type::events, &uiterm)
-                                                 : client.tokens.emplace_back(client, outmod, hndl::type::scroll, &uiterm.target);
+                    : type == hndl::type::scroll ? client.tokens.emplace_back(client, outmod, hndl::type::scroll, &uiterm.target)
+                                                 : client.tokens.emplace_back(client, outmod, hndl::type::altbuf, newbuf());
             answer.report = reinterpret_cast<ui64>(&h);
             log(msg, &h);
         };
@@ -1356,7 +1442,7 @@ struct consrv
         {
             case type::dupevents: create(hndl::type::events, "\tdup events handle "); break;
             case type::dupscroll: create(hndl::type::scroll, "\tdup scroll handle "); break;
-            case type::newscroll: create(hndl::type::scroll, "\tnew scroll handle "); break;
+            case type::newscroll: create(hndl::type::altbuf, "\tnew altbuf handle "); break;
             default: if (packet.input.rights & GENERIC_READ) create(hndl::type::events, "\tdup (GENERIC_READ) events handle ");
                      else                                    create(hndl::type::scroll, "\tdup (GENERIC_WRITE) scroll handle ");
         }
@@ -1386,6 +1472,8 @@ struct consrv
         auto iter = std::find_if(client.tokens.begin(), client.tokens.end(), [&](auto& token){ return handle_ptr == &token; });
         if (iter != client.tokens.end())
         {
+            auto a = handle_ptr->link;
+            if (uiterm.target == a) uiterm.reset_to_normal(*uiterm.target);
             log("\tdeactivate handle 0x", utf::to_hex(handle_ptr));
             events.abort(handle_ptr);
             client.tokens.erase(iter);
@@ -1474,7 +1562,7 @@ struct consrv
             return;
         }
         auto& handle = *handle_ptr;
-        if (handle.kind == hndl::type::scroll)
+        if (handle.kind != hndl::type::events)
         {
             auto cur_mode = handle.mode       & nt::console::outmode::no_auto_cr;
             auto new_mode = packet.input.mode & nt::console::outmode::no_auto_cr;
@@ -1698,7 +1786,6 @@ struct consrv
             answer.status = nt::status::invalid_handle;
             return;
         }
-        //todo implement scrollback buffer selection
         auto& scroll_handle = *scroll_handle_ptr;
 
         if (auto datasize = size_check(packet.packsz,  answer.readoffset()))
@@ -1718,7 +1805,12 @@ struct consrv
 
             if (auto crop = ansi::purify(scroll_handle.rest))
             {
-                uiterm.ondata(crop);
+                auto active = scroll_handle.link == &uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
+                if (!direct(scroll_handle_ptr, [&](auto& scrollback) { active ? uiterm.ondata(crop)
+                                                                              : uiterm.ondata(crop, &scrollback);; }))
+                {
+                    datasize = 0;
+                }
                 log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", utf::debase<faux, faux>(crop));
                 scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
             }
@@ -1788,7 +1880,10 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        uiterm.target->brush = attr_to_brush(packet.input.color);
+        if (!direct(packet.target, [&](auto& scrollback) { scrollback.brush = attr_to_brush(packet.input.color); }))
+        {
+            log("\tunexpected result");
+        }
         log("\tset default attributes: ", uiterm.target->brush);
     }
     auto api_scrollback_fill                 ()
@@ -1833,7 +1928,10 @@ struct consrv
             if ((si32)count > maxsz) count = std::max(0, maxsz);
             filler.kill();
             filler.crop(count, c);
-            uiterm.direct(count, filler.pick(), cell::shaders::meta);
+            if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
+            {
+                count = 0;
+            }
         }
         else
         {
@@ -1860,7 +1958,10 @@ struct consrv
                     if ((si32)count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.crop(count / w, c);
-                    uiterm.direct(count, filler.pick(), cell::shaders::text);
+                    if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
+                    {
+                        count = 0;
+                    }
                 }
             }
         }
@@ -1889,6 +1990,7 @@ struct consrv
     }
     auto api_scrollback_read_block           ()
     {
+        log(prompt, "ReadConsoleOutput");
         struct payload : drvpacket<payload>
         {
             union
@@ -1908,7 +2010,13 @@ struct consrv
             };
         };
         auto& packet = payload::cast(upload);
-        auto& window = *(uiterm.target);
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr)
+        {
+            packet.reply = {};
+            return;
+        }
+        auto& window = *window_ptr;
         auto view = rect{{ packet.input.rectL, packet.input.rectT },
                          { std::max(0, packet.input.rectR - packet.input.rectL + 1),
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
@@ -1962,10 +2070,9 @@ struct consrv
         packet.reply.rectT = crop.coor.y;
         packet.reply.rectR = crop.coor.x + crop.size.x - 1;
         packet.reply.rectB = crop.coor.y + crop.size.y - 1;
-        log(prompt, "ReadConsoleOutput",
-            "\n\tpanel size ", window.panel,
-            "\n\tinput.rect ", view,
-            "\n\treply.rect ", crop);
+        log("\tpanel size ", window.panel,
+          "\n\tinput.rect ", view,
+          "\n\treply.rect ", crop);
     }
     auto api_scrollback_set_active           ()
     {
@@ -1973,7 +2080,11 @@ struct consrv
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
-
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr) return;
+        log("\tset active buffer 0x", utf::to_hex(packet.target));
+        auto& console = *window_ptr;
+        uiterm.reset_to_altbuf(console);
     }
     auto api_scrollback_cursor_coor_set      ()
     {
@@ -1989,7 +2100,10 @@ struct consrv
         log(prompt, "SetConsoleCursorPosition ");
         auto caretpos = twod{ packet.input.coorx, packet.input.coory };
         log("\tinput.cursor_coor ", caretpos);
-        uiterm.target->cup(caretpos + dot_11);
+        if (auto console_ptr = select_buffer(packet.target))
+        {
+            console_ptr->cup(caretpos + dot_11);
+        }
     }
     auto api_scrollback_cursor_info_get      ()
     {
@@ -2022,12 +2136,16 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        uiterm.cursor.style(packet.input.style > 50);
-        packet.input.alive ? uiterm.cursor.show()
-                           : uiterm.cursor.hide();
         log(prompt, "SetConsoleCursorInfo",
             "\n\tinput.style = ", packet.input.style,
             "\n\tinput.alive = ", packet.input.alive ? "true" : "faux");
+        if (packet.target && packet.target->link == &uiterm.target)
+        {
+            uiterm.cursor.style(packet.input.style > 50);
+            packet.input.alive ? uiterm.cursor.show()
+                               : uiterm.cursor.hide();
+        }
+        else log("\taborted: inactive buffer 0x", utf::to_hex(packet.target));
     }
     auto api_scrollback_info_get             ()
     {
@@ -2049,8 +2167,11 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto viewport = uiterm.target->panel;
-        auto caretpos = uiterm.target->coord;
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr) return;
+        auto& console = *window_ptr;
+        auto viewport = console.panel;
+        auto caretpos = console.coord;
         packet.reply.cursorposx = caretpos.x;
         packet.reply.cursorposy = caretpos.y;
         packet.reply.buffersz_x = viewport.x;
@@ -2064,7 +2185,7 @@ struct consrv
         packet.reply.fullscreen = faux;
         packet.reply.popupcolor = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
         auto& rgbpalette = packet.reply.rgbpalette;
-        auto mark = uiterm.target->brush;
+        auto mark = console.brush;
         auto frgb = mark.fgc().token;
         auto brgb = mark.bgc().token;
         auto head = std::begin(uiterm.ctrack.color);
@@ -2112,9 +2233,15 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr) return;
+        auto& console = *window_ptr;
         auto caretpos = twod{ packet.input.cursorposx, packet.input.cursorposy };
-        uiterm.target->cup(caretpos + dot_11);
-        log("\tbuffer size ", twod{ packet.input.buffersz_x, packet.input.buffersz_y });
+        auto buffsize = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
+        console.cup(caretpos + dot_11);
+        console.brush.meta(attr_to_brush(packet.input.attributes));
+        if (&console != uiterm.target) console.resize_viewport(buffsize);
+        log("\tbuffer size ", buffsize);
         log("\tcursor coor ", twod{ packet.input.cursorposx, packet.input.cursorposy });
         log("\twindow coor ", twod{ packet.input.windowposx, packet.input.windowposy });
         log("\tattributes x", utf::to_hex(packet.input.attributes));
@@ -2128,12 +2255,18 @@ struct consrv
         {
             log("\t\t", utf::to_hex(i), " ", rgba{ c });
         }
-        //todo set palette
-        //todo set attributes
-
+        //todo set palette per buffer
+        auto& rgbpalette = packet.input.rgbpalette;
+        auto head = std::begin(uiterm.ctrack.color);
+        for (auto i = 0; i < 16; i++)
+        {
+            auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
+            *head++ = rgbpalette[m];
+        }
     }
     auto api_scrollback_size_set             ()
     {
+        log(prompt, "SetConsoleScreenBufferSize");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2143,15 +2276,22 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr) return;
+        auto& console = *window_ptr;
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
-        auto viewport = uiterm.target->panel;
+        log("\tinput.size ", size);
+        if (packet.target->link != &uiterm.target)
+        {
+            console.resize_viewport(size);
+        }
+        auto viewport = console.panel;
         packet.input.buffersz_x = viewport.x;
         packet.input.buffersz_y = viewport.y;
-        log(prompt, "SetConsoleScreenBufferSize",
-            "\n\tinput.size ", size);
     }
     auto api_scrollback_viewport_get_max_size()
     {
+        log(prompt, "GetLargestConsoleWindowSize");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2161,14 +2301,17 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto viewport = uiterm.target->panel;
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr) return;
+        auto& console = *window_ptr;
+        auto viewport = console.panel;
         packet.reply.maxwinsz_x = viewport.x;
         packet.reply.maxwinsz_y = viewport.y;
-        log(prompt, "GetLargestConsoleWindowSize",
-            "\n\tmaxwin size ", viewport);
+        log("\treply.maxwin size ", viewport);
     }
     auto api_scrollback_viewport_set         ()
     {
+        log(prompt, "SetConsoleWindowInfo");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2182,10 +2325,12 @@ struct consrv
         auto area = rect{{ packet.input.rectL, packet.input.rectT },
                          { std::max(0, packet.input.rectR - packet.input.rectL + 1),
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
-        log(prompt, "SetConsoleWindowInfo",
-            "\n\tinput.area ", area,
-            "\n\tinput.isabsolute ", packet.input.isabsolute ? "true" : "faux");
-        auto viewport = uiterm.target->panel;
+        log("\tinput.area ", area,
+          "\n\tinput.isabsolute ", packet.input.isabsolute ? "true" : "faux");
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr) return;
+        auto& console = *window_ptr;
+        auto viewport = console.panel;
         packet.input.rectL = 0;
         packet.input.rectT = 0;
         packet.input.rectR = viewport.y - 1;
