@@ -1208,7 +1208,7 @@ namespace netxs::ui
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
-                cup(dot_11);
+                cup0(dot_00);
             }
             // bufferbase: Set cursor position.
     virtual void set_coord(twod const& new_coord)
@@ -1797,23 +1797,27 @@ namespace netxs::ui
             {
                 parser::flush_data();
                 --n;
-                if (decom)
-                {
-                    coord.y = std::clamp(n + y_top, y_top, y_end);
-                }
-                else coord.y = std::clamp(n, 0, panel.y - 1);
+                if (decom) coord.y = std::clamp(n + y_top, y_top, y_end);
+                else       coord.y = std::clamp(n, 0, panel.y - 1);
+            }
+            // bufferbase: Set caret position (0-based).
+            void _cup(twod p)
+            {
+                coord.x = std::clamp(p.x, 0, panel.x - 1);
+                if (decom) coord.y = std::clamp(p.y + y_top, y_top, y_end);
+                else       coord.y = std::clamp(p.y, 0, panel.y - 1);
             }
             // bufferbase: CSI y; x H/F  Caret position (1-based).
     virtual void cup(twod p)
             {
                 parser::flush_data();
-                p -= dot_11;
-                coord.x = std::clamp(p.x, 0, panel.x - 1);
-                if (decom)
-                {
-                    coord.y = std::clamp(p.y + y_top, y_top, y_end);
-                }
-                else coord.y  = std::clamp(p.y, 0, panel.y - 1);
+                _cup(p - dot_11);
+            }
+            // bufferbase: Caret position (0-based).
+    virtual void cup0(twod p)
+            {
+                parser::flush_data();
+                _cup(p);
             }
             // bufferbase: CSI y; x H/F  Caret position (1-based).
     virtual void cup(fifo& queue)
@@ -2172,7 +2176,7 @@ namespace netxs::ui
                 canvas.splice(coord, n, blank);
             }
             // alt_screen: Proceed new text using specified cell shader.
-            template<class Span, class Shader>
+            template<bool Copy = faux, class Span, class Shader>
             void _data(si32 count, Span const& proto, Shader fuse)
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
@@ -2183,7 +2187,7 @@ namespace netxs::ui
                 if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                 {
                     auto n = std::min(count, panel.x - std::max(0, saved.x));
-                    canvas.splice(saved, n, proto, fuse);
+                    canvas.splice<Copy>(saved, n, proto, fuse);
                 }
                 else
                 {
@@ -2195,13 +2199,13 @@ namespace netxs::ui
                             auto n = coord.x + (coord.y - y_top) * panel.x;
                             count -= n;
                             set_coord({ 0, y_top });
-                            _data(n, proto, fuse); // Reversed fill using the last part of the proto.
+                            _data<Copy>(n, proto, fuse); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
                         auto seek = saved.x + saved.y * panel.x;
                         auto dest = canvas.iter() + seek;
                         auto tail = dest + count;
-                        rich::forward_fill_proc(data, dest, tail, fuse);
+                        rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                     }
                     else if (saved.y <= y_end)
                     {
@@ -2219,7 +2223,7 @@ namespace netxs::ui
                         auto dest = canvas.iter() + seek;
                         auto tail = dest - count;
                         auto data = proto.end();
-                        rich::reverse_fill_proc(data, dest, tail, fuse);
+                        rich::reverse_fill_proc<Copy>(data, dest, tail, fuse);
                     }
                     else
                     {
@@ -2231,7 +2235,7 @@ namespace netxs::ui
                         auto dest = canvas.iter() + seek;
                         auto tail = canvas.iend();
                         auto back = panel.x;
-                        rich::unlimit_fill_proc(data, size, dest, tail, back, fuse);
+                        rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, fuse);
                     }
                 }
             }
@@ -3531,6 +3535,7 @@ namespace netxs::ui
 
             void cup (fifo& q) override { bufferbase::cup (q); sync_coord<faux>(); }
             void cup (twod  p) override { bufferbase::cup (p); sync_coord<faux>(); }
+            void cup0(twod  p) override { bufferbase::cup0(p); sync_coord<faux>(); }
             void cuf (si32  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
             void cub (si32  n) override { bufferbase::cub (n); sync_coord<faux>(); }
             void chx (si32  n) override { bufferbase::chx (n); sync_coord<faux>(); }
@@ -4107,13 +4112,13 @@ namespace netxs::ui
                 {
                     auto& line = *++iter;
                     //todo respect line alignment
-                    if (line.wrapped()) curln.splice(coor, line);
-                    else                curln.splice(coor, line.substr(0, panel.x));
+                    if (line.wrapped()) curln.splice(coor, line                   , cell::shaders::full);
+                    else                curln.splice(coor, line.substr(0, panel.x), cell::shaders::full);
                     coor += line.height(panel.x) * panel.x;
                 }
             }
             // scroll_buf: Proceed new text using specified cell shader.
-            template<class Span, class Shader>
+            template<bool Copy = faux, class Span, class Shader>
             void _data(si32 count, Span const& proto, Shader fuse)
             {
                 static constexpr auto mixer = !std::is_same_v<Shader, decltype(cell::shaders::full)>;
@@ -4130,7 +4135,7 @@ namespace netxs::ui
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, saved.x));
-                        upbox.splice(saved, n, proto, fuse);
+                        upbox.splice<Copy>(saved, n, proto, fuse);
                     }
                     else
                     {
@@ -4140,13 +4145,13 @@ namespace netxs::ui
                             auto n = coord.x + (coord.y - y_top) * panel.x;
                             count -= n;
                             set_coord(twod{ 0, y_top });
-                            _data(n, proto, fuse); // Reversed fill using the last part of the proto.
+                            _data<Copy>(n, proto, fuse); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
                         auto seek = saved.x + saved.y * panel.x;
                         auto dest = upbox.iter() + seek;
                         auto tail = dest + count;
-                        rich::forward_fill_proc(data, dest, tail, fuse);
+                        rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                     }
                     // Note: coord can be unsync due to scroll regions.
                 }
@@ -4159,7 +4164,7 @@ namespace netxs::ui
                     coord.x     += count;
                     if (batch.caret <= panel.x || !curln.wrapped()) // case 0.
                     {
-                        curln.splice(start, count, proto, fuse);
+                        curln.splice<Copy>(start, count, proto, fuse);
                         auto& mapln = index[coord.y];
                         assert(coord.x % panel.x == batch.caret % panel.x && mapln.index == curln.index);
                         if (coord.x > mapln.width)
@@ -4620,7 +4625,7 @@ namespace netxs::ui
                     auto endit = batch.end();
 
                     auto& newln = *curit;
-                    newln.splice(0, tmpln.substr(start));
+                    newln.splice(0, tmpln.substr(start), cell::shaders::full);
                     batch.undock_base_back(tmpln);
                     batch.invite(newln);
 
@@ -6131,7 +6136,7 @@ namespace netxs::ui
                     break;
                 case 6:    // Enable origin mode (DECOM).
                     target->decom = true;
-                    target->cup(dot_11);
+                    target->cup0(dot_00);
                     break;
                 case 7:    // Enable auto-wrap.
                     target->style.wrp(wrap::on);
@@ -6237,7 +6242,7 @@ namespace netxs::ui
                     break;
                 case 6:    // Disable origin mode (DECOM).
                     target->decom = faux;
-                    target->cup(dot_11);
+                    target->cup0(dot_00);
                     break;
                 case 7:    // Disable auto-wrap.
                     target->style.wrp(wrap::off);

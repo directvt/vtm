@@ -1221,6 +1221,32 @@ struct consrv
         return result;
     }
 
+    template<class S, class P>
+    auto write_block(S& scrollback, core const& block, twod coor, rect clip, P fuse)
+    {
+        auto size = block.size();
+        auto view = block.view();
+        auto dest = rect{ coor, view.size };
+        clip = dest.clip(clip);
+        view -= dest - clip;
+        coor = clip.coor;
+        auto head = block.iter() + view.coor.y * size.x;
+        auto tail = head + view.size.y * size.x;
+        auto rest = size.x - (view.coor.x + view.size.x);
+        auto save = scrollback.coord;
+        assert(rest >= 0);
+        while (head != tail)
+        {
+            head += view.coor.x;
+            auto next = head + view.size.x;
+            auto line = std::span(head, next);
+            scrollback.cup0(coor);
+            scrollback._data<true>(view.size.x, line, fuse);
+            head = next + rest;
+            coor.y++;
+        }
+        scrollback.cup0(save);
+    }
     auto api_unsupported                     ()
     {
         log(prompt, "unsupported consrv request code ", upload.fxtype);
@@ -1893,23 +1919,7 @@ struct consrv
             });
             auto success = direct(packet.target, [&](auto& scrollback)
             {
-                auto& data = dest.pick();
-                auto  head = data.begin() + crop.coor.y * window.panel.x;
-                auto  tail = head + crop.size.y * window.panel.x;
-                auto  rest = window.panel.x - (crop.coor.x + crop.size.x);
-                auto  save = scrollback.coord + dot_11;
-                assert(rest >= 0);
-                while (head != tail)
-                {
-                    head += crop.coor.x;
-                    auto next = head + crop.size.x;
-                    auto line = std::span(head, next);
-                    scrollback.cup(coor);
-                    scrollback._data(crop.size.x, line, cell::shaders::full);
-                    head = next + rest;
-                    coor.y++;
-                }
-                scrollback.cup(save);
+                write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full);
             });
             if (!success) crop = {};
         }
@@ -1980,7 +1990,7 @@ struct consrv
             log("\tfill using attributes: ", c);
             if ((si32)count > maxsz) count = std::max(0, maxsz);
             filler.kill();
-            filler.crop(count, c);
+            filler.size(count, c);
             if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
             {
                 count = 0;
@@ -2010,7 +2020,7 @@ struct consrv
                 {
                     if ((si32)count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
-                    filler.crop(count / w, c);
+                    filler.size(count / w, c);
                     if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
                     {
                         count = 0;
@@ -2078,14 +2088,15 @@ struct consrv
         auto crop = rect{};
         if (!recs.empty())
         {
+            auto mark = cell{};
+            auto attr = brush_to_attr(mark);
             mirror.size(window.panel);
             mirror.view(view);
+            mirror.fill(mark);
             window.do_viewport_copy(mirror);
             crop = mirror.view();
             auto& copy = (rich&)mirror;
             auto  dest = netxs::raster(recs, view);
-            auto  attr = ui16{};
-            auto  mark = cell{};
             if (packet.input.utf16)
             {
                 netxs::onbody(dest, copy, [&](auto& dst, auto& src)
@@ -2412,12 +2423,19 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr)
+        {
+            return;
+        }
+        auto& window = *window_ptr;
         auto scrl = rect{{ packet.input.scrlL, packet.input.scrlT },
                          { std::max(0, packet.input.scrlR - packet.input.scrlL + 1),
                            std::max(0, packet.input.scrlB - packet.input.scrlT + 1) }};
-        auto clip = rect{{ packet.input.clipL, packet.input.clipT },
-                         { std::max(0, packet.input.clipR - packet.input.clipL + 1),
-                           std::max(0, packet.input.clipB - packet.input.clipT + 1) }};
+        auto clip = !packet.input.trunc ? rect{ dot_00, window.panel }
+                                        : rect{{ packet.input.clipL, packet.input.clipT },
+                                               { std::max(0, packet.input.clipR - packet.input.clipL + 1),
+                                                 std::max(0, packet.input.clipB - packet.input.clipT + 1) }};
         auto dest = twod{ packet.input.destx, packet.input.desty };
         auto mark = attr_to_brush(packet.input.color).txt(utf::to_utf(packet.input.wchar));
         log("\tinput.scrl.rect ", scrl,
@@ -2426,7 +2444,21 @@ struct consrv
           "\n\tinput.trunc ", packet.input.trunc ? "true" : "faux",
           "\n\tinput.utf16 ", packet.input.utf16 ? "true" : "faux",
           "\n\tinput.brush ", mark);
-          
+        scrl = scrl.trunc(window.panel);
+        clip = clip.trunc(window.panel);
+        mirror.size(window.panel);
+        mirror.view(scrl);
+        mirror.fill(cell{});
+        window.do_viewport_copy(mirror);
+        mirror.view(scrl);
+        filler.kill();
+        filler.mark(mark);
+        filler.size(scrl.size);
+        auto success = direct(packet.target, [&](auto& scrollback)
+        {
+            write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
+            write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
+        });
     }
     auto api_scrollback_selection_info_get   ()
     {

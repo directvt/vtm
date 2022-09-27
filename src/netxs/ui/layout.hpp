@@ -1960,6 +1960,16 @@ namespace netxs::ui::atoms
                          { std::max(0, area.size.x - (pad.west.step + pad.east.step)),
                            std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
         }
+        // dent: Return area with padding.
+        friend auto operator += (rect& area, dent const& pad)
+        {
+            return area = area + pad;
+        }
+        // dent: Return area without padding.
+        friend auto operator -= (rect& area, dent const& pad)
+        {
+            return area = area - pad;
+        }
         // dent: Return summ of two paddings.
         friend auto operator + (dent const& pad1, dent const& pad2)
         {
@@ -2144,6 +2154,14 @@ namespace netxs::ui::atoms
                 canvas.assign(region.size.x * region.size.y, marker);
             }
         }
+        void size(si32 newsizex, cell const& c) // core: Change the size of the face.
+        {
+            region.size.x = newsizex;
+            region.size.y = 1;
+            client.size = region.size;
+            canvas.assign(newsizex, c);
+            digest++;
+        }
         void crop(si32 newsizex, cell const& c = {}) // core: Resize while saving the textline.
         {
             region.size.x = newsizex;
@@ -2270,6 +2288,10 @@ namespace netxs::ui::atoms
         void fill(P fuse) // core: Fill the client area using lambda.
         {
             fill(view(), fuse);
+        }
+        void fill(cell c) // core: Fill the client area using brush.
+        {
+            fill(view(), cell::shaders::full(c));
         }
         void grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient.
         {

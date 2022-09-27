@@ -555,7 +555,8 @@ namespace netxs::console
             auto end = dst + count;
             while (dst != end) *dst++ = blank;
         }
-        void splice(si32 at, shot const& fragment)
+        template<class Span, class Shader>
+        void splice(si32 at, Span const& fragment, Shader fuse)
         {
             auto len = fragment.length();
             resize(len + at);
@@ -563,11 +564,17 @@ namespace netxs::console
             auto dst = ptr + at;
             auto end = dst + len;
             auto src = fragment.data();
-            while (dst != end) *dst++ = *src++;
+            while (dst != end) fuse(*dst++, *src++);
         }
-        template<class SRC_IT, class DST_IT, class Shader>
+        template<bool Copy = faux, class SRC_IT, class DST_IT, class Shader>
         static void forward_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail, Shader fuse)
         {
+            if constexpr (Copy)
+            {
+                while (dest != tail) fuse(*dest++, *data++);
+                return;
+            }
+
             //  + evaluate TAB etc
             //  + bidi
             //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
@@ -615,9 +622,15 @@ namespace netxs::console
                 else if (w >  2) fuse(*dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
             }
         }
-        template<class SRC_IT, class DST_IT, class Shader>
+        template<bool Copy = faux, class SRC_IT, class DST_IT, class Shader>
         static void unlimit_fill_proc(SRC_IT data, si32 size, DST_IT dest, DST_IT tail, si32 back, Shader fuse)
         {
+            if constexpr (Copy)
+            {
+                while (size-- > 0) fuse(*dest++, *data++);
+                return;
+            }
+
             //  + evaluate TAB etc
             //  + bidi
             //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
@@ -662,9 +675,15 @@ namespace netxs::console
                 }
             }
         }
-        template<class SRC_IT, class DST_IT, class Shader>
+        template<bool Copy = faux, class SRC_IT, class DST_IT, class Shader>
         static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail, Shader fuse)
         {
+            if constexpr (Copy)
+            {
+                while (dest != tail) fuse(*--dest, *--data);
+                return;
+            }
+
             //  + evaluate TAB etc
             //  + bidi
             //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
@@ -713,7 +732,7 @@ namespace netxs::console
             }
         }
         // rich: Splice proto with auto grow.
-        template<class Span, class Shader>
+        template<bool Copy = faux, class Span, class Shader>
         void splice(si32 at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
@@ -721,16 +740,16 @@ namespace netxs::console
             auto end = iter() + at;
             auto dst = end + count;
             auto src = proto.end();
-            reverse_fill_proc(src, dst, end, fuse);
+            reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
-        template<class Span, class Shader>
+        template<bool Copy = faux, class Span, class Shader>
         void splice(twod at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
             auto end = iter() + at.x + at.y * size().x;
             auto dst = end + count;
             auto src = proto.end();
-            reverse_fill_proc(src, dst, end, fuse);
+            reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
         void scroll(si32 top, si32 end, si32 gap, cell const& clr)
