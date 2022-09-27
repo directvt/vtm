@@ -713,8 +713,8 @@ namespace netxs::console
             }
         }
         // rich: Splice proto with auto grow.
-        template<class Shader>
-        void splice(si32 at, si32 count, grid const& proto, Shader fuse)
+        template<class Span, class Shader>
+        void splice(si32 at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
             resize(at + count);
@@ -723,8 +723,8 @@ namespace netxs::console
             auto src = proto.end();
             reverse_fill_proc(src, dst, end, fuse);
         }
-        template<class Shader>
-        void splice(twod at, si32 count, grid const& proto, Shader fuse)
+        template<class Span, class Shader>
+        void splice(twod at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
             auto end = iter() + at.x + at.y * size().x;

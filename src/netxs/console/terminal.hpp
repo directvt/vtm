@@ -2172,8 +2172,8 @@ namespace netxs::ui
                 canvas.splice(coord, n, blank);
             }
             // alt_screen: Proceed new text using specified cell shader.
-            template<class Shader>
-            void _data(si32 count, grid const& proto, Shader fuse)
+            template<class Span, class Shader>
+            void _data(si32 count, Span const& proto, Shader fuse)
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
@@ -2195,7 +2195,7 @@ namespace netxs::ui
                             auto n = coord.x + (coord.y - y_top) * panel.x;
                             count -= n;
                             set_coord({ 0, y_top });
-                            data(n, proto); // Reversed fill using the last part of the proto.
+                            _data(n, proto, fuse); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
                         auto seek = saved.x + saved.y * panel.x;
@@ -4113,8 +4113,8 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Proceed new text using specified cell shader.
-            template<class Shader>
-            void _data(si32 count, grid const& proto, Shader fuse)
+            template<class Span, class Shader>
+            void _data(si32 count, Span const& proto, Shader fuse)
             {
                 static constexpr auto mixer = !std::is_same_v<Shader, decltype(cell::shaders::full)>;
 

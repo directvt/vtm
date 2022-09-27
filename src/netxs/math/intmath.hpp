@@ -542,9 +542,12 @@ namespace netxs
     {
         T    _data;
         Rect _area;
-        auto  data() { return _data.begin(); }
-        auto& size() { return _area.size;    }
-        auto& area() { return _area;         }
+        auto  data()       { return _data.begin(); }
+        auto& size()       { return _area.size;    }
+        auto& area()       { return _area;         }
+        auto  data() const { return _data.begin(); }
+        auto& size() const { return _area.size;    }
+        auto& area() const { return _area;         }
         raster(T data, Rect area)
             : _data{ data },
               _area{ area }

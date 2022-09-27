@@ -1217,7 +1217,7 @@ struct consrv
                 }
             }
         }
-        if (!result) log("\tinvalid handle 0x", utf::to_hex(handle_ptr));
+        if (!result) { log("\tinvalid handle 0x", utf::to_hex(handle_ptr)); }
         return result;
     }
 
@@ -1867,7 +1867,59 @@ struct consrv
             };
         };
         auto& packet = payload::cast(upload);
-
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr)
+        {
+            packet.reply = {};
+            return;
+        }
+        auto& window = *window_ptr;
+        auto view = rect{{ packet.input.rectL, packet.input.rectT },
+                         { std::max(0, packet.input.rectR - packet.input.rectL + 1),
+                           std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
+        auto recs = take_buffer<CHAR_INFO, feed::fwd>(packet);
+        auto crop = view.trunc(window.panel);
+        auto coor = crop.coor + dot_11;
+        mirror.size(window.panel);
+        mirror.view(crop);
+        if (!recs.empty() && crop)
+        {
+            auto& dest = (rich&)mirror;
+            auto  copy = netxs::raster(recs, view);
+            netxs::onbody(dest, copy, [&](auto& dst, auto& src)
+            {
+                dst.meta(attr_to_brush(src.Attributes));
+                dst.txt(utf::to_utf(src.Char.UnicodeChar));
+            });
+            auto success = direct(packet.target, [&](auto& scrollback)
+            {
+                auto& data = dest.pick();
+                auto  head = data.begin() + crop.coor.y * window.panel.x;
+                auto  tail = head + crop.size.y * window.panel.x;
+                auto  rest = window.panel.x - (crop.coor.x + crop.size.x);
+                auto  save = scrollback.coord + dot_11;
+                assert(rest >= 0);
+                while (head != tail)
+                {
+                    head += crop.coor.x;
+                    auto next = head + crop.size.x;
+                    auto line = std::span(head, next);
+                    scrollback.cup(coor);
+                    scrollback._data(crop.size.x, line, cell::shaders::full);
+                    head = next + rest;
+                    coor.y++;
+                }
+                scrollback.cup(save);
+            });
+            if (!success) crop = {};
+        }
+        packet.reply.rectL = crop.coor.x;
+        packet.reply.rectT = crop.coor.y;
+        packet.reply.rectR = crop.coor.x + crop.size.x - 1;
+        packet.reply.rectB = crop.coor.y + crop.size.y - 1;
+        log("\tinput.utf16: ", packet.input.utf16 ? "true" : "faux",
+          "\n\tinput.rect: ", view,
+          "\n\treply.rect: ", crop);
     }
     auto api_scrollback_attribute_set        ()
     {
@@ -2360,7 +2412,21 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        auto scrl = rect{{ packet.input.scrlL, packet.input.scrlT },
+                         { std::max(0, packet.input.scrlR - packet.input.scrlL + 1),
+                           std::max(0, packet.input.scrlB - packet.input.scrlT + 1) }};
+        auto clip = rect{{ packet.input.clipL, packet.input.clipT },
+                         { std::max(0, packet.input.clipR - packet.input.clipL + 1),
+                           std::max(0, packet.input.clipB - packet.input.clipT + 1) }};
+        auto dest = twod{ packet.input.destx, packet.input.desty };
+        auto mark = attr_to_brush(packet.input.color).txt(utf::to_utf(packet.input.wchar));
+        log("\tinput.scrl.rect ", scrl,
+          "\n\tinput.clip.rect ", clip,
+          "\n\tinput.dest.coor ", dest,
+          "\n\tinput.trunc ", packet.input.trunc ? "true" : "faux",
+          "\n\tinput.utf16 ", packet.input.utf16 ? "true" : "faux",
+          "\n\tinput.brush ", mark);
+          
     }
     auto api_scrollback_selection_info_get   ()
     {
