@@ -1984,8 +1984,8 @@ struct consrv
         if (packet.input.etype == type::attribute)
         {
             log(prompt, "FillConsoleOutputAttribute",
-                        "\tcoord ", coord,
-                        "\tcount ", count);
+                        "\n\tcoord ", coord,
+                        "\n\tcount ", count);
             auto c = attr_to_brush(piece);
             log("\tfill using attributes: ", c);
             if ((si32)count > maxsz) count = std::max(0, maxsz);
@@ -1999,9 +1999,9 @@ struct consrv
         else
         {
             log(prompt, "FillConsoleOutputCharacter",
-                        "\tcoord ", coord,
-                        "\tcount ", count,
-                        "\tvalue ", piece);
+                        "\n\tcoord ", coord,
+                        "\n\tcount ", count,
+                        "\n\twchar ", piece);
 
             if (piece <  ' ' || piece == 0x7F) piece = ' ';
             if (piece == ' ' && (si32)count > maxsz)
@@ -2429,6 +2429,14 @@ struct consrv
             return;
         }
         auto& window = *window_ptr;
+        if (packet.input.destx == 0 && packet.input.desty ==-window.panel.y
+         && packet.input.scrlL == 0 && packet.input.scrlR == window.panel.x
+         && packet.input.scrlT == 0 && packet.input.scrlB == window.panel.y)
+        {
+            log("\timplicit screen clearing detected");
+            window.clear_all();
+            return;
+        }
         auto scrl = rect{{ packet.input.scrlL, packet.input.scrlT },
                          { std::max(0, packet.input.scrlR - packet.input.scrlL + 1),
                            std::max(0, packet.input.scrlB - packet.input.scrlT + 1) }};
