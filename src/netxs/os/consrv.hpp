@@ -2272,7 +2272,7 @@ struct consrv
             if (c == frgb) fgcx = m;
             if (c == brgb) bgcx = m + 1;
         }
-        if (!bgcx--) // Reset background if true colors are used.
+        if (brgb && !bgcx--) // Reset background if true colors are used.
         {
             bgcx = 0;
             uiterm.ctrack.color[bgcx] = brgb;
