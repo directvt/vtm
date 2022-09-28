@@ -1835,7 +1835,7 @@ struct consrv
             {
                 auto active = scroll_handle.link == &uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
                 if (!direct(scroll_handle_ptr, [&](auto& scrollback) { active ? uiterm.ondata(crop)
-                                                                              : uiterm.ondata(crop, &scrollback);; }))
+                                                                              : uiterm.ondata(crop, &scrollback); }))
                 {
                     datasize = 0;
                 }
@@ -1869,8 +1869,71 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        log(prompt, packet.input.etype == type::attribute ? "WriteConsoleOutputAttribute"
-                                                          : "WriteConsoleOutputCharacter");
+        auto& screen = *uiterm.target;
+        auto coord = std::clamp(twod{ packet.input.coorx, packet.input.coory }, dot_00, screen.panel - dot_11);
+        auto maxsz = static_cast<ui32>(screen.panel.x * (screen.panel.y - coord.y) - coord.x);
+        auto saved = screen.coord;
+        auto count = ui32{};
+        screen.cup0(coord);
+        if (packet.input.etype == type::attribute)
+        {
+            auto recs = take_buffer<ui16, feed::fwd>(packet);
+            count = static_cast<ui32>(recs.size());
+            if (count > maxsz) count = maxsz;
+            log(prompt, "WriteConsoleOutputAttribute",
+                        "\n\tinput.coord ", coord,
+                        "\n\tinput.count ", count);
+            filler.size(count, cell{});
+            auto iter = filler.iter();
+            for (auto& attr : recs)
+            {
+                *iter++ = attr_to_brush(attr);
+            }
+            auto success = direct(packet.target, [&](auto& scrollback)
+            {
+                scrollback._data(count, filler.pick(), cell::shaders::meta);
+            });
+            if (!success)
+            {
+                count = 0;
+            }
+        }
+        else
+        {
+            log(prompt, "WriteConsoleOutputCharacter",
+                        "\n\tinput.coord ", coord);
+            if (packet.input.etype == type::trueUTF_8)
+            {
+                log("\tinput.type utf-8");
+                auto recs = take_buffer<char, feed::fwd>(packet);
+                celler = buffer;
+            }
+            else
+            {
+                log("\tinput.type utf-16");
+                auto recs = take_buffer<wchr, feed::fwd>(packet);
+                toUTF8.clear();
+                utf::to_utf(recs, toUTF8);
+                celler = toUTF8;
+            }
+            auto success = direct(packet.target, [&](auto& scrollback)
+            {
+                auto& line = celler.content();
+                count = line.length();
+                if (count > maxsz)
+                {
+                    count = maxsz;
+                    line.crop(maxsz);
+                }
+                scrollback._data<true>(count, line.pick(), cell::shaders::text);
+            });
+            if (!success)
+            {
+                count = 0;
+            }
+        }
+        screen.cup0(saved);
+        packet.reply.count = count;
     }
     auto api_scrollback_write_block          ()
     {
@@ -1906,7 +1969,6 @@ struct consrv
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
         auto recs = take_buffer<CHAR_INFO, feed::fwd>(packet);
         auto crop = view.trunc(window.panel);
-        auto coor = crop.coor + dot_11;
         mirror.size(window.panel);
         mirror.view(crop);
         if (!recs.empty() && crop)
@@ -2274,7 +2336,7 @@ struct consrv
         log("\tinput.cursor_coor ", caretpos);
         if (auto console_ptr = select_buffer(packet.target))
         {
-            console_ptr->cup(caretpos + dot_11);
+            console_ptr->cup0(caretpos);
         }
     }
     auto api_scrollback_cursor_info_get      ()
@@ -2410,7 +2472,7 @@ struct consrv
         auto& console = *window_ptr;
         auto caretpos = twod{ packet.input.cursorposx, packet.input.cursorposy };
         auto buffsize = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
-        console.cup(caretpos + dot_11);
+        console.cup0(caretpos);
         console.brush.meta(attr_to_brush(packet.input.attributes));
         if (&console != uiterm.target) console.resize_viewport(buffsize);
         log("\tbuffer size ", buffsize);
@@ -3043,6 +3105,7 @@ struct consrv
     ui32        outmod; // consrv: Scrollbuffer mode flag set.
     face        mirror; // consrv: Viewport bitmap buffer.
     bool        impcls; // consrv: Implicit scroll buffer clearing detection.
+    para        celler; // consrv: Buffer for converting raw text to cells.
 
     void start()
     {
