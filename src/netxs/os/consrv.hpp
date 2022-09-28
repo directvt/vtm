@@ -1986,14 +1986,23 @@ struct consrv
             log(prompt, "FillConsoleOutputAttribute",
                         "\n\tcoord ", coord,
                         "\n\tcount ", count);
-            auto c = attr_to_brush(piece);
-            log("\tfill using attributes: ", c);
-            if ((si32)count > maxsz) count = std::max(0, maxsz);
-            filler.kill();
-            filler.size(count, c);
-            if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
+            impcls = impcls && coord == dot_00 && count == screen.panel.x * screen.panel.y;
+            if (impcls)
             {
-                count = 0;
+                log("\timplicit screen clearing detected");
+                screen.clear_all();
+            }
+            else
+            {
+                auto c = attr_to_brush(piece);
+                log("\tfill using attributes: ", (int)c);
+                if ((si32)count > maxsz) count = std::max(0, maxsz);
+                filler.kill();
+                filler.size(count, c);
+                if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
+                {
+                    count = 0;
+                }
             }
         }
         else
@@ -2002,7 +2011,7 @@ struct consrv
                         "\n\tcoord ", coord,
                         "\n\tcount ", count,
                         "\n\twchar ", piece);
-
+            impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
             if (piece <  ' ' || piece == 0x7F) piece = ' ';
             if (piece == ' ' && (si32)count > maxsz)
             {
@@ -2936,6 +2945,7 @@ struct consrv
     ui32        inpmod; // consrv: Events mode flag set.
     ui32        outmod; // consrv: Scrollbuffer mode flag set.
     face        mirror; // consrv: Viewport bitmap buffer.
+    bool        impcls; // consrv: Implicit scroll buffer clearing detection.
 
     void start()
     {
@@ -3011,6 +3021,7 @@ struct consrv
         : uiterm{ uiterm },
           condrv{ condrv },
           events{ *this  },
+          impcls{ faux   },
           answer{        },
           prompt{ " pty: consrv: " }
     {
