@@ -2127,7 +2127,7 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                _el(n, canvas, coord, panel, brush.nul());
+                _el(n, canvas, coord, panel, brush.dry());
             }
             // alt_screen: CSI n @  ICH. Insert n blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(si32 n) override
@@ -3877,7 +3877,7 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.nul();
+                auto blank = brush.dry();
                 if (auto ctx = get_context(coord))
                 {
                     auto  start = si32{};

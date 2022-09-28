@@ -1289,6 +1289,11 @@ namespace netxs::ui::atoms
         {
             return cell{ *this }.txt('\0');
         }
+        // cell: Return dry empty cell.
+        cell dry() const
+        {
+            return cell{ '\0' }.fgc(fgc()).bgc(bgc());
+        }
         friend auto& operator << (std::ostream& s, cell const& c)
         {
             return s << "\n\tfgc " << c.fgc()
