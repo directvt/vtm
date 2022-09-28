@@ -5716,6 +5716,10 @@ namespace netxs::console
                     {
                         conio.expose.send(conio);
                     };
+                    SUBMIT_T(tier::preview, e2::form::layout::swarp, token, warp)
+                    {
+                        conio.warping.send(conio, 0, warp);
+                    };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
                         forward_event(gear);

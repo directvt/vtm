@@ -1844,6 +1844,7 @@ namespace netxs::ansi
                     }
                     else if constexpr (std::is_integral_v<D>
                                     || std::is_same_v<D, twod>
+                                    || std::is_same_v<D, dent>
                                     || std::is_same_v<D, rect>)
                     {
                         auto le_data = netxs::letoh(data);

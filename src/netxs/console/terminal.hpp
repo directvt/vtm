@@ -6816,6 +6816,9 @@ namespace netxs::ui
         // term: Resize terminal window.
         void window_resize(twod winsz)
         {
+            auto size = winsz.less(dot_11, target->panel, std::max(dot_11, winsz));
+            auto warp = rect{ dot_00, size} - rect{ dot_00, target->panel };
+            base::riseup<tier::preview>(e2::form::layout::swarp, warp);
             base::riseup<tier::preview>(e2::form::prop::window::size, winsz);
         }
         bool linux_console{};
