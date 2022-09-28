@@ -1977,11 +1977,16 @@ struct consrv
         auto& packet = payload::cast(upload);
         auto& screen = *uiterm.target;
         auto count = packet.input.count;
+        if (!count)
+        {
+            packet.reply.count = 0;
+            return;
+        }
         auto coord = std::clamp(twod{ packet.input.coorx, packet.input.coory }, dot_00, screen.panel - dot_11);
         auto piece = packet.input.piece;
         auto maxsz = screen.panel.x * (screen.panel.y - coord.y) - coord.x;
         auto saved = screen.coord;
-        screen.set_coord(coord);
+        screen.cup0(coord);
         if (packet.input.etype == type::attribute)
         {
             log(prompt, "FillConsoleOutputAttribute",
@@ -2038,7 +2043,7 @@ struct consrv
                 }
             }
         }
-        screen.set_coord(saved);
+        screen.cup0(saved);
         packet.reply.count = count;
     }
     auto api_scrollback_read_data            ()
@@ -2448,10 +2453,8 @@ struct consrv
         auto& console = *window_ptr;
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
         log("\tinput.size ", size);
-        if (packet.target->link != &uiterm.target)
-        {
-            console.resize_viewport(size);
-        }
+        if (packet.target->link != &uiterm.target) console.resize_viewport(size);
+        else                                       uiterm.window_resize(size);
         auto viewport = console.panel;
         packet.input.buffersz_x = viewport.x;
         packet.input.buffersz_y = viewport.y;
