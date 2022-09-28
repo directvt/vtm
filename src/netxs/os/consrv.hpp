@@ -781,6 +781,7 @@ struct consrv
                         auto& n = rec.Event.KeyEvent.wRepeatCount;
                         cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
                         auto contrl = cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED);
+                        if (c == 0x7f && v == 0) v = VK_BACK;
                         switch (v)
                         {
                             case VK_CONTROL:
@@ -2057,8 +2058,101 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.count = {};
         log(prompt, packet.input.etype == type::attribute ? "ReadConsoleOutputAttribute"
                                                           : "ReadConsoleOutputCharacter");
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr)
+        {
+            return;
+        }
+        auto& window = *window_ptr;
+        auto avail = size_check(packet.echosz, answer.sendoffset());
+        if (!avail)
+        {
+            return;
+        }
+        auto recsz = packet.input.etype == type::trueUTF_8 ? sizeof(char) : sizeof(ui16);
+        auto count = static_cast<si32>(avail / recsz);
+
+        auto coor = twod{ packet.input.coorx, packet.input.coory };
+        auto view = rect{{ 0, coor.y },
+                         { window.panel.x, (coor.x + count) / window.panel.y + 1 }};
+        view = view.trunc(window.panel);
+        count = std::max(0, std::min(view.size.x * view.size.y, coor.x + count) - coor.x);
+        if (!view || !count)
+        {
+            return;
+        }
+        auto start = coor.x + coor.y * window.panel.x;
+        buffer.clear();
+        auto mark = cell{};
+        auto attr = brush_to_attr(mark);
+        mirror.size(window.panel);
+        mirror.view(view);
+        mirror.fill(mark);
+        window.do_viewport_copy(mirror);
+        auto& copy = (rich&)mirror;
+        if (packet.input.etype == type::attribute)
+        {
+            log("\tinput.type attributes");
+            auto recs = wrap<ui16>::cast(buffer, count);
+            auto iter = recs.begin();
+            auto head = mirror.iter() + start;
+            auto tail = head + count;
+            while (head != tail)
+            {
+                auto& src = *head++;
+                auto& dst = *iter++;
+                if (!src.like(mark))
+                {
+                    attr = brush_to_attr(src);
+                    mark = src;
+                }
+                dst = attr;
+            }
+            answer.send_data(condrv, recs);
+        }
+        else
+        {
+            auto head = mirror.iter() + start;
+            auto tail = head + count;
+            if (packet.input.etype == type::trueUTF_8)
+            {
+                log("\tinput.type utf-8");
+                auto recs = wrap<char>::cast(buffer, count);
+                auto iter = recs.begin();
+                while (head != tail)
+                {
+                    auto& src = *head++;
+                    auto& dst = *iter++;
+                    auto acsii = src.txt();
+                    auto wdt = src.wdt();
+                    if (wdt != 3) dst = acsii.size()     ? acsii.front() : ' ';
+                    else          dst = acsii.size() > 1 ? acsii[1]      : ' ';
+                }
+                answer.send_data(condrv, recs);
+            }
+            else
+            {
+                log("\tinput.type utf-16");
+                auto recs = wrap<wchr>::cast(buffer, count);
+                auto iter = recs.begin();
+                while (head != tail)
+                {
+                    auto& src = *head++;
+                    auto& dst = *iter++;
+                    toWIDE.clear();
+                    utf::to_utf(src.txt(), toWIDE);
+                    auto wdt = src.wdt();
+                    if (wdt != 3) dst = toWIDE.size()     ? toWIDE.front() : ' ';
+                    else          dst = toWIDE.size() > 1 ? toWIDE[1]      : ' ';
+                }
+                answer.send_data(condrv, recs);
+            }
+        }
+        packet.reply.count = count;
+        log("\treply.count ", count);
     }
     auto api_scrollback_read_block           ()
     {

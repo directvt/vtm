@@ -2127,7 +2127,9 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                _el(n, canvas, coord, panel, brush.dry());
+                //todo revise
+                //_el(n, canvas, coord, panel, brush.dry());
+                _el(n, canvas, coord, panel, brush.nul());
             }
             // alt_screen: CSI n @  ICH. Insert n blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(si32 n) override
@@ -3877,7 +3879,9 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.dry();
+                //todo revise - nul() or dry()
+                //auto blank = brush.dry();
+                auto blank = brush.nul();
                 if (auto ctx = get_context(coord))
                 {
                     auto  start = si32{};
@@ -4267,7 +4271,7 @@ namespace netxs::ui
                                                                 : destln.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
 
                                 if constexpr (mixer) curln.resize(batch.caret +shadow.length());
-                                else                 curln.splice(batch.caret, shadow);
+                                else                 curln.splice(batch.caret, shadow, cell::shaders::full);
 
                                 batch.recalc(curln);
                                 auto width = curln.length();
