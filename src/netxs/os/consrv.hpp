@@ -199,6 +199,7 @@ struct consrv
         ui32 thread; // clnt: Process thread id.
         ui32 pgroup; // clnt: Process group id.
         info detail; // clnt: Process details.
+        //todo store time stamps for the history items
         memo inputs; // clnt: Input history.
         cell backup; // clnt: Text attributes to restore on detach.
         bufs alters; // clnt: Additional scrollback buffers.
@@ -2970,6 +2971,7 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.bytes = 0;
 
     }
     auto api_alias_exes_get                  ()
@@ -2989,6 +2991,7 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.bytes = 0;
 
     }
     auto api_aliases_get_volume              ()
@@ -3008,6 +3011,7 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.bytes = 0;
 
     }
     auto api_aliases_get                     ()
@@ -3027,6 +3031,7 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.bytes = 0;
 
     }
     auto api_input_history_clear             ()
@@ -3075,6 +3080,7 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.count = 0; // Requires by the "doskey /history".
 
     }
     auto api_input_history_get               ()
@@ -3094,6 +3100,7 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.bytes = 0;
 
     }
     auto api_input_history_info_get          ()
@@ -3110,6 +3117,9 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
+        packet.reply.flags = 0;
+        packet.reply.limit = 0;
+        packet.reply.count = 0;
 
     }
     auto api_input_history_info_set          ()
