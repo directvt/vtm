@@ -1421,7 +1421,25 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-
+        auto avail = size_check(packet.echosz, answer.sendoffset());
+        if (!avail)
+        {
+            return;
+        }
+        auto count = avail / sizeof(ui32);
+        auto recs = wrap<ui32>::cast(buffer, count);
+        packet.reply.count = static_cast<ui32>(joined.size());
+        log("\treply.count ", packet.reply.count);
+        if (count >= joined.size())
+        {
+            auto dest = recs.begin();
+            for (auto& client : joined)
+            {
+                *dest++ = client.procid;
+                log("\tpid: ", client.procid);
+            }
+            answer.send_data(condrv, recs);
+        }
     }
     auto api_process_create_handle           ()
     {
@@ -2736,7 +2754,10 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-
+        packet.reply.sizex = 10;
+        packet.reply.sizey = 20;
+        log("\tinput.index ", packet.input.index,
+          "\n\treply.size  ", packet.reply.sizex, "x", packet.reply.sizey);
     }
     auto api_window_font_get                 ()
     {
@@ -2759,7 +2780,19 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-
+        packet.reply.index = 0;
+        packet.reply.sizex = 10;
+        packet.reply.sizey = 20;
+        packet.reply.pitch = 0;
+        packet.reply.heavy = 0;
+        auto brand = L"Consolas"s + L'\0'; 
+        std::copy(std::begin(brand), std::end(brand), std::begin(packet.reply.brand));
+        log("\tinput.fullscreen ", packet.input.fullscreen ? "true" : "faux",
+          "\n\treply.index ",      packet.reply.index,
+          "\n\treply.size  ",      packet.reply.sizex, "x", packet.reply.sizey,
+          "\n\treply.pitch ",      packet.reply.pitch,
+          "\n\treply.heavy ",      packet.reply.heavy,
+          "\n\treply.brand ", utf::to_utf(brand));
     }
     auto api_window_font_set                 ()
     {
@@ -2791,7 +2824,12 @@ struct consrv
             };
         };
         auto& packet = payload::cast(upload);
-
+        log("\tinput.fullscreen ",        packet.input.fullscreen ? "true" : "faux",
+          "\n\tinput.index ",             packet.input.index,
+          "\n\tinput.pitch ",             packet.input.pitch,
+          "\n\tinput.heavy ",             packet.input.heavy,
+          "\n\tinput.size  ",       twod{ packet.input.sizex, packet.input.sizey },
+          "\n\tinput.brand ", utf::to_utf(packet.input.brand));
     }
     auto api_window_mode_get                 ()
     {
@@ -2805,7 +2843,8 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-
+        packet.reply.flags = CONSOLE_WINDOWED_MODE;
+        log("\treply.flags ", packet.reply.flags);
     }
     auto api_window_mode_set                 ()
     {
@@ -2824,7 +2863,13 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-
+        auto window_ptr = select_buffer(packet.target);
+        if (!window_ptr) return;
+        auto& console = *window_ptr;
+        log("\tinput.flags ", packet.input.flags);
+        log("\treply.buffer size ", console.panel);
+        packet.reply.buffersz_x = console.panel.x;
+        packet.reply.buffersz_y = console.panel.y;
     }
     auto api_window_handle_get               ()
     {
