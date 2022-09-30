@@ -33,7 +33,7 @@ namespace netxs::app::shop
 
     namespace
     {
-        auto get_text = []()
+        auto get_text = []
         {
             static text desktopio_body;
             static text appstore_head;

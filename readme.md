@@ -34,9 +34,9 @@ Text-based desktop environment inside your terminal*
   - NetBSD
   - OpenBSD
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
-- Windows
-  - Windows 10 or later
-  - Windows Server 2019 or later
+- MS Windows
+  - Windows
+  - Windows Server
 
 # Building from Source
 
@@ -287,9 +287,9 @@ Type              | Parameter
 <config selected=Term>
     <splitter label="apps"/>
     <defaults index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0x0 wincoor=0x0 />
-    <menuitem id=Term index=1 label="Term" bgcolor=#0a0a0a fgcolor=15 slimmenu notes="$0 -r Term:\nTerminal emulator" type=DirectVT param="vtm -r term bash"/>
+    <menuitem id=Term index=1 label="Term" bgcolor=#0a0a0a fgcolor=15 slimmenu notes="$0 -r Term:\nTerminal emulator" type=DirectVT param="$0 -r term bash"/>
     <menuitem id=mc label="mc" title="mc" notes="Midnight Commander" type=SHELL param="mc"/>
-    <menuitem id=Settings index=2 label="Settings \e[45mLink\e[m" title="Settings title" footer="\e[11:2psettings status" fgcolor=15 bgcolor=0xFF562401 notes="$0\n\tRun settings" type=DirectVT param="vtm -r settings"/>
+    <menuitem id=Settings index=2 label="Settings \e[45mLink\e[m" title="Settings title" footer="\e[11:2psettings status" fgcolor=15 bgcolor=0xFF562401 notes="$0\n\tRun settings" type=DirectVT param="$0 -r settings"/>
     <menuitem id=View label=View notes="Set desktop region" type=Region title="\e[11:3pView: Region"/>"
     <splitter label="groups"/>
     <menuitem id=Tile1 label="Tile" notes="Tiling window manager" type=Group param="h(Term, v(mc, Term))"/>
@@ -299,6 +299,8 @@ Type              | Parameter
                        param="h(v(Term, Tile1), v(mc, Term))"/>
 </config>
 ```
+
+Note: `$0` will be expanded to the fully qualified current module filename when the configuration is loaded.
 
 #### Example of `VTM_CONFIG=` envar
 

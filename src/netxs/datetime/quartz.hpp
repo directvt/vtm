@@ -90,13 +90,13 @@ namespace netxs::datetime
 
     public:
         quartz(REACTOR& router, CONTEXT cause)
-            : alarm { router         },
-              cause { cause          },
-              alive { faux           },
-              letup { faux           },
-              delay { period::zero() },
-              watch { period::zero() },
-              pulse { period::max()  }
+            : alarm{ router         },
+              cause{ cause          },
+              alive{ faux           },
+              letup{ faux           },
+              delay{ period::zero() },
+              watch{ period::zero() },
+              pulse{ period::max()  }
         { }
 
         operator bool ()
@@ -177,10 +177,10 @@ namespace netxs::datetime
         period mint; // tail: The minimal period of time between the records stored.
 
         tail(period const& span, period const& mint)
-            : size { 1    },
-              iter { 0    },
-              span { span },
-              mint { mint }
+            : size{ 1    },
+              iter{ 0    },
+              span{ span },
+              mint{ mint }
         {
             hist.resize(1, { tempus::now(), ITEM_T{} });
         }

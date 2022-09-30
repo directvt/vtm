@@ -85,8 +85,6 @@ namespace netxs::events::userland
 {
     using namespace netxs::ui::atoms;
     using namespace netxs::datetime;
-    using utf::text;
-    using utf::view;
 
     struct e2
     {
@@ -490,6 +488,7 @@ namespace netxs::events::userland
                         EVENT_XS( handover, console::gear_id_list_t ), // request: Handover all available foci.
                         EVENT_XS( enlist  , console::gear_id_list_t ), // anycast: Enumerate all available foci.
                         EVENT_XS( find    , console::focus_test_t   ), // request: Check the focus.
+                        EVENT_XS( check   , bool                    ), // anycast: Check any focus.
                     };
                 };
             };
@@ -2570,6 +2569,11 @@ namespace netxs::console
                         break;
                 }
             }
+            void toggle()
+            {
+                style(!form);
+                reset();
+            }
             // pro::caret: Set caret position.
             void coor(twod const& coor)
             {
@@ -2583,6 +2587,11 @@ namespace netxs::console
             auto& coor() const
             {
                 return body.coor;
+            }
+            // pro::caret: Get caret style.
+            auto style() const
+            {
+                return std::pair{ form, !!(*this) };
             }
             // pro::caret: Force to redraw caret.
             void reset()
@@ -2624,6 +2633,31 @@ namespace netxs::console
                             point.coor += field.coor + boss.base::coor();
                             if (auto area = field.clip(point))
                             {
+                                auto& test = canvas.peek(point.coor);
+                                if (test.wdt() == 2) // Extend cursor to adjacent halves.
+                                {
+                                    if (field.hittest(point.coor + dot_10))
+                                    {
+                                        auto& next = canvas.peek(point.coor + dot_10);
+                                        if (next.wdt() == 3 && test.same_txt(next))
+                                        {
+                                            area.size.x++;
+                                        }
+                                    }
+                                }
+                                else if (test.wdt() == 3)
+                                {
+                                    if (field.hittest(point.coor - dot_10))
+                                    {
+                                        auto& prev = canvas.peek(point.coor - dot_10);
+                                        if (prev.wdt() == 2 && test.same_txt(prev))
+                                        {
+                                            area.size.x++;
+                                            area.coor.x--;
+                                        }
+                                    }
+                                }
+
                                 if (form)
                                 {
                                     canvas.fill(area, [](cell& c)
@@ -4023,6 +4057,10 @@ namespace netxs::console
                         boss.base::deface();
                     }
                 };
+                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::check, memo, state)
+                {
+                    state = !pool.empty();
+                };
                 boss.SUBMIT_T(tier::anycast, e2::form::highlight::set, memo, state)
                 {
                     state = !pool.empty();
@@ -4905,8 +4943,10 @@ namespace netxs::console
             k.scancod = item.scancod;
             k.pressed = item.pressed;
             k.ctlstat = item.ctlstat;
+            k.winctrl = item.winctrl;
             k.imitate = item.imitate;
             k.cluster = item.cluster;
+            k.winchar = item.winchar;
             notify(e2::conio::keybd, k);
         }
         void handle(s11n::xs::plain       lock)
@@ -4916,6 +4956,8 @@ namespace netxs::console
             k.keybdid = item.gear_id;
             k.cluster = item.utf8txt;
             k.pressed = true;
+            notify(e2::conio::keybd, k);
+            k.pressed = faux;
             notify(e2::conio::keybd, k);
         }
         void handle(s11n::xs::ctrls       lock)
@@ -4948,6 +4990,7 @@ namespace netxs::console
             m.hzwheel = msflags & (1 << 3); // MOUSE_HWHEELED
             m.wheeldt = wheeldt;
             m.ctlstat = ctlstat;
+            m.winctrl = item.winctrl;
             if (!m.shuffle)
             {
                 m.update_buttons();
@@ -5672,6 +5715,10 @@ namespace netxs::console
                     SUBMIT_T(tier::anycast, e2::form::layout::expose, token, item)
                     {
                         conio.expose.send(conio);
+                    };
+                    SUBMIT_T(tier::preview, e2::form::layout::swarp, token, warp)
+                    {
+                        conio.warping.send(conio, 0, warp);
                     };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {

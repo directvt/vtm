@@ -36,7 +36,7 @@ namespace netxs
     template<class M, class K>
     typename addref<M>::type get_or(M& map, K const& key, typename addref<M>::type default_value)
     {
-        const auto it = map.find(key);
+        auto const it = map.find(key);
         if (it == map.end())
         {
             return default_value;
@@ -45,6 +45,13 @@ namespace netxs
         {
             return it->second;
         }
+    }
+    template<class Map, class Key, class FBKey>
+    auto& map_or(Map& map, Key const& key, FBKey const& fallback)
+    {
+        auto const it = map.find(key);
+        return it == map.end() ? map[fallback]
+                               : it->second;
     }
 
     // hash: Map that keeps the insertion order.
@@ -87,8 +94,8 @@ namespace netxs
         auto     end()       { return iter<      imap>{ *this, forward.end()   }; }
         auto   begin() const { return iter<const imap>{ *this, forward.begin() }; }
         auto     end() const { return iter<const imap>{ *this, forward.end()   }; }
-        auto& length() const { return forward.size();                             }
-        auto&   size() const { return forward.size();                             }
+        auto  length() const { return forward.size();                             }
+        auto    size() const { return forward.size();                             }
         auto&   back()       { return storage[std::prev(forward.end()) ->second]; }
         auto&  front()       { return storage[          forward.begin()->second]; }
         //todo implement erase and friends

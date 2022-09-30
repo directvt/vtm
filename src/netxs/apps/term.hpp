@@ -56,51 +56,52 @@ namespace netxs::app::term
 
         auto items = app::shared::menu_list_type
         {
-            { true, "=─", " Align text lines on left side   \n"
-                          " - applied to selection if it is ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::left);
-                    gear.dismiss(true);
-                };
-                boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
-                {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
-            { true, "─=─", " Center text lines               \n"
-                           " - applied to selection if it is ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::center);
-                    gear.dismiss(true);
-                };
-                boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
-                {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
-            { true, "─=", " Align text lines on right side  \n"
-                          " - applied to selection if it is ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::right);
-                    gear.dismiss(true);
-                };
-                boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
-                {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
+            //todo revise necessity
+            //{ true, "=─", " Align text lines on left side   \n"
+            //              " - applied to selection if it is ",
+            //[](ui::pads& boss)
+            //{
+            //    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+            //    {
+            //        boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::left);
+            //        gear.dismiss(true);
+            //    };
+            //    boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
+            //    {
+            //        //todo unify, get boss base colors, don't use x3
+            //        boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+            //    };
+            //}},
+            //{ true, "─=─", " Center text lines               \n"
+            //               " - applied to selection if it is ",
+            //[](ui::pads& boss)
+            //{
+            //    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+            //    {
+            //        boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::center);
+            //        gear.dismiss(true);
+            //    };
+            //    boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
+            //    {
+            //        //todo unify, get boss base colors, don't use x3
+            //        boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+            //    };
+            //}},
+            //{ true, "─=", " Align text lines on right side  \n"
+            //              " - applied to selection if it is ",
+            //[](ui::pads& boss)
+            //{
+            //    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+            //    {
+            //        boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::right);
+            //        gear.dismiss(true);
+            //    };
+            //    boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
+            //    {
+            //        //todo unify, get boss base colors, don't use x3
+            //        boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+            //    };
+            //}},
             { true, "Wrap", " Wrapping text lines on/off      \n"
                             " - applied to selection if it is ",
             [](ui::pads& boss)

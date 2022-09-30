@@ -579,7 +579,7 @@ namespace netxs::ui
                 auto  x_temp = x_size;
                 auto  y_temp = y_size;
 
-                auto meter = [&]()
+                auto meter = [&]
                 {
                     height = 0;
                     for (auto& client : subset)

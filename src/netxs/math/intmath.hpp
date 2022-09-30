@@ -33,10 +33,19 @@ namespace netxs
 
     struct noop { template<class ...T> constexpr void operator()(T...) {}; };
 
-    template <class T>
+    template<class T>
     using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si16>::max(), si16,
                         std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si32>::max(), si32, si64>>;
 
+    // intmath: Swap two bits.
+    template<unsigned int p1, unsigned int p2, class T>
+    auto swap_bits(T n)
+    {
+        auto a = 1 & (n >> p1);
+        auto b = 1 & (n >> p2);
+        auto x = a ^ b;
+        return n ^ (x << p1 | x << p2);
+    }
     // intmath: Convert LE to host endianness.
     template<class T>
     constexpr void letoh(byte* buff, T& i)
@@ -443,7 +452,7 @@ namespace netxs
         auto msize2 = size2 - dot_11;
 
         auto y = 0;
-        auto h_line = [&]()
+        auto h_line = [&]
         {
             auto x = 0;
             while (x != msize0.x)
@@ -490,8 +499,8 @@ namespace netxs
     // intmath: Intersect two sprites and
     //          invoking handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<bool RtoL, class T, class R, class C, class P>
-    void inbody(T& canvas, T const& bitmap, R const& region, C const& base2, P handle)
+    template<bool RtoL, class T, class D, class R, class C, class P>
+    void inbody(T& canvas, D const& bitmap, R const& region, C const& base2, P handle)
     {
         auto& base1 = region.coor;
 
@@ -527,11 +536,29 @@ namespace netxs
         }
     }
 
+    // intmath: Wild bitmap.
+    template<class T, class Rect>
+    struct raster
+    {
+        T    _data;
+        Rect _area;
+        auto  data()       { return _data.begin(); }
+        auto& size()       { return _area.size;    }
+        auto& area()       { return _area;         }
+        auto  data() const { return _data.begin(); }
+        auto& size() const { return _area.size;    }
+        auto& area() const { return _area;         }
+        raster(T data, Rect area)
+            : _data{ data },
+              _area{ area }
+        { }
+    };
+
     // intmath: Intersect two sprites and invoking
     //          handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<class T, class P>
-    void onbody(T& canvas, T const& bitmap, P handle)
+    template<class T, class D, class P>
+    void onbody(T& canvas, D const& bitmap, P handle)
     {
         auto& rect1 = canvas.area();
         auto& rect2 = bitmap.area();

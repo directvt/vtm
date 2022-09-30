@@ -33,7 +33,7 @@ namespace netxs::app::shared
 )=="
 #ifdef _WIN32
 R"==(
-    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
+    <menuitem id=PowerShell label="PowerShell" title="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
     <menuitem id=Far label="Far" title="Far Manager" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>
 )=="
 #else
@@ -53,6 +53,121 @@ R"==(
     <menuitem id=Test      label="Test"      notes=" Test Page "              type=DirectVT title="Test Title" param="$0 -r test"/>
     <menuitem id=Truecolor label="Truecolor" notes=" Truecolor Test "         type=DirectVT title="True Title" param="$0 -r truecolor"/>
 </config>
+)==";
+
+    static constexpr auto default_config_v2 = R"==(hgfhghfh
+    jkjkljl ergfdgdfror invalid xml data errgfdgfdor
+    fdsjfj sklfjklds fjfkldsj klfds     
+<config>
+    <menu>
+        <selected=Term /> <!-- set selected using menu item id -->
+        <item splitter label="apps">
+            <notes> 
+                " Default applications group                         \n"
+                " It can be configured in ~/.config/vtm/settings.xml "
+            </notes>
+        </item>
+        <item* />    <!-- use asterisk at the end of the element name to set defaults -->
+        <item* index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
+        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Run built-in terminal emulator ">
+            <hotkeys>
+                <action=start key="Ctrl+'t'"/>
+                <action=close key="Ctrl+'z'"/>
+            </hotkeys>
+            <param="vtm -r term">
+                <scrollback>
+                    <size=20000 />
+                    <growstep=0 />
+                </scrollback>
+                <colors>
+                    <palette>
+                        <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
+                        <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
+                        <color=0xFF0EA112 />          <!-- 2  greendk   -->
+                        <color=0xFF009CC0 />          <!-- 3  yellowdk  -->
+                        <color=0xFFDB3700 />          <!-- 4  bluedk    -->
+                        <color=0xFF981787 />          <!-- 5  magentadk -->
+                        <color=0xFFDD963B />          <!-- 6  cyandk    -->
+                        <color=0xFFBBBBBB />          <!-- 7  whitedk   -->
+                        <color=0xFF757575 />          <!-- 8  blacklt   -->
+                        <color=0xFF5648E6 />          <!-- 9  redlt     -->
+                        <color=0xFF0CC615 />          <!-- 10 greenlt   -->
+                        <color=0xFFA5F1F8 />          <!-- 11 yellowlt  -->
+                        <color=0xFFFF783A />          <!-- 12 bluelt    -->
+                        <color=0xFF9E00B3 />          <!-- 13 magentalt -->
+                        <color=0xFFD6D660 />          <!-- 14 cyanlt    -->
+                        <color=0xFFF3F3F3 index=15 /> <!-- 15 whitelt   -->
+                    </palette>
+                    <default>
+                        <fg=15 /> <!-- 256-color index is allowed -->
+                        <bg=0 />
+                    </default>
+                    <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection |contrast | invert | reverse -->
+                    <selection>
+                        <text fx=selection bg=12 fg=15 />
+                        <ansi fx=xlight/>
+                        <none fx=selection bg=8 fg=7 />
+                    </selection>
+                </colors>
+                <tablen=8 />      <!-- Tab length. -->
+                <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
+                <cursor>
+                    <style="underline"/> <!-- block | underline  -->
+                    <blink="400"/>       <!-- blink period in ms -->
+                </cursor>
+                <menu>
+                    <enabled="on"/>
+                    <slim="off"/>
+                </menu>
+                <wrap="on"/>
+                <selection>
+                    <mode="plain"/> <!-- plain | ansi | disabled -->
+                </selection>
+                <hotkeys>
+                    <action=findNext key="Alt+RightArrow"/>
+                    <action=findPrev key="Alt+LeftArrow"/>
+                </hotkeys>
+            </param>
+        </item>
+        <item id=mc        label="mc"        type=SHELL    title="Midnight Commander"    param="mc"               notes=" Run Midnight Commander in its own window (if it is installed) "/>
+        <item id=Tile      label="Tile"      type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" Run Tiling Window Manager with two terminals attached "/>
+        <item id=View      label=View        type=Region   title="\e[11:3pView: Region"                           notes=" Set desktop region "/>
+        <item id=Settings  label=Settings    type=DirectVT title="Settings"              param="$0 -r settings"   notes=" Configure frame rate " winsize=50,15 />
+        <item id=Logs      label=Logs        type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" Run Logs application "/>
+        <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/>
+        <item id=Gems      label="Gems"      type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/>
+        <item id=Text      label="Text"      type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/>
+        <item id=Calc      label="Calc"      type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/>
+        <item id=Test      label="Test"      type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/>
+        <item id=Truecolor label="Truecolor" type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/>
+        <autorun>
+            <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default -->
+            <item wincoor=0,0 />
+            <item wincoor=52%,0 />
+            <item wincoor=0,52% />
+            <item=mc wincoor=52%,52% />
+        </autorun>
+    </menu>
+    <hotkeys>
+        <action=prevWindow key="Ctrl+PgUp"/>
+        <action=nextWindow key="Ctrl+PgDn"/>
+    </hotkeys>
+</config>
+)==";
+
+    static constexpr auto test_data = R"==(
+            <document="value" thing="text1">
+                <thing="te" name="a">
+                    "xt2" <!--comment-->
+                    <name="b"/>
+                    <name id=c_elem>
+                        "c"
+                    </name>
+                </thing>
+                <other>
+                    "text"
+                </other>
+            </document>
 )==";
 
     static constexpr auto path_settings = ".config/vtm/settings.xml";
@@ -373,7 +488,7 @@ R"==(
         return menu_block;
     };
 
-    const auto main_menu = []()
+    const auto main_menu = []
     {
         auto items = app::shared::menu_list_type
         {
@@ -546,7 +661,7 @@ R"==(
         if (!size.last) return faux;
 
         auto ground = base::create<host>(tunnel.first, maxfps);
-        auto runapp = [&]()
+        auto runapp = [&]
         {
             auto aclass = utf::cutoff(app_name, ' ');
             utf::to_low(aclass);
@@ -563,7 +678,7 @@ R"==(
         if (direct) runapp();
         else
         {
-            auto thread = std::thread{ [&](){ os::ipc::splice(cons, vtmode); }};
+            auto thread = std::thread{ [&]{ os::ipc::splice(cons, vtmode); }};
             runapp();
             thread.join();
         }
@@ -1070,6 +1185,43 @@ namespace netxs::app::shared
 
     auto init_app_registry = [](auto& world)
     {
+        {
+            //auto temp = view{ app::shared::test_data };
+            //auto data_view = temp;
+            //auto config = xml::document(data_view);
+            ////auto& names = config.root.sub["thing"][1]->sub["name"];
+            ////auto name = names.begin() + 2;// 1;
+            //auto& names = config.root.sub["thing"];
+            //auto name = names.begin() + 1;
+            //names.erase(name);
+
+            auto temp = view{ app::shared::default_config_v2 };
+            auto data_view = temp;
+            auto config = xml::document(data_view, "'default_config_v2'");
+            // //auto& items = config.root->sub["menu"][0]->sub["item"];// [3] ->sub["param"][0]->sub["colors"];// [0] ->sub["match"];
+            // //auto term = items.begin() + 3;
+            // //items.erase(term);
+
+            //auto temp = view{ app::shared::default_config_v2 };
+            //auto data_view = temp;
+            //auto config = xml::document(data_view);
+            //auto iter = config.find("config/menu/item");
+            //if (iter != config.end())
+            //{
+            //    auto& items = *iter;
+            //    auto term = items.begin() + 3;
+            //    items.erase(term);
+            //}
+
+            //auto& selected = config.root.sub["menu"][0]->sub["selected"][0]->val_ptr_list.front().operator*();
+            //selected = "Tile";
+
+            //log(" xml: source data\n", temp);
+            //log(" xml: parsed data\n", config.root.show());
+            //log(" xml: origin data\n", config.show());
+            //return 0;
+        }
+
         auto menu_list_ptr = e2::bindings::list::apps.param();
         auto conf_list_ptr = e2::bindings::list::links.param();
         world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
@@ -1078,15 +1230,6 @@ namespace netxs::app::shared
         auto& conf_list = *conf_list_ptr;
         auto current_module_file = os::current_module_file();
 
-        struct xml_element
-        {
-            using list = sptr<std::vector<xml_element>>;
-            using umap = std::unordered_map<text, list>;
-            text tag;      // xml_element: Element tag.
-            text value;    // xml_element: Element value.
-            list elements; // xml_element: Random access by id.
-            umap index;    // xml_element: Access by id.
-        };
         using item_t = std::unordered_map<text, text>;
         auto list = std::vector<item_t>{};
         auto sort_list = std::list<std::pair<text, menuitem_t>>{};
@@ -1095,7 +1238,7 @@ namespace netxs::app::shared
 
         auto take_xml_item = [](text& tag, item_t& item, view& data)
         {
-            auto type = xml::type::none;
+            auto type = xml::type_old::none;
             if (xml::open(data, type))
             {
                 auto attr = text{};
@@ -1108,7 +1251,7 @@ namespace netxs::app::shared
                     }
                 }
             }
-            return type == xml::type::close;
+            return type == xml::type_old::close;
         };
         auto take_elements = [&](view data)
         {
@@ -1147,7 +1290,7 @@ namespace netxs::app::shared
         };
         auto take_config = [&](view data)
         {
-            auto type = xml::type::none;
+            auto type = xml::type_old::none;
             auto tag = text{};
             if (xml::open(data, type))
             {

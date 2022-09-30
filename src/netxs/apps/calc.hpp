@@ -240,7 +240,7 @@ namespace netxs::app::calc
 
     namespace
     {
-        auto get_text = []()
+        auto get_text = []
         {
             static text cellatix_rows;
             static text cellatix_cols;

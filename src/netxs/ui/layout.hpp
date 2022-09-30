@@ -17,7 +17,10 @@ namespace netxs::ui::atoms
     using netxs::events::id_t;
     using netxs::utf::text;
     using netxs::utf::view;
+    using netxs::utf::wiew;
     using netxs::utf::qiew;
+    using netxs::utf::wchr;
+    using netxs::utf::wide;
 
     static const char whitespace = 0x20;
     //static const char whitespace = '.';
@@ -385,22 +388,22 @@ namespace netxs::ui::atoms
         };
         static constexpr ui32 color256[] =
         {
-            0xFF101010,	// 0  blackdk
-            0xFF1F0FC4,	// 1  reddk
-            0xFF0EA112,	// 2  greendk
-            0xFF009CC0,	// 3  yellowdk
-            0xFFDB3700,	// 4  bluedk
-            0xFF981787,	// 5  magentadk
-            0xFFDD963B,	// 6  cyandk
-            0xFFBBBBBB,	// 7  whitedk
-            0xFF757575,	// 8  blacklt
-            0xFF5648E6,	// 9  redlt
-            0xFF0CC615,	// 10 greenlt
-            0xFFA5F1F8,	// 11 yellowlt
-            0xFFFF783A,	// 12 bluelt
-            0xFF9E00B3,	// 13 magentalt
-            0xFFD6D660,	// 14 cyanlt
-            0xFFF3F3F3,	// 15 whitelt
+            0xFF101010, // 0  blackdk
+            0xFF1F0FC4, // 1  reddk
+            0xFF0EA112, // 2  greendk
+            0xFF009CC0, // 3  yellowdk
+            0xFFDB3700, // 4  bluedk
+            0xFF981787, // 5  magentadk
+            0xFFDD963B, // 6  cyandk
+            0xFFBBBBBB, // 7  whitedk
+            0xFF757575, // 8  blacklt
+            0xFF5648E6, // 9  redlt
+            0xFF0CC615, // 10 greenlt
+            0xFFA5F1F8, // 11 yellowlt
+            0xFFFF783A, // 12 bluelt
+            0xFF9E00B3, // 13 magentalt
+            0xFFD6D660, // 14 cyanlt
+            0xFFF3F3F3, // 15 whitelt
             // 6×6×6 RGB-cube (216 colors), index = 16 + 36r + 6g + b, r,g,b=[0, 5]
             0xFF000000, 0xFF5F0000, 0xFF870000, 0xFFAF0000, 0xFFD70000, 0xFFFF0000,
             0xFF005F00, 0xFF5F5F00, 0xFF875F00, 0xFFAF5F00, 0xFFD75F00, 0xFFFF5F00,
@@ -618,6 +621,14 @@ namespace netxs::ui::atoms
                 state.width = 1;
                 state.count = 1;
                 glyph[1]    = c;
+            }
+            constexpr void set_c0(char c)
+            {
+                token       = 0;
+                state.width = 2;
+                state.count = 2;
+                glyph[1]    = '^';
+                glyph[2]    = '@' + (c & 0b00011111);
             }
             void set(view const& utf8, size_t cwidth)
             {
@@ -979,7 +990,7 @@ namespace netxs::ui::atoms
             gc.wipe();
             st.wipe();
         }
-        auto& data() const{ return *this;} // cell: Return the const reference of the base cell.
+        auto& data() const { return *this;} // cell: Return the const reference of the base cell.
 
         // cell: Merge the two cells according to visibility and other attributes.
         inline void fuse(cell const& c)
@@ -1084,6 +1095,55 @@ namespace netxs::ui::atoms
                 return faux;
             }
         }
+        // cell: Convert to text. Ignore right half. Convert binary clusters (eg: ^C -> 0x03).
+        void scan(text& dest) const
+        {
+                 if (wdt() == 0) dest += whitespace;
+            else if (wdt() == 1) dest += gc.get();
+            else if (wdt() == 2)
+            {
+                auto shadow = gc.get();
+                if (shadow.size() == 2 && shadow.front() == '^')
+                {
+                    dest += shadow[1] & 0b00011111;
+                }
+                else dest += shadow;
+            }
+        }
+        // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
+        auto get_c0_left() const
+        {
+            if (wdt() == 2)
+            {
+                auto shadow = gc.get();
+                if (shadow.size() == 2 && shadow.front() == '^')
+                {
+                    return view{ "^" };
+                }
+            }
+            return utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+        }
+        // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
+        auto get_c0_right() const
+        {
+            if (wdt() == 3)
+            {
+                auto shadow = gc.get();
+                if (shadow.size() == 2 && shadow.front() == '^')
+                {
+                    return shadow.substr(1, 1);
+                }
+            }
+            return utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+        }
+        // cell: Convert non-printable chars to escaped.
+        template<class C>
+        auto& c0_to_txt(C chr)
+        {
+            auto c = static_cast<char>(chr);
+            if (c < ' ') gc.set_c0(c);
+            return *this;
+        }
         // cell: Delight both foreground and background.
         void xlight()
         {
@@ -1144,6 +1204,7 @@ namespace netxs::ui::atoms
         auto& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
         auto& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
         auto& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
+        auto& txt (cell const& c) { gc = c.gc;          return *this; } // cell: Set Grapheme cluster from cell.
         auto& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
         auto& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
         auto& rst () // cell: Reset view attributes of the cell to zero.
@@ -1191,7 +1252,7 @@ namespace netxs::ui::atoms
         auto  bld() const  { return st.bld();      } // cell: Return Bold attribute.
         auto  itc() const  { return st.itc();      } // cell: Return Italic attribute.
         auto  und() const  { return st.und();      } // cell: Return Underline/Underscore attribute.
-        auto  ovr() const  { return st.ovr();      } // cell: Return Underline/Underscore attribute.
+        auto  ovr() const  { return st.ovr();      } // cell: Return Overline attribute.
         auto  inv() const  { return st.inv();      } // cell: Return Negative attribute.
         auto  stk() const  { return st.stk();      } // cell: Return Strikethrough attribute.
         auto  blk() const  { return st.blk();      } // cell: Return Blink attribute.
@@ -1227,6 +1288,26 @@ namespace netxs::ui::atoms
         cell nul() const
         {
             return cell{ *this }.txt('\0');
+        }
+        // cell: Return dry empty cell.
+        cell dry() const
+        {
+            return cell{ '\0' }.fgc(fgc()).bgc(bgc());
+        }
+        friend auto& operator << (std::ostream& s, cell const& c)
+        {
+            return s << "\n\tfgc " << c.fgc()
+                     << "\n\tbgc " << c.bgc()
+                     << "\n\ttxt " <<(c.isspc() ? text{ "whitespace" } : utf::debase<faux, faux>(c.txt()))
+                     << "\n\tstk " <<(c.stk() ? "true" : "faux")
+                     << "\n\titc " <<(c.itc() ? "true" : "faux")
+                     << "\n\tovr " <<(c.ovr() ? "true" : "faux")
+                     << "\n\tblk " <<(c.blk() ? "true" : "faux")
+                     << "\n\tinv " <<(c.inv() ? "true" : "faux")
+                     << "\n\tbld " <<(c.bld() ? "true" : "faux")
+                     << "\n\tund " <<(c.und() == 0 ? "none" 
+                                    : c.und() == 1 ? "single"
+                                                   : "double");
         }
 
         class shaders
@@ -1294,6 +1375,16 @@ namespace netxs::ui::atoms
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fusefull(src); }
+            };
+            struct text_t : public brush_t<text_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.txt(src); }
+            };
+            struct meta_t : public brush_t<meta_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.meta(src); }
             };
             struct xlight_t
             {
@@ -1381,6 +1472,8 @@ namespace netxs::ui::atoms
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};
+            static constexpr auto     text =     text_t{};
+            static constexpr auto     meta =     meta_t{};
             static constexpr auto   xlight =   xlight_t{};
             static constexpr auto   invert =   invert_t{};
             static constexpr auto  reverse =  reverse_t{};
@@ -1872,6 +1965,16 @@ namespace netxs::ui::atoms
                          { std::max(0, area.size.x - (pad.west.step + pad.east.step)),
                            std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
         }
+        // dent: Return area with padding.
+        friend auto operator += (rect& area, dent const& pad)
+        {
+            return area = area + pad;
+        }
+        // dent: Return area without padding.
+        friend auto operator -= (rect& area, dent const& pad)
+        {
+            return area = area - pad;
+        }
         // dent: Return summ of two paddings.
         friend auto operator + (dent const& pad1, dent const& pad2)
         {
@@ -2004,33 +2107,49 @@ namespace netxs::ui::atoms
             std::swap(lhs.canvas, rhs.canvas);
             std::swap(lhs.client, rhs.client);
         }
-        constexpr auto& size() const        { return region.size;        }
-        auto& coor() const                  { return region.coor;        }
-        auto& area() const                  { return region;             }
-        auto  data() const                  { return canvas.data();      }
-        auto  data()                        { return canvas.data();      }
-        auto& pick()                        { return canvas;             }
-        auto  iter()                        { return canvas.begin();     }
-        auto  iend()                        { return canvas.end();       }
-        auto  iter() const                  { return canvas.begin();     }
-        auto  iend() const                  { return canvas.end();       }
-        auto  test(twod const& coord) const { return region.size.inside(coord); } // core: Check the coor inside the canvas.
-        auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates.
-        auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell.
-        auto& data(size_t offset)           { return*(data() + offset);  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
-        auto& operator [] (twod const& c)   { return*(data(c));          } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
-        auto& mark()                        { return marker;             } // core: Return a reference to the default cell value.
-        auto& mark() const                  { return marker;             } // core: Return a reference to the default cell value.
-        auto& mark(cell const& c)           { marker = c; return marker; } // core: Set the default cell value.
-        void  move(twod const& newcoor)     { region.coor = newcoor;     } // core: Change the location of the face.
-        void  step(twod const& delta)       { region.coor += delta;      } // core: Shift location of the face by delta.
-        void  back(twod const& delta)       { region.coor -= delta;      } // core: Shift location of the face by -delta.
-        void  link(id_t id)                 { marker.link(id);           } // core: Set the default object ID.
-        auto  link(twod const& coord) const { return test(coord) ? (*(data(coord))).link() : 0; } // core: Return ID of the object in cell at the specified coordinates.
-        auto  view() const                  { return client;             }
-        void  view(rect const& viewreg)     { client = viewreg;          }
-        auto  hash() const                  { return digest;             } // core: Return the digest value that associatated with the current canvas size.
-        auto  hash(si32 d)                  { return digest != d ? ((void)(digest = d), true) : faux; } // core: Check and the digest value that associatated with the current canvas size.
+        template<class P>
+        auto same(core const& c, P compare) const // core: Compare content.
+        {
+            if (region.size != c.region.size) return faux;
+            auto dest = c.canvas.begin();
+            auto head =   canvas.begin();
+            auto tail =   canvas.end();
+            while (head != tail)
+            {
+                if (!compare(*head++, *dest++)) return faux;
+            }
+            return true;
+        }
+        auto operator == (core const& c) const { return same(c, [](auto const& a, auto const& b){ return a == b;        }); }
+        auto  same       (core const& c) const { return same(c, [](auto const& a, auto const& b){ return a.same_txt(b); }); }
+        constexpr auto& size() const           { return region.size;                                                        }
+        auto& coor() const                     { return region.coor;                                                        }
+        auto& area() const                     { return region;                                                             }
+        auto  data() const                     { return canvas.data();                                                      }
+        auto  data()                           { return canvas.data();                                                      }
+        auto& pick()                           { return canvas;                                                             }
+        auto  iter()                           { return canvas.begin();                                                     }
+        auto  iend()                           { return canvas.end();                                                       }
+        auto  iter() const                     { return canvas.begin();                                                     }
+        auto  iend() const                     { return canvas.end();                                                       }
+        auto  test(twod const& coord) const    { return region.size.inside(coord);                                          } // core: Check the coor inside the canvas.
+        auto  data(twod const& coord)          { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the offset of the cell corresponding to the specified coordinates.
+        auto  data(twod const& coord) const    { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the const offset value of the cell.
+        auto& data(size_t offset)              { return*(data() + offset);                                                  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
+        auto& operator [] (twod const& c)      { return*(data(c));                                                          } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
+        auto& mark()                           { return marker;                                                             } // core: Return a reference to the default cell value.
+        auto& mark() const                     { return marker;                                                             } // core: Return a reference to the default cell value.
+        auto& mark(cell const& c)              { marker = c; return marker;                                                 } // core: Set the default cell value.
+        void  move(twod const& newcoor)        { region.coor = newcoor;                                                     } // core: Change the location of the face.
+        void  step(twod const& delta)          { region.coor += delta;                                                      } // core: Shift location of the face by delta.
+        void  back(twod const& delta)          { region.coor -= delta;                                                      } // core: Shift location of the face by -delta.
+        auto& back()                           { return canvas.back();                                                      } // core: Return last cell.
+        void  link(id_t id)                    { marker.link(id);                                                           } // core: Set the default object ID.
+        auto  link(twod const& coord) const    { return test(coord) ? (*(data(coord))).link() : 0;                          } // core: Return ID of the object in cell at the specified coordinates.
+        auto  view() const                     { return client;                                                             }
+        void  view(rect const& viewreg)        { client = viewreg;                                                          }
+        auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
+        auto  hash(si32 d)                     { return digest != d ? ((void)(digest = d), true) : faux;                    } // core: Check and the digest value that associatated with the current canvas size.
         void  size(twod const& newsize) // core: Change the size of the face.
         {
             if (region.size(std::max(dot_00, newsize)))
@@ -2040,6 +2159,14 @@ namespace netxs::ui::atoms
                 canvas.assign(region.size.x * region.size.y, marker);
             }
         }
+        void size(si32 newsizex, cell const& c) // core: Change the size of the face.
+        {
+            region.size.x = newsizex;
+            region.size.y = 1;
+            client.size = region.size;
+            canvas.assign(newsizex, c);
+            digest++;
+        }
         void crop(si32 newsizex, cell const& c = {}) // core: Resize while saving the textline.
         {
             region.size.x = newsizex;
@@ -2048,21 +2175,25 @@ namespace netxs::ui::atoms
             canvas.resize(newsizex, c);
             digest++;
         }
-        template<bool BOTTOM_ANCHORED = faux>
+        void push(cell const& c) // core: Push cell back.
+        {
+            crop(region.size.x + 1, c);
+        }
+        template<bool Bottom_anchored = faux>
         void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
         {
             auto block = core{ region.coor, newsize, c };
-            if constexpr (BOTTOM_ANCHORED) block.step({ 0, region.size.y - newsize.y });
+            if constexpr (Bottom_anchored) block.step({ 0, region.size.y - newsize.y });
             netxs::onbody(block, *this, cell::shaders::full);
             region.size = newsize;
             client.size = region.size;
             swap(block);
             digest++;
         }
-        template<bool BOTTOM_ANCHORED = faux>
+        template<bool Bottom_anchored = faux>
         void crop(twod const& newsize) // core: Resize while saving the bitmap.
         {
-            crop(newsize, marker);
+            crop<Bottom_anchored>(newsize, marker);
         }
         void kill() // core: Collapse canvas to size zero (see para).
         {
@@ -2097,6 +2228,16 @@ namespace netxs::ui::atoms
         void each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
         {
             netxs::onrect(*this, region, proc);
+        }
+        void utf8(text& crop) // core: Convert to raw utf-8 text. Ignore right halves.
+        {
+            each([&](cell& c) { c.scan(crop); });
+        }
+        auto utf8() // core: Convert to raw utf-8 text. Ignore right halves.
+        {
+            auto crop = utf::text{};
+            each([&](cell& c) { c.scan(crop); });
+            return crop;
         }
         auto copy(grid& target) const // core: Copy only grid of the canvas to the specified grid bitmap.
         {
@@ -2136,6 +2277,11 @@ namespace netxs::ui::atoms
                 netxs::inbody<faux>(*this, block, joint, place, fuse);
             }
         }
+        auto& peek(twod const& p) // core: Take the cell at the specified coor.
+        {
+            auto& c = *(iter() + p.x + p.y * region.size.x);
+            return c;
+        }
         template<class P>
         void fill(rect block, P fuse) // core: Process the specified region by the specified proc.
         {
@@ -2147,6 +2293,10 @@ namespace netxs::ui::atoms
         void fill(P fuse) // core: Fill the client area using lambda.
         {
             fill(view(), fuse);
+        }
+        void fill(cell c) // core: Fill the client area using brush.
+        {
+            fill(view(), cell::shaders::full(c));
         }
         void grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient.
         {
@@ -2172,7 +2322,7 @@ namespace netxs::ui::atoms
                 chan.a = (uint8_t)((float)c1.chan.a + da * dt);
                 ++x;
             };
-            auto eolfx = [&]()
+            auto eolfx = [&]
             {
                 x = 0;
                 ++y;
@@ -2194,16 +2344,16 @@ namespace netxs::ui::atoms
             }
             return region.size;
         }
-        template<feed DIRECTION>
+        template<feed Direction>
         auto word(twod coord) // core: Detect a word bound.
         {
             if (!region) return 0;
-            static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
-
-            //todo unify
+            static constexpr auto rev = Direction == feed::fwd ? faux : true;
             auto is_empty = [&](auto txt)
             {
-                return txt.empty() || txt.front() == whitespace;
+                return txt.empty()
+                    || txt.front() == whitespace
+                    || txt.front() == '^' && txt.size() == 2; // C0 characters.
             };
             auto empty = [&](auto txt)
             {
@@ -2257,6 +2407,7 @@ namespace netxs::ui::atoms
             };
             auto func = [&](auto check)
             {
+                static constexpr auto right_half = rev ? 2 : 3;
                 coord.x += rev ? 1 : 0;
                 auto count = decltype(coord.x){};
                 auto width = (rev ? 0 : region.size.x) - coord.x;
@@ -2264,7 +2415,8 @@ namespace netxs::ui::atoms
                 auto allfx = [&](auto& c)
                 {
                     auto txt = c.txt();
-                    if (!check(txt)) return true;
+                    auto not_right_half = c.wdt() != right_half;
+                    if (not_right_half && !check(txt)) return true;
                     count++;
                     return faux;
                 };
@@ -2280,6 +2432,11 @@ namespace netxs::ui::atoms
             is_empty(test) ? func(empty) :
                              func(alpha);
             return coord.x;
+        }
+        template<feed Direction>
+        auto word(si32 offset) // core: Detect a word bound.
+        {
+            return word<Direction>(twod{ offset, 0 });
         }
         template<class P>
         void cage(rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.
