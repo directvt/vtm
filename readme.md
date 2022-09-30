@@ -35,8 +35,8 @@ Text-based desktop environment inside your terminal*
   - OpenBSD
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
 - MS Windows
-  - Windows 8.1 or later
-  - Windows Server 2012 R2 or later
+  - Windows
+  - Windows Server
 
 # Building from Source
 

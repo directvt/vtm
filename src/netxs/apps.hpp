@@ -33,7 +33,7 @@ namespace netxs::app::shared
 )=="
 #ifdef _WIN32
 R"==(
-    <menuitem id=PowerShell label="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
+    <menuitem id=PowerShell label="PowerShell" title="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
     <menuitem id=Far label="Far" title="Far Manager" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>
 )=="
 #else
@@ -119,17 +119,11 @@ R"==(
                     <enabled="on"/>
                     <slim="off"/>
                 </menu>
-                <<<<<<<<<<<<
                 <wrap="on"/>
-                >>>>>>>>>>>>>>
-                <><>,.,.,.<>,.<><>,><.</<<?,?<>?<>?,?///.,.,>,>,.,.,><><./
                 <selection>
                     <mode="plain"/> <!-- plain | ansi | disabled -->
-                    ><
                 </selection>
-                <>
                 <hotkeys>
-                >
                     <action=findNext key="Alt+RightArrow"/>
                     <action=findPrev key="Alt+LeftArrow"/>
                 </hotkeys>

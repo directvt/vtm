@@ -2491,14 +2491,16 @@ struct consrv
         auto& console = *window_ptr;
         auto caretpos = twod{ packet.input.cursorposx, packet.input.cursorposy };
         auto buffsize = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
+        auto windowsz = twod{ packet.input.windowsz_x, packet.input.windowsz_y };
         console.cup0(caretpos);
         console.brush.meta(attr_to_brush(packet.input.attributes));
         if (&console != uiterm.target) console.resize_viewport(buffsize);
+        else                           uiterm.window_resize(windowsz);
         log("\tbuffer size ", buffsize);
         log("\tcursor coor ", twod{ packet.input.cursorposx, packet.input.cursorposy });
         log("\twindow coor ", twod{ packet.input.windowposx, packet.input.windowposy });
         log("\tattributes x", utf::to_hex(packet.input.attributes));
-        log("\twindow size ", twod{ packet.input.windowsz_x, packet.input.windowsz_y });
+        log("\twindow size ", windowsz);
         log("\tmaxwin size ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y });
         log("\tpopup color ", packet.input.popupcolor);
         log("\tfull screen ", packet.input.fullscreen);
