@@ -7,6 +7,7 @@
 #include "../abstract/ptr.hpp"
 #include "../abstract/hash.hpp"
 #include "../abstract/duplet.hpp"
+#include "../abstract/queue.hpp"
 
 #include <vector>
 #include <mutex>
@@ -590,93 +591,28 @@ namespace netxs::events
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
 
-    // events: Separate thread for executing deferred tasks.
-    class enqueue_t
-    {
-    public:
-        using wptr = netxs::wptr<bell>;
-        using func = std::function<void(bell&)>;
-        using item = std::pair<wptr, func>;
-
-        std::mutex              mutex;
-        std::condition_variable synch;
-        std::list<item>         queue;
-        std::list<item>         cache;
-        bool                    alive;
-        std::thread             agent;
-
-        void worker()
-        {
-            auto guard = std::unique_lock{ mutex };
-            while (alive)
-            {
-                if (queue.empty()) synch.wait(guard);
-
-                std::swap(queue, cache);
-                guard.unlock();
-
-                while (alive && cache.size())
-                {
-                    auto lock = events::sync{};
-                    auto& [ptr, proc] = cache.front();
-                    if (auto item = ptr.lock())
-                    {
-                        proc(*item);
-                    }
-                    cache.pop_front();
-                }
-
-                guard.lock();
-            }
-        }
-
-        enqueue_t()
-            : alive{ true },
-              agent{ &enqueue_t::worker, this }
-        { }
-       ~enqueue_t()
-        {
-            mutex.lock();
-            alive = faux;
-            synch.notify_one();
-            mutex.unlock();
-            agent.join();
-        }
-        template<class T>
-        void add(enqueue_t::wptr object_ptr, T&& proc)
-        {
-            auto guard = std::lock_guard{ mutex };
-            if constexpr (std::is_copy_constructible_v<T>)
-            {
-                queue.emplace_back(object_ptr, std::forward<T>(proc));
-            }
-            else
-            {
-                //todo issue with MSVC: Generalized lambda capture does't work.
-                auto proxy = std::make_shared<std::decay_t<T>>(std::forward<T>(proc));
-                queue.emplace_back(object_ptr, [proxy](auto&&... args)->decltype(auto)
-                {
-                    return (*proxy)(decltype(args)(args)...);
-                });
-            }
-            synch.notify_one();
-        }
-    };
     namespace
     {
         template<class T>
         auto& _agent()
         {
-            static auto agent = enqueue_t{};
+            static auto agent = netxs::jobs<netxs::wptr<bell>>{};
             return agent;
         }
     }
-    // events: Enqueue deferred task.
     template<class T>
-    void enqueue(enqueue_t::wptr object_ptr, T&& proc)
+    void enqueue(netxs::wptr<bell> object_wptr, T&& proc)
     {
         auto& agent = _agent<void>();
-        agent.add(object_ptr, std::forward<T>(proc));
+        agent.add(object_wptr, [proc](auto& object_wptr) mutable
+        {
+            auto lock = events::sync{};
+            if (auto object_ptr = object_wptr.lock())
+            {
+                proc(*object_ptr);
+            }
+        });
+
     }
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;

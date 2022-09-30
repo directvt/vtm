@@ -61,7 +61,7 @@ namespace netxs::app::logs
                 {
                     queue.push(text{ shadow });
                 };
-                input = std::thread{ [&]() { worker(); } };
+                input = std::thread{ [&]{ worker(); } };
             }
             void enable_codepoints(bool s)
             {

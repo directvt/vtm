@@ -74,7 +74,10 @@ namespace netxs::ansi
 
     static const char CSI_HSH_SCP = 'P'; // CSI n #    P  — Push current palette colors onto stack. n default is 0.
     static const char CSI_HSH_RCP = 'Q'; // CSI n #    Q  — Pop current palette colors from stack. n default is 0.
-    static const char CSI_HSH_RVA = 'q'; // CSI   #    q  — Pop video attributes from stack (XTPOPSGR).
+    static const char CSI_HSH_SVA = 'p'; // CSI   #    p  — Push video attributes from stack (XTPUSHSGR).
+    static const char CSI_HSH_RVA = 'q'; // CSI   #    q  — Pop  video attributes from stack (XTPOPSGR).
+    static const char CSI_HSH_PUSH_SGR = '{'; // CSI # {  — Push SGR attributes onto stack (XTPUSHSGR).
+    static const char CSI_HSH_POP_SGR  = '}'; // CSI # }  — Pop  SGR attributes from stack (XTPOPSGR).
 
     static const char CSI_DQT_SCP = 'q'; // CSI n "    q  — Select character protection attribute.
 
@@ -152,6 +155,9 @@ namespace netxs::ansi
     static const char C0_GS  = '\x1D'; // Group Separator.
     static const char C0_RS  = '\x1E'; // Record Separator.
     static const char C0_US  = '\x1F'; // Unit Separator.
+    static const char C0_DEL = '\x7F'; // Delete cell backward.
+
+    static const si32 ctrl_break = 0xE046; // Pressed Ctrl+Break scancode.
 
     static const auto OSC_LABEL_TITLE  = "0"   ; // Set icon label and title.
     static const auto OSC_LABEL        = "1"   ; // Set icon label.
@@ -358,14 +364,20 @@ namespace netxs::ansi
         auto& locate(twod const& p) { return add("\033[", p.y + 1, ';', p.x + 1, 'H'); } // esc: 0-Based caret position.
         auto& cuu(si32 n)           { return add("\033[", n, 'A'                    ); } // esc: Caret up.
         auto& cud(si32 n)           { return add("\033[", n, 'B'                    ); } // esc: Caret down.
-        auto& cuf(si32 n)           { return add("\033[", n, 'C'                    ); } // esc: Caret forward.
-        auto& cub(si32 n)           { return add("\033[", n, 'D'                    ); } // esc: Caret backward.
+        auto& cuf(si32 n)           { return add("\033[", n, 'C'                    ); } // esc: Caret forward.  Negative values can wrap to the prev line.
+        auto& cub(si32 n)           { return add("\033[", n, 'D'                    ); } // esc: Caret backward. Negative values can wrap to the next line.
         auto& cnl(si32 n)           { return add("\033[", n, 'E'                    ); } // esc: caret next line.
         auto& cpl(si32 n)           { return add("\033[", n, 'F'                    ); } // esc: Caret previous line.
         auto& ocx(si32 n)           { return add("\033[", n, 'G'                    ); } // esc: Caret 1-based horizontal absolute.
         auto& ocy(si32 n)           { return add("\033[", n, 'd'                    ); } // esc: Caret 1-based vertical absolute.
+        auto& dch(si32 n)           { return add("\033[", n, 'P'                    ); } // esc: DCH
+        auto& fwd(si32 n)           { return n > 0 ? add("\033[",-n, 'D')
+                                           : n < 0 ? add("\033[", n, 'C') : *this;     } // esc: Move caret n cell in line with wrapping.
+        auto& del()                 { return add('\x7F'                             ); } // esc: Delete cell backwards.
         auto& scp()                 { return add("\033[s"                           ); } // esc: Save caret position in memory.
         auto& rcp()                 { return add("\033[u"                           ); } // esc: Restore caret position from memory.
+        auto& pushsgr()             { return add("\033[#{"                          ); } // esc: Push SGR attributes onto stack.
+        auto& popsgr()              { return add("\033[#}"                          ); } // esc: Pop  SGR attributes from stack.
         auto& fcs(bool b)           { return add("\033[", b ? 'I' : 'O'             ); } // esc: Terminal window focus.
         auto& eol()                 { return add("\n"                               ); } // esc: EOL.
         auto& edl()                 { return add("\033[K"                           ); } // esc: EDL.
@@ -470,13 +482,13 @@ namespace netxs::ansi
         template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
         auto& s11n(core const& canvas, rect region, cell& state)
         {
-            auto badfx = [&]()
+            auto badfx = [&]
             {
                 add(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
                 state.set_gc();
                 state.wdt(1);
             };
-            auto side_badfx = [&]() // Restoring the halves on the side
+            auto side_badfx = [&] // Restoring the halves on the side
             {
                 add(state.txt());
                 state.set_gc();
@@ -519,7 +531,7 @@ namespace netxs::ansi
                     }
                 }
             };
-            auto eolfx = [&]()
+            auto eolfx = [&]
             {
                 if (state.wdt() == 2) side_badfx();  // Left part alone at the right side
                 state.set_gc();
@@ -700,6 +712,9 @@ namespace netxs::ansi
     static auto ocy(si32 n)           { return esc{}.ocy(n);        } // ansi: Caret 1-based vertical absolute.
     static auto chx(si32 n)           { return esc{}.chx(n);        } // ansi: Caret 0-based horizontal absolute.
     static auto chy(si32 n)           { return esc{}.chy(n);        } // ansi: Caret 0-based vertical absolute.
+    static auto fwd(si32 n)           { return esc{}.fwd(n);        } // ansi: Move caret n cell in line.
+    static auto dch(si32 n)           { return esc{}.dch(n);        } // ansi: Delete (not Erase) letters under the cursor.
+    static auto del()                 { return esc{}.del( );        } // ansi: Delete cell backwards ('\x7F').
     static auto bld(bool b = true)    { return esc{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     static auto und(si32 n = 1   )    { return esc{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
     static auto blk(bool b = true)    { return esc{}.blk(b);        } // ansi: SGR Blink attribute.
@@ -721,6 +736,8 @@ namespace netxs::ansi
     static auto edl()                 { return esc{}.edl( );        } // ansi: EDL.
     static auto scp()                 { return esc{}.scp( );        } // ansi: Save caret position in memory.
     static auto rcp()                 { return esc{}.rcp( );        } // ansi: Restore caret position from memory.
+    static auto pushsgr()             { return esc{}.pushsgr();     } // ansi: Push SGR attrs onto stack.
+    static auto popsgr()              { return esc{}.popsgr();      } // ansi: Pop  SGR attrs from stack.
     static auto cpp(twod const& n)    { return esc{}.cpp(n);        } // ansi: Caret percent position.
     static auto cpx(si32 n)           { return esc{}.cpx(n);        } // ansi: Caret horizontal percent position.
     static auto cpy(si32 n)           { return esc{}.cpy(n);        } // ansi: Caret vertical percent position.
@@ -749,7 +766,7 @@ namespace netxs::ansi
     static auto header(view t)        { return esc{}.header(t);     } // ansi: Window title.
     static auto altbuf(bool b)        { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
     static auto cursor(bool b)        { return esc{}.cursor(b);     } // ansi: Caret visibility.
-    static auto appkey(bool b)        { return esc{}.appkey(b);     } // ansi: Application Caret Keys (DECCKM).
+    static auto appkey(bool b)        { return esc{}.appkey(b);     } // ansi: Application cursor Keys (DECCKM).
     static auto setbuf(view t)        { return esc{}.setbuf(t);     } // ansi: Set clipboard.
     static auto ref(si32 i)           { return esc{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     static auto idx(si32 i)           { return esc{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
@@ -1161,6 +1178,7 @@ namespace netxs::ansi
 
     template<class T> inline void parse(view utf8, T*&  dest) { _glb<T>::vt_parser.parse(utf8, dest); }
     template<class T> inline void parse(view utf8, T*&& dest) { T* dptr = dest;    parse(utf8, dptr); }
+    template<class T> inline auto& get_parser()               { return _glb<T>::vt_parser; }
 
     template<class T> using esc_t = func<qiew, T>;
     template<class T> using osc_h = std::function<void(view&, T*&)>;
@@ -1491,6 +1509,14 @@ namespace netxs::ansi
             }
         };
 
+        void data(core& cooked)
+        {
+            if (auto count = cooked.size().x)
+            {
+                cooked.each([&](cell& c) { c.meta(brush); });
+                data(count, cooked.pick());
+            }
+        }
         void post(utf::frag const& cluster)
         {
             static ansi::marker marker;
@@ -1586,7 +1612,7 @@ namespace netxs::ansi
     };
 
     // ansi: Checking ANSI/UTF-8 integrity and return a valid view.
-    auto purify(view utf8)
+    auto purify(qiew utf8)
     {
         if (utf8.size())
         {
@@ -1818,6 +1844,7 @@ namespace netxs::ansi
                     }
                     else if constexpr (std::is_integral_v<D>
                                     || std::is_same_v<D, twod>
+                                    || std::is_same_v<D, dent>
                                     || std::is_same_v<D, rect>)
                     {
                         auto le_data = netxs::letoh(data);
@@ -2283,8 +2310,8 @@ namespace netxs::ansi
             STRUCT(clipdata,          (id_t, gear_id) (text, data))
             STRUCT(plain,             (id_t, gear_id) (text, utf8txt))
             STRUCT(ctrls,             (id_t, gear_id) (ui32, ctlstat))
-            STRUCT(keybd,             (id_t, gear_id) (ui32, ctlstat) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster))
-            STRUCT(mouse,             (id_t, gear_id) (ui32, ctlstat) (ui32, buttons) (ui32, msflags) (ui32, wheeldt) (twod, coordxy))
+            STRUCT(keybd,             (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
+            STRUCT(mouse,             (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, buttons) (ui32, msflags) (ui32, wheeldt) (twod, coordxy))
             STRUCT(mouse_stop,        (id_t, gear_id))
             STRUCT(mouse_halt,        (id_t, gear_id))
             STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
@@ -2350,7 +2377,7 @@ namespace netxs::ansi
                     auto mid = src + csz.x * min.y;
                     bool bad = true;
                     auto sum = sz_t{ 0 };
-                    auto rep = [&]()
+                    auto rep = [&]
                     {
                         if (sum < sizeof(subtype::rep) + sizeof(sum))
                         {
@@ -2692,19 +2719,17 @@ namespace netxs::ansi
                         //todo
                         return !cache.scan<VGAMODE>(front, state, *this);
                     };
-                    auto fallback = [&](cell const& cache)
-                    {
-                        auto dumb = cache;
-                        dumb.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                        put(dumb);
-                    };
                     auto left_half = [&](cell const& cache)
                     {
-                        fallback(cache);
+                        auto temp = cache;
+                        temp.txt(cache.get_c0_left());
+                        put(temp);
                     };
                     auto right_half = [&](cell const& cache)
                     {
-                        fallback(cache);
+                        auto temp = cache;
+                        temp.txt(cache.get_c0_right());
+                        put(temp);
                     };
                     auto tie = [&](cell const& fore, cell const& next)
                     {

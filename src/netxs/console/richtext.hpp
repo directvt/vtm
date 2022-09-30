@@ -452,6 +452,22 @@ namespace netxs::console
         constexpr auto  size  () const { return  basis.size();         }
         constexpr auto  empty () const { return !width;                }
         constexpr auto  length() const { return  width;                }
+        // shot: Compare content.
+        template<class P>
+        auto same(shot const& s, P compare) const
+        {
+            if (width != s.width) return faux;
+            auto dest = s.basis.iter();
+            auto head =   basis.iter();
+            auto tail = head + width;
+            while (head != tail)
+            {
+                if (!compare(*head++, *dest++)) return faux;
+            }
+            return true;
+        }
+        auto operator == (shot const& s) const { return same(s, [](auto const& a, auto const& b){ return a == b;        }); }
+        auto  same       (shot const& s) const { return same(s, [](auto const& a, auto const& b){ return a.same_txt(b); }); }
 
         template<bool RtoL, class P = noop>
         auto output(core& canvas, twod const& pos, P print = P()) const  // shot: Print the source content using the specified print proc, which returns the number of characters printed.
@@ -499,7 +515,7 @@ namespace netxs::console
         auto shadow() const                                     { return shot{ *this };                    }
         auto substr(si32 at, si32 width = netxs::maxsi32) const { return shadow().substr(at, width);       }
         void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
-        void reserv(si32 oversize)                              { if (oversize > length()) crop(oversize); }
+        void resize(si32 oversize)                              { if (oversize > length()) crop(oversize); }
         auto empty()
         {
             return canvas.empty();
@@ -510,8 +526,13 @@ namespace netxs::console
             auto head = iter();
             auto tail = iend();
             auto stop = head + min_size;
-            while (stop != tail-- && *tail == blank) { }
-            auto new_size = static_cast<si32>(tail - head + 1);
+            while (stop != tail)
+            {
+                auto next = tail - 1;
+                if (*next != blank) break;
+                tail = next;
+            }
+            auto new_size = static_cast<si32>(tail - head);
             if (max_size && max_size < new_size) new_size = max_size;
             if (new_size != length()) crop(new_size);
         }
@@ -522,7 +543,7 @@ namespace netxs::console
             auto len = length();
             if constexpr (AUTOGROW)
             {
-                reserv(at + count);
+                resize(at + count);
             }
             else
             {
@@ -534,19 +555,26 @@ namespace netxs::console
             auto end = dst + count;
             while (dst != end) *dst++ = blank;
         }
-        void splice(si32 at, shot const& fragment)
+        template<class Span, class Shader>
+        void splice(si32 at, Span const& fragment, Shader fuse)
         {
             auto len = fragment.length();
-            reserv(len + at);
+            resize(len + at);
             auto ptr = iter();
             auto dst = ptr + at;
             auto end = dst + len;
             auto src = fragment.data();
-            while (dst != end) *dst++ = *src++;
+            while (dst != end) fuse(*dst++, *src++);
         }
-        template<class SRC_IT, class DST_IT>
-        static void forward_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
+        template<bool Copy = faux, class SRC_IT, class DST_IT, class Shader>
+        static void forward_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail, Shader fuse)
         {
+            if constexpr (Copy)
+            {
+                while (dest != tail) fuse(*dest++, *data++);
+                return;
+            }
+
             //  + evaluate TAB etc
             //  + bidi
             //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
@@ -564,12 +592,12 @@ namespace netxs::console
                 auto w = c.wdt();
                 if (w == 1)
                 {
-                    *dest++ = c;
+                    fuse(*dest++, c);
                 }
                 else if (w == 2)
                 {
-                    *dest++ = c.wdt(2);
-                    *dest++ = c.wdt(3);
+                    fuse(*dest++, c.wdt(2));
+                    fuse(*dest++, c.wdt(3));
                 }
                 else if (w == 0)
                 {
@@ -581,7 +609,7 @@ namespace netxs::console
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
                     c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    do *dest++ = c;
+                    do fuse(*dest++, c);
                     while (--w && dest != tail + 1);
                 }
             }
@@ -589,14 +617,20 @@ namespace netxs::console
             {
                 auto c = *data;
                 auto w = c.wdt();
-                     if (w == 1) *dest = c;
-                else if (w == 2) *dest = c.wdt(3);
-                else if (w >  2) *dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                     if (w == 1) fuse(*dest, c);
+                else if (w == 2) fuse(*dest, c.wdt(3));
+                else if (w >  2) fuse(*dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
             }
         }
-        template<class SRC_IT, class DST_IT>
-        static void unlimit_fill_proc(SRC_IT data, si32 size, DST_IT dest, DST_IT tail, si32 back)
+        template<bool Copy = faux, class SRC_IT, class DST_IT, class Shader>
+        static void unlimit_fill_proc(SRC_IT data, si32 size, DST_IT dest, DST_IT tail, si32 back, Shader fuse)
         {
+            if constexpr (Copy)
+            {
+                while (size-- > 0) fuse(*dest++, *data++);
+                return;
+            }
+
             //  + evaluate TAB etc
             //  + bidi
             //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
@@ -610,7 +644,7 @@ namespace netxs::console
             auto set = [&](auto const& c)
             {
                 if (dest == tail) dest -= back;
-                *dest++ = c;
+                fuse(*dest++, c);
                 --size;
             };
             while (size > 0)
@@ -635,15 +669,21 @@ namespace netxs::console
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    do set(c);
-                    while (--w && size > 0);
+                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //do set(c);
+                    //while (--w && size > 0);
                 }
             }
         }
-        template<class SRC_IT, class DST_IT>
-        static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
+        template<bool Copy = faux, class SRC_IT, class DST_IT, class Shader>
+        static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail, Shader fuse)
         {
+            if constexpr (Copy)
+            {
+                while (dest != tail) fuse(*--dest, *--data);
+                return;
+            }
+
             //  + evaluate TAB etc
             //  + bidi
             //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
@@ -661,12 +701,12 @@ namespace netxs::console
                 auto w = c.wdt();
                 if (w == 1)
                 {
-                    *--dest = c;
+                    fuse(*--dest, c);
                 }
                 else if (w == 2)
                 {
-                    *--dest = c.wdt(3);
-                    *--dest = c.wdt(2);
+                    fuse(*--dest, c.wdt(3));
+                    fuse(*--dest, c.wdt(2));
                 }
                 else if (w == 0)
                 {
@@ -677,36 +717,39 @@ namespace netxs::console
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    do *--dest = c;
-                    while (--w && dest != tail - 1);
+                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //do *--dest = c;
+                    //while (--w && dest != tail - 1);
                 }
             }
             if (dest == tail) // Last cell; tail + 1.
             {
                 auto c = *--data;
                 auto w = c.wdt();
-                     if (w == 1) *--dest = c;
-                else if (w == 2) *--dest = c.wdt(3);
-                else if (w >  2) *--dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                     if (w == 1) fuse(*--dest, c);
+                else if (w == 2) fuse(*--dest, c.wdt(3));
+                else if (w >  2) fuse(*--dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
             }
         }
-        void splice(si32 at, si32 count, grid const& proto)
+        // rich: Splice proto with auto grow.
+        template<bool Copy = faux, class Span, class Shader>
+        void splice(si32 at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
-            reserv(at + count);
+            resize(at + count);
             auto end = iter() + at;
             auto dst = end + count;
             auto src = proto.end();
-            reverse_fill_proc(src, dst, end);
+            reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
-        void splice(twod at, si32 count, grid const& proto)
+        template<bool Copy = faux, class Span, class Shader>
+        void splice(twod at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
             auto end = iter() + at.x + at.y * size().x;
             auto dst = end + count;
             auto src = proto.end();
-            reverse_fill_proc(src, dst, end);
+            reverse_fill_proc<Copy>(src, dst, end, fuse);
         }
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
         void scroll(si32 top, si32 end, si32 gap, cell const& clr)
@@ -751,6 +794,33 @@ namespace netxs::console
                 while (dst != src) *--src = clr;
             }
         }
+        // rich: Shift 1D substring inside the line.
+        void scroll(si32 from, si32 size, si32 step)
+        {
+            if (step == 0 || size == 0) return;
+            if (step < 0)
+            {
+                std::swap(size, step);
+                size = -size;
+                from -= size;
+            }
+            auto need = from + size + step;
+            if (need > core::size().x) crop(need);
+
+            auto tail = core::iter() + from;
+            auto iter = tail + size;
+            while (iter != tail)
+            {
+                auto head = --iter;
+                auto tail = head + step;
+                while (head != tail)
+                {
+                    auto& src = *head;
+                    auto& dst = *++head;
+                    std::swap(src, dst);
+                }
+            }
+        }
         // rich: (current segment) Insert n blanks at the specified position. Autogrow within segment only.
         void insert(si32 at, si32 count, cell const& blank, si32 margin)
         {
@@ -759,7 +829,7 @@ namespace netxs::console
             auto pos = at % margin;
             auto vol = std::min(count, margin - pos);
             auto max = std::min(len + vol, at + margin - pos);
-            reserv(max);
+            resize(max);
             auto ptr = iter();
             auto dst = ptr + max;
             auto src = dst - vol;
@@ -802,6 +872,22 @@ namespace netxs::console
                 while (dst != end) *dst++ = blank;
             }
         }
+        // rich: (current segment) Delete n chars.
+        void cutoff(si32 at, si32 count)
+        {
+            if (count <= 0) return;
+            auto len = length();
+            if (at < len)
+            {
+                auto rem = len - at;
+                auto vol = std::min(count, rem);
+                auto dst = iter() + at;
+                auto end = dst + rem;
+                auto src = dst + vol;
+                while (src != end) *dst++ = *src++;
+                crop(len - vol);
+            }
+        }
         // rich: (whole line) Delete n chars and add blanks at the right margin.
         void cutoff_full(si32 at, si32 count, cell const& blank, si32 margin)
         {
@@ -820,7 +906,7 @@ namespace netxs::console
                 }
                 else
                 {
-                    reserv(margin + at);
+                    resize(margin + at);
                     auto ptr = iter();
                     auto dst = ptr + at;
                     auto src = dst + count;
@@ -840,6 +926,23 @@ namespace netxs::console
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
             auto ptr = iter();
             auto dst = ptr + at.x + at.y * len.x;
+            auto end = dst + vol;
+            while (dst != end) *dst++ = blank;
+        }
+        // rich: Put n blanks on top of the chars and wrap them at the right edge.
+        void backsp(twod const& at, si32 count, cell const& blank)
+        {
+            auto len = size();
+            if (at.y >= len.y || (at.y == len.y - 1 && at.x >= len.x)) return;
+            auto ps = std::clamp(at, dot_00, len - dot_11);
+            auto d1 = at.y * len.x + ps.x;
+            auto d2 = ps.y * len.x + ps.x;
+            auto dt = d1 - d2;
+            count -= dt;
+            if (count <= 0) return;
+            auto vol = std::min(count, len.x * len.y - d2);
+            auto ptr = iter();
+            auto dst = ptr + d2;
             auto end = dst + vol;
             while (dst != end) *dst++ = blank;
         }
@@ -931,6 +1034,7 @@ namespace netxs::console
         operator writ const& () const { return locus; }
 
         void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
+        void  content(rich& r){ *lyric = r; caret = r.length(); } // para: Set paragraph content.
         auto& content() const { return *lyric; } // para: Return paragraph content.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
         shot   substr(si32 start, si32 width) const // para: Return paragraph substring shadow.
@@ -960,7 +1064,7 @@ namespace netxs::console
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void data(si32 count, grid const& proto) override
         {
-            lyric->splice(caret, count, proto);
+            lyric->splice(caret, count, proto, cell::shaders::full);
             caret += count;
         }
         void id(ui32 newid) { index = newid; }
@@ -970,6 +1074,265 @@ namespace netxs::console
 
         //todo unify
         auto& at(si32 p) const { return lyric->data(p); } // para: .
+
+        // para: Normalize caret position.
+        void caret_check()
+        {
+            caret = std::clamp(caret, 0, length());
+        }
+        // para: Move caret to the beginning.
+        auto move_to_home(bool erase)
+        {
+            if (erase)
+            {
+                caret_check();
+                auto oldpos = caret;
+                auto& line = content();
+                line.cutoff(0, oldpos);
+            }
+            caret = 0;
+        }
+        // para: Move caret to the end.
+        auto move_to_end(bool erase)
+        {
+            if (erase)
+            {
+                caret_check();
+                auto& line = content();
+                line.crop(caret);
+            }
+            caret = length();
+        }
+        // para: Move caret one cell to the left.
+        auto step_by_cell_rev()
+        {
+            caret_check();
+            if (caret > 0)
+            {
+                caret--;
+                return true;
+            }
+            else return faux;
+        }
+        // para: Move caret one cell to the right.
+        auto step_by_cell_fwd()
+        {
+            caret_check();
+            if (caret < length())
+            {
+                caret++;
+                return true;
+            }
+            else return faux;
+        }
+        // para: Move caret one grapheme cluster to the left.
+        auto step_by_gc_rev()
+        {
+            caret_check();
+            if (caret > 0)
+            {
+                caret--;
+                auto& line = content();
+                auto  iter = line.iter() + caret;
+                if (iter->wdt() == 3 && caret > 0 && (--iter)->wdt() == 2)
+                {
+                    caret--;
+                }
+                return true;
+            }
+            else return faux;
+        }
+        // para: Delete one grapheme cluster to the left.
+        auto del_gc_rev()
+        {
+            caret_check();
+            auto oldpos = caret;
+            if (step_by_gc_rev())
+            {
+                auto newpos = caret;
+                auto& line = content();
+                line.cutoff(newpos, oldpos - newpos);
+                return true;
+            }
+            else return faux;
+        }
+        // para: Move caret one grapheme cluster to the right.
+        auto step_by_gc_fwd()
+        {
+            caret_check();
+            if (caret < length())
+            {
+                auto& line = content();
+                auto  iter = line.iter() + caret;
+                caret++;
+                if (iter->wdt() == 2 && caret < length() && (++iter)->wdt() == 3)
+                {
+                    caret++;
+                }
+                return true;
+            }
+            else return faux;
+        }
+        // para: Delete one grapheme cluster to the right.
+        auto del_gc_fwd()
+        {
+            caret_check();
+            auto oldpos = caret;
+            if (step_by_gc_fwd())
+            {
+                auto newpos = caret;
+                auto& line = content();
+                line.cutoff(oldpos, newpos - oldpos);
+                caret = oldpos;
+                return true;
+            }
+            else return faux;
+        }
+        // para: Insert one proto cell before caret (the proto means that it will be expanded if it is wide - wdt == 2).
+        auto insert(cell c, bool inserting = true)
+        {
+            if (!inserting) del_gc_fwd();
+            else            caret_check();
+            auto wdt = c.wdt();
+            auto& line = content();
+            if (wdt == 2)
+            {
+                line.insert_full(caret, 2, c);
+                caret++;
+                line.data(caret).wdt(3);
+                caret++;
+            }
+            else line.insert_full(caret++, 1, c.wdt(1));
+        }
+        // para: Insert text.
+        void insert(view utf8, bool inserting)
+        {
+            caret_check();
+            if (caret != length())
+            {
+                if (inserting)
+                {
+                    auto coor = caret;
+                    auto size = length();
+                    caret = size;
+                    operator+=(utf8);
+                    auto& line = content();
+                    auto  grow = length() - size;
+                    line.scroll(coor, size - coor, grow);
+                    caret = coor + grow;
+                }
+                else
+                {
+                    operator+=(utf8);
+                    auto size = length();
+                    if (caret < size && at(caret).wdt() == 3) // Broken cluster.
+                    {
+                        auto& line = content();
+                        size--;
+                        line.scroll(caret, 1, size - caret);
+                        line.crop(size);
+                    }
+                }
+            }
+            else operator+=(utf8);
+        }
+        // para: Move caret one word to the left.
+        auto step_by_word_rev()
+        {
+            caret_check();
+            if (caret > 0)
+            {
+                auto& line = content();
+                caret = line.word<feed::rev>(caret - 1);
+                return true;
+            }
+            else return faux;
+        }
+        // para: Delete one word to the left.
+        auto del_word_rev()
+        {
+            caret_check();
+            auto oldpos = caret;
+            if (step_by_word_rev())
+            {
+                auto newpos = caret;
+                auto& line = content();
+                line.cutoff(newpos, oldpos - newpos);
+                return true;
+            }
+            else return faux;
+        }
+        // para: Move caret one word to the right.
+        auto step_by_word_fwd()
+        {
+            caret_check();
+            if (caret < length())
+            {
+                auto& line = content();
+                caret = line.word<feed::fwd>(caret) + 1;
+                caret_check();
+                return true;
+            }
+            else return faux;
+        }
+        // para: Delete one word to the right.
+        auto del_word_fwd()
+        {
+            caret_check();
+            auto oldpos = caret;
+            if (step_by_word_fwd())
+            {
+                auto newpos = caret;
+                auto& line = content();
+                line.cutoff(oldpos, newpos - oldpos);
+                caret = oldpos;
+                return true;
+            }
+            else return faux;
+        }
+        // para: Move caret one word(true) or grapheme cluster(faux) to the left.
+        auto step_rev(bool by_word)
+        {
+            return by_word ? step_by_word_rev()
+                           : step_by_gc_rev();
+        }
+        // para: Move caret one word(true) or grapheme cluster(faux) to the right.
+        auto step_fwd(bool by_word, rich const& fallback)
+        {
+                 if (by_word)           return step_by_word_fwd();
+            else if (caret != length()) return step_by_gc_fwd();
+            else
+            {
+                auto& data = content();
+                auto iter1 = data.iter();
+                auto end_1 = iter1 + length();
+                auto iter2 = fallback.iter();
+                auto end_2 = iter2 + fallback.length();
+                while (iter2 != end_2)
+                {
+                    if (iter1 == end_1)
+                    {
+                        insert(*iter2);
+                        return true;
+                    }
+                    if ((iter1++)->wdt() == 2 && iter1 != end_1 && (iter1++)->wdt() != 3) log("para: corrupted glyph");
+                    if ((iter2++)->wdt() == 2 && iter2 != end_2 && (iter2++)->wdt() != 3) log("para: corrupted glyph");
+                }
+            }
+            return faux;
+        }
+        // para: Delete one word(true) or grapheme cluster(faux) to the left.
+        auto wipe_rev(bool by_word)
+        {
+            return by_word ? del_word_rev()
+                           : del_gc_rev();
+        }
+        // para: Delete one word(true) or grapheme cluster(faux) to the right.
+        auto wipe_fwd(bool by_word)
+        {
+            return by_word ? del_word_fwd()
+                           : del_gc_fwd();
+        }
     };
 
     // richtext: Cascade of the identical paragraphs.
@@ -1286,7 +1649,7 @@ namespace netxs::console
         void data(si32 count, grid const& proto) override
         {
             auto& item = **layer;
-            item.lyric->splice(item.caret, count, proto);
+            item.lyric->splice(item.caret, count, proto, cell::shaders::full);
             item.caret += count;
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
