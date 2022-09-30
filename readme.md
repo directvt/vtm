@@ -35,7 +35,7 @@ Text-based desktop environment inside your terminal*
   - OpenBSD
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
 - MS Windows
-  - Windows
+  - Windows Desktop
   - Windows Server
 
 # Building from Source
