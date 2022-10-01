@@ -55,9 +55,7 @@ R"==(
 </config>
 )==";
 
-    static constexpr auto default_config_v2 = R"==(hgfhghfh
-    jkjkljl ergfdgdfror invalid xml data errgfdgfdor
-    fdsjfj sklfjklds fjfkldsj klfds     
+    static constexpr auto default_config_v2 = R"==(
 <config>
     <menu>
         <selected=Term /> <!-- set selected using menu item id -->

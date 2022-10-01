@@ -20,18 +20,28 @@ namespace netxs::xml
         open,
         close,
     };
-    template<class T>
-    auto escape(T&& line)
+    auto escape(qiew line)
     {
-        auto temp = text{ std::forward<T>(line) };
-        utf::change(temp, "\\"s,   "\\\\"s);
-        utf::change(temp, "\""s,   "\\\""s);
-        utf::change(temp, "\x1b"s, "\\e"s );
-        utf::change(temp, "\n"s,   "\\n"s );
-        utf::change(temp, "\r"s,   "\\r"s );
-        utf::change(temp, "\t"s,   "\\t"s );
-        utf::change(temp, "\a"s,   "\\a"s );
-        return temp;
+        auto crop = text{};
+        crop.reserve(line.size() * 2);
+        while (line)
+        {
+            auto c = line.pop_front();
+            switch (c)
+            {
+                case '\033': crop.push_back('\\'); crop.push_back('e' ); break;
+                case   '\\': crop.push_back('\\'); crop.push_back('\\'); break;
+                case   '\"': crop.push_back('\\'); crop.push_back('\"'); break;
+                case   '\n': crop.push_back('\\'); crop.push_back('n' ); break;
+                case   '\r': crop.push_back('\\'); crop.push_back('r' ); break;
+                case   '\t': crop.push_back('\\'); crop.push_back('t' ); break;
+                case   '\a': crop.push_back('\\'); crop.push_back('a' ); break;
+                default:
+                    crop.push_back(c);
+                    break;
+            }
+        }
+        return crop;
     }
     auto unescape(qiew line)
     {
@@ -54,7 +64,7 @@ namespace netxs::xml
                     case '\'': crop.push_back('\''  ); break;
                     default:   crop.push_back('\\'  );
                                crop.push_back(c     ); break;
-                };
+                }
             }
             else crop.push_back(c);
         }
