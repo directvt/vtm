@@ -610,7 +610,7 @@ R"==(
             auto msg = ui::post::ctor()
                   ->colors(whitelt, rgba{ 0x7F404040 })
                   ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                  + "\n\nUsupported application type\n\n"
+                  + "\n\nUnsupported application type\n\n"
                   + ansi::nil().wrp(wrap::on)
                   + "Only the following application types are supported\n\n"
                   + ansi::nil().wrp(wrap::off).fgc(whitedk)

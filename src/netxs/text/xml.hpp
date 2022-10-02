@@ -158,7 +158,7 @@ namespace netxs::xml
         {
             auto& value = utf::to_low(iter->second);
             result = value.empty() || value.starts_with("1")  // 1 - true
-                                   || value.starts_with("o")  // on
+                                   || value.starts_with("on") // on
                                    || value.starts_with("y")  // yes
                                    || value.starts_with("t"); // true
         }
@@ -462,8 +462,7 @@ namespace netxs::xml
                 else if (temp.starts_with(view_close_tag    )) what = type::close_tag;
                 else if (temp.starts_with(view_begin_tag    )) what = type::begin_tag;
                 else if (temp.starts_with(view_empty_tag    )) what = type::empty_tag;
-                else if (temp.starts_with(view_slash        ))
-                         what = type::unknown;
+                else if (temp.starts_with(view_slash        )) what = type::unknown;
                 else if (temp.starts_with(view_close_inline )) what = type::close_inline;
                 else if (temp.starts_with(view_quoted_text  )) what = type::quoted_text;
                 else if (temp.starts_with(view_equal        )) what = type::equal;
