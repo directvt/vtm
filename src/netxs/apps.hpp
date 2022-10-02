@@ -1203,13 +1203,24 @@ namespace netxs::app::shared
             //auto temp = view{ app::shared::default_config_v2 };
             //auto data_view = temp;
             //auto config = xml::document(data_view);
-            //auto iter = config.find("config/menu/item");
-            //if (iter != config.end())
-            //{
-            //    auto& items = *iter;
-            //    auto term = items.begin() + 3;
-            //    items.erase(term);
-            //}
+            auto i = 0;
+            //auto list = config.enumerate("config");
+            auto list = config.enumerate("config/menu/item");
+            for (auto item : list)
+            {
+                if (item)
+                {
+                    auto& elem = *item;
+                    log("elem ", i++, elem.val_ptr_list.empty() ? "" : ":");
+                    for (auto& subelem : elem.sub)
+                    {
+                        auto count = subelem.second.size();
+                        if (count > 1) log(subelem.first, "(", count, ") ",  faux);
+                        else           log(subelem.first, " ",  faux);
+                    }
+                    log("\n");
+                }
+            }
 
             //auto& selected = config.root.sub["menu"][0]->sub["selected"][0]->val_ptr_list.front().operator*();
             //selected = "Tile";

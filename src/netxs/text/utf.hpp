@@ -390,6 +390,7 @@ namespace netxs::utf
         constexpr qiew(span const& v) noexcept : view(v.data(), v.size()) { }
         constexpr qiew(view const& v) noexcept : view(v) { }
                   qiew(text const& v) noexcept : view(v) { }
+                  qiew(char const& v) noexcept : view(&v, 1) { }
         template<class T, class ...Args>
         constexpr qiew(T* ptr, Args&&... len) noexcept : view(ptr, std::forward<Args>(len)...) { }
         constexpr qiew& operator = (qiew const&) noexcept = default;
@@ -1253,7 +1254,7 @@ namespace netxs::utf
     template<class V1, class V2>
     auto divide(V1 const& utf8, V2 const& delimiter)
     {
-        auto mark = text(delimiter);
+        auto mark = qiew(delimiter);
         auto crop = std::vector<view>{};
 
         if (auto len = mark.size())

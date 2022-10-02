@@ -930,6 +930,43 @@ namespace netxs::xml
         {
             
         }
+        auto enumerate(qiew path_str)
+        {
+            using utf::text;
+            auto crop = vect{}; //auto& items = config.root->sub["menu"][0]->sub["item"]...;
+            auto temp = text{};
+            auto path = utf::divide(path_str, '/');
+            if (path.size())
+            {
+                auto head = path.begin();
+                auto tail = path.end();
+                temp = *head++;
+                if (root && root->tag_ptr && *(root->tag_ptr) == temp)
+                {
+                    auto item = root;
+                    while (head != tail)
+                    {
+                        temp = *head++;
+                        if (auto iter = item->sub.find(temp);
+                                 iter!= item->sub.end())
+                        {
+                            auto& i = iter->second;
+                            if (head == tail)
+                            {
+                                crop.insert(crop.end(), i.begin(), i.end());
+                            }
+                            else if (i.size() && i.front())
+                            {
+                                item = i.front();
+                            }
+                            else break;
+                        }
+                        else break;
+                    }
+                }
+            }
+            return crop;
+        }
         auto show()
         {
             static const rgba top_token_fg = 0xFFffd799;
