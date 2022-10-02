@@ -3024,13 +3024,17 @@ namespace netxs::os
         {
             gate.output(ansi::esc{}.save_title()
                                    .altbuf(true)
+                                   #if not defined(_WIN32) // Use win32 console api only.
                                    .vmouse(true)
+                                   #endif
                                    .cursor(faux)
                                    .bpmode(true)
                                    .setutf(true));
             gate.splice(vtmode);
             gate.output(ansi::esc{}.scrn_reset()
+                                   #if not defined(_WIN32) // Use win32 console api only.
                                    .vmouse(faux)
+                                   #endif
                                    .cursor(true)
                                    .altbuf(faux)
                                    .bpmode(faux)

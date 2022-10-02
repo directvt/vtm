@@ -1625,7 +1625,7 @@ struct consrv
             auto mouse_mode = packet.input.mode & nt::console::inmode::mouse;
             if (mouse_mode)
             {
-                uiterm.mtrack.enable (decltype(uiterm.mtrack)::all_movements);
+                uiterm.mtrack.enable (decltype(uiterm.mtrack)::negative_args);
                 uiterm.mtrack.setmode(decltype(uiterm.mtrack)::w32);
             }
             else uiterm.mtrack.disable(decltype(uiterm.mtrack)::all_movements);

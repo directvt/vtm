@@ -6155,15 +6155,18 @@ namespace netxs::ui
                     log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                     break;
                 case 1000: // Enable mouse buttons reporting mode.
+                    mtrack.disable(m_tracking::negative_args);
                     mtrack.enable(m_tracking::buttons_press);
                     break;
                 case 1001: // Use Hilite mouse tracking mode.
                     log("decset: CSI ? 1001 h  Hilite mouse tracking mode is not supported");
                     break;
                 case 1002: // Enable mouse buttons and drags reporting mode.
+                    mtrack.disable(m_tracking::negative_args);
                     mtrack.enable(m_tracking::buttons_drags);
                     break;
                 case 1003: // Enable all mouse events reporting mode.
+                    mtrack.disable(m_tracking::negative_args);
                     mtrack.enable(m_tracking::all_movements);
                     break;
                 case 1004: // Enable focus tracking.
