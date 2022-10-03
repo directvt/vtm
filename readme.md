@@ -94,7 +94,7 @@ No arguments    | Run client (auto start server)
 ` -s [<config>]`| Run server in interactive mode
 ` -r [<app>]`   | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
 
-Configuration file precedence (descending priority):<br>
+Configuration file location precedence (descending priority):<br>
 1. Command line options `vtm -s path/to/settings.xml`<br>
 2. Environment variable `VTM_CONFIG=path/to/settings.xml`<br>
 3. Hardcoded location `~/.config/vtm/settings.xml`<br>
