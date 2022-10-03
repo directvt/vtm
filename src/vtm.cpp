@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
                 case 'd': daemon = true; break;
                 default:
                     banner();
-                    log("Usage:\n\n ", os::current_module_file(), " [ -d | -s [<config_file>] | -r [<app> [<args...>]] ]\n\n"s
+                    log("Usage:\n\n ", os::current_module_file(), " [ -d [<config_file>] | -s [<config_file>] | -r [<app> [<args...>]] ]\n\n"s
                                     + " No arguments\tRun client, auto start server if is not started.\n"s
                                              + "\t-d\tRun server in background.\n"s
                                              + "\t-s\tRun server in interactive mode.\n"s
