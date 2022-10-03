@@ -1181,7 +1181,7 @@ namespace netxs::app::shared
         app::shared::initialize builder_SHELL        { app::shared::type_SHELL   , build_SHELL      };
     }
 
-    auto init_app_registry = [](auto& world)
+    auto init_app_registry = [](auto& world, qiew params)
     {
         {
             //auto temp = view{ app::shared::test_data };
@@ -1332,12 +1332,20 @@ namespace netxs::app::shared
             {
                 log("apps: using configuration: ", config_path_str);
                 auto size = file.tellg();
-                auto buff = std::vector<char>(size);
+                auto buff = text(size, '\0');
                 file.seekg(0, std::ios::beg);
                 file.read(buff.data(), size);
-                take_config(view(buff.data(), size));
+
+                take_config(buff);
             }
         }
+
+        //todo
+        // Config location precedence:
+        // 1. vtm -s settings_file.xml
+        // 2. VTM_CONFIG=settings_file.xml
+        // 3. ~/.config/vtm/settings.xml
+        // 4. hardcoded settings.xml (at app.hpp)
 
         if (list.empty())
         {
@@ -1349,7 +1357,7 @@ namespace netxs::app::shared
         if (auto size = tiling_profiles.size())
         {
             auto i = 0;
-            log("main: tiling profile", size > 1 ? "s":"", " found:");
+            log("apps: tiling profile", size > 1 ? "s":"", " found:");
             for (auto& profile : tiling_profiles)
             {
                 log("\t", i++, ". profile: ", utf::debase(profile));
