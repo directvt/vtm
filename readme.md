@@ -233,9 +233,9 @@ Configuration file format is a slightly modified XML-format that allows to store
 ### Key differences from the standard XML
 
  - All values are UTF-8 string literals. Arguments can be specified without quotes if there are no spaces.
- - There is no distinction between attributes and sub-objects, i.e. any specified attribute is the sub-object.
- - In addition to a set of sub-objects, each object has its own textual value.
- - Each object can be defined in any way, either as an attribute or as a sub-object.
+ - There is no distinction between XML-attribute and XML-subobject notations, i.e. any specified XML-attribute is the XML-subobject.
+ - In addition to a set of sub-objects, every object has its own textual value.
+ - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax.
  - An object name ending in an asterisk indicates that this object is not an object, but is a template for all subsequent objects with the same name in this scope (see Templates section below).
  - Character escapes
    - `\e`  ASCII 0x1B ESC
