@@ -168,7 +168,8 @@ R"==(
             </document>
 )==";
 
-    static constexpr auto path_settings = ".config/vtm/settings.xml";
+    static constexpr auto usr_config = "~/.config/vtm/settings.xml";
+    static constexpr auto env_config = "VTM_CONFIG";
 
     static constexpr auto type_ANSIVT   = "ansivt";
     static constexpr auto type_DirectVT = "directvt";
@@ -198,7 +199,6 @@ R"==(
     static constexpr auto attr_param    = "param";
     static constexpr auto attr_selected = "selected";
 
-    static constexpr auto tag_profile  = "VTM_CONFIG";
     static constexpr auto tag_config   = "config";
     static constexpr auto tag_autorun  = "autorun";
     static constexpr auto tag_settings = "settings";
@@ -1181,7 +1181,7 @@ namespace netxs::app::shared
         app::shared::initialize builder_SHELL        { app::shared::type_SHELL   , build_SHELL      };
     }
 
-    auto init_app_registry = [](auto& world, qiew params)
+    auto init_app_registry = [](auto& world, view cli_config)
     {
         {
             //auto temp = view{ app::shared::test_data };
@@ -1316,54 +1316,48 @@ namespace netxs::app::shared
             take_elements(data);
         };
 
-        auto ec = std::error_code{};
-        auto config_path = os::homepath() / path_settings;
-        auto config_file = fs::directory_entry(config_path, ec);
-        auto config_path_str = "'" + config_path.string() + "'";
-        utf::change(config_path_str, "\\", "/");
-        if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
+        auto load_config = [&](view path)
         {
-            auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
-            if (file.seekg(0, std::ios::end).fail())
+            if (path.empty()) return faux;
+            log("apps: try to load configuration from ", path);
+            auto ec = std::error_code{};
+            auto home_based = faux;
+            if (path.front() == '~')
             {
-                log("apps: unable to get configuration file size, skip it: ", config_path_str);
+                path.remove_prefix(1);
+                home_based = true;
             }
-            else
+            auto config_path = home_based ? os::homepath() / path
+                                          : fs::path{ path };
+            auto config_file = fs::directory_entry(config_path, ec);
+            auto config_path_str = "'" + config_path.string() + "'";
+            utf::change(config_path_str, "\\", "/");
+            if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
             {
-                log("apps: using configuration: ", config_path_str);
-                auto size = file.tellg();
-                auto buff = text(size, '\0');
-                file.seekg(0, std::ios::beg);
-                file.read(buff.data(), size);
-
-                take_config(buff);
+                auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
+                if (file.seekg(0, std::ios::end).fail())
+                {
+                    log("apps: unable to get configuration file size, skip it: ", config_path_str);
+                }
+                else
+                {
+                    log("apps: using configuration: ", config_path_str);
+                    auto size = file.tellg();
+                    auto buff = text(size, '\0');
+                    file.seekg(0, std::ios::beg);
+                    file.read(buff.data(), size);
+                    take_config(buff);
+                }
             }
-        }
+            return !list.empty();
+        };
 
-        //todo
-        // Config location precedence:
-        // 1. vtm -s settings_file.xml
-        // 2. VTM_CONFIG=settings_file.xml
-        // 3. ~/.config/vtm/settings.xml
-        // 4. hardcoded settings.xml (at app.hpp)
-
-        if (list.empty())
+        if (!load_config(cli_config)
+         || !load_config(os::get_env(env_config))
+         || !load_config(usr_config))
         {
-            log("apps: configuration ", config_path_str, " not found, use default configuration\n", default_config);
+            log("apps: no configuration found, fallback to hardcoded defaults\n", default_config);
             take_config(default_config);
-        }
-
-        auto tiling_profiles = os::get_envars(tag_profile);
-        if (auto size = tiling_profiles.size())
-        {
-            auto i = 0;
-            log("apps: tiling profile", size > 1 ? "s":"", " found:");
-            for (auto& profile : tiling_profiles)
-            {
-                log("\t", i++, ". profile: ", utf::debase(profile));
-                auto data = utf::remain(profile, '=');
-                take_elements(data);
-            }
         }
 
         log("apps: ", list.size(), " menu item(s) added");
