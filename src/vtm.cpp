@@ -48,7 +48,10 @@ int main(int argc, char* argv[])
                     whoami = type::server;
                     params = getopt ? getopt.tail() : text{};
                     break;
-                case 'd': daemon = true; break;
+                case 'd':
+                    daemon = true;
+                    params = getopt ? getopt.tail() : text{};
+                    break;
                 default:
                     banner();
                     log("Usage:\n\n ", os::current_module_file(), " [ -d [<config_file>] | -s [<config_file>] | -r [<app> [<args...>]] ]\n\n"s
