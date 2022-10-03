@@ -224,7 +224,7 @@ Configuration file location precedence (descending priority):<br>
 
 # Settings
 
-vtm can be configured in the `~/.config/vtm/settings.xml` file in xml format. Alternative configuration file location can be specified using ccommaaand line option `-s` / `-d` or using environment variable VTM_CONFIG.
+vtm can be configured in the `~/.config/vtm/settings.xml` file in xml format. Alternative configuration file location can be specified using commaaand line option `-s` / `-d` or using environment variable VTM_CONFIG.
 
 ## Configuration file Format (settings.xml)
 
