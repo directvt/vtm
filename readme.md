@@ -232,7 +232,7 @@ Configuration file format is a slightly modified XML-format that allows to store
 
 ### Key differences from the standard XML
 
- - All values are UTF-8 string literals. Arguments can be specified without quotes if there are no spaces.
+ - All values are UTF-8 string literals and can be specified without quotes if there are no spaces.
  - There is no distinction between XML-attribute and XML-subobject notations, i.e. any specified XML-attribute is the XML-subobject.
  - In addition to a set of sub-objects, every object has its own textual value.
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax.
