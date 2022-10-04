@@ -1038,8 +1038,9 @@ namespace netxs::os
         log(args...);
         os::exit(code);
     }
-    auto get_env(text&& var)
+    auto get_env(view variable)
     {
+        auto var = text{ variable };
         auto val = std::getenv(var.c_str());
         return val ? text{ val }
                    : text{};
