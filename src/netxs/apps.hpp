@@ -31,7 +31,7 @@ namespace netxs::app::shared
     <splitter label="apps" notes=" Default applications group                         \n It can be configured in ~/.config/vtm/settings.xml "/>
     <menuitem id=Term label="Term" notes="Run built-in terminal emulator" type=DirectVT title="Terminal Emulator" param="$0 -r term"/>
 )=="
-#ifdef _WIN32
+#if defined(_WIN32)
 R"==(
     <menuitem id=PowerShell label="PowerShell" title="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
     <menuitem id=Far label="Far" title="Far Manager" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>

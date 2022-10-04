@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
 
         if (daemon)
         {
-            if (!os::daemonize(os::current_module_file()))
+            if (!os::daemonize(os::current_module_file(), params.empty() ? "-s"s : "-s " + params))
             {
                 banner();
                 log("main: failed to daemonize");
