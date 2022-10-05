@@ -1186,7 +1186,11 @@ namespace netxs::app::shared
             {
                 auto temp = path.substr(1);
                 path = os::get_env(temp);
-                if (path.empty()) return faux;
+                if (path.empty())
+                {
+                    log('\tfailed');
+                    return faux;
+                }
                 log('\t', temp, " = ", path);
             }
             auto config_path = path.starts_with("~/") ? os::homepath() / path.substr(2)
