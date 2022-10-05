@@ -6944,7 +6944,7 @@ namespace netxs::ui
 
                 #endif
 
-                #ifdef KEYLOG
+                #if defined(KEYLOG)
                     auto d = std::stringstream{};
                     auto v = view{ data };
                     log("key strokes raw: ", utf::debase(v));
@@ -7314,7 +7314,7 @@ namespace netxs::ui
                 };
                 owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
                 {
-                    #ifdef KEYLOG
+                    #if defined(KEYLOG)
                         auto d = std::stringstream{};
                         auto v = view{ gear.cluster };
                         log("dtvt: key strokes raw: ", utf::debase(v));
