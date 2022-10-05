@@ -420,11 +420,11 @@ Note: The following configuration sections are not implemented yet
         <item* />    <!-- use asterisk at the end of the element name to set defaults -->
         <item* index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Run built-in terminal emulator ">
-            <hotkeys>
+            <hotkeys>    <!-- not implemented -->
                 <action=start key="Ctrl+'t'"/>
                 <action=close key="Ctrl+'z'"/>
             </hotkeys>
-            <param="vtm -r term">
+            <param="vtm -r term">    <!-- not implemented -->
                 <scrollback>
                     <size=20000 />
                     <growstep=0 />
@@ -490,7 +490,7 @@ Note: The following configuration sections are not implemented yet
         <item id=Calc      label="Calc"      type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/>
         <item id=Test      label="Test"      type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/>
         <item id=Truecolor label="Truecolor" type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/>
-        <autorun>
+        <autorun>    <!-- not implemented -->
             <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default -->
             <item wincoor=0,0 />
             <item wincoor=52%,0 />
@@ -498,7 +498,7 @@ Note: The following configuration sections are not implemented yet
             <item=mc wincoor=52%,52% />
         </autorun>
     </menu>
-    <hotkeys>
+    <hotkeys>    <!-- not implemented -->
         <action=prevWindow key="Ctrl+PgUp"/>
         <action=nextWindow key="Ctrl+PgDn"/>
     </hotkeys>
