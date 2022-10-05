@@ -1222,7 +1222,7 @@ namespace netxs::app::shared
          && !load_config(usr_config))
         {
             log("apps: no configuration found, fallback to hardcoded config\n", default_config);
-            take_config(default_config_v2, "");
+            take_config(default_config, "");
         }
 
         log("apps: ", list.size(), " menu item(s) added");
