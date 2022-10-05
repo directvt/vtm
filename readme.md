@@ -400,6 +400,12 @@ Type              | Parameter
 
 ### Configuration Example
 
+Note: The following configuration sections are not implemented yet
+- config/menu/item/param/*
+- config/menu/item/hotkeys
+- config/menu/autorun
+- config/hotkeys
+
 `~/.config/vtm/settings.xml`
 ```xml
 <config>
