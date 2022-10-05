@@ -25,36 +25,6 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static constexpr auto default_config = R"==(
-<config selected=Term>
-    <defaults index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0x0 wincoor=0x0 />
-    <splitter label="apps" notes=" Default applications group                         \n It can be configured in ~/.config/vtm/settings.xml "/>
-    <menuitem id=Term label="Term" notes="Run built-in terminal emulator" type=DirectVT title="Terminal Emulator" param="$0 -r term"/>
-)=="
-#if defined(_WIN32)
-R"==(
-    <menuitem id=PowerShell label="PowerShell" title="PowerShell" fgcolor=15 bgcolor=0xFF562401 notes="Run PowerShell in built-in terminal emulator" type=DirectVT param="$0 -r term powershell"/>
-    <menuitem id=Far label="Far" title="Far Manager" notes="Run Far Manager in its own window (if it is installed)" type=DirectVT param="$0 -r headless far"/>
-)=="
-#else
-R"==(
-    <menuitem id=mc label="mc" title="Midnight Commander" notes="Run Midnight Commander in its own window (if it is installed)" type=SHELL param="mc"/>
-)=="
-#endif
-R"==(
-    <menuitem id=Tile label="Tile" notes="Run Tiling Window Manager with two terminals attached" type=Group title="Tiling Window Manager" param="h1:1(Term, Term)"/>
-    <menuitem id=View label=View notes="Set desktop region" type=Region title="\e[11:3pView: Region"/>"
-    <menuitem id=Settings  label=Settings winsize=50x15 notes="Configure frame rate" type=DirectVT title="Settings"   param="$0 -r settings"/>
-    <menuitem id=Logs      label=Logs                   notes="Run Logs application" type=DirectVT title="Logs Title" param="$0 -r logs"/>
-    <splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/>
-    <menuitem id=Gems      label="Gems"      notes=" App Distribution Hub "   type=DirectVT title="Gems Title" param="$0 -r gems"/>
-    <menuitem id=Text      label="Text"      notes=" Text Editor "            type=DirectVT title="Text Title" param="$0 -r text"/>
-    <menuitem id=Calc      label="Calc"      notes=" Spreadsheet Calculator " type=DirectVT title="Calc Title" param="$0 -r calc"/>
-    <menuitem id=Test      label="Test"      notes=" Test Page "              type=DirectVT title="Test Title" param="$0 -r test"/>
-    <menuitem id=Truecolor label="Truecolor" notes=" Truecolor Test "         type=DirectVT title="True Title" param="$0 -r truecolor"/>
-</config>
-)==";
-
     static constexpr auto default_config_v2 = R"==(
 <config>
     <menu>
@@ -127,7 +97,19 @@ R"==(
                 </hotkeys>
             </param>
         </item>
+)=="
+#if defined(_WIN32)
+R"==(
+        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgcolor=15 bgcolor=0xFF562401 notes=" Run PowerShell in built-in terminal emulator "/>
+        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                                      notes=" Run default WSL profile in built-in terminal emulator "/>
+        <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                                 notes=" Run Far Manager in its own window (if it is installed) "/>
+)=="
+#else
+R"==(
         <item id=mc        label="mc"        type=SHELL    title="Midnight Commander"    param="mc"               notes=" Run Midnight Commander in its own window (if it is installed) "/>
+)=="
+#endif
+R"==(
         <item id=Tile      label="Tile"      type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" Run Tiling Window Manager with two terminals attached "/>
         <item id=View      label=View        type=Region   title="\e[11:3pView: Region"                           notes=" Set desktop region "/>
         <item id=Settings  label=Settings    type=DirectVT title="Settings"              param="$0 -r settings"   notes=" Configure frame rate " winsize=50,15 />
@@ -151,21 +133,6 @@ R"==(
         <action=nextWindow key="Ctrl+PgDn"/>
     </hotkeys>
 </config>
-)==";
-
-    static constexpr auto test_data = R"==(
-            <document="value" thing="text1">
-                <thing="te" name="a">
-                    "xt2" <!--comment-->
-                    <name="b"/>
-                    <name id=c_elem>
-                        "c"
-                    </name>
-                </thing>
-                <other>
-                    "text"
-                </other>
-            </document>
 )==";
 
     static constexpr auto usr_config = "~/.config/vtm/settings.xml";
@@ -197,14 +164,12 @@ R"==(
     static constexpr auto attr_type     = "type";
     static constexpr auto attr_cwd      = "cwd";
     static constexpr auto attr_param    = "param";
-    static constexpr auto attr_selected = "selected";
+    static constexpr auto attr_splitter = "splitter";
 
-    static constexpr auto tag_config   = "config";
-    static constexpr auto tag_autorun  = "autorun";
-    static constexpr auto tag_settings = "settings";
-    static constexpr auto tag_splitter = "splitter";
-    static constexpr auto tag_defaults = "defaults";
-    static constexpr auto tag_menuitem = "menuitem";
+    static constexpr auto path_item     = "config/menu/item";
+    static constexpr auto path_selected = "config/menu/selected";
+    static constexpr auto path_autorun  = "config/menu/autorun";
+    static constexpr auto path_hotkeys  = "config/hotkeys";
 
     using menu_item_type = std::tuple<bool, text, text, std::function<void(ui::pads&)>>;
     using menu_list_type = std::list<menu_item_type>;
@@ -1183,54 +1148,6 @@ namespace netxs::app::shared
 
     auto init_app_registry = [](auto& world, view cli_config)
     {
-        {
-            //auto temp = view{ app::shared::test_data };
-            //auto data_view = temp;
-            //auto config = xml::document(data_view);
-            ////auto& names = config.root.sub["thing"][1]->sub["name"];
-            ////auto name = names.begin() + 2;// 1;
-            //auto& names = config.root.sub["thing"];
-            //auto name = names.begin() + 1;
-            //names.erase(name);
-
-            auto temp = view{ app::shared::default_config_v2 };
-            auto data_view = temp;
-            auto config = xml::document(data_view, "'default_config_v2'");
-            // //auto& items = config.root->sub["menu"][0]->sub["item"];// [3] ->sub["param"][0]->sub["colors"];// [0] ->sub["match"];
-            // //auto term = items.begin() + 3;
-            // //items.erase(term);
-
-            //auto temp = view{ app::shared::default_config_v2 };
-            //auto data_view = temp;
-            //auto config = xml::document(data_view);
-            auto i = 0;
-            //auto list = config.enumerate("config");
-            auto list = config.enumerate("config/menu/item");
-            for (auto item : list)
-            {
-                if (item)
-                {
-                    auto& elem = *item;
-                    log("elem ", i++, elem.val_ptr_list.empty() ? "" : ":");
-                    for (auto& subelem : elem.sub)
-                    {
-                        auto count = subelem.second.size();
-                        if (count > 1) log(subelem.first, "(", count, ") ",  faux);
-                        else           log(subelem.first, " ",  faux);
-                    }
-                    log("\n");
-                }
-            }
-
-            //auto& selected = config.root.sub["menu"][0]->sub["selected"][0]->val_ptr_list.front().operator*();
-            //selected = "Tile";
-
-            //log(" xml: source data\n", temp);
-            //log(" xml: parsed data\n", config.root.show());
-            //log(" xml: origin data\n", config.show());
-            //return 0;
-        }
-
         auto menu_list_ptr = e2::bindings::list::apps.param();
         auto conf_list_ptr = e2::bindings::list::links.param();
         world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
@@ -1239,81 +1156,25 @@ namespace netxs::app::shared
         auto& conf_list = *conf_list_ptr;
         auto current_module_file = os::current_module_file();
 
-        using item_t = std::unordered_map<text, text>;
-        auto list = std::vector<item_t>{};
+        auto doc = sptr<xml::document>{};
+        auto list = xml::document::vect{};
         auto sort_list = std::list<std::pair<text, menuitem_t>>{};
         auto free_list = sort_list;
         auto temp_list = sort_list;
 
-        auto take_xml_item = [](text& tag, item_t& item, view& data)
+        auto take_config = [&](view data, auto source)
         {
-            auto type = xml::type_old::none;
-            if (xml::open(data, type))
+            doc = std::make_shared<xml::document>(data, source);
+            list = doc->enumerate(path_item);
+            if (list.size())
             {
-                auto attr = text{};
-                if (xml::attr(data, tag, type))
+                auto selected = doc->enumerate(path_selected);
+                if (selected.size())
                 {
-                    while (xml::attr(data, attr, type))
-                    {
-                        auto& value = item[attr];
-                        value = xml::value(data);
-                    }
+                    get_selected() = selected.front()->get_value();
+                    log("apps: ", path_selected, " = ", get_selected());
                 }
             }
-            return type == xml::type_old::close;
-        };
-        auto take_elements = [&](view data)
-        {
-            static auto splitter_count = 0;
-            auto defaults = item_t{};
-            auto item = item_t{};
-            auto tag = text{};
-            while (take_xml_item(tag, item, data))
-            {
-                if (tag == tag_menuitem)
-                {
-                    for (auto& [defkey, defval] : defaults)
-                    {
-                        item.try_emplace(defkey, defval);
-                    }
-                    list.emplace_back(std::move(item));
-                }
-                else if (tag == tag_defaults)
-                {
-                    defaults = std::move(item);
-                }
-                else if (tag == tag_splitter)
-                {
-                    item[tag_splitter] = "true";
-                    item[attr_id] = "<splitter_" + std::to_string(splitter_count++) + ">";
-                    list.emplace_back(std::move(item));
-                }
-                else log(" xml: skip element <", utf::debase(tag), ">");
-            }
-        };
-        auto take_path = [](auto const& filename)
-        {
-            auto path = filename.path().string();
-            utf::change(path, "\\", "/");
-            return path;
-        };
-        auto take_config = [&](view data)
-        {
-            auto type = xml::type_old::none;
-            auto tag = text{};
-            if (xml::open(data, type))
-            {
-                auto attr = text{};
-                if (xml::attr(data, tag, type) && tag == tag_config)
-                {
-                    while (xml::attr(data, attr, type) && attr == attr_selected)
-                    {
-                        get_selected() = xml::value(data);
-                        log("apps: ", attr_selected, " ", get_selected());
-                    }
-                }
-            }
-            take_elements(data);
         };
 
         auto load_config = [&](view path)
@@ -1342,7 +1203,7 @@ namespace netxs::app::shared
                     auto buff = text(size, '\0');
                     file.seekg(0, std::ios::beg);
                     file.read(buff.data(), size);
-                    take_config(buff);
+                    take_config(buff, config_path.string());
                     return !list.empty();
                 }
             }
@@ -1354,8 +1215,8 @@ namespace netxs::app::shared
          && !load_config(env_config)
          && !load_config(usr_config))
         {
-            log("apps: no configuration found, fallback to hardcoded config\n", default_config);
-            take_config(default_config);
+            log("apps: no configuration found, fallback to hardcoded config\n", default_config_v2);
+            take_config(default_config_v2, "");
         }
 
         log("apps: ", list.size(), " menu item(s) added");
@@ -1382,52 +1243,52 @@ namespace netxs::app::shared
             return dflt_rec;
         };
 
-        for (auto& item : list)
+        static auto splitter_count = 0;
+        for (auto item_ptr : list)
         {
-            if (auto iter = item.find(attr_id); iter != item.end())
+            auto& item = *item_ptr;
+            auto conf_rec = menuitem_t{};
+            conf_rec.splitter = item.take(attr_splitter, faux);
+            conf_rec.id       = item.take(attr_id,       ""s );
+            if (conf_rec.splitter)
             {
-                auto& id = iter->second;
-                if (id.empty())
-                {
-                    log("apps: attribute '", utf::debase(attr_id), "' missing for ", utf::debase(id));
-                    continue;
-                }
-                auto& label = item[attr_label];
-                auto conf_rec = menuitem_t{};
-                conf_rec.label    = label.empty() ? id : label;
-                conf_rec.id       = id;
-                conf_rec.alias    = xml::take<view>(item, attr_alias);
-                auto& fallback = conf_rec.alias.empty() ? dflt_rec
-                                                        : find(conf_rec.alias);
-                conf_rec.index    = xml::take<si32>(item, attr_index,    fallback.index   );
-                conf_rec.hidden   = xml::take<bool>(item, attr_hidden,   fallback.hidden  );
-                conf_rec.notes    = xml::take<view>(item, attr_notes,    fallback.notes   );
-                conf_rec.title    = xml::take<view>(item, attr_title,    fallback.title   );
-                conf_rec.footer   = xml::take<view>(item, attr_footer,   fallback.footer  );
-                conf_rec.bgcolor  = xml::take<rgba>(item, attr_bgcolor,  fallback.bgcolor );
-                conf_rec.fgcolor  = xml::take<rgba>(item, attr_fgcolor,  fallback.fgcolor );
-                conf_rec.winsize  = xml::take<twod>(item, attr_winsize,  fallback.winsize );
-                conf_rec.wincoor  = xml::take<twod>(item, attr_wincoor,  fallback.wincoor );
-                conf_rec.slimmenu = xml::take<bool>(item, attr_slimmenu, fallback.slimmenu);
-                conf_rec.hotkey   = xml::take<view>(item, attr_hotkey,   fallback.hotkey  ); //todo register hotkey
-                conf_rec.cwd      = xml::take<view>(item, attr_cwd,      fallback.cwd     );
-                conf_rec.param    = xml::take<view>(item, attr_param,    fallback.param   );
-                conf_rec.type     = xml::take<view>(item, attr_type,     fallback.type    );
-
-                conf_rec.splitter = xml::take<bool>(item, tag_splitter,  fallback.splitter);
-
-                utf::to_low(conf_rec.type);
-                utf::change(conf_rec.title,  "$0", current_module_file);
-                utf::change(conf_rec.footer, "$0", current_module_file);
-                utf::change(conf_rec.label,  "$0", current_module_file);
-                utf::change(conf_rec.notes,  "$0", current_module_file);
-                utf::change(conf_rec.param,  "$0", current_module_file);
-
-                     if (conf_rec.hidden)      temp_list.emplace_back(std::move(id), std::move(conf_rec));
-                else if (conf_rec.index == -1) free_list.emplace_back(std::move(id), std::move(conf_rec));
-                else                           sort_list.emplace_back(std::move(id), std::move(conf_rec));
+                conf_rec.id = "splitter_" + std::to_string(splitter_count++);
             }
-            else log("apps: attribute '", utf::debase(attr_id), "' is missing");
+            else if (conf_rec.id.empty())
+            {
+                log("apps: attribute '", utf::debase(attr_id), "' is missing, skip item");
+                continue;
+            }
+            auto label = item.take(attr_label, ""s);
+            conf_rec.label    = label.empty() ? conf_rec.id : label;
+            conf_rec.alias    = item.take(attr_alias, ""s);
+            auto& fallback = conf_rec.alias.empty() ? dflt_rec
+                                                    : find(conf_rec.alias);
+            conf_rec.index    = item.take(attr_index,    fallback.index   );
+            conf_rec.hidden   = item.take(attr_hidden,   fallback.hidden  );
+            conf_rec.notes    = item.take(attr_notes,    fallback.notes   );
+            conf_rec.title    = item.take(attr_title,    fallback.title   );
+            conf_rec.footer   = item.take(attr_footer,   fallback.footer  );
+            conf_rec.bgcolor  = item.take(attr_bgcolor,  fallback.bgcolor );
+            conf_rec.fgcolor  = item.take(attr_fgcolor,  fallback.fgcolor );
+            conf_rec.winsize  = item.take(attr_winsize,  fallback.winsize );
+            conf_rec.wincoor  = item.take(attr_wincoor,  fallback.wincoor );
+            conf_rec.slimmenu = item.take(attr_slimmenu, fallback.slimmenu);
+            conf_rec.hotkey   = item.take(attr_hotkey,   fallback.hotkey  ); //todo register hotkey
+            conf_rec.cwd      = item.take(attr_cwd,      fallback.cwd     );
+            conf_rec.param    = item.take(attr_param,    fallback.param   );
+            conf_rec.type     = item.take(attr_type,     fallback.type    );
+
+            utf::to_low(conf_rec.type);
+            utf::change(conf_rec.title,  "$0", current_module_file);
+            utf::change(conf_rec.footer, "$0", current_module_file);
+            utf::change(conf_rec.label,  "$0", current_module_file);
+            utf::change(conf_rec.notes,  "$0", current_module_file);
+            utf::change(conf_rec.param,  "$0", current_module_file);
+
+                 if (conf_rec.hidden)      temp_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
+            else if (conf_rec.index == -1) free_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
+            else                           sort_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
         }
         sort_list.sort([](auto const& a, auto const& b)
         {

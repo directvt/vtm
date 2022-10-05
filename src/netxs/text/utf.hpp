@@ -381,6 +381,15 @@ namespace netxs::utf
     {
         using span = std::span<char>;
 
+        struct hash
+        {
+            auto operator()(qiew key) const { return std::hash<view>{}(key); }
+        };
+        struct equal
+        {
+            auto operator()(qiew lhs, qiew rhs) const { return lhs.compare(rhs) == 0; }
+        };
+
         auto     pop_front () { auto c = view::front(); view::remove_prefix(1); return c; }
         si32     front     () const { return static_cast<unsigned char>(view::front()); }
         operator bool      () const { return view::length(); }
