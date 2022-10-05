@@ -39,7 +39,7 @@ namespace netxs::utf
     static constexpr auto REPLACEMENT_CHARACTER_UTF8_LEN  = size_t{ 3 };
     static constexpr auto REPLACEMENT_CHARACTER_UTF8_VIEW = view(REPLACEMENT_CHARACTER_UTF8, REPLACEMENT_CHARACTER_UTF8_LEN); // '�'
     static constexpr auto WHITESPACE_CHARACTER_UTF8_VIEW  = view(" ", 1); // ' '
-    static constexpr auto spaces_view                     = view{ " \n\r\t", 4 };
+    static constexpr auto view_spaces                     = view{ " \n\r\t", 4 };
     static constexpr auto spaces                          = " \n\r\t";
 
     // utf: A grapheme cluster decoded from UTF-8.

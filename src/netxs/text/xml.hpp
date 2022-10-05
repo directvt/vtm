@@ -419,7 +419,7 @@ namespace netxs::xml
                 else if (temp.starts_with(view_equal        )) what = type::equal;
                 else if (temp.starts_with(view_defaults     )
                       && last == type::token)                  what = type::defaults;
-                else if (spaces_view.find(temp.front()) != view::npos) what = type::whitespaces;
+                else if (view_spaces.find(temp.front()) != view::npos) what = type::whitespaces;
                 else if (last == type::close_tag
                       || last == type::begin_tag
                       || last == type::token
