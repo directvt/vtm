@@ -25,7 +25,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static constexpr auto default_config_v2 = R"==(
+    static constexpr auto default_config = R"==(
 <config>
     <menu>
         <selected=Term /> <!-- set selected using menu item id -->
@@ -1177,12 +1177,18 @@ namespace netxs::app::shared
             }
         };
 
-        auto load_config = [&](view path)
+        auto load_config = [&](view shadow)
         {
-            if (path.empty()) return faux;
-            log("apps: try to load configuration from ", path, "... ", faux);
+            if (shadow.empty()) return faux;
+            auto path = text{ shadow };
+            log("apps: try to load configuration from ", path, "...");
+            if (path.starts_with("$"))
+            {
+                auto temp = path.substr(1);
+                path = os::get_env(temp);
+                log('\t', temp, " = ", path);
+            }
             auto config_path = path.starts_with("~/") ? os::homepath() / path.substr(2)
-                             : path.starts_with("$")  ? fs::path{ os::get_env(path.substr(1)) }
                                                       : fs::path{ path };
             auto ec = std::error_code{};
             auto config_file = fs::directory_entry(config_path, ec);
@@ -1193,12 +1199,12 @@ namespace netxs::app::shared
                 auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
                 if (file.seekg(0, std::ios::end).fail())
                 {
-                    log("failed\n\tunable to get configuration file size, skip it: ", config_path_str);
+                    log("\tfailed\n\tunable to get configuration file size, skip it: ", config_path_str);
                     return faux;
                 }
                 else
                 {
-                    log("reading\n\tconfiguration: ", config_path_str);
+                    log("\treading configuration: ", config_path_str);
                     auto size = file.tellg();
                     auto buff = text(size, '\0');
                     file.seekg(0, std::ios::beg);
@@ -1207,7 +1213,7 @@ namespace netxs::app::shared
                     return !list.empty();
                 }
             }
-            log("failed");
+            log("\tfailed");
             return faux;
         };
 
@@ -1215,7 +1221,7 @@ namespace netxs::app::shared
          && !load_config(env_config)
          && !load_config(usr_config))
         {
-            log("apps: no configuration found, fallback to hardcoded config\n", default_config_v2);
+            log("apps: no configuration found, fallback to hardcoded config\n", default_config);
             take_config(default_config_v2, "");
         }
 
