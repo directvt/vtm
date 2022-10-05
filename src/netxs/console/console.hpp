@@ -2905,7 +2905,7 @@ namespace netxs::console
                     shadow();
                     auto& k = gear;
 
-                    #ifdef KEYLOG
+                    #if defined(KEYLOG)
                         log("debug fired ", utf::debase(k.cluster));
                     #endif
 
@@ -3203,10 +3203,10 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::preview, hids::events::keybd::any, memo, gear)
                 {
-                    #ifdef KEYLOG
-                    log("keybd fired virtcode: ", gear.virtcod,
-                                      " chars: ", utf::debase(gear.cluster),
-                                       " meta: ", gear.meta());
+                    #if defined(KEYLOG)
+                        log("keybd fired virtcode: ", gear.virtcod,
+                                          " chars: ", utf::debase(gear.cluster),
+                                           " meta: ", gear.meta());
                     #endif
 
                     boss.SIGNAL(tier::release, hids::events::keybd::any, gear);

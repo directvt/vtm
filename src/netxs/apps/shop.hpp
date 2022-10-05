@@ -94,17 +94,7 @@ namespace netxs::app::shop
                     "Virtual Terminal."),
 
                     item("Tile", bluedk, "3", "Free ", "Get",
-                    ansi::add("Meta object. Tiling window manager configurable "
-                    "via environment variable ").
-                    fgc(whitelt).bld(true).add("VTM_CONFIG").fgc().bld(faux).
-                    add(".\n\nConfiguration example:\n\n").
-                    mgl(2).fgc(whitelt).bgc(blacklt)
-                   .add("VTM_CONFIG='<splitter label=\"envars\" notes=\" Menu items configured using envar VTM_CONFIG=... \"/>\\n \n"
-                        "            <menuitem id=Term2 notes=\"Run terminal\" type=DirectVT label=\"Virtual \\e[41mTerminal\\e[m Emulator\" param=\"$0 -r term\"/>\\n \n"
-                        "            <menuitem id=View2 label=View notes=\"Desktop region\" type=Region title=\"Region 1\"/>\\n \n"
-                        "            <menuitem id=htop2 label=htop hidden=yes notes=\"htop app\" type=ANSIVT param=\"htop\"/>\\n \n"
-                        "            <menuitem id=mc2 label=mc hidden=1 notes=\"mc app\" type=SHELL param=\"mc\"/>\\n \n"
-                        "            <menuitem id=Tile2 label=Tile notes=\"Tiling Window Manager\" type=Group title=\"Tiling Window Manager\" param=\"h1:2( v1:1(htop2, mc2), Term2)\"/>' ")),
+                    "Meta object. Tiling window manager."),
 
                     item("Text", cyandk, "102", "Free ", "Get",
                     "A simple text editor for Desktopio environment "

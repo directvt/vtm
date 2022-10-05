@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.0"
+#define DESKTOPIO_VER "v0.9.1"
 #define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_MYPATH "vtm"
@@ -44,15 +44,27 @@ int main(int argc, char* argv[])
                     params = getopt ? getopt.tail()
                                     : text{ DESKTOPIO_DEFAPP };
                     break;
-                case 's': whoami = type::server; break;
-                case 'd': daemon = true; break;
+                case 's':
+                    whoami = type::server;
+                    params = getopt ? getopt.tail() : text{};
+                    break;
+                case 'd':
+                    daemon = true;
+                    params = getopt ? getopt.tail() : text{};
+                    break;
                 default:
                     banner();
-                    log("Usage:\n\n ", os::current_module_file(), " [ -d | -s | -r [<app> [<args...>]] ]\n\n"s
+                    log("Usage:\n\n ", os::current_module_file(), " [ -d [<config_file>] | -s [<config_file>] | -r [<app> [<args...>]] ]\n\n"s
                                     + " No arguments\tRun client, auto start server if is not started.\n"s
                                              + "\t-d\tRun server in background.\n"s
                                              + "\t-s\tRun server in interactive mode.\n"s
                                              + "\t-r\tRun standalone application.\n"s
+                                             + "\n"s
+                                             + "\tConfiguration file location precedence (descending priority):\n\n"s
+                                             + "\t\t1. Command line options; e.g., vtm -s path/to/settings.xml\n"s
+                                             + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
+                                             + "\t\t3. Hardcoded location \"~/.config/vtm/settings.xml\"\n"s
+                                             + "\t\t4. Predefined (hardcoded) configuration at apps.hpp(line:~28)\n"s
                                              + "\n"s
                                              + "\tList of registered applications:\n\n"s
                                              + "\t\tTerm\tTerminal emulator (default)\n"s
@@ -66,7 +78,7 @@ int main(int argc, char* argv[])
 
         if (daemon)
         {
-            if (!os::daemonize(os::current_module_file()))
+            if (!os::daemonize(os::current_module_file(), params.empty() ? "-s"s : "-s " + params))
             {
                 banner();
                 log("main: failed to daemonize");
@@ -106,7 +118,7 @@ int main(int argc, char* argv[])
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
         auto ground = base::create<hall>(server, maxfps);
         auto thread = os::pool{};
-        app::shared::init_app_registry(ground);
+        app::shared::init_app_registry(ground, params);
 
         log("main: listening socket ", server,
                          "\n\tuser: ", userid,

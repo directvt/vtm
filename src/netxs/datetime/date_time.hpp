@@ -114,9 +114,9 @@ namespace netxs::datetime
         {
             //tstruct = *localtime(&some_time);
             #if defined(_WIN32)
-            localtime_s(&tstruct, &some_time);
+                localtime_s(&tstruct, &some_time);
             #else
-            localtime_r(&some_time, &tstruct);
+                localtime_r(&some_time, &tstruct);
             #endif
             strftime(buf, sizeof(buf), "%d.%m.%Y %X", &tstruct);
         }
@@ -130,9 +130,9 @@ namespace netxs::datetime
         {
             //tstruct = *localtime(&some_time);
             #if defined(_WIN32)
-            localtime_s(&tstruct, &some_time);
+                localtime_s(&tstruct, &some_time);
             #else
-            localtime_r(&some_time, &tstruct);
+                localtime_r(&some_time, &tstruct);
             #endif
             strftime(buf, sizeof(buf), "%d.%m.%y %X", &tstruct);
         }
@@ -146,9 +146,9 @@ namespace netxs::datetime
         {
             //tstruct = *localtime(&some_time);
             #if defined(_WIN32)
-            localtime_s(&tstruct, &some_time);
+                localtime_s(&tstruct, &some_time);
             #else
-            localtime_r(&some_time, &tstruct);
+                localtime_r(&some_time, &tstruct);
             #endif
             strftime(buf, sizeof(buf), "%X", &tstruct);
         }
