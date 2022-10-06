@@ -1628,7 +1628,7 @@ struct consrv
                 uiterm.mtrack.enable (decltype(uiterm.mtrack)::negative_args);
                 uiterm.mtrack.setmode(decltype(uiterm.mtrack)::w32);
             }
-            else uiterm.mtrack.disable(decltype(uiterm.mtrack)::all_movements);
+            else uiterm.mtrack.disable(decltype(uiterm.mtrack)::negative_args);
             log("\tmouse_input ", mouse_mode ? "enabled" : "disabled");
         }
         handle.mode = packet.input.mode;
