@@ -36,7 +36,7 @@ namespace netxs::app::shared
             </notes>
         </item>
         <item* />    <!-- use asterisk at the end of the element name to set defaults -->
-        <item* index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Run built-in terminal emulator ">
             <hotkeys>    <!-- not implemented -->
                 <action=start key="Ctrl+'t'"/>
@@ -148,7 +148,6 @@ R"==(
     static constexpr auto type_Headless = "headless";
 
     static constexpr auto attr_id       = "id";
-    static constexpr auto attr_index    = "index";
     static constexpr auto attr_alias    = "alias";
     static constexpr auto attr_hidden   = "hidden";
     static constexpr auto attr_label    = "label";
@@ -1158,9 +1157,8 @@ namespace netxs::app::shared
 
         auto doc = sptr<xml::document>{};
         auto list = xml::document::vect{};
-        auto sort_list = std::list<std::pair<text, menuitem_t>>{};
-        auto free_list = sort_list;
-        auto temp_list = sort_list;
+        auto free_list = std::list<std::pair<text, menuitem_t>>{};
+        auto temp_list = free_list;
 
         auto take_config = [&](view data, auto source)
         {
@@ -1229,7 +1227,6 @@ namespace netxs::app::shared
         log("apps: ", list.size(), " menu item(s) added");
         auto dflt_rec = menuitem_t
         {
-            .index    = -1,
             .hidden   = faux,
             .slimmenu = faux,
             .type     = type_SHELL,
@@ -1243,9 +1240,6 @@ namespace netxs::app::shared
 
             auto iter_temp = std::find_if(temp_list.begin(), temp_list.end(), test);
             if (iter_temp != temp_list.end()) return iter_temp->second;
-
-            auto iter_sort = std::find_if(sort_list.begin(), sort_list.end(), test);
-            if (iter_sort != sort_list.end()) return iter_sort->second;
 
             return dflt_rec;
         };
@@ -1271,7 +1265,6 @@ namespace netxs::app::shared
             conf_rec.alias    = item.take(attr_alias, ""s);
             auto& fallback = conf_rec.alias.empty() ? dflt_rec
                                                     : find(conf_rec.alias);
-            conf_rec.index    = item.take(attr_index,    fallback.index   );
             conf_rec.hidden   = item.take(attr_hidden,   fallback.hidden  );
             conf_rec.notes    = item.take(attr_notes,    fallback.notes   );
             conf_rec.title    = item.take(attr_title,    fallback.title   );
@@ -1293,21 +1286,8 @@ namespace netxs::app::shared
             utf::change(conf_rec.notes,  "$0", current_module_file);
             utf::change(conf_rec.param,  "$0", current_module_file);
 
-                 if (conf_rec.hidden)      temp_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
-            else if (conf_rec.index == -1) free_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
-            else                           sort_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
-        }
-        sort_list.sort([](auto const& a, auto const& b)
-        {
-            return a.second.index < b.second.index;
-        });
-        for (auto iter = sort_list.begin(); iter != sort_list.end(); ++iter)
-        {
-            auto& [id, conf_rec] = *iter;
-            auto index = std::clamp(conf_rec.index, 0, static_cast<decltype(conf_rec.index)>(free_list.size()));
-            auto insertion_point = free_list.begin();
-            std::advance(insertion_point, index);
-            free_list.insert(insertion_point, std::move(*iter));
+            if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
+            else                 free_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
         }
         for (auto& [id, conf_rec] : free_list)
         {

@@ -363,7 +363,6 @@ Top-level element `<config>` contains the following objects
 Attribute  | Description                                       | Value type | Mandatory | Default value
 -----------|---------------------------------------------------|------------|-----------|---------------
 `id`       |  Item textual identifier                          | `string`   | required  |
-`index`    |  Item zero-based index                            | `index`    |           |
 `alias`    |  Use existing item specified by `id` as template  | `string`   |           |
 `hidden`   |  Item visibility                                  | `boolean`  |           | `no`
 `label`    |  Item label text                                  | `string`   |           | =`id`
@@ -418,7 +417,7 @@ Note: The following configuration sections are not implemented yet
             </notes>
         </item>
         <item* />    <!-- use asterisk at the end of the element name to set defaults -->
-        <item* index=-1 hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Run built-in terminal emulator ">
             <hotkeys>    <!-- not implemented -->
                 <action=start key="Ctrl+'t'"/>

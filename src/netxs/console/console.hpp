@@ -51,7 +51,6 @@ namespace netxs::console
     struct menuitem_t
     {
         text       id{};
-        si32    index{};
         text    alias{};
         bool   hidden{};
         text    label{};
