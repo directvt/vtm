@@ -52,6 +52,8 @@ namespace netxs::ui
             disabled,
             textonly,
             ansitext,
+            richtext,
+            htmltext,
             count,
         };
 
