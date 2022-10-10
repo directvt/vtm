@@ -787,22 +787,21 @@ namespace netxs::app::shared
                                 auto old_title = e2::form::prop::ui::header.param();
                                 boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
 
-                                auto data = text{};
-                                gear.get_clip_data(data);
+                                auto data = gear.get_clip_data();
 
-                                if (utf::is_plain(data)) // Reset aligning to the center if text is plain.
+                                if (utf::is_plain(data.utf8)) // Reset aligning to the center if text is plain.
                                 {
                                     auto align = ansi::jet(bias::center);
                                     boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, align);
                                 }
                                 // Copy clipboard data to title.
-                                auto title = e2::form::prop::ui::header.param(data);
+                                auto title = e2::form::prop::ui::header.param(data.utf8);
                                 boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                                 gear.dismiss();
 
                                 if (old_title.size()) // Copy old title to clipboard.
                                 {
-                                    gear.set_clip_data(dot_00, old_title);
+                                    gear.set_clip_data(dot_00, clip{ old_title, clip::ansitext });
                                 }
                             };
                         };
@@ -1316,7 +1315,7 @@ namespace netxs::app::shared
                     data.s11n(canvas, location);
                     if (data.length())
                     {
-                        gear.set_clip_data(location.size, data);
+                        gear.set_clip_data(location.size, clip{ data, clip::ansitext }); //todo make format configurable via settings
                     }
                 }
             }

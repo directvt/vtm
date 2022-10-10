@@ -3436,7 +3436,7 @@ namespace netxs::console
             struct topgear
                 : public hids
             {
-                text clip_rawdata{}; // topgear: Clipboard data.
+                clip clip_rawdata{}; // topgear: Clipboard data.
                 face clip_preview{}; // topgear: Clipboard preview render.
                 twod preview_size{}; // topgear: Clipboard preview render size.
                 bool not_directvt{}; // topgear: Is it the top level gear (not directvt).
@@ -3449,7 +3449,7 @@ namespace netxs::console
 
                 bool clear_clip_data() override
                 {
-                    auto not_empty = !!clip_rawdata.size();
+                    auto not_empty = !!clip_rawdata.utf8.size();
                     preview_size = dot_00;
                     clip_rawdata.clear();
                     owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
@@ -3459,19 +3459,19 @@ namespace netxs::console
                     }
                     return not_empty;
                 }
-                void set_clip_data(twod const& size, view utf8) override
+                void set_clip_data(twod const& size, clip const& data) override
                 {
-                    if (utf8.size())
+                    if (data.utf8.size())
                     {
                         preview_size = size != dot_00 ? size
                                                       : preview_size == dot_00 ? twod{ 80,25 } //todo make it configurable
                                                                                : preview_size;
                     }
                     else preview_size = dot_00;
-                    clip_rawdata = utf8;
+                    clip_rawdata = data;
                     if (not_directvt)
                     {
-                        auto block = page{ utf8 };
+                        auto block = page{ data.utf8 };
                         clip_preview.mark(cell{});
                         clip_preview.size(preview_size);
                         clip_preview.wipe();
@@ -3479,11 +3479,14 @@ namespace netxs::console
                     }
                     owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
                 }
-                void get_clip_data(text& out_utf8) override
+                clip get_clip_data() override
                 {
+                    auto data = clip{};
                     owner.SIGNAL(tier::release, hids::events::clipbrd::get, *this);
-                    if (not_directvt) out_utf8 = clip_rawdata;
-                    else              out_utf8 = std::move(clip_rawdata);
+                    if (not_directvt) data.utf8 = clip_rawdata.utf8;
+                    else              data.utf8 = std::move(clip_rawdata.utf8);
+                    data.kind = clip_rawdata.kind;
+                    return data;
                 }
             };
 
@@ -4843,14 +4846,14 @@ namespace netxs::console
                 cond synch{};
                 bool ready{};
                 twod block{};
-                text chars{};
+                clip chunk{};
             };
             using umap = std::unordered_map<id_t, clip_t>;
 
             umap depot{};
             lock mutex{};
 
-            void set(id_t id, view utf8)
+            void set(id_t id, view utf8, clip::mime kind)
             {
                 auto lock = std::lock_guard{ mutex };
                 auto iter = depot.find(id);
@@ -4858,7 +4861,8 @@ namespace netxs::console
                 {
                     auto& item = iter->second;
                     auto  lock = std::lock_guard{ item.mutex };
-                    item.chars = utf8;
+                    item.chunk.utf8 = utf8;
+                    item.chunk.kind = kind;
                     item.ready = true;
                     item.synch.notify_all();
                 }
@@ -4884,7 +4888,7 @@ namespace netxs::console
             canal.output(data);
         }
         // link: .
-        auto request_clip_data(id_t ext_gear_id, text& clip_rawdata)
+        auto request_clip_data(id_t ext_gear_id, clip& clip_rawdata)
         {
             relay.mutex.lock();
             auto& selected_depot = relay.depot[ext_gear_id]; // If rehashing occurs due to the insertion, all iterators are invalidated.
@@ -4894,7 +4898,10 @@ namespace netxs::console
             request_clipboard.send(canal, ext_gear_id);
             auto maxoff = 100ms; //todo magic numbers
             auto received = std::cv_status::timeout != selected_depot.synch.wait_for(lock, maxoff);
-            if (received) clip_rawdata = selected_depot.chars;
+            if (received)
+            {
+                clip_rawdata = selected_depot.chunk;
+            }
             return received;
         }
 
@@ -4931,7 +4938,7 @@ namespace netxs::console
         void handle(s11n::xs::clipdata    lock)
         {
             auto& item = lock.thing;
-            relay.set(item.gear_id, item.data);
+            relay.set(item.gear_id, item.data, static_cast<clip::mime>(item.mimetype));
         }
         void handle(s11n::xs::keybd       lock)
         {
@@ -5209,6 +5216,7 @@ namespace netxs::console
         bool show_regions; // conf: Highlight region ownership.
         bool simple; // conf: Isn't it a directvt app.
         bool is_standalone_app; // conf: .
+        bool use_native_clipboard; // conf: .
 
         conf()            = default;
         conf(conf const&) = default;
@@ -5229,6 +5237,7 @@ namespace netxs::console
             show_regions      = faux;
             simple            = !(legacy_mode & os::legacy::direct);
             is_standalone_app = true;
+            use_native_clipboard = true;
         }
         conf(xipc peer, si32 session_id)
             : session_id{ session_id }
@@ -5258,6 +5267,7 @@ namespace netxs::console
             show_regions      = faux;
             simple            = faux;
             is_standalone_app = faux;
+            use_native_clipboard = true;
         }
 
         friend auto& operator << (std::ostream& s, conf const& c)
@@ -5647,8 +5657,14 @@ namespace netxs::console
                     auto& gear =*gear_ptr;
                     auto& data = gear.clip_rawdata;
                     auto& size = gear.preview_size;
-                    if (direct) conio.set_clipboard.send(canal, ext_gear_id, size, data);
-                    else        conio.output(ansi::setbuf(data)); // OSC 52
+                    if (direct) conio.set_clipboard.send(canal, ext_gear_id, size, data.utf8, data.kind);
+                    else
+                    {
+                        if (!props.use_native_clipboard || !os::set_clipboard(data))
+                        {
+                            conio.output(ansi::setbuf(data)); // OSC 52
+                        }
+                    }
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
                 {

@@ -131,19 +131,19 @@ namespace netxs::app::term
                     switch (selmod)
                     {
                         default:
-                        case ui::term::xsgr::disabled:
+                        case clip::disabled:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Selection");
                             boss.color(x3.fgc(), x3.bgc());
                             break;
-                        case ui::term::xsgr::textonly:
+                        case clip::textonly:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Plaintext");
                             boss.color(0xFF00ff00, x3.bgc());
                             break;
-                        case ui::term::xsgr::ansitext:
+                        case clip::ansitext:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "ANSI-text");
                             boss.color(0xFF00ffff, x3.bgc());
                             break;
-                        case ui::term::xsgr::richtext:
+                        case clip::richtext:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, ansi::esc{}.
                                 fgc(0xFFede76d).add("R").
                                 fgc(0xFFbaed6d).add("T").
@@ -155,7 +155,7 @@ namespace netxs::app::term
                                 fgc(0xFF9d3cff).add("l").
                                 fgc(0xFFd631ff).add("e").nil());
                             break;
-                        case ui::term::xsgr::htmltext:
+                        case clip::htmltext:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "HTML-code");
                             boss.color(0xFFffff00, x3.bgc());
                             break;

@@ -1673,6 +1673,58 @@ namespace netxs::os
 
         #endif
     }
+    auto set_clipboard(ansi::clip const& data)
+    {
+        using ansi::clip;
+        #if defined(_WIN32)
+
+            auto wide = utf::to_utf(data.utf8);
+            auto size = (wide.size() + 1) * 2;
+            auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size);
+            if (!gmem)
+            {
+                log("  os: ::GlobalAlloc returns unexpected result");
+                return faux;
+            }
+
+            auto dest = ::GlobalLock(gmem);
+            if (!dest)
+            {
+                ok(::GlobalFree(gmem), "::GlobalFree");
+                log("  os: ::GlobalLock returns unexpected result");
+                return faux;
+            }
+
+            std::memcpy(dest, reinterpret_cast<byte*>(wide.data()), size);
+            ok(::GlobalUnlock(gmem), "::GlobalUnlock");
+            ok(::OpenClipboard(nullptr), "::OpenClipboard");
+            ok(::EmptyClipboard(), "::EmptyClipboard");
+            if (data.kind == clip::richtext 
+             || data.kind == clip::htmltext)
+            {
+                auto lpszFormat = data.kind == clip::richtext ? "Rich Text Format"
+                                                              : "HTML Format";
+                auto format = ::RegisterClipboardFormatA(lpszFormat);
+                if (!format)
+                {
+                    log("  os: ::RegisterClipboardFormatA returns unexpected result");
+                    ok(::GlobalFree(gmem), "::GlobalFree");
+                    return faux;
+                }
+
+                ok(::SetClipboardData(format, gmem), "unexpected result from SetClipboardData cf_format=" + std::to_string(format));
+            }
+            ok(::SetClipboardData(CF_UNICODETEXT, gmem), "unexpected result from SetClipboardData CF_UNICODETEXT");
+            ok(::CloseClipboard(), "::CloseClipboard");
+
+        #else
+
+            //todo implement
+            return faux;
+
+        #endif
+        return true;
+    }
 
     #if defined(_WIN32)
 
