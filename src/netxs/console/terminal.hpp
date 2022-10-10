@@ -1910,6 +1910,19 @@ namespace netxs::ui
                 }
                 return origin_x;
             };
+            // bufferbase: Shade selection.
+            template<class P>
+            static auto _shade_selection(si32 mode, P work)
+            {
+                switch (mode)
+                {
+                    case xsgr::ansitext: work(cell::shaders::xlight); break;
+                    case xsgr::richtext: work(cell::shaders::xlight); break;
+                    case xsgr::htmltext: work(cell::shaders::xlight); break;
+                    case xsgr::textonly: work(cell::shaders::selection(def_selclr)); break;
+                    default:             work(cell::shaders::selection(def_offclr)); break;
+                }
+            }
             // bufferbase: Rasterize selection with grips.
             void selection_raster(face& dest, auto curtop, auto curend, bool ontop = true, bool onend = true)
             {
@@ -1950,9 +1963,7 @@ namespace netxs::ui
                         square = square.clip(view);
                         dest.fill(square, fill);
                     };
-                    mode == xsgr::ansitext ? work(cell::shaders::xlight) :
-                    mode == xsgr::textonly ? work(cell::shaders::selection(def_selclr)) :
-                                             work(cell::shaders::selection(def_offclr)) ;
+                    _shade_selection(mode, work);
                 }
             }
             // bufferbase: Pickup selected data from canvas.
@@ -5601,9 +5612,11 @@ namespace netxs::ui
                     if (selection_selbox())
                     {
                         auto square = grip_1 | grip_2;
-                        mode == xsgr::ansitext ? dest.fill(square.clip(view), cell::shaders::xlight) :
-                        mode == xsgr::textonly ? dest.fill(square.clip(view), cell::shaders::selection(def_selclr)) :
-                                                 dest.fill(square.clip(view), cell::shaders::selection(def_offclr)) ;
+                        auto filler = [&](auto fill)
+                        {
+                            dest.fill(square.clip(view), fill);
+                        };
+                        _shade_selection(mode, filler);
                     }
                     else
                     {
@@ -5669,9 +5682,7 @@ namespace netxs::ui
                                 ++head;
                             }
                         };
-                        mode == xsgr::ansitext ? work(cell::shaders::xlight) :
-                        mode == xsgr::textonly ? work(cell::shaders::selection(def_selclr)) :
-                                                 work(cell::shaders::selection(def_offclr)) ;
+                        _shade_selection(mode, work);
                     }
                 }
             }
