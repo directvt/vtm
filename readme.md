@@ -455,6 +455,8 @@ Note: The following configuration sections are not implemented yet
                     <selection>
                         <text fx=selection bg=12 fg=15 />
                         <ansi fx=xlight/>
+                        <rich fx=xlight/>
+                        <html fx=xlight/>
                         <none fx=selection bg=8 fg=7 />
                     </selection>
                 </colors>
@@ -470,7 +472,7 @@ Note: The following configuration sections are not implemented yet
                 </menu>
                 <wrap="on"/>
                 <selection>
-                    <mode="plain"/> <!-- plain | ansi | disabled -->
+                    <mode="text"/> <!-- text | ansi | rich | html | none -->
                 </selection>
                 <hotkeys>
                     <action=findNext key="Alt+RightArrow"/>

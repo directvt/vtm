@@ -160,6 +160,7 @@ namespace netxs::app::term
                             boss.color(0xFFffff00, x3.bgc());
                             break;
                     }
+                    boss.deface();
                 };
             }},
             { true, "<", " Previuos match                    \n"
