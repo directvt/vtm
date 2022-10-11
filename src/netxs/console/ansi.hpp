@@ -628,16 +628,10 @@ namespace netxs::ansi
         auto& load_title()          { return add("\033[23;0t"                        ); } // esc: Restore terminal window title.
         auto& osc(view p, view arg) { return add("\033]", p, ';', arg,        C0_BEL ); } // esc: OSC report.
         auto& header(view t)        { return add("\033]2;", t,                C0_BEL ); } // esc: Window title.
+        auto& setbuf(view t)        { return add("\033]52;;", utf::base64(t), C0_BEL ); } // esc: Set clipboard.
         auto& save_palette()        { return add("\033[#P"                           ); } // esc: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // esc: Pop  palette from stack XTPOPCOLORS.
         auto& old_palette_reset()   { return add("\033]R"                            ); } // esc: Reset color palette (Linux console).
-        auto& setbuf(clip const& t) // esc: Set clipboard.
-        {
-            return add("\033]52;", t.kind == clip::htmltext ? "text/html"
-                                 : t.kind == clip::richtext ? "text/rtf"
-                                 : t.kind == clip::ansitext ? "text/xterm"
-                                                            : "text/plain", ";", utf::base64(t.utf8), C0_BEL );
-        }
         auto& old_palette(si32 i, rgba const& c) // esc: Set color palette (Linux console).
         {
             return add("\033]P", utf::to_hex(i, 1), utf::to_hex(c.chan.r, 2),
@@ -795,7 +789,7 @@ namespace netxs::ansi
     static auto altbuf(bool b)        { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
     static auto cursor(bool b)        { return esc{}.cursor(b);     } // ansi: Caret visibility.
     static auto appkey(bool b)        { return esc{}.appkey(b);     } // ansi: Application cursor Keys (DECCKM).
-    static auto setbuf(clip const& t) { return esc{}.setbuf(t);     } // ansi: Set clipboard.
+    static auto setbuf(view t)        { return esc{}.setbuf(t);     } // ansi: Set clipboard.
     static auto ref(si32 i)           { return esc{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     static auto idx(si32 i)           { return esc{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
                                                                       //       All following text is under the IDX until the next command is issued.

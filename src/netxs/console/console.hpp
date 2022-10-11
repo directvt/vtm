@@ -5662,7 +5662,7 @@ namespace netxs::console
                     {
                         if (!props.use_native_clipboard || !os::set_clipboard(data))
                         {
-                            conio.output(ansi::setbuf(data)); // OSC 52
+                            conio.output(ansi::setbuf(data.utf8)); // OSC 52
                         }
                     }
                 };

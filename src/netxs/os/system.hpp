@@ -1711,10 +1711,9 @@ namespace netxs::os
                     ok(::GlobalFree(gmem), "::GlobalFree");
                     return faux;
                 }
-
-                ok(::SetClipboardData(format, gmem), "unexpected result from SetClipboardData cf_format=" + std::to_string(format));
+                ok(::SetClipboardData(format, gmem), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(format));
             }
-            ok(::SetClipboardData(CF_UNICODETEXT, gmem), "unexpected result from SetClipboardData CF_UNICODETEXT");
+            ok(::SetClipboardData(CF_UNICODETEXT, gmem), "unexpected result from ::SetClipboardData CF_UNICODETEXT");
             ok(::CloseClipboard(), "::CloseClipboard");
 
         #else

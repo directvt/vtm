@@ -1970,8 +1970,8 @@ namespace netxs::ui
                 square.normalize_itself();
                 if (selbox || grip_1.coor.y == grip_2.coor.y)
                 {
-                    selmod == clip::ansitext ? buffer.s11n<true>(canvas, square)
-                                             : buffer.s11n<faux>(canvas, square);
+                    selmod == clip::textonly ? buffer.s11n<faux>(canvas, square)
+                                             : buffer.s11n<true>(canvas, square);
                 }
                 else
                 {
@@ -1979,17 +1979,17 @@ namespace netxs::ui
                     auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
                     auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
                     auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
-                    if (selmod == clip::ansitext)
-                    {
-                        buffer.s11n<true, true, faux>(canvas, part_1);
-                        buffer.s11n<true, faux, faux>(canvas, part_2);
-                        buffer.s11n<true, faux, true>(canvas, part_3);
-                    }
-                    else
+                    if (selmod == clip::textonly)
                     {
                         buffer.s11n<faux, true, faux>(canvas, part_1);
                         buffer.s11n<faux, faux, faux>(canvas, part_2);
                         buffer.s11n<faux, faux, true>(canvas, part_3);
+                    }
+                    else
+                    {
+                        buffer.s11n<true, true, faux>(canvas, part_1);
+                        buffer.s11n<true, faux, faux>(canvas, part_2);
+                        buffer.s11n<true, faux, true>(canvas, part_3);
                     }
                 }
             }
@@ -5471,8 +5471,8 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
-                    selmod == clip::ansitext ? yield.s11n<true, faux, true>(dest, mark)
-                                             : yield.s11n<faux, faux, true>(dest, mark);
+                    selmod == clip::textonly ? yield.s11n<faux, faux, true>(dest, mark)
+                                             : yield.s11n<true, faux, true>(dest, mark);
                 }
                 else
                 {
@@ -5503,7 +5503,17 @@ namespace netxs::ui
                         }
                         if (yield.length()) yield.pop_back(); // Pop last eol.
                     };
-                    if (selmod == clip::ansitext)
+                    if (selmod == clip::textonly)
+                    {
+                        build([&](auto& curln)
+                        {
+                            auto block = ansi::esc{};
+                            block.s11n<faux, faux, faux>(curln, field, state);
+                            if (block.size() > 0) yield.add(block);
+                            else                  yield.eol();
+                        });
+                    }
+                    else
                     {
                         build([&](auto& curln)
                         {
@@ -5520,16 +5530,6 @@ namespace netxs::ui
                         });
                         yield.nil();
                     }
-                    else
-                    {
-                        build([&](auto& curln)
-                        {
-                            auto block = ansi::esc{};
-                            block.s11n<faux, faux, faux>(curln, field, state);
-                            if (block.size() > 0) yield.add(block);
-                            else                  yield.eol();
-                        });
-                    }
                 }
             }
             // scroll_buf: Materialize selection.
@@ -5539,7 +5539,7 @@ namespace netxs::ui
                 auto len = testy<si64>{};
                 auto selbox = selection_selbox();
                 if (!selection_active()) return std::move(yield);
-                if (selmod == clip::ansitext) yield.nil();
+                if (selmod != clip::textonly) yield.nil();
                 len = yield.size();
                 if (uptop.role != grip::idle)
                 {
