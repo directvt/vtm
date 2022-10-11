@@ -1533,7 +1533,7 @@ namespace netxs::console
         {
             parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
             //batch.splice(std::next(layer), p.batch);
-            for (auto& a: p.batch)
+            for (auto& a : p.batch)
             {
                 batch.push_back(a);
                 batch.back()->id(++index);
@@ -1655,6 +1655,145 @@ namespace netxs::console
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.
         auto  size()    const { return static_cast<si32>(batch.size()); }
+
+        struct rtf_dest_t
+        {
+            using cmap = std::unordered_map<ui32, size_t>;
+
+            text data;
+            cmap clrs;
+
+            auto operator += (qiew utf8)
+            {
+                data.reserve(data.size() + utf8.size() * 2);
+                while (utf8)
+                {
+                    switch (auto c = utf8.pop_front())
+                    {
+                        case '\\': data.push_back('\\'); data.push_back('\\'); break;
+                        case  '{': data.push_back('\\'); data.push_back('{' ); break;
+                        case  '}': data.push_back('\\'); data.push_back('}' ); break;
+                        default  : data.push_back(c); break;
+                    }
+                }
+            }
+            auto clr(rgba const& c, view tag1, view tag2)
+            {
+                auto size = clrs.size();
+                auto iter = clrs.try_emplace(c.token, size).first;
+                auto istr = std::to_string(iter->second + 1) + ' ';
+                data += tag1;
+                data += istr;
+                data += tag2;
+                data += istr;
+            }
+            template<svga VGAMODE>
+            auto fgc(rgba const& c)
+            {
+                static const auto fg_1 = "\\cf"sv;
+                static const auto fg_2 = "\\chcfpat"sv;
+                clr(c, fg_1, fg_2);
+            }
+            template<svga VGAMODE>
+            auto bgc(rgba const& c)
+            {
+                static const auto bg_1 = "\\cb"sv;
+                static const auto bg_2 = "\\chcbpat"sv;
+                clr(c, bg_1, bg_2);
+            }
+            auto bld(bool b)
+            {
+                static const auto set = "\\b "sv;
+                static const auto off = "\\b0 "sv;
+                data += b ? set : off;
+            }
+            auto itc(bool b)
+            {
+                static const auto set = "\\i "sv;
+                static const auto off = "\\i0 "sv;
+                data += b ? set : off;
+            }
+            auto und(si32 unline)
+            {
+                static const auto off = "\\ul0 "sv;
+                static const auto sgl = "\\ul "sv;
+                static const auto dbl = "\\uldb "sv;
+                     if (unline == 1) data += sgl;
+                else if (unline == 2) data += dbl;
+                else                  data += off;
+            }
+            auto inv(bool b)
+            {
+                //todo swap colors
+            }
+            auto stk(bool b)
+            {
+                static const auto set = "\\strike "sv;
+                static const auto off = "\\strike0 "sv;
+                data += b ? set : off;
+            }
+            auto ovr(bool b)
+            {
+                // not supported
+            }
+            auto blk(bool b)
+            {
+                // not supported
+            }
+        };
+
+        auto to_rich(text font = {}) const
+        {
+            static const auto deffnt = "Courier"s;
+            static const auto red    = "\\red"s;
+            static const auto green  = "\\green"s;
+            static const auto blue   = "\\blue"s;
+            static const auto nline  = "\\line "s;
+            static const auto intro  = "{\\rtf1\\ansi\\deff0\\fcharset1\\chshdng10000"
+                                       "{\\fonttbl{\\f0\\fmodern "s;
+            static const auto colors = ";}}{\\colortbl;"s;
+            auto crop = intro + (font.empty() ? deffnt : font) + colors;
+            auto base = cell{};
+            auto dest = rtf_dest_t{};
+            for (auto& line_ptr : batch)
+            {
+                auto& curln = *line_ptr;
+                for (auto& c : curln.locus)
+                {
+                    if (c.cmd == ansi::fn::nl)
+                    {
+                        while (c.arg--) dest.data += nline;
+                    }
+                }
+                curln.lyric->each([&](cell& c) { c.scan(base, dest); });
+            }
+            auto vect = std::vector<rgba>(dest.clrs.size());
+            for (auto& [key, val] : dest.clrs)
+            {
+                vect[val].token = key;
+            }
+            for (auto& c : vect)
+            {
+                crop += red   + std::to_string(c.chan.r)
+                      + green + std::to_string(c.chan.g)
+                      + blue  + std::to_string(c.chan.b) + ';';
+            }
+            crop += '}';
+            crop += dest.data + '}';
+            return crop;
+        }
+        auto to_html() const
+        {
+            auto crop = text{};
+            //todo implement
+            return crop;
+        }
+        auto to_utf8() const
+        {
+            auto crop = text{};
+            //todo implement
+            return crop;
+        }
     };
 
     // Derivative vt-parser example.

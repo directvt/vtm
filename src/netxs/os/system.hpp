@@ -109,6 +109,7 @@ namespace netxs::os
     using namespace std::chrono_literals;
     using namespace std::literals;
     using namespace netxs::ui::atoms;
+    using page = console::page;
     using para = console::para;
     using rich = console::rich;
 
@@ -1715,40 +1716,36 @@ namespace netxs::os
 
             ok(::OpenClipboard(nullptr), "::OpenClipboard");
             ok(::EmptyClipboard(), "::EmptyClipboard");
-            switch (data.kind)
+            if (data.kind == clip::disabled
+             || data.kind == clip::textonly)
             {
-                case clip::richtext:
+                send(cf_text, utf::to_utf(data.utf8));
+            }
+            else
+            {
+                auto post = page{ data.utf8 };
+                if (data.kind == clip::richtext)
                 {
-                    //todo gen rich
-                    auto asrich = data.utf8;
-                    send(cf_rich, asrich);
-                    //todo extract plain text
-                    auto plain = data.utf8;
-                    send(cf_text, utf::to_utf(plain));
-                    break;
+                    auto rich = post.to_rich();
+                    auto utf8 = post.to_utf8();
+                    send(cf_rich, rich);
+                    send(cf_text, utf::to_utf(utf8));
+                    log(rich);
                 }
-                case clip::htmltext:
+                if (data.kind == clip::htmltext)
                 {
-                    //todo gen html
-                    auto ashtml = data.utf8;
-                    send(cf_html, ashtml);
-                    //todo gen rich
-                    auto asrich = data.utf8;
-                    send(cf_rich, asrich);
-                    send(cf_text, utf::to_utf(asrich));
-                    break;
+                    auto html = post.to_html();
+                    auto rich = post.to_rich();
+                    send(cf_html, html);
+                    send(cf_rich, rich);
+                    send(cf_text, utf::to_utf(html));
                 }
-                case clip::ansitext:
+                if (data.kind == clip::ansitext)
                 {
-                    //todo gen rich
-                    auto asrich = data.utf8;
-                    send(cf_rich, asrich);
+                    auto rich = post.to_rich();
+                    send(cf_rich, rich);
                     send(cf_text, utf::to_utf(data.utf8));
-                    break;
                 }
-                default:
-                    send(cf_text, utf::to_utf(data.utf8));
-                    break;
             }
             ok(::CloseClipboard(), "::CloseClipboard");
 

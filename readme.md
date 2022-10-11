@@ -62,7 +62,7 @@ cmake --install .
 Build-time dependencies
  - `git`
  - `cmake`
- - `Visual Studio 2019` or later
+ - `Visual Studio 2019` or later (Desktop development with C++)
  - `UTF-8` for worldwide language support, https://github.com/netxs-group/vtm/issues/175#issuecomment-1034734346
 
 Use `Developer Command Prompt` as a build environment
