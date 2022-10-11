@@ -1675,45 +1675,126 @@ namespace netxs::os
     }
     auto set_clipboard(ansi::clip const& data)
     {
+        // Generate the following formats:
+        //   clip::textonly | clip::disabled
+        //        CF_UNICODETEXT: Raw UTF-16
+        //   clip::ansitext
+        //               cf_rich: RTF-group UTF-8
+        //        CF_UNICODETEXT: ANSI-text UTF-16
+        //   clip::richtext
+        //               cf_rich: RTF-group UTF-8
+        //        CF_UNICODETEXT: Plaintext UTF-16
+        //   clip::htmltext
+        //               cf_html: HTML-code UTF-8
+        //               cf_rich: RTF-group UTF-8
+        //        CF_UNICODETEXT: HTML-code UTF-16
+        //
         using ansi::clip;
         #if defined(_WIN32)
 
-            auto wide = utf::to_utf(data.utf8);
-            auto size = (wide.size() + 1) * 2;
-            auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size);
-            if (!gmem)
+            static constexpr auto cf_rich = "Rich Text Format";
+            static constexpr auto cf_html = "HTML Format";
+            auto asrich = [&](text const& utf8)
             {
-                log("  os: ::GlobalAlloc returns unexpected result");
-                return faux;
-            }
-
-            auto dest = ::GlobalLock(gmem);
-            if (!dest)
+                auto crop = faux;
+                auto size = utf8.size() + 1;
+                if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
+                {
+                    if (auto dest = ::GlobalLock(gmem))
+                    {
+                        std::memcpy(dest, reinterpret_cast<char const*>(utf8.data()), size);
+                        ::GlobalUnlock(gmem);
+                        if (auto format = ::RegisterClipboardFormatA(cf_rich))
+                        {
+                            ok(::SetClipboardData(format, gmem) && (crop = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(format));
+                        }
+                        else log("  os: ::RegisterClipboardFormatA returns unexpected result");
+                    }
+                    else log("  os: ::GlobalLock returns unexpected result");
+                    ::GlobalFree(gmem);
+                }
+                else log("  os: ::GlobalAlloc returns unexpected result");
+                return crop;
+            };
+            auto ashtml = [&](text const& utf8)
             {
-                ok(::GlobalFree(gmem), "::GlobalFree");
-                log("  os: ::GlobalLock returns unexpected result");
-                return faux;
-            }
+                auto crop = faux;
+                auto size = utf8.size() + 1;
+                if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
+                {
+                    if (auto dest = ::GlobalLock(gmem))
+                    {
+                        std::memcpy(dest, reinterpret_cast<char const*>(utf8.data()), size);
+                        ::GlobalUnlock(gmem);
+                        if (auto format = ::RegisterClipboardFormatA(cf_html))
+                        {
+                            ok(::SetClipboardData(format, gmem) && (crop = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(format));
+                        }
+                        else log("  os: ::RegisterClipboardFormatA returns unexpected result");
+                    }
+                    else log("  os: ::GlobalLock returns unexpected result");
+                    ::GlobalFree(gmem);
+                }
+                else log("  os: ::GlobalAlloc returns unexpected result");
+                return crop;
+            };
+            auto astext = [&](text const& utf8)
+            {
+                auto crop = faux;
+                auto wide = utf::to_utf(utf8);
+                auto size = (wide.size() + 1) * 2;
+                if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
+                {
+                    if (auto dest = ::GlobalLock(gmem))
+                    {
+                        std::memcpy(dest, reinterpret_cast<byte*>(wide.data()), size);
+                        ::GlobalUnlock(gmem);
+                        ok(::SetClipboardData(CF_UNICODETEXT, gmem) && (crop = true), "unexpected result from ::SetClipboardData CF_UNICODETEXT");
+                    }
+                    else log("  os: ::GlobalLock returns unexpected result");
+                    ::GlobalFree(gmem);
+                }
+                else log("  os: ::GlobalAlloc returns unexpected result");
+                return crop;
+            };
 
-            std::memcpy(dest, reinterpret_cast<byte*>(wide.data()), size);
-            ok(::GlobalUnlock(gmem), "::GlobalUnlock");
             ok(::OpenClipboard(nullptr), "::OpenClipboard");
             ok(::EmptyClipboard(), "::EmptyClipboard");
-            if (data.kind == clip::richtext 
-             || data.kind == clip::htmltext)
+            switch (data.kind)
             {
-                auto lpszFormat = data.kind == clip::richtext ? "Rich Text Format"
-                                                              : "HTML Format";
-                auto format = ::RegisterClipboardFormatA(lpszFormat);
-                if (!format)
+                case clip::richtext:
                 {
-                    log("  os: ::RegisterClipboardFormatA returns unexpected result");
-                    ok(::GlobalFree(gmem), "::GlobalFree");
-                    return faux;
+                    //todo gen rich
+                    auto rich = data.utf8;
+                    asrich(rich);
+                    //todo extract plain text
+                    auto plain = data.utf8;
+                    astext(plain);
+                    break;
                 }
-                ok(::SetClipboardData(format, gmem), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(format));
+                case clip::htmltext:
+                {
+                    //todo gen html
+                    auto html = data.utf8;
+                    ashtml(html);
+                    //todo gen rich
+                    auto rich = data.utf8;
+                    asrich(rich);
+                    astext(html);
+                    break;
+                }
+                case clip::ansitext:
+                {
+                    //todo gen rich
+                    auto rich = data.utf8;
+                    asrich(rich);
+                    astext(rich);
+                    break;
+                }
+                default:
+                    astext(data.utf8);
+                    break;
             }
-            ok(::SetClipboardData(CF_UNICODETEXT, gmem), "unexpected result from ::SetClipboardData CF_UNICODETEXT");
             ok(::CloseClipboard(), "::CloseClipboard");
 
         #else
