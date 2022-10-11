@@ -1692,70 +1692,25 @@ namespace netxs::os
         using ansi::clip;
         #if defined(_WIN32)
 
-            static constexpr auto cf_rich = "Rich Text Format";
-            static constexpr auto cf_html = "HTML Format";
-            auto asrich = [&](text const& utf8)
+            static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
+            static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
+            static auto cf_text = CF_UNICODETEXT;
+            auto crop = faux;
+            auto send = [&](auto cf_format, auto const& data)
             {
-                auto crop = faux;
-                auto size = utf8.size() + 1;
+                auto size = (data.size() + 1/*null terminator*/) * sizeof(*(data.data()));
                 if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
                 {
                     if (auto dest = ::GlobalLock(gmem))
                     {
-                        std::memcpy(dest, reinterpret_cast<char const*>(utf8.data()), size);
+                        std::memcpy(dest, data.data(), size);
                         ::GlobalUnlock(gmem);
-                        if (auto format = ::RegisterClipboardFormatA(cf_rich))
-                        {
-                            ok(::SetClipboardData(format, gmem) && (crop = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(format));
-                        }
-                        else log("  os: ::RegisterClipboardFormatA returns unexpected result");
+                        ok(::SetClipboardData(cf_format, gmem) && (crop = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(cf_format));
                     }
                     else log("  os: ::GlobalLock returns unexpected result");
                     ::GlobalFree(gmem);
                 }
                 else log("  os: ::GlobalAlloc returns unexpected result");
-                return crop;
-            };
-            auto ashtml = [&](text const& utf8)
-            {
-                auto crop = faux;
-                auto size = utf8.size() + 1;
-                if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
-                {
-                    if (auto dest = ::GlobalLock(gmem))
-                    {
-                        std::memcpy(dest, reinterpret_cast<char const*>(utf8.data()), size);
-                        ::GlobalUnlock(gmem);
-                        if (auto format = ::RegisterClipboardFormatA(cf_html))
-                        {
-                            ok(::SetClipboardData(format, gmem) && (crop = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(format));
-                        }
-                        else log("  os: ::RegisterClipboardFormatA returns unexpected result");
-                    }
-                    else log("  os: ::GlobalLock returns unexpected result");
-                    ::GlobalFree(gmem);
-                }
-                else log("  os: ::GlobalAlloc returns unexpected result");
-                return crop;
-            };
-            auto astext = [&](text const& utf8)
-            {
-                auto crop = faux;
-                auto wide = utf::to_utf(utf8);
-                auto size = (wide.size() + 1) * 2;
-                if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
-                {
-                    if (auto dest = ::GlobalLock(gmem))
-                    {
-                        std::memcpy(dest, reinterpret_cast<byte*>(wide.data()), size);
-                        ::GlobalUnlock(gmem);
-                        ok(::SetClipboardData(CF_UNICODETEXT, gmem) && (crop = true), "unexpected result from ::SetClipboardData CF_UNICODETEXT");
-                    }
-                    else log("  os: ::GlobalLock returns unexpected result");
-                    ::GlobalFree(gmem);
-                }
-                else log("  os: ::GlobalAlloc returns unexpected result");
-                return crop;
             };
 
             ok(::OpenClipboard(nullptr), "::OpenClipboard");
@@ -1765,34 +1720,34 @@ namespace netxs::os
                 case clip::richtext:
                 {
                     //todo gen rich
-                    auto rich = data.utf8;
-                    asrich(rich);
+                    auto asrich = data.utf8;
+                    send(cf_rich, asrich);
                     //todo extract plain text
                     auto plain = data.utf8;
-                    astext(plain);
+                    send(cf_text, utf::to_utf(plain));
                     break;
                 }
                 case clip::htmltext:
                 {
                     //todo gen html
-                    auto html = data.utf8;
-                    ashtml(html);
+                    auto ashtml = data.utf8;
+                    send(cf_html, ashtml);
                     //todo gen rich
-                    auto rich = data.utf8;
-                    asrich(rich);
-                    astext(html);
+                    auto asrich = data.utf8;
+                    send(cf_rich, asrich);
+                    send(cf_text, utf::to_utf(asrich));
                     break;
                 }
                 case clip::ansitext:
                 {
                     //todo gen rich
-                    auto rich = data.utf8;
-                    asrich(rich);
-                    astext(rich);
+                    auto asrich = data.utf8;
+                    send(cf_rich, asrich);
+                    send(cf_text, utf::to_utf(data.utf8));
                     break;
                 }
                 default:
-                    astext(data.utf8);
+                    send(cf_text, utf::to_utf(data.utf8));
                     break;
             }
             ok(::CloseClipboard(), "::CloseClipboard");
@@ -1800,10 +1755,9 @@ namespace netxs::os
         #else
 
             //todo implement
-            return faux;
 
         #endif
-        return true;
+        return crop;
     }
 
     #if defined(_WIN32)
