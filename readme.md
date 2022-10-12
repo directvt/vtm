@@ -534,10 +534,10 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 
       Mode        | Exported Format
       ------------|-----------------------------
-      `Plaintext` | `CF_UNICODETEXT`: Plain text, UTF-16
-      `ANSI-text` | `CF_RTF`: RTF-document, UTF-8<br>`CF_UNICODETEXT`: ANSI/VT text, UTF-16
-      `RTF-style` | `CF_RTF`: RTF-document, UTF-8<br>`CF_UNICODETEXT`: Plain text, UTF-16
-      `HTML-code` | `CF_HTML`: HTML-code, UTF-8<br>`CF_RTF`: RTF-document, UTF-8<br>`CF_UNICODETEXT`: HTML-code, UTF-16
+      `Plaintext` | `CF_TEXT`: Plain text
+      `ANSI-text` | `CF_RTF`: RTF-document<br>`CF_TEXT`: ANSI/VT text
+      `RTF-style` | `CF_RTF`: RTF-document<br>`CF_TEXT`: Plain text
+      `HTML-code` | `CF_HTML`: HTML-code<br>`CF_RTF`: RTF-document<br>`CF_TEXT`: HTML-code
    - Configurable using VT-sequences
 
       Name         | Sequence                         | Description
