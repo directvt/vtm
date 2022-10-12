@@ -1674,7 +1674,7 @@ namespace netxs::os
 
         #endif
     }
-    auto set_clipboard(ansi::clip const& data)
+    auto set_clipboard(view mime, view utf8)
     {
         // Generate the following formats:
         //   clip::textonly | clip::disabled
@@ -1696,55 +1696,66 @@ namespace netxs::os
             static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
             static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
             static auto cf_text = CF_UNICODETEXT;
+            static auto cf_utf8 = CF_TEXT;
             auto crop = faux;
-            auto send = [&](auto cf_format, auto const& data)
+            auto send = [&](auto cf_format, view data)
             {
-                auto size = (data.size() + 1/*null terminator*/) * sizeof(*(data.data()));
-                if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
+                auto _send = [&](auto const& data)
                 {
-                    if (auto dest = ::GlobalLock(gmem))
+                    auto size = (data.size() + 1/*null terminator*/) * sizeof(*(data.data()));
+                    if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
                     {
-                        std::memcpy(dest, data.data(), size);
-                        ::GlobalUnlock(gmem);
-                        ok(::SetClipboardData(cf_format, gmem) && (crop = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(cf_format));
+                        if (auto dest = ::GlobalLock(gmem))
+                        {
+                            std::memcpy(dest, data.data(), size);
+                            ::GlobalUnlock(gmem);
+                            ok(::SetClipboardData(cf_format, gmem) && (crop = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(cf_format));
+                        }
+                        else log("  os: ::GlobalLock returns unexpected result");
+                        ::GlobalFree(gmem);
                     }
-                    else log("  os: ::GlobalLock returns unexpected result");
-                    ::GlobalFree(gmem);
-                }
-                else log("  os: ::GlobalAlloc returns unexpected result");
+                    else log("  os: ::GlobalAlloc returns unexpected result");
+                };
+                cf_format == cf_text ? _send(utf::to_utf(data))
+                                     : _send(data);
             };
 
             ok(::OpenClipboard(nullptr), "::OpenClipboard");
             ok(::EmptyClipboard(), "::EmptyClipboard");
-            if (data.kind == clip::disabled
-             || data.kind == clip::textonly)
+            if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
             {
-                send(cf_text, utf::to_utf(data.utf8));
+                send(cf_text, utf8);
             }
             else
             {
-                auto post = page{ data.utf8 };
-                if (data.kind == clip::richtext)
+                auto post = page{ utf8 };
+                auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
+                ::GetCurrentConsoleFontEx(STDOUT_FD, faux, &info);
+                auto font = utf::to_utf(info.FaceName);
+                if (mime.starts_with(ansi::mimerich))
                 {
-                    auto rich = post.to_rich();
+                    auto rich = post.to_rich(font);
                     auto utf8 = post.to_utf8();
                     send(cf_rich, rich);
-                    send(cf_text, utf::to_utf(utf8));
-                    log(rich);
+                    send(cf_text, utf8);
                 }
-                if (data.kind == clip::htmltext)
+                else if (mime.starts_with(ansi::mimehtml))
                 {
                     auto html = post.to_html();
-                    auto rich = post.to_rich();
+                    auto rich = post.to_rich(font);
                     send(cf_html, html);
                     send(cf_rich, rich);
-                    send(cf_text, utf::to_utf(html));
+                    send(cf_text, html);
                 }
-                if (data.kind == clip::ansitext)
+                else if (mime.starts_with(ansi::mimeansi))
                 {
-                    auto rich = post.to_rich();
+                    auto rich = post.to_rich(font);
                     send(cf_rich, rich);
-                    send(cf_text, utf::to_utf(data.utf8));
+                    send(cf_text, utf8);
+                }
+                else
+                {
+                    send(cf_utf8, utf8);
                 }
             }
             ok(::CloseClipboard(), "::CloseClipboard");
@@ -3862,6 +3873,27 @@ namespace netxs::os
         }
         bool output(view utf8)
         {
+            static auto ocs52head = "\033]52;"sv;
+            if (utf8.starts_with(ocs52head)) // OSC52 hook.
+            {
+                auto data = utf8.substr(ocs52head.size());
+                if (auto p = data.find(';');
+                         p!= view::npos)
+                {
+                    auto mime = data.substr(0, p);
+                    data.remove_prefix(p + 1/* ; */);
+                    if (auto p = data.find(ansi::C0_BEL);
+                             p!= view::npos)
+                    {
+                        auto base = data.substr(0, p);
+                        if (os::set_clipboard(mime, utf::unbase64(base)))
+                        {
+                            utf8 = data.substr(p + 1/* C0_BEL */);
+                        }
+                    }
+                }
+                if (utf8.empty()) return true;
+            }
             return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
         auto ignite(si32 vtmode)

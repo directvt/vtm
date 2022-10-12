@@ -5216,7 +5216,6 @@ namespace netxs::console
         bool show_regions; // conf: Highlight region ownership.
         bool simple; // conf: Isn't it a directvt app.
         bool is_standalone_app; // conf: .
-        bool use_native_clipboard; // conf: .
 
         conf()            = default;
         conf(conf const&) = default;
@@ -5237,7 +5236,6 @@ namespace netxs::console
             show_regions      = faux;
             simple            = !(legacy_mode & os::legacy::direct);
             is_standalone_app = true;
-            use_native_clipboard = true;
         }
         conf(xipc peer, si32 session_id)
             : session_id{ session_id }
@@ -5267,7 +5265,6 @@ namespace netxs::console
             show_regions      = faux;
             simple            = faux;
             is_standalone_app = faux;
-            use_native_clipboard = true;
         }
 
         friend auto& operator << (std::ostream& s, conf const& c)
@@ -5658,13 +5655,7 @@ namespace netxs::console
                     auto& data = gear.clip_rawdata;
                     auto& size = gear.preview_size;
                     if (direct) conio.set_clipboard.send(canal, ext_gear_id, size, data.utf8, data.kind);
-                    else
-                    {
-                        if (!props.use_native_clipboard || !os::set_clipboard(data))
-                        {
-                            conio.output(ansi::setbuf(data.utf8)); // OSC 52
-                        }
-                    }
+                    else        conio.output(ansi::setbuf(data)); // OSC 52
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
                 {

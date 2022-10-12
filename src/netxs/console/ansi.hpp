@@ -266,6 +266,11 @@ namespace netxs::ansi
     static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
     static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
 
+    static const auto mimetext = "text/plain"sv;
+    static const auto mimeansi = "text/xterm"sv;
+    static const auto mimehtml = "text/html"sv;
+    static const auto mimerich = "text/rtf"sv;
+
     struct clip
     {
         enum mime : si32
@@ -628,10 +633,16 @@ namespace netxs::ansi
         auto& load_title()          { return add("\033[23;0t"                        ); } // esc: Restore terminal window title.
         auto& osc(view p, view arg) { return add("\033]", p, ';', arg,        C0_BEL ); } // esc: OSC report.
         auto& header(view t)        { return add("\033]2;", t,                C0_BEL ); } // esc: Window title.
-        auto& setbuf(view t)        { return add("\033]52;;", utf::base64(t), C0_BEL ); } // esc: Set clipboard.
         auto& save_palette()        { return add("\033[#P"                           ); } // esc: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // esc: Pop  palette from stack XTPOPCOLORS.
         auto& old_palette_reset()   { return add("\033]R"                            ); } // esc: Reset color palette (Linux console).
+        auto& setbuf(clip const& t) // esc: Set clipboard.
+        {
+            return add("\033]52;", t.kind == clip::htmltext ? mimehtml
+                                 : t.kind == clip::richtext ? mimerich
+                                 : t.kind == clip::ansitext ? mimeansi
+                                                            : mimetext, ";", utf::base64(t.utf8), C0_BEL);
+        }
         auto& old_palette(si32 i, rgba const& c) // esc: Set color palette (Linux console).
         {
             return add("\033]P", utf::to_hex(i, 1), utf::to_hex(c.chan.r, 2),
@@ -789,7 +800,7 @@ namespace netxs::ansi
     static auto altbuf(bool b)        { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
     static auto cursor(bool b)        { return esc{}.cursor(b);     } // ansi: Caret visibility.
     static auto appkey(bool b)        { return esc{}.appkey(b);     } // ansi: Application cursor Keys (DECCKM).
-    static auto setbuf(view t)        { return esc{}.setbuf(t);     } // ansi: Set clipboard.
+    static auto setbuf(clip const& t) { return esc{}.setbuf(t);     } // ansi: Set clipboard.
     static auto ref(si32 i)           { return esc{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     static auto idx(si32 i)           { return esc{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
                                                                       //       All following text is under the IDX until the next command is issued.
