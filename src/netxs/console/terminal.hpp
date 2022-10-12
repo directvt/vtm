@@ -2082,7 +2082,7 @@ namespace netxs::ui
             {
                 bufferbase::resize_viewport(new_sz);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
-                canvas.crop(panel);
+                canvas.crop(panel, brush.nul());
             }
             // alt_screen: Return viewport height.
             si32 height() override
@@ -2252,7 +2252,7 @@ namespace netxs::ui
             // alt_screen: Clear viewport.
             void clear_all() override
             {
-                canvas.wipe();
+                canvas.wipe(brush.nul());
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
             }
@@ -6194,6 +6194,7 @@ namespace netxs::ui
                 case 1047: // Use alternate screen buffer.
                 case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                     altbuf.style = target->style;
+                    altbuf.brush = target->brush;
                     altbuf.clear_all();
                     altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                     target = &altbuf;
@@ -6301,6 +6302,7 @@ namespace netxs::ui
                 case 1047: // Use normal screen buffer.
                 case 1049: // Use normal screen buffer and restore cursor.
                     normal.style = target->style;
+                    normal.brush = target->brush;
                     reset_to_normal(*target);
                     break;
                 case 2004: // Disable bracketed paste mode.
