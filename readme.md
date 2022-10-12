@@ -529,7 +529,15 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
    - Save/restore terminal window title `XTWINOPS 22/23`
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
-   - Text selection by mouse #149
+   - Text selection by mouse #149  
+     The following clipboard formats are generated on copy:
+
+      Mode        | Exported Format
+      ------------|-----------------------------
+      `Plaintext` | `CF_UNICODETEXT`: Plain UTF-16
+      `ANSI-text` | `CF_RTF`: RTF-group UTF-8<br>`CF_UNICODETEXT`: ANSI-text UTF-16
+      `RTF-style` | `CF_RTF`: RTF-group UTF-8<br>`CF_UNICODETEXT`: Plaintext UTF-16
+      `HTML-code` | `CF_HTML`: HTML-code UTF-8<br>`CF_RTF`: RTF-group UTF-8<br>`CF_UNICODETEXT`: HTML-code UTF-16
    - Configurable using VT-sequences
 
       Name         | Sequence                         | Description
