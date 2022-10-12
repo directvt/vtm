@@ -201,9 +201,10 @@ namespace netxs::events::userland
             };
             SUBSET_XS( command )
             {
-                EVENT_XS( quit     , const view ), // return bye msg, arg: errcode.
-                EVENT_XS( cout     , const text ), // Append extra data to output.
-                EVENT_XS( custom   , si32       ), // Custom command, arg: cmd_id.
+                EVENT_XS( quit       , const view  ), // return bye msg, arg: errcode.
+                EVENT_XS( cout       , const text  ), // Append extra data to output.
+                EVENT_XS( custom     , si32        ), // Custom command, arg: cmd_id.
+                EVENT_XS( printscreen, input::hids ), // Copy screen area to clipboard.
             };
             SUBSET_XS( form )
             {
@@ -3512,6 +3513,15 @@ namespace netxs::console
                 xmap.link(boss.bell::id);
                 xmap.move(boss.base::coor());
                 xmap.size(boss.base::size());
+                boss.SUBMIT_T(tier::release, e2::command::printscreen, memo, gear)
+                {
+                    auto data = ansi::esc{};
+                    data.s11n(xmap, gear.slot);
+                    if (data.length())
+                    {
+                        gear.set_clip_data(gear.slot.size, clip{ data, clip::ansitext });
+                    }
+                };
                 boss.SUBMIT_T(tier::release, e2::form::prop::brush, memo, brush)
                 {
                     xmap.mark(brush);
