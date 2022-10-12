@@ -1660,20 +1660,31 @@ namespace netxs::console
         {
             using cmap = std::unordered_map<ui32, size_t>;
 
+            static constexpr view fg_1 = "\\cf"sv;
+            static constexpr view fg_2 = "\\chcfpat"sv;
+            static constexpr view bg_1 = "\\cb"sv;
+            static constexpr view bg_2 = "\\chcbpat"sv;
+
+            wide buff;
             text data;
             cmap clrs;
+            cell base;
 
             auto operator += (qiew utf8)
             {
-                data.reserve(data.size() + utf8.size() * 2);
-                while (utf8)
+                buff.clear();
+                utf::to_utf(utf8, buff);
+                for (auto c : buff)
                 {
-                    switch (auto c = utf8.pop_front())
+                         if (c =='\\') { data.push_back('\\'); data.push_back('\\'); }
+                    else if (c == '{') { data.push_back('\\'); data.push_back('{' ); }
+                    else if (c == '}') { data.push_back('\\'); data.push_back('}' ); }
+                    else if (c < 0x80) { data.push_back(static_cast<char>(c)); }
+                    else
                     {
-                        case '\\': data.push_back('\\'); data.push_back('\\'); break;
-                        case  '{': data.push_back('\\'); data.push_back('{' ); break;
-                        case  '}': data.push_back('\\'); data.push_back('}' ); break;
-                        default  : data.push_back(c); break;
+                        data.push_back('\\'); data.push_back('u');
+                        data += std::to_string(static_cast<si16>(c));
+                        data.push_back('?');
                     }
                 }
             }
@@ -1687,19 +1698,17 @@ namespace netxs::console
                 data += tag2;
                 data += istr;
             }
-            template<svga VGAMODE>
+            template<svga VGAMODE = svga::truecolor>
             auto fgc(rgba const& c)
             {
-                static const auto fg_1 = "\\cf"sv;
-                static const auto fg_2 = "\\chcfpat"sv;
-                clr(c, fg_1, fg_2);
+                base.inv() ? clr(c, bg_1, bg_2)
+                           : clr(c, fg_1, fg_2);
             }
-            template<svga VGAMODE>
+            template<svga VGAMODE = svga::truecolor>
             auto bgc(rgba const& c)
             {
-                static const auto bg_1 = "\\cb"sv;
-                static const auto bg_2 = "\\chcbpat"sv;
-                clr(c, bg_1, bg_2);
+                base.inv() ? clr(c, fg_1, fg_2)
+                           : clr(c, bg_1, bg_2);
             }
             auto bld(bool b)
             {
@@ -1724,7 +1733,9 @@ namespace netxs::console
             }
             auto inv(bool b)
             {
-                //todo swap colors
+                base.inv(b);
+                fgc(base.fgc());
+                bgc(base.bgc());
             }
             auto stk(bool b)
             {
@@ -1732,14 +1743,8 @@ namespace netxs::console
                 static const auto off = "\\strike0 "sv;
                 data += b ? set : off;
             }
-            auto ovr(bool b)
-            {
-                // not supported
-            }
-            auto blk(bool b)
-            {
-                // not supported
-            }
+            auto ovr(bool b) { } // not supported
+            auto blk(bool b) { } // not supported
         };
 
         auto to_rich(text font = {}) const
@@ -1753,7 +1758,6 @@ namespace netxs::console
                                        "\\fs28{\\fonttbl{\\f0\\fmodern "s;
             static const auto colors = ";}}{\\colortbl;"s;
             auto crop = intro + (font.empty() ? deffnt : font) + colors;
-            auto base = cell{};
             auto dest = rtf_dest_t{};
             for (auto& line_ptr : batch)
             {
@@ -1765,7 +1769,10 @@ namespace netxs::console
                         while (c.arg--) dest.data += nline;
                     }
                 }
-                curln.lyric->each([&](cell& c) { c.scan(base, dest); });
+                curln.lyric->each([&](cell& c)
+                {
+                    if (c.wdt() != 3) c.scan(dest.base, dest);
+                });
             }
             auto vect = std::vector<rgba>(dest.clrs.size());
             for (auto& [key, val] : dest.clrs)
