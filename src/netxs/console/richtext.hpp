@@ -1750,7 +1750,7 @@ namespace netxs::console
             static const auto blue   = "\\blue"s;
             static const auto nline  = "\\line "s;
             static const auto intro  = "{\\rtf1\\ansi\\deff0\\fcharset1\\chshdng10000"
-                                       "{\\fonttbl{\\f0\\fmodern "s;
+                                       "\\fs28{\\fonttbl{\\f0\\fmodern "s;
             static const auto colors = ";}}{\\colortbl;"s;
             auto crop = intro + (font.empty() ? deffnt : font) + colors;
             auto base = cell{};

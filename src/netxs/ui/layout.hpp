@@ -2150,14 +2150,18 @@ namespace netxs::ui::atoms
         void  view(rect const& viewreg)        { client = viewreg;                                                          }
         auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
         auto  hash(si32 d)                     { return digest != d ? ((void)(digest = d), true) : faux;                    } // core: Check and the digest value that associatated with the current canvas size.
-        void  size(twod const& newsize) // core: Change the size of the face.
+        void  size(twod const& newsize, cell const& c) // core: Change the size of the face.
         {
             if (region.size(std::max(dot_00, newsize)))
             {
                 client.size = region.size;
                 digest++;
-                canvas.assign(region.size.x * region.size.y, marker);
+                canvas.assign(region.size.x * region.size.y, c);
             }
+        }
+        void  size(twod const& newsize) // core: Change the size of the face.
+        {
+            size(newsize, marker);
         }
         void size(si32 newsizex, cell const& c) // core: Change the size of the face.
         {

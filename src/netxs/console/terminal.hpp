@@ -5463,7 +5463,7 @@ namespace netxs::ui
                     auto full = rect{ -view.coor, { panel.x, view.coor.y + view.size.y }};
                     dest.flow::full(full);
                     dest.core::move(view.coor);
-                    dest.core::size(view.size);
+                    dest.core::size(view.size, brush.nul());
                     do
                     {
                         auto& curln = *head;
