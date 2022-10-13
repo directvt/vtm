@@ -1741,11 +1741,11 @@ namespace netxs::os
                 }
                 else if (mime.starts_with(ansi::mimehtml))
                 {
-                    auto html = post.to_html();
+                    auto [html, utf8] = post.to_html(font);
                     auto rich = post.to_rich(font);
                     send(cf_html, html);
                     send(cf_rich, rich);
-                    send(cf_text, html);
+                    send(cf_text, utf8);
                 }
                 else if (mime.starts_with(ansi::mimeansi))
                 {

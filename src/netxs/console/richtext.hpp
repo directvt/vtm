@@ -1749,6 +1749,7 @@ namespace netxs::console
 
         auto to_rich(text font = {}) const
         {
+            // Reference https://www.biblioscape.com/rtf15_spec.htm
             static const auto deffnt = "Courier"s;
             static const auto red    = "\\red"s;
             static const auto green  = "\\green"s;
@@ -1762,7 +1763,7 @@ namespace netxs::console
             for (auto& line_ptr : batch)
             {
                 auto& curln = *line_ptr;
-                for (auto& c : curln.locus)
+                for (auto c : curln.locus)
                 {
                     if (c.cmd == ansi::fn::nl)
                     {
@@ -1789,11 +1790,147 @@ namespace netxs::console
             crop += dest.data + '}';
             return crop;
         }
-        auto to_html() const
+
+        struct html_dest_t
         {
-            auto crop = text{};
-            //todo implement
-            return crop;
+            static constexpr view done = "</span>"sv;
+            static constexpr view sp_1 = "<span style=\"background-color:#"sv;
+            static constexpr view sp_2 = ";color=#"sv;
+            static constexpr view sp_3 = "\">"sv;
+            static constexpr view amp  = "&amp;"sv;
+            static constexpr view lt   = "&lt;"sv;
+            static constexpr view gt   = "&gt;"sv;
+
+            text data;
+            cell base;
+
+            auto operator += (qiew utf8)
+            {
+                for (auto c : utf8)
+                {
+                         if (c == '&') data += amp;
+                    else if (c == '<') data += lt;
+                    else if (c == '>') data += gt;
+                    else               data.push_back(c);
+                }
+            }
+            auto clr(rgba const& bg, rgba const& fg)
+            {
+                if (data.size()) data += done;
+                data += sp_1;
+                utf::to_hex(data, bg.chan.r);
+                utf::to_hex(data, bg.chan.g);
+                utf::to_hex(data, bg.chan.b);
+                data += sp_2;
+                utf::to_hex(data, fg.chan.r);
+                utf::to_hex(data, fg.chan.g);
+                utf::to_hex(data, fg.chan.b);
+                data += sp_3;
+            }
+            template<svga VGAMODE = svga::truecolor>
+            auto fgc(rgba const& c)
+            {
+                base.inv() ? clr(c, base.bgc())
+                           : clr(base.bgc(), c);
+            }
+            template<svga VGAMODE = svga::truecolor>
+            auto bgc(rgba const& c)
+            {
+                base.inv() ? clr(base.fgc(), c)
+                           : clr(c, base.fgc());
+            }
+            auto bld(bool b)
+            {
+                //static const auto set = "\\b "sv;
+                //static const auto off = "\\b0 "sv;
+                //data += b ? set : off;
+            }
+            auto itc(bool b)
+            {
+                //static const auto set = "\\i "sv;
+                //static const auto off = "\\i0 "sv;
+                //data += b ? set : off;
+            }
+            auto und(si32 unline)
+            {
+                //static const auto off = "\\ul0 "sv;
+                //static const auto sgl = "\\ul "sv;
+                //static const auto dbl = "\\uldb "sv;
+                //     if (unline == 1) data += sgl;
+                //else if (unline == 2) data += dbl;
+                //else                  data += off;
+            }
+            auto inv(bool b)
+            {
+                base.inv(b);
+                fgc(base.fgc());
+                bgc(base.bgc());
+            }
+            auto stk(bool b)
+            {
+                //static const auto set = "\\strike "sv;
+                //static const auto off = "\\strike0 "sv;
+                //data += b ? set : off;
+            }
+            auto ovr(bool b) { } // not supported
+            auto blk(bool b) { } // not supported
+        };
+
+        auto to_html(text font = {}) const
+        {
+            // Reference https://learn.microsoft.com/en-us/windows/win32/dataxchg/html-clipboard-format
+            static const auto deffnt = "Courier, monospace"s;
+            static const auto head = "Version:0.9\nStartHTML:-1\nEndHTML:-1\nStartFragment:"s;
+            static const auto frag = "EndFragment:"s;
+
+            auto crop = "<div style=\"display:inline-block;"s;
+            crop += "font-family:'" + (font.empty() ? deffnt : font) + "';";
+            crop += "font-size:14pt;\">\n";
+            crop += "<pre>\n";
+            auto dest = html_dest_t{};
+            for (auto& line_ptr : batch)
+            {
+                auto& curln = *line_ptr;
+                for (auto c : curln.locus)
+                {
+                    if (c.cmd == ansi::fn::nl)
+                    {
+                        while (c.arg--) dest.data += "<br>";
+                    }
+                }
+                curln.lyric->each([&](cell c)
+                {
+                    if (c.isspc()) c.txt(whitespace);
+                    if (c.wdt() != 3) c.scan(dest.base, dest);
+                });
+            }
+            if (dest.data.size()) dest.data += "</span>\n";
+            crop += dest.data;
+            crop += "</pre>\n</div>";
+            //crop += "\n</div>";
+
+            auto xval = head.size();
+            auto yval = xval + crop.size();
+            auto xstr = std::to_string(xval);
+            auto ystr = std::to_string(yval);
+            auto xlen = xstr.size();
+            auto ylen = ystr.size();
+            do
+            {
+                xval = head.size() + xlen + 1
+                     + frag.size() + ylen + 1;
+                yval = xval + crop.size();
+                xstr = std::to_string(xval);
+                ystr = std::to_string(yval);
+                xlen = xstr.size();
+                ylen = ystr.size();
+            }
+            while (xval != head.size() + xlen + 1
+                         + frag.size() + ylen + 1);
+            auto clip = head + xstr + '\n'
+                      + frag + ystr + '\n'
+                      + crop;
+            return std::pair{ clip, crop };
         }
         auto to_utf8() const
         {
