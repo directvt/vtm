@@ -6110,7 +6110,7 @@ namespace netxs::ui
                 {
                     //todo take MIME type from the OSC52 first arg
                     if constexpr (Decode) gear_ptr->set_clip_data(target->panel, clip{ utf::unbase64(utf::remain(data, ';')), clip::ansitext });
-                    else                  gear_ptr->set_clip_data(target->panel, clip{ data, clip::ansitext });
+                    else                  gear_ptr->set_clip_data(target->panel, clip{ text{ data }, clip::ansitext });
                 }
             }
         }
@@ -7214,8 +7214,9 @@ namespace netxs::ui
                 {
                     auto data = gear_ptr->get_clip_data();
                     s11n::clipdata.send(owner, c.gear_id, data.utf8, data.kind);
+                    return;
                 }
-                else s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
+                s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
             }
             void handle(s11n::xs::set_focus           lock)
             {

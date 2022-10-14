@@ -1690,13 +1690,14 @@ namespace netxs::os
         //        CF_UNICODETEXT: HTML-code UTF-16
         //
         using ansi::clip;
+
+        auto success = faux;
         #if defined(_WIN32)
 
             static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
             static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
             static auto cf_text = CF_UNICODETEXT;
             static auto cf_utf8 = CF_TEXT;
-            auto crop = faux;
             auto send = [&](auto cf_format, view data)
             {
                 auto _send = [&](auto const& data)
@@ -1708,7 +1709,7 @@ namespace netxs::os
                         {
                             std::memcpy(dest, data.data(), size);
                             ::GlobalUnlock(gmem);
-                            ok(::SetClipboardData(cf_format, gmem) && (crop = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(cf_format));
+                            ok(::SetClipboardData(cf_format, gmem) && (success = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(cf_format));
                         }
                         else log("  os: ::GlobalLock returns unexpected result");
                         ::GlobalFree(gmem);
@@ -1762,7 +1763,7 @@ namespace netxs::os
             //todo implement
 
         #endif
-        return crop;
+        return success;
     }
 
     #if defined(_WIN32)
