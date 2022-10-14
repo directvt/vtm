@@ -1794,87 +1794,70 @@ namespace netxs::console
 
         struct html_dest_t
         {
+            static constexpr view bclr = "<span style=\"background-color:#"sv;
+            static constexpr view fclr = ";color:#"sv;
+            static constexpr view unln = ";text-decoration:underline"sv;
+            static constexpr view undb = ";border-bottom:3px double"sv;
+            static constexpr view itlc = ";font-style:italic"sv;
+            static constexpr view bold = ";font-weight:bold"sv;
+            static constexpr view strk = ";text-decoration:line-through"sv;
+            static constexpr view ovln = ";text-decoration:overline"sv;
+            static constexpr view stop = ";\">"sv;
             static constexpr view done = "</span>"sv;
-            static constexpr view sp_1 = "<span style=\"background-color:#"sv;
-            static constexpr view sp_2 = ";color:#"sv;
-            static constexpr view sp_3 = "\">"sv;
             static constexpr view amp  = "&amp;"sv;
             static constexpr view lt   = "&lt;"sv;
             static constexpr view gt   = "&gt;"sv;
 
             text data;
+            cell prev;
             cell base;
 
             auto operator += (qiew utf8)
             {
-                for (auto c : utf8)
+                if (utf8)
                 {
-                         if (c == '&') data += amp;
-                    else if (c == '<') data += lt;
-                    else if (c == '>') data += gt;
-                    else               data.push_back(c);
+                    if (prev != base)
+                    {
+                        prev = base;
+                        if (data.size()) data += done;
+                        auto [bg, fg] = base.inv() ? std::pair{ base.fgc(), base.bgc() }
+                                                   : std::pair{ base.bgc(), base.fgc() };
+                        data += bclr;
+                        utf::to_hex(data, bg.chan.r);
+                        utf::to_hex(data, bg.chan.g);
+                        utf::to_hex(data, bg.chan.b);
+                        data += fclr;
+                        utf::to_hex(data, fg.chan.r);
+                        utf::to_hex(data, fg.chan.g);
+                        utf::to_hex(data, fg.chan.b);
+                        if (base.itc()) data += itlc;
+                        if (base.bld()) data += bold;
+                        if (base.stk()) data += strk;
+                        if (base.ovr()) data += ovln;
+                             if (base.und() == 1) data += unln;
+                        else if (base.und() == 2) data += undb;
+                        data += stop;
+                    }
+                    for (auto c : utf8)
+                    {
+                             if (c == '&') data += amp;
+                        else if (c == '<') data += lt;
+                        else if (c == '>') data += gt;
+                        else               data.push_back(c);
+                    }
                 }
             }
-            auto clr(rgba const& bg, rgba const& fg)
-            {
-                if (data.size()) data += done;
-                data += sp_1;
-                utf::to_hex(data, bg.chan.r);
-                utf::to_hex(data, bg.chan.g);
-                utf::to_hex(data, bg.chan.b);
-                data += sp_2;
-                utf::to_hex(data, fg.chan.r);
-                utf::to_hex(data, fg.chan.g);
-                utf::to_hex(data, fg.chan.b);
-                data += sp_3;
-            }
-            template<svga VGAMODE = svga::truecolor>
-            auto fgc(rgba const& c)
-            {
-                base.inv() ? clr(c, base.bgc())
-                           : clr(base.bgc(), c);
-            }
-            template<svga VGAMODE = svga::truecolor>
-            auto bgc(rgba const& c)
-            {
-                base.inv() ? clr(base.fgc(), c)
-                           : clr(c, base.fgc());
-            }
-            auto bld(bool b)
-            {
-                //static const auto set = "\\b "sv;
-                //static const auto off = "\\b0 "sv;
-                //data += b ? set : off;
-            }
-            auto itc(bool b)
-            {
-                //static const auto set = "\\i "sv;
-                //static const auto off = "\\i0 "sv;
-                //data += b ? set : off;
-            }
-            auto und(si32 unline)
-            {
-                //static const auto off = "\\ul0 "sv;
-                //static const auto sgl = "\\ul "sv;
-                //static const auto dbl = "\\uldb "sv;
-                //     if (unline == 1) data += sgl;
-                //else if (unline == 2) data += dbl;
-                //else                  data += off;
-            }
-            auto inv(bool b)
-            {
-                base.inv(b);
-                fgc(base.fgc());
-                bgc(base.bgc());
-            }
-            auto stk(bool b)
-            {
-                //static const auto set = "\\strike "sv;
-                //static const auto off = "\\strike0 "sv;
-                //data += b ? set : off;
-            }
-            auto ovr(bool b) { } // not supported
-            auto blk(bool b) { } // not supported
+            template<svga VGAMODE>
+            auto fgc(rgba const&) { }
+            template<svga VGAMODE>
+            auto bgc(rgba const&) { }
+            auto bld(bool ) { }
+            auto itc(bool ) { }
+            auto und(si32 ) { }
+            auto inv(bool ) { }
+            auto stk(bool ) { }
+            auto ovr(bool ) { }
+            auto blk(bool ) { }
         };
 
         auto to_html(text font = {}) const
@@ -1904,8 +1887,7 @@ namespace netxs::console
                 });
             }
             if (dest.data.size()) dest.data += "</span>";
-            crop += dest.data;
-            crop += "</pre>";
+            crop += dest.data + "</pre>";
 
             auto xval = head.size();
             auto yval = xval + crop.size();
