@@ -1772,6 +1772,7 @@ namespace netxs::console
                 }
                 curln.lyric->each([&](cell& c)
                 {
+                    if (c.isspc()) c.txt(whitespace);
                     if (c.wdt() != 3) c.scan(dest.base, dest);
                 });
             }
@@ -1795,7 +1796,7 @@ namespace netxs::console
         {
             static constexpr view done = "</span>"sv;
             static constexpr view sp_1 = "<span style=\"background-color:#"sv;
-            static constexpr view sp_2 = ";color=#"sv;
+            static constexpr view sp_2 = ";color:#"sv;
             static constexpr view sp_3 = "\">"sv;
             static constexpr view amp  = "&amp;"sv;
             static constexpr view lt   = "&lt;"sv;
@@ -1879,14 +1880,12 @@ namespace netxs::console
         auto to_html(text font = {}) const
         {
             // Reference https://learn.microsoft.com/en-us/windows/win32/dataxchg/html-clipboard-format
-            static const auto deffnt = "Courier, monospace"s;
+            static const auto deffnt = "Courier"s;
             static const auto head = "Version:0.9\nStartHTML:-1\nEndHTML:-1\nStartFragment:"s;
             static const auto frag = "EndFragment:"s;
 
-            auto crop = "<div style=\"display:inline-block;"s;
-            crop += "font-family:'" + (font.empty() ? deffnt : font) + "';";
-            crop += "font-size:14pt;\">\n";
-            crop += "<pre>\n";
+            auto crop = "<pre style=\"display:inline-block;"s;
+            crop += "font-size:14pt;font-family:'" + (font.empty() ? deffnt : font) + "',monospace;\">\n";
             auto dest = html_dest_t{};
             for (auto& line_ptr : batch)
             {
@@ -1895,7 +1894,7 @@ namespace netxs::console
                 {
                     if (c.cmd == ansi::fn::nl)
                     {
-                        while (c.arg--) dest.data += "<br>";
+                        while (c.arg--) dest.data += "\n";
                     }
                 }
                 curln.lyric->each([&](cell c)
@@ -1904,10 +1903,9 @@ namespace netxs::console
                     if (c.wdt() != 3) c.scan(dest.base, dest);
                 });
             }
-            if (dest.data.size()) dest.data += "</span>\n";
+            if (dest.data.size()) dest.data += "</span>";
             crop += dest.data;
-            crop += "</pre>\n</div>";
-            //crop += "\n</div>";
+            crop += "</pre>";
 
             auto xval = head.size();
             auto yval = xval + crop.size();
