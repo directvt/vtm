@@ -227,11 +227,10 @@ namespace netxs::app::logs
             };
             SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
             {
-                auto data = text{};
-                gear.get_clip_data(data);
-                if (data.size())
+                auto data = gear.get_clip_data();
+                if (data.utf8.size())
                 {
-                    topic += data;
+                    topic += data.utf8;
                     update();
                     gear.dismiss();
                 }

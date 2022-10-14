@@ -62,7 +62,7 @@ cmake --install .
 Build-time dependencies
  - `git`
  - `cmake`
- - `Visual Studio 2019` or later
+ - `Visual Studio 2019` or later (Desktop development with C++)
  - `UTF-8` for worldwide language support, https://github.com/netxs-group/vtm/issues/175#issuecomment-1034734346
 
 Use `Developer Command Prompt` as a build environment
@@ -455,6 +455,8 @@ Note: The following configuration sections are not implemented yet
                     <selection>
                         <text fx=selection bg=12 fg=15 />
                         <ansi fx=xlight/>
+                        <rich fx=xlight/>
+                        <html fx=xlight/>
                         <none fx=selection bg=8 fg=7 />
                     </selection>
                 </colors>
@@ -470,7 +472,7 @@ Note: The following configuration sections are not implemented yet
                 </menu>
                 <wrap="on"/>
                 <selection>
-                    <mode="plain"/> <!-- plain | ansi | disabled -->
+                    <mode="text"/> <!-- text | ansi | rich | html | none -->
                 </selection>
                 <hotkeys>
                     <action=findNext key="Alt+RightArrow"/>
@@ -527,14 +529,22 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
    - Save/restore terminal window title `XTWINOPS 22/23`
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
-   - Text selection by mouse #149
+   - Text selection by mouse #149  
+     The following clipboard formats are generated on copy:
+
+      Mode        | Exported Format
+      ------------|-----------------------------
+      `Plaintext` | `CF_TEXT`: Plain text
+      `ANSI-text` | `CF_RTF`: RTF-document<br>`CF_TEXT`: ANSI/VT text
+      `RTF-style` | `CF_RTF`: RTF-document<br>`CF_TEXT`: Plain text
+      `HTML-code` | `CF_HTML`: HTML-code<br>`CF_TEXT`: HTML-code
    - Configurable using VT-sequences
 
       Name         | Sequence                         | Description
       -------------|----------------------------------|-------------
       `CCC_SBS`    | `CSI` 24 : n : m `p`             | Set scrollback buffer size, `int32_t`<br>`n` Initial buffer size in lines; 0 — grow step is used for initial size; _default (if omitted) is 20.000_<br>`m` Grow step for unlimited buffer; _default (if omitted) is 0_ — for fixed size buffer
       `CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background using SGR parameters (one attribute at once)<br>`Pm` Colon-separated list of attribute parameters, 0 — reset all attributes, _default is 0_
-      `CCC_SEL`    | `CSI` 29 : n `p`                 | Set selection mode, _default is 0_<br>`n = 0` Selection is off<br>`n = 1`Select and copy as plaintext<br>`n = 2` Select and copy as ANSI-text
+      `CCC_SEL`    | `CSI` 29 : n `p`                 | Set selection mode, _default is 0_<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code
       `CCC_PAD`    | `CSI` 30 : n `p`                 | Set scrollbuffer side padding<br>`n` Width in cells, _max = 255, default is 0_
       `CCC_RST`    | `CSI` 1 `p`                      | Reset all parameters to default
       `CCC_TBS`    | `CSI` 5 : n `p`                  | Set tabulation length<br>`n` Length in cells, _max = 256, default is 8_

@@ -1182,11 +1182,11 @@ namespace netxs::utf
     {
         static constexpr auto nums = UCASE ? "0123456789ABCDEF"
                                            : "0123456789abcdef";
-        auto part = -4 + 4*width;
+        auto part = -4 + 4 * width;
         while (width--)
         {
             crop.push_back(nums[(number >> part) & 0x0f]);
-            part  -= 4;
+            part -= 4;
         }
         return crop;
     }

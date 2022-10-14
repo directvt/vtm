@@ -131,23 +131,36 @@ namespace netxs::app::term
                     switch (selmod)
                     {
                         default:
-                        case ui::term::xsgr::disabled:
-                            //"Selection"
+                        case clip::disabled:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Selection");
                             boss.color(x3.fgc(), x3.bgc());
                             break;
-                        case ui::term::xsgr::textonly:
-                            //"Text only"
+                        case clip::textonly:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Plaintext");
                             boss.color(0xFF00ff00, x3.bgc());
                             break;
-                        case ui::term::xsgr::ansitext:
-                            //"Rich-Text"
-                            //"+ANSI/SGR"
+                        case clip::ansitext:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "ANSI-text");
                             boss.color(0xFF00ffff, x3.bgc());
                             break;
+                        case clip::richtext:
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, ansi::esc{}.
+                                fgc(0xFFede76d).add("R").
+                                fgc(0xFFbaed6d).add("T").
+                                fgc(0xFF3cff3c).add("F").
+                                fgc(0xFF35ffbd).add("-").
+                                fgc(0xFF31ffff).add("s").
+                                fgc(0xFF4fbdff).add("t").
+                                fgc(0xFF5e72ff).add("y").
+                                fgc(0xFF9d3cff).add("l").
+                                fgc(0xFFd631ff).add("e").nil());
+                            break;
+                        case clip::htmltext:
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "HTML-code");
+                            boss.color(0xFFffff00, x3.bgc());
+                            break;
                     }
+                    boss.deface();
                 };
             }},
             { true, "<", " Previuos match                    \n"

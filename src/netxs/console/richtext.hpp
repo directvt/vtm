@@ -1533,7 +1533,7 @@ namespace netxs::console
         {
             parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
             //batch.splice(std::next(layer), p.batch);
-            for (auto& a: p.batch)
+            for (auto& a : p.batch)
             {
                 batch.push_back(a);
                 batch.back()->id(++index);
@@ -1655,6 +1655,307 @@ namespace netxs::console
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.
         auto  size()    const { return static_cast<si32>(batch.size()); }
+
+        struct rtf_dest_t
+        {
+            using cmap = std::unordered_map<ui32, size_t>;
+
+            static constexpr view fg_1 = "\\cf"sv;
+            static constexpr view fg_2 = "\\chcfpat"sv;
+            static constexpr view bg_1 = "\\cb"sv;
+            static constexpr view bg_2 = "\\chcbpat"sv;
+
+            wide buff;
+            text data;
+            cmap clrs;
+            cell base;
+
+            auto operator += (qiew utf8)
+            {
+                buff.clear();
+                utf::to_utf(utf8, buff);
+                for (auto c : buff)
+                {
+                         if (c =='\\') { data.push_back('\\'); data.push_back('\\'); }
+                    else if (c == '{') { data.push_back('\\'); data.push_back('{' ); }
+                    else if (c == '}') { data.push_back('\\'); data.push_back('}' ); }
+                    else if (c < 0x80) { data.push_back(static_cast<char>(c)); }
+                    else
+                    {
+                        data.push_back('\\'); data.push_back('u');
+                        data += std::to_string(static_cast<si16>(c));
+                        data.push_back('?');
+                    }
+                }
+            }
+            auto clr(rgba const& c, view tag1, view tag2)
+            {
+                auto size = clrs.size();
+                auto iter = clrs.try_emplace(c.token, size).first;
+                auto istr = std::to_string(iter->second + 1) + ' ';
+                data += tag1;
+                data += istr;
+                data += tag2;
+                data += istr;
+            }
+            template<svga VGAMODE = svga::truecolor>
+            auto fgc(rgba const& c)
+            {
+                base.inv() ? clr(c, bg_1, bg_2)
+                           : clr(c, fg_1, fg_2);
+            }
+            template<svga VGAMODE = svga::truecolor>
+            auto bgc(rgba const& c)
+            {
+                base.inv() ? clr(c, fg_1, fg_2)
+                           : clr(c, bg_1, bg_2);
+            }
+            auto bld(bool b)
+            {
+                static const auto set = "\\b "sv;
+                static const auto off = "\\b0 "sv;
+                data += b ? set : off;
+            }
+            auto itc(bool b)
+            {
+                static const auto set = "\\i "sv;
+                static const auto off = "\\i0 "sv;
+                data += b ? set : off;
+            }
+            auto und(si32 unline)
+            {
+                static const auto off = "\\ul0 "sv;
+                static const auto sgl = "\\ul "sv;
+                static const auto dbl = "\\uldb "sv;
+                     if (unline == 1) data += sgl;
+                else if (unline == 2) data += dbl;
+                else                  data += off;
+            }
+            auto inv(bool b)
+            {
+                base.inv(b);
+                fgc(base.fgc());
+                bgc(base.bgc());
+            }
+            auto stk(bool b)
+            {
+                static const auto set = "\\strike "sv;
+                static const auto off = "\\strike0 "sv;
+                data += b ? set : off;
+            }
+            auto ovr(bool b) { } // not supported
+            auto blk(bool b) { } // not supported
+        };
+
+        auto to_rich(text font = {}) const
+        {
+            // Reference https://www.biblioscape.com/rtf15_spec.htm
+            static const auto deffnt = "Courier"s;
+            static const auto red    = "\\red"s;
+            static const auto green  = "\\green"s;
+            static const auto blue   = "\\blue"s;
+            static const auto nline  = "\\line "s;
+            static const auto intro  = "{\\rtf1\\ansi\\deff0\\fcharset1\\chshdng10000"
+                                       "\\fs28{\\fonttbl{\\f0\\fmodern "s;
+            static const auto colors = ";}}{\\colortbl;"s;
+            auto crop = intro + (font.empty() ? deffnt : font) + colors;
+            auto dest = rtf_dest_t{};
+            for (auto& line_ptr : batch)
+            {
+                auto& curln = *line_ptr;
+                for (auto c : curln.locus)
+                {
+                    if (c.cmd == ansi::fn::nl)
+                    {
+                        while (c.arg--) dest.data += nline;
+                    }
+                }
+                curln.lyric->each([&](cell& c)
+                {
+                    if (c.isspc()) c.txt(whitespace);
+                    if (c.wdt() != 3) c.scan(dest.base, dest);
+                });
+            }
+            auto vect = std::vector<rgba>(dest.clrs.size());
+            for (auto& [key, val] : dest.clrs)
+            {
+                vect[val].token = key;
+            }
+            for (auto& c : vect)
+            {
+                crop += red   + std::to_string(c.chan.r)
+                      + green + std::to_string(c.chan.g)
+                      + blue  + std::to_string(c.chan.b) + ';';
+            }
+            crop += '}';
+            crop += dest.data + '}';
+            return crop;
+        }
+
+        struct html_dest_t
+        {
+            static constexpr view bclr = "<span style=\"background-color:#"sv;
+            static constexpr view fclr = ";color:#"sv;
+            static constexpr view unln = ";text-decoration:underline"sv;
+            static constexpr view undb = ";border-bottom:3px double"sv;
+            static constexpr view itlc = ";font-style:italic"sv;
+            static constexpr view bold = ";font-weight:bold"sv;
+            static constexpr view strk = ";text-decoration:line-through"sv;
+            static constexpr view ovln = ";text-decoration:overline"sv;
+            static constexpr view stop = ";\">"sv;
+            static constexpr view done = "</span>"sv;
+            static constexpr view amp  = "&amp;"sv;
+            static constexpr view lt   = "&lt;"sv;
+            static constexpr view gt   = "&gt;"sv;
+
+            text data;
+            cell prev;
+            cell base;
+
+            auto operator += (qiew utf8)
+            {
+                if (utf8)
+                {
+                    if (prev != base)
+                    {
+                        prev = base;
+                        if (data.size()) data += done;
+                        auto [bg, fg] = base.inv() ? std::pair{ base.fgc(), base.bgc() }
+                                                   : std::pair{ base.bgc(), base.fgc() };
+                        data += bclr;
+                        utf::to_hex(data, bg.chan.r);
+                        utf::to_hex(data, bg.chan.g);
+                        utf::to_hex(data, bg.chan.b);
+                        data += fclr;
+                        utf::to_hex(data, fg.chan.r);
+                        utf::to_hex(data, fg.chan.g);
+                        utf::to_hex(data, fg.chan.b);
+                        if (base.itc()) data += itlc;
+                        if (base.bld()) data += bold;
+                        if (base.stk()) data += strk;
+                        if (base.ovr()) data += ovln;
+                             if (base.und() == 1) data += unln;
+                        else if (base.und() == 2) data += undb;
+                        data += stop;
+                    }
+                    for (auto c : utf8)
+                    {
+                             if (c == '&') data += amp;
+                        else if (c == '<') data += lt;
+                        else if (c == '>') data += gt;
+                        else               data.push_back(c);
+                    }
+                }
+            }
+            template<svga VGAMODE>
+            auto fgc(rgba const&) { }
+            template<svga VGAMODE>
+            auto bgc(rgba const&) { }
+            auto bld(bool ) { }
+            auto itc(bool ) { }
+            auto und(si32 ) { }
+            auto inv(bool ) { }
+            auto stk(bool ) { }
+            auto ovr(bool ) { }
+            auto blk(bool ) { }
+        };
+
+        auto to_html(text font = {}) const
+        {
+            // Reference https://learn.microsoft.com/en-us/windows/win32/dataxchg/html-clipboard-format
+            static const auto deffnt = "Courier"s;
+            static const auto head = "Version:0.9\nStartHTML:-1\nEndHTML:-1\nStartFragment:"s;
+            static const auto frag = "EndFragment:"s;
+
+            auto crop = "<pre style=\"display:inline-block;"s;
+            crop += "font-size:14pt;font-family:'" + (font.empty() ? deffnt : font) + "',monospace;\">\n";
+            auto dest = html_dest_t{};
+            for (auto& line_ptr : batch)
+            {
+                auto& curln = *line_ptr;
+                for (auto c : curln.locus)
+                {
+                    if (c.cmd == ansi::fn::nl)
+                    {
+                        while (c.arg--) dest.data += "\n";
+                    }
+                }
+                curln.lyric->each([&](cell c)
+                {
+                    if (c.isspc()) c.txt(whitespace);
+                    if (c.wdt() != 3) c.scan(dest.base, dest);
+                });
+            }
+            if (dest.data.size()) dest.data += "</span>";
+            crop += dest.data + "</pre>";
+
+            auto xval = head.size();
+            auto yval = xval + crop.size();
+            auto xstr = std::to_string(xval);
+            auto ystr = std::to_string(yval);
+            auto xlen = xstr.size();
+            auto ylen = ystr.size();
+            do
+            {
+                xval = head.size() + xlen + 1
+                     + frag.size() + ylen + 1;
+                yval = xval + crop.size();
+                xstr = std::to_string(xval);
+                ystr = std::to_string(yval);
+                xlen = xstr.size();
+                ylen = ystr.size();
+            }
+            while (xval != head.size() + xlen + 1
+                         + frag.size() + ylen + 1);
+            auto clip = head + xstr + '\n'
+                      + frag + ystr + '\n'
+                      + crop;
+            return std::pair{ clip, crop };
+        }
+
+        struct utf8_dest_t
+        {
+            text data;
+            cell base;
+
+            auto operator += (qiew utf8)
+            {
+                data += utf8;
+            }
+            template<svga VGAMODE>
+            auto fgc(rgba const&) { }
+            template<svga VGAMODE>
+            auto bgc(rgba const&) { }
+            auto bld(bool ) { }
+            auto itc(bool ) { }
+            auto und(si32 ) { }
+            auto inv(bool ) { }
+            auto stk(bool ) { }
+            auto ovr(bool ) { }
+            auto blk(bool ) { }
+        };
+
+        auto to_utf8() const
+        {
+            auto dest = utf8_dest_t{};
+            for (auto& line_ptr : batch)
+            {
+                auto& curln = *line_ptr;
+                for (auto c : curln.locus)
+                {
+                    if (c.cmd == ansi::fn::nl)
+                    {
+                        while (c.arg--) dest.data += "\n";
+                    }
+                }
+                curln.lyric->each([&](cell c)
+                {
+                    if (c.isspc()) c.txt(whitespace);
+                    if (c.wdt() != 3) c.scan(dest.base, dest);
+                });
+            }
+            return dest.data;
+        }
     };
 
     // Derivative vt-parser example.

@@ -47,14 +47,6 @@ namespace netxs::ui
         using events = netxs::events::userland::uiterm;
         using face = netxs::console::face;
 
-        enum xsgr
-        {
-            disabled,
-            textonly,
-            ansitext,
-            count,
-        };
-
         struct commands
         {
             struct erase
@@ -118,7 +110,7 @@ namespace netxs::ui
         static constexpr si32 def_tablen = 8;     // term: Default tab length.
         static constexpr auto def_lucent = 0xC0;  // term: Default transparency level.
         static constexpr auto def_margin = 0;     // term: Default side margin.
-        static constexpr auto def_selmod = xsgr::textonly; // term: Default selection mode.
+        static constexpr auto def_selmod = clip::textonly; // term: Default selection mode.
         static constexpr auto def_wrpmod = deco::defwrp;   // term: Default wrapping mode.
         static constexpr auto def_fcolor = whitelt; // term: Default foreground color.
         static constexpr auto def_bcolor = blackdk; // term: Default background color.
@@ -268,14 +260,14 @@ namespace netxs::ui
                     };
                     owner.SUBMIT_T(tier::release, hids::events::mouse::scroll::any, token, gear)
                     {
-                        if (owner.selmod == xsgr::disabled)
+                        if (owner.selmod == clip::disabled)
                         {
                             gear.dismiss();
                         }
                     };
                     owner.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, token, gear)
                     {
-                        if (owner.selmod == xsgr::disabled)
+                        if (owner.selmod == clip::disabled)
                         {
                             gear.dismiss(); // To prevent kboffer from being sent at pro::keybd::active().
                         }
@@ -283,7 +275,7 @@ namespace netxs::ui
                     owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                     {
                         check_focus(gear);
-                        if (owner.selmod != xsgr::disabled)
+                        if (owner.selmod != clip::disabled)
                         {
                             owner.bell::router<tier::release>().skip();
                             return;
@@ -309,7 +301,7 @@ namespace netxs::ui
                     };
                     smode = owner.selmod;
                 }
-                owner.selection_selmod(xsgr::disabled);
+                owner.selection_selmod(clip::disabled);
             }
             void disable(mode m)
             {
@@ -1908,6 +1900,19 @@ namespace netxs::ui
                 }
                 return origin_x;
             };
+            // bufferbase: Shade selection.
+            template<class P>
+            static auto _shade_selection(si32 mode, P work)
+            {
+                switch (mode)
+                {
+                    case clip::ansitext: work(cell::shaders::xlight); break;
+                    case clip::richtext: work(cell::shaders::xlight); break;
+                    case clip::htmltext: work(cell::shaders::xlight); break;
+                    case clip::textonly: work(cell::shaders::selection(def_selclr)); break;
+                    default:             work(cell::shaders::selection(def_offclr)); break;
+                }
+            }
             // bufferbase: Rasterize selection with grips.
             void selection_raster(face& dest, auto curtop, auto curend, bool ontop = true, bool onend = true)
             {
@@ -1948,9 +1953,7 @@ namespace netxs::ui
                         square = square.clip(view);
                         dest.fill(square, fill);
                     };
-                    mode == xsgr::ansitext ? work(cell::shaders::xlight) :
-                    mode == xsgr::textonly ? work(cell::shaders::selection(def_selclr)) :
-                                             work(cell::shaders::selection(def_offclr)) ;
+                    _shade_selection(mode, work);
                 }
             }
             // bufferbase: Pickup selected data from canvas.
@@ -1967,8 +1970,8 @@ namespace netxs::ui
                 square.normalize_itself();
                 if (selbox || grip_1.coor.y == grip_2.coor.y)
                 {
-                    selmod == xsgr::ansitext ? buffer.s11n<true>(canvas, square)
-                                             : buffer.s11n<faux>(canvas, square);
+                    selmod == clip::textonly ? buffer.s11n<faux>(canvas, square)
+                                             : buffer.s11n<true>(canvas, square);
                 }
                 else
                 {
@@ -1976,17 +1979,17 @@ namespace netxs::ui
                     auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
                     auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
                     auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
-                    if (selmod == xsgr::ansitext)
-                    {
-                        buffer.s11n<true, true, faux>(canvas, part_1);
-                        buffer.s11n<true, faux, faux>(canvas, part_2);
-                        buffer.s11n<true, faux, true>(canvas, part_3);
-                    }
-                    else
+                    if (selmod == clip::textonly)
                     {
                         buffer.s11n<faux, true, faux>(canvas, part_1);
                         buffer.s11n<faux, faux, faux>(canvas, part_2);
                         buffer.s11n<faux, faux, true>(canvas, part_3);
+                    }
+                    else
+                    {
+                        buffer.s11n<true, true, faux>(canvas, part_1);
+                        buffer.s11n<true, faux, faux>(canvas, part_2);
+                        buffer.s11n<true, faux, true>(canvas, part_3);
                     }
                 }
             }
@@ -2079,7 +2082,7 @@ namespace netxs::ui
             {
                 bufferbase::resize_viewport(new_sz);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
-                canvas.crop(panel);
+                canvas.crop(panel, brush.nul());
             }
             // alt_screen: Return viewport height.
             si32 height() override
@@ -2249,7 +2252,7 @@ namespace netxs::ui
             // alt_screen: Clear viewport.
             void clear_all() override
             {
-                canvas.wipe();
+                canvas.wipe(brush.nul());
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
             }
@@ -2260,7 +2263,7 @@ namespace netxs::ui
                 auto view = dest.view();
                 auto find = selection_active()
                          && match.length()
-                         && owner.selmod == xsgr::textonly;
+                         && owner.selmod == clip::textonly;
                 canvas.move(full.coor);
                 dest.plot(canvas, cell::shaders::fuse);
                 if (find)
@@ -4383,7 +4386,7 @@ namespace netxs::ui
                 auto stop = view.coor.y + view.size.y;
                 auto head = batch.iter_by_id(batch.ancid);
                 auto tail = batch.end();
-                auto find = selection_active() && match.length() && owner.selmod == xsgr::textonly;
+                auto find = selection_active() && match.length() && owner.selmod == clip::textonly;
                 auto fill = [&](auto& area, auto chr)
                 {
                     if (auto r = view.clip(area))
@@ -5460,7 +5463,7 @@ namespace netxs::ui
                     auto full = rect{ -view.coor, { panel.x, view.coor.y + view.size.y }};
                     dest.flow::full(full);
                     dest.core::move(view.coor);
-                    dest.core::size(view.size);
+                    dest.core::size(view.size, brush.nul());
                     do
                     {
                         auto& curln = *head;
@@ -5468,8 +5471,8 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
-                    selmod == xsgr::ansitext ? yield.s11n<true, faux, true>(dest, mark)
-                                             : yield.s11n<faux, faux, true>(dest, mark);
+                    selmod == clip::textonly ? yield.s11n<faux, faux, true>(dest, mark)
+                                             : yield.s11n<true, faux, true>(dest, mark);
                 }
                 else
                 {
@@ -5500,7 +5503,17 @@ namespace netxs::ui
                         }
                         if (yield.length()) yield.pop_back(); // Pop last eol.
                     };
-                    if (selmod == xsgr::ansitext)
+                    if (selmod == clip::textonly)
+                    {
+                        build([&](auto& curln)
+                        {
+                            auto block = ansi::esc{};
+                            block.s11n<faux, faux, faux>(curln, field, state);
+                            if (block.size() > 0) yield.add(block);
+                            else                  yield.eol();
+                        });
+                    }
+                    else
                     {
                         build([&](auto& curln)
                         {
@@ -5517,16 +5530,6 @@ namespace netxs::ui
                         });
                         yield.nil();
                     }
-                    else
-                    {
-                        build([&](auto& curln)
-                        {
-                            auto block = ansi::esc{};
-                            block.s11n<faux, faux, faux>(curln, field, state);
-                            if (block.size() > 0) yield.add(block);
-                            else                  yield.eol();
-                        });
-                    }
                 }
             }
             // scroll_buf: Materialize selection.
@@ -5536,7 +5539,7 @@ namespace netxs::ui
                 auto len = testy<si64>{};
                 auto selbox = selection_selbox();
                 if (!selection_active()) return std::move(yield);
-                if (selmod == xsgr::ansitext) yield.nil();
+                if (selmod != clip::textonly) yield.nil();
                 len = yield.size();
                 if (uptop.role != grip::idle)
                 {
@@ -5599,9 +5602,11 @@ namespace netxs::ui
                     if (selection_selbox())
                     {
                         auto square = grip_1 | grip_2;
-                        mode == xsgr::ansitext ? dest.fill(square.clip(view), cell::shaders::xlight) :
-                        mode == xsgr::textonly ? dest.fill(square.clip(view), cell::shaders::selection(def_selclr)) :
-                                                 dest.fill(square.clip(view), cell::shaders::selection(def_offclr)) ;
+                        auto filler = [&](auto fill)
+                        {
+                            dest.fill(square.clip(view), fill);
+                        };
+                        _shade_selection(mode, filler);
                     }
                     else
                     {
@@ -5667,9 +5672,7 @@ namespace netxs::ui
                                 ++head;
                             }
                         };
-                        mode == xsgr::ansitext ? work(cell::shaders::xlight) :
-                        mode == xsgr::textonly ? work(cell::shaders::selection(def_selclr)) :
-                                                 work(cell::shaders::selection(def_offclr)) ;
+                        _shade_selection(mode, work);
                     }
                 }
             }
@@ -6089,7 +6092,7 @@ namespace netxs::ui
         bool       onlogs; // term: Avoid logs if no subscriptions.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
-        si32       selmod; // term: Selection mode (ui::term::xsgr).
+        si32       selmod; // term: Selection mode (ansi::clip::mime).
         vtty       ptycon; // term: PTY device. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
@@ -6105,8 +6108,9 @@ namespace netxs::ui
                 if (auto ptr = bell::getref(gate_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    if constexpr (Decode) gear_ptr->set_clip_data(target->panel, utf::unbase64(utf::remain(data, ';')));
-                    else                  gear_ptr->set_clip_data(target->panel, data);
+                    //todo take MIME type from the OSC52 first arg
+                    if constexpr (Decode) gear_ptr->set_clip_data(target->panel, clip{ utf::unbase64(utf::remain(data, ';')), clip::ansitext });
+                    else                  gear_ptr->set_clip_data(target->panel, clip{ text{ data }, clip::ansitext });
                 }
             }
         }
@@ -6190,6 +6194,7 @@ namespace netxs::ui
                 case 1047: // Use alternate screen buffer.
                 case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                     altbuf.style = target->style;
+                    altbuf.brush = target->brush;
                     altbuf.clear_all();
                     altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                     target = &altbuf;
@@ -6297,6 +6302,7 @@ namespace netxs::ui
                 case 1047: // Use normal screen buffer.
                 case 1049: // Use normal screen buffer and restore cursor.
                     normal.style = target->style;
+                    normal.brush = target->brush;
                     reset_to_normal(*target);
                     break;
                 case 2004: // Disable bracketed paste mode.
@@ -6473,7 +6479,7 @@ namespace netxs::ui
         // term: Is the selection allowed.
         auto selection_passed()
         {
-            return selmod != xsgr::disabled;
+            return selmod != clip::disabled;
         }
         // term: Set selection mode.
         void selection_selmod(si32 newmod)
@@ -6481,7 +6487,7 @@ namespace netxs::ui
             selmod = newmod;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selmod, selmod);
-            if (mtrack && selmod == xsgr::disabled)
+            if (mtrack && selmod == clip::disabled)
             {
                 follow[axis::Y] = true; // Reset viewport.
                 ondata("");             // Recalc trigger.
@@ -6490,7 +6496,7 @@ namespace netxs::ui
         // term: Set the next selection mode.
         void selection_selmod()
         {
-            auto newmod = (selmod + 1) % xsgr::count;
+            auto newmod = (selmod + 1) % clip::count;
             selection_selmod(newmod);
         }
         auto selection_cancel(hids& gear)
@@ -6534,7 +6540,7 @@ namespace netxs::ui
                     auto state = gear.state();
                     gear.combine_focus = true; // Preserve all selected panes.
                     gear.offer_kb_focus(this->This());
-                    gear.set_clip_data(target->panel, data);
+                    gear.set_clip_data(target->panel, clip{ data, static_cast<clip::mime>(selmod) });
                     gear.state(state);
                 }
                 if (gear.meta(hids::anyCtrl) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
@@ -6545,9 +6551,8 @@ namespace netxs::ui
             }
             else if (selection_passed()) // Paste from clipboard.
             {
-                auto data = text{};
-                gear.get_clip_data(data);
-                if (data.size())
+                auto data = gear.get_clip_data();
+                if (data.utf8.size())
                 {
                     //todo unify (hids)
                     auto state = gear.state();
@@ -6556,7 +6561,7 @@ namespace netxs::ui
                     gear.state(state);
 
                     follow[axis::X] = true;
-                    data_out(data);
+                    data_out(data.utf8);
                     gear.dismiss();
                 }
             }
@@ -6696,16 +6701,15 @@ namespace netxs::ui
             }
             else
             {
-                auto data = text{};
-                gear.get_clip_data(data);
-                if (data.size())
+                auto data = gear.get_clip_data();
+                if (data.utf8.size())
                 {
-                    delta = console.selection_search(dir, data);
+                    delta = console.selection_search(dir, data.utf8);
                 }
                 else // Page by page scrolling if nothing to search.
                 {
                     delta.y = fwd ? -console.arena
-                                    :  console.arena;
+                                  :  console.arena;
                 }
             }
             SIGNAL(tier::release, ui::term::events::search::status, console.selection_button(delta));
@@ -7197,20 +7201,22 @@ namespace netxs::ui
                 if (auto ptr = bell::getref(c.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    gear_ptr->set_clip_data(c.clip_prev_size, c.clipdata);
+                    gear_ptr->set_clip_data(c.clip_prev_size, clip{ c.clipdata, static_cast<clip::mime>(c.mimetype) });
                 }
             }
             void handle(s11n::xs::request_clipboard   lock)
             {
                 auto& c = lock.thing;
                 auto lock_ui = events::sync{};
-                auto clip_raw_data = text{}; //todo use gear.raw_clip_data
+                //todo use gear.raw_clip_data
                 if (auto ptr = bell::getref(c.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    gear_ptr->get_clip_data(clip_raw_data);
+                    auto data = gear_ptr->get_clip_data();
+                    s11n::clipdata.send(owner, c.gear_id, data.utf8, data.kind);
+                    return;
                 }
-                s11n::clipdata.send(owner, c.gear_id, clip_raw_data);
+                s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
             }
             void handle(s11n::xs::set_focus           lock)
             {
