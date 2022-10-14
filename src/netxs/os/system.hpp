@@ -1687,7 +1687,6 @@ namespace netxs::os
         //        CF_UNICODETEXT: Plaintext UTF-16
         //   clip::htmltext
         //               cf_html: HTML-code UTF-8
-        //               cf_rich: RTF-group UTF-8
         //        CF_UNICODETEXT: HTML-code UTF-16
         //
         using ansi::clip;
@@ -1741,9 +1740,9 @@ namespace netxs::os
                 }
                 else if (mime.starts_with(ansi::mimehtml))
                 {
-                    auto [html, utf8] = post.to_html(font);
+                    auto [html, code] = post.to_html(font);
                     send(cf_html, html);
-                    send(cf_text, utf8);
+                    send(cf_text, code);
                 }
                 else if (mime.starts_with(ansi::mimeansi))
                 {

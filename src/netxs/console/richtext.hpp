@@ -1912,11 +1912,49 @@ namespace netxs::console
                       + crop;
             return std::pair{ clip, crop };
         }
+
+        struct utf8_dest_t
+        {
+            text data;
+            cell base;
+
+            auto operator += (qiew utf8)
+            {
+                data += utf8;
+            }
+            template<svga VGAMODE>
+            auto fgc(rgba const&) { }
+            template<svga VGAMODE>
+            auto bgc(rgba const&) { }
+            auto bld(bool ) { }
+            auto itc(bool ) { }
+            auto und(si32 ) { }
+            auto inv(bool ) { }
+            auto stk(bool ) { }
+            auto ovr(bool ) { }
+            auto blk(bool ) { }
+        };
+
         auto to_utf8() const
         {
-            auto crop = text{};
-            //todo implement
-            return crop;
+            auto dest = utf8_dest_t{};
+            for (auto& line_ptr : batch)
+            {
+                auto& curln = *line_ptr;
+                for (auto c : curln.locus)
+                {
+                    if (c.cmd == ansi::fn::nl)
+                    {
+                        while (c.arg--) dest.data += "\n";
+                    }
+                }
+                curln.lyric->each([&](cell c)
+                {
+                    if (c.isspc()) c.txt(whitespace);
+                    if (c.wdt() != 3) c.scan(dest.base, dest);
+                });
+            }
+            return dest.data;
         }
     };
 
