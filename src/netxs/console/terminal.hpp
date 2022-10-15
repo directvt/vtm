@@ -6561,7 +6561,22 @@ namespace netxs::ui
                     gear.state(state);
 
                     follow[axis::X] = true;
-                    data_out(data.utf8);
+                    if (data.kind == clip::richtext)
+                    {
+                        auto post = page{ data.utf8 };
+                        auto rich = post.to_rich();
+                        data_out(rich);
+                    }
+                    else if (data.kind == clip::htmltext)
+                    {
+                        auto post = page{ data.utf8 };
+                        auto [html, code] = post.to_html();
+                        data_out(code);
+                    }
+                    else
+                    {
+                        data_out(data.utf8);
+                    }
                     gear.dismiss();
                 }
             }
