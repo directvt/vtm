@@ -530,14 +530,6 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
    - Text selection by mouse #149  
-     The following clipboard formats are generated on copy:
-
-      Mode        | Exported Format
-      ------------|-----------------------------
-      `Plaintext` | `CF_TEXT`: Plain text
-      `ANSI-text` | `CF_RTF`: RTF-document<br>`CF_TEXT`: ANSI/VT text
-      `RTF-style` | `CF_RTF`: RTF-document<br>`CF_TEXT`: Plain text
-      `HTML-code` | `CF_HTML`: HTML-code<br>`CF_TEXT`: HTML-code
    - Configurable using VT-sequences
 
       Name         | Sequence                         | Description

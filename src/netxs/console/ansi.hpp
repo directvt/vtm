@@ -636,12 +636,12 @@ namespace netxs::ansi
         auto& save_palette()        { return add("\033[#P"                           ); } // esc: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // esc: Pop  palette from stack XTPOPCOLORS.
         auto& old_palette_reset()   { return add("\033]R"                            ); } // esc: Reset color palette (Linux console).
-        auto& setbuf(clip const& t) // esc: Set clipboard.
+        auto& clipbuf(clip::mime kind, view utf8) // esc: Set clipboard buffer.
         {
-            return add("\033]52;", t.kind == clip::htmltext ? mimehtml
-                                 : t.kind == clip::richtext ? mimerich
-                                 : t.kind == clip::ansitext ? mimeansi
-                                                            : mimetext, ";", utf::base64(t.utf8), C0_BEL);
+            return add("\033]52;", kind == clip::htmltext ? mimehtml
+                                 : kind == clip::richtext ? mimerich
+                                 : kind == clip::ansitext ? mimeansi
+                                                          : mimetext, ";", utf::base64(utf8), C0_BEL);
         }
         auto& old_palette(si32 i, rgba const& c) // esc: Set color palette (Linux console).
         {
@@ -733,6 +733,8 @@ namespace netxs::ansi
     };
 
     template<class ...Args>
+    static auto clipbuf(Args&&... data) { return esc{}.clipbuf(std::forward<Args>(data)...); } // ansi: Set clipboard.
+    template<class ...Args>
     static auto add(Args&&... data)   { return esc{}.add(std::forward<Args>(data)...); } // ansi: Add text.
     static auto cup(twod const& n)    { return esc{}.cup(n);        } // ansi: 0-Based caret position.
     static auto cuu(si32 n)           { return esc{}.cuu(n);        } // ansi: Caret up.
@@ -800,7 +802,6 @@ namespace netxs::ansi
     static auto altbuf(bool b)        { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
     static auto cursor(bool b)        { return esc{}.cursor(b);     } // ansi: Caret visibility.
     static auto appkey(bool b)        { return esc{}.appkey(b);     } // ansi: Application cursor Keys (DECCKM).
-    static auto setbuf(clip const& t) { return esc{}.setbuf(t);     } // ansi: Set clipboard.
     static auto ref(si32 i)           { return esc{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     static auto idx(si32 i)           { return esc{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
                                                                       //       All following text is under the IDX until the next command is issued.
