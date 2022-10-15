@@ -5665,7 +5665,7 @@ namespace netxs::console
                     auto& data = gear.clip_rawdata;
                     auto& size = gear.preview_size;
                     if (direct) conio.set_clipboard.send(canal, ext_gear_id, size, data.utf8, data.kind);
-                    else        conio.output(ansi::setbuf(data)); // OSC 52
+                    else        conio.output(ansi::clipbuf(data.kind, data.utf8)); // OSC 52
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
                 {

@@ -432,7 +432,7 @@ namespace netxs::xml
             {
                 auto item = utf::get_tail(data, token_delims);
                 utf::to_low(item);
-                return std::move(item);
+                return item;
             }
             template<bool Append_page = true>
             auto take_value(view& data)

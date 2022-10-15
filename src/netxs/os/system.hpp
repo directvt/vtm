@@ -1760,7 +1760,43 @@ namespace netxs::os
 
         #else
 
-            //todo implement
+            auto yield = ansi::esc{};
+            if (mime.starts_with(ansi::mimerich))
+            {
+                auto post = page{ utf8 };
+                auto rich = post.to_rich();
+                yield.clipbuf(clip::richtext, rich);
+            }
+            else if (mime.starts_with(ansi::mimehtml))
+            {
+                auto post = page{ utf8 };
+                auto [html, code] = post.to_html();
+                yield.clipbuf(clip::htmltext, code);
+            }
+            else if (mime.starts_with(ansi::mimeansi))
+            {
+                yield.clipbuf(clip::ansitext, utf8);
+            }
+            else
+            {
+                yield.clipbuf(clip::textonly, utf8);
+            }
+            os::send<true>(STDOUT_FD, yield.data(), yield.size());
+            success = true;
+
+            #if defined(__APPLE__)
+
+                //todo implement
+            
+            #elif defined(__ANDROID__)
+
+                //todo implement
+
+            #else
+
+                //todo implement X11 clipboard server
+
+            #endif
 
         #endif
         return success;
