@@ -1758,6 +1758,34 @@ namespace netxs::os
             }
             ok(::CloseClipboard(), "::CloseClipboard");
 
+        #elif defined(__APPLE__)
+
+            auto send = [&](auto& data)
+            {
+                if (auto fd = ::popen("/usr/bin/pbcopy", "w"))
+                {
+                    ::fwrite(data.data(), data.size(), 1, fd);
+                    ::pclose(fd);
+                    success = true;
+                }
+            };
+            if (mime.starts_with(ansi::mimerich))
+            {
+                auto post = page{ utf8 };
+                auto rich = post.to_rich();
+                send(rich);
+            }
+            else if (mime.starts_with(ansi::mimehtml))
+            {
+                auto post = page{ utf8 };
+                auto [html, code] = post.to_html();
+                send(code);
+            }
+            else
+            {
+                send(utf8);
+            }
+
         #else
 
             auto yield = ansi::esc{};
@@ -1784,11 +1812,7 @@ namespace netxs::os
             os::send<true>(STDOUT_FD, yield.data(), yield.size());
             success = true;
 
-            #if defined(__APPLE__)
-
-                //todo implement
-            
-            #elif defined(__ANDROID__)
+            #if defined(__ANDROID__)
 
                 //todo implement
 
@@ -3170,6 +3194,7 @@ namespace netxs::os
     class tty
     {
         fire signal;
+        text buffer;
 
         template<class V>
         struct _globals
@@ -3908,8 +3933,11 @@ namespace netxs::os
         bool output(view utf8)
         {
             static auto ocs52head = "\033]52;"sv;
-            if (utf8.starts_with(ocs52head)) // OSC52 hook.
+
+            if (buffer.size() || utf8.starts_with(ocs52head))
             {
+                buffer += utf8;
+                utf8 = view{ buffer };
                 auto data = utf8.substr(ocs52head.size());
                 if (auto p = data.find(';');
                          p!= view::npos)
@@ -3924,9 +3952,13 @@ namespace netxs::os
                         {
                             utf8 = data.substr(p + 1/* C0_BEL */);
                         }
+                        auto result = utf8.size() ? os::send<true>(STDOUT_FD, utf8.data(), utf8.size())
+                                                  : true;
+                        buffer.clear();
+                        return result;
                     }
                 }
-                if (utf8.empty()) return true;
+                return true;
             }
             return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
