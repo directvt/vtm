@@ -1787,7 +1787,7 @@ namespace netxs::console
                       + green + std::to_string(c.chan.g)
                       + blue  + std::to_string(c.chan.b) + ';';
             }
-            crop += '}';
+            crop += "}\\f0 ";
             crop += dest.data + '}';
             return crop;
         }
