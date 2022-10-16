@@ -37,7 +37,17 @@ namespace netxs::app::shared
         </item>
         <item* />    <!-- use asterisk at the end of the element name to set defaults -->
         <item* hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Run built-in terminal emulator ">
+)=="
+#if defined(_WIN32)
+R"==(
+        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt ">
+)=="
+#else
+R"==(
+        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal ">
+)=="
+#endif
+R"==(
             <hotkeys>    <!-- not implemented -->
                 <action=start key="Ctrl+'t'"/>
                 <action=close key="Ctrl+'z'"/>
@@ -100,26 +110,26 @@ namespace netxs::app::shared
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgcolor=15 bgcolor=0xFF562401 notes=" Run PowerShell in built-in terminal emulator "/>
-        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                                      notes=" Run default WSL profile in built-in terminal emulator "/>
-        <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                                 notes=" Run Far Manager in its own window (if it is installed) "/>
+        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgcolor=15 bgcolor=0xFF562401 notes=" run PowerShell "/>
+        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                                      notes=" run default WSL profile "/>
+   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                                 notes=" run Far Manager in its own window "/> -->
 )=="
 #else
 R"==(
-        <item id=mc        label="mc"        type=SHELL    title="Midnight Commander"    param="mc"               notes=" Run Midnight Commander in its own window (if it is installed) "/>
+   <!-- <item id=mc        label="mc"        type=SHELL    title="Midnight Commander"    param="mc"               notes=" run Midnight Commander in its own window "/> -->
 )=="
 #endif
 R"==(
-        <item id=Tile      label="Tile"      type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" Run Tiling Window Manager with two terminals attached "/>
-        <item id=View      label=View        type=Region   title="\e[11:3pView: Region"                           notes=" Set desktop region "/>
-        <item id=Settings  label=Settings    type=DirectVT title="Settings"              param="$0 -r settings"   notes=" Configure frame rate " winsize=50,15 />
-        <item id=Logs      label=Logs        type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" Run Logs application "/>
-        <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/>
-        <item id=Gems      label="Gems"      type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/>
-        <item id=Text      label="Text"      type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/>
-        <item id=Calc      label="Calc"      type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/>
-        <item id=Test      label="Test"      type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/>
-        <item id=Truecolor label="Truecolor" type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/>
+        <item id=Tile      label="Tile"      type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
+        <item id=View      label=View        type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
+        <item id=Settings  label=Settings    type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
+        <item id=Logs      label=Logs        type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
+   <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
+   <!-- <item id=Gems      label="Gems"      type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
+   <!-- <item id=Text      label="Text"      type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
+   <!-- <item id=Calc      label="Calc"      type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
+   <!-- <item id=Test      label="Test"      type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
+   <!-- <item id=Truecolor label="Truecolor" type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun>    <!-- not implemented -->
             <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default -->
             <item wincoor=0,0 />
