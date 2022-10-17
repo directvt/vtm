@@ -52,7 +52,7 @@ R"==(
                 <action=start key="Ctrl+'t'"/>
                 <action=close key="Ctrl+'z'"/>
             </hotkeys>
-            <param="vtm -r term">    <!-- not implemented -->
+            <param="$0 -r term">    <!-- not implemented -->
                 <scrollback>
                     <size=20000 />
                     <growstep=0 />
