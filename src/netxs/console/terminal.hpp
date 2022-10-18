@@ -6581,6 +6581,26 @@ namespace netxs::ui
                 }
             }
         }
+        void selection_mclick(hids& gear)
+        {
+            log("       term: middle click");
+            auto& console = *target;
+            auto utf8 = console.selection_active() ? console.match.utf8()      // Paste from selection.
+                      :         selection_passed() ? gear.get_clip_data().utf8 // Paste from clipboard.
+                                                   : text{};
+            if (utf8.size())
+            {
+                //todo unify (hids)
+                auto state = gear.state();
+                gear.combine_focus = true; // Preserve all selected panes.
+                gear.offer_kb_focus(this->This());
+                gear.state(state);
+
+                follow[axis::X] = true;
+                data_out(utf8);
+                gear.dismiss();
+            }
+        }
         void selection_lclick(hids& gear)
         {
             auto& console = *target;
@@ -6697,6 +6717,7 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::form::drag::cancel               ::left,  gear) {                         selection_cancel(gear); };
             SUBMIT(tier::release, hids::events::mouse::button::click   ::right, gear) {                         selection_pickup(gear); };
             SUBMIT(tier::release, hids::events::mouse::button::click   ::left,  gear) {                         selection_lclick(gear); };
+            SUBMIT(tier::release, hids::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
             SUBMIT(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
         }
