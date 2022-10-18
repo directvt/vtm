@@ -233,8 +233,8 @@ namespace netxs::app::desk
         {
             auto lock = netxs::events::sync{}; // Protect access to the world.
 
-            auto uibar_min_size  = si32{ 4  };
-            auto uibar_full_size = si32{ 31 };
+            auto uibar_min_size = si32{ 4  };
+            auto uibar_max_size = si32{ 31 };
 
             auto window = ui::cake::ctor();
 
@@ -276,7 +276,7 @@ namespace netxs::app::desk
                     return users;
                 };
 
-                window->invoke([uibar_full_size, uibar_min_size](auto& boss) mutable
+                window->invoke([uibar_max_size, uibar_min_size](auto& boss) mutable
                     {
                         // Always set the first menu item as active.
                         auto world_ptr = e2::config::whereami.param();
@@ -338,6 +338,7 @@ namespace netxs::app::desk
                     auto taskbar = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::Y))
                                         ->colors(whitedk, 0x60202020)
                                         ->plugin<pro::notes>(" LeftDrag to adjust menu width                   \n"
+                                                             " Ctrl+LeftDrag to adjust folded width            \n"
                                                              " RightDrag or scroll wheel to slide menu up/down ")
                                         ->plugin<pro::limit>(twod{ uibar_min_size,-1 }, twod{ uibar_min_size,-1 })
                                         ->plugin<pro::timer>()
@@ -347,17 +348,19 @@ namespace netxs::app::desk
                                         {
                                             boss.mouse.template draggable<sysmouse::left>(true);
                                             auto boss_shadow = ptr::shadow(boss.This());
-                                            auto size_config = std::make_shared<std::pair<si32, si32>>(uibar_full_size, uibar_min_size);
+                                            auto size_config = std::make_shared<std::pair<si32, si32>>(uibar_max_size, uibar_min_size);
                                             boss.SUBMIT_BYVAL(tier::release, e2::form::drag::pull::_<sysmouse::left>, gear)
                                             {
                                                 if (auto boss_ptr = boss_shadow.lock())
                                                 {
                                                     auto& boss = *boss_ptr;
-                                                    auto& [uibar_full_size, uibar_min_size] = *size_config;
+                                                    auto& [uibar_max_size, uibar_min_size] = *size_config;
                                                     auto& limits = boss.template plugins<pro::limit>();
                                                     auto lims = limits.get();
                                                     lims.min.x += gear.delta.get().x;
-                                                    lims.max.x = uibar_full_size = lims.min.x;
+                                                    lims.max.x = lims.min.x;
+                                                    gear.meta(hids::anyCtrl) ? uibar_min_size = lims.min.x
+                                                                             : uibar_max_size = lims.min.x;
                                                     limits.set(lims.min, lims.max);
                                                     boss.base::reflow();
                                                 }
@@ -371,9 +374,10 @@ namespace netxs::app::desk
                                                         if (auto boss_ptr = boss_shadow.lock())
                                                         {
                                                             auto& boss = *boss_ptr;
-                                                            auto& [uibar_full_size, uibar_min_size] = *size_config;
+                                                            auto& [uibar_max_size, uibar_min_size] = *size_config;
                                                             auto& limits = boss.template plugins<pro::limit>();
-                                                            auto size = active ? uibar_full_size : std::min(uibar_full_size, uibar_min_size);
+                                                            auto size = active ? std::max(uibar_max_size, uibar_min_size)
+                                                                               : uibar_min_size;
                                                             auto lims = twod{ size,-1 };
                                                             limits.set(lims, lims);
                                                             boss.base::reflow();
@@ -388,7 +392,7 @@ namespace netxs::app::desk
                                             };
                                             boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::viewport, viewport)
                                             {
-                                                auto& [uibar_full_size, uibar_min_size] = *size_config;
+                                                auto& [uibar_max_size, uibar_min_size] = *size_config;
                                                 viewport.coor.x += uibar_min_size;
                                                 viewport.size.x -= uibar_min_size;
                                             };
@@ -467,7 +471,7 @@ namespace netxs::app::desk
                                                         ->plugin<pro::limit>(twod{ -1, 3 }, twod{ -1, 3 });
                                 bttns_cake->attach(app::shared::underlined_hz_scrollbars(bttns_area));
                             auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
-                                                   ->plugin<pro::limit>(twod{ uibar_full_size, 3 }, twod{ -1, 3 });
+                                                   ->plugin<pro::limit>(twod{ uibar_max_size, 3 }, twod{ -1, 3 });
                                 auto disconnect_park = bttns->attach(slot::_1, ui::park::ctor())
                                                             ->plugin<pro::fader>(x2, c2, 150ms)
                                                             ->plugin<pro::notes>(" Leave current session ")
