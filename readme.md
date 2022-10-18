@@ -151,6 +151,12 @@ powershell ../src/install/install.ps1
     <td></td>
   </tr>
   <tr>
+    <th>MiddleClick</th>
+    <td colspan="5"></td>
+    <td colspan="1">Selection paste</td>
+    <td colspan="3"></td>
+  </tr>
+  <tr>
     <th>Left+RightClick</th>
     <td colspan="3"></td>
     <td colspan="5">Clear clipboard</td>
@@ -181,7 +187,8 @@ powershell ../src/install/install.ps1
   </tr>
   <tr>
     <th>Ctrl+LeftDrag</th>
-    <td colspan="9">Modify selection</td>
+    <td colspan="3">Adjust folded width</td>
+    <td colspan="6">Modify selection</td>
   </tr>
   <tr>
   <tr>

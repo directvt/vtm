@@ -137,6 +137,10 @@ R"==(
             <item wincoor=0,52% />
             <item=mc wincoor=52%,52% />
         </autorun>
+        <width>    <!-- not implemented -->
+            <folded=4/>
+            <expanded=31/>
+        </width>
     </menu>
     <hotkeys>    <!-- not implemented -->
         <action=prevWindow key="Ctrl+PgUp"/>
