@@ -50,6 +50,15 @@ namespace netxs::console
     };
     struct menuitem_t
     {
+        static constexpr auto type_ANSIVT   = "ansivt";
+        static constexpr auto type_DirectVT = "directvt";
+        static constexpr auto type_SHELL    = "shell";
+        static constexpr auto type_Group    = "group";
+        static constexpr auto type_Region   = "region";
+        static constexpr auto type_Desk     = "desk";
+        static constexpr auto type_Fone     = "fone";
+        static constexpr auto type_Headless = "headless";
+
         text       id{};
         text    alias{};
         bool   hidden{};
@@ -78,6 +87,24 @@ namespace netxs::console
     using proc = std::function<void(hids&)>;
     using s11n = netxs::ansi::dtvt::binary::s11n;
     using os::xipc;
+
+    static constexpr auto attr_id       = "id";
+    static constexpr auto attr_alias    = "alias";
+    static constexpr auto attr_hidden   = "hidden";
+    static constexpr auto attr_label    = "label";
+    static constexpr auto attr_notes    = "notes";
+    static constexpr auto attr_title    = "title";
+    static constexpr auto attr_footer   = "footer";
+    static constexpr auto attr_bgcolor  = "bgcolor";
+    static constexpr auto attr_fgcolor  = "fgcolor";
+    static constexpr auto attr_winsize  = "winsize";
+    static constexpr auto attr_wincoor  = "wincoor";
+    static constexpr auto attr_slimmenu = "slimmenu";
+    static constexpr auto attr_hotkey   = "hotkey";
+    static constexpr auto attr_type     = "type";
+    static constexpr auto attr_cwd      = "cwd";
+    static constexpr auto attr_param    = "param";
+    static constexpr auto attr_splitter = "splitter";
 }
 
 namespace netxs::events::userland
@@ -4732,9 +4759,90 @@ namespace netxs::console
         depo regis; // hall: Actors registry.
 
     protected:
-        hall(xipc server_pipe, si32 maxfps)
+        template<class T>
+        hall(xipc server_pipe, si32 maxfps, T aplist)
             : host{ server_pipe, maxfps }
         {
+            auto current_module_file = os::current_module_file();
+            auto& menu_list = *regis.app_ptr;
+            auto& conf_list = *regis.lnk_ptr;
+            auto  free_list = std::list<std::pair<text, menuitem_t>>{};
+            auto  temp_list = free_list;
+
+            auto dflt_rec = menuitem_t
+            {
+                .hidden   = faux,
+                .slimmenu = faux,
+                .type     = menuitem_t::type_SHELL,
+            };
+            auto find = [&](auto const& id) -> auto&
+            {
+                auto test = [&](auto& p) { return p.first == id; };
+
+                auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
+                if (iter_free != free_list.end()) return iter_free->second;
+
+                auto iter_temp = std::find_if(temp_list.begin(), temp_list.end(), test);
+                if (iter_temp != temp_list.end()) return iter_temp->second;
+
+                return dflt_rec;
+            };
+
+            static auto splitter_count = 0;
+            for (auto item_ptr : aplist)
+            {
+                auto& item = *item_ptr;
+                auto conf_rec = menuitem_t{};
+                conf_rec.splitter = item.take(attr_splitter, faux);
+                conf_rec.id       = item.take(attr_id,       ""s );
+                if (conf_rec.splitter)
+                {
+                    conf_rec.id = "splitter_" + std::to_string(splitter_count++);
+                }
+                else if (conf_rec.id.empty())
+                {
+                    log("hall: attribute '", utf::debase(attr_id), "' is missing, skip item");
+                    continue;
+                }
+                auto label = item.take(attr_label, ""s);
+                conf_rec.label    = label.empty() ? conf_rec.id : label;
+                conf_rec.alias    = item.take(attr_alias, ""s);
+                auto& fallback = conf_rec.alias.empty() ? dflt_rec
+                                                        : find(conf_rec.alias);
+                conf_rec.hidden   = item.take(attr_hidden,   fallback.hidden  );
+                conf_rec.notes    = item.take(attr_notes,    fallback.notes   );
+                conf_rec.title    = item.take(attr_title,    fallback.title   );
+                conf_rec.footer   = item.take(attr_footer,   fallback.footer  );
+                conf_rec.bgcolor  = item.take(attr_bgcolor,  fallback.bgcolor );
+                conf_rec.fgcolor  = item.take(attr_fgcolor,  fallback.fgcolor );
+                conf_rec.winsize  = item.take(attr_winsize,  fallback.winsize );
+                conf_rec.wincoor  = item.take(attr_wincoor,  fallback.wincoor );
+                conf_rec.slimmenu = item.take(attr_slimmenu, fallback.slimmenu);
+                conf_rec.hotkey   = item.take(attr_hotkey,   fallback.hotkey  ); //todo register hotkey
+                conf_rec.cwd      = item.take(attr_cwd,      fallback.cwd     );
+                conf_rec.param    = item.take(attr_param,    fallback.param   );
+                conf_rec.type     = item.take(attr_type,     fallback.type    );
+
+                utf::to_low(conf_rec.type);
+                utf::change(conf_rec.title,  "$0", current_module_file);
+                utf::change(conf_rec.footer, "$0", current_module_file);
+                utf::change(conf_rec.label,  "$0", current_module_file);
+                utf::change(conf_rec.notes,  "$0", current_module_file);
+                utf::change(conf_rec.param,  "$0", current_module_file);
+
+                if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
+                else                 free_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
+            }
+            for (auto& [id, conf_rec] : free_list)
+            {
+                menu_list[id];
+                conf_list.emplace(std::move(id), std::move(conf_rec));
+            }
+            for (auto& [id, conf_rec] : temp_list)
+            {
+                conf_list.emplace(std::move(id), std::move(conf_rec));
+            }
+
             SUBMIT(tier::general, e2::form::global::lucidity, alpha)
             {
                 if (alpha == -1)

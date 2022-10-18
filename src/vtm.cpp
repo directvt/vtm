@@ -105,6 +105,7 @@ int main(int argc, char* argv[])
     if (whoami == type::server)
     {
         banner();
+        auto aplist = app::shared::load::settings(params);
         auto userid = os::user();
         auto usernm = os::get_env("USER");
         auto hostip = os::get_env("SSH_CLIENT");
@@ -116,9 +117,9 @@ int main(int argc, char* argv[])
             return 1;
         }
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
-        auto ground = base::create<hall>(server, maxfps);
+        auto ground = base::create<hall>(server, maxfps, aplist);
         auto thread = os::pool{};
-        app::shared::init_app_registry(ground, params);
+        app::shared::init(ground);
 
         log("main: listening socket ", server,
                          "\n\tuser: ", userid,
@@ -141,8 +142,8 @@ int main(int argc, char* argv[])
                 if (auto window = ground->invite<gate>(config))
                 {
                     log("user: new gate for ", client);
-                    auto deskmenu = app::shared::creator(app::shared::type_Desk)("", utf::concat(window->id, ";", config.os_user_id));
-                    auto bkground = app::shared::creator(app::shared::type_Fone)("", "gems; About; ");
+                    auto deskmenu = app::shared::creator(menuitem_t::type_Desk)("", utf::concat(window->id, ";", config.os_user_id));
+                    auto bkground = app::shared::creator(menuitem_t::type_Fone)("", "gems; About; ");
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }

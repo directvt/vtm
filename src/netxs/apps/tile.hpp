@@ -681,7 +681,7 @@ namespace netxs::app::tile
                                 auto current_default = e2::data::changed.param();
                                 gate.SIGNAL(tier::request, e2::data::changed, current_default);
 
-                                auto& conf_list = app::shared::configs();
+                                auto& conf_list = app::shared::get::configs();
                                 auto config = conf_list[current_default];
 
                                 auto& creator = app::shared::creator(config.type);
@@ -776,7 +776,7 @@ namespace netxs::app::tile
                 utf::trim_front(utf8, " ,");
                 if (utf8.size() && utf8.front() == ')') utf8.remove_prefix(1); // pop ')';
 
-                auto& conf_list = app::shared::configs();
+                auto& conf_list = app::shared::get::configs();
                 auto iter = conf_list.find(app_id);
                 if (iter == conf_list.end())
                 {
@@ -802,7 +802,7 @@ namespace netxs::app::tile
             object->invoke([&](auto& boss)
                 {
                     auto oneoff = std::make_shared<hook>();
-                    auto& conf_list = app::shared::configs();
+                    auto& conf_list = app::shared::get::configs();
                     auto objs_config_ptr = &conf_list;
                     boss.SUBMIT_T_BYVAL(tier::anycast, e2::form::upon::created, *oneoff, gear)
                     {
@@ -812,7 +812,7 @@ namespace netxs::app::tile
                         gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
                         //todo unify
                         auto& config = objs_config[menu_item_id];
-                        if (config.type == app::shared::type_Region) // Reset the currently selected application to the previous one.
+                        if (config.type == menuitem_t::type_Region) // Reset the currently selected application to the previous one.
                         {
                             gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
                             gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
@@ -1036,7 +1036,7 @@ namespace netxs::app::tile
         };
     }
 
-    app::shared::initialize builder{ app::shared::type_Group, build_inst };
+    app::shared::initialize builder{ menuitem_t::type_Group, build_inst };
 }
 
 #endif // NETXS_APP_TILE_HPP

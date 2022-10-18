@@ -10,8 +10,12 @@
 #include "ui/controls.hpp"
 #include "text/xml.hpp"
 
+#include <fstream>
+
 namespace netxs::app
 {
+    namespace fs = std::filesystem;
+
     using namespace std::placeholders;
     using namespace netxs::console;
     using namespace netxs;
@@ -151,33 +155,6 @@ R"==(
 
     static constexpr auto usr_config = "~/.config/vtm/settings.xml";
     static constexpr auto env_config = "$VTM_CONFIG";
-
-    static constexpr auto type_ANSIVT   = "ansivt";
-    static constexpr auto type_DirectVT = "directvt";
-    static constexpr auto type_SHELL    = "shell";
-    static constexpr auto type_Group    = "group";
-    static constexpr auto type_Region   = "region";
-    static constexpr auto type_Desk     = "desk";
-    static constexpr auto type_Fone     = "fone";
-    static constexpr auto type_Headless = "headless";
-
-    static constexpr auto attr_id       = "id";
-    static constexpr auto attr_alias    = "alias";
-    static constexpr auto attr_hidden   = "hidden";
-    static constexpr auto attr_label    = "label";
-    static constexpr auto attr_notes    = "notes";
-    static constexpr auto attr_title    = "title";
-    static constexpr auto attr_footer   = "footer";
-    static constexpr auto attr_bgcolor  = "bgcolor";
-    static constexpr auto attr_fgcolor  = "fgcolor";
-    static constexpr auto attr_winsize  = "winsize";
-    static constexpr auto attr_wincoor  = "wincoor";
-    static constexpr auto attr_slimmenu = "slimmenu";
-    static constexpr auto attr_hotkey   = "hotkey";
-    static constexpr auto attr_type     = "type";
-    static constexpr auto attr_cwd      = "cwd";
-    static constexpr auto attr_param    = "param";
-    static constexpr auto attr_splitter = "splitter";
 
     static constexpr auto path_item     = "config/menu/item";
     static constexpr auto path_selected = "config/menu/selected";
@@ -550,25 +527,106 @@ R"==(
 
     using builder_t = std::function<sptr<base>(text, text)>;
 
-    auto& get_creator()
+    namespace get
     {
-        static std::map<text, builder_t> creator_inst;
-        return creator_inst;
+        auto& creator()
+        {
+            static auto creator = std::map<text, builder_t>{};
+            return creator;
+        }
+        auto& selected()
+        {
+            static auto selected = text{};
+            return selected;
+        }
+        auto& settings()
+        {
+            static auto settings = sptr<xml::document>{};
+            return settings;
+        }
+        auto& configs()
+        {
+            auto world_ptr = e2::config::whereami.param();
+            SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+            auto conf_list_ptr = e2::bindings::list::links.param();
+            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
+            auto& conf_list = *conf_list_ptr;
+            return conf_list;
+        }
     }
-    auto& get_selected()
+    namespace load
     {
-        static text selected;
-        return selected;
+        auto settings(view cli_config)
+        {
+            auto& doc = get::settings();
+            auto list = xml::document::vect{};
+            auto take = [&](view data, auto source)
+            {
+                doc = std::make_shared<xml::document>(data, source);
+                list = doc->enumerate(path_item);
+                if (list.size())
+                {
+                    auto selected = doc->enumerate(path_selected);
+                    if (selected.size())
+                    {
+                        get::selected() = selected.front()->get_value();
+                        log("apps: ", path_selected, " = ", get::selected());
+                    }
+                }
+            };
+            auto load = [&](view shadow)
+            {
+                if (shadow.empty()) return faux;
+                auto path = text{ shadow };
+                log("apps: try to load configuration from ", path, "...");
+                if (path.starts_with("$"))
+                {
+                    auto temp = path.substr(1);
+                    path = os::get_env(temp);
+                    if (path.empty()) return faux;
+                    log('\t', temp, " = ", path);
+                }
+                auto config_path = path.starts_with("~/") ? os::homepath() / path.substr(2)
+                                                          : fs::path{ path };
+                auto ec = std::error_code{};
+                auto config_file = fs::directory_entry(config_path, ec);
+                if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
+                {
+                    auto config_path_str = "'" + config_path.string() + "'";
+                    utf::change(config_path_str, "\\", "/");
+                    auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
+                    if (file.seekg(0, std::ios::end).fail())
+                    {
+                        log("\tfailed\n\tunable to get configuration file size, skip it: ", config_path_str);
+                        return faux;
+                    }
+                    else
+                    {
+                        log("\treading configuration: ", config_path_str);
+                        auto size = file.tellg();
+                        auto buff = text(size, '\0');
+                        file.seekg(0, std::ios::beg);
+                        file.read(buff.data(), size);
+                        take(buff, config_path.string());
+                        return !list.empty();
+                    }
+                }
+                log("\tfailed");
+                return faux;
+            };
+            if (!load(cli_config)
+             && !load(env_config)
+             && !load(usr_config))
+            {
+                log("apps: no configuration found, fallback to hardcoded config\n", default_config);
+                take(default_config, "");
+            }
+
+            log("apps: ", list.size(), " menu item(s) added");
+            return list;
+        }
     }
-    auto& configs()
-    {
-        auto world_ptr = e2::config::whereami.param();
-        SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-        auto conf_list_ptr = e2::bindings::list::links.param();
-        world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
-        auto& conf_list = *conf_list_ptr;
-        return conf_list;
-    }
+
     auto& creator(text app_typename)
     {
         static builder_t empty =
@@ -607,7 +665,7 @@ R"==(
                   ->attach(placeholder);
             return window;
         };
-        auto& map = get_creator();
+        auto& map = get::creator();
         const auto it = map.find(app_typename);
         if (it == map.end())
         {
@@ -620,7 +678,7 @@ R"==(
     {
         initialize(view app_typename, builder_t builder)
         {
-            app::shared::get_creator()[text{ app_typename }] = builder;
+            app::shared::get::creator()[text{ app_typename }] = builder;
         }
     };
 
@@ -660,6 +718,81 @@ R"==(
         }
         return true;
     }
+
+    auto init = [](auto& world)
+    {
+        world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
+        {
+            static auto insts_count = si32{ 0 };
+            auto& gate = gear.owner;
+            auto location = gear.slot;
+            if (gear.meta(hids::anyCtrl))
+            {
+                log("hall: area copied to clipboard ", location);
+                gate.SIGNAL(tier::release, e2::command::printscreen, gear);
+            }
+            else
+            {
+                auto what = e2::form::proceed::createat.param();
+                what.square = gear.slot;
+                what.forced = gear.slot_forced;
+                auto data = e2::data::changed.param();
+                gate.SIGNAL(tier::request, e2::data::changed, data);
+                what.menuid = data;
+                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
+                if (auto& frame = what.object)
+                {
+                    insts_count++;
+                    frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
+                    {
+                        insts_count--;
+                        log("hall: detached: ", insts_count);
+                    };
+
+                    gear.kb_focus_changed = faux;
+                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                }
+            }
+        };
+        world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+        {
+            auto& conf_list = app::shared::get::configs();
+            auto& config = conf_list[what.menuid];
+            auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
+
+            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
+            else                                window->extend(what.square);
+            auto& creator = app::shared::creator(config.type);
+
+            //todo pass whole s11n::configuration map
+            auto object = creator(config.cwd, config.param);
+            if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
+            if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
+            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+
+            window->attach(object);
+            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
+            world->branch(what.menuid, window, !config.hidden);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
+
+            what.object = window;
+        };
+        world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
+        {
+            auto& conf_list = app::shared::get::configs();
+            auto& config = conf_list[what.menuid];
+            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
+
+            window->extend(what.square);
+            window->attach(what.object);
+            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
+            world->branch(what.menuid, window, !config.hidden);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
+
+            what.object = window;
+        };
+    };
 }
 
 #include "apps/term.hpp"
@@ -670,8 +803,6 @@ R"==(
 #include "apps/logs.hpp"
 #include "apps/test.hpp"
 #include "apps/desk.hpp"
-
-#include <fstream>
 
 namespace netxs::app::shared
 {
@@ -1146,244 +1277,17 @@ namespace netxs::app::shared
             return build_DirectVT(cwd, args);
         };
 
-        app::shared::initialize builder_Strobe       { "strobe"                  , build_Strobe     };
-        app::shared::initialize builder_Settings     { "settings"                , build_Settings   };
-        app::shared::initialize builder_Empty        { "empty"                   , build_Empty      };
-        app::shared::initialize builder_Truecolor    { "truecolor"               , build_Truecolor  };
-        app::shared::initialize builder_Headless     { app::shared::type_Headless, build_Headless   };
-        app::shared::initialize builder_Fone         { app::shared::type_Fone    , build_Fone       };
-        app::shared::initialize builder_Region       { app::shared::type_Region  , build_Region     };
-        app::shared::initialize builder_DirectVT     { app::shared::type_DirectVT, build_DirectVT   };
-        app::shared::initialize builder_ANSIVT       { app::shared::type_ANSIVT  , build_ANSIVT     };
-        app::shared::initialize builder_SHELL        { app::shared::type_SHELL   , build_SHELL      };
+        app::shared::initialize builder_Strobe       { "strobe"                 , build_Strobe     };
+        app::shared::initialize builder_Settings     { "settings"               , build_Settings   };
+        app::shared::initialize builder_Empty        { "empty"                  , build_Empty      };
+        app::shared::initialize builder_Truecolor    { "truecolor"              , build_Truecolor  };
+        app::shared::initialize builder_Headless     { menuitem_t::type_Headless, build_Headless   };
+        app::shared::initialize builder_Fone         { menuitem_t::type_Fone    , build_Fone       };
+        app::shared::initialize builder_Region       { menuitem_t::type_Region  , build_Region     };
+        app::shared::initialize builder_DirectVT     { menuitem_t::type_DirectVT, build_DirectVT   };
+        app::shared::initialize builder_ANSIVT       { menuitem_t::type_ANSIVT  , build_ANSIVT     };
+        app::shared::initialize builder_SHELL        { menuitem_t::type_SHELL   , build_SHELL      };
     }
-
-    auto init_app_registry = [](auto& world, view cli_config)
-    {
-        auto menu_list_ptr = e2::bindings::list::apps.param();
-        auto conf_list_ptr = e2::bindings::list::links.param();
-        world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
-        world->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
-        auto& menu_list = *menu_list_ptr;
-        auto& conf_list = *conf_list_ptr;
-        auto current_module_file = os::current_module_file();
-
-        auto doc = sptr<xml::document>{};
-        auto list = xml::document::vect{};
-        auto free_list = std::list<std::pair<text, menuitem_t>>{};
-        auto temp_list = free_list;
-
-        auto take_config = [&](view data, auto source)
-        {
-            doc = std::make_shared<xml::document>(data, source);
-            list = doc->enumerate(path_item);
-            if (list.size())
-            {
-                auto selected = doc->enumerate(path_selected);
-                if (selected.size())
-                {
-                    get_selected() = selected.front()->get_value();
-                    log("apps: ", path_selected, " = ", get_selected());
-                }
-            }
-        };
-
-        auto load_config = [&](view shadow)
-        {
-            if (shadow.empty()) return faux;
-            auto path = text{ shadow };
-            log("apps: try to load configuration from ", path, "...");
-            if (path.starts_with("$"))
-            {
-                auto temp = path.substr(1);
-                path = os::get_env(temp);
-                if (path.empty()) return faux;
-                log('\t', temp, " = ", path);
-            }
-            auto config_path = path.starts_with("~/") ? os::homepath() / path.substr(2)
-                                                      : fs::path{ path };
-            auto ec = std::error_code{};
-            auto config_file = fs::directory_entry(config_path, ec);
-            if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
-            {
-                auto config_path_str = "'" + config_path.string() + "'";
-                utf::change(config_path_str, "\\", "/");
-                auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
-                if (file.seekg(0, std::ios::end).fail())
-                {
-                    log("\tfailed\n\tunable to get configuration file size, skip it: ", config_path_str);
-                    return faux;
-                }
-                else
-                {
-                    log("\treading configuration: ", config_path_str);
-                    auto size = file.tellg();
-                    auto buff = text(size, '\0');
-                    file.seekg(0, std::ios::beg);
-                    file.read(buff.data(), size);
-                    take_config(buff, config_path.string());
-                    return !list.empty();
-                }
-            }
-            log("\tfailed");
-            return faux;
-        };
-
-        if (!load_config(cli_config)
-         && !load_config(env_config)
-         && !load_config(usr_config))
-        {
-            log("apps: no configuration found, fallback to hardcoded config\n", default_config);
-            take_config(default_config, "");
-        }
-
-        log("apps: ", list.size(), " menu item(s) added");
-        auto dflt_rec = menuitem_t
-        {
-            .hidden   = faux,
-            .slimmenu = faux,
-            .type     = type_SHELL,
-        };
-        auto find = [&](auto const& id) -> auto&
-        {
-            auto test = [&](auto& p) { return p.first == id; };
-
-            auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
-            if (iter_free != free_list.end()) return iter_free->second;
-
-            auto iter_temp = std::find_if(temp_list.begin(), temp_list.end(), test);
-            if (iter_temp != temp_list.end()) return iter_temp->second;
-
-            return dflt_rec;
-        };
-
-        static auto splitter_count = 0;
-        for (auto item_ptr : list)
-        {
-            auto& item = *item_ptr;
-            auto conf_rec = menuitem_t{};
-            conf_rec.splitter = item.take(attr_splitter, faux);
-            conf_rec.id       = item.take(attr_id,       ""s );
-            if (conf_rec.splitter)
-            {
-                conf_rec.id = "splitter_" + std::to_string(splitter_count++);
-            }
-            else if (conf_rec.id.empty())
-            {
-                log("apps: attribute '", utf::debase(attr_id), "' is missing, skip item");
-                continue;
-            }
-            auto label = item.take(attr_label, ""s);
-            conf_rec.label    = label.empty() ? conf_rec.id : label;
-            conf_rec.alias    = item.take(attr_alias, ""s);
-            auto& fallback = conf_rec.alias.empty() ? dflt_rec
-                                                    : find(conf_rec.alias);
-            conf_rec.hidden   = item.take(attr_hidden,   fallback.hidden  );
-            conf_rec.notes    = item.take(attr_notes,    fallback.notes   );
-            conf_rec.title    = item.take(attr_title,    fallback.title   );
-            conf_rec.footer   = item.take(attr_footer,   fallback.footer  );
-            conf_rec.bgcolor  = item.take(attr_bgcolor,  fallback.bgcolor );
-            conf_rec.fgcolor  = item.take(attr_fgcolor,  fallback.fgcolor );
-            conf_rec.winsize  = item.take(attr_winsize,  fallback.winsize );
-            conf_rec.wincoor  = item.take(attr_wincoor,  fallback.wincoor );
-            conf_rec.slimmenu = item.take(attr_slimmenu, fallback.slimmenu);
-            conf_rec.hotkey   = item.take(attr_hotkey,   fallback.hotkey  ); //todo register hotkey
-            conf_rec.cwd      = item.take(attr_cwd,      fallback.cwd     );
-            conf_rec.param    = item.take(attr_param,    fallback.param   );
-            conf_rec.type     = item.take(attr_type,     fallback.type    );
-
-            utf::to_low(conf_rec.type);
-            utf::change(conf_rec.title,  "$0", current_module_file);
-            utf::change(conf_rec.footer, "$0", current_module_file);
-            utf::change(conf_rec.label,  "$0", current_module_file);
-            utf::change(conf_rec.notes,  "$0", current_module_file);
-            utf::change(conf_rec.param,  "$0", current_module_file);
-
-            if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
-            else                 free_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
-        }
-        for (auto& [id, conf_rec] : free_list)
-        {
-            menu_list[id];
-            conf_list.emplace(std::move(id), std::move(conf_rec));
-        }
-        for (auto& [id, conf_rec] : temp_list)
-        {
-            conf_list.emplace(std::move(id), std::move(conf_rec));
-        }
-
-        world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
-        {
-            static si32 insts_count = 0;
-            auto& gate = gear.owner;
-            auto location = gear.slot;
-            if (gear.meta(hids::anyCtrl))
-            {
-                log("apps: area copied to clipboard ", location);
-                gate.SIGNAL(tier::release, e2::command::printscreen, gear);
-            }
-            else
-            {
-                auto what = e2::form::proceed::createat.param();
-                what.square = gear.slot;
-                what.forced = gear.slot_forced;
-                auto data = e2::data::changed.param();
-                gate.SIGNAL(tier::request, e2::data::changed, data);
-                what.menuid = data;
-                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                if (auto& frame = what.object)
-                {
-                    insts_count++;
-                    frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
-                    {
-                        insts_count--;
-                        log("apps: detached: ", insts_count);
-                    };
-
-                    gear.kb_focus_changed = faux;
-                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                }
-            }
-        };
-        world->SUBMIT(tier::release, e2::form::proceed::createat, what)
-        {
-            auto& conf_list = app::shared::configs();
-            auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
-
-            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
-            else                                window->extend(what.square);
-            auto& creator = app::shared::creator(config.type);
-
-            //todo pass whole s11n::configuration map
-            auto object = creator(config.cwd, config.param);
-            if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
-            if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
-            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
-
-            window->attach(object);
-            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
-            world->branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
-
-            what.object = window;
-        };
-        world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
-        {
-            auto& conf_list = app::shared::configs();
-            auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
-
-            window->extend(what.square);
-            window->attach(what.object);
-            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
-            world->branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
-
-            what.object = window;
-        };
-    };
 }
 
 #endif // NETXS_APPS_HPP
