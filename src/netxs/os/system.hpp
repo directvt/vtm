@@ -198,6 +198,26 @@ namespace netxs::os
             }
             return '\0';
         }
+        // args: Return parameter.
+        auto param()
+        {
+            auto crop = text{};
+            if (iter < argc)
+            {
+                auto arg = view{ argv[iter++] };
+                if (arg.find(' ') == view::npos)
+                {
+                    crop += arg;
+                }
+                else
+                {
+                    crop.push_back('\"');
+                    crop += arg;
+                    crop.push_back('\"');
+                }
+            }
+            return crop;
+        }
         // args: Return the rest of the command line arguments.
         auto tail()
         {
@@ -252,7 +272,7 @@ namespace netxs::os
     template<class ...Args>
     auto fail(Args&&... msg)
     {
-        log("  os: ", msg..., " (", os::error(), ") ");
+        log("  os: ", ansi::fgc(tint::redlt), msg..., " (", os::error(), ") ", ansi::nil());
         return nothing{};
     };
     template<class T>
@@ -1049,6 +1069,16 @@ namespace netxs::os
         return val ? text{ val }
                    : text{};
     }
+    auto set_env(view variable, view value)
+    {
+        auto var = text{ variable };
+        auto val = text{ value    };
+        #if defined(_WIN32)
+            ok(::SetEnvironmentVariableA(var.c_str(), val.c_str()), "::SetEnvironmentVariableA unexpected result");
+        #else
+            ok(::setenv(var.c_str(), val.c_str(), 1), "::setenv unexpected result");
+        #endif
+    }
     text get_shell()
     {
         #if defined(_WIN32)
@@ -1113,7 +1143,14 @@ namespace netxs::os
     auto vt_mode()
     {
         auto mode = si32{ legacy::clean };
-
+        #if defined(_WIN32) // Set vt-mode unconditionaly.
+            auto outmode = DWORD{};
+            if(::GetConsoleMode(STDOUT_FD, &outmode))
+            {
+                outmode |= nt::console::outmode::vt;
+                ::SetConsoleMode(STDOUT_FD, outmode);
+            }
+        #endif
         if (os::legacy::peek_dmd(STDIN_FD))
         {
             log("  os: DirectVT detected");

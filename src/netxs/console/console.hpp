@@ -4760,8 +4760,8 @@ namespace netxs::console
 
     protected:
         template<class T>
-        hall(xipc server_pipe, si32 maxfps, T aplist)
-            : host{ server_pipe, maxfps }
+        hall(xipc server_pipe, T config)
+            : host{ server_pipe, config.maxfps }
         {
             auto current_module_file = os::current_module_file();
             auto& menu_list = *regis.app_ptr;
@@ -4789,7 +4789,7 @@ namespace netxs::console
             };
 
             static auto splitter_count = 0;
-            for (auto item_ptr : aplist)
+            for (auto item_ptr : config.list)
             {
                 auto& item = *item_ptr;
                 auto conf_rec = menuitem_t{};
@@ -4843,6 +4843,7 @@ namespace netxs::console
                 conf_list.emplace(std::move(id), std::move(conf_rec));
             }
 
+            config.activate_creator(*this);
             SUBMIT(tier::general, e2::form::global::lucidity, alpha)
             {
                 if (alpha == -1)

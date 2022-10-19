@@ -214,24 +214,26 @@ powershell ../src/install/install.ps1
 
 # Command line Options `vtm(.exe)`
 
- `vtm [ -d [<config_file>] | -s [<config_file>] | -r [<app> [<args...>]] ]`
+ `vtm [ -c <config_file> ] [ -l | -d | -s | -r [<app> [<args...>]] ]`
 
-Option        | Description
---------------|-------------------------------------------------------
-No arguments  | Run client (auto start server)
-` -d [<file>]`| Run server in background (use off-base configuration file if specified)
-` -s [<file>]`| Run server in interactive mode (use off-base configuration file if specified)
-` -r [<app>]` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
+Option         | Description
+---------------|-------------------------------------------------------
+No arguments   | Run client (auto start server)
+` -c <file> `  | Use specified configuration file
+` -l `         | Show configuration and exit
+` -d `         | Run server in background
+` -s `         | Run server in interactive mode
+` -r [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
 
 Configuration file location precedence (descending priority):<br>
-1. Command line options `vtm -s path/to/settings.xml`<br>
+1. Command line options `vtm -c path/to/settings.xml`<br>
 2. Environment variable `VTM_CONFIG=path/to/settings.xml`<br>
 3. Hardcoded location `~/.config/vtm/settings.xml`<br>
-4. Predefined (hardcoded) configuration at apps.hpp(~line:28)
+4. Use predefined configuration at apps.hpp(~line:28)
 
 # Settings
 
-vtm can be configured in the `~/.config/vtm/settings.xml` file in xml format. Alternative configuration file location can be specified using command line option `-s` / `-d` or using environment variable VTM_CONFIG.
+vtm can be configured in the `~/.config/vtm/settings.xml` file in xml format. Alternative configuration file location can be specified using command line option ` -c <config_file> ` or using environment variable VTM_CONFIG.
 
 ## Configuration file Format (settings.xml)
 

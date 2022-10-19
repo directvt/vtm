@@ -150,11 +150,12 @@ R"==(
         <action=prevWindow key="Ctrl+PgUp"/>
         <action=nextWindow key="Ctrl+PgDn"/>
     </hotkeys>
+    <maxfps=60 />
 </config>
 )==";
 
     static constexpr auto usr_config = "~/.config/vtm/settings.xml";
-    static constexpr auto env_config = "$VTM_CONFIG";
+    static constexpr auto env_config = "$VTM_CONFIG"sv;
 
     static constexpr auto path_item     = "config/menu/item";
     static constexpr auto path_selected = "config/menu/selected";
@@ -203,6 +204,7 @@ R"==(
         simple,
         normal,
     };
+
     const auto app_class = [](view& v)
     {
         auto type = app_type::normal;
@@ -440,7 +442,6 @@ R"==(
 
         return menu_block;
     };
-
     const auto main_menu = []
     {
         auto items = app::shared::menu_list_type
@@ -554,17 +555,161 @@ R"==(
             return conf_list;
         }
     }
+    namespace create
+    {
+        auto& builder(text app_typename)
+        {
+            static builder_t empty =
+            [&](text, text) -> sptr<base>
+            {
+                auto window = ui::cake::ctor()
+                    ->invoke([&](auto& boss)
+                    {
+                        closing_on_quit(boss);
+                        closing_by_gesture(boss);
+                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                        {
+                            auto title = "error"s;
+                            boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                        };
+                    });
+                auto msg = ui::post::ctor()
+                    ->colors(whitelt, rgba{ 0x7F404040 })
+                    ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                    + "\n\nUnsupported application type\n\n"
+                    + ansi::nil().wrp(wrap::on)
+                    + "Only the following application types are supported\n\n"
+                    + ansi::nil().wrp(wrap::off).fgc(whitedk)
+                    + "   type = DirectVT \n"
+                      "   type = ANSIVT   \n"
+                      "   type = SHELL    \n"
+                      "   type = Group    \n"
+                      "   type = Region   \n\n"
+                    + ansi::nil().wrp(wrap::on).fgc(whitelt)
+                    + "apps: See logs for details."
+                    );
+                auto placeholder = ui::park::ctor()
+                    ->colors(whitelt, rgba{ 0x7F404040 })
+                    ->attach(snap::stretch, snap::stretch, msg);
+                window->attach(ui::rail::ctor())
+                      ->attach(placeholder);
+                return window;
+            };
+            auto& map = get::creator();
+            const auto it = map.find(app_typename);
+            if (it == map.end())
+            {
+                log("apps: unknown app type - '", app_typename, "'");
+                return empty;
+            }
+            else return it->second;
+        };
+        auto by = [](auto& world, auto& gear)
+        {
+            static auto insts_count = si32{ 0 };
+            auto& gate = gear.owner;
+            auto location = gear.slot;
+            if (gear.meta(hids::anyCtrl))
+            {
+                log("hall: area copied to clipboard ", location);
+                gate.SIGNAL(tier::release, e2::command::printscreen, gear);
+            }
+            else
+            {
+                auto what = e2::form::proceed::createat.param();
+                what.square = gear.slot;
+                what.forced = gear.slot_forced;
+                gate.SIGNAL(tier::request, e2::data::changed, what.menuid);
+                world.SIGNAL(tier::release, e2::form::proceed::createat, what);
+                if (auto& frame = what.object)
+                {
+                    insts_count++;
+                    frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
+                    {
+                        insts_count--;
+                        log("hall: detached: ", insts_count);
+                    };
+
+                    gear.kb_focus_changed = faux;
+                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                }
+            }
+        };
+        auto at = [](auto& world, auto& what)
+        {
+            auto& conf_list = app::shared::get::configs();
+            auto& config = conf_list[what.menuid];
+            auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
+
+            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
+            else                                window->extend(what.square);
+            auto& creator = builder(config.type);
+
+            //todo pass whole s11n::configuration map
+            auto object = creator(config.cwd, config.param);
+            if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
+            if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
+            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+
+            window->attach(object);
+            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
+            world.branch(what.menuid, window, !config.hidden);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world.This());
+
+            what.object = window;
+        };
+        auto from = [](auto& world, auto& what)
+        {
+            auto& conf_list = app::shared::get::configs();
+            auto& config = conf_list[what.menuid];
+            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
+
+            window->extend(what.square);
+            window->attach(what.object);
+            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
+            world.branch(what.menuid, window, !config.hidden);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world.This());
+
+            what.object = window;
+        };
+    }
     namespace load
     {
-        auto settings(view cli_config)
+        struct settings_t
         {
+            si32 maxfps{ 60 };
+            si32 menusz{ 3 };
+            xml::document::vect list{};
+
+            template<class T>
+            auto activate_creator(T& world)
+            {
+                world.SUBMIT(tier::release, e2::form::proceed::createby, gear)
+                {
+                    app::shared::create::by(world, gear);
+                };
+                world.SUBMIT(tier::release, e2::form::proceed::createat, what)
+                {
+                    app::shared::create::at(world, what);
+                };
+                world.SUBMIT(tier::release, e2::form::proceed::createfrom, what)
+                {
+                    app::shared::create::from(world, what);
+                };
+            }
+        };
+
+        auto settings(view cli_config, si32 brighter = 60)
+        {
+            auto conf = settings_t{};
+            auto& list = conf.list;
             auto& doc = get::settings();
-            auto list = xml::document::vect{};
             auto take = [&](view data, auto source)
             {
                 doc = std::make_shared<xml::document>(data, source);
-                list = doc->enumerate(path_item);
-                if (list.size())
+                conf.list = doc->enumerate(path_item);
+                if (conf.list.size())
                 {
                     auto selected = doc->enumerate(path_selected);
                     if (selected.size())
@@ -578,7 +723,7 @@ R"==(
             {
                 if (shadow.empty()) return faux;
                 auto path = text{ shadow };
-                log("apps: try to load configuration from ", path, "...");
+                log("apps: loading configuration from ", path, "...");
                 if (path.starts_with("$"))
                 {
                     auto temp = path.substr(1);
@@ -608,7 +753,7 @@ R"==(
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
                         take(buff, config_path.string());
-                        return !list.empty();
+                        return !conf.list.empty();
                     }
                 }
                 log("\tfailed");
@@ -618,62 +763,32 @@ R"==(
              && !load(env_config)
              && !load(usr_config))
             {
-                log("apps: no configuration found, fallback to hardcoded config\n", default_config);
+                log("apps: no configuration found, fallback to hardcoded config");
                 take(default_config, "");
             }
 
-            log("apps: ", list.size(), " menu item(s) added");
-            return list;
+            log("apps: ", conf.list.size(), " menu item(s) added");
+
+            os::set_env(env_config.substr(1)/*remove $*/, doc->page.file);
+
+            {
+                //todo unify
+                //fps
+                //skin::setup(tone::lucidity, 192);
+                //skin::setup(tone::shadower, 0);
+                //skin::setup(tone::brighter, 60);//120);
+                skin::setup(tone::brighter, brighter);//120);
+                skin::setup(tone::kb_focus, 60);
+                skin::setup(tone::shadower, 180);//60);//40);// 20);
+                skin::setup(tone::shadow  , 180);//5);
+                skin::setup(tone::lucidity, 255);
+                skin::setup(tone::selector, 48);
+                skin::setup(tone::bordersz, dot_11);
+            }
+            return conf;
         }
     }
 
-    auto& creator(text app_typename)
-    {
-        static builder_t empty =
-        [&](text, text) -> sptr<base>
-        {
-            auto window = ui::cake::ctor()
-                ->invoke([&](auto& boss)
-                {
-                    closing_on_quit(boss);
-                    closing_by_gesture(boss);
-                    boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
-                    {
-                        auto title = "error"s;
-                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
-                    };
-                });
-            auto msg = ui::post::ctor()
-                  ->colors(whitelt, rgba{ 0x7F404040 })
-                  ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                  + "\n\nUnsupported application type\n\n"
-                  + ansi::nil().wrp(wrap::on)
-                  + "Only the following application types are supported\n\n"
-                  + ansi::nil().wrp(wrap::off).fgc(whitedk)
-                  + "   type = DirectVT \n"
-                    "   type = ANSIVT   \n"
-                    "   type = SHELL    \n"
-                    "   type = Group    \n"
-                    "   type = Region   \n\n"
-                  + ansi::nil().wrp(wrap::on).fgc(whitelt)
-                  + "apps: See logs for details."
-                  );
-            auto placeholder = ui::park::ctor()
-                  ->colors(whitelt, rgba{ 0x7F404040 })
-                  ->attach(snap::stretch, snap::stretch, msg);
-            window->attach(ui::rail::ctor())
-                  ->attach(placeholder);
-            return window;
-        };
-        auto& map = get::creator();
-        const auto it = map.find(app_typename);
-        if (it == map.end())
-        {
-            log("apps: unknown app type - '", app_typename, "'");
-            return empty;
-        }
-        else return it->second;
-    }
     struct initialize
     {
         initialize(view app_typename, builder_t builder)
@@ -700,7 +815,7 @@ R"==(
             auto aclass = utf::cutoff(app_name, ' ');
             utf::to_low(aclass);
             auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::creator(aclass)("", (direct ? "" : "!") + params); // ! - means simple (w/o plugins)
+            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params); // ! - means simple (w/o plugins)
             auto window = ground->invite<gate>(config);
             window->resize(size);
             window->launch(tunnel.first, applet);
@@ -718,81 +833,6 @@ R"==(
         }
         return true;
     }
-
-    auto init = [](auto& world)
-    {
-        world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
-        {
-            static auto insts_count = si32{ 0 };
-            auto& gate = gear.owner;
-            auto location = gear.slot;
-            if (gear.meta(hids::anyCtrl))
-            {
-                log("hall: area copied to clipboard ", location);
-                gate.SIGNAL(tier::release, e2::command::printscreen, gear);
-            }
-            else
-            {
-                auto what = e2::form::proceed::createat.param();
-                what.square = gear.slot;
-                what.forced = gear.slot_forced;
-                auto data = e2::data::changed.param();
-                gate.SIGNAL(tier::request, e2::data::changed, data);
-                what.menuid = data;
-                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                if (auto& frame = what.object)
-                {
-                    insts_count++;
-                    frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
-                    {
-                        insts_count--;
-                        log("hall: detached: ", insts_count);
-                    };
-
-                    gear.kb_focus_changed = faux;
-                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                }
-            }
-        };
-        world->SUBMIT(tier::release, e2::form::proceed::createat, what)
-        {
-            auto& conf_list = app::shared::get::configs();
-            auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
-
-            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
-            else                                window->extend(what.square);
-            auto& creator = app::shared::creator(config.type);
-
-            //todo pass whole s11n::configuration map
-            auto object = creator(config.cwd, config.param);
-            if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
-            if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
-            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
-
-            window->attach(object);
-            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
-            world->branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
-
-            what.object = window;
-        };
-        world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
-        {
-            auto& conf_list = app::shared::get::configs();
-            auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
-
-            window->extend(what.square);
-            window->attach(what.object);
-            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
-            world->branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
-
-            what.object = window;
-        };
-    };
 }
 
 #include "apps/term.hpp"

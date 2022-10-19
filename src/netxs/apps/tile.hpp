@@ -684,7 +684,7 @@ namespace netxs::app::tile
                                 auto& conf_list = app::shared::get::configs();
                                 auto config = conf_list[current_default];
 
-                                auto& creator = app::shared::creator(config.type);
+                                auto& creator = app::shared::create::builder(config.type);
                                 auto host = creator(config.cwd, config.param);
                                 auto app = app_window(config.title, "", host, current_default);
                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
@@ -784,7 +784,7 @@ namespace netxs::app::tile
                     return place;
                 }
                 auto& config = iter->second;
-                auto& creator = app::shared::creator(config.type);
+                auto& creator = app::shared::create::builder(config.type);
                 auto host = creator(config.cwd, config.param);
                 auto inst = app_window(config.title, config.footer, host, app_id);
                 if (config.bgcolor)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
