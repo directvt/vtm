@@ -693,6 +693,8 @@ R"==(
             sptr<xml::document> fallback = std::make_shared<xml::document>(default_config, "");
             sptr<xml::document> document = fallback;
             xml::document::vect list{};
+            xml::document::vect temp{};
+            text cwd{};
 
             template<class T>
             auto activate_creator(T& world)
@@ -711,13 +713,49 @@ R"==(
                 };
             }
 
-            template<class T = si32>
-            auto operator() (view path, T defval = {})
+            auto cd(view path)
             {
+                if (path.empty()) return;
+                if (path.front() == '/')
+                {
+                    path = utf::trim(path, '/');
+                    cwd = "/" + text{ path };
+                    temp = document->enumerate(cwd);
+                    if (temp.empty()) temp = fallback->enumerate(cwd);
+                }
+                else
+                {
+                    path = utf::trim(path, '/');
+                    cwd += "/" + text{ path };
+                    if (temp.size())
+                    {
+                        temp = temp.front()->enumerate(path);
+                        if (temp.empty()) temp = fallback->enumerate(cwd);
+                    }
+                }
+                if (temp.empty()) log(" xml: " + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + cwd);
+            }
+            template<class T = si32>
+            auto take(view path, T defval = {})
+            {
+                if (path.empty()) return defval;
                 auto crop = text{};
-                auto list = document->enumerate(path);
-                if (list.empty()) list = fallback->enumerate(path);
-                if (list.size())  crop = list.back()->get_value();
+                auto dest = text{};
+                auto list = xml::document::vect{};
+                if (path.front() == '/')
+                {
+                    dest = utf::trim(path, '/');
+                    list = document->enumerate(dest);
+                }
+                else
+                {
+                    path = utf::trim(path, '/');
+                    dest = cwd + "/" + text{ path };
+                    if (temp.size()) list = temp.front()->enumerate(path);
+                }
+                if (list.empty()) list = fallback->enumerate(dest);
+                if (list.size() ) crop = list.back()->get_value();
+                else              log(" xml: " + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
                 return xml::take<T>(crop, defval);
             }
         };
@@ -790,13 +828,14 @@ R"==(
 
             os::set_env(app::shared::env_config.substr(1)/*remove $*/, doc->page.file);
 
-            skin::setup(tone::brighter, conf("config/appearance/levels/brighter"));//120);
-            skin::setup(tone::kb_focus, conf("config/appearance/levels/kb_focus"));//60
-            skin::setup(tone::shadower, conf("config/appearance/levels/shadower"));//180);//60);//40);// 20);
-            skin::setup(tone::shadow  , conf("config/appearance/levels/shadow"  ));//180);//5);
-            skin::setup(tone::lucidity, conf("config/appearance/levels/lucidity"));//255);
-            skin::setup(tone::selector, conf("config/appearance/levels/selector"));//48);
-            skin::setup(tone::bordersz, conf("config/appearance/bordersz", dot_11));//dot_11);
+            conf.cd("/config/appearance/levels/");
+            skin::setup(tone::brighter, conf.take("brighter"));//120);
+            skin::setup(tone::kb_focus, conf.take("kb_focus"));//60
+            skin::setup(tone::shadower, conf.take("shadower"));//180);//60);//40);// 20);
+            skin::setup(tone::shadow  , conf.take("shadow"  ));//180);//5);
+            skin::setup(tone::lucidity, conf.take("lucidity"));//255);
+            skin::setup(tone::selector, conf.take("selector"));//48);
+            skin::setup(tone::bordersz, conf.take<twod>("/config/appearance/bordersz"));//dot_11);
             return conf;
         }
     }

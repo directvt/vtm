@@ -324,6 +324,50 @@ namespace netxs::xml
                 }
             }
 
+            auto enumerate(qiew path_str)
+            {
+                using utf::text;
+                path_str = utf::trim(path_str, '/');
+                auto root = shared_from_this();
+                auto crop = vect{}; //auto& items = config.root->sub["menu"][0]->sub["item"]...;
+                auto temp = text{};
+                auto path = utf::divide(path_str, '/');
+                if (path.size())
+                {
+                    auto head = path.begin();
+                    auto tail = path.end();
+                    temp = *head++;
+                    if (root && root->tag_ptr && *(root->tag_ptr) == temp)
+                    {
+                        auto item = root;
+                        while (head != tail)
+                        {
+                            temp = *head++;
+                            if (auto iter = item->sub.find(temp);
+                                    iter!= item->sub.end())
+                            {
+                                auto& i = iter->second;
+                                crop.reserve(i.size());
+                                if (head == tail)
+                                {
+                                    for (auto& item : i)
+                                    {
+                                        if (!item->is_template) crop.push_back(item);
+                                    }
+                                }
+                                else if (i.size() && i.front())
+                                {
+                                    item = i.front();
+                                }
+                                else break;
+                            }
+                            else break;
+                        }
+                    }
+                }
+                return crop;
+            }
+
             static auto create(suit& page, wptr parent_wptr = {})
             {
                 return std::make_shared<elem>(page, parent_wptr);
@@ -882,44 +926,8 @@ namespace netxs::xml
         }
         auto enumerate(qiew path_str)
         {
-            using utf::text;
-            auto crop = vect{}; //auto& items = config.root->sub["menu"][0]->sub["item"]...;
-            auto temp = text{};
-            auto path = utf::divide(path_str, '/');
-            if (path.size())
-            {
-                auto head = path.begin();
-                auto tail = path.end();
-                temp = *head++;
-                if (root && root->tag_ptr && *(root->tag_ptr) == temp)
-                {
-                    auto item = root;
-                    while (head != tail)
-                    {
-                        temp = *head++;
-                        if (auto iter = item->sub.find(temp);
-                                 iter!= item->sub.end())
-                        {
-                            auto& i = iter->second;
-                            crop.reserve(i.size());
-                            if (head == tail)
-                            {
-                                for (auto& item : i)
-                                {
-                                    if (!item->is_template) crop.push_back(item);
-                                }
-                            }
-                            else if (i.size() && i.front())
-                            {
-                                item = i.front();
-                            }
-                            else break;
-                        }
-                        else break;
-                    }
-                }
-            }
-            return crop;
+            if (path_str == "/") return vect{ root };
+            else                 return root->enumerate(path_str);
         }
         auto show()
         {

@@ -198,7 +198,7 @@ int main(int argc, char* argv[])
             }
 
             //todo unify
-            skin::setup(tone::brighter, config("config/appearance/levels/runapp_brighter", 0));
+            skin::setup(tone::brighter, config.take("/config/appearance/levels/runapp_brighter"));
 
             auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config.maxfps, config.menusz);
             if (!success)

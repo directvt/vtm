@@ -418,7 +418,7 @@ namespace netxs::utf
             }
             return n;
         }
-        // Pop front a sequence of the same control points and return their count + 1.
+        // Pop front a sequence of the same chars and return their count + 1.
         auto pop_all(char c)
         {
             auto n = si32{ 1 };
