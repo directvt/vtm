@@ -150,7 +150,22 @@ R"==(
         <action=prevWindow key="Ctrl+PgUp"/>
         <action=nextWindow key="Ctrl+PgDn"/>
     </hotkeys>
-    <maxfps=60 />
+    <appearance>
+        <maxfps=60 />
+        <menu>
+            <slim="off"/>
+        </menu>
+        <bordersz=1,1 />
+        <levels>
+            <runapp_brighter=0 />
+            <brighter=60 />
+            <kb_focus=60 />
+            <shadower=180 />
+            <shadow=180 />
+            <lucidity=255 />
+            <selector=48 />
+        </levels>
+    </appearance>
 </config>
 )==";
 
@@ -540,11 +555,6 @@ R"==(
             static auto selected = text{};
             return selected;
         }
-        auto& settings()
-        {
-            static auto settings = sptr<xml::document>{};
-            return settings;
-        }
         auto& configs()
         {
             auto world_ptr = e2::config::whereami.param();
@@ -680,6 +690,8 @@ R"==(
         {
             si32 maxfps{ 60 };
             si32 menusz{ 3 };
+            sptr<xml::document> fallback = std::make_shared<xml::document>(default_config, "");
+            sptr<xml::document> document = fallback;
             xml::document::vect list{};
 
             template<class T>
@@ -698,24 +710,32 @@ R"==(
                     app::shared::create::from(world, what);
                 };
             }
+
+            template<class T = si32>
+            auto operator() (view path, T defval = {})
+            {
+                auto crop = text{};
+                auto list = document->enumerate(path);
+                if (list.empty()) list = fallback->enumerate(path);
+                if (list.size())  crop = list.back()->get_value();
+                return xml::take<T>(crop, defval);
+            }
         };
 
-        auto settings(view cli_config, si32 brighter = 60)
+        auto settings(view cli_config)
         {
             auto conf = settings_t{};
             auto& list = conf.list;
-            auto& doc = get::settings();
-            auto take = [&](view data, auto source)
+            auto& doc = conf.document;
+            auto take = [&](auto doc)
             {
-                doc = std::make_shared<xml::document>(data, source);
-                conf.list = doc->enumerate(path_item);
+                conf.list = doc->enumerate(app::shared::path_item);
                 if (conf.list.size())
                 {
-                    auto selected = doc->enumerate(path_selected);
+                    auto selected = doc->enumerate(app::shared::path_selected);
                     if (selected.size())
                     {
                         get::selected() = selected.front()->get_value();
-                        log("apps: ", path_selected, " = ", get::selected());
                     }
                 }
             };
@@ -752,7 +772,8 @@ R"==(
                         auto buff = text(size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        take(buff, config_path.string());
+                        doc = std::make_shared<xml::document>(buff, config_path.string());
+                        take(doc);
                         return !conf.list.empty();
                     }
                 }
@@ -760,31 +781,22 @@ R"==(
                 return faux;
             };
             if (!load(cli_config)
-             && !load(env_config)
-             && !load(usr_config))
+             && !load(app::shared::env_config)
+             && !load(app::shared::usr_config))
             {
                 log("apps: no configuration found, fallback to hardcoded config");
-                take(default_config, "");
+                take(conf.fallback);
             }
 
-            log("apps: ", conf.list.size(), " menu item(s) added");
+            os::set_env(app::shared::env_config.substr(1)/*remove $*/, doc->page.file);
 
-            os::set_env(env_config.substr(1)/*remove $*/, doc->page.file);
-
-            {
-                //todo unify
-                //fps
-                //skin::setup(tone::lucidity, 192);
-                //skin::setup(tone::shadower, 0);
-                //skin::setup(tone::brighter, 60);//120);
-                skin::setup(tone::brighter, brighter);//120);
-                skin::setup(tone::kb_focus, 60);
-                skin::setup(tone::shadower, 180);//60);//40);// 20);
-                skin::setup(tone::shadow  , 180);//5);
-                skin::setup(tone::lucidity, 255);
-                skin::setup(tone::selector, 48);
-                skin::setup(tone::bordersz, dot_11);
-            }
+            skin::setup(tone::brighter, conf("config/appearance/levels/brighter"));//120);
+            skin::setup(tone::kb_focus, conf("config/appearance/levels/kb_focus"));//60
+            skin::setup(tone::shadower, conf("config/appearance/levels/shadower"));//180);//60);//40);// 20);
+            skin::setup(tone::shadow  , conf("config/appearance/levels/shadow"  ));//180);//5);
+            skin::setup(tone::lucidity, conf("config/appearance/levels/lucidity"));//255);
+            skin::setup(tone::selector, conf("config/appearance/levels/selector"));//48);
+            skin::setup(tone::bordersz, conf("config/appearance/bordersz", dot_11));//dot_11);
             return conf;
         }
     }

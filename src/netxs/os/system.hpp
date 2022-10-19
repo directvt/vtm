@@ -1143,7 +1143,7 @@ namespace netxs::os
     auto vt_mode()
     {
         auto mode = si32{ legacy::clean };
-        #if defined(_WIN32) // Set vt-mode unconditionaly.
+        #if defined(_WIN32) // Set vt-mode unconditionally.
             auto outmode = DWORD{};
             if(::GetConsoleMode(STDOUT_FD, &outmode))
             {

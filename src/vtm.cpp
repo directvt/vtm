@@ -48,8 +48,7 @@ int main(int argc, char* argv[])
                 daemon = true;
                 break;
             case 'l':
-                app::shared::load::settings(cfpath);
-                log(app::shared::get::settings()->show());
+                log(app::shared::load::settings(cfpath).document->show());
                 return 0;
             case 'c':
                 cfpath = getopt.param();
@@ -179,7 +178,7 @@ int main(int argc, char* argv[])
         }
         else if (whoami == type::runapp)
         {
-            auto config = app::shared::load::settings(cfpath, 0);
+            auto config = app::shared::load::settings(cfpath);
             auto shadow = params;
             utf::to_low(shadow);
                  if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
@@ -197,6 +196,9 @@ int main(int argc, char* argv[])
                 params = DESKTOPIO_DEFAPP + " "s + params;
                 log(DESKTOPIO_APPINF);
             }
+
+            //todo unify
+            skin::setup(tone::brighter, config("config/appearance/levels/runapp_brighter", 0));
 
             auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config.maxfps, config.menusz);
             if (!success)
