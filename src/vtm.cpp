@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
             return 1;
         }
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
-        config.cd("/config/appearance/default/");
+        config.cd("/config/appearance/defaults/");
         auto ground = base::create<hall>(server, config);
         auto thread = os::pool{};
 

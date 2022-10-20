@@ -336,33 +336,29 @@ namespace netxs::xml
                 {
                     auto head = path.begin();
                     auto tail = path.end();
-                    temp = *head++;
-                    if (root && root->tag_ptr && *(root->tag_ptr) == temp)
+                    auto item = root;
+                    while (head != tail)
                     {
-                        auto item = root;
-                        while (head != tail)
+                        temp = *head++;
+                        if (auto iter = item->sub.find(temp);
+                                iter!= item->sub.end())
                         {
-                            temp = *head++;
-                            if (auto iter = item->sub.find(temp);
-                                    iter!= item->sub.end())
+                            auto& i = iter->second;
+                            crop.reserve(i.size());
+                            if (head == tail)
                             {
-                                auto& i = iter->second;
-                                crop.reserve(i.size());
-                                if (head == tail)
+                                for (auto& item : i)
                                 {
-                                    for (auto& item : i)
-                                    {
-                                        if (!item->is_template) crop.push_back(item);
-                                    }
+                                    if (!item->is_template) crop.push_back(item);
                                 }
-                                else if (i.size() && i.front())
-                                {
-                                    item = i.front();
-                                }
-                                else break;
+                            }
+                            else if (i.size() && i.front())
+                            {
+                                item = i.front();
                             }
                             else break;
                         }
+                        else break;
                     }
                 }
                 return crop;
@@ -924,10 +920,19 @@ namespace netxs::xml
         {
             
         }
-        auto enumerate(qiew path_str)
+        auto enumerate(view path_str)
         {
             if (path_str == "/") return vect{ root };
-            else                 return root->enumerate(path_str);
+            else
+            {
+                path_str = utf::trim(path_str, '/');
+                auto tmp = utf::cutoff(path_str, '/');
+                if (root && root->tag_ptr && *(root->tag_ptr) == tmp)
+                {
+                    return root->enumerate(path_str.substr(tmp.size()));
+                }
+            }
+            return vect{};
         }
         auto show()
         {

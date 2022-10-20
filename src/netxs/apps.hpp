@@ -151,7 +151,7 @@ R"==(
         <action=nextWindow key="Ctrl+PgDn"/>
     </hotkeys>
     <appearance>
-        <default>
+        <defaults>
             <fps=60 />
             <bordersz=1,1 />
             <brighter=60 />
@@ -160,16 +160,9 @@ R"==(
             <shadow=180 />
             <lucidity=255 />
             <selector=48 />
-        </default>
-        <runapp>
-            <fps=60 />
-            <bordersz=1,1 />
+        </defaults>
+        <runapp>    <!-- Override defaults. -->
             <brighter=0 />
-            <kb_focus=60 />
-            <shadower=180 />
-            <shadow=180 />
-            <lucidity=255 />
-            <selector=48 />
         </runapp>
     </appearance>
     <Term>      <!-- Base configuration for the Term app. It can be overridden by param's subargs. -->
@@ -755,6 +748,7 @@ R"==(
         xml::document::vect list{};
         xml::document::vect temp{};
         text cwd{};
+        text defaults{};
 
         template<class T>
         auto activate_creator(T& world)
@@ -773,8 +767,9 @@ R"==(
             };
         }
 
-        auto cd(view path)
+        auto cd(view path, view defpath = {})
         {
+            defaults = utf::trim(defpath, '/');
             if (path.empty()) return faux;
             if (path.front() == '/')
             {
@@ -814,6 +809,11 @@ R"==(
                 path = utf::trim(path, '/');
                 dest = cwd + "/" + text{ path };
                 if (temp.size()) list = temp.front()->enumerate(path);
+                if (list.empty() && defaults.size())
+                {
+                    dest = defaults + "/" + text{ path };
+                    list = document->enumerate(dest);
+                }
             }
             if (list.empty()) list = fallback->enumerate(dest);
             if (list.size() ) crop = list.back()->get_value();
@@ -915,22 +915,12 @@ R"==(
         utf::to_low(shadow);
         if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
 
-        //skin::setup(tone::brighter, config.take("levels/brighter"));//120);
-        //skin::setup(tone::kb_focus, config.take("levels/kb_focus"));//60
-        //skin::setup(tone::shadower, config.take("levels/shadower"));//180);//60);//40);// 20);
-        //skin::setup(tone::shadow  , config.take("levels/shadow"  ));//180);//5);
-        //skin::setup(tone::lucidity, config.take("levels/lucidity"));//255);
-        //skin::setup(tone::selector, config.take("levels/selector"));//48);
-        //skin::setup(tone::bordersz, config.take<twod>("bordersz"));//dot_11);
-        //auto menusz = config.take<bool>("menu/slim");
-        //auto maxfps = config.take("fps");
-
         auto tunnel = os::ipc::local(vtmode);
         auto cons = os::tty::proxy(tunnel.second);
         auto size = cons.ignite(vtmode);
         if (!size.last) return faux;
 
-        config.cd("/config/appearance/runapp/");
+        config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
         auto ground = base::create<host>(tunnel.first, config);
         auto runapp = [&]
         {
