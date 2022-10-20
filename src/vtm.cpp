@@ -192,15 +192,11 @@ int main(int argc, char* argv[])
             else if (shadow.starts_with("settings"))   log("Desktopio Settings "           DESKTOPIO_VER);
             else
             {
-                config.menusz = 1;
                 params = DESKTOPIO_DEFAPP + " "s + params;
                 log(DESKTOPIO_APPINF);
             }
 
-            //todo unify
-            skin::setup(tone::brighter, config.take("/config/appearance/levels/runapp_brighter"));
-
-            auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config.maxfps, config.menusz);
+            auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
             if (!success)
             {
                 os::fail("console initialization error");

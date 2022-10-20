@@ -4343,7 +4343,7 @@ namespace netxs::console
     public:
         host(xipc server_pipe, si32 fps)
             : synch{ bell::router<tier::general>(), e2::timer::tick.id },
-              hertz{ fps },
+              hertz{ fps ? std::abs(fps) : 60 },
               joint{ server_pipe }
         {
             keybd.accept(true); // Subscribe on keybd offers.
@@ -4761,8 +4761,17 @@ namespace netxs::console
     protected:
         template<class T>
         hall(xipc server_pipe, T config)
-            : host{ server_pipe, config.maxfps }
+            : host{ server_pipe, config.take("/config/appearance/desktop/maxfps") }
         {
+            config.cd("/config/appearance/desktop/levels/");
+            skin::setup(tone::brighter, config.take("brighter"));//120);
+            skin::setup(tone::kb_focus, config.take("kb_focus"));//60
+            skin::setup(tone::shadower, config.take("shadower"));//180);//60);//40);// 20);
+            skin::setup(tone::shadow  , config.take("shadow"  ));//180);//5);
+            skin::setup(tone::lucidity, config.take("lucidity"));//255);
+            skin::setup(tone::selector, config.take("selector"));//48);
+            skin::setup(tone::bordersz, config.take<twod>("/config/appearance/desktop/bordersz"));//dot_11);
+
             auto current_module_file = os::current_module_file();
             auto& menu_list = *regis.app_ptr;
             auto& conf_list = *regis.lnk_ptr;

@@ -151,20 +151,36 @@ R"==(
         <action=nextWindow key="Ctrl+PgDn"/>
     </hotkeys>
     <appearance>
-        <maxfps=60 />
-        <menu>
-            <slim="off"/>
-        </menu>
-        <bordersz=1,1 />
-        <levels>
-            <runapp_brighter=0 />
-            <brighter=60 />
-            <kb_focus=60 />
-            <shadower=180 />
-            <shadow=180 />
-            <lucidity=255 />
-            <selector=48 />
-        </levels>
+        <default>
+            <fps=60 />
+            <menu>
+                <slim="on"/>
+            </menu>
+            <bordersz=1,1 />
+            <levels>
+                <brighter=0 />
+                <kb_focus=60 />
+                <shadower=180 />
+                <shadow=180 />
+                <lucidity=255 />
+                <selector=48 />
+            </levels>
+        </default>
+        <desktop>
+            <fps=60 />
+            <menu>
+                <slim="off"/>
+            </menu>
+            <bordersz=1,1 />
+            <levels>
+                <brighter=60 />
+                <kb_focus=60 />
+                <shadower=180 />
+                <shadow=180 />
+                <lucidity=255 />
+                <selector=48 />
+            </levels>
+        </desktop>
     </appearance>
 </config>
 )==";
@@ -684,82 +700,83 @@ R"==(
             what.object = window;
         };
     }
-    namespace load
+
+    struct settings_t
     {
-        struct settings_t
+        sptr<xml::document> fallback = std::make_shared<xml::document>(default_config, "");
+        sptr<xml::document> document = fallback;
+        xml::document::vect list{};
+        xml::document::vect temp{};
+        text cwd{};
+
+        template<class T>
+        auto activate_creator(T& world)
         {
-            si32 maxfps{ 60 };
-            si32 menusz{ 3 };
-            sptr<xml::document> fallback = std::make_shared<xml::document>(default_config, "");
-            sptr<xml::document> document = fallback;
-            xml::document::vect list{};
-            xml::document::vect temp{};
-            text cwd{};
-
-            template<class T>
-            auto activate_creator(T& world)
+            world.SUBMIT(tier::release, e2::form::proceed::createby, gear)
             {
-                world.SUBMIT(tier::release, e2::form::proceed::createby, gear)
-                {
-                    app::shared::create::by(world, gear);
-                };
-                world.SUBMIT(tier::release, e2::form::proceed::createat, what)
-                {
-                    app::shared::create::at(world, what);
-                };
-                world.SUBMIT(tier::release, e2::form::proceed::createfrom, what)
-                {
-                    app::shared::create::from(world, what);
-                };
+                app::shared::create::by(world, gear);
+            };
+            world.SUBMIT(tier::release, e2::form::proceed::createat, what)
+            {
+                app::shared::create::at(world, what);
+            };
+            world.SUBMIT(tier::release, e2::form::proceed::createfrom, what)
+            {
+                app::shared::create::from(world, what);
+            };
+        }
+
+        auto cd(view path)
+        {
+            if (path.empty()) return faux;
+            if (path.front() == '/')
+            {
+                path = utf::trim(path, '/');
+                cwd = "/" + text{ path };
+                temp = document->enumerate(cwd);
+                if (temp.empty()) temp = fallback->enumerate(cwd);
             }
-
-            auto cd(view path)
+            else
             {
-                if (path.empty()) return;
-                if (path.front() == '/')
+                path = utf::trim(path, '/');
+                cwd += "/" + text{ path };
+                if (temp.size())
                 {
-                    path = utf::trim(path, '/');
-                    cwd = "/" + text{ path };
-                    temp = document->enumerate(cwd);
+                    temp = temp.front()->enumerate(path);
                     if (temp.empty()) temp = fallback->enumerate(cwd);
                 }
-                else
-                {
-                    path = utf::trim(path, '/');
-                    cwd += "/" + text{ path };
-                    if (temp.size())
-                    {
-                        temp = temp.front()->enumerate(path);
-                        if (temp.empty()) temp = fallback->enumerate(cwd);
-                    }
-                }
-                if (temp.empty()) log(" xml: " + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + cwd);
             }
-            template<class T = si32>
-            auto take(view path, T defval = {})
+            auto test = !!temp.size();
+            if (!test) log(" xml: " + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + cwd);
+            return test;
+        }
+        template<class T = si32>
+        auto take(view path, T defval = {})
+        {
+            if (path.empty()) return defval;
+            auto crop = text{};
+            auto dest = text{};
+            auto list = xml::document::vect{};
+            if (path.front() == '/')
             {
-                if (path.empty()) return defval;
-                auto crop = text{};
-                auto dest = text{};
-                auto list = xml::document::vect{};
-                if (path.front() == '/')
-                {
-                    dest = utf::trim(path, '/');
-                    list = document->enumerate(dest);
-                }
-                else
-                {
-                    path = utf::trim(path, '/');
-                    dest = cwd + "/" + text{ path };
-                    if (temp.size()) list = temp.front()->enumerate(path);
-                }
-                if (list.empty()) list = fallback->enumerate(dest);
-                if (list.size() ) crop = list.back()->get_value();
-                else              log(" xml: " + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
-                return xml::take<T>(crop, defval);
+                dest = utf::trim(path, '/');
+                list = document->enumerate(dest);
             }
-        };
+            else
+            {
+                path = utf::trim(path, '/');
+                dest = cwd + "/" + text{ path };
+                if (temp.size()) list = temp.front()->enumerate(path);
+            }
+            if (list.empty()) list = fallback->enumerate(dest);
+            if (list.size() ) crop = list.back()->get_value();
+            else              log(" xml: " + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
+            return xml::take<T>(crop, defval);
+        }
+    };
 
+    namespace load
+    {
         auto settings(view cli_config)
         {
             auto conf = settings_t{};
@@ -828,14 +845,6 @@ R"==(
 
             os::set_env(app::shared::env_config.substr(1)/*remove $*/, doc->page.file);
 
-            conf.cd("/config/appearance/levels/");
-            skin::setup(tone::brighter, conf.take("brighter"));//120);
-            skin::setup(tone::kb_focus, conf.take("kb_focus"));//60
-            skin::setup(tone::shadower, conf.take("shadower"));//180);//60);//40);// 20);
-            skin::setup(tone::shadow  , conf.take("shadow"  ));//180);//5);
-            skin::setup(tone::lucidity, conf.take("lucidity"));//255);
-            skin::setup(tone::selector, conf.take("selector"));//48);
-            skin::setup(tone::bordersz, conf.take<twod>("/config/appearance/bordersz"));//dot_11);
             return conf;
         }
     }
@@ -848,14 +857,26 @@ R"==(
         }
     };
 
-    auto start(text app_name, text log_title, si32 vtmode, si32 maxfps, si32 menusz)
+    auto start(text app_name, text log_title, si32 vtmode, settings_t& config)
     {
         auto direct = !!(vtmode & os::legacy::direct);
         if (!direct) os::start_log(log_title);
 
-        auto config = console::conf(vtmode);
-        auto tunnel = os::ipc::local(vtmode);
+        //std::this_thread::sleep_for(15s);
 
+        auto shadow = app_name;
+        utf::to_low(shadow);
+        if (!config.cd("/config/appearance/" + shadow)) config.cd("/config/appearance/default/");
+        skin::setup(tone::brighter, config.take("levels/brighter"));//120);
+        skin::setup(tone::kb_focus, config.take("levels/kb_focus"));//60
+        skin::setup(tone::shadower, config.take("levels/shadower"));//180);//60);//40);// 20);
+        skin::setup(tone::shadow  , config.take("levels/shadow"  ));//180);//5);
+        skin::setup(tone::lucidity, config.take("levels/lucidity"));//255);
+        skin::setup(tone::selector, config.take("levels/selector"));//48);
+        skin::setup(tone::bordersz, config.take<twod>("bordersz"));//dot_11);
+        auto menusz = config.take<bool>("menu/slim");
+        auto maxfps = config.take("fps");
+        auto tunnel = os::ipc::local(vtmode);
         auto cons = os::tty::proxy(tunnel.second);
         auto size = cons.ignite(vtmode);
         if (!size.last) return faux;
@@ -867,6 +888,7 @@ R"==(
             utf::to_low(aclass);
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params); // ! - means simple (w/o plugins)
+            auto config = console::conf(vtmode);
             auto window = ground->invite<gate>(config);
             window->resize(size);
             window->launch(tunnel.first, applet);
