@@ -4352,7 +4352,7 @@ namespace netxs::console
             skin::setup(tone::shadow  , config.take("shadow"  ));//180);//5);
             skin::setup(tone::lucidity, config.take("lucidity"));//255);
             skin::setup(tone::selector, config.take("selector"));//48);
-            skin::setup(tone::bordersz, config.take<twod>("bordersz"));//dot_11);
+            skin::setup(tone::bordersz, config.take("bordersz", dot_11));//dot_11);
             hertz = config.take("fps");
             if (hertz <= 0) hertz = 60;
 
