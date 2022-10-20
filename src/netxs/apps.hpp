@@ -56,7 +56,7 @@ R"==(
                 <action=start key="Ctrl+'t'"/>
                 <action=close key="Ctrl+'z'"/>
             </hotkeys>
-            <param="$0 -r term">    <!-- not implemented -->
+            <param="$0 -r term">    <!-- The following subargs override the base configuration. It is valid for DirectVT apps only -->
                 <scrollback>
                     <size=20000 />
                     <growstep=0 />
@@ -153,35 +153,82 @@ R"==(
     <appearance>
         <default>
             <fps=60 />
-            <menu>
-                <slim="on"/>
-            </menu>
             <bordersz=1,1 />
-            <levels>
-                <brighter=0 />
-                <kb_focus=60 />
-                <shadower=180 />
-                <shadow=180 />
-                <lucidity=255 />
-                <selector=48 />
-            </levels>
+            <brighter=60 />
+            <kb_focus=60 />
+            <shadower=180 />
+            <shadow=180 />
+            <lucidity=255 />
+            <selector=48 />
         </default>
-        <desktop>
+        <runapp>
             <fps=60 />
-            <menu>
-                <slim="off"/>
-            </menu>
             <bordersz=1,1 />
-            <levels>
-                <brighter=60 />
-                <kb_focus=60 />
-                <shadower=180 />
-                <shadow=180 />
-                <lucidity=255 />
-                <selector=48 />
-            </levels>
-        </desktop>
+            <brighter=0 />
+            <kb_focus=60 />
+            <shadower=180 />
+            <shadow=180 />
+            <lucidity=255 />
+            <selector=48 />
+        </runapp>
     </appearance>
+    <Term>      <!-- Base configuration for the Term app. It can be overridden by param's subargs. -->
+        <scrollback>
+            <size=20000 />
+            <growstep=0 />
+        </scrollback>
+        <colors>
+            <palette>
+                <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
+                <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
+                <color=0xFF0EA112 />          <!-- 2  greendk   -->
+                <color=0xFF009CC0 />          <!-- 3  yellowdk  -->
+                <color=0xFFDB3700 />          <!-- 4  bluedk    -->
+                <color=0xFF981787 />          <!-- 5  magentadk -->
+                <color=0xFFDD963B />          <!-- 6  cyandk    -->
+                <color=0xFFBBBBBB />          <!-- 7  whitedk   -->
+                <color=0xFF757575 />          <!-- 8  blacklt   -->
+                <color=0xFF5648E6 />          <!-- 9  redlt     -->
+                <color=0xFF0CC615 />          <!-- 10 greenlt   -->
+                <color=0xFFA5F1F8 />          <!-- 11 yellowlt  -->
+                <color=0xFFFF783A />          <!-- 12 bluelt    -->
+                <color=0xFF9E00B3 />          <!-- 13 magentalt -->
+                <color=0xFFD6D660 />          <!-- 14 cyanlt    -->
+                <color=0xFFF3F3F3 index=15 /> <!-- 15 whitelt   -->
+            </palette>
+            <default>
+                <fg=15 /> <!-- 256-color index is allowed -->
+                <bg=0 />
+            </default>
+            <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection |contrast | invert | reverse -->
+            <selection>
+                <text fx=selection bg=12 fg=15 />
+                <ansi fx=xlight/>
+                <none fx=selection bg=8 fg=7 />
+            </selection>
+        </colors>
+        <tablen=8 />      <!-- Tab length. -->
+        <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
+        <cursor>
+            <style="underline"/> <!-- block | underline  -->
+            <blink="400"/>       <!-- blink period in ms -->
+        </cursor>
+        <menu>
+            <enabled="on"/>
+            <slim="on"/>
+        </menu>
+        <wrap="on"/>
+        <selection>
+            <mode="plain"/> <!-- plain | ansi | disabled -->
+        </selection>
+        <hotkeys>
+            <action=findNext key="Alt+RightArrow"/>
+            <action=findPrev key="Alt+LeftArrow"/>
+        </hotkeys>
+    </Term>
+    <Calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </Calc>
 </config>
 )==";
 
@@ -866,22 +913,25 @@ R"==(
 
         auto shadow = app_name;
         utf::to_low(shadow);
-        if (!config.cd("/config/appearance/" + shadow)) config.cd("/config/appearance/default/");
-        skin::setup(tone::brighter, config.take("levels/brighter"));//120);
-        skin::setup(tone::kb_focus, config.take("levels/kb_focus"));//60
-        skin::setup(tone::shadower, config.take("levels/shadower"));//180);//60);//40);// 20);
-        skin::setup(tone::shadow  , config.take("levels/shadow"  ));//180);//5);
-        skin::setup(tone::lucidity, config.take("levels/lucidity"));//255);
-        skin::setup(tone::selector, config.take("levels/selector"));//48);
-        skin::setup(tone::bordersz, config.take<twod>("bordersz"));//dot_11);
-        auto menusz = config.take<bool>("menu/slim");
-        auto maxfps = config.take("fps");
+        if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
+
+        //skin::setup(tone::brighter, config.take("levels/brighter"));//120);
+        //skin::setup(tone::kb_focus, config.take("levels/kb_focus"));//60
+        //skin::setup(tone::shadower, config.take("levels/shadower"));//180);//60);//40);// 20);
+        //skin::setup(tone::shadow  , config.take("levels/shadow"  ));//180);//5);
+        //skin::setup(tone::lucidity, config.take("levels/lucidity"));//255);
+        //skin::setup(tone::selector, config.take("levels/selector"));//48);
+        //skin::setup(tone::bordersz, config.take<twod>("bordersz"));//dot_11);
+        //auto menusz = config.take<bool>("menu/slim");
+        //auto maxfps = config.take("fps");
+
         auto tunnel = os::ipc::local(vtmode);
         auto cons = os::tty::proxy(tunnel.second);
         auto size = cons.ignite(vtmode);
         if (!size.last) return faux;
 
-        auto ground = base::create<host>(tunnel.first, maxfps);
+        config.cd("/config/appearance/runapp/");
+        auto ground = base::create<host>(tunnel.first, config);
         auto runapp = [&]
         {
             auto aclass = utf::cutoff(app_name, ' ');

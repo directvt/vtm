@@ -4341,11 +4341,21 @@ namespace netxs::console
         xipc joint;
 
     public:
-        host(xipc server_pipe, si32 fps)
+        template<class T>
+        host(xipc server_pipe, T config)
             : synch{ bell::router<tier::general>(), e2::timer::tick.id },
-              hertz{ fps ? std::abs(fps) : 60 },
               joint{ server_pipe }
         {
+            skin::setup(tone::brighter, config.take("brighter"));//120);
+            skin::setup(tone::kb_focus, config.take("kb_focus"));//60
+            skin::setup(tone::shadower, config.take("shadower"));//180);//60);//40);// 20);
+            skin::setup(tone::shadow  , config.take("shadow"  ));//180);//5);
+            skin::setup(tone::lucidity, config.take("lucidity"));//255);
+            skin::setup(tone::selector, config.take("selector"));//48);
+            skin::setup(tone::bordersz, config.take<twod>("bordersz"));//dot_11);
+            hertz = config.take("fps");
+            if (hertz <= 0) hertz = 60;
+
             keybd.accept(true); // Subscribe on keybd offers.
 
             SUBMIT_T(tier::general, e2::timer::any, token, timestamp)
@@ -4761,17 +4771,8 @@ namespace netxs::console
     protected:
         template<class T>
         hall(xipc server_pipe, T config)
-            : host{ server_pipe, config.take("/config/appearance/desktop/maxfps") }
+            : host{ server_pipe, config }
         {
-            config.cd("/config/appearance/desktop/levels/");
-            skin::setup(tone::brighter, config.take("brighter"));//120);
-            skin::setup(tone::kb_focus, config.take("kb_focus"));//60
-            skin::setup(tone::shadower, config.take("shadower"));//180);//60);//40);// 20);
-            skin::setup(tone::shadow  , config.take("shadow"  ));//180);//5);
-            skin::setup(tone::lucidity, config.take("lucidity"));//255);
-            skin::setup(tone::selector, config.take("selector"));//48);
-            skin::setup(tone::bordersz, config.take<twod>("/config/appearance/desktop/bordersz"));//dot_11);
-
             auto current_module_file = os::current_module_file();
             auto& menu_list = *regis.app_ptr;
             auto& conf_list = *regis.lnk_ptr;
