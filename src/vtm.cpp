@@ -92,10 +92,11 @@ int main(int argc, char* argv[])
         else whoami = type::server;
     }
 
+    banner();
+    auto config = app::shared::load::settings(cfpath);
+
     if (whoami == type::server)
     {
-        banner();
-        auto config = app::shared::load::settings(cfpath);
         auto userid = os::user();
         auto usernm = os::get_env("USER");
         auto hostip = os::get_env("SSH_CLIENT");
@@ -147,10 +148,8 @@ int main(int argc, char* argv[])
     {
         if (whoami == type::client)
         {
-            banner();
             auto direct = !!(vtmode & os::legacy::direct);
             if (!direct) os::start_log(DESKTOPIO_MYPATH);
-            auto config = app::shared::load::settings(cfpath);
             auto userid = os::user();
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
@@ -179,7 +178,6 @@ int main(int argc, char* argv[])
         }
         else if (whoami == type::runapp)
         {
-            auto config = app::shared::load::settings(cfpath);
             auto shadow = params;
             utf::to_low(shadow);
                  if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);

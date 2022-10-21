@@ -115,7 +115,7 @@ namespace netxs::os
 
     enum role { client, server };
 
-    static constexpr si32 STDIN_BUF = 1024;
+    static constexpr si32 stdin_buf_size = 1024;
     static bool is_daemon = faux;
 
     #if defined(_WIN32)
@@ -3463,12 +3463,12 @@ namespace netxs::os
 
             #else
 
-                bool legacy_mouse = mode & os::legacy::mouse;
-                bool legacy_color = mode & os::legacy::vga16;
+                auto legacy_mouse = !!(mode & os::legacy::mouse);
+                auto legacy_color = !!(mode & os::legacy::vga16);
                 auto micefd = INVALID_FD;
-                twod mcoor;
-                auto buffer = text(STDIN_BUF, '\0');
-                si32 ttynum = 0;
+                auto mcoor = twod{};
+                auto buffer = text(os::stdin_buf_size, '\0');
+                auto ttynum = si32{ 0 };
 
                 struct
                 {
@@ -3479,9 +3479,9 @@ namespace netxs::os
                 } state;
                 auto get_kb_state = []
                 {
-                    si32 state = 0;
+                    auto state = si32{ 0 };
                     #if defined(__linux__)
-                        si32 shift_state = 6;
+                        auto shift_state = si32{ 6 };
                         ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state), "ioctl(STDIN_FD, TIOCLINUX) failed");
                         state = 0
                             | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1

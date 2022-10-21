@@ -1828,8 +1828,7 @@ namespace netxs::ansi
                     char mark_FE;
                 };
 
-                static constexpr
-                auto size = sizeof(mask);
+                static constexpr auto size = sizeof(mask);
                 char data[size];
                 mask pack;
 
@@ -1845,7 +1844,7 @@ namespace netxs::ansi
                 auto get_sz(twod& winsize)
                 {
                     if (pack.mark_FF == initial
-                    && pack.mark_FE == initial - 1)
+                     && pack.mark_FE == initial - 1)
                     {
                         winsize = pack.winsize.get();
                         return true;

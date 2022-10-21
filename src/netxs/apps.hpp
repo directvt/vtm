@@ -44,11 +44,11 @@ namespace netxs::app::shared
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt ">
+        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term">
 )=="
 #else
 R"==(
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal ">
+        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
 )=="
 #endif
 R"==(
@@ -56,60 +56,62 @@ R"==(
                 <action=start key="Ctrl+'t'"/>
                 <action=close key="Ctrl+'z'"/>
             </hotkeys>
-            <param="$0 -r term">    <!-- The following subargs override the base configuration. It is valid for DirectVT apps only -->
-                <scrollback>
-                    <size=20000 />
-                    <growstep=0 />
-                </scrollback>
-                <colors>
-                    <palette>
-                        <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
-                        <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
-                        <color=0xFF0EA112 />          <!-- 2  greendk   -->
-                        <color=0xFF009CC0 />          <!-- 3  yellowdk  -->
-                        <color=0xFFDB3700 />          <!-- 4  bluedk    -->
-                        <color=0xFF981787 />          <!-- 5  magentadk -->
-                        <color=0xFFDD963B />          <!-- 6  cyandk    -->
-                        <color=0xFFBBBBBB />          <!-- 7  whitedk   -->
-                        <color=0xFF757575 />          <!-- 8  blacklt   -->
-                        <color=0xFF5648E6 />          <!-- 9  redlt     -->
-                        <color=0xFF0CC615 />          <!-- 10 greenlt   -->
-                        <color=0xFFA5F1F8 />          <!-- 11 yellowlt  -->
-                        <color=0xFFFF783A />          <!-- 12 bluelt    -->
-                        <color=0xFF9E00B3 />          <!-- 13 magentalt -->
-                        <color=0xFFD6D660 />          <!-- 14 cyanlt    -->
-                        <color=0xFFF3F3F3 index=15 /> <!-- 15 whitelt   -->
-                    </palette>
-                    <default>
-                        <fg=15 /> <!-- 256-color index is allowed -->
-                        <bg=0 />
-                    </default>
-                    <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection |contrast | invert | reverse -->
+            <config>    <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only -->
+                <term>
+                    <scrollback>
+                        <size=20000 />
+                        <growstep=0 />
+                    </scrollback>
+                    <colors>
+                        <palette>
+                            <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
+                            <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
+                            <color=0xFF0EA112 />          <!-- 2  greendk   -->
+                            <color=0xFF009CC0 />          <!-- 3  yellowdk  -->
+                            <color=0xFFDB3700 />          <!-- 4  bluedk    -->
+                            <color=0xFF981787 />          <!-- 5  magentadk -->
+                            <color=0xFFDD963B />          <!-- 6  cyandk    -->
+                            <color=0xFFBBBBBB />          <!-- 7  whitedk   -->
+                            <color=0xFF757575 />          <!-- 8  blacklt   -->
+                            <color=0xFF5648E6 />          <!-- 9  redlt     -->
+                            <color=0xFF0CC615 />          <!-- 10 greenlt   -->
+                            <color=0xFFA5F1F8 />          <!-- 11 yellowlt  -->
+                            <color=0xFFFF783A />          <!-- 12 bluelt    -->
+                            <color=0xFF9E00B3 />          <!-- 13 magentalt -->
+                            <color=0xFFD6D660 />          <!-- 14 cyanlt    -->
+                            <color=0xFFF3F3F3 index=15 /> <!-- 15 whitelt   -->
+                        </palette>
+                        <default>
+                            <fg=15 /> <!-- 256-color index is allowed -->
+                            <bg=0 />
+                        </default>
+                        <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+                        <selection>
+                            <text fx=selection bg=12 fg=15 />
+                            <ansi fx=xlight/>
+                            <none fx=selection bg=8 fg=7 />
+                        </selection>
+                    </colors>
+                    <tablen=8 />      <!-- Tab length. -->
+                    <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
+                    <cursor>
+                        <style="underline"/> <!-- block | underline  -->
+                        <blink="400"/>       <!-- blink period in ms -->
+                    </cursor>
+                    <menu>
+                        <enabled="on"/>
+                        <slim="off"/>
+                    </menu>
+                    <wrap="on"/>
                     <selection>
-                        <text fx=selection bg=12 fg=15 />
-                        <ansi fx=xlight/>
-                        <none fx=selection bg=8 fg=7 />
+                        <mode="plain"/> <!-- plain | ansi | disabled -->
                     </selection>
-                </colors>
-                <tablen=8 />      <!-- Tab length. -->
-                <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
-                <cursor>
-                    <style="underline"/> <!-- block | underline  -->
-                    <blink="400"/>       <!-- blink period in ms -->
-                </cursor>
-                <menu>
-                    <enabled="on"/>
-                    <slim="off"/>
-                </menu>
-                <wrap="on"/>
-                <selection>
-                    <mode="plain"/> <!-- plain | ansi | disabled -->
-                </selection>
-                <hotkeys>
-                    <action=findNext key="Alt+RightArrow"/>
-                    <action=findPrev key="Alt+LeftArrow"/>
-                </hotkeys>
-            </param>
+                    <hotkeys>
+                        <action=findNext key="Alt+RightArrow"/>
+                        <action=findPrev key="Alt+LeftArrow"/>
+                    </hotkeys>
+                </term>
+            </config>
         </item>
 )=="
 #if defined(_WIN32)
@@ -165,7 +167,7 @@ R"==(
             <brighter=0 />
         </runapp>
     </appearance>
-    <Term>      <!-- Base configuration for the Term app. It can be overridden by param's subargs. -->
+    <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
             <size=20000 />
             <growstep=0 />
@@ -193,7 +195,7 @@ R"==(
                 <fg=15 /> <!-- 256-color index is allowed -->
                 <bg=0 />
             </default>
-            <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection |contrast | invert | reverse -->
+            <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
                 <text fx=selection bg=12 fg=15 />
                 <ansi fx=xlight/>
@@ -218,10 +220,10 @@ R"==(
             <action=findNext key="Alt+RightArrow"/>
             <action=findPrev key="Alt+LeftArrow"/>
         </hotkeys>
-    </Term>
-    <Calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
+    </term>
+    <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
-    </Calc>
+    </calc>
 </config>
 )==";
 
@@ -750,6 +752,7 @@ R"==(
         text cwd{};
         text defaults{};
 
+        //todo revise
         template<class T>
         auto activate_creator(T& world)
         {
@@ -879,14 +882,14 @@ R"==(
                         return !conf.list.empty();
                     }
                 }
-                log("\tfailed");
+                log("\tno configuration found, try another source");
                 return faux;
             };
             if (!load(cli_config)
              && !load(app::shared::env_config)
              && !load(app::shared::usr_config))
             {
-                log("apps: no configuration found, fallback to hardcoded config");
+                log("apps: fallback to hardcoded configuration");
                 take(conf.fallback);
             }
 
