@@ -167,10 +167,7 @@ int main(int argc, char* argv[])
             }
 
             //todo send current user's config
-            text{};
-            auto selected_item = config.document->enumerate(console::path_selected);
-            auto selected_id = selected_item.size() ? selected_item.front()->get_value()
-                                                    : text{};
+            auto selected_id = config.take(console::path_selected, ""s);
             client->send(utf::concat(hostip, ";",
                                      usernm, ";",
                                      userid, ";",
