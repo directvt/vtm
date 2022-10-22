@@ -126,13 +126,11 @@ int main(int argc, char* argv[])
 
             thread.run([&, client](auto session_id)
             {
-                //todo move conf inside the gate
-                auto gate_config = console::conf(client, session_id, config);
-                if (auto window = ground->invite<gate>(gate_config))
+                if (auto window = ground->invite<gate>(client, session_id, config))
                 {
                     log("user: new gate for ", client);
                     auto app_conf = config.utf8();
-                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", gate_config.os_user_id, ";", gate_config.selected), app_conf);
+                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), app_conf);
                     auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems; About; ", app_conf);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");

@@ -945,9 +945,7 @@ R"==(
             //todo pass app config
             auto app_config = text{};
             auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, app_config); // ! - means simple (w/o plugins)
-
-            auto config = console::conf(vtmode);
-            auto window = ground->invite<gate>(config);
+            auto window = ground->invite<gate>(vtmode);
             window->resize(size);
             window->launch(tunnel.first, applet);
             window.reset();

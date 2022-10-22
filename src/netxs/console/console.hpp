@@ -5443,7 +5443,6 @@ namespace netxs::console
         bool  native = faux; //gate: Extended functionality support.
         bool  fullscreen = faux; //gate: Fullscreen mode.
         si32  legacy = os::legacy::clean;
-        conf  props; // gate: Client properties.
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -5539,6 +5538,7 @@ namespace netxs::console
     public:
         sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
         sptr background; // gate: Local UI background.
+        conf props; // gate: Client properties.
 
         // gate: Attach a new item.
         template<class T>
@@ -5931,11 +5931,12 @@ namespace netxs::console
         }
 
     protected:
-        gate(host& world, conf const& client_props)//, bool is_standalone_app = faux)
-            : world{ world }
+        template<class ...Args>
+        gate(host& world, Args&&... args)
+            : props{ std::forward<Args>(args)... },
+              world{ world }
         {
             limit.set(dot_11);
-            props = client_props;
             //todo unify
             title.live = faux;
             input.set_instance_type(props.simple, props.is_standalone_app);
