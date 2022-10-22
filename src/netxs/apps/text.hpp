@@ -183,7 +183,7 @@ utility like ctags is used to locate the definitions.
 
 )";
 
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, text cfg)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()

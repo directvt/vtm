@@ -312,7 +312,7 @@ namespace netxs::app::calc
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
         };
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, text cfg)
         {
             const static auto c7 = app::shared::c7;
             const static auto c3 = app::shared::c3;

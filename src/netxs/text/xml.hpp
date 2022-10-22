@@ -296,6 +296,15 @@ namespace netxs::xml
                 }
                 return std::max(1_sz, count);
             }
+            auto utf8()
+            {
+                auto crop = text{};
+                for (auto& item : data)
+                {
+                    crop += *item.part;
+                }
+                return crop;
+            }
         };
 
         struct elem;
@@ -919,6 +928,10 @@ namespace netxs::xml
         auto set(T&& path)
         {
             
+        }
+        auto utf8()
+        {
+            return page.utf8();
         }
         auto enumerate(view path_str)
         {

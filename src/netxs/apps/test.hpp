@@ -414,7 +414,7 @@ namespace netxs::app::test
 
             return topic;
         };
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, text cfg)
         {
             auto topic = get_text();
             auto window = ui::cake::ctor()

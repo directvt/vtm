@@ -169,6 +169,7 @@ R"==(
             <shadow=180 />
             <lucidity=255 />
             <selector=48 />
+            <background fgc=7 bgc=0xFF7f0000 />
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0 />
@@ -230,9 +231,18 @@ R"==(
             <action=findPrev key="Alt+LeftArrow"/>
         </hotkeys>
     </term>
+    <text>      <!-- Base configuration for the Talc app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </text>
     <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </calc>
+    <logs>      <!-- Base configuration for the Logs app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </logs>
+    <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </settings>
 </config>
 )==";
 
@@ -606,7 +616,7 @@ R"==(
             });
     };
 
-    using builder_t = std::function<sptr<base>(text, text)>;
+    using builder_t = std::function<sptr<base>(text, text, text)>;
 
     namespace get
     {
@@ -630,7 +640,7 @@ R"==(
         auto& builder(text app_typename)
         {
             static builder_t empty =
-            [&](text, text) -> sptr<base>
+            [&](text, text, text) -> sptr<base>
             {
                 auto window = ui::cake::ctor()
                     ->invoke([&](auto& boss)
@@ -717,7 +727,9 @@ R"==(
             auto& creator = builder(config.type);
 
             //todo pass whole s11n::configuration map
-            auto object = creator(config.cwd, config.param);
+            //todo pass app config
+            auto app_config = text{};
+            auto object = creator(config.cwd, config.param, app_config);
             if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
             if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
@@ -793,7 +805,7 @@ R"==(
                 }
             }
             auto test = !!temp.size();
-            if (!test) log(" xml: " + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + cwd);
+            if (!test) log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + cwd);
             return test;
         }
         template<class T = si32>
@@ -820,7 +832,7 @@ R"==(
             }
             if (list.empty()) list = fallback->enumerate(dest);
             if (list.size() ) crop = list.back()->get_value();
-            else              log(" xml: " + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
+            else              log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
             list.clear();
             return xml::take<T>(crop, defval);
         }
@@ -830,11 +842,19 @@ R"==(
             if (list.empty()) list = fallback->enumerate(path);
             return list;
         }
+        auto utf8()
+        {
+            return document->utf8();
+        }
+        auto merge(view run_config)
+        {
+            //todo implement
+        }
     };
 
     namespace load
     {
-        auto settings(view cli_config)
+        auto settings(view cli_config, view run_config)
         {
             auto conf = settings_t{};
             auto load = [&](view shadow)
@@ -886,6 +906,7 @@ R"==(
 
             os::set_env(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
 
+            conf.merge(run_config);
             return conf;
         }
     }
@@ -921,7 +942,10 @@ R"==(
             auto aclass = utf::cutoff(app_name, ' ');
             utf::to_low(aclass);
             auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params); // ! - means simple (w/o plugins)
+            //todo pass app config
+            auto app_config = text{};
+            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, app_config); // ! - means simple (w/o plugins)
+
             auto config = console::conf(vtmode);
             auto window = ground->invite<gate>(config);
             window->resize(size);
@@ -955,7 +979,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text cwd, text v)
+        auto build_Strobe        = [](text cwd, text v,     text config)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
@@ -980,7 +1004,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text cwd, text v)
+        auto build_Settings      = [](text cwd, text v,     text config)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -1002,7 +1026,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text cwd, text v)
+        auto build_Empty         = [](text cwd, text v,     text config)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -1024,7 +1048,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_Region        = [](text cwd, text v)
+        auto build_Region        = [](text cwd, text v,     text config)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -1100,7 +1124,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Truecolor     = [](text cwd, text v)
+        auto build_Truecolor     = [](text cwd, text v,     text config)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -1231,7 +1255,7 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_Headless      = [](text cwd, text param)
+        auto build_Headless      = [](text cwd, text param, text config)
         {
             auto window = ui::cake::ctor()
                   ->invoke([&](auto& boss)
@@ -1302,7 +1326,7 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Fone          = [](text cwd, text param)
+        auto build_Fone          = [](text cwd, text param, text config)
         {
             return ui::park::ctor()
                 ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(DESKTOPIO_MYNAME)
@@ -1368,13 +1392,13 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_DirectVT      = [](text cwd, text param)
+        auto build_DirectVT      = [](text cwd, text param, text config)
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::limit>(dot_11)
                 ->plugin<pro::focus>();
 
-            auto direct = ui::dtvt::ctor(cwd, param)
+            auto direct = ui::dtvt::ctor(cwd, param, config)
                 ->invoke([](auto& boss)
                 {
                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
@@ -1385,7 +1409,7 @@ namespace netxs::app::shared
             window->attach(direct);
             return window;
         };
-        auto build_ANSIVT        = [](text cwd, text param)
+        auto build_ANSIVT        = [](text cwd, text param, text config)
         {
             if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
 
@@ -1395,9 +1419,9 @@ namespace netxs::app::shared
             args += " -r headless ";
             args += param;
 
-            return build_DirectVT(cwd, args);
+            return build_DirectVT(cwd, args, config);
         };
-        auto build_SHELL         = [](text cwd, text param)
+        auto build_SHELL         = [](text cwd, text param, text config)
         {
             auto args = os::current_module_file();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
@@ -1421,7 +1445,7 @@ namespace netxs::app::shared
                 args += param;
             }
 
-            return build_DirectVT(cwd, args);
+            return build_DirectVT(cwd, args, config);
         };
 
         app::shared::initialize builder_Strobe       { "strobe"                 , build_Strobe     };

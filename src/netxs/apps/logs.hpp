@@ -249,7 +249,7 @@ namespace netxs::app::logs
 
     namespace
     {
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, text cfg)
         {
             const static auto x3 = app::shared::x3;
 

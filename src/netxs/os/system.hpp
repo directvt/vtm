@@ -968,6 +968,11 @@ namespace netxs::os
             static auto start = text{};
             return start;
         }
+        static auto& get_setup()
+        {
+            static auto setup = text{};
+            return setup;
+        }
         static auto& get_ready()
         {
             static auto ready = faux;
@@ -988,10 +993,15 @@ namespace netxs::os
             else result = "fresh";
             return result;
         }
-        static void send_dmd(fd_t m_pipe_w, twod const& winsz)
+        static void send_dmd(fd_t m_pipe_w, twod const& winsz, view config)
         {
-            auto buffer = ansi::dtvt::binary::marker{ winsz };
+            auto cfsize = config.size();
+            auto buffer = ansi::dtvt::binary::marker{ winsz, cfsize };
             os::send<true>(m_pipe_w, buffer.data, buffer.size);
+            if (cfsize)
+            {
+                os::send<true>(m_pipe_w, config.data(), cfsize);
+            }
         }
         static auto peek_dmd(fd_t stdin_fd)
         {
@@ -999,6 +1009,8 @@ namespace netxs::os
             auto& winsz = get_winsz();
             auto& state = get_state();
             auto& start = get_start();
+            auto& setup = get_setup();
+            auto cfsize = size_t{};
             if (ready) return state;
             ready = true;
             #if defined(_WIN32)
@@ -1016,7 +1028,7 @@ namespace netxs::os
                     if (length)
                     {
                         state = buffer.size == length
-                             && buffer.get_sz(winsz);
+                             && buffer.get_sz(winsz, cfsize);
                         if (state)
                         {
                             os::recv(stdin_fd, buffer.data, buffer.size);
@@ -1034,7 +1046,7 @@ namespace netxs::os
                     if (length)
                     {
                         state = buffer.size == length
-                             && buffer.get_sz(winsz);
+                             && buffer.get_sz(winsz, cfsize);
                         if (!state)
                         {
                             start = header; //todo use it when the reading thread starts
@@ -1043,6 +1055,24 @@ namespace netxs::os
                 });
 
             #endif
+            if (cfsize)
+            {
+                setup.resize(cfsize);
+                auto buffer = setup.data();
+                while (cfsize)
+                {
+                    if (auto crop = os::recv(stdin_fd, buffer, cfsize))
+                    {
+                        cfsize -= crop.size();
+                        buffer += crop.size();
+                    }
+                    else
+                    {
+                        state = faux;
+                        break;
+                    }
+                }
+            }
             return state;
         }
     };
@@ -2841,7 +2871,7 @@ namespace netxs::os
                             //       members of the Everyone groupand the anonymous account.
                             //       Without write access, the desktop will be inaccessible to non-owners.
                         }
-                        else os::fail("not active");
+                        else if (active) os::fail("not active");
 
                         return next_waiting_point;
                     };
@@ -2849,14 +2879,16 @@ namespace netxs::os
                     auto r = next_link(handle.get_r(), to_server, PIPE_ACCESS_INBOUND);
                     if (r == INVALID_FD)
                     {
-                        return os::fail("CreateNamedPipe error (read)");
+                        return active ? os::fail("::CreateNamedPipe unexpected (read)")
+                                      : nothing{};
                     }
 
                     auto w = next_link(handle.get_w(), to_client, PIPE_ACCESS_OUTBOUND);
                     if (w == INVALID_FD)
                     {
                         ::CloseHandle(r);
-                        return os::fail("CreateNamedPipe error (write)");
+                        return active ? os::fail("::CreateNamedPipe unexpected (write)")
+                                      : nothing{};
                     }
 
                     auto connector = std::make_shared<ipc::socket>(std::move(handle));
@@ -2913,8 +2945,9 @@ namespace netxs::os
                     // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
                     auto to_client = WR_PIPE_PATH + scpath;
                     auto to_server = RD_PIPE_PATH + scpath;
-                    if (handle.get_w() != INVALID_FD) ok(::DeleteFileA(to_client.c_str()));
-                    if (handle.get_r() != INVALID_FD) ok(::DeleteFileA(to_server.c_str()));
+                    // This may fail, but this is ok - it means the client is already disconnected.
+                    if (handle.get_w() != INVALID_FD) ::DeleteFileA(to_client.c_str());
+                    if (handle.get_r() != INVALID_FD) ::DeleteFileA(to_server.c_str());
                     handle.close();
 
                 #else
@@ -2929,8 +2962,9 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     // Disconnection order does matter.
-                    if (handle.get_w() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_w()));
-                    if (handle.get_r() != INVALID_FD) ok(::DisconnectNamedPipe(handle.get_r()));
+                    // This may fail, but this is ok - it means the client is already disconnected.
+                    if (handle.get_w() != INVALID_FD) ::DisconnectNamedPipe(handle.get_w());
+                    if (handle.get_r() != INVALID_FD) ::DisconnectNamedPipe(handle.get_r());
 
                 #else
 
@@ -3030,32 +3064,32 @@ namespace netxs::os
                     auto r = pipe(to_server, PIPE_ACCESS_INBOUND);
                     if (r == INVALID_FD)
                     {
-                        return os::fail("CreateNamedPipe error (read)");
+                        return os::fail("::CreateNamedPipe unexpected (read)");
                     }
 
                     auto w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
                     if (w == INVALID_FD)
                     {
                         ::CloseHandle(r);
-                        return os::fail("CreateNamedPipe error (write)");
+                        return os::fail("::CreateNamedPipe unexpected (write)");
                     }
 
                     r_sock = r;
                     w_sock = w;
 
                     DWORD inpmode = 0;
-                    ok(::GetConsoleMode(STDIN_FD , &inpmode), "GetConsoleMode(STDIN_FD) failed");
+                    ok(::GetConsoleMode(STDIN_FD , &inpmode), "::GetConsoleMode(STDIN_FD) unexpected");
                     inpmode |= 0
                             | nt::console::inmode::quickedit
                             ;
-                    ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
+                    ok(::SetConsoleMode(STDIN_FD, inpmode), "::SetConsoleMode(STDIN_FD) unexpected");
 
                     DWORD outmode = 0
                                 | nt::console::outmode::preprocess
                                 | nt::console::outmode::vt
                                 | nt::console::outmode::no_auto_cr
                                 ;
-                    ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
+                    ok(::SetConsoleMode(STDOUT_FD, outmode), "::SetConsoleMode(STDOUT_FD) unexpected");
                 }
                 else if constexpr (ROLE == role::client)
                 {
@@ -4539,10 +4573,10 @@ namespace netxs::os
 
             operator bool () { return termlink; }
 
-            auto start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
-                                                           std::function<void(view)> logs_hndl,
-                                                           std::function<void(si32)> preclose_hndl,
-                                                           std::function<void(si32)> shutdown_hndl)
+            auto start(text cwd, text cmdline, twod winsz, view config, std::function<void(view)> input_hndl,
+                                                                        std::function<void(view)> logs_hndl,
+                                                                        std::function<void(si32)> preclose_hndl,
+                                                                        std::function<void(si32)> shutdown_hndl)
             {
                 receiver = input_hndl;
                 loggerfx = logs_hndl;
@@ -4575,7 +4609,7 @@ namespace netxs::os
                          && ::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
                          && ::CreatePipe(&m_pipe_l, &s_pipe_l, &sa, 0))
                         {
-                            os::legacy::send_dmd(m_pipe_w, winsz);
+                            os::legacy::send_dmd(m_pipe_w, winsz, config);
 
                             startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                             startinf.StartupInfo.hStdInput  = s_pipe_r;

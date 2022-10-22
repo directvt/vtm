@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
                 daemon = true;
                 break;
             case 'l':
-                log(app::shared::load::settings(cfpath).document->show());
+                log(app::shared::load::settings(cfpath, os::legacy::get_setup()).document->show());
                 return 0;
             case 'c':
                 cfpath = getopt.param();
@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
     }
 
     banner();
-    auto config = app::shared::load::settings(cfpath);
+    auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
 
     if (whoami == type::server)
     {
@@ -126,15 +126,14 @@ int main(int argc, char* argv[])
 
             thread.run([&, client](auto session_id)
             {
-                auto config = console::conf(client, session_id);
-                config.background_color = app::shared::background_color; //todo unify
-                log("user: incoming connection:", config);
-
-                if (auto window = ground->invite<gate>(config))
+                //todo move conf inside the gate
+                auto gate_config = console::conf(client, session_id, config);
+                if (auto window = ground->invite<gate>(gate_config))
                 {
                     log("user: new gate for ", client);
-                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", config.os_user_id, ";", config.selected));
-                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems; About; ");
+                    auto app_conf = config.utf8();
+                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", gate_config.os_user_id, ";", gate_config.selected), app_conf);
+                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems; About; ", app_conf);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }
@@ -166,13 +165,12 @@ int main(int argc, char* argv[])
                 return 1;
             }
 
-            //todo send current user's config
-            auto selected_id = config.take(console::path_selected, ""s);
+            auto runcfg = utf::base64(config.utf8());
             client->send(utf::concat(hostip, ";",
                                      usernm, ";",
                                      userid, ";",
                                      vtmode, ";",
-                                     selected_id, ";"));
+                                     runcfg, ";"));
             auto cons = os::tty::proxy(client);
             auto size = cons.ignite(vtmode);
             if (size.last)

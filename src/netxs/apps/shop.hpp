@@ -192,7 +192,7 @@ namespace netxs::app::shop
             return std::tuple{ appstore_head, appstore_body, desktopio_body };
         };
 
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, text cfg)
         {
             const static auto c3 = app::shared::c3;
             const static auto x3 = app::shared::x3;

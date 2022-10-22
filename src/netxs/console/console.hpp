@@ -76,6 +76,7 @@ namespace netxs::console
         text      cwd{};
         text     type{};
         text    param{};
+        text   config{};
     };
 
     using namespace netxs::input;
@@ -106,8 +107,8 @@ namespace netxs::console
     static constexpr auto attr_param    = "param";
     static constexpr auto attr_splitter = "splitter";
 
-    static constexpr auto path_item     = "config/menu/item";
-    static constexpr auto path_selected = "config/menu/selected";
+    static constexpr auto path_item     = "/config/menu/item";
+    static constexpr auto path_selected = "/config/menu/selected";
 }
 
 namespace netxs::events::userland
@@ -5370,14 +5371,22 @@ namespace netxs::console
             simple            = !(legacy_mode & os::legacy::direct);
             is_standalone_app = true;
         }
-        conf(xipc peer, si32 session_id)
+        template<class T>
+        conf(xipc peer, si32 session_id, T&& config)
             : session_id{ session_id }
         {
             auto _ip     = peer->line(';');
             auto _name   = peer->line(';');
             auto _user   = peer->line(';');
             auto _mode   = peer->line(';');
-            auto _selected = peer->line(';');
+            auto _runcfg = peer->line(';');
+
+            auto xmlconfig = utf::unbase64(_runcfg);
+            config.merge(xmlconfig);
+            auto _selected = config.take(console::path_selected, ""s);
+            config.cd("/config/appearance/defaults/background/");
+            background_color = cell{}.fgc(config.take("fgc", rgba{ whitedk }))
+                                     .bgc(config.take("bgc", rgba{ 0xFF000000 }));
 
             _user = "[" + _user + ":" + std::to_string(session_id) + "]";
             auto c_info = utf::divide(_ip, " ");
@@ -5386,7 +5395,6 @@ namespace netxs::console
             legacy_mode       = utf::to_int(_mode, os::legacy::clean);
             os_user_id        = _user;
             clip_preview_size = twod{ 80,25 };
-            //background_color  = app::shared::background_color;
             coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
             fullname          = _name;
             name              = _user;

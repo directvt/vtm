@@ -223,7 +223,7 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, text cfg)
         {
             auto window = ui::cake::ctor();
             auto arg_shadow = view{ arg };

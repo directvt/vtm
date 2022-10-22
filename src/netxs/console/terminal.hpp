@@ -7429,6 +7429,7 @@ namespace netxs::ui
         events_t        stream; // dtvt: .
         text            curdir; // dtvt: Current working directory.
         text            cmdarg; // dtvt: Startup command line arguments.
+        text            xmlcfg; // dtvt: Startup config.
         bool            active; // dtvt: Terminal lifetime.
         si32            nodata; // dtvt: Show splash "No signal".
         face            splash; // dtvt: "No signal" splash.
@@ -7526,10 +7527,10 @@ namespace netxs::ui
                     if (unique != timer)
                     {
                         termsz(base::size());
-                        auto procid = ptycon.start(curdir, cmdarg, termsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                           [&](auto log_message) { onlogs(log_message); },
-                                                                           [&](auto exit_reason) { atexit(exit_reason); },
-                                                                           [&](auto exit_reason) { onexit(exit_reason); } );
+                        auto procid = ptycon.start(curdir, cmdarg, termsz, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                                   [&](auto log_message) { onlogs(log_message); },
+                                                                                   [&](auto exit_reason) { atexit(exit_reason); },
+                                                                                   [&](auto exit_reason) { onexit(exit_reason); } );
                         unique = timer;
                         oneoff.reset();
                         prompt.add("    ", procid, ": ");
@@ -7546,13 +7547,14 @@ namespace netxs::ui
         {
             active = faux;
         }
-        dtvt(text cwd, text command_line)
+        dtvt(text cwd, text command_line, text config_view)
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
               nodata{      },
               curdir{ cwd  },
-              cmdarg{command_line}
+              cmdarg{command_line},
+              xmlcfg{ config_view }
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
