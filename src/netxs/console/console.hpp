@@ -105,6 +105,9 @@ namespace netxs::console
     static constexpr auto attr_cwd      = "cwd";
     static constexpr auto attr_param    = "param";
     static constexpr auto attr_splitter = "splitter";
+
+    static constexpr auto path_item     = "config/menu/item";
+    static constexpr auto path_selected = "config/menu/selected";
 }
 
 namespace netxs::events::userland
@@ -4798,8 +4801,8 @@ namespace netxs::console
                 return dflt_rec;
             };
 
-            static auto splitter_count = 0;
-            for (auto item_ptr : config.list)
+            auto splitter_count = 0;
+            for (auto item_ptr : config.take_list(path_item))
             {
                 auto& item = *item_ptr;
                 auto conf_rec = menuitem_t{};
@@ -5332,6 +5335,7 @@ namespace netxs::console
         text name;
         text os_user_id;
         text title;
+        text selected;
         twod coor;
         twod clip_preview_size;
         cell background_color;
@@ -5373,6 +5377,7 @@ namespace netxs::console
             auto _name   = peer->line(';');
             auto _user   = peer->line(';');
             auto _mode   = peer->line(';');
+            auto _selected = peer->line(';');
 
             _user = "[" + _user + ":" + std::to_string(session_id) + "]";
             auto c_info = utf::divide(_ip, " ");
@@ -5386,6 +5391,7 @@ namespace netxs::console
             fullname          = _name;
             name              = _user;
             title             = _user;
+            selected          = _selected;
             tooltip_timeout   = 500ms;
             tooltip_enabled   = true;
             glow_fx           = true;

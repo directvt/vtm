@@ -248,6 +248,7 @@ namespace netxs::app::desk
             }
             auto& user_id___view = user_info[0];
             auto& user_name_view = user_info[1];
+            auto& menu_selected  = user_info[2];
             log("desk: id: ", user_id___view, ", user name: ", user_name_view);
 
             if (auto value = utf::to_int(user_id___view)) my_id = value.value();
@@ -276,15 +277,15 @@ namespace netxs::app::desk
                     return users;
                 };
 
-                window->invoke([uibar_max_size, uibar_min_size](auto& boss) mutable
+                window->invoke([uibar_max_size, uibar_min_size, menu_selected](auto& boss) mutable
                     {
                         // Always set the first menu item as active.
                         auto world_ptr = e2::config::whereami.param();
                         SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                         auto menu_list_ptr = e2::bindings::list::apps.param();
                         world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
-                        auto current_default_sptr = std::make_shared<text>(app::shared::get::selected());
-                        auto previous_default_sptr = std::make_shared<text>(*current_default_sptr);
+                        auto current_default_sptr  = std::make_shared<text>(menu_selected);
+                        auto previous_default_sptr = std::make_shared<text>(menu_selected);
                         auto subs_sptr = std::make_shared<subs>();
                         auto shadow = ptr::shadow(boss.This());
 

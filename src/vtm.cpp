@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
                 if (auto window = ground->invite<gate>(config))
                 {
                     log("user: new gate for ", client);
-                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", config.os_user_id));
+                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", config.os_user_id, ";", config.selected));
                     auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems; About; ");
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
@@ -165,10 +165,17 @@ int main(int argc, char* argv[])
                 os::fail("no desktopio server connection");
                 return 1;
             }
+
+            //todo send current user's config
+            text{};
+            auto selected_item = config.document->enumerate(console::path_selected);
+            auto selected_id = selected_item.size() ? selected_item.front()->get_value()
+                                                    : text{};
             client->send(utf::concat(hostip, ";",
                                      usernm, ";",
                                      userid, ";",
-                                     vtmode, ";"));
+                                     vtmode, ";",
+                                     selected_id, ";"));
             auto cons = os::tty::proxy(client);
             auto size = cons.ignite(vtmode);
             if (size.last)

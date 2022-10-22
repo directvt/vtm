@@ -32,14 +32,16 @@ namespace netxs::app::shared
     static constexpr auto default_config = R"==(
 <config>
     <menu>
-        <selected=Term /> <!-- set selected using menu item id -->
+        <selected=Term /> <!-- Set selected using menu item id. -->
+        <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
+                       Using an asterisk with the parameter name of the first element in the list without any other nested arguments
+                       indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
         <item splitter label="apps">
             <notes> 
                 " Default applications group                         \n"
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* />    <!-- use asterisk at the end of the element name to set defaults -->
         <item* hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
 )=="
 #if defined(_WIN32)
@@ -53,6 +55,7 @@ R"==(
 #endif
 R"==(
             <hotkeys>    <!-- not implemented -->
+                <action*/>
                 <action=start key="Ctrl+'t'"/>
                 <action=close key="Ctrl+'z'"/>
             </hotkeys>
@@ -64,6 +67,7 @@ R"==(
                     </scrollback>
                     <colors>
                         <palette>
+                            <color*/>
                             <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
                             <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
                             <color=0xFF0EA112 />          <!-- 2  greendk   -->
@@ -107,6 +111,7 @@ R"==(
                         <mode="plain"/> <!-- plain | ansi | disabled -->
                     </selection>
                     <hotkeys>
+                        <action*/>
                         <action=findNext key="Alt+RightArrow"/>
                         <action=findPrev key="Alt+LeftArrow"/>
                     </hotkeys>
@@ -137,6 +142,7 @@ R"==(
    <!-- <item id=Test      label="Test"      type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
    <!-- <item id=Truecolor label="Truecolor" type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun>    <!-- not implemented -->
+            <item*/>
             <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default -->
             <item wincoor=0,0 />
             <item wincoor=52%,0 />
@@ -149,6 +155,7 @@ R"==(
         </width>
     </menu>
     <hotkeys>    <!-- not implemented -->
+        <action*/>
         <action=prevWindow key="Ctrl+PgUp"/>
         <action=nextWindow key="Ctrl+PgDn"/>
     </hotkeys>
@@ -174,6 +181,7 @@ R"==(
         </scrollback>
         <colors>
             <palette>
+                <color*/>
                 <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
                 <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
                 <color=0xFF0EA112 />          <!-- 2  greendk   -->
@@ -217,6 +225,7 @@ R"==(
             <mode="plain"/> <!-- plain | ansi | disabled -->
         </selection>
         <hotkeys>
+            <action*/>
             <action=findNext key="Alt+RightArrow"/>
             <action=findPrev key="Alt+LeftArrow"/>
         </hotkeys>
@@ -230,8 +239,6 @@ R"==(
     static constexpr auto usr_config = "~/.config/vtm/settings.xml";
     static constexpr auto env_config = "$VTM_CONFIG"sv;
 
-    static constexpr auto path_item     = "config/menu/item";
-    static constexpr auto path_selected = "config/menu/selected";
     static constexpr auto path_autorun  = "config/menu/autorun";
     static constexpr auto path_hotkeys  = "config/hotkeys";
 
@@ -608,11 +615,6 @@ R"==(
             static auto creator = std::map<text, builder_t>{};
             return creator;
         }
-        auto& selected()
-        {
-            static auto selected = text{};
-            return selected;
-        }
         auto& configs()
         {
             auto world_ptr = e2::config::whereami.param();
@@ -752,7 +754,6 @@ R"==(
         text cwd{};
         text defaults{};
 
-        //todo revise
         template<class T>
         auto activate_creator(T& world)
         {
@@ -801,7 +802,6 @@ R"==(
             if (path.empty()) return defval;
             auto crop = text{};
             auto dest = text{};
-            auto list = xml::document::vect{};
             if (path.front() == '/')
             {
                 dest = utf::trim(path, '/');
@@ -821,7 +821,14 @@ R"==(
             if (list.empty()) list = fallback->enumerate(dest);
             if (list.size() ) crop = list.back()->get_value();
             else              log(" xml: " + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
+            list.clear();
             return xml::take<T>(crop, defval);
+        }
+        auto take_list(view path)
+        {
+            auto list = document->enumerate(path);
+            if (list.empty()) list = fallback->enumerate(path);
+            return list;
         }
     };
 
@@ -830,20 +837,6 @@ R"==(
         auto settings(view cli_config)
         {
             auto conf = settings_t{};
-            auto& list = conf.list;
-            auto& doc = conf.document;
-            auto take = [&](auto doc)
-            {
-                conf.list = doc->enumerate(app::shared::path_item);
-                if (conf.list.size())
-                {
-                    auto selected = doc->enumerate(app::shared::path_selected);
-                    if (selected.size())
-                    {
-                        get::selected() = selected.front()->get_value();
-                    }
-                }
-            };
             auto load = [&](view shadow)
             {
                 if (shadow.empty()) return faux;
@@ -877,9 +870,8 @@ R"==(
                         auto buff = text(size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        doc = std::make_shared<xml::document>(buff, config_path.string());
-                        take(doc);
-                        return !conf.list.empty();
+                        conf.document = std::make_shared<xml::document>(buff, config_path.string());
+                        return true;
                     }
                 }
                 log("\tno configuration found, try another source");
@@ -890,10 +882,9 @@ R"==(
              && !load(app::shared::usr_config))
             {
                 log("apps: fallback to hardcoded configuration");
-                take(conf.fallback);
             }
 
-            os::set_env(app::shared::env_config.substr(1)/*remove $*/, doc->page.file);
+            os::set_env(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
 
             return conf;
         }
