@@ -108,7 +108,6 @@ namespace netxs::console
     static constexpr auto attr_splitter = "splitter";
 
     static constexpr auto path_item     = "/config/menu/item";
-    static constexpr auto path_selected = "/config/menu/selected";
 }
 
 namespace netxs::events::userland
@@ -3527,8 +3526,22 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            bool simple_instance;
-            bool standalone_instance;
+            period& tooltip_timeout;
+            bool&   simple_instance;
+            bool&   standalone_instance;
+
+            template<class T>
+            void forward(T& device)
+            {
+                auto gear_it = gears.find(device.id);
+                if (gear_it == gears.end())
+                {
+                    gear_it = gears.emplace(device.id, bell::create<topgear>(device.id == 0, boss, xmap, tooltip_timeout, simple_instance)).first;
+                }
+                auto& [_id, gear_ptr] = *gear_it;
+                gear_ptr->hids::take(device);
+                boss.strike();
+            }
 
         public:
             face xmap;
@@ -3536,10 +3549,12 @@ namespace netxs::console
             depo gears;
 
             input(base&&) = delete;
-            input(base& boss)
+            template<class T>
+            input(T& boss)
                 : skill{ boss },
-                  simple_instance{ faux },
-                  standalone_instance{ faux }
+                  tooltip_timeout{     boss.props.tooltip_timeout },
+                  simple_instance{     boss.props.simple },
+                  standalone_instance{ boss.props.is_standalone_app }
             {
                 xmap.link(boss.bell::id);
                 xmap.move(boss.base::coor());
@@ -3568,98 +3583,37 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, mousestate)
                 {
-                    auto id = mousestate.mouseid;
-                    auto gear_it = gears.find(id);
                     if (mousestate.control != sysmouse::stat::ok)
                     {
+                        auto gear_it = gears.find(mousestate.id);
                         if (gear_it != gears.end())
                         {
                             switch (mousestate.control)
                             {
-                                case sysmouse::stat::ok:
-                                    break;
-                                case sysmouse::stat::halt:
-                                    gear_it->second->deactivate();
-                                    break;
-                                case sysmouse::stat::die:
-                                    gears.erase(gear_it);
-                                    break;
+                                case sysmouse::stat::ok:   break;
+                                case sysmouse::stat::halt: gear_it->second->deactivate(); break;
+                                case sysmouse::stat::die:  gears.erase(gear_it);          break;
                             }
                         }
+                        boss.strike();
                     }
-                    else if (gear_it == gears.end())
-                    {
-                        gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.set_simple_instance(simple_instance);
-                        gear.hids::take(mousestate);
-                    }
-                    else
-                    {
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.hids::take(mousestate);
-                    }
-                    boss.strike();
+                    else forward(mousestate);
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, keybdstate)
                 {
-                    auto id = keybdstate.keybdid;
-                    auto gear_it = gears.find(id);
-                    if (gear_it == gears.end())
-                    {
-                        gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.set_simple_instance(simple_instance);
-                        gear.hids::take(keybdstate);
-                    }
-                    else
-                    {
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.hids::take(keybdstate);
-                    }
-                    boss.strike();
+                    forward(keybdstate);
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::focus, memo, focusstate)
                 {
-                    auto id = focusstate.focusid;
-                    auto gear_it = gears.find(id);
-                    if (gear_it == gears.end())
-                    {
-                        gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.set_simple_instance(simple_instance);
-                        gear.hids::take(focusstate);
-                    }
-                    else
-                    {
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.hids::take(focusstate);
-                    }
-                    boss.strike();
+                    forward(focusstate);
                 };
             }
             void check_focus()
             {
                 if (simple_instance)
                 {
-                    auto focusstate = sysfocus{ .focusid = 0, .enabled = true };
+                    auto focusstate = sysfocus{ .id = 0, .enabled = true };
                     boss.SIGNAL(tier::release, e2::conio::focus, focusstate);
-                    gears[focusstate.focusid]->set_simple_instance(true);
-                }
-            }
-            void set_instance_type(bool simple, bool standalone)
-            {
-                simple_instance = simple;
-                standalone_instance = standalone;
-                for (auto& [id, gear_ptr] : gears)
-                {
-                    gear_ptr->set_simple_instance(simple);
                 }
             }
             auto is_not_standalone_instance()
@@ -5057,7 +5011,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& f = gears[item.gear_id].focus;
-            f.focusid = item.gear_id;
+            f.id      = item.gear_id;
             f.enabled = item.state;
             f.combine_focus = item.combine_focus;
             f.force_group_focus = item.force_group_focus;
@@ -5077,7 +5031,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& k = gears[item.gear_id].keybd;
-            k.keybdid = item.gear_id;
+            k.id      = item.gear_id;
             k.virtcod = item.virtcod;
             k.scancod = item.scancod;
             k.pressed = item.pressed;
@@ -5092,7 +5046,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& k = gears[item.gear_id].keybd;
-            k.keybdid = item.gear_id;
+            k.id      = item.gear_id;
             k.cluster = item.utf8txt;
             k.pressed = true;
             notify(e2::conio::keybd, k);
@@ -5103,7 +5057,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& k = gears[item.gear_id].keybd;
-            k.keybdid = item.gear_id;
+            k.id      = item.gear_id;
             k.ctlstat = item.ctlstat;
             k.cluster = {};
             k.pressed = faux;
@@ -5120,7 +5074,7 @@ namespace netxs::console
             auto coordxy = item.coordxy;
             auto& m = gears[gear_id].mouse;
             m.set_buttons(buttons);
-            m.mouseid = gear_id;
+            m.id      = gear_id;
             m.control = sysmouse::stat::ok;
             m.ismoved = m.coor(coordxy);
             m.shuffle = !m.ismoved && (msflags & (1 << 0)); // MOUSE_MOVED
@@ -5140,7 +5094,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& m = gears[item.gear_id].mouse;
-            m.mouseid = item.gear_id;
+            m.id      = item.gear_id;
             m.control = sysmouse::stat::die;
             notify(e2::conio::mouse, m);
         }
@@ -5148,7 +5102,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& m = gears[item.gear_id].mouse;
-            m.mouseid = item.gear_id;
+            m.id      = item.gear_id;
             m.control = sysmouse::stat::halt;
             notify(e2::conio::mouse, m);
         }
@@ -5351,24 +5305,31 @@ namespace netxs::console
         bool simple; // conf: Isn't it a directvt app.
         bool is_standalone_app; // conf: .
 
+        template<class T>
+        void read(T&& config)
+        {
+            config.cd("/config/client/");
+            clip_preview_size = config.take("clip_preview/size", twod{ 80,25 });
+            coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
+            tooltip_timeout   = config.take("tooltip/timeout", period{ 500ms });
+            tooltip_enabled   = config.take("tooltip/enabled", true);
+            debug_overlay     = config.take("debug/overlay", faux);
+            debug_toggle      = config.take("debug/toggle", "🐞"s);
+            show_regions      = config.take("regions/enabled", faux);
+        }
+
         conf()            = default;
         conf(conf const&) = default;
         conf(conf&&)      = default;
         conf& operator = (conf const&) = default;
-
-        conf(si32 mode)
+        template<class T>
+        conf(si32 mode, T&& config)
             : session_id{ 0 },
               legacy_mode{ mode }
         {
-            clip_preview_size = twod{ 80,25 };
-            coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
-            tooltip_timeout   = 500ms;
-            tooltip_enabled   = true;
-            glow_fx           = faux;
-            debug_overlay     = faux;
-            debug_toggle      = "🐞";
-            show_regions      = faux;
+            read(config);
             simple            = !(legacy_mode & os::legacy::direct);
+            glow_fx           = faux;
             is_standalone_app = true;
         }
         template<class T>
@@ -5381,31 +5342,23 @@ namespace netxs::console
             auto _mode   = peer->line(';');
             auto _runcfg = peer->line(';');
 
-            auto xmlconfig = utf::unbase64(_runcfg);
-            config.merge(xmlconfig);
-            auto _selected = config.take(console::path_selected, ""s);
-            config.cd("/config/appearance/defaults/background/");
-            background_color = cell{}.fgc(config.take("fgc", rgba{ whitedk }))
-                                     .bgc(config.take("bgc", rgba{ 0xFF000000 }));
-
             _user = "[" + _user + ":" + std::to_string(session_id) + "]";
             auto c_info = utf::divide(_ip, " ");
             ip   = c_info.size() > 0 ? c_info[0] : text{};
             port = c_info.size() > 1 ? c_info[1] : text{};
             legacy_mode       = utf::to_int(_mode, os::legacy::clean);
             os_user_id        = _user;
-            clip_preview_size = twod{ 80,25 };
-            coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
             fullname          = _name;
             name              = _user;
             title             = _user;
-            selected          = _selected;
-            tooltip_timeout   = 500ms;
-            tooltip_enabled   = true;
-            glow_fx           = true;
-            debug_overlay     = faux;
-            debug_toggle      = "🐞";
-            show_regions      = faux;
+
+            auto xmlconfig = utf::unbase64(_runcfg);
+            config.merge(xmlconfig);
+            selected          = config.take("/config/menu/selected", ""s);
+            read(config);
+            background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
+                                      .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
+            glow_fx           = config.take("glowfx", true);
             simple            = faux;
             is_standalone_app = faux;
         }
@@ -5424,6 +5377,9 @@ namespace netxs::console
     class gate
         : public base
     {
+    public:
+        conf props; // gate: Client properties.
+
         pro::keybd keybd{*this }; // gate: Keyboard controller.
         pro::mouse mouse{*this }; // gate: Mouse controller.
         pro::robot robot{*this }; // gate: Animation controller.
@@ -5535,10 +5491,8 @@ namespace netxs::console
             if (result) base::strike();
         }
 
-    public:
         sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
         sptr background; // gate: Local UI background.
-        conf props; // gate: Client properties.
 
         // gate: Attach a new item.
         template<class T>
@@ -5939,7 +5893,6 @@ namespace netxs::console
             limit.set(dot_11);
             //todo unify
             title.live = faux;
-            input.set_instance_type(props.simple, props.is_standalone_app);
             if (!props.is_standalone_app)
             {
                 mouse.draggable<sysmouse::leftright>(true);

@@ -169,12 +169,20 @@ R"==(
             <shadow=180 />
             <lucidity=255 />
             <selector=48 />
-            <background fgc=7 bgc=0xFF7f0000 />
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0 />
         </runapp>
     </appearance>
+    <client>
+        <background fgc=7 bgc=0xFF7f0000 />
+        <clip_preview size=80x25 />
+        <viewport coor=0,0 />
+        <tooltip timeout=500ms enabled=true />
+        <glowfx=true />
+        <debug overlay=faux toggle="🐞" />
+        <regions enabled=faux />
+    </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
             <size=20000 />
@@ -945,7 +953,7 @@ R"==(
             //todo pass app config
             auto app_config = text{};
             auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, app_config); // ! - means simple (w/o plugins)
-            auto window = ground->invite<gate>(vtmode);
+            auto window = ground->invite<gate>(vtmode, config);
             window->resize(size);
             window->launch(tunnel.first, applet);
             window.reset();

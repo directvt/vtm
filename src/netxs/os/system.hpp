@@ -3643,7 +3643,7 @@ namespace netxs::os
                                 // Pass Esc.
                                 auto id = 0;
                                 auto& k = gears[id].keybd;
-                                k.keybdid = id;
+                                k.id      = id;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, 1);
                                 //notify(e2::conio::keybd, k);
@@ -3665,7 +3665,7 @@ namespace netxs::os
                                 // Pass Esc.
                                 auto id = 0;
                                 auto& k = gears[id].keybd;
-                                k.keybdid = id;
+                                k.id      = id;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, 1);
                                 //notify(e2::conio::keybd, k);
@@ -3690,7 +3690,7 @@ namespace netxs::os
                                 {
                                     auto id = 0;
                                     auto& f = gears[id].focus;
-                                    f.focusid = id;
+                                    f.id      = id;
                                     f.enabled = true;
                                     //notify(e2::conio::focus, f);
                                     wired.focus.send(ipcio,
@@ -3704,7 +3704,7 @@ namespace netxs::os
                                 {
                                     auto id = 0;
                                     auto& f = gears[id].focus;
-                                    f.focusid = id;
+                                    f.id      = id;
                                     f.enabled = faux;
                                     //notify(e2::conio::focus, f);
                                     wired.focus.send(ipcio,
@@ -3766,7 +3766,7 @@ namespace netxs::os
                                                             if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
                                                             ctl = ctl & ~0b00011100;
 
-                                                            m.mouseid = id;
+                                                            m.id      = id;
                                                             m.shuffle = faux;
                                                             m.wheeled = faux;
                                                             m.wheeldt = 0;
@@ -3894,7 +3894,7 @@ namespace netxs::os
                             {
                                 auto id = 0;
                                 auto& k = gears[id].keybd;
-                                k.keybdid = id;
+                                k.id      = id;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, i);
                                 //notify(e2::conio::keybd, k);
@@ -4689,7 +4689,7 @@ namespace netxs::os
                     ok(::pipe(to_srvlog), "dtvt: srvlog ipc error");
 
                     termlink.set(to_server[0], to_client[1], to_srvlog[0]);
-                    os::legacy::send_dmd(to_client[1], winsz);
+                    os::legacy::send_dmd(to_client[1], winsz, config);
 
                     proc_pid = ::fork();
                     if (proc_pid == 0) // Child branch.

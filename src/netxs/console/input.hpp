@@ -288,7 +288,7 @@ namespace netxs::input
         bool wheeled = faux;           // sysmouse: Vertical scroll wheel.
         bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
         si32 wheeldt = 0;              // sysmouse: Scroll delta.
-        id_t mouseid = 0;              // sysmouse: Gear id.
+        id_t      id = 0;              // sysmouse: Gear id.
         ui32 ctlstat = 0;
         ui32 winctrl = 0;
 
@@ -398,7 +398,7 @@ namespace netxs::input
             F12       = 0x7B,
         };
 
-        id_t keybdid = {};
+        id_t      id = {};
         bool pressed = {};
         ui16 imitate = {};
         ui16 virtcod = {};
@@ -413,7 +413,7 @@ namespace netxs::input
     class sysfocus
     {
     public:
-        id_t focusid = {};
+        id_t      id = {};
         bool enabled = {};
         bool combine_focus = {};
         bool force_group_focus = {};
@@ -795,7 +795,7 @@ namespace netxs::input
     {
     public:
         using events = netxs::events::userland::hids;
-    private:
+    //private:
 
         using list = std::list<wptr<bell>>;
         using xmap = netxs::console::core;
@@ -804,6 +804,8 @@ namespace netxs::input
         xmap const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
+        period&     tooltip_timeout; // hids: .
+        bool&       simple_instance; // hids: .
 
         //todo unify
         text        tooltip_data; // hids: Tooltip data.
@@ -814,7 +816,6 @@ namespace netxs::input
         bool        tooltip_show = faux; // hids: Show tooltip or not.
         bool        tooltip_stop = faux; // hids: Disable tooltip.
         testy<twod> tooltip_coor = {}; // hids: .
-        period      tooltip_timeout = 500ms; // hids: .
 
         static constexpr auto enter_event   = events::notify::mouse::enter.id;
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
@@ -842,7 +843,6 @@ namespace netxs::input
 
         //todo unify
         bool disabled = faux;
-        bool simple_instance = faux;
         bool kb_focus_changed = faux;
         bool force_group_focus = faux;
         bool combine_focus = faux;
@@ -983,11 +983,13 @@ namespace netxs::input
             return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift);
         }
 
-        hids(bell& owner, xmap const& idmap)
+        hids(bell& owner, xmap const& idmap, period& tooltip_timeout, bool& simple_instance)
             : relay{ 0     },
               owner{ owner },
               idmap{ idmap },
-              alive{ faux  }
+              alive{ faux  },
+              tooltip_timeout{ tooltip_timeout },
+              simple_instance{ simple_instance }
         { }
        ~hids()
         {
@@ -1229,14 +1231,6 @@ namespace netxs::input
                 return true;
             }
             else return faux;
-        }
-        void set_simple_instance(bool b = true)
-        {
-            simple_instance = b;
-        }
-        auto get_simple_instance()
-        {
-            return simple_instance;
         }
         void set_kb_focus(sptr<bell> item)
         {

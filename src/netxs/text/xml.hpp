@@ -5,11 +5,13 @@
 #define NETXS_XML_HPP
 
 #include "../ui/layout.hpp"
+#include "../datetime/quartz.hpp"
 
 namespace netxs::xml
 {
     using namespace netxs::utf;
     using namespace netxs::ui::atoms;
+    using namespace netxs::datetime;
 
     static constexpr auto spaces = " \n\r\t";
     enum class type_old
@@ -110,6 +112,26 @@ namespace netxs::xml
                 result.x = x.value();
                 result.y = y.value();
             }
+        }
+        return result;
+    }
+    template<>
+    auto take<period>(view utf8, period result)
+    {
+        using namespace std::chrono;
+        utf::trim_front(utf8, " ({[\"\'");
+        if (auto x = utf::to_int(utf8))
+        {
+            auto v = x.value();
+                 if (utf8.empty()
+                  || utf8.starts_with("ms" )) result = milliseconds{ v };
+            else if (utf8.starts_with("us" )) result = microseconds{ v };
+            else if (utf8.starts_with("ns" )) result =  nanoseconds{ v };
+            else if (utf8.starts_with("s"  )) result =      seconds{ v };
+            else if (utf8.starts_with("min")) result =      minutes{ v };
+            else if (utf8.starts_with("h"  )) result =        hours{ v };
+            else if (utf8.starts_with("d"  )) result =         days{ v };
+            else if (utf8.starts_with("w"  )) result =        weeks{ v };
         }
         return result;
     }
