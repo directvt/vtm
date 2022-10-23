@@ -29,10 +29,12 @@ namespace netxs::app::desk
     {
         auto app_template = [](auto& data_src, auto const& utf8)
         {
-            const static auto c4 = app::shared::c4;
-            const static auto x4 = app::shared::x4;
-            const static auto c5 = app::shared::c5;
-            const static auto x5 = app::shared::x5;
+            auto danger_color    = skin::color(tone::danger);
+            auto highlight_color = skin::color(tone::highlight);
+            auto c4 = cell{}.bgc(highlight_color.bgc());
+            auto x4 = cell{ c4 }.bga(0x00);
+            auto c5 = danger_color;
+            auto x5 = cell{ c5 }.alpha(0x00);
 
             auto item_area = ui::pads::ctor(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
                     ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
@@ -102,9 +104,11 @@ namespace netxs::app::desk
         };
         auto apps_template = [](auto& data_src, auto& apps_map)
         {
-            const static auto cA = app::shared::cA;
-            const static auto c3 = app::shared::c3;
-            const static auto x3 = app::shared::x3;
+            auto highlight_color = skin::color(tone::highlight);
+            auto inactive_color  = skin::color(tone::inactive);
+            auto c3 = highlight_color;
+            auto x3 = cell{ c3 }.alpha(0x00);
+            auto cA = inactive_color;
 
             auto apps = ui::list::ctor()
                 ->invoke([&](auto& boss)
@@ -124,7 +128,7 @@ namespace netxs::app::desk
             for (auto const& [class_id, stat_inst_ptr_list] : *apps_map)
             {
                 auto& [state, inst_ptr_list] = stat_inst_ptr_list;
-                auto inst_id  = class_id;
+                auto inst_id = class_id;
                 auto& conf = conf_list[class_id];
                 auto& obj_desc = conf.label;
                 auto& obj_note = conf.notes;
@@ -260,8 +264,9 @@ namespace netxs::app::desk
                 auto client_shadow = ptr::shadow(client);
                 auto user_template = [my_id](auto& data_src, auto const& utf8)
                 {
-                    const static auto c3 = app::shared::c3;
-                    const static auto x3 = app::shared::x3;
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
 
                     auto item_area = ui::pads::ctor(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                             ->plugin<pro::fader>(x3, c3, 150ms)
@@ -400,11 +405,14 @@ namespace netxs::app::desk
                                         });
                         auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
                         {
-                            const static auto cA = app::shared::cA;
-                            const static auto c3 = app::shared::c3;
-                            const static auto x3 = app::shared::x3;
-                            const static auto c6 = app::shared::c6;
-                            const static auto x6 = app::shared::x6;
+                            auto highlight_color = skin::color(tone::highlight);
+                            auto action_color    = skin::color(tone::action);
+                            auto inactive_color  = skin::color(tone::inactive);
+                            auto cA = inactive_color;
+                            auto c3 = highlight_color;
+                            auto x3 = cell{ c3 }.alpha(0x00);
+                            auto c6 = action_color;
+                            auto x6 = cell{ c6 }.alpha(0x00);
 
                             auto world_ptr = e2::config::whereami.param();
                             SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
@@ -462,10 +470,12 @@ namespace netxs::app::desk
                             }
                         }
                         {
-                            const static auto c2 = app::shared::c2;
-                            const static auto x2 = app::shared::x2;
-                            const static auto c1 = app::shared::c1;
-                            const static auto x1 = app::shared::x1;
+                            auto warning_color = skin::color(tone::warning);
+                            auto danger_color  = skin::color(tone::danger);
+                            auto c2 = warning_color;
+                            auto x2 = cell{ c2 }.bga(0x00);
+                            auto c1 = danger_color;
+                            auto x1 = cell{ c1 }.bga(0x00);
 
                             auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
                             auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_ONLY))

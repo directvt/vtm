@@ -85,8 +85,12 @@ namespace netxs::app::tile
                 if (!client) return;
                 auto label = [](auto data_src_sptr, auto header)
                 {
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
+
                     return ui::pads::ctor(dent{ 1, 1, 0, 0 }, dent{})
-                        ->plugin<pro::fader>(app::shared::x3, app::shared::c3, 150ms)
+                        ->plugin<pro::fader>(x3, c3, 150ms)
                         ->branch(ui::item::ctor(header.empty() ? "- no title -" : header))
                         ->invoke([&](auto& boss)
                         {
@@ -103,7 +107,10 @@ namespace netxs::app::tile
                             };
                             data_src_sptr->SUBMIT_T(tier::preview, e2::form::highlight::any, boss.tracker, state)
                             {
-                                boss.color(state ? 0xFF00ff00 : app::shared::x3.fgc(), app::shared::x3.bgc());
+                                auto highlight_color = skin::color(tone::highlight);
+                                auto c3 = highlight_color;
+                                auto x3 = cell{ c3 }.alpha(0x00);
+                                boss.color(state ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                             };
                             data_src_sptr->SUBMIT_T(tier::release, events::delist, boss.tracker, object)
                             {
@@ -397,9 +404,12 @@ namespace netxs::app::tile
         };
         auto empty_pane = []
         {
+            auto menu_black = skin::color(tone::menu_black);
+            auto cC = menu_black;
+
             return ui::park::ctor()
                 ->isroot(true, 2)
-                ->colors(blacklt, app::shared::term_menu_bg)
+                ->colors(cC.fgc(), cC.bgc())
                 ->plugin<pro::limit>(dot_00, -dot_11)
                 ->plugin<pro::focus>()
                 ->invoke([&](auto& boss)
@@ -431,11 +441,13 @@ namespace netxs::app::tile
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::abort, target)
                     {
+                        auto menu_black = skin::color(tone::menu_black);
+                        auto cC = menu_black;
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
                             //todo unify
-                            boss.back()->color(blacklt, app::shared::term_menu_bg);
+                            boss.back()->color(cC.fgc(), cC.bgc());
                         }
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::ask, target)
@@ -443,9 +455,11 @@ namespace netxs::app::tile
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
-                            //todo unify
-                            auto fg = app::shared::c3.fgc();
-                            auto bg = app::shared::c3.bgc();
+                            auto highlight_color = skin::color(tone::highlight);
+                            auto c3 = highlight_color;
+                            auto x3 = cell{ c3 }.alpha(0x00);
+                            auto fg = c3.fgc();
+                            auto bg = c3.bgc();
                             fg.alpha(0x70);
                             bg.alpha(0x70);
                             boss.back()->color(fg, bg);
@@ -454,11 +468,13 @@ namespace netxs::app::tile
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::drop, what)
                     {
+                        auto menu_black = skin::color(tone::menu_black);
+                        auto cC = menu_black;
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
                             //todo unify
-                            boss.back()->color(blacklt, app::shared::term_menu_bg);
+                            boss.back()->color(cC.fgc(), cC.bgc());
                             auto app = app_window(what.header, what.footer, what.object, what.menuid);
                             boss.attach(app);
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);
@@ -524,7 +540,7 @@ namespace netxs::app::tile
                     };
                     boss.SUBMIT(tier::anycast, app::tile::events::ui::select, gear)
                     {
-                        auto& item =*boss.back();
+                        auto& item = *boss.back();
                         if (item.base::kind() != 1)
                         {
                             //todo unify
@@ -798,6 +814,9 @@ namespace netxs::app::tile
         };
         auto build_inst = [](text cwd, view param, text config) -> sptr<base>
         {
+            auto menu_white = skin::color(tone::menu_white);
+            auto cB = menu_white;
+
             auto object = ui::fork::ctor(axis::Y)
                         ->plugin<items>();
 
@@ -913,7 +932,7 @@ namespace netxs::app::tile
                             };
                         }},
                     }))
-                    ->colors(whitelt, app::shared::term_menu_bg)
+                    ->colors(cB.fgc(), cB.bgc())
                     ->plugin<pro::focus>()
                     ->plugin<pro::track>()
                     ->plugin<pro::acryl>()

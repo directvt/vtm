@@ -194,8 +194,9 @@ namespace netxs::app::shop
 
         auto build = [](text cwd, text arg, text cfg)
         {
-            const static auto c3 = app::shared::c3;
-            const static auto x3 = app::shared::x3;
+            auto highlight_color = skin::color(tone::highlight);
+            auto c3 = highlight_color;
+            auto x3 = cell{ c3 }.alpha(0x00);
 
             auto [appstore_head, appstore_body, desktopio_body] = get_text();
             auto window = ui::cake::ctor();

@@ -1983,14 +1983,22 @@ namespace netxs::console
     {
     public:
 
-        #define PROP_LIST                       \
-        X(kb_focus , "Keyboard focus indicator")\
-        X(brighter , "Highlighter modificator") \
-        X(shadower , "Darklighter modificator") \
-        X(shadow   , "Light Darklighter modificator") \
-        X(lucidity , "Global transparency")     \
-        X(selector , "Selection overlay")       \
-        X(bordersz , "Border size")
+        #define PROP_LIST                              \
+        X(kb_focus  , "Keyboard focus indicator")      \
+        X(brighter  , "Highlighter modificator")       \
+        X(shadower  , "Darklighter modificator")       \
+        X(shadow    , "Light Darklighter modificator") \
+        X(lucidity  , "Global transparency")           \
+        X(selector  , "Selection overlay")             \
+        X(bordersz  , "Border size")                   \
+        X(highlight , "Hilighted item color")          \
+        X(warning   , "Warning color")                 \
+        X(danger    , "Danger color")                  \
+        X(action    , "Action color")                  \
+        X(label     , "Static label color")            \
+        X(inactive  , "Inactive label color")          \
+        X(menu_white, "Light menu color")              \
+        X(menu_black, "Dark menu color")
 
         #define X(a, b) a,
         enum prop { PROP_LIST count };

@@ -169,6 +169,14 @@ R"==(
             <shadow=180 />
             <lucidity=255 />
             <selector=48 />
+            <highlight  fgc=0xFFffffff bgc=0xFFFF783A />
+            <warning    fgc=0xFFF3F3F3 bgc=0xFF009CC0 />
+            <danger     fgc=0xFFF3F3F3 bgc=0xFF5648E6 />
+            <action     fgc=0xFFF3F3F3 bgc=0xFF0CC615 />
+            <label      fgc=0xFF101010 bgc=0xFFBBBBBB />
+            <inactive   fgc=0xFF757575 bgc=0x00000000 />
+            <menu_white fgc=0xFFF3F3F3 bgc=0x80404040 />
+            <menu_black fgc=0xFF101010 bgc=0x80404040 />
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0 />
@@ -268,34 +276,6 @@ R"==(
     static si32 vtm_count = 0;
     static si32 tile_count = 0;
     //constexpr auto del_timeout = 1s;
-
-    //auto const highlight_color2 = tint::blackdk ;
-    //auto const highlightdk_color = tint::bluedk  ;
-    auto const highlight_color   = tint::bluelt  ;
-    auto const warning_color     = tint::yellowdk;
-    auto const danger_color      = tint::redlt   ;
-    auto const action_color      = tint::greenlt ;
-    auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
-
-    const static auto cA = cell{}.bgc(0x0).fgc(blacklt);
-    const static auto c9 = cell{}.bgc(0xFFffffff).fgc(0xFF000000);
-    const static auto c8 = cell{}.bgc(0x00).fgc(highlight_color);
-    const static auto x8 = cell{ c8 }.bga(0x00).fga(0x00);
-    const static auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
-    const static auto c6 = cell{}.bgc(action_color).fgc(whitelt);
-    const static auto x6 = cell{ c6 }.bga(0x00).fga(0x00);
-    const static auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
-    const static auto x5 = cell{ c5 }.bga(0x00).fga(0x00);
-    const static auto c4 = cell{}.bgc(highlight_color);
-    const static auto x4 = cell{ c4 }.bga(0x00);
-    const static auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
-    const static auto x3 = cell{ c3 }.bga(0x00).fga(0x00);
-    const static auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
-    const static auto x2 = cell{ c2 }.bga(0x00);
-    const static auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
-    const static auto x1 = cell{ c1 }.bga(0x00);
-    const static auto x0 = cell{ c3 }.bgc(0xFF000000); //todo make it as desktop bg
-    const static auto term_menu_bg = rgba{ 0x80404040 };
 
     enum class app_type
     {
@@ -402,6 +382,13 @@ R"==(
     // Menu bar (shrinkable on right-click).
     const auto custom_menu = [](bool full_size, app::shared::menu_list_type menu_items)
     {
+        auto highlight_color = skin::color(tone::highlight);
+        auto danger_color    = skin::color(tone::danger);
+        auto c3 = highlight_color;
+        auto x3 = cell{ c3 }.alpha(0x00);
+        auto c1 = danger_color;
+        auto x1 = cell{ c1 }.alpha(0x00);
+
         auto menu_area = ui::fork::ctor()
                         ->active();
             auto inner_pads = dent{ 1,2,1,1 };
@@ -844,6 +831,16 @@ R"==(
             list.clear();
             return xml::take<T>(crop, defval);
         }
+        auto take(view path, cell defval)
+        {
+            if (path.empty()) return defval;
+            auto fgc_path = text{ path } + '/' + "fgc";
+            auto bgc_path = text{ path } + '/' + "bgc";
+            auto crop = cell{};
+            crop.fgc(take(fgc_path, defval.fgc()));
+            crop.bgc(take(bgc_path, defval.bgc()));
+            return crop;
+        }
         auto take_list(view path)
         {
             auto list = document->enumerate(path);
@@ -1263,6 +1260,9 @@ namespace netxs::app::shared
         };
         auto build_Headless      = [](text cwd, text param, text config)
         {
+            auto menu_white = skin::color(tone::menu_white);
+            auto cB = menu_white;
+
             auto window = ui::cake::ctor()
                   ->invoke([&](auto& boss)
                     {
@@ -1273,12 +1273,12 @@ namespace netxs::app::shared
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>();
             //auto object = window->attach(ui::fork::ctor(axis::Y))
-            //                    ->colors(whitelt, app::shared::term_menu_bg);
+            //                    ->colors(cB.fgc(), cB.bgc());
             //    auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
             //    auto layers = object->attach(slot::_2, ui::cake::ctor())
             //                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
             auto layers = window->attach(ui::cake::ctor())
-                                ->colors(whitelt, app::shared::term_menu_bg)
+                                ->colors(cB.fgc(), cB.bgc())
                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
@@ -1334,6 +1334,9 @@ namespace netxs::app::shared
         };
         auto build_Fone          = [](text cwd, text param, text config)
         {
+            auto highlight_color = skin::color(tone::highlight);
+            auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
+            auto x8 = cell{ c8 }.alpha(0x00);
             return ui::park::ctor()
                 ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(DESKTOPIO_MYNAME)
                 ->template plugin<pro::fader>(x8, c8, 0ms))

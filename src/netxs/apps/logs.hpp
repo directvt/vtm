@@ -251,7 +251,11 @@ namespace netxs::app::logs
     {
         auto build = [](text cwd, text arg, text cfg)
         {
-            const static auto x3 = app::shared::x3;
+            auto highlight_color = skin::color(tone::highlight);
+            auto menu_white = skin::color(tone::menu_white);
+            auto c3 = highlight_color;
+            auto x3 = cell{ c3 }.alpha(0x00);
+            auto cB = menu_white;
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -266,7 +270,7 @@ namespace netxs::app::logs
                         };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
+                                ->colors(cB.fgc(), cB.bgc());
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
                     app::shared::menu_list_type{
                             //todo use it only in conjunction with the terminal

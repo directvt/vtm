@@ -572,6 +572,15 @@ namespace netxs::console
         twod border = dot_11;
         si32 opaque = 0xFF;
 
+        cell highlight;
+        cell warning;
+        cell danger;
+        cell action;
+        cell label;
+        cell inactive;
+        cell menu_white;
+        cell menu_black;
+
         template<class V>
         struct _globals
         {
@@ -625,6 +634,22 @@ namespace netxs::console
                     break;
             }
         }
+        static void setup(tone::prop parameter, cell const& color)
+        {
+            auto& global = _globals<void>::global;
+            switch (parameter)
+            {
+                case tone::prop::highlight:  global.highlight  = color; break;
+                case tone::prop::warning:    global.warning    = color; break;
+                case tone::prop::danger:     global.danger     = color; break;
+                case tone::prop::action:     global.action     = color; break;
+                case tone::prop::label:      global.label      = color; break;
+                case tone::prop::inactive:   global.inactive   = color; break;
+                case tone::prop::menu_white: global.menu_white = color; break;
+                case tone::prop::menu_black: global.menu_black = color; break;
+                default: break;
+            }
+        }
 
         // skin:: Return global brighter/shadower color (cell).
         static cell const& color(si32 property)
@@ -632,23 +657,20 @@ namespace netxs::console
             auto& global = _globals<void>::global;
             switch (property)
             {
-                case tone::prop::kb_focus:
-                    return global.kb_colors;
-                    break;
-                case tone::prop::brighter:
-                    return global.hi_colors;
-                    break;
-                case tone::prop::shadower:
-                    return global.lo_colors;
-                    break;
-                case tone::prop::shadow:
-                    return global.sh_colors;
-                    break;
-                case tone::prop::selector:
-                    return global.sl_colors;
-                    break;
-                default:
-                    return global.hi_colors;
+                case tone::prop::kb_focus:   return global.kb_colors;
+                case tone::prop::brighter:   return global.hi_colors;
+                case tone::prop::shadower:   return global.lo_colors;
+                case tone::prop::shadow:     return global.sh_colors;
+                case tone::prop::selector:   return global.sl_colors;
+                case tone::prop::highlight:  return global.highlight;
+                case tone::prop::warning:    return global.warning;
+                case tone::prop::danger:     return global.danger;
+                case tone::prop::action:     return global.action;
+                case tone::prop::label:      return global.label;
+                case tone::prop::inactive:   return global.inactive;
+                case tone::prop::menu_white: return global.menu_white;
+                case tone::prop::menu_black: return global.menu_black;
+                default:                     return global.hi_colors;
             }
         }
         // skin:: Return global gradient for brighter/shadower.
@@ -657,23 +679,12 @@ namespace netxs::console
             auto& global = _globals<void>::global;
             switch (property)
             {
-                case tone::prop::kb_focus:
-                    return global.kb_grades;
-                    break;
-                case tone::prop::brighter:
-                    return global.hi_grades;
-                    break;
-                case tone::prop::shadower:
-                    return global.lo_grades;
-                    break;
-                case tone::prop::shadow:
-                    return global.sh_grades;
-                    break;
-                case tone::prop::selector:
-                    return global.sl_grades;
-                    break;
-                default:
-                    return global.hi_grades;
+                case tone::prop::kb_focus: return global.kb_grades;
+                case tone::prop::brighter: return global.hi_grades;
+                case tone::prop::shadower: return global.lo_grades;
+                case tone::prop::shadow:   return global.sh_grades;
+                case tone::prop::selector: return global.sl_grades;
+                default:                   return global.hi_grades;
             }
         }
         // skin:: Return global border size.
@@ -4304,13 +4315,21 @@ namespace netxs::console
             : synch{ bell::router<tier::general>(), e2::timer::tick.id },
               joint{ server_pipe }
         {
-            skin::setup(tone::brighter, config.take("brighter"));//120);
-            skin::setup(tone::kb_focus, config.take("kb_focus"));//60
-            skin::setup(tone::shadower, config.take("shadower"));//180);//60);//40);// 20);
-            skin::setup(tone::shadow  , config.take("shadow"  ));//180);//5);
-            skin::setup(tone::lucidity, config.take("lucidity"));//255);
-            skin::setup(tone::selector, config.take("selector"));//48);
-            skin::setup(tone::bordersz, config.take("bordersz", dot_11));//dot_11);
+            skin::setup(tone::brighter  , config.take("brighter"));//120);
+            skin::setup(tone::kb_focus  , config.take("kb_focus"));//60
+            skin::setup(tone::shadower  , config.take("shadower"));//180);//60);//40);// 20);
+            skin::setup(tone::shadow    , config.take("shadow"  ));//180);//5);
+            skin::setup(tone::lucidity  , config.take("lucidity"));//255);
+            skin::setup(tone::selector  , config.take("selector"));//48);
+            skin::setup(tone::bordersz  , config.take("bordersz"  , dot_11));//dot_11);
+            skin::setup(tone::highlight , config.take("highlight" , cell{}));
+            skin::setup(tone::warning   , config.take("warning"   , cell{}));
+            skin::setup(tone::danger    , config.take("danger"    , cell{}));
+            skin::setup(tone::action    , config.take("action"    , cell{}));
+            skin::setup(tone::label     , config.take("label"     , cell{}));
+            skin::setup(tone::inactive  , config.take("inactive"  , cell{}));
+            skin::setup(tone::menu_white, config.take("menu_white", cell{}));
+            skin::setup(tone::menu_black, config.take("menu_black", cell{}));
             hertz = config.take("fps");
             if (hertz <= 0) hertz = 60;
 
@@ -5341,19 +5360,18 @@ namespace netxs::console
             auto _user   = peer->line(';');
             auto _mode   = peer->line(';');
             auto _runcfg = peer->line(';');
+            auto xmlconfig = utf::unbase64(_runcfg);
+            config.merge(xmlconfig);
 
             _user = "[" + _user + ":" + std::to_string(session_id) + "]";
             auto c_info = utf::divide(_ip, " ");
-            ip   = c_info.size() > 0 ? c_info[0] : text{};
-            port = c_info.size() > 1 ? c_info[1] : text{};
+            ip                = c_info.size() > 0 ? c_info[0] : text{};
+            port              = c_info.size() > 1 ? c_info[1] : text{};
             legacy_mode       = utf::to_int(_mode, os::legacy::clean);
             os_user_id        = _user;
             fullname          = _name;
             name              = _user;
             title             = _user;
-
-            auto xmlconfig = utf::unbase64(_runcfg);
-            config.merge(xmlconfig);
             selected          = config.take("/config/menu/selected", ""s);
             read(config);
             background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
