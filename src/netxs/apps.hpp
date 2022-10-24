@@ -181,7 +181,7 @@ R"==(
             <brighter=0 />
         </runapp>
     </appearance>
-    <set>         <!-- Global variables definition -->
+    <set>         <!-- Global namespace - Unresolved literals will be taken from here -->
         <  blackdk=0xFF101010 /> <!-- Color reference literals -->
         <    reddk=0xFF1f0fc4 />
         <  greendk=0xFF0ea112 />
