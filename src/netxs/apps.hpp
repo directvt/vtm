@@ -42,7 +42,7 @@ namespace netxs::app::shared
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
 )=="
 #if defined(_WIN32)
 R"==(
@@ -85,14 +85,14 @@ R"==(
                             <color15=whitelt   />
                         </palette>
                         <default>
-                            <fg=15 /> <!-- 256-color index is allowed -->
-                            <bg=0 />
+                            <fgc=15 /> <!-- 256-color index is allowed -->
+                            <bgc=0 />
                         </default>
-                        <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+                        <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
                         <selection>
-                            <text fx=selection bg=12 fg=15 />
+                            <text fx=selection bgc=12 fgc=15 />
                             <ansi fx=xlight/>
-                            <none fx=selection bg=8 fg=7 />
+                            <none fx=selection bgc=8 fgc=7 />
                         </selection>
                     </colors>
                     <tablen=8 />      <!-- Tab length. -->
@@ -120,9 +120,9 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgcolor=15 bgcolor=0xFF562401 notes=" run PowerShell "/>
-        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                                      notes=" run default WSL profile "/>
-   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                                 notes=" run Far Manager in its own window "/> -->
+        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run PowerShell "/>
+        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
+   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                         notes=" run Far Manager in its own window "/> -->
 )=="
 #else
 R"==(
@@ -220,7 +220,7 @@ R"==(
         <  亮白=whitelt   />
     </set>
     <client>
-        <background fgc=7 bgc=0xFF7f0000 />
+        <background fgc=whitedk bgc=0xFF7f0000 />
         <clip_preview size=80x25 />
         <viewport coor=0,0 />
         <tooltip timeout=500ms enabled=true />
@@ -235,33 +235,32 @@ R"==(
         </scrollback>
         <colors>
             <palette>
-                <color*/>
-                <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
-                <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
-                <color=0xFF0EA112 />          <!-- 2  greendk   -->
-                <color=0xFF009CC0 />          <!-- 3  yellowdk  -->
-                <color=0xFFDB3700 />          <!-- 4  bluedk    -->
-                <color=0xFF981787 />          <!-- 5  magentadk -->
-                <color=0xFFDD963B />          <!-- 6  cyandk    -->
-                <color=0xFFBBBBBB />          <!-- 7  whitedk   -->
-                <color=0xFF757575 />          <!-- 8  blacklt   -->
-                <color=0xFF5648E6 />          <!-- 9  redlt     -->
-                <color=0xFF0CC615 />          <!-- 10 greenlt   -->
-                <color=0xFFA5F1F8 />          <!-- 11 yellowlt  -->
-                <color=0xFFFF783A />          <!-- 12 bluelt    -->
-                <color=0xFF9E00B3 />          <!-- 13 magentalt -->
-                <color=0xFFD6D660 />          <!-- 14 cyanlt    -->
-                <color=0xFFF3F3F3 index=15 /> <!-- 15 whitelt   -->
+                <color0=blackdk    /> <!-- See /config/set/* for the color name reference -->
+                <color1=reddk      />
+                <color2=greendk    />
+                <color3=yellowdk   />
+                <color4=bluedk     />
+                <color5=magentadk  />
+                <color6=cyandk     />
+                <color7=whitedk    />
+                <color8=blacklt    />
+                <color9=redlt      />
+                <color10=greenlt   />
+                <color11=yellowlt  />
+                <color12=bluelt    />
+                <color13=magentalt />
+                <color14=cyanlt    />
+                <color15=whitelt   />
             </palette>
             <default>
-                <fg=15 /> <!-- 256-color index is allowed -->
-                <bg=0 />
+                <fgc=15 /> <!-- 256-color index is allowed -->
+                <bgc=0 />
             </default>
-            <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+            <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
-                <text fx=selection bg=12 fg=15 />
+                <text fx=selection bgc=12 fgc=15 />
                 <ansi fx=xlight/>
-                <none fx=selection bg=8 fg=7 />
+                <none fx=selection bgc=8 fgc=7 />
             </selection>
         </colors>
         <tablen=8 />      <!-- Tab length. -->
@@ -272,7 +271,7 @@ R"==(
         </cursor>
         <menu>
             <enabled="on"/>
-            <slim="on"/>
+            <slim=on />
         </menu>
         <wrap="on"/>
         <selection>
@@ -284,7 +283,7 @@ R"==(
             <action=findPrev key="Alt+LeftArrow"/>
         </hotkeys>
     </term>
-    <text>      <!-- Base configuration for the Talc app. It can be overridden by param's subargs. -->
+    <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </text>
     <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
