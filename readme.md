@@ -378,8 +378,8 @@ Attribute  | Description                                       | Value type | Ma
 `notes`    |  Item tooltip text                                | `string`   |           | empty
 `title`    |  App window title                                 | `string`   |           | empty
 `footer`   |  App window footer                                | `string`   |           | empty
-`bgcolor`  |  App window background color                      | `RGBA`     |           |
-`fgcolor`  |  App window foreground color                      | `RGBA`     |           |
+`bgc`      |  App window background color                      | `RGBA`     |           |
+`fgc`      |  App window foreground color                      | `RGBA`     |           |
 `winsize`  |  App window 2D size                               | `x;y`      |           |
 `slimmenu` |  App window menu vertical size                    | `boolean`  |           | `no`
 `cwd`      |  Current working directory                        | `string`   |           |
@@ -426,7 +426,7 @@ Note: The following configuration sections are not implemented yet
             </notes>
         </item>
         <item* />    <!-- use asterisk at the end of the element name to set defaults -->
-        <item* hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no slimmenu=false type=SHELL fgc=#00000000 bgc=#00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Run built-in terminal emulator ">
             <hotkeys>    <!-- not implemented -->
                 <action=start key="Ctrl+'t'"/>

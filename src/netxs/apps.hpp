@@ -761,8 +761,8 @@ R"==(
             //todo pass app config
             auto app_config = text{};
             auto object = creator(config.cwd, config.param, app_config);
-            if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
-            if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
+            if (config.bgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
+            if (config.fgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
 
             window->attach(object);

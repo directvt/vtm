@@ -7413,8 +7413,8 @@ namespace netxs::ui
                 owner.SUBMIT_T(tier::anycast, e2::form::prop::colors::any, token, clr)
                 {
                     auto deed = owner.bell::template protos<tier::anycast>();
-                         if (deed == e2::form::prop::colors::bg.id) s11n::bgcolor.send(owner, clr);
-                    else if (deed == e2::form::prop::colors::fg.id) s11n::fgcolor.send(owner, clr);
+                         if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(owner, clr);
+                    else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(owner, clr);
                 };
                 owner.SUBMIT_T(tier::release, e2::size::any, token, new_size)
                 {

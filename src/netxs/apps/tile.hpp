@@ -805,8 +805,8 @@ namespace netxs::app::tile
                 auto& creator = app::shared::create::builder(config.type);
                 auto host = creator(config.cwd, config.param, config.config);
                 auto inst = app_window(config.title, config.footer, host, app_id);
-                if (config.bgcolor)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
-                if (config.fgcolor)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
+                if (config.bgc)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
+                if (config.fgc)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
                 if (config.slimmenu) inst->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
                 place->attach(inst);
             }

@@ -66,8 +66,8 @@ namespace netxs::console
         text    notes{};
         text    title{};
         text   footer{};
-        rgba  bgcolor{};
-        rgba  fgcolor{};
+        rgba      bgc{};
+        rgba      fgc{};
         twod  winsize{};
         twod  wincoor{};
         bool slimmenu{};
@@ -96,8 +96,8 @@ namespace netxs::console
     static constexpr auto attr_notes    = "notes";
     static constexpr auto attr_title    = "title";
     static constexpr auto attr_footer   = "footer";
-    static constexpr auto attr_bgcolor  = "bgcolor";
-    static constexpr auto attr_fgcolor  = "fgcolor";
+    static constexpr auto attr_bgc      = "bgc";
+    static constexpr auto attr_fgc      = "fgc";
     static constexpr auto attr_winsize  = "winsize";
     static constexpr auto attr_wincoor  = "wincoor";
     static constexpr auto attr_slimmenu = "slimmenu";
@@ -4800,8 +4800,8 @@ namespace netxs::console
                 conf_rec.notes    = item.take(attr_notes,    fallback.notes   );
                 conf_rec.title    = item.take(attr_title,    fallback.title   );
                 conf_rec.footer   = item.take(attr_footer,   fallback.footer  );
-                conf_rec.bgcolor  = item.take(attr_bgcolor,  fallback.bgcolor );
-                conf_rec.fgcolor  = item.take(attr_fgcolor,  fallback.fgcolor );
+                conf_rec.bgc      = item.take(attr_bgc,      fallback.bgc     );
+                conf_rec.fgc      = item.take(attr_fgc,      fallback.fgc     );
                 conf_rec.winsize  = item.take(attr_winsize,  fallback.winsize );
                 conf_rec.wincoor  = item.take(attr_wincoor,  fallback.wincoor );
                 conf_rec.slimmenu = item.take(attr_slimmenu, fallback.slimmenu);
@@ -5151,12 +5151,12 @@ namespace netxs::console
             auto& item = lock.thing;
             notify(e2::config::fps, item.frame_rate);
         }
-        void handle(s11n::xs::bgcolor     lock)
+        void handle(s11n::xs::bgc         lock)
         {
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::colors::bg, item.color);
         }
-        void handle(s11n::xs::fgcolor     lock)
+        void handle(s11n::xs::fgc         lock)
         {
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::colors::fg, item.color);
