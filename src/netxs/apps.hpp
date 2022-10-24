@@ -67,16 +67,16 @@ R"==(
                     </scrollback>
                     <colors>
                         <palette>
-                            <color0=blackdk    /> <!-- See /config/set/* for the color name reference -->
-                            <color1=reddk      />
-                            <color2=greendk    />
-                            <color3=yellowdk   />
-                            <color4=bluedk     />
-                            <color5=magentadk  />
-                            <color6=cyandk     />
-                            <color7=whitedk    />
-                            <color8=blacklt    />
-                            <color9=redlt      />
+                            <color0 =blackdk   /> <!-- See /config/set/* for the color name reference -->
+                            <color1 =reddk     />
+                            <color2 =greendk   />
+                            <color3 =yellowdk  />
+                            <color4 =bluedk    />
+                            <color5 =magentadk />
+                            <color6 =cyandk    />
+                            <color7 =whitedk   />
+                            <color8 =blacklt   />
+                            <color9 =redlt     />
                             <color10=greenlt   />
                             <color11=yellowlt  />
                             <color12=bluelt    />
@@ -128,20 +128,20 @@ R"==(
 )=="
 #else
 R"==(
-   <!-- <item id=mc        label="mc"        type=SHELL    title="Midnight Commander"    param="mc"               notes=" run Midnight Commander in its own window "/> -->
+   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    param="mc"               notes=" run Midnight Commander in its own window "/> -->
 )=="
 #endif
 R"==(
-        <item id=Tile      label="Tile"      type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
-        <item id=View      label=View        type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
-        <item id=Settings  label=Settings    type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
-        <item id=Logs      label=Logs        type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
+        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
+        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
+        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
+        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
    <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
-   <!-- <item id=Gems      label="Gems"      type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
-   <!-- <item id=Text      label="Text"      type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
-   <!-- <item id=Calc      label="Calc"      type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
-   <!-- <item id=Test      label="Test"      type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
-   <!-- <item id=Truecolor label="Truecolor" type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
+   <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
+   <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
+   <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
+   <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
+   <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun>    <!-- not implemented -->
             <item*/>
             <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default -->
