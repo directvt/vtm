@@ -67,22 +67,22 @@ R"==(
                     </scrollback>
                     <colors>
                         <palette>
-                            <color0 =blackdk   /> <!-- See /config/set/* for the color name reference -->
-                            <color1 =reddk     />
-                            <color2 =greendk   />
-                            <color3 =yellowdk  />
-                            <color4 =bluedk    />
-                            <color5 =magentadk />
-                            <color6 =cyandk    />
-                            <color7 =whitedk   />
-                            <color8 =blacklt   />
-                            <color9 =redlt     />
-                            <color10=greenlt   />
-                            <color11=yellowlt  />
-                            <color12=bluelt    />
-                            <color13=magentalt />
-                            <color14=cyanlt    />
-                            <color15=whitelt   />
+                            <color0  = blackdk   /> <!-- See /config/set/* for the color name reference -->
+                            <color1  = reddk     />
+                            <color2  = greendk   />
+                            <color3  = yellowdk  />
+                            <color4  = bluedk    />
+                            <color5  = magentadk />
+                            <color6  = cyandk    />
+                            <color7  = whitedk   />
+                            <color8  = blacklt   />
+                            <color9  = redlt     />
+                            <color10 = greenlt   />
+                            <color11 = yellowlt  />
+                            <color12 = bluelt    />
+                            <color13 = magentalt />
+                            <color14 = cyanlt    />
+                            <color15 = whitelt   />
                         </palette>
                         <default>
                             <fgc=15 /> <!-- 256-color index is allowed -->
@@ -170,7 +170,7 @@ R"==(
             <shadow=180 />
             <lucidity=255 />
             <selector=48 />
-            <highlight  fgc=purewhite  bgc=bluelt     />
+            <highlight  fgc=purewhite  bgc=亮蓝       />
             <warning    fgc=whitelt    bgc=yellowdk   />
             <danger     fgc=whitelt    bgc=redlt      />
             <action     fgc=whitelt    bgc=greenlt    />
@@ -237,22 +237,22 @@ R"==(
         </scrollback>
         <colors>
             <palette>
-                <color0=blackdk    /> <!-- See /config/set/* for the color name reference -->
-                <color1=reddk      />
-                <color2=greendk    />
-                <color3=yellowdk   />
-                <color4=bluedk     />
-                <color5=magentadk  />
-                <color6=cyandk     />
-                <color7=whitedk    />
-                <color8=blacklt    />
-                <color9=redlt      />
-                <color10=greenlt   />
-                <color11=yellowlt  />
-                <color12=bluelt    />
-                <color13=magentalt />
-                <color14=cyanlt    />
-                <color15=whitelt   />
+                <color0  = blackdk   /> <!-- See /config/set/* for the color name reference -->
+                <color1  = reddk     />
+                <color2  = greendk   />
+                <color3  = yellowdk  />
+                <color4  = bluedk    />
+                <color5  = magentadk />
+                <color6  = cyandk    />
+                <color7  = whitedk   />
+                <color8  = blacklt   />
+                <color9  = redlt     />
+                <color10 = greenlt   />
+                <color11 = yellowlt  />
+                <color12 = bluelt    />
+                <color13 = magentalt />
+                <color14 = cyanlt    />
+                <color15 = whitelt   />
             </palette>
             <default>
                 <fgc=15 /> <!-- 256-color index is allowed -->
