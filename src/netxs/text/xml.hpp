@@ -73,35 +73,31 @@ namespace netxs::xml
     }
 
     template<class T>
-    auto take(view utf8, T fallback = {})
+    auto take(view utf8) -> std::optional<T>
     { }
     template<>
-    auto take<si32>(view utf8, si32 result)
+    auto take<si32>(view utf8) -> std::optional<si32>
     {
-        if (auto v = utf::to_int(utf8))
-        {
-            result = v.value();
-        }
-        return result;
+        if (auto v = utf::to_int(utf8)) return v.value();
+        else                            return std::nullopt;
     }
     template<>
-    auto take<text>(view utf8, text result)
+    auto take<text>(view utf8) -> std::optional<text>
     {
         return text{ utf8 };
     }
     template<>
-    auto take<bool>(view utf8, bool result)
+    auto take<bool>(view utf8) -> std::optional<bool>
     {
         auto value = text{ utf8 };
         utf::to_low(value);
-        result = value.empty() || value.starts_with("1")  // 1 - true
-                               || value.starts_with("on") // on
-                               || value.starts_with("y")  // yes
-                               || value.starts_with("t"); // true
-        return result;
+        return value.empty() || value.starts_with("1")  // 1 - true
+                             || value.starts_with("on") // on
+                             || value.starts_with("y")  // yes
+                             || value.starts_with("t"); // true
     }
     template<>
-    auto take<twod>(view utf8, twod result)
+    auto take<twod>(view utf8) -> std::optional<twod>
     {
         utf::trim_front(utf8, " ({[\"\'");
         if (auto x = utf::to_int(utf8))
@@ -109,34 +105,34 @@ namespace netxs::xml
             utf::trim_front(utf8, " ,.x/:;");
             if (auto y = utf::to_int(utf8))
             {
-                result.x = x.value();
-                result.y = y.value();
+                return twod{ x.value(), y.value() };
             }
         }
-        return result;
+        return std::nullopt;
     }
     template<>
-    auto take<period>(view utf8, period result)
+    auto take<period>(view utf8) -> std::optional<period>
     {
         using namespace std::chrono;
         utf::trim_front(utf8, " ({[\"\'");
         if (auto x = utf::to_int(utf8))
         {
             auto v = x.value();
+            auto p = period{};
                  if (utf8.empty()
-                  || utf8.starts_with("ms" )) result = milliseconds{ v };
-            else if (utf8.starts_with("us" )) result = microseconds{ v };
-            else if (utf8.starts_with("ns" )) result =  nanoseconds{ v };
-            else if (utf8.starts_with("s"  )) result =      seconds{ v };
-            else if (utf8.starts_with("min")) result =      minutes{ v };
-            else if (utf8.starts_with("h"  )) result =        hours{ v };
-            else if (utf8.starts_with("d"  )) result =         days{ v };
-            else if (utf8.starts_with("w"  )) result =        weeks{ v };
+                  || utf8.starts_with("ms" )) return period{ milliseconds{ v } };
+            else if (utf8.starts_with("us" )) return period{ microseconds{ v } };
+            else if (utf8.starts_with("ns" )) return period{  nanoseconds{ v } };
+            else if (utf8.starts_with("s"  )) return period{      seconds{ v } };
+            else if (utf8.starts_with("min")) return period{      minutes{ v } };
+            else if (utf8.starts_with("h"  )) return period{        hours{ v } };
+            else if (utf8.starts_with("d"  )) return period{         days{ v } };
+            else if (utf8.starts_with("w"  )) return period{        weeks{ v } };
         }
-        return result;
+        return std::nullopt;
     }
     template<>
-    auto take<rgba>(view utf8, rgba result)
+    auto take<rgba>(view utf8) -> std::optional<rgba>
     {
         auto tobyte = [](auto c)
         {
@@ -147,6 +143,7 @@ namespace netxs::xml
 
         auto value = text{ utf8 };
         utf::to_low(value);
+        auto result = rgba{};
         auto shadow = view{ value };
         utf::trim_front(shadow, " ({[\"\'");
         if (shadow.starts_with('#')) // hex: #rrggbbaa
@@ -158,6 +155,7 @@ namespace netxs::xml
                 result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                 result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 result.chan.a = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
+                return result;
             }
             else if (shadow.size() >= 6) // hex: #rrggbb
             {
@@ -165,6 +163,7 @@ namespace netxs::xml
                 result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                 result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 result.chan.a = 0xff;
+                return result;
             }
             else log(" xml: unknown hex rgba format: { ", value, " }, expected #rrggbbaa or #rrggbb rgba hex value");
         }
@@ -177,6 +176,7 @@ namespace netxs::xml
                 result.chan.b = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                 result.chan.g = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 result.chan.r = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
+                return result;
             }
             else if (shadow.size() >= 6) // hex: 0xbbggrr
             {
@@ -184,6 +184,7 @@ namespace netxs::xml
                 result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                 result.chan.r = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 result.chan.a = 0xff;
+                return result;
             }
             else log(" xml: unknown hex rgba format: { ", value, " }, expected 0xaabbggrr or 0xbbggrr rgba hex value");
         }
@@ -211,13 +212,14 @@ namespace netxs::xml
         }
         else // Single ANSI color value
         {
-            if (auto c = utf::to_int(shadow); c.value() >=0 && c.value() <=255)
+            if (auto c = utf::to_int(shadow); c && c.value() >=0 && c.value() <=255)
             {
                 result = rgba::color256[c.value()];
+                return result;
             }
             else log(" xml: unknown ANSI 256-color value format: { ", value, " }, expected 0-255 decimal value");
         }
-        return result;
+        return std::nullopt;
     }
 
 
@@ -446,7 +448,8 @@ namespace netxs::xml
                     if (item_set.size()) // Take the first item only.
                     {
                         auto crop = item_set.front()->get_value();
-                        return xml::take(crop, fallback);
+                        if (auto result = xml::take<T>(crop)) return result.value();
+                        else                                  return fallback;
                     }
                 }
                 if (auto def_ptr = def_wptr.lock()) return def_ptr->take(attr, fallback);

@@ -67,23 +67,22 @@ R"==(
                     </scrollback>
                     <colors>
                         <palette>
-                            <color*/>
-                            <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
-                            <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
-                            <color=0xFF0EA112 />          <!-- 2  greendk   -->
-                            <color=0xFF009CC0 />          <!-- 3  yellowdk  -->
-                            <color=0xFFDB3700 />          <!-- 4  bluedk    -->
-                            <color=0xFF981787 />          <!-- 5  magentadk -->
-                            <color=0xFFDD963B />          <!-- 6  cyandk    -->
-                            <color=0xFFBBBBBB />          <!-- 7  whitedk   -->
-                            <color=0xFF757575 />          <!-- 8  blacklt   -->
-                            <color=0xFF5648E6 />          <!-- 9  redlt     -->
-                            <color=0xFF0CC615 />          <!-- 10 greenlt   -->
-                            <color=0xFFA5F1F8 />          <!-- 11 yellowlt  -->
-                            <color=0xFFFF783A />          <!-- 12 bluelt    -->
-                            <color=0xFF9E00B3 />          <!-- 13 magentalt -->
-                            <color=0xFFD6D660 />          <!-- 14 cyanlt    -->
-                            <color=0xFFF3F3F3 index=15 /> <!-- 15 whitelt   -->
+                            <color0=blackdk    /> <!-- See /config/set/* for the color name reference -->
+                            <color1=reddk      />
+                            <color2=greendk    />
+                            <color3=yellowdk   />
+                            <color4=bluedk     />
+                            <color5=magentadk  />
+                            <color6=cyandk     />
+                            <color7=whitedk    />
+                            <color8=blacklt    />
+                            <color9=redlt      />
+                            <color10=greenlt   />
+                            <color11=yellowlt  />
+                            <color12=bluelt    />
+                            <color13=magentalt />
+                            <color14=cyanlt    />
+                            <color15=whitelt   />
                         </palette>
                         <default>
                             <fg=15 /> <!-- 256-color index is allowed -->
@@ -169,19 +168,57 @@ R"==(
             <shadow=180 />
             <lucidity=255 />
             <selector=48 />
-            <highlight  fgc=0xFFffffff bgc=0xFFFF783A />
-            <warning    fgc=0xFFF3F3F3 bgc=0xFF009CC0 />
-            <danger     fgc=0xFFF3F3F3 bgc=0xFF5648E6 />
-            <action     fgc=0xFFF3F3F3 bgc=0xFF0CC615 />
-            <label      fgc=0xFF101010 bgc=0xFFBBBBBB />
-            <inactive   fgc=0xFF757575 bgc=0x00000000 />
-            <menu_white fgc=0xFFF3F3F3 bgc=0x80404040 />
-            <menu_black fgc=0xFF101010 bgc=0x80404040 />
+            <highlight  fgc=purewhite  bgc=bluelt />
+            <warning    fgc=whitelt    bgc=yellowdk />
+            <danger     fgc=whitelt    bgc=redlt />
+            <action     fgc=whitelt    bgc=greenlt />
+            <label      fgc=blackdk    bgc=whitedk />
+            <inactive   fgc=blacklt    bgc=nocolor />
+            <menu_white fgc=whitelt    bgc=0x80404040 />
+            <menu_black fgc=blackdk    bgc=0x80404040 />
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0 />
         </runapp>
     </appearance>
+    <set>         <!-- Global variables definition -->
+        <  blackdk=0xFF101010 /> <!-- Color reference literals -->
+        <    reddk=0xFF1f0fc4 />
+        <  greendk=0xFF0ea112 />
+        < yellowdk=0xFF009cc0 />
+        <   bluedk=0xFFdb3700 />
+        <magentadk=0xFF981787 />
+        <   cyandk=0xFFdd963b />
+        <  whitedk=0xFFbbbbbb />
+        <  blacklt=0xFF757575 />
+        <    redlt=0xFF5648e6 />
+        <  greenlt=0xFF0cc615 />
+        < yellowlt=0xFFa5f1f8 />
+        <   bluelt=0xFFff783a />
+        <magentalt=0xFF9e00b3 />
+        <   cyanlt=0xFFd6d660 />
+        <  whitelt=0xFFf3f3f3 />
+        <pureblack=0xFF000000 />
+        <purewhite=0xFFffffff />
+        <  nocolor=0x00000000 />
+
+        <    黑=blackdk   /> <!-- Localized color reference literals -->
+        <    红=reddk     />
+        <    绿=greendk   />
+        <    黄=yellowdk  />
+        <    蓝=bluedk    />
+        <  品红=magentadk />
+        <    青=cyandk    />
+        <    白=whitedk   />
+        <    灰=blacklt   />
+        <  亮红=redlt     />
+        <  亮绿=greenlt   />
+        <  亮黄=yellowlt  />
+        <  亮蓝=bluelt    />
+        <亮品红=magentalt />
+        <  亮青=cyanlt    />
+        <  亮白=whitelt   />
+    </set>
     <client>
         <background fgc=7 bgc=0xFF7f0000 />
         <clip_preview size=80x25 />
@@ -829,7 +866,12 @@ R"==(
             if (list.size() ) crop = list.back()->get_value();
             else              log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
             list.clear();
-            return xml::take<T>(crop, defval);
+            if (auto result = xml::take<T>(crop)) return result.value();
+            else
+            {
+                if (crop.size()) return take("/config/set/" + crop, defval);
+                else             return defval;
+            }
         }
         auto take(view path, cell defval)
         {
