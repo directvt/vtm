@@ -651,7 +651,7 @@ namespace netxs::xml
 
                 if (what == type::equal)
                 {
-                    diff(data, temp, type::whitespaces);
+                    diff(temp, data, type::whitespaces);
                     data=temp;
 
                     page.append(type::equal, skip(data, what));

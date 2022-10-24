@@ -92,6 +92,8 @@ R"==(
                         <selection>
                             <text fx=selection bgc=12 fgc=15 />
                             <ansi fx=xlight/>
+                            <rich fx=xlight/>
+                            <html fx=xlight/>
                             <none fx=selection bgc=8 fgc=7 />
                         </selection>
                     </colors>
@@ -107,7 +109,7 @@ R"==(
                     </menu>
                     <wrap="on"/>
                     <selection>
-                        <mode="plain"/> <!-- plain | ansi | disabled -->
+                        <mode="text"/> <!-- text | ansi | rich | html | none -->
                     </selection>
                     <hotkeys>
                         <action*/>
@@ -168,12 +170,12 @@ R"==(
             <shadow=180 />
             <lucidity=255 />
             <selector=48 />
-            <highlight  fgc=purewhite  bgc=bluelt />
-            <warning    fgc=whitelt    bgc=yellowdk />
-            <danger     fgc=whitelt    bgc=redlt />
-            <action     fgc=whitelt    bgc=greenlt />
-            <label      fgc=blackdk    bgc=whitedk />
-            <inactive   fgc=blacklt    bgc=nocolor />
+            <highlight  fgc=purewhite  bgc=bluelt     />
+            <warning    fgc=whitelt    bgc=yellowdk   />
+            <danger     fgc=whitelt    bgc=redlt      />
+            <action     fgc=whitelt    bgc=greenlt    />
+            <label      fgc=blackdk    bgc=whitedk    />
+            <inactive   fgc=blacklt    bgc=nocolor    />
             <menu_white fgc=whitelt    bgc=0x80404040 />
             <menu_black fgc=blackdk    bgc=0x80404040 />
         </defaults>
@@ -182,42 +184,42 @@ R"==(
         </runapp>
     </appearance>
     <set>         <!-- Global namespace - Unresolved literals will be taken from here -->
-        <  blackdk=0xFF101010 /> <!-- Color reference literals -->
-        <    reddk=0xFF1f0fc4 />
-        <  greendk=0xFF0ea112 />
-        < yellowdk=0xFF009cc0 />
-        <   bluedk=0xFFdb3700 />
-        <magentadk=0xFF981787 />
-        <   cyandk=0xFFdd963b />
-        <  whitedk=0xFFbbbbbb />
-        <  blacklt=0xFF757575 />
-        <    redlt=0xFF5648e6 />
-        <  greenlt=0xFF0cc615 />
-        < yellowlt=0xFFa5f1f8 />
-        <   bluelt=0xFFff783a />
-        <magentalt=0xFF9e00b3 />
-        <   cyanlt=0xFFd6d660 />
-        <  whitelt=0xFFf3f3f3 />
-        <pureblack=0xFF000000 />
-        <purewhite=0xFFffffff />
-        <  nocolor=0x00000000 />
+        <blackdk   = 0xFF101010 /> <!-- Color reference literals -->
+        <reddk     = 0xFF1f0fc4 />
+        <greendk   = 0xFF0ea112 />
+        <yellowdk  = 0xFF009cc0 />
+        <bluedk    = 0xFFdb3700 />
+        <magentadk = 0xFF981787 />
+        <cyandk    = 0xFFdd963b />
+        <whitedk   = 0xFFbbbbbb />
+        <blacklt   = 0xFF757575 />
+        <redlt     = 0xFF5648e6 />
+        <greenlt   = 0xFF0cc615 />
+        <yellowlt  = 0xFFa5f1f8 />
+        <bluelt    = 0xFFff783a />
+        <magentalt = 0xFF9e00b3 />
+        <cyanlt    = 0xFFd6d660 />
+        <whitelt   = 0xFFf3f3f3 />
+        <pureblack = 0xFF000000 />
+        <purewhite = 0xFFffffff />
+        <nocolor   = 0x00000000 />
 
-        <    黑=blackdk   /> <!-- Localized color reference literals -->
-        <    红=reddk     />
-        <    绿=greendk   />
-        <    黄=yellowdk  />
-        <    蓝=bluedk    />
-        <  品红=magentadk />
-        <    青=cyandk    />
-        <    白=whitedk   />
-        <    灰=blacklt   />
-        <  亮红=redlt     />
-        <  亮绿=greenlt   />
-        <  亮黄=yellowlt  />
-        <  亮蓝=bluelt    />
-        <亮品红=magentalt />
-        <  亮青=cyanlt    />
-        <  亮白=whitelt   />
+        <黑     = blackdk   /> <!-- Localized color reference literals -->
+        <红     = reddk     />
+        <绿     = greendk   />
+        <黄     = yellowdk  />
+        <蓝     = bluedk    />
+        <品红   = magentadk />
+        <青     = cyandk    />
+        <白     = whitedk   />
+        <灰     = blacklt   />
+        <亮红   = redlt     />
+        <亮绿   = greenlt   />
+        <亮黄   = yellowlt  />
+        <亮蓝   = bluelt    />
+        <亮品红 = magentalt />
+        <亮青   = cyanlt    />
+        <亮白   = whitelt   />
     </set>
     <client>
         <background fgc=whitedk bgc=0xFF7f0000 />
@@ -259,7 +261,9 @@ R"==(
             <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
                 <text fx=selection bgc=12 fgc=15 />
-                <ansi fx=xlight/>
+                <ansi fx=xlight />
+                <rich fx=xlight />
+                <html fx=xlight />
                 <none fx=selection bgc=8 fgc=7 />
             </selection>
         </colors>
@@ -275,7 +279,7 @@ R"==(
         </menu>
         <wrap="on"/>
         <selection>
-            <mode="plain"/> <!-- plain | ansi | disabled -->
+            <mode="text"/> <!-- text | ansi | rich | html | none -->
         </selection>
         <hotkeys>
             <action*/>
