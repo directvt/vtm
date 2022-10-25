@@ -413,13 +413,13 @@ namespace netxs::{module}
 
     struct base
     {{
-        static constexpr size_t  blocks_size = {blocks_size};
+        static constexpr auto    blocks_size = size_t{{ {blocks_size} }};
         static constexpr int32_t blocks_pack[] =
         {{
             {blocks}
         }};
 
-        static constexpr size_t  offset_size = {offset_size};
+        static constexpr auto    offset_size = size_t{{ {offset_size} }};
         static constexpr int32_t offset_pack[] =
         {{
             {offset}

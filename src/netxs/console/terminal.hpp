@@ -104,16 +104,16 @@ namespace netxs::ui
             };
         };
 
-        static constexpr si32 max_length = 65535; // term: Max line length.
-        static constexpr si32 def_length = 20000; // term: Default scrollback history length.
-        static constexpr si32 def_growup = 0;     // term: Default scrollback history grow step.
-        static constexpr si32 def_tablen = 8;     // term: Default tab length.
-        static constexpr auto def_lucent = 0xC0;  // term: Default transparency level.
-        static constexpr auto def_margin = 0;     // term: Default side margin.
+        static constexpr auto max_length = si32{ 65535 };  // term: Max line length.
+        static constexpr auto def_length = si32{ 20000 };  // term: Default scrollback history length.
+        static constexpr auto def_growup = si32{ 0 };      // term: Default scrollback history grow step.
+        static constexpr auto def_tablen = si32{ 8 };      // term: Default tab length.
+        static constexpr auto def_lucent = 0xC0;           // term: Default transparency level.
+        static constexpr auto def_margin = 0;              // term: Default side margin.
         static constexpr auto def_selmod = clip::textonly; // term: Default selection mode.
         static constexpr auto def_wrpmod = deco::defwrp;   // term: Default wrapping mode.
-        static constexpr auto def_fcolor = whitelt; // term: Default foreground color.
-        static constexpr auto def_bcolor = blackdk; // term: Default background color.
+        static constexpr auto def_fcolor = whitelt;        // term: Default foreground color.
+        static constexpr auto def_bcolor = blackdk;        // term: Default background color.
         static constexpr auto def_cursor = commands::cursor::blinking_underline; // term: Default cursor style.
         static constexpr auto def_selclr = { bluelt,  whitelt }; // term: Default selection colors.
         static constexpr auto def_offclr = { blacklt, whitedk }; // term: Default inactive selection colors.
@@ -362,16 +362,16 @@ namespace netxs::ui
                 using m = hids::events::mouse;
                 using b = hids::events::mouse::button;
 
-                constexpr static si32 left = 0;
-                constexpr static si32 mddl = 1;
-                constexpr static si32 rght = 2;
-                constexpr static si32 btup = 3;
-                constexpr static si32 idle = 32;
-                constexpr static si32 wheel_up = 64;
-                constexpr static si32 wheel_dn = 65;
-                constexpr static si32 up_left = PROT == sgr ? left : btup;
-                constexpr static si32 up_rght = PROT == sgr ? rght : btup;
-                constexpr static si32 up_mddl = PROT == sgr ? mddl : btup;
+                static constexpr auto left     = si32{ 0  };
+                static constexpr auto mddl     = si32{ 1  };
+                static constexpr auto rght     = si32{ 2  };
+                static constexpr auto btup     = si32{ 3  };
+                static constexpr auto idle     = si32{ 32 };
+                static constexpr auto wheel_up = si32{ 64 };
+                static constexpr auto wheel_dn = si32{ 65 };
+                static constexpr auto up_left = PROT == sgr ? left : btup;
+                static constexpr auto up_rght = PROT == sgr ? rght : btup;
+                static constexpr auto up_mddl = PROT == sgr ? mddl : btup;
 
                 auto ismove = moved && state & mode::move;
                 auto isdrag = moved && state & mode::drag;
@@ -472,7 +472,7 @@ namespace netxs::ui
             // w_tracking: Set terminal window property.
             void set(text const& property, qiew txt)
             {
-                static auto jet_left = ansi::jet(bias::left);
+                static const auto jet_left = ansi::jet(bias::left);
                 owner.target->flush();
                 if (property == ansi::OSC_LABEL_TITLE)
                 {
@@ -519,16 +519,16 @@ namespace netxs::ui
             void manage(fifo& q)
             {
                 owner.target->flush();
-                static constexpr si32 all_title = 0;  // Sub commands.
-                static constexpr si32 label     = 1;  // Sub commands.
-                static constexpr si32 title     = 2;  // Sub commands.
-                static constexpr si32 set_winsz = 8;  // Set window size in characters.
-                static constexpr si32 maximize  = 9;  // Toggle maximize/restore.
-                static constexpr si32 full_scrn = 10; // Toggle fullscreen mode (todo: hide menu).
-                static constexpr si32 get_label = 20; // Report icon   label. (Report as OSC L label ST).
-                static constexpr si32 get_title = 21; // Report window title. (Report as OSC l title ST).
-                static constexpr si32 put_stack = 22; // Push icon label and window title to   stack.
-                static constexpr si32 pop_stack = 23; // Pop  icon label and window title from stack.
+                static constexpr auto all_title = si32{ 0  }; // Sub commands.
+                static constexpr auto label     = si32{ 1  }; // Sub commands.
+                static constexpr auto title     = si32{ 2  }; // Sub commands.
+                static constexpr auto set_winsz = si32{ 8  }; // Set window size in characters.
+                static constexpr auto maximize  = si32{ 9  }; // Toggle maximize/restore.
+                static constexpr auto full_scrn = si32{ 10 }; // Toggle fullscreen mode (todo: hide menu).
+                static constexpr auto get_label = si32{ 20 }; // Report icon   label. (Report as OSC L label ST).
+                static constexpr auto get_title = si32{ 21 }; // Report window title. (Report as OSC l title ST).
+                static constexpr auto put_stack = si32{ 22 }; // Push icon label and window title to   stack.
+                static constexpr auto pop_stack = si32{ 23 }; // Pop  icon label and window title from stack.
                 switch (auto option = q(0))
                 {
                     case maximize:
@@ -2754,7 +2754,7 @@ namespace netxs::ui
             part place; // scroll_buf: Selection last active region.
             si32 shore; // scroll_buf: Left and right scrollbuffer additional indents.
 
-            static constexpr si32 approx_threshold = 10000; //todo make it configurable
+            static constexpr auto approx_threshold = si32{ 10000 }; //todo make it configurable
 
             scroll_buf(term& boss, si32 buffer_size, si32 grow_step)
                 : bufferbase{ boss                   },
@@ -3136,8 +3136,8 @@ namespace netxs::ui
                         if (approx_threshold < std::min(range1, range2))
                         {
                             auto& mapln = index.front();
-                            ui64 c1 = static_cast<si32>(mapln.index - front.index);
-                            ui64 c2 = range2;
+                            auto c1 = static_cast<ui64>(static_cast<si32>(mapln.index - front.index));
+                            auto c2 = static_cast<ui64>(range2);
                             auto fresh_slide = static_cast<si32>(netxs::divround(batch.vsize * c2, c1));
                             batch.slide = batch.ancdy + fresh_slide;
                             batch.round = batch.vsize != batch.size;
@@ -6462,7 +6462,7 @@ namespace netxs::ui
                 ansi::mark brush;
                 void task(ansi::rule const& cmd) { }
             };
-            static ansi::csi_t<marker, true> parser;
+            static auto parser = ansi::csi_t<marker, true>{};
 
             auto mark = marker{};
             mark.brush = base::color();

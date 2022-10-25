@@ -13,7 +13,7 @@ namespace netxs::xml
     using namespace netxs::ui::atoms;
     using namespace netxs::datetime;
 
-    static constexpr auto spaces = " \n\r\t";
+    static constexpr auto spaces = " \n\r\t"sv;
     enum class type_old
     {
         none,
@@ -410,7 +410,7 @@ namespace netxs::xml
 
             static auto& map()
             {
-                static byid map;
+                static auto map = byid{};
                 return map;
             }
             template<class T>
@@ -456,21 +456,19 @@ namespace netxs::xml
                 else                                return fallback;
             }
 
-            static constexpr auto spaces = " \n\r\t";
-            static constexpr auto find_start = "<";
-            static constexpr auto rawtext_delims = " \t\n\r/><";
-            static constexpr auto token_delims = " \t\n\r=*/><";
-
-            static constexpr view view_comment_begin = "<!--";
-            static constexpr view view_comment_close = "-->" ;
-            static constexpr view view_close_tag     = "</"  ;
-            static constexpr view view_begin_tag     = "<"   ;
-            static constexpr view view_empty_tag     = "/>"  ;
-            static constexpr view view_slash         = "/"   ;
-            static constexpr view view_close_inline  = ">"   ;
-            static constexpr view view_quoted_text   = "\""  ;
-            static constexpr view view_equal         = "="   ;
-            static constexpr view view_defaults      = "*"   ;
+            static constexpr auto find_start         = "<"sv;
+            static constexpr auto rawtext_delims     = " \t\n\r/><"sv;
+            static constexpr auto token_delims       = " \t\n\r=*/><"sv;
+            static constexpr auto view_comment_begin = "<!--"sv;
+            static constexpr auto view_comment_close = "-->"sv;
+            static constexpr auto view_close_tag     = "</"sv;
+            static constexpr auto view_begin_tag     = "<"sv;
+            static constexpr auto view_empty_tag     = "/>"sv;
+            static constexpr auto view_slash         = "/"sv;
+            static constexpr auto view_close_inline  = ">"sv;
+            static constexpr auto view_quoted_text   = "\""sv;
+            static constexpr auto view_equal         = "="sv;
+            static constexpr auto view_defaults      = "*"sv;
 
             auto peek(view temp, type& what, type& last)
             {
@@ -974,15 +972,15 @@ namespace netxs::xml
         }
         auto show()
         {
-            static const rgba top_token_fg = 0xFFffd799;
-            static const rgba end_token_fg = 0xFFb3966a;
-            static const rgba token_fg     = 0xFFdab883;
-            static const rgba liter_fg     = 0xFF808080;
-            static const rgba comment_fg   = 0xFF4e4e4e;
-            static const rgba defaults_fg  = 0xFF9e9e9e;
-            static const rgba quotes_fg    = 0xFFBBBBBB;
-            static const rgba value_fg     = 0xFFf09690;
-            static const rgba value_bg     = 0xFF202020;
+            static constexpr auto top_token_fg = rgba{ 0xFFffd799 };
+            static constexpr auto end_token_fg = rgba{ 0xFFb3966a };
+            static constexpr auto token_fg     = rgba{ 0xFFdab883 };
+            static constexpr auto liter_fg     = rgba{ 0xFF808080 };
+            static constexpr auto comment_fg   = rgba{ 0xFF4e4e4e };
+            static constexpr auto defaults_fg  = rgba{ 0xFF9e9e9e };
+            static constexpr auto quotes_fg    = rgba{ 0xFFBBBBBB };
+            static constexpr auto value_fg     = rgba{ 0xFFf09690 };
+            static constexpr auto value_bg     = rgba{ 0xFF202020 };
 
             auto yield = ansi::esc{};
             for (auto& item : page.data)

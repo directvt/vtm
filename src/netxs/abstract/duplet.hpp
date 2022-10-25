@@ -146,15 +146,15 @@ namespace netxs
 
     using twod = duplet<si32>;
 
-    static constexpr const twod dot_00{ 0,0 };
-    static constexpr const twod dot_01{ 0,1 };
-    static constexpr const twod dot_10{ 1,0 };
-    static constexpr const twod dot_11{ 1,1 };
-    static constexpr const twod dot_22{ 2,2 };
-    static constexpr const twod dot_21{ 2,1 };
-    static constexpr const twod dot_33{ 3,3 };
-    static constexpr const twod dot_mx{ std::numeric_limits<si32>::max() / 2,
-                                        std::numeric_limits<si32>::max() / 2 };
+    static constexpr const auto dot_00 = twod{ 0,0 };
+    static constexpr const auto dot_01 = twod{ 0,1 };
+    static constexpr const auto dot_10 = twod{ 1,0 };
+    static constexpr const auto dot_11 = twod{ 1,1 };
+    static constexpr const auto dot_22 = twod{ 2,2 };
+    static constexpr const auto dot_21 = twod{ 2,1 };
+    static constexpr const auto dot_33 = twod{ 3,3 };
+    static constexpr const auto dot_mx = twod{ std::numeric_limits<si32>::max() / 2,
+                                               std::numeric_limits<si32>::max() / 2 };
 
     static twod divround(twod const& p, si32 n       ) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
     static twod divround(si32 n       , twod const& p) { return { divround(n  , p.x), divround(n  , p.y) }; }

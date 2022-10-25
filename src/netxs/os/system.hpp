@@ -115,22 +115,22 @@ namespace netxs::os
 
     enum role { client, server };
 
-    static constexpr si32 stdin_buf_size = 1024;
-    static bool is_daemon = faux;
+    static constexpr auto stdin_buf_size = si32{ 1024 };
+    static auto is_daemon = faux;
 
     #if defined(_WIN32)
 
         using fd_t = HANDLE;
         using conmode = DWORD[2];
-        static const fd_t INVALID_FD = INVALID_HANDLE_VALUE;
-        static const fd_t STDIN_FD  = ::GetStdHandle(STD_INPUT_HANDLE);
-        static const fd_t STDOUT_FD = ::GetStdHandle(STD_OUTPUT_HANDLE);
-        static const fd_t STDERR_FD = ::GetStdHandle(STD_ERROR_HANDLE);
-        static const si32 PIPE_BUF = 65536;
+        static const auto INVALID_FD   = fd_t{ INVALID_HANDLE_VALUE              };
+        static const auto STDIN_FD     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
+        static const auto STDOUT_FD    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
+        static const auto STDERR_FD    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
+        static const auto PIPE_BUF     = si32{ 65536 };
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
 
-        //static constexpr char* security_descriptor_string =
+        //static constexpr auto security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
         //	"O:AND:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)";
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;AU)";// Authenticated users
@@ -155,10 +155,10 @@ namespace netxs::os
 
         using fd_t = int;
         using conmode = ::termios;
-        static constexpr fd_t INVALID_FD = -1;
-        static constexpr fd_t STDIN_FD  = STDIN_FILENO;
-        static constexpr fd_t STDOUT_FD = STDOUT_FILENO;
-        static constexpr fd_t STDERR_FD = STDERR_FILENO;
+        static constexpr auto INVALID_FD = fd_t{ -1            };
+        static constexpr auto STDIN_FD   = fd_t{ STDIN_FILENO  };
+        static constexpr auto STDOUT_FD  = fd_t{ STDOUT_FILENO };
+        static constexpr auto STDERR_FD  = fd_t{ STDERR_FILENO };
 
         void fdcleanup() // Close all file descriptors except the standard ones.
         {

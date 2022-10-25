@@ -261,7 +261,7 @@ namespace netxs::input
         using usable = netxs::events::userland::hids::mouse::button::click;
 
     public:
-        constexpr static int numofbutton = 6;
+        static constexpr auto numofbutton = 6;
         enum bttns
         {
             left      = usable::left     .index(),
@@ -437,22 +437,22 @@ namespace netxs::input
             total = sysmouse::total    ,
         };
 
-        constexpr static auto dragstrt = mouse_event::button::drag::start:: any.group<total>();
-        constexpr static auto dragpull = mouse_event::button::drag::pull::  any.group<total>();
-        constexpr static auto dragcncl = mouse_event::button::drag::cancel::any.group<total>();
-        constexpr static auto dragstop = mouse_event::button::drag::stop::  any.group<total>();
-        constexpr static auto released = mouse_event::button::up::          any.group<total>();
-        constexpr static auto pushdown = mouse_event::button::down::        any.group<total>();
-        constexpr static auto sglclick = mouse_event::button::click::       any.group<total>();
-        constexpr static auto dblclick = mouse_event::button::dblclick::    any.group<total>();
-        constexpr static auto tplclick = mouse_event::button::tplclick::    any.group<total>();
-        constexpr static auto movement = mouse_event::move.id;
-        constexpr static auto idleness = mouse_event::shuffle.id;
-        constexpr static auto scrollup = mouse_event::scroll::up.id;
-        constexpr static auto scrolldn = mouse_event::scroll::down.id;
+        static constexpr auto dragstrt = mouse_event::button::drag::start:: any.group<total>();
+        static constexpr auto dragpull = mouse_event::button::drag::pull::  any.group<total>();
+        static constexpr auto dragcncl = mouse_event::button::drag::cancel::any.group<total>();
+        static constexpr auto dragstop = mouse_event::button::drag::stop::  any.group<total>();
+        static constexpr auto released = mouse_event::button::up::          any.group<total>();
+        static constexpr auto pushdown = mouse_event::button::down::        any.group<total>();
+        static constexpr auto sglclick = mouse_event::button::click::       any.group<total>();
+        static constexpr auto dblclick = mouse_event::button::dblclick::    any.group<total>();
+        static constexpr auto tplclick = mouse_event::button::tplclick::    any.group<total>();
+        static constexpr auto movement = mouse_event::move.id;
+        static constexpr auto idleness = mouse_event::shuffle.id;
+        static constexpr auto scrollup = mouse_event::scroll::up.id;
+        static constexpr auto scrolldn = mouse_event::scroll::down.id;
 
     public:
-        static constexpr si32 none = -1; // mouse: No active buttons.
+        static constexpr auto none = si32{ -1 }; // mouse: No active buttons.
 
         struct knob
         {
@@ -494,7 +494,7 @@ namespace netxs::input
             si32   count; // To control successive double-clicks, e.g. triple-clicks.
         }
         stamp[sysmouse::total] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
-        static constexpr period delay = 500ms;   // mouse: Double-click threshold.
+        static constexpr auto delay = 500ms;   // mouse: Double-click threshold.
 
         knob buttons[sysmouse::total];
         idxs pressed_list;

@@ -1032,7 +1032,7 @@ namespace netxs::console
         si32 object_kind = {};
 
     public:
-        static constexpr si32 reflow_root = -1; //todo unify
+        static constexpr auto reflow_root = si32{ -1 }; //todo unify
 
         //todo replace "side" with "dent<si32>"
         side oversz; // base: Oversize, margin.
@@ -3145,8 +3145,8 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            constexpr static auto QUIT_MSG = e2::conio::quit;
-            constexpr static si32 ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
+            static constexpr auto QUIT_MSG = e2::conio::quit;
+            static constexpr auto ESC_THRESHOLD = si32{ 500 }; // guard: Double escape threshold in ms.
 
             bool   wait; // guard: Ready to close.
             moment stop; // guard: Timeout for single Esc.
@@ -3187,10 +3187,9 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            constexpr static auto EXCUSE_MSG = hids::events::mouse::any;
-            constexpr static auto QUIT_MSG   = e2::shutdown;
-            //todo unify
-            constexpr static int LIMIT = 60 * 10; // watch: Idle timeout in seconds.
+            static constexpr auto EXCUSE_MSG = hids::events::mouse::any;
+            static constexpr auto QUIT_MSG   = e2::shutdown;
+            static constexpr auto LIMIT = 60 * 10; //todo unify // watch: Idle timeout in seconds.
 
             hook   pong; // watch: Alibi subsciption token.
             hook   ping; // watch: Zombie check countdown token.
