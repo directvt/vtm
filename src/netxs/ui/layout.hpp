@@ -2469,10 +2469,10 @@ namespace netxs::ui::atoms
             temp.size.x = std::max(0, border.west.step); // Left
             temp.size.y = std::max(0, area.size.y - border.head.step - border.foot.step);
             temp.coor.y = area.coor.y + border.head.step;
-            fill(temp.normalize().clip(area), fuse);
+            fill(temp.clip(area), fuse);
             temp.coor.x += area.size.x - border.east.step; // Right
             temp.size.x = std::max(0, border.east.step);
-            fill(temp.normalize().clip(area), fuse);
+            fill(temp.clip(area), fuse);
         }
         template<class TEXT, class P = noop>
         void text(twod const& pos, TEXT const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
