@@ -1976,7 +1976,9 @@ namespace netxs::console
                     auto now = datetime::round<si32>(p - init);
                     if (auto data = flow(now))
                     {
-                        proc(data.value());
+                        static constexpr auto zero = std::decay_t<decltype(data.value())>{};
+                        auto& v = data.value();
+                        if (v != zero) proc(v);
                     }
                     else
                     {
