@@ -448,6 +448,7 @@ namespace netxs::app::tile
                         {
                             //todo unify
                             boss.back()->color(cC.fgc(), cC.bgc());
+                            boss.deface();
                         }
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::ask, target)
@@ -464,6 +465,7 @@ namespace netxs::app::tile
                             bg.alpha(0x70);
                             boss.back()->color(fg, bg);
                             target = boss.This();
+                            boss.deface();
                         }
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::drop, what)
