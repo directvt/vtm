@@ -7345,10 +7345,12 @@ namespace netxs::ui
                 };
                 owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                 {
+                    coord[gear.id] = dot_mx;
                     s11n::mouse_halt.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
                 {
+                    coord[gear.id] = dot_mx;
                     s11n::mouse_halt.send(owner, gear.id);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
