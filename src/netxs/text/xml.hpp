@@ -210,9 +210,9 @@ namespace netxs::xml
             }
             log(" xml: unknown rgba format: { ", value, " }, expected 000,000,000,000 decimal rgba value");
         }
-        else // Single ANSI color value
+        else if (auto c = utf::to_int(shadow)) // Single ANSI color value
         {
-            if (auto c = utf::to_int(shadow); c && c.value() >=0 && c.value() <=255)
+            if (c.value() >=0 && c.value() <=255)
             {
                 result = rgba::color256[c.value()];
                 return result;
