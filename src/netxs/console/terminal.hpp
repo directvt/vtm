@@ -6425,7 +6425,7 @@ namespace netxs::ui
             log("term: exit code 0x", utf::to_hex(code));
             if (code)
             {
-                auto error = ansi::bgc(reddk).fgc(whitelt).add("\r\nterm: exit code 0x", utf::to_hex(code), " ");
+                auto error = ansi::bgc(reddk).fgc(whitelt).add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil();
                 ondata(error);
                 this->SUBMIT(tier::release, hids::events::keybd::any, gear)
                 {

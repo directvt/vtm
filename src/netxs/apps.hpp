@@ -218,7 +218,7 @@ R"==(
         <亮白   = whitelt   />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF7f0000 />
+        <background fgc=whitedk bgc=0xFF000000 />
         <clip_preview size=80x25 />
         <viewport coor=0,0 />
         <tooltip timeout=500ms enabled=true />
