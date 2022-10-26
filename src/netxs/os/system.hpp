@@ -4605,9 +4605,9 @@ namespace netxs::os
                         sa.nLength = sizeof(SECURITY_ATTRIBUTES);
                         sa.lpSecurityDescriptor = NULL;
                         sa.bInheritHandle = TRUE;
-                        if (::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0)
-                         && ::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
-                         && ::CreatePipe(&m_pipe_l, &s_pipe_l, &sa, 0))
+                        if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, std::max(PIPE_BUF, static_cast<si32>(ansi::dtvt::binary::marker::size + config.size())))
+                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, PIPE_BUF)
+                         && ::CreatePipe(&m_pipe_l, &s_pipe_l, &sa, PIPE_BUF))
                         {
                             os::legacy::send_dmd(m_pipe_w, winsz, config);
 
@@ -4684,9 +4684,12 @@ namespace netxs::os
                     fd_t to_server[2] = { INVALID_FD, INVALID_FD };
                     fd_t to_client[2] = { INVALID_FD, INVALID_FD };
                     fd_t to_srvlog[2] = { INVALID_FD, INVALID_FD };
-                    ok(::pipe(to_server), "dtvt: server ipc error");
-                    ok(::pipe(to_client), "dtvt: client ipc error");
-                    ok(::pipe(to_srvlog), "dtvt: srvlog ipc error");
+                    ok(::pipe(to_server), "dtvt: server ipc unexpected result");
+                    ok(::pipe(to_client), "dtvt: client ipc unexpected result");
+                    ok(::pipe(to_srvlog), "dtvt: srvlog ipc unexpected result");
+
+                    auto pipebuff = std::max(PIPE_BUF, static_cast<si32>(ansi::dtvt::binary::marker::size + config.size()));
+                    ok(::fcntl(to_client[1], F_SETPIPE_SZ, pipebuff), "dtvt: ::fcntl(to_client, F_SETPIPE_SZ...) unexpected result");
 
                     termlink.set(to_server[0], to_client[1], to_srvlog[0]);
                     os::legacy::send_dmd(to_client[1], winsz, config);

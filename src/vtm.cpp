@@ -111,6 +111,7 @@ int main(int argc, char* argv[])
         config.cd("/config/appearance/defaults/");
         auto ground = base::create<hall>(server, config);
         auto thread = os::pool{};
+        app::shared::activate(ground);
 
         log("main: listening socket ", server,
                          "\n\tuser: ", userid,
@@ -129,9 +130,8 @@ int main(int argc, char* argv[])
                 if (auto window = ground->invite<gate>(client, session_id, config))
                 {
                     log("user: new gate for ", client);
-                    auto app_conf = config.utf8();
-                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), app_conf);
-                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems; About; ", app_conf);
+                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config);
+                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems; About; ", config);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }

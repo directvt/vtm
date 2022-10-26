@@ -989,8 +989,8 @@ namespace netxs::xml
             static constexpr auto value_bg     = rgba{ 0xFF202020 };
 
             //test
-            //auto tmp = page.data.front().upto;
-            //auto clr = 0;
+            auto tmp = page.data.front().upto;
+            auto clr = 0;
 
             auto yield = ansi::esc{};
             for (auto& item : page.data)
@@ -999,11 +999,11 @@ namespace netxs::xml
                 auto data_ptr = item.part;
 
                 //test
-                //if (item.upto == page.data.end() || tmp != item.upto)
-                //{
-                //    clr++;
-                //    tmp = item.upto;
-                //}
+                if (item.upto == page.data.end() || tmp != item.upto)
+                {
+                    clr++;
+                    tmp = item.upto;
+                }
 
                 auto fgc = rgba{};
                 auto bgc = rgba{};
@@ -1068,6 +1068,112 @@ namespace netxs::xml
               root{ elem::root(page, data) }
         {
             if (page.fail) log(" xml: inconsistent xml data from ", page.file, "\n", show());
+        }
+    };
+
+    struct settings
+    {
+        netxs::sptr<xml::document> fallback; // = std::make_shared<xml::document>(default_config, "");
+        netxs::sptr<xml::document> document; // = fallback;
+        xml::document::vect list{};
+        xml::document::vect temp{};
+        text cwd{};
+        text defaults{};
+
+        settings(view default_config)
+            : fallback{ std::make_shared<xml::document>(default_config, "") },
+              document{ fallback }
+        { }
+        settings(settings const& other)
+            : fallback{ other.fallback },
+              document{ other.document }
+        { }
+        settings() = default;
+
+        auto cd(view path, view defpath = {})
+        {
+            defaults = utf::trim(defpath, '/');
+            if (path.empty()) return faux;
+            if (path.front() == '/')
+            {
+                path = utf::trim(path, '/');
+                cwd = "/" + text{ path };
+                temp = document->enumerate(cwd);
+                if (temp.empty()) temp = fallback->enumerate(cwd);
+            }
+            else
+            {
+                path = utf::trim(path, '/');
+                cwd += "/" + text{ path };
+                if (temp.size())
+                {
+                    temp = temp.front()->enumerate(path);
+                    if (temp.empty()) temp = fallback->enumerate(cwd);
+                }
+            }
+            auto test = !!temp.size();
+            if (!test)
+            {
+                log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + cwd);
+            }
+            return test;
+        }
+        template<class T = si32>
+        auto take(view path, T defval = {})
+        {
+            if (path.empty()) return defval;
+            auto crop = text{};
+            auto dest = text{};
+            if (path.front() == '/')
+            {
+                dest = utf::trim(path, '/');
+                list = document->enumerate(dest);
+            }
+            else
+            {
+                path = utf::trim(path, '/');
+                dest = cwd + "/" + text{ path };
+                if (temp.size()) list = temp.front()->enumerate(path);
+                if (list.empty() && defaults.size())
+                {
+                    dest = defaults + "/" + text{ path };
+                    list = document->enumerate(dest);
+                }
+            }
+            if (list.empty()) list = fallback->enumerate(dest);
+            if (list.size() ) crop = list.back()->get_value();
+            else              log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
+            list.clear();
+            if (auto result = xml::take<T>(crop)) return result.value();
+            else
+            {
+                if (crop.size()) return take("/config/set/" + crop, defval);
+                else             return defval;
+            }
+        }
+        auto take(view path, cell defval)
+        {
+            if (path.empty()) return defval;
+            auto fgc_path = text{ path } + '/' + "fgc";
+            auto bgc_path = text{ path } + '/' + "bgc";
+            auto crop = cell{};
+            crop.fgc(take(fgc_path, defval.fgc()));
+            crop.bgc(take(bgc_path, defval.bgc()));
+            return crop;
+        }
+        auto take_list(view path)
+        {
+            auto list = document->enumerate(path);
+            if (list.empty()) list = fallback->enumerate(path);
+            return list;
+        }
+        auto utf8()
+        {
+            return document->utf8();
+        }
+        auto merge(view run_config)
+        {
+            //todo implement
         }
     };
 }

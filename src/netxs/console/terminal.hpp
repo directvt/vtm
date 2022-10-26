@@ -119,6 +119,11 @@ namespace netxs::ui
         static constexpr auto def_offclr = { blacklt, whitedk }; // term: Default inactive selection colors.
         static constexpr auto def_dupclr = { rgba{ 0xFF007F00 }, rgba{ whitelt } }; // term: Default colors of selected text occurrences.
 
+        // term: Terminal configuration.
+        struct termconfig
+        {
+
+        };
         // term: VT-buffer status.
         struct term_state
         {
@@ -6072,6 +6077,7 @@ namespace netxs::ui
         pro::timer worker; // term: Linear animation controller.
         pro::robot dynamo; // term: Linear animation controller.
         pro::caret cursor; // term: Text cursor controller.
+        termconfig config; // term: Terminal settings.
         term_state status; // term: Screen buffer status info.
         w_tracking wtrack; // term: Terminal title tracking object.
         f_tracking ftrack; // term: Keyboard focus tracking object.

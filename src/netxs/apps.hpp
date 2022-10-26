@@ -643,7 +643,7 @@ R"==(
             });
     };
 
-    using builder_t = std::function<sptr<base>(text, text, text)>;
+    using builder_t = std::function<sptr<base>(text, text, xml::settings&)>;
 
     namespace get
     {
@@ -667,7 +667,7 @@ R"==(
         auto& builder(text app_typename)
         {
             static builder_t empty =
-            [&](text, text, text) -> sptr<base>
+            [&](text, text, xml::settings&) -> sptr<base>
             {
                 auto window = ui::cake::ctor()
                     ->invoke([&](auto& boss)
@@ -754,9 +754,7 @@ R"==(
             auto& creator = builder(config.type);
 
             //todo pass whole s11n::configuration map
-            //todo pass app config
-            auto app_config = text{};
-            auto object = creator(config.cwd, config.param, app_config);
+            auto object = creator(config.cwd, config.param, config.settings);
             if (config.bgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
             if (config.fgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
@@ -783,122 +781,28 @@ R"==(
             what.object = window;
         };
     }
-
-    struct settings_t
+    auto activate = [](auto world_ptr)
     {
-        sptr<xml::document> fallback = std::make_shared<xml::document>(default_config, "");
-        sptr<xml::document> document = fallback;
-        xml::document::vect list{};
-        xml::document::vect temp{};
-        text cwd{};
-        text defaults{};
-
-        template<class T>
-        auto activate_creator(T& world)
+        auto& world = *world_ptr;
+        world.SUBMIT(tier::release, e2::form::proceed::createby, gear)
         {
-            world.SUBMIT(tier::release, e2::form::proceed::createby, gear)
-            {
-                app::shared::create::by(world, gear);
-            };
-            world.SUBMIT(tier::release, e2::form::proceed::createat, what)
-            {
-                app::shared::create::at(world, what);
-            };
-            world.SUBMIT(tier::release, e2::form::proceed::createfrom, what)
-            {
-                app::shared::create::from(world, what);
-            };
-        }
-
-        auto cd(view path, view defpath = {})
+            create::by(world, gear);
+        };
+        world.SUBMIT(tier::release, e2::form::proceed::createat, what)
         {
-            defaults = utf::trim(defpath, '/');
-            if (path.empty()) return faux;
-            if (path.front() == '/')
-            {
-                path = utf::trim(path, '/');
-                cwd = "/" + text{ path };
-                temp = document->enumerate(cwd);
-                if (temp.empty()) temp = fallback->enumerate(cwd);
-            }
-            else
-            {
-                path = utf::trim(path, '/');
-                cwd += "/" + text{ path };
-                if (temp.size())
-                {
-                    temp = temp.front()->enumerate(path);
-                    if (temp.empty()) temp = fallback->enumerate(cwd);
-                }
-            }
-            auto test = !!temp.size();
-            if (!test) log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + cwd);
-            return test;
-        }
-        template<class T = si32>
-        auto take(view path, T defval = {})
+            create::at(world, what);
+        };
+        world.SUBMIT(tier::release, e2::form::proceed::createfrom, what)
         {
-            if (path.empty()) return defval;
-            auto crop = text{};
-            auto dest = text{};
-            if (path.front() == '/')
-            {
-                dest = utf::trim(path, '/');
-                list = document->enumerate(dest);
-            }
-            else
-            {
-                path = utf::trim(path, '/');
-                dest = cwd + "/" + text{ path };
-                if (temp.size()) list = temp.front()->enumerate(path);
-                if (list.empty() && defaults.size())
-                {
-                    dest = defaults + "/" + text{ path };
-                    list = document->enumerate(dest);
-                }
-            }
-            if (list.empty()) list = fallback->enumerate(dest);
-            if (list.size() ) crop = list.back()->get_value();
-            else              log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
-            list.clear();
-            if (auto result = xml::take<T>(crop)) return result.value();
-            else
-            {
-                if (crop.size()) return take("/config/set/" + crop, defval);
-                else             return defval;
-            }
-        }
-        auto take(view path, cell defval)
-        {
-            if (path.empty()) return defval;
-            auto fgc_path = text{ path } + '/' + "fgc";
-            auto bgc_path = text{ path } + '/' + "bgc";
-            auto crop = cell{};
-            crop.fgc(take(fgc_path, defval.fgc()));
-            crop.bgc(take(bgc_path, defval.bgc()));
-            return crop;
-        }
-        auto take_list(view path)
-        {
-            auto list = document->enumerate(path);
-            if (list.empty()) list = fallback->enumerate(path);
-            return list;
-        }
-        auto utf8()
-        {
-            return document->utf8();
-        }
-        auto merge(view run_config)
-        {
-            //todo implement
-        }
+            create::from(world, what);
+        };
     };
 
     namespace load
     {
         auto settings(view cli_config, view run_config)
         {
-            auto conf = settings_t{};
+            auto conf = xml::settings{ default_config };
             auto load = [&](view shadow)
             {
                 if (shadow.empty()) return faux;
@@ -961,7 +865,7 @@ R"==(
         }
     };
 
-    auto start(text app_name, text log_title, si32 vtmode, settings_t& config)
+    auto start(text app_name, text log_title, si32 vtmode, xml::settings& config)
     {
         auto direct = !!(vtmode & os::legacy::direct);
         if (!direct) os::start_log(log_title);
@@ -984,9 +888,7 @@ R"==(
             auto aclass = utf::cutoff(app_name, ' ');
             utf::to_low(aclass);
             auto params = utf::remain(app_name, ' ');
-            //todo pass app config
-            auto app_config = text{};
-            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, app_config); // ! - means simple (w/o plugins)
+            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config); // ! - means simple (w/o plugins)
             auto window = ground->invite<gate>(vtmode, config);
             window->resize(size);
             window->launch(tunnel.first, applet);
@@ -1019,7 +921,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text cwd, text v,     text config)
+        auto build_Strobe        = [](text cwd, text v,     xml::settings& config)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
@@ -1044,7 +946,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text cwd, text v,     text config)
+        auto build_Settings      = [](text cwd, text v,     xml::settings& config)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -1066,7 +968,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text cwd, text v,     text config)
+        auto build_Empty         = [](text cwd, text v,     xml::settings& config)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -1088,7 +990,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_Region        = [](text cwd, text v,     text config)
+        auto build_Region        = [](text cwd, text v,     xml::settings& config)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -1164,7 +1066,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Truecolor     = [](text cwd, text v,     text config)
+        auto build_Truecolor     = [](text cwd, text v,     xml::settings& config)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -1295,7 +1197,7 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_Headless      = [](text cwd, text param, text config)
+        auto build_Headless      = [](text cwd, text param, xml::settings& config)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -1369,7 +1271,7 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Fone          = [](text cwd, text param, text config)
+        auto build_Fone          = [](text cwd, text param, xml::settings& config)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
@@ -1438,13 +1340,14 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_DirectVT      = [](text cwd, text param, text config)
+        auto build_DirectVT      = [](text cwd, text param, xml::settings& config)
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::limit>(dot_11)
                 ->plugin<pro::focus>();
 
-            auto direct = ui::dtvt::ctor(cwd, param, config)
+            //todo pass subconfig
+            auto direct = ui::dtvt::ctor(cwd, param, config.utf8())
                 ->invoke([](auto& boss)
                 {
                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
@@ -1455,7 +1358,7 @@ namespace netxs::app::shared
             window->attach(direct);
             return window;
         };
-        auto build_ANSIVT        = [](text cwd, text param, text config)
+        auto build_ANSIVT        = [](text cwd, text param, xml::settings& config)
         {
             if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
 
@@ -1467,7 +1370,7 @@ namespace netxs::app::shared
 
             return build_DirectVT(cwd, args, config);
         };
-        auto build_SHELL         = [](text cwd, text param, text config)
+        auto build_SHELL         = [](text cwd, text param, xml::settings& config)
         {
             auto args = os::current_module_file();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";

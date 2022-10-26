@@ -703,9 +703,7 @@ namespace netxs::app::tile
                                 auto config = conf_list[current_default];
 
                                 auto& creator = app::shared::create::builder(config.type);
-                                //todo app_cfg
-                                auto app_config = text{};
-                                auto host = creator(config.cwd, config.param, app_config);
+                                auto host = creator(config.cwd, config.param, config.settings);
                                 auto app = app_window(config.title, "", host, current_default);
                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                 boss.attach(app);
@@ -805,7 +803,7 @@ namespace netxs::app::tile
                 }
                 auto& config = iter->second;
                 auto& creator = app::shared::create::builder(config.type);
-                auto host = creator(config.cwd, config.param, config.config);
+                auto host = creator(config.cwd, config.param, config.settings);
                 auto inst = app_window(config.title, config.footer, host, app_id);
                 if (config.bgc)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
                 if (config.fgc)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
@@ -814,7 +812,7 @@ namespace netxs::app::tile
             }
             return place;
         };
-        auto build_inst = [](text cwd, view param, text config) -> sptr<base>
+        auto build_inst = [](text cwd, view param, xml::settings& config) -> sptr<base>
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;

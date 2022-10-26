@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
     }
 
     banner();
-    auto config = app::shared::load::settings(cfpath);
+    auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
     auto result = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
 
     if (result) return 0;

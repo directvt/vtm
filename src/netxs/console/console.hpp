@@ -6,6 +6,7 @@
 
 #include "../abstract/iterator.hpp"
 #include "../os/system.hpp"
+#include "../text/xml.hpp"
 
 #include <iostream>
 #include <typeindex>
@@ -76,7 +77,7 @@ namespace netxs::console
         text      cwd{};
         text     type{};
         text    param{};
-        text   config{};
+        xml::settings settings;
     };
 
     using namespace netxs::input;
@@ -4311,8 +4312,7 @@ namespace netxs::console
         xipc joint;
 
     public:
-        template<class T>
-        host(xipc server_pipe, T config)
+        host(xipc server_pipe, xml::settings& config)
             : synch{ bell::router<tier::general>(), e2::timer::tick.id },
               joint{ server_pipe }
         {
@@ -4747,8 +4747,7 @@ namespace netxs::console
         depo regis; // hall: Actors registry.
 
     protected:
-        template<class T>
-        hall(xipc server_pipe, T config)
+        hall(xipc server_pipe, xml::settings& config)
             : host{ server_pipe, config }
         {
             auto current_module_file = os::current_module_file();
@@ -4781,6 +4780,7 @@ namespace netxs::console
             {
                 auto& item = *item_ptr;
                 auto conf_rec = menuitem_t{};
+                //todo autogen id if absent
                 conf_rec.splitter = item.take(attr_splitter, faux);
                 conf_rec.id       = item.take(attr_id,       ""s );
                 if (conf_rec.splitter)
@@ -4810,6 +4810,7 @@ namespace netxs::console
                 conf_rec.cwd      = item.take(attr_cwd,      fallback.cwd     );
                 conf_rec.param    = item.take(attr_param,    fallback.param   );
                 conf_rec.type     = item.take(attr_type,     fallback.type    );
+                conf_rec.settings = config;
 
                 utf::to_low(conf_rec.type);
                 utf::change(conf_rec.title,  "$0", current_module_file);
@@ -4831,7 +4832,6 @@ namespace netxs::console
                 conf_list.emplace(std::move(id), std::move(conf_rec));
             }
 
-            config.activate_creator(*this);
             SUBMIT(tier::general, e2::form::global::lucidity, alpha)
             {
                 if (alpha == -1)
@@ -5342,8 +5342,7 @@ namespace netxs::console
         conf(conf const&) = default;
         conf(conf&&)      = default;
         conf& operator = (conf const&) = default;
-        template<class T>
-        conf(si32 mode, T&& config)
+        conf(si32 mode, xml::settings& config)
             : session_id{ 0 },
               legacy_mode{ mode }
         {
@@ -5352,8 +5351,7 @@ namespace netxs::console
             glow_fx           = faux;
             is_standalone_app = true;
         }
-        template<class T>
-        conf(xipc peer, si32 session_id, T&& config)
+        conf(xipc peer, si32 session_id, xml::settings& config)
             : session_id{ session_id }
         {
             auto _ip     = peer->line(';');
