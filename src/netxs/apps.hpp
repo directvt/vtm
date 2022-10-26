@@ -10,8 +10,12 @@
 #include "ui/controls.hpp"
 #include "text/xml.hpp"
 
+#include <fstream>
+
 namespace netxs::app
 {
+    namespace fs = std::filesystem;
+
     using namespace std::placeholders;
     using namespace netxs::console;
     using namespace netxs;
@@ -28,109 +32,114 @@ namespace netxs::app::shared
     static constexpr auto default_config = R"==(
 <config>
     <menu>
-        <selected=Term /> <!-- set selected using menu item id -->
+        <selected=Term /> <!-- Set selected using menu item id. -->
+        <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
+                       Using an asterisk with the parameter name of the first element in the list without any other nested arguments
+                       indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
         <item splitter label="apps">
             <notes> 
                 " Default applications group                         \n"
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* />    <!-- use asterisk at the end of the element name to set defaults -->
-        <item* hidden=no slimmenu=false type=SHELL fgcolor=#00000000 bgcolor=#00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt ">
+        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term">
 )=="
 #else
 R"==(
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal ">
+        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
 )=="
 #endif
 R"==(
             <hotkeys>    <!-- not implemented -->
-                <action=start key="Ctrl+'t'"/>
-                <action=close key="Ctrl+'z'"/>
+                <key*/>
+                <key="Ctrl+'t'" action=start />
+                <key="Ctrl+'z'" action=close />
             </hotkeys>
-            <param="$0 -r term">    <!-- not implemented -->
-                <scrollback>
-                    <size=20000 />
-                    <growstep=0 />
-                </scrollback>
-                <colors>
-                    <palette>
-                        <color=0xFF101010 index=0 />  <!-- 0  blackdk   -->
-                        <color=0xFF1F0FC4 />          <!-- 1  reddk     -->
-                        <color=0xFF0EA112 />          <!-- 2  greendk   -->
-                        <color=0xFF009CC0 />          <!-- 3  yellowdk  -->
-                        <color=0xFFDB3700 />          <!-- 4  bluedk    -->
-                        <color=0xFF981787 />          <!-- 5  magentadk -->
-                        <color=0xFFDD963B />          <!-- 6  cyandk    -->
-                        <color=0xFFBBBBBB />          <!-- 7  whitedk   -->
-                        <color=0xFF757575 />          <!-- 8  blacklt   -->
-                        <color=0xFF5648E6 />          <!-- 9  redlt     -->
-                        <color=0xFF0CC615 />          <!-- 10 greenlt   -->
-                        <color=0xFFA5F1F8 />          <!-- 11 yellowlt  -->
-                        <color=0xFFFF783A />          <!-- 12 bluelt    -->
-                        <color=0xFF9E00B3 />          <!-- 13 magentalt -->
-                        <color=0xFFD6D660 />          <!-- 14 cyanlt    -->
-                        <color=0xFFF3F3F3 index=15 /> <!-- 15 whitelt   -->
-                    </palette>
-                    <default>
-                        <fg=15 /> <!-- 256-color index is allowed -->
-                        <bg=0 />
-                    </default>
-                    <match fx=selection bg="0xFF007F00" fg=15 />  <!-- set fx to use cell::shaders: xlight | selection |contrast | invert | reverse -->
+            <config>    <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only -->
+                <term>
+                    <scrollback>
+                        <size=20000 />
+                        <growstep=0 />
+                        <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
+                        <wrap="on" />
+                    </scrollback>
+                    <color>
+                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
+                        <color1  = reddk      />
+                        <color2  = greendk    />
+                        <color3  = yellowdk   />
+                        <color4  = bluedk     />
+                        <color5  = magentadk  />
+                        <color6  = cyandk     />
+                        <color7  = whitedk    />
+                        <color8  = blacklt    />
+                        <color9  = redlt      />
+                        <color10 = greenlt    />
+                        <color11 = yellowlt   />
+                        <color12 = bluelt     />
+                        <color13 = magentalt  />
+                        <color14 = cyanlt     />
+                        <color15 = whitelt    />
+                        <default bgc=0 fgc=15 />
+                        <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+                        <selection>
+                            <text fx=selection bgc=12 fgc=15 />
+                            <ansi fx=xlight/>
+                            <rich fx=xlight/>
+                            <html fx=xlight/>
+                            <none fx=selection bgc=8 fgc=7 />
+                        </selection>
+                    </color>
+                    <tablen=8 />      <!-- Tab length. -->
+                    <cursor>
+                        <style="underline"/> <!-- block | underline  -->
+                        <blink="400"/>       <!-- blink period in ms -->
+                        <show=true/>
+                    </cursor>
+                    <menu>
+                        <enabled="on"/>
+                        <slim="false"/>
+                    </menu>
                     <selection>
-                        <text fx=selection bg=12 fg=15 />
-                        <ansi fx=xlight/>
-                        <none fx=selection bg=8 fg=7 />
+                        <mode="text"/> <!-- text | ansi | rich | html | none -->
                     </selection>
-                </colors>
-                <tablen=8 />      <!-- Tab length. -->
-                <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
-                <cursor>
-                    <style="underline"/> <!-- block | underline  -->
-                    <blink="400"/>       <!-- blink period in ms -->
-                </cursor>
-                <menu>
-                    <enabled="on"/>
-                    <slim="off"/>
-                </menu>
-                <wrap="on"/>
-                <selection>
-                    <mode="plain"/> <!-- plain | ansi | disabled -->
-                </selection>
-                <hotkeys>
-                    <action=findNext key="Alt+RightArrow"/>
-                    <action=findPrev key="Alt+LeftArrow"/>
-                </hotkeys>
-            </param>
+                    <hotkeys>
+                        <key*/>
+                        <key="Alt+RightArrow" action=findNext />
+                        <key="Alt+LeftArrow"  action=findPrev />
+                    </hotkeys>
+                </term>
+            </config>
         </item>
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgcolor=15 bgcolor=0xFF562401 notes=" run PowerShell "/>
-        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                                      notes=" run default WSL profile "/>
-   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                                 notes=" run Far Manager in its own window "/> -->
+        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run PowerShell "/>
+        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
+   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                         notes=" run Far Manager in its own window "/> -->
 )=="
 #else
 R"==(
-   <!-- <item id=mc        label="mc"        type=SHELL    title="Midnight Commander"    param="mc"               notes=" run Midnight Commander in its own window "/> -->
+   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    param="mc"               notes=" run Midnight Commander in its own window "/> -->
 )=="
 #endif
 R"==(
-        <item id=Tile      label="Tile"      type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
-        <item id=View      label=View        type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
-        <item id=Settings  label=Settings    type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
-        <item id=Logs      label=Logs        type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
+        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
+        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
+        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
+        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
    <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
-   <!-- <item id=Gems      label="Gems"      type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
-   <!-- <item id=Text      label="Text"      type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
-   <!-- <item id=Calc      label="Calc"      type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
-   <!-- <item id=Test      label="Test"      type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
-   <!-- <item id=Truecolor label="Truecolor" type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
+   <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
+   <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
+   <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
+   <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
+   <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun>    <!-- not implemented -->
+            <item*/>
             <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default -->
             <item wincoor=0,0 />
             <item wincoor=52%,0 />
@@ -143,44 +152,151 @@ R"==(
         </width>
     </menu>
     <hotkeys>    <!-- not implemented -->
-        <action=prevWindow key="Ctrl+PgUp"/>
-        <action=nextWindow key="Ctrl+PgDn"/>
+        <key*/>
+        <key="Ctrl+PgUp" action=prevWindow />
+        <key="Ctrl+PgDn" action=nextWindow />
     </hotkeys>
+    <appearance>
+        <defaults>
+            <fps=60 />
+            <bordersz=1,1 />
+            <brighter=60 />
+            <kb_focus=60 />
+            <shadower=180 />
+            <shadow=180 />
+            <lucidity=0xff /> <!-- not implemented -->
+            <selector=48 />
+            <highlight  fgc=purewhite  bgc=亮蓝       />
+            <warning    fgc=whitelt    bgc=yellowdk   />
+            <danger     fgc=whitelt    bgc=redlt      />
+            <action     fgc=whitelt    bgc=greenlt    />
+            <label      fgc=blackdk    bgc=whitedk    />
+            <inactive   fgc=blacklt    bgc=nocolor    />
+            <menu_white fgc=whitelt    bgc=0x80404040 />
+            <menu_black fgc=blackdk    bgc=0x80404040 />
+        </defaults>
+        <runapp>    <!-- Override defaults. -->
+            <brighter=0 />
+        </runapp>
+    </appearance>
+    <set>         <!-- Global namespace - Unresolved literals will be taken from here -->
+        <blackdk   = 0xFF101010 /> <!-- Color reference literals -->
+        <reddk     = 0xFF1f0fc4 />
+        <greendk   = 0xFF0ea112 />
+        <yellowdk  = 0xFF009cc0 />
+        <bluedk    = 0xFFdb3700 />
+        <magentadk = 0xFF981787 />
+        <cyandk    = 0xFFdd963b />
+        <whitedk   = 0xFFbbbbbb />
+        <blacklt   = 0xFF757575 />
+        <redlt     = 0xFF5648e6 />
+        <greenlt   = 0xFF0cc615 />
+        <yellowlt  = 0xFFa5f1f8 />
+        <bluelt    = 0xFFff783a />
+        <magentalt = 0xFF9e00b3 />
+        <cyanlt    = 0xFFd6d660 />
+        <whitelt   = 0xFFf3f3f3 />
+        <pureblack = 0xFF000000 />
+        <purewhite = 0xFFffffff />
+        <nocolor   = 0x00000000 />
+
+        <黑     = blackdk   /> <!-- Localized color reference literals -->
+        <红     = reddk     />
+        <绿     = greendk   />
+        <黄     = yellowdk  />
+        <蓝     = bluedk    />
+        <品红   = magentadk />
+        <青     = cyandk    />
+        <白     = whitedk   />
+        <灰     = blacklt   />
+        <亮红   = redlt     />
+        <亮绿   = greenlt   />
+        <亮黄   = yellowlt  />
+        <亮蓝   = bluelt    />
+        <亮品红 = magentalt />
+        <亮青   = cyanlt    />
+        <亮白   = whitelt   />
+    </set>
+    <client>
+        <background fgc=whitedk bgc=0xFF000000 />
+        <clip_preview size=80x25 />
+        <viewport coor=0,0 />
+        <tooltip timeout=500ms enabled=true />
+        <glowfx=true />
+        <debug overlay=faux toggle="🐞" />
+        <regions enabled=faux />
+    </client>
+    <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
+        <scrollback>
+            <size=20000 />
+            <growstep=0 />
+            <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
+            <wrap="on" />
+        </scrollback>
+        <color>
+            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
+            <color1  = reddk      />
+            <color2  = greendk    />
+            <color3  = yellowdk   />
+            <color4  = bluedk     />
+            <color5  = magentadk  />
+            <color6  = cyandk     />
+            <color7  = whitedk    />
+            <color8  = blacklt    />
+            <color9  = redlt      />
+            <color10 = greenlt    />
+            <color11 = yellowlt   />
+            <color12 = bluelt     />
+            <color13 = magentalt  />
+            <color14 = cyanlt     />
+            <color15 = whitelt    />
+            <default bgc=0 fgc=15 />
+            <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+            <selection>
+                <text fx=selection bgc=12 fgc=15 />
+                <ansi fx=xlight />
+                <rich fx=xlight />
+                <html fx=xlight />
+                <none fx=selection bgc=8 fgc=7 />
+            </selection>
+        </color>
+        <tablen=8 />      <!-- Tab length. -->
+        <cursor>
+            <style="underline"/> <!-- block | underline  -->
+            <blink="400"/>       <!-- blink period in ms -->
+            <show=true/>
+        </cursor>
+        <menu>
+            <enabled="on"/>
+            <slim=true />
+        </menu>
+        <selection>
+            <mode="text"/> <!-- text | ansi | rich | html | none -->
+        </selection>
+        <hotkeys>
+            <key*/>
+            <key="Alt+RightArrow" action=findNext />
+            <key="Alt+LeftArrow"  action=findPrev />
+        </hotkeys>
+    </term>
+    <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </text>
+    <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </calc>
+    <logs>      <!-- Base configuration for the Logs app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </logs>
+    <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </settings>
 </config>
 )==";
 
     static constexpr auto usr_config = "~/.config/vtm/settings.xml";
-    static constexpr auto env_config = "$VTM_CONFIG";
+    static constexpr auto env_config = "$VTM_CONFIG"sv;
 
-    static constexpr auto type_ANSIVT   = "ansivt";
-    static constexpr auto type_DirectVT = "directvt";
-    static constexpr auto type_SHELL    = "shell";
-    static constexpr auto type_Group    = "group";
-    static constexpr auto type_Region   = "region";
-    static constexpr auto type_Desk     = "desk";
-    static constexpr auto type_Fone     = "fone";
-    static constexpr auto type_Headless = "headless";
-
-    static constexpr auto attr_id       = "id";
-    static constexpr auto attr_alias    = "alias";
-    static constexpr auto attr_hidden   = "hidden";
-    static constexpr auto attr_label    = "label";
-    static constexpr auto attr_notes    = "notes";
-    static constexpr auto attr_title    = "title";
-    static constexpr auto attr_footer   = "footer";
-    static constexpr auto attr_bgcolor  = "bgcolor";
-    static constexpr auto attr_fgcolor  = "fgcolor";
-    static constexpr auto attr_winsize  = "winsize";
-    static constexpr auto attr_wincoor  = "wincoor";
-    static constexpr auto attr_slimmenu = "slimmenu";
-    static constexpr auto attr_hotkey   = "hotkey";
-    static constexpr auto attr_type     = "type";
-    static constexpr auto attr_cwd      = "cwd";
-    static constexpr auto attr_param    = "param";
-    static constexpr auto attr_splitter = "splitter";
-
-    static constexpr auto path_item     = "config/menu/item";
-    static constexpr auto path_selected = "config/menu/selected";
     static constexpr auto path_autorun  = "config/menu/autorun";
     static constexpr auto path_hotkeys  = "config/hotkeys";
 
@@ -193,39 +309,12 @@ R"==(
     static si32 tile_count = 0;
     //constexpr auto del_timeout = 1s;
 
-    //auto const highlight_color2 = tint::blackdk ;
-    //auto const highlightdk_color = tint::bluedk  ;
-    auto const highlight_color   = tint::bluelt  ;
-    auto const warning_color     = tint::yellowdk;
-    auto const danger_color      = tint::redlt   ;
-    auto const action_color      = tint::greenlt ;
-    auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
-
-    const static auto cA = cell{}.bgc(0x0).fgc(blacklt);
-    const static auto c9 = cell{}.bgc(0xFFffffff).fgc(0xFF000000);
-    const static auto c8 = cell{}.bgc(0x00).fgc(highlight_color);
-    const static auto x8 = cell{ c8 }.bga(0x00).fga(0x00);
-    const static auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
-    const static auto c6 = cell{}.bgc(action_color).fgc(whitelt);
-    const static auto x6 = cell{ c6 }.bga(0x00).fga(0x00);
-    const static auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
-    const static auto x5 = cell{ c5 }.bga(0x00).fga(0x00);
-    const static auto c4 = cell{}.bgc(highlight_color);
-    const static auto x4 = cell{ c4 }.bga(0x00);
-    const static auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
-    const static auto x3 = cell{ c3 }.bga(0x00).fga(0x00);
-    const static auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
-    const static auto x2 = cell{ c2 }.bga(0x00);
-    const static auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
-    const static auto x1 = cell{ c1 }.bga(0x00);
-    const static auto x0 = cell{ c3 }.bgc(0xFF000000); //todo make it as desktop bg
-    const static auto term_menu_bg = rgba{ 0x80404040 };
-
     enum class app_type
     {
         simple,
         normal,
     };
+
     const auto app_class = [](view& v)
     {
         auto type = app_type::normal;
@@ -325,6 +414,13 @@ R"==(
     // Menu bar (shrinkable on right-click).
     const auto custom_menu = [](bool full_size, app::shared::menu_list_type menu_items)
     {
+        auto highlight_color = skin::color(tone::highlight);
+        auto danger_color    = skin::color(tone::danger);
+        auto c3 = highlight_color;
+        auto x3 = cell{ c3 }.alpha(0x00);
+        auto c1 = danger_color;
+        auto x1 = cell{ c1 }.alpha(0x00);
+
         auto menu_area = ui::fork::ctor()
                         ->active();
             auto inner_pads = dent{ 1,2,1,1 };
@@ -463,7 +559,6 @@ R"==(
 
         return menu_block;
     };
-
     const auto main_menu = []
     {
         auto items = app::shared::menu_list_type
@@ -548,102 +643,253 @@ R"==(
             });
     };
 
-    using builder_t = std::function<sptr<base>(text, text)>;
+    using builder_t = std::function<sptr<base>(text, text, xml::settings&)>;
 
-    auto& get_creator()
+    namespace get
     {
-        static std::map<text, builder_t> creator_inst;
-        return creator_inst;
-    }
-    auto& get_selected()
-    {
-        static text selected;
-        return selected;
-    }
-    auto& configs()
-    {
-        auto world_ptr = e2::config::whereami.param();
-        SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-        auto conf_list_ptr = e2::bindings::list::links.param();
-        world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
-        auto& conf_list = *conf_list_ptr;
-        return conf_list;
-    }
-    auto& creator(text app_typename)
-    {
-        static builder_t empty =
-        [&](text, text) -> sptr<base>
+        auto& creator()
         {
-            auto window = ui::cake::ctor()
-                ->invoke([&](auto& boss)
-                {
-                    closing_on_quit(boss);
-                    closing_by_gesture(boss);
-                    boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
-                    {
-                        auto title = "error"s;
-                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
-                    };
-                });
-            auto msg = ui::post::ctor()
-                  ->colors(whitelt, rgba{ 0x7F404040 })
-                  ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                  + "\n\nUnsupported application type\n\n"
-                  + ansi::nil().wrp(wrap::on)
-                  + "Only the following application types are supported\n\n"
-                  + ansi::nil().wrp(wrap::off).fgc(whitedk)
-                  + "   type = DirectVT \n"
-                    "   type = ANSIVT   \n"
-                    "   type = SHELL    \n"
-                    "   type = Group    \n"
-                    "   type = Region   \n\n"
-                  + ansi::nil().wrp(wrap::on).fgc(whitelt)
-                  + "apps: See logs for details."
-                  );
-            auto placeholder = ui::park::ctor()
-                  ->colors(whitelt, rgba{ 0x7F404040 })
-                  ->attach(snap::stretch, snap::stretch, msg);
-            window->attach(ui::rail::ctor())
-                  ->attach(placeholder);
-            return window;
-        };
-        auto& map = get_creator();
-        const auto it = map.find(app_typename);
-        if (it == map.end())
-        {
-            log("apps: unknown app type - '", app_typename, "'");
-            return empty;
+            static auto creator = std::map<text, builder_t>{};
+            return creator;
         }
-        else return it->second;
+        auto& configs()
+        {
+            auto world_ptr = e2::config::whereami.param();
+            SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+            auto conf_list_ptr = e2::bindings::list::links.param();
+            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
+            auto& conf_list = *conf_list_ptr;
+            return conf_list;
+        }
     }
+    namespace create
+    {
+        auto& builder(text app_typename)
+        {
+            static builder_t empty =
+            [&](text, text, xml::settings&) -> sptr<base>
+            {
+                auto window = ui::cake::ctor()
+                    ->invoke([&](auto& boss)
+                    {
+                        closing_on_quit(boss);
+                        closing_by_gesture(boss);
+                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                        {
+                            auto title = "error"s;
+                            boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                        };
+                    });
+                auto msg = ui::post::ctor()
+                    ->colors(whitelt, rgba{ 0x7F404040 })
+                    ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                    + "\n\nUnsupported application type\n\n"
+                    + ansi::nil().wrp(wrap::on)
+                    + "Only the following application types are supported\n\n"
+                    + ansi::nil().wrp(wrap::off).fgc(whitedk)
+                    + "   type = DirectVT \n"
+                      "   type = ANSIVT   \n"
+                      "   type = SHELL    \n"
+                      "   type = Group    \n"
+                      "   type = Region   \n\n"
+                    + ansi::nil().wrp(wrap::on).fgc(whitelt)
+                    + "apps: See logs for details."
+                    );
+                auto placeholder = ui::park::ctor()
+                    ->colors(whitelt, rgba{ 0x7F404040 })
+                    ->attach(snap::stretch, snap::stretch, msg);
+                window->attach(ui::rail::ctor())
+                      ->attach(placeholder);
+                return window;
+            };
+            auto& map = get::creator();
+            const auto it = map.find(app_typename);
+            if (it == map.end())
+            {
+                log("apps: unknown app type - '", app_typename, "'");
+                return empty;
+            }
+            else return it->second;
+        };
+        auto by = [](auto& world, auto& gear)
+        {
+            static auto insts_count = si32{ 0 };
+            auto& gate = gear.owner;
+            auto location = gear.slot;
+            if (gear.meta(hids::anyCtrl))
+            {
+                log("hall: area copied to clipboard ", location);
+                gate.SIGNAL(tier::release, e2::command::printscreen, gear);
+            }
+            else
+            {
+                auto what = e2::form::proceed::createat.param();
+                what.square = gear.slot;
+                what.forced = gear.slot_forced;
+                gate.SIGNAL(tier::request, e2::data::changed, what.menuid);
+                world.SIGNAL(tier::release, e2::form::proceed::createat, what);
+                if (auto& frame = what.object)
+                {
+                    insts_count++;
+                    frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
+                    {
+                        insts_count--;
+                        log("hall: detached: ", insts_count);
+                    };
+
+                    gear.kb_focus_changed = faux;
+                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                }
+            }
+        };
+        auto at = [](auto& world, auto& what)
+        {
+            auto& conf_list = app::shared::get::configs();
+            auto& config = conf_list[what.menuid];
+            auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
+
+            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
+            else                                window->extend(what.square);
+            auto& creator = builder(config.type);
+
+            //todo pass whole s11n::configuration map
+            auto object = creator(config.cwd, config.param, config.settings);
+            if (config.bgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
+            if (config.fgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
+            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+
+            window->attach(object);
+            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
+            world.branch(what.menuid, window, !config.hidden);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world.This());
+
+            what.object = window;
+        };
+        auto from = [](auto& world, auto& what)
+        {
+            auto& conf_list = app::shared::get::configs();
+            auto& config = conf_list[what.menuid];
+            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
+
+            window->extend(what.square);
+            window->attach(what.object);
+            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
+            world.branch(what.menuid, window, !config.hidden);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, world.This());
+
+            what.object = window;
+        };
+    }
+    auto activate = [](auto world_ptr)
+    {
+        auto& world = *world_ptr;
+        world.SUBMIT(tier::release, e2::form::proceed::createby, gear)
+        {
+            create::by(world, gear);
+        };
+        world.SUBMIT(tier::release, e2::form::proceed::createat, what)
+        {
+            create::at(world, what);
+        };
+        world.SUBMIT(tier::release, e2::form::proceed::createfrom, what)
+        {
+            create::from(world, what);
+        };
+    };
+
+    namespace load
+    {
+        auto settings(view cli_config, view run_config)
+        {
+            auto conf = xml::settings{ default_config };
+            auto load = [&](view shadow)
+            {
+                if (shadow.empty()) return faux;
+                auto path = text{ shadow };
+                log("apps: loading configuration from ", path, "...");
+                if (path.starts_with("$"))
+                {
+                    auto temp = path.substr(1);
+                    path = os::get_env(temp);
+                    if (path.empty()) return faux;
+                    log('\t', temp, " = ", path);
+                }
+                auto config_path = path.starts_with("~/") ? os::homepath() / path.substr(2)
+                                                          : fs::path{ path };
+                auto ec = std::error_code{};
+                auto config_file = fs::directory_entry(config_path, ec);
+                if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
+                {
+                    auto config_path_str = "'" + config_path.string() + "'";
+                    utf::change(config_path_str, "\\", "/");
+                    auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
+                    if (file.seekg(0, std::ios::end).fail())
+                    {
+                        log("\tfailed\n\tunable to get configuration file size, skip it: ", config_path_str);
+                        return faux;
+                    }
+                    else
+                    {
+                        log("\treading configuration: ", config_path_str);
+                        auto size = file.tellg();
+                        auto buff = text(size, '\0');
+                        file.seekg(0, std::ios::beg);
+                        file.read(buff.data(), size);
+                        conf.document = std::make_shared<xml::document>(buff, config_path.string());
+                        return true;
+                    }
+                }
+                log("\tno configuration found, try another source");
+                return faux;
+            };
+            if (!load(cli_config)
+             && !load(app::shared::env_config)
+             && !load(app::shared::usr_config))
+            {
+                log("apps: fallback to hardcoded configuration");
+            }
+
+            os::set_env(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
+
+            conf.merge(run_config);
+            return conf;
+        }
+    }
+
     struct initialize
     {
         initialize(view app_typename, builder_t builder)
         {
-            app::shared::get_creator()[text{ app_typename }] = builder;
+            app::shared::get::creator()[text{ app_typename }] = builder;
         }
     };
 
-    auto start(text app_name, text log_title, si32 vtmode, si32 maxfps, si32 menusz)
+    auto start(text app_name, text log_title, si32 vtmode, xml::settings& config)
     {
         auto direct = !!(vtmode & os::legacy::direct);
         if (!direct) os::start_log(log_title);
 
-        auto config = console::conf(vtmode);
-        auto tunnel = os::ipc::local(vtmode);
+        //std::this_thread::sleep_for(15s);
 
+        auto shadow = app_name;
+        utf::to_low(shadow);
+        if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
+
+        auto tunnel = os::ipc::local(vtmode);
         auto cons = os::tty::proxy(tunnel.second);
         auto size = cons.ignite(vtmode);
         if (!size.last) return faux;
 
-        auto ground = base::create<host>(tunnel.first, maxfps);
+        config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
+        auto ground = base::create<host>(tunnel.first, config);
         auto runapp = [&]
         {
             auto aclass = utf::cutoff(app_name, ' ');
             utf::to_low(aclass);
             auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::creator(aclass)("", (direct ? "" : "!") + params); // ! - means simple (w/o plugins)
-            auto window = ground->invite<gate>(config);
+            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config); // ! - means simple (w/o plugins)
+            auto window = ground->invite<gate>(vtmode, config);
             window->resize(size);
             window->launch(tunnel.first, applet);
             window.reset();
@@ -671,13 +917,11 @@ R"==(
 #include "apps/test.hpp"
 #include "apps/desk.hpp"
 
-#include <fstream>
-
 namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text cwd, text v)
+        auto build_Strobe        = [](text cwd, text v,     xml::settings& config)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
@@ -702,7 +946,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text cwd, text v)
+        auto build_Settings      = [](text cwd, text v,     xml::settings& config)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -724,7 +968,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text cwd, text v)
+        auto build_Empty         = [](text cwd, text v,     xml::settings& config)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -746,7 +990,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_Region        = [](text cwd, text v)
+        auto build_Region        = [](text cwd, text v,     xml::settings& config)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -822,7 +1066,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Truecolor     = [](text cwd, text v)
+        auto build_Truecolor     = [](text cwd, text v,     xml::settings& config)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -953,8 +1197,11 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_Headless      = [](text cwd, text param)
+        auto build_Headless      = [](text cwd, text param, xml::settings& config)
         {
+            auto menu_white = skin::color(tone::menu_white);
+            auto cB = menu_white;
+
             auto window = ui::cake::ctor()
                   ->invoke([&](auto& boss)
                     {
@@ -965,12 +1212,12 @@ namespace netxs::app::shared
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>();
             //auto object = window->attach(ui::fork::ctor(axis::Y))
-            //                    ->colors(whitelt, app::shared::term_menu_bg);
+            //                    ->colors(cB.fgc(), cB.bgc());
             //    auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
             //    auto layers = object->attach(slot::_2, ui::cake::ctor())
             //                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
             auto layers = window->attach(ui::cake::ctor())
-                                ->colors(whitelt, app::shared::term_menu_bg)
+                                ->colors(cB.fgc(), cB.bgc())
                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
@@ -1024,8 +1271,11 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Fone          = [](text cwd, text param)
+        auto build_Fone          = [](text cwd, text param, xml::settings& config)
         {
+            auto highlight_color = skin::color(tone::highlight);
+            auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
+            auto x8 = cell{ c8 }.alpha(0x00);
             return ui::park::ctor()
                 ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(DESKTOPIO_MYNAME)
                 ->template plugin<pro::fader>(x8, c8, 0ms))
@@ -1090,13 +1340,14 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_DirectVT      = [](text cwd, text param)
+        auto build_DirectVT      = [](text cwd, text param, xml::settings& config)
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::limit>(dot_11)
                 ->plugin<pro::focus>();
 
-            auto direct = ui::dtvt::ctor(cwd, param)
+            //todo pass subconfig
+            auto direct = ui::dtvt::ctor(cwd, param, config.utf8())
                 ->invoke([](auto& boss)
                 {
                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
@@ -1107,7 +1358,7 @@ namespace netxs::app::shared
             window->attach(direct);
             return window;
         };
-        auto build_ANSIVT        = [](text cwd, text param)
+        auto build_ANSIVT        = [](text cwd, text param, xml::settings& config)
         {
             if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
 
@@ -1117,9 +1368,9 @@ namespace netxs::app::shared
             args += " -r headless ";
             args += param;
 
-            return build_DirectVT(cwd, args);
+            return build_DirectVT(cwd, args, config);
         };
-        auto build_SHELL         = [](text cwd, text param)
+        auto build_SHELL         = [](text cwd, text param, xml::settings& config)
         {
             auto args = os::current_module_file();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
@@ -1143,247 +1394,20 @@ namespace netxs::app::shared
                 args += param;
             }
 
-            return build_DirectVT(cwd, args);
+            return build_DirectVT(cwd, args, config);
         };
 
-        app::shared::initialize builder_Strobe       { "strobe"                  , build_Strobe     };
-        app::shared::initialize builder_Settings     { "settings"                , build_Settings   };
-        app::shared::initialize builder_Empty        { "empty"                   , build_Empty      };
-        app::shared::initialize builder_Truecolor    { "truecolor"               , build_Truecolor  };
-        app::shared::initialize builder_Headless     { app::shared::type_Headless, build_Headless   };
-        app::shared::initialize builder_Fone         { app::shared::type_Fone    , build_Fone       };
-        app::shared::initialize builder_Region       { app::shared::type_Region  , build_Region     };
-        app::shared::initialize builder_DirectVT     { app::shared::type_DirectVT, build_DirectVT   };
-        app::shared::initialize builder_ANSIVT       { app::shared::type_ANSIVT  , build_ANSIVT     };
-        app::shared::initialize builder_SHELL        { app::shared::type_SHELL   , build_SHELL      };
+        app::shared::initialize builder_Strobe       { "strobe"                 , build_Strobe     };
+        app::shared::initialize builder_Settings     { "settings"               , build_Settings   };
+        app::shared::initialize builder_Empty        { "empty"                  , build_Empty      };
+        app::shared::initialize builder_Truecolor    { "truecolor"              , build_Truecolor  };
+        app::shared::initialize builder_Headless     { menuitem_t::type_Headless, build_Headless   };
+        app::shared::initialize builder_Fone         { menuitem_t::type_Fone    , build_Fone       };
+        app::shared::initialize builder_Region       { menuitem_t::type_Region  , build_Region     };
+        app::shared::initialize builder_DirectVT     { menuitem_t::type_DirectVT, build_DirectVT   };
+        app::shared::initialize builder_ANSIVT       { menuitem_t::type_ANSIVT  , build_ANSIVT     };
+        app::shared::initialize builder_SHELL        { menuitem_t::type_SHELL   , build_SHELL      };
     }
-
-    auto init_app_registry = [](auto& world, view cli_config)
-    {
-        auto menu_list_ptr = e2::bindings::list::apps.param();
-        auto conf_list_ptr = e2::bindings::list::links.param();
-        world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
-        world->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
-        auto& menu_list = *menu_list_ptr;
-        auto& conf_list = *conf_list_ptr;
-        auto current_module_file = os::current_module_file();
-
-        auto doc = sptr<xml::document>{};
-        auto list = xml::document::vect{};
-        auto free_list = std::list<std::pair<text, menuitem_t>>{};
-        auto temp_list = free_list;
-
-        auto take_config = [&](view data, auto source)
-        {
-            doc = std::make_shared<xml::document>(data, source);
-            list = doc->enumerate(path_item);
-            if (list.size())
-            {
-                auto selected = doc->enumerate(path_selected);
-                if (selected.size())
-                {
-                    get_selected() = selected.front()->get_value();
-                    log("apps: ", path_selected, " = ", get_selected());
-                }
-            }
-        };
-
-        auto load_config = [&](view shadow)
-        {
-            if (shadow.empty()) return faux;
-            auto path = text{ shadow };
-            log("apps: try to load configuration from ", path, "...");
-            if (path.starts_with("$"))
-            {
-                auto temp = path.substr(1);
-                path = os::get_env(temp);
-                if (path.empty()) return faux;
-                log('\t', temp, " = ", path);
-            }
-            auto config_path = path.starts_with("~/") ? os::homepath() / path.substr(2)
-                                                      : fs::path{ path };
-            auto ec = std::error_code{};
-            auto config_file = fs::directory_entry(config_path, ec);
-            if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
-            {
-                auto config_path_str = "'" + config_path.string() + "'";
-                utf::change(config_path_str, "\\", "/");
-                auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
-                if (file.seekg(0, std::ios::end).fail())
-                {
-                    log("\tfailed\n\tunable to get configuration file size, skip it: ", config_path_str);
-                    return faux;
-                }
-                else
-                {
-                    log("\treading configuration: ", config_path_str);
-                    auto size = file.tellg();
-                    auto buff = text(size, '\0');
-                    file.seekg(0, std::ios::beg);
-                    file.read(buff.data(), size);
-                    take_config(buff, config_path.string());
-                    return !list.empty();
-                }
-            }
-            log("\tfailed");
-            return faux;
-        };
-
-        if (!load_config(cli_config)
-         && !load_config(env_config)
-         && !load_config(usr_config))
-        {
-            log("apps: no configuration found, fallback to hardcoded config\n", default_config);
-            take_config(default_config, "");
-        }
-
-        log("apps: ", list.size(), " menu item(s) added");
-        auto dflt_rec = menuitem_t
-        {
-            .hidden   = faux,
-            .slimmenu = faux,
-            .type     = type_SHELL,
-        };
-        auto find = [&](auto const& id) -> auto&
-        {
-            auto test = [&](auto& p) { return p.first == id; };
-
-            auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
-            if (iter_free != free_list.end()) return iter_free->second;
-
-            auto iter_temp = std::find_if(temp_list.begin(), temp_list.end(), test);
-            if (iter_temp != temp_list.end()) return iter_temp->second;
-
-            return dflt_rec;
-        };
-
-        static auto splitter_count = 0;
-        for (auto item_ptr : list)
-        {
-            auto& item = *item_ptr;
-            auto conf_rec = menuitem_t{};
-            conf_rec.splitter = item.take(attr_splitter, faux);
-            conf_rec.id       = item.take(attr_id,       ""s );
-            if (conf_rec.splitter)
-            {
-                conf_rec.id = "splitter_" + std::to_string(splitter_count++);
-            }
-            else if (conf_rec.id.empty())
-            {
-                log("apps: attribute '", utf::debase(attr_id), "' is missing, skip item");
-                continue;
-            }
-            auto label = item.take(attr_label, ""s);
-            conf_rec.label    = label.empty() ? conf_rec.id : label;
-            conf_rec.alias    = item.take(attr_alias, ""s);
-            auto& fallback = conf_rec.alias.empty() ? dflt_rec
-                                                    : find(conf_rec.alias);
-            conf_rec.hidden   = item.take(attr_hidden,   fallback.hidden  );
-            conf_rec.notes    = item.take(attr_notes,    fallback.notes   );
-            conf_rec.title    = item.take(attr_title,    fallback.title   );
-            conf_rec.footer   = item.take(attr_footer,   fallback.footer  );
-            conf_rec.bgcolor  = item.take(attr_bgcolor,  fallback.bgcolor );
-            conf_rec.fgcolor  = item.take(attr_fgcolor,  fallback.fgcolor );
-            conf_rec.winsize  = item.take(attr_winsize,  fallback.winsize );
-            conf_rec.wincoor  = item.take(attr_wincoor,  fallback.wincoor );
-            conf_rec.slimmenu = item.take(attr_slimmenu, fallback.slimmenu);
-            conf_rec.hotkey   = item.take(attr_hotkey,   fallback.hotkey  ); //todo register hotkey
-            conf_rec.cwd      = item.take(attr_cwd,      fallback.cwd     );
-            conf_rec.param    = item.take(attr_param,    fallback.param   );
-            conf_rec.type     = item.take(attr_type,     fallback.type    );
-
-            utf::to_low(conf_rec.type);
-            utf::change(conf_rec.title,  "$0", current_module_file);
-            utf::change(conf_rec.footer, "$0", current_module_file);
-            utf::change(conf_rec.label,  "$0", current_module_file);
-            utf::change(conf_rec.notes,  "$0", current_module_file);
-            utf::change(conf_rec.param,  "$0", current_module_file);
-
-            if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
-            else                 free_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
-        }
-        for (auto& [id, conf_rec] : free_list)
-        {
-            menu_list[id];
-            conf_list.emplace(std::move(id), std::move(conf_rec));
-        }
-        for (auto& [id, conf_rec] : temp_list)
-        {
-            conf_list.emplace(std::move(id), std::move(conf_rec));
-        }
-
-        world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
-        {
-            static si32 insts_count = 0;
-            auto& gate = gear.owner;
-            auto location = gear.slot;
-            if (gear.meta(hids::anyCtrl))
-            {
-                log("apps: area copied to clipboard ", location);
-                gate.SIGNAL(tier::release, e2::command::printscreen, gear);
-            }
-            else
-            {
-                auto what = e2::form::proceed::createat.param();
-                what.square = gear.slot;
-                what.forced = gear.slot_forced;
-                auto data = e2::data::changed.param();
-                gate.SIGNAL(tier::request, e2::data::changed, data);
-                what.menuid = data;
-                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                if (auto& frame = what.object)
-                {
-                    insts_count++;
-                    frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
-                    {
-                        insts_count--;
-                        log("apps: detached: ", insts_count);
-                    };
-
-                    gear.kb_focus_changed = faux;
-                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                }
-            }
-        };
-        world->SUBMIT(tier::release, e2::form::proceed::createat, what)
-        {
-            auto& conf_list = app::shared::configs();
-            auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
-
-            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
-            else                                window->extend(what.square);
-            auto& creator = app::shared::creator(config.type);
-
-            //todo pass whole s11n::configuration map
-            auto object = creator(config.cwd, config.param);
-            if (config.bgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgcolor);
-            if (config.fgcolor)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgcolor);
-            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
-
-            window->attach(object);
-            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
-            world->branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
-
-            what.object = window;
-        };
-        world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
-        {
-            auto& conf_list = app::shared::configs();
-            auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
-
-            window->extend(what.square);
-            window->attach(what.object);
-            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
-            world->branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
-
-            what.object = window;
-        };
-    };
 }
 
 #endif // NETXS_APPS_HPP

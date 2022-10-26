@@ -51,8 +51,9 @@ namespace netxs::app::term
 
     const auto terminal_menu = [](bool full_size)
     {
-        const static auto c3 = app::shared::c3;
-        const static auto x3 = app::shared::x3;
+        auto highlight_color = skin::color(tone::highlight);
+        auto c3 = highlight_color;
+        auto x3 = cell{ c3 }.alpha(0x00);
 
         auto items = app::shared::menu_list_type
         {
@@ -113,6 +114,9 @@ namespace netxs::app::term
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::layout::wrapln, wrapln)
                 {
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
                     //todo unify, get boss base colors, don't use x3
                     boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
@@ -127,6 +131,9 @@ namespace netxs::app::term
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::selmod, selmod)
                 {
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
                     //todo unify, get boss base colors, don't use x3, make it configurable
                     switch (selmod)
                     {
@@ -175,6 +182,9 @@ namespace netxs::app::term
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
                 {
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
                     //todo unify, get boss base colors, don't use x3
                     boss.color(mode & 2 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
@@ -191,6 +201,9 @@ namespace netxs::app::term
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
                 {
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
                     //todo unify, get boss base colors, don't use x3
                     boss.color(mode & 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
@@ -223,8 +236,11 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, xml::settings& config)
         {
+            auto menu_white = skin::color(tone::menu_white);
+            auto cB = menu_white;
+
             auto window = ui::cake::ctor();
             auto arg_shadow = view{ arg };
             auto term_type = shared::app_class(arg_shadow);
@@ -234,7 +250,7 @@ namespace netxs::app::term
                                                              ->plugin<pro::acryl>()
                                                              ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
+                                ->colors(cB.fgc(), cB.bgc());
                 auto menu = object->attach(slot::_1, terminal_menu(true));
                 auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())

@@ -5,13 +5,15 @@
 #define NETXS_XML_HPP
 
 #include "../ui/layout.hpp"
+#include "../datetime/quartz.hpp"
 
 namespace netxs::xml
 {
     using namespace netxs::utf;
     using namespace netxs::ui::atoms;
+    using namespace netxs::datetime;
 
-    static constexpr auto spaces = " \n\r\t";
+    static constexpr auto spaces = " \n\r\t"sv;
     enum class type_old
     {
         none,
@@ -71,35 +73,35 @@ namespace netxs::xml
     }
 
     template<class T>
-    auto take(view utf8, T fallback = {})
+    auto take(view utf8) -> std::optional<T>
     { }
     template<>
-    auto take<si32>(view utf8, si32 result)
+    auto take<si32>(view utf8) -> std::optional<si32>
     {
-        if (auto v = utf::to_int(utf8))
+        if (utf8.starts_with("0x"))
         {
-            result = v.value();
+            utf8.remove_prefix(2);
+            return utf::to_int<si32, 16>(utf8);
         }
-        return result;
+        else return utf::to_int<si32, 10>(utf8);
     }
     template<>
-    auto take<text>(view utf8, text result)
+    auto take<text>(view utf8) -> std::optional<text>
     {
         return text{ utf8 };
     }
     template<>
-    auto take<bool>(view utf8, bool result)
+    auto take<bool>(view utf8) -> std::optional<bool>
     {
         auto value = text{ utf8 };
         utf::to_low(value);
-        result = value.empty() || value.starts_with("1")  // 1 - true
-                               || value.starts_with("on") // on
-                               || value.starts_with("y")  // yes
-                               || value.starts_with("t"); // true
-        return result;
+        return value.empty() || value.starts_with("1")  // 1 - true
+                             || value.starts_with("on") // on
+                             || value.starts_with("y")  // yes
+                             || value.starts_with("t"); // true
     }
     template<>
-    auto take<twod>(view utf8, twod result)
+    auto take<twod>(view utf8) -> std::optional<twod>
     {
         utf::trim_front(utf8, " ({[\"\'");
         if (auto x = utf::to_int(utf8))
@@ -107,14 +109,34 @@ namespace netxs::xml
             utf::trim_front(utf8, " ,.x/:;");
             if (auto y = utf::to_int(utf8))
             {
-                result.x = x.value();
-                result.y = y.value();
+                return twod{ x.value(), y.value() };
             }
         }
-        return result;
+        return std::nullopt;
     }
     template<>
-    auto take<rgba>(view utf8, rgba result)
+    auto take<period>(view utf8) -> std::optional<period>
+    {
+        using namespace std::chrono;
+        utf::trim_front(utf8, " ({[\"\'");
+        if (auto x = utf::to_int(utf8))
+        {
+            auto v = x.value();
+            auto p = period{};
+                 if (utf8.empty()
+                  || utf8.starts_with("ms" )) return period{ milliseconds{ v } };
+            else if (utf8.starts_with("us" )) return period{ microseconds{ v } };
+            else if (utf8.starts_with("ns" )) return period{  nanoseconds{ v } };
+            else if (utf8.starts_with("s"  )) return period{      seconds{ v } };
+            else if (utf8.starts_with("min")) return period{      minutes{ v } };
+            else if (utf8.starts_with("h"  )) return period{        hours{ v } };
+            else if (utf8.starts_with("d"  )) return period{         days{ v } };
+            else if (utf8.starts_with("w"  )) return period{        weeks{ v } };
+        }
+        return std::nullopt;
+    }
+    template<>
+    auto take<rgba>(view utf8) -> std::optional<rgba>
     {
         auto tobyte = [](auto c)
         {
@@ -125,6 +147,7 @@ namespace netxs::xml
 
         auto value = text{ utf8 };
         utf::to_low(value);
+        auto result = rgba{};
         auto shadow = view{ value };
         utf::trim_front(shadow, " ({[\"\'");
         if (shadow.starts_with('#')) // hex: #rrggbbaa
@@ -136,6 +159,7 @@ namespace netxs::xml
                 result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                 result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 result.chan.a = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
+                return result;
             }
             else if (shadow.size() >= 6) // hex: #rrggbb
             {
@@ -143,6 +167,7 @@ namespace netxs::xml
                 result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                 result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 result.chan.a = 0xff;
+                return result;
             }
             else log(" xml: unknown hex rgba format: { ", value, " }, expected #rrggbbaa or #rrggbb rgba hex value");
         }
@@ -155,6 +180,7 @@ namespace netxs::xml
                 result.chan.b = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                 result.chan.g = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 result.chan.r = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
+                return result;
             }
             else if (shadow.size() >= 6) // hex: 0xbbggrr
             {
@@ -162,6 +188,7 @@ namespace netxs::xml
                 result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                 result.chan.r = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 result.chan.a = 0xff;
+                return result;
             }
             else log(" xml: unknown hex rgba format: { ", value, " }, expected 0xaabbggrr or 0xbbggrr rgba hex value");
         }
@@ -187,15 +214,16 @@ namespace netxs::xml
             }
             log(" xml: unknown rgba format: { ", value, " }, expected 000,000,000,000 decimal rgba value");
         }
-        else // Single ANSI color value
+        else if (auto c = utf::to_int(shadow)) // Single ANSI color value
         {
-            if (auto c = utf::to_int(shadow); c.value() >=0 && c.value() <=255)
+            if (c.value() >=0 && c.value() <=255)
             {
                 result = rgba::color256[c.value()];
+                return result;
             }
             else log(" xml: unknown ANSI 256-color value format: { ", value, " }, expected 0-255 decimal value");
         }
-        return result;
+        return std::nullopt;
     }
 
 
@@ -234,19 +262,21 @@ namespace netxs::xml
                 using iter = std::list<literal>::iterator;
 
                 suit& boss;
-                iter  upto;
                 type  kind;
+                iter  upto;
                 frag  part;
 
                 template<class ...Args>
                 literal(suit& boss, type kind, Args&&... args)
                     : boss{ boss },
                       kind{ kind },
+                      upto{ boss.data.end() },
                       part{ std::make_shared<text>(std::forward<Args>(args)...) }
                 { }
                 literal(suit& boss, type kind, frag part)
                     : boss{ boss },
                       kind{ kind },
+                      upto{ boss.data.end() },
                       part{ part }
                 { }
             };
@@ -296,6 +326,15 @@ namespace netxs::xml
                 }
                 return std::max(1_sz, count);
             }
+            auto utf8()
+            {
+                auto crop = text{};
+                for (auto& item : data)
+                {
+                    crop += *item.part;
+                }
+                return crop;
+            }
         };
 
         struct elem;
@@ -324,6 +363,46 @@ namespace netxs::xml
                 }
             }
 
+            auto enumerate(qiew path_str)
+            {
+                using utf::text;
+                path_str = utf::trim(path_str, '/');
+                auto root = shared_from_this();
+                auto crop = vect{}; //auto& items = config.root->sub["menu"][0]->sub["item"]...;
+                auto temp = text{};
+                auto path = utf::divide(path_str, '/');
+                if (path.size())
+                {
+                    auto head = path.begin();
+                    auto tail = path.end();
+                    auto item = root;
+                    while (head != tail)
+                    {
+                        temp = *head++;
+                        if (auto iter = item->sub.find(temp);
+                                iter!= item->sub.end())
+                        {
+                            auto& i = iter->second;
+                            crop.reserve(i.size());
+                            if (head == tail)
+                            {
+                                for (auto& item : i)
+                                {
+                                    if (!item->is_template) crop.push_back(item);
+                                }
+                            }
+                            else if (i.size() && i.front())
+                            {
+                                item = i.front();
+                            }
+                            else break;
+                        }
+                        else break;
+                    }
+                }
+                return crop;
+            }
+
             static auto create(suit& page, wptr parent_wptr = {})
             {
                 return std::make_shared<elem>(page, parent_wptr);
@@ -337,7 +416,7 @@ namespace netxs::xml
 
             static auto& map()
             {
-                static byid map;
+                static auto map = byid{};
                 return map;
             }
             template<class T>
@@ -375,28 +454,27 @@ namespace netxs::xml
                     if (item_set.size()) // Take the first item only.
                     {
                         auto crop = item_set.front()->get_value();
-                        return xml::take(crop, fallback);
+                        if (auto result = xml::take<T>(crop)) return result.value();
+                        else                                  return fallback;
                     }
                 }
                 if (auto def_ptr = def_wptr.lock()) return def_ptr->take(attr, fallback);
                 else                                return fallback;
             }
 
-            static constexpr auto spaces = " \n\r\t";
-            static constexpr auto find_start = "<";
-            static constexpr auto rawtext_delims = " \t\n\r/><";
-            static constexpr auto token_delims = " \t\n\r=*/><";
-
-            static constexpr view view_comment_begin = "<!--";
-            static constexpr view view_comment_close = "-->" ;
-            static constexpr view view_close_tag     = "</"  ;
-            static constexpr view view_begin_tag     = "<"   ;
-            static constexpr view view_empty_tag     = "/>"  ;
-            static constexpr view view_slash         = "/"   ;
-            static constexpr view view_close_inline  = ">"   ;
-            static constexpr view view_quoted_text   = "\""  ;
-            static constexpr view view_equal         = "="   ;
-            static constexpr view view_defaults      = "*"   ;
+            static constexpr auto find_start         = "<"sv;
+            static constexpr auto rawtext_delims     = " \t\n\r/><"sv;
+            static constexpr auto token_delims       = " \t\n\r=*/><"sv;
+            static constexpr auto view_comment_begin = "<!--"sv;
+            static constexpr auto view_comment_close = "-->"sv;
+            static constexpr auto view_close_tag     = "</"sv;
+            static constexpr auto view_begin_tag     = "<"sv;
+            static constexpr auto view_empty_tag     = "/>"sv;
+            static constexpr auto view_slash         = "/"sv;
+            static constexpr auto view_close_inline  = ">"sv;
+            static constexpr auto view_quoted_text   = "\""sv;
+            static constexpr auto view_equal         = "="sv;
+            static constexpr auto view_defaults      = "*"sv;
 
             auto peek(view temp, type& what, type& last)
             {
@@ -577,7 +655,7 @@ namespace netxs::xml
 
                 if (what == type::equal)
                 {
-                    diff(data, temp, type::whitespaces);
+                    diff(temp, data, type::whitespaces);
                     data=temp;
 
                     page.append(type::equal, skip(data, what));
@@ -880,58 +958,35 @@ namespace netxs::xml
         {
             
         }
-        auto enumerate(qiew path_str)
+        auto utf8()
         {
-            using utf::text;
-            auto crop = vect{}; //auto& items = config.root->sub["menu"][0]->sub["item"]...;
-            auto temp = text{};
-            auto path = utf::divide(path_str, '/');
-            if (path.size())
+            return page.utf8();
+        }
+        auto enumerate(view path_str)
+        {
+            if (path_str == "/") return vect{ root };
+            else
             {
-                auto head = path.begin();
-                auto tail = path.end();
-                temp = *head++;
-                if (root && root->tag_ptr && *(root->tag_ptr) == temp)
+                path_str = utf::trim(path_str, '/');
+                auto tmp = utf::cutoff(path_str, '/');
+                if (root && root->tag_ptr && *(root->tag_ptr) == tmp)
                 {
-                    auto item = root;
-                    while (head != tail)
-                    {
-                        temp = *head++;
-                        if (auto iter = item->sub.find(temp);
-                                 iter!= item->sub.end())
-                        {
-                            auto& i = iter->second;
-                            crop.reserve(i.size());
-                            if (head == tail)
-                            {
-                                for (auto& item : i)
-                                {
-                                    if (!item->is_template) crop.push_back(item);
-                                }
-                            }
-                            else if (i.size() && i.front())
-                            {
-                                item = i.front();
-                            }
-                            else break;
-                        }
-                        else break;
-                    }
+                    return root->enumerate(path_str.substr(tmp.size()));
                 }
             }
-            return crop;
+            return vect{};
         }
         auto show()
         {
-            static const rgba top_token_fg = 0xFFffd799;
-            static const rgba end_token_fg = 0xFFb3966a;
-            static const rgba token_fg     = 0xFFdab883;
-            static const rgba liter_fg     = 0xFF808080;
-            static const rgba comment_fg   = 0xFF4e4e4e;
-            static const rgba defaults_fg  = 0xFF9e9e9e;
-            static const rgba quotes_fg    = 0xFFBBBBBB;
-            static const rgba value_fg     = 0xFFf09690;
-            static const rgba value_bg     = 0xFF202020;
+            static constexpr auto top_token_fg = rgba{ 0xFFffd799 };
+            static constexpr auto end_token_fg = rgba{ 0xFFb3966a };
+            static constexpr auto token_fg     = rgba{ 0xFFdab883 };
+            static constexpr auto liter_fg     = rgba{ 0xFF808080 };
+            static constexpr auto comment_fg   = rgba{ 0xFF4e4e4e };
+            static constexpr auto defaults_fg  = rgba{ 0xFF9e9e9e };
+            static constexpr auto quotes_fg    = rgba{ 0xFFBBBBBB };
+            static constexpr auto value_fg     = rgba{ 0xFFf09690 };
+            static constexpr auto value_bg     = rgba{ 0xFF202020 };
 
             auto yield = ansi::esc{};
             for (auto& item : page.data)
@@ -967,14 +1022,8 @@ namespace netxs::xml
                 if (kind == type::tag_value)
                 {
                     auto temp = data;
-                    if (fgc)
-                    {
-                        //if (bgc) yield.fgc(fgc).bgc(bgc);
-                        //else     yield.fgc(fgc);
-                        //yield.add(xml::escape(temp)).nil();
-                        yield.fgc(fgc).add(xml::escape(temp)).nil();
-                    }
-                    else yield.add(xml::escape(temp));
+                    if (fgc) yield.fgc(fgc).add(xml::escape(temp)).nil();
+                    else     yield.add(xml::escape(temp));
                 }
                 else
                 {
@@ -1006,6 +1055,112 @@ namespace netxs::xml
               root{ elem::root(page, data) }
         {
             if (page.fail) log(" xml: inconsistent xml data from ", page.file, "\n", show());
+        }
+    };
+
+    struct settings
+    {
+        netxs::sptr<xml::document> fallback; // = std::make_shared<xml::document>(default_config, "");
+        netxs::sptr<xml::document> document; // = fallback;
+        xml::document::vect list{};
+        xml::document::vect temp{};
+        text cwd{};
+        text defaults{};
+
+        settings(view default_config)
+            : fallback{ std::make_shared<xml::document>(default_config, "") },
+              document{ fallback }
+        { }
+        settings(settings const& other)
+            : fallback{ other.fallback },
+              document{ other.document }
+        { }
+        settings() = default;
+
+        auto cd(view path, view defpath = {})
+        {
+            defaults = utf::trim(defpath, '/');
+            if (path.empty()) return faux;
+            if (path.front() == '/')
+            {
+                path = utf::trim(path, '/');
+                cwd = "/" + text{ path };
+                temp = document->enumerate(cwd);
+                if (temp.empty()) temp = fallback->enumerate(cwd);
+            }
+            else
+            {
+                path = utf::trim(path, '/');
+                cwd += "/" + text{ path };
+                if (temp.size())
+                {
+                    temp = temp.front()->enumerate(path);
+                    if (temp.empty()) temp = fallback->enumerate(cwd);
+                }
+            }
+            auto test = !!temp.size();
+            if (!test)
+            {
+                log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + cwd);
+            }
+            return test;
+        }
+        template<class T = si32>
+        auto take(view path, T defval = {})
+        {
+            if (path.empty()) return defval;
+            auto crop = text{};
+            auto dest = text{};
+            if (path.front() == '/')
+            {
+                dest = utf::trim(path, '/');
+                list = document->enumerate(dest);
+            }
+            else
+            {
+                path = utf::trim(path, '/');
+                dest = cwd + "/" + text{ path };
+                if (temp.size()) list = temp.front()->enumerate(path);
+                if (list.empty() && defaults.size())
+                {
+                    dest = defaults + "/" + text{ path };
+                    list = document->enumerate(dest);
+                }
+            }
+            if (list.empty()) list = fallback->enumerate(dest);
+            if (list.size() ) crop = list.back()->get_value();
+            else              log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
+            list.clear();
+            if (auto result = xml::take<T>(crop)) return result.value();
+            else
+            {
+                if (crop.size()) return take("/config/set/" + crop, defval);
+                else             return defval;
+            }
+        }
+        auto take(view path, cell defval)
+        {
+            if (path.empty()) return defval;
+            auto fgc_path = text{ path } + '/' + "fgc";
+            auto bgc_path = text{ path } + '/' + "bgc";
+            auto crop = cell{};
+            crop.fgc(take(fgc_path, defval.fgc()));
+            crop.bgc(take(bgc_path, defval.bgc()));
+            return crop;
+        }
+        auto take_list(view path)
+        {
+            auto list = document->enumerate(path);
+            if (list.empty()) list = fallback->enumerate(path);
+            return list;
+        }
+        auto utf8()
+        {
+            return document->utf8();
+        }
+        auto merge(view run_config)
+        {
+            //todo implement
         }
     };
 }

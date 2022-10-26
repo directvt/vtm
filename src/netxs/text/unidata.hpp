@@ -362,7 +362,7 @@ namespace netxs::unidata
 
     struct base
     {
-        static constexpr size_t  blocks_size = 4352;
+        static constexpr auto    blocks_size = size_t{ 4352 };
         static constexpr int32_t blocks_pack[] =
         {
               0,  -2, 256, 512, 768, 1024, 1280, 1536, 1792, 2048,
@@ -395,7 +395,7 @@ namespace netxs::unidata
             -255, 256, 40448, -255, 256, 40448
         };
 
-        static constexpr size_t  offset_size = 40704;
+        static constexpr auto    offset_size = size_t{ 40704 };
         static constexpr int32_t offset_pack[] =
         {
               1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16,

@@ -418,7 +418,7 @@ namespace netxs::utf
             }
             return n;
         }
-        // Pop front a sequence of the same control points and return their count + 1.
+        // Pop front a sequence of the same chars and return their count + 1.
         auto pop_all(char c)
         {
             auto n = si32{ 1 };
@@ -452,30 +452,30 @@ namespace netxs::utf
         }
     };
 
-    template<class A = si32, class VIEW, class = std::enable_if_t<std::is_base_of<view, VIEW>::value == true, VIEW>>
+    template<class A = si32, si32 Base = 10, class VIEW, class = std::enable_if_t<std::is_base_of<view, VIEW>::value == true, VIEW>>
     inline std::optional<A> to_int(VIEW& ascii)
     {
         auto num = A{};
         auto top = ascii.data();
         auto end = ascii.length() + top;
 
-        if (auto [pos, err] = std::from_chars(top, end, num); err == std::errc())
+        if (auto [pos, err] = std::from_chars(top, end, num, Base); err == std::errc())
         {
             ascii.remove_prefix(pos - top);
             return num;
         }
         else return std::nullopt;
     }
-    template<class A = si32, class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
+    template<class A = si32, si32 Base = 10, class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
     inline auto to_int(T&& utf8)
     {
         auto shadow = view{ std::forward<T>(utf8) };
-        return to_int<A>(shadow);
+        return to_int<A, Base>(shadow);
     }
-    template<class T, class A>
+    template<si32 Base = 10, class T, class A>
     inline auto to_int(T&& utf8, A fallback)
     {
-        auto result = to_int<A>(std::forward<T>(utf8));
+        auto result = to_int<A, Base>(std::forward<T>(utf8));
         return result ? result.value() : fallback;
     }
     enum codepage

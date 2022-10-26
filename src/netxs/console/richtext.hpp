@@ -95,7 +95,7 @@ namespace netxs::console
         //       ansi::fn::el
         //virtual void custom(ansi::fn cmd, si32 arg) = 0;
 
-        constexpr static std::array<hndl, ansi::fn_count> exec =
+        static constexpr auto exec = std::array<hndl, ansi::fn_count>
         {   // Order does matter, see definition of ansi::fn.
             exec_dx, // horizontal delta
             exec_dy, // vertical delta
@@ -1660,10 +1660,10 @@ namespace netxs::console
         {
             using cmap = std::unordered_map<ui32, size_t>;
 
-            static constexpr view fg_1 = "\\cf"sv;
-            static constexpr view fg_2 = "\\chcfpat"sv;
-            static constexpr view bg_1 = "\\cb"sv;
-            static constexpr view bg_2 = "\\chcbpat"sv;
+            static constexpr auto fg_1 = "\\cf"sv;
+            static constexpr auto fg_2 = "\\chcfpat"sv;
+            static constexpr auto bg_1 = "\\cb"sv;
+            static constexpr auto bg_2 = "\\chcbpat"sv;
 
             wide buff;
             text data;
@@ -1712,21 +1712,21 @@ namespace netxs::console
             }
             auto bld(bool b)
             {
-                static const auto set = "\\b "sv;
-                static const auto off = "\\b0 "sv;
+                static constexpr auto set = "\\b "sv;
+                static constexpr auto off = "\\b0 "sv;
                 data += b ? set : off;
             }
             auto itc(bool b)
             {
-                static const auto set = "\\i "sv;
-                static const auto off = "\\i0 "sv;
+                static constexpr auto set = "\\i "sv;
+                static constexpr auto off = "\\i0 "sv;
                 data += b ? set : off;
             }
             auto und(si32 unline)
             {
-                static const auto off = "\\ul0 "sv;
-                static const auto sgl = "\\ul "sv;
-                static const auto dbl = "\\uldb "sv;
+                static constexpr auto off = "\\ul0 "sv;
+                static constexpr auto sgl = "\\ul "sv;
+                static constexpr auto dbl = "\\uldb "sv;
                      if (unline == 1) data += sgl;
                 else if (unline == 2) data += dbl;
                 else                  data += off;
@@ -1739,8 +1739,8 @@ namespace netxs::console
             }
             auto stk(bool b)
             {
-                static const auto set = "\\strike "sv;
-                static const auto off = "\\strike0 "sv;
+                static constexpr auto set = "\\strike "sv;
+                static constexpr auto off = "\\strike0 "sv;
                 data += b ? set : off;
             }
             auto ovr(bool b) { } // not supported
@@ -1794,19 +1794,19 @@ namespace netxs::console
 
         struct html_dest_t
         {
-            static constexpr view bclr = "<span style=\"background-color:#"sv;
-            static constexpr view fclr = ";color:#"sv;
-            static constexpr view unln = ";text-decoration:underline"sv;
-            static constexpr view undb = ";border-bottom:3px double"sv;
-            static constexpr view itlc = ";font-style:italic"sv;
-            static constexpr view bold = ";font-weight:bold"sv;
-            static constexpr view strk = ";text-decoration:line-through"sv;
-            static constexpr view ovln = ";text-decoration:overline"sv;
-            static constexpr view stop = ";\">"sv;
-            static constexpr view done = "</span>"sv;
-            static constexpr view amp  = "&amp;"sv;
-            static constexpr view lt   = "&lt;"sv;
-            static constexpr view gt   = "&gt;"sv;
+            static constexpr auto bclr = "<span style=\"background-color:#"sv;
+            static constexpr auto fclr = ";color:#"sv;
+            static constexpr auto unln = ";text-decoration:underline"sv;
+            static constexpr auto undb = ";border-bottom:3px double"sv;
+            static constexpr auto itlc = ";font-style:italic"sv;
+            static constexpr auto bold = ";font-weight:bold"sv;
+            static constexpr auto strk = ";text-decoration:line-through"sv;
+            static constexpr auto ovln = ";text-decoration:overline"sv;
+            static constexpr auto stop = ";\">"sv;
+            static constexpr auto done = "</span>"sv;
+            static constexpr auto amp  = "&amp;"sv;
+            static constexpr auto lt   = "&lt;"sv;
+            static constexpr auto gt   = "&gt;"sv;
 
             text data;
             cell prev;
@@ -1983,14 +1983,22 @@ namespace netxs::console
     {
     public:
 
-        #define PROP_LIST                       \
-        X(kb_focus , "Keyboard focus indicator")\
-        X(brighter , "Highlighter modificator") \
-        X(shadower , "Darklighter modificator") \
-        X(shadow   , "Light Darklighter modificator") \
-        X(lucidity , "Global transparency")     \
-        X(selector , "Selection overlay")       \
-        X(bordersz , "Border size")
+        #define PROP_LIST                              \
+        X(kb_focus  , "Keyboard focus indicator")      \
+        X(brighter  , "Highlighter modificator")       \
+        X(shadower  , "Darklighter modificator")       \
+        X(shadow    , "Light Darklighter modificator") \
+        X(lucidity  , "Global transparency")           \
+        X(selector  , "Selection overlay")             \
+        X(bordersz  , "Border size")                   \
+        X(highlight , "Hilighted item color")          \
+        X(warning   , "Warning color")                 \
+        X(danger    , "Danger color")                  \
+        X(action    , "Action color")                  \
+        X(label     , "Static label color")            \
+        X(inactive  , "Inactive label color")          \
+        X(menu_white, "Light menu color")              \
+        X(menu_black, "Dark menu color")
 
         #define X(a, b) a,
         enum prop { PROP_LIST count };

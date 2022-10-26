@@ -6,6 +6,7 @@
 
 #include "../abstract/iterator.hpp"
 #include "../os/system.hpp"
+#include "../text/xml.hpp"
 
 #include <iostream>
 #include <typeindex>
@@ -50,6 +51,15 @@ namespace netxs::console
     };
     struct menuitem_t
     {
+        static constexpr auto type_ANSIVT   = "ansivt";
+        static constexpr auto type_DirectVT = "directvt";
+        static constexpr auto type_SHELL    = "shell";
+        static constexpr auto type_Group    = "group";
+        static constexpr auto type_Region   = "region";
+        static constexpr auto type_Desk     = "desk";
+        static constexpr auto type_Fone     = "fone";
+        static constexpr auto type_Headless = "headless";
+
         text       id{};
         text    alias{};
         bool   hidden{};
@@ -57,8 +67,8 @@ namespace netxs::console
         text    notes{};
         text    title{};
         text   footer{};
-        rgba  bgcolor{};
-        rgba  fgcolor{};
+        rgba      bgc{};
+        rgba      fgc{};
         twod  winsize{};
         twod  wincoor{};
         bool slimmenu{};
@@ -67,6 +77,7 @@ namespace netxs::console
         text      cwd{};
         text     type{};
         text    param{};
+        xml::settings settings;
     };
 
     using namespace netxs::input;
@@ -78,6 +89,26 @@ namespace netxs::console
     using proc = std::function<void(hids&)>;
     using s11n = netxs::ansi::dtvt::binary::s11n;
     using os::xipc;
+
+    static constexpr auto attr_id       = "id";
+    static constexpr auto attr_alias    = "alias";
+    static constexpr auto attr_hidden   = "hidden";
+    static constexpr auto attr_label    = "label";
+    static constexpr auto attr_notes    = "notes";
+    static constexpr auto attr_title    = "title";
+    static constexpr auto attr_footer   = "footer";
+    static constexpr auto attr_bgc      = "bgc";
+    static constexpr auto attr_fgc      = "fgc";
+    static constexpr auto attr_winsize  = "winsize";
+    static constexpr auto attr_wincoor  = "wincoor";
+    static constexpr auto attr_slimmenu = "slimmenu";
+    static constexpr auto attr_hotkey   = "hotkey";
+    static constexpr auto attr_type     = "type";
+    static constexpr auto attr_cwd      = "cwd";
+    static constexpr auto attr_param    = "param";
+    static constexpr auto attr_splitter = "splitter";
+
+    static constexpr auto path_item     = "/config/menu/item";
 }
 
 namespace netxs::events::userland
@@ -542,6 +573,15 @@ namespace netxs::console
         twod border = dot_11;
         si32 opaque = 0xFF;
 
+        cell highlight;
+        cell warning;
+        cell danger;
+        cell action;
+        cell label;
+        cell inactive;
+        cell menu_white;
+        cell menu_black;
+
         template<class V>
         struct _globals
         {
@@ -595,6 +635,22 @@ namespace netxs::console
                     break;
             }
         }
+        static void setup(tone::prop parameter, cell const& color)
+        {
+            auto& global = _globals<void>::global;
+            switch (parameter)
+            {
+                case tone::prop::highlight:  global.highlight  = color; break;
+                case tone::prop::warning:    global.warning    = color; break;
+                case tone::prop::danger:     global.danger     = color; break;
+                case tone::prop::action:     global.action     = color; break;
+                case tone::prop::label:      global.label      = color; break;
+                case tone::prop::inactive:   global.inactive   = color; break;
+                case tone::prop::menu_white: global.menu_white = color; break;
+                case tone::prop::menu_black: global.menu_black = color; break;
+                default: break;
+            }
+        }
 
         // skin:: Return global brighter/shadower color (cell).
         static cell const& color(si32 property)
@@ -602,23 +658,20 @@ namespace netxs::console
             auto& global = _globals<void>::global;
             switch (property)
             {
-                case tone::prop::kb_focus:
-                    return global.kb_colors;
-                    break;
-                case tone::prop::brighter:
-                    return global.hi_colors;
-                    break;
-                case tone::prop::shadower:
-                    return global.lo_colors;
-                    break;
-                case tone::prop::shadow:
-                    return global.sh_colors;
-                    break;
-                case tone::prop::selector:
-                    return global.sl_colors;
-                    break;
-                default:
-                    return global.hi_colors;
+                case tone::prop::kb_focus:   return global.kb_colors;
+                case tone::prop::brighter:   return global.hi_colors;
+                case tone::prop::shadower:   return global.lo_colors;
+                case tone::prop::shadow:     return global.sh_colors;
+                case tone::prop::selector:   return global.sl_colors;
+                case tone::prop::highlight:  return global.highlight;
+                case tone::prop::warning:    return global.warning;
+                case tone::prop::danger:     return global.danger;
+                case tone::prop::action:     return global.action;
+                case tone::prop::label:      return global.label;
+                case tone::prop::inactive:   return global.inactive;
+                case tone::prop::menu_white: return global.menu_white;
+                case tone::prop::menu_black: return global.menu_black;
+                default:                     return global.hi_colors;
             }
         }
         // skin:: Return global gradient for brighter/shadower.
@@ -627,23 +680,12 @@ namespace netxs::console
             auto& global = _globals<void>::global;
             switch (property)
             {
-                case tone::prop::kb_focus:
-                    return global.kb_grades;
-                    break;
-                case tone::prop::brighter:
-                    return global.hi_grades;
-                    break;
-                case tone::prop::shadower:
-                    return global.lo_grades;
-                    break;
-                case tone::prop::shadow:
-                    return global.sh_grades;
-                    break;
-                case tone::prop::selector:
-                    return global.sl_grades;
-                    break;
-                default:
-                    return global.hi_grades;
+                case tone::prop::kb_focus: return global.kb_grades;
+                case tone::prop::brighter: return global.hi_grades;
+                case tone::prop::shadower: return global.lo_grades;
+                case tone::prop::shadow:   return global.sh_grades;
+                case tone::prop::selector: return global.sl_grades;
+                default:                   return global.hi_grades;
             }
         }
         // skin:: Return global border size.
@@ -991,7 +1033,7 @@ namespace netxs::console
         si32 object_kind = {};
 
     public:
-        static constexpr si32 reflow_root = -1; //todo unify
+        static constexpr auto reflow_root = si32{ -1 }; //todo unify
 
         //todo replace "side" with "dent<si32>"
         side oversz; // base: Oversize, margin.
@@ -1935,7 +1977,9 @@ namespace netxs::console
                     auto now = datetime::round<si32>(p - init);
                     if (auto data = flow(now))
                     {
-                        proc(data.value());
+                        static constexpr auto zero = std::decay_t<decltype(data.value())>{};
+                        auto& v = data.value();
+                        if (v != zero) proc(v);
                     }
                     else
                     {
@@ -3102,8 +3146,8 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            constexpr static auto QUIT_MSG = e2::conio::quit;
-            constexpr static si32 ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
+            static constexpr auto QUIT_MSG = e2::conio::quit;
+            static constexpr auto ESC_THRESHOLD = si32{ 500 }; // guard: Double escape threshold in ms.
 
             bool   wait; // guard: Ready to close.
             moment stop; // guard: Timeout for single Esc.
@@ -3144,10 +3188,9 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            constexpr static auto EXCUSE_MSG = hids::events::mouse::any;
-            constexpr static auto QUIT_MSG   = e2::shutdown;
-            //todo unify
-            constexpr static int LIMIT = 60 * 10; // watch: Idle timeout in seconds.
+            static constexpr auto EXCUSE_MSG = hids::events::mouse::any;
+            static constexpr auto QUIT_MSG   = e2::shutdown;
+            static constexpr auto LIMIT = 60 * 10; //todo unify // watch: Idle timeout in seconds.
 
             hook   pong; // watch: Alibi subsciption token.
             hook   ping; // watch: Zombie check countdown token.
@@ -3496,8 +3539,22 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            bool simple_instance;
-            bool standalone_instance;
+            period& tooltip_timeout;
+            bool&   simple_instance;
+            bool&   standalone_instance;
+
+            template<class T>
+            void forward(T& device)
+            {
+                auto gear_it = gears.find(device.id);
+                if (gear_it == gears.end())
+                {
+                    gear_it = gears.emplace(device.id, bell::create<topgear>(device.id == 0, boss, xmap, tooltip_timeout, simple_instance)).first;
+                }
+                auto& [_id, gear_ptr] = *gear_it;
+                gear_ptr->hids::take(device);
+                boss.strike();
+            }
 
         public:
             face xmap;
@@ -3505,10 +3562,12 @@ namespace netxs::console
             depo gears;
 
             input(base&&) = delete;
-            input(base& boss)
+            template<class T>
+            input(T& boss)
                 : skill{ boss },
-                  simple_instance{ faux },
-                  standalone_instance{ faux }
+                  tooltip_timeout{     boss.props.tooltip_timeout },
+                  simple_instance{     boss.props.simple },
+                  standalone_instance{ boss.props.is_standalone_app }
             {
                 xmap.link(boss.bell::id);
                 xmap.move(boss.base::coor());
@@ -3537,98 +3596,37 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, mousestate)
                 {
-                    auto id = mousestate.mouseid;
-                    auto gear_it = gears.find(id);
                     if (mousestate.control != sysmouse::stat::ok)
                     {
+                        auto gear_it = gears.find(mousestate.id);
                         if (gear_it != gears.end())
                         {
                             switch (mousestate.control)
                             {
-                                case sysmouse::stat::ok:
-                                    break;
-                                case sysmouse::stat::halt:
-                                    gear_it->second->deactivate();
-                                    break;
-                                case sysmouse::stat::die:
-                                    gears.erase(gear_it);
-                                    break;
+                                case sysmouse::stat::ok:   break;
+                                case sysmouse::stat::halt: gear_it->second->deactivate(); break;
+                                case sysmouse::stat::die:  gears.erase(gear_it);          break;
                             }
                         }
+                        boss.strike();
                     }
-                    else if (gear_it == gears.end())
-                    {
-                        gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.set_simple_instance(simple_instance);
-                        gear.hids::take(mousestate);
-                    }
-                    else
-                    {
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.hids::take(mousestate);
-                    }
-                    boss.strike();
+                    else forward(mousestate);
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, keybdstate)
                 {
-                    auto id = keybdstate.keybdid;
-                    auto gear_it = gears.find(id);
-                    if (gear_it == gears.end())
-                    {
-                        gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.set_simple_instance(simple_instance);
-                        gear.hids::take(keybdstate);
-                    }
-                    else
-                    {
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.hids::take(keybdstate);
-                    }
-                    boss.strike();
+                    forward(keybdstate);
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::focus, memo, focusstate)
                 {
-                    auto id = focusstate.focusid;
-                    auto gear_it = gears.find(id);
-                    if (gear_it == gears.end())
-                    {
-                        gear_it = gears.try_emplace(id, bell::create<topgear>(id == 0, boss, xmap)).first;
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.set_simple_instance(simple_instance);
-                        gear.hids::take(focusstate);
-                    }
-                    else
-                    {
-                        auto& [_id, gear_ptr] = *gear_it;
-                        auto& gear = *gear_ptr;
-                        gear.hids::take(focusstate);
-                    }
-                    boss.strike();
+                    forward(focusstate);
                 };
             }
             void check_focus()
             {
                 if (simple_instance)
                 {
-                    auto focusstate = sysfocus{ .focusid = 0, .enabled = true };
+                    auto focusstate = sysfocus{ .id = 0, .enabled = true };
                     boss.SIGNAL(tier::release, e2::conio::focus, focusstate);
-                    gears[focusstate.focusid]->set_simple_instance(true);
-                }
-            }
-            void set_instance_type(bool simple, bool standalone)
-            {
-                simple_instance = simple;
-                standalone_instance = standalone;
-                for (auto& [id, gear_ptr] : gears)
-                {
-                    gear_ptr->set_simple_instance(simple);
                 }
             }
             auto is_not_standalone_instance()
@@ -4314,11 +4312,28 @@ namespace netxs::console
         xipc joint;
 
     public:
-        host(xipc server_pipe, si32 fps)
+        host(xipc server_pipe, xml::settings& config)
             : synch{ bell::router<tier::general>(), e2::timer::tick.id },
-              hertz{ fps },
               joint{ server_pipe }
         {
+            skin::setup(tone::brighter  , config.take("brighter"));//120);
+            skin::setup(tone::kb_focus  , config.take("kb_focus"));//60
+            skin::setup(tone::shadower  , config.take("shadower"));//180);//60);//40);// 20);
+            skin::setup(tone::shadow    , config.take("shadow"  ));//180);//5);
+            skin::setup(tone::lucidity  , config.take("lucidity"));//255);
+            skin::setup(tone::selector  , config.take("selector"));//48);
+            skin::setup(tone::bordersz  , config.take("bordersz"  , dot_11));//dot_11);
+            skin::setup(tone::highlight , config.take("highlight" , cell{}));
+            skin::setup(tone::warning   , config.take("warning"   , cell{}));
+            skin::setup(tone::danger    , config.take("danger"    , cell{}));
+            skin::setup(tone::action    , config.take("action"    , cell{}));
+            skin::setup(tone::label     , config.take("label"     , cell{}));
+            skin::setup(tone::inactive  , config.take("inactive"  , cell{}));
+            skin::setup(tone::menu_white, config.take("menu_white", cell{}));
+            skin::setup(tone::menu_black, config.take("menu_black", cell{}));
+            hertz = config.take("fps");
+            if (hertz <= 0) hertz = 60;
+
             keybd.accept(true); // Subscribe on keybd offers.
 
             SUBMIT_T(tier::general, e2::timer::any, token, timestamp)
@@ -4732,9 +4747,91 @@ namespace netxs::console
         depo regis; // hall: Actors registry.
 
     protected:
-        hall(xipc server_pipe, si32 maxfps)
-            : host{ server_pipe, maxfps }
+        hall(xipc server_pipe, xml::settings& config)
+            : host{ server_pipe, config }
         {
+            auto current_module_file = os::current_module_file();
+            auto& menu_list = *regis.app_ptr;
+            auto& conf_list = *regis.lnk_ptr;
+            auto  free_list = std::list<std::pair<text, menuitem_t>>{};
+            auto  temp_list = free_list;
+
+            auto dflt_rec = menuitem_t
+            {
+                .hidden   = faux,
+                .slimmenu = faux,
+                .type     = menuitem_t::type_SHELL,
+            };
+            auto find = [&](auto const& id) -> auto&
+            {
+                auto test = [&](auto& p) { return p.first == id; };
+
+                auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
+                if (iter_free != free_list.end()) return iter_free->second;
+
+                auto iter_temp = std::find_if(temp_list.begin(), temp_list.end(), test);
+                if (iter_temp != temp_list.end()) return iter_temp->second;
+
+                return dflt_rec;
+            };
+
+            auto splitter_count = 0;
+            for (auto item_ptr : config.take_list(path_item))
+            {
+                auto& item = *item_ptr;
+                auto conf_rec = menuitem_t{};
+                //todo autogen id if absent
+                conf_rec.splitter = item.take(attr_splitter, faux);
+                conf_rec.id       = item.take(attr_id,       ""s );
+                if (conf_rec.splitter)
+                {
+                    conf_rec.id = "splitter_" + std::to_string(splitter_count++);
+                }
+                else if (conf_rec.id.empty())
+                {
+                    log("hall: attribute '", utf::debase(attr_id), "' is missing, skip item");
+                    continue;
+                }
+                auto label = item.take(attr_label, ""s);
+                conf_rec.label    = label.empty() ? conf_rec.id : label;
+                conf_rec.alias    = item.take(attr_alias, ""s);
+                auto& fallback = conf_rec.alias.empty() ? dflt_rec
+                                                        : find(conf_rec.alias);
+                conf_rec.hidden   = item.take(attr_hidden,   fallback.hidden  );
+                conf_rec.notes    = item.take(attr_notes,    fallback.notes   );
+                conf_rec.title    = item.take(attr_title,    fallback.title   );
+                conf_rec.footer   = item.take(attr_footer,   fallback.footer  );
+                conf_rec.bgc      = item.take(attr_bgc,      fallback.bgc     );
+                conf_rec.fgc      = item.take(attr_fgc,      fallback.fgc     );
+                conf_rec.winsize  = item.take(attr_winsize,  fallback.winsize );
+                conf_rec.wincoor  = item.take(attr_wincoor,  fallback.wincoor );
+                conf_rec.slimmenu = item.take(attr_slimmenu, fallback.slimmenu);
+                conf_rec.hotkey   = item.take(attr_hotkey,   fallback.hotkey  ); //todo register hotkey
+                conf_rec.cwd      = item.take(attr_cwd,      fallback.cwd     );
+                conf_rec.param    = item.take(attr_param,    fallback.param   );
+                conf_rec.type     = item.take(attr_type,     fallback.type    );
+                conf_rec.settings = config;
+
+                utf::to_low(conf_rec.type);
+                utf::change(conf_rec.title,  "$0", current_module_file);
+                utf::change(conf_rec.footer, "$0", current_module_file);
+                utf::change(conf_rec.label,  "$0", current_module_file);
+                utf::change(conf_rec.notes,  "$0", current_module_file);
+                utf::change(conf_rec.param,  "$0", current_module_file);
+
+                if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
+                else                 free_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
+            }
+            for (auto& [id, conf_rec] : free_list)
+            {
+                menu_list[id];
+                conf_list.emplace(std::move(id), std::move(conf_rec));
+            }
+            for (auto& [id, conf_rec] : temp_list)
+            {
+                conf_list.emplace(std::move(id), std::move(conf_rec));
+            }
+
             SUBMIT(tier::general, e2::form::global::lucidity, alpha)
             {
                 if (alpha == -1)
@@ -4934,7 +5031,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& f = gears[item.gear_id].focus;
-            f.focusid = item.gear_id;
+            f.id      = item.gear_id;
             f.enabled = item.state;
             f.combine_focus = item.combine_focus;
             f.force_group_focus = item.force_group_focus;
@@ -4954,7 +5051,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& k = gears[item.gear_id].keybd;
-            k.keybdid = item.gear_id;
+            k.id      = item.gear_id;
             k.virtcod = item.virtcod;
             k.scancod = item.scancod;
             k.pressed = item.pressed;
@@ -4969,7 +5066,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& k = gears[item.gear_id].keybd;
-            k.keybdid = item.gear_id;
+            k.id      = item.gear_id;
             k.cluster = item.utf8txt;
             k.pressed = true;
             notify(e2::conio::keybd, k);
@@ -4980,7 +5077,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& k = gears[item.gear_id].keybd;
-            k.keybdid = item.gear_id;
+            k.id      = item.gear_id;
             k.ctlstat = item.ctlstat;
             k.cluster = {};
             k.pressed = faux;
@@ -4997,7 +5094,7 @@ namespace netxs::console
             auto coordxy = item.coordxy;
             auto& m = gears[gear_id].mouse;
             m.set_buttons(buttons);
-            m.mouseid = gear_id;
+            m.id      = gear_id;
             m.control = sysmouse::stat::ok;
             m.ismoved = m.coor(coordxy);
             m.shuffle = !m.ismoved && (msflags & (1 << 0)); // MOUSE_MOVED
@@ -5017,7 +5114,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& m = gears[item.gear_id].mouse;
-            m.mouseid = item.gear_id;
+            m.id      = item.gear_id;
             m.control = sysmouse::stat::die;
             notify(e2::conio::mouse, m);
         }
@@ -5025,7 +5122,7 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             auto& m = gears[item.gear_id].mouse;
-            m.mouseid = item.gear_id;
+            m.id      = item.gear_id;
             m.control = sysmouse::stat::halt;
             notify(e2::conio::mouse, m);
         }
@@ -5055,12 +5152,12 @@ namespace netxs::console
             auto& item = lock.thing;
             notify(e2::config::fps, item.frame_rate);
         }
-        void handle(s11n::xs::bgcolor     lock)
+        void handle(s11n::xs::bgc         lock)
         {
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::colors::bg, item.color);
         }
-        void handle(s11n::xs::fgcolor     lock)
+        void handle(s11n::xs::fgc         lock)
         {
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::colors::fg, item.color);
@@ -5213,6 +5310,7 @@ namespace netxs::console
         text name;
         text os_user_id;
         text title;
+        text selected;
         twod coor;
         twod clip_preview_size;
         cell background_color;
@@ -5227,52 +5325,57 @@ namespace netxs::console
         bool simple; // conf: Isn't it a directvt app.
         bool is_standalone_app; // conf: .
 
+        template<class T>
+        void read(T&& config)
+        {
+            config.cd("/config/client/");
+            clip_preview_size = config.take("clip_preview/size", twod{ 80,25 });
+            coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
+            tooltip_timeout   = config.take("tooltip/timeout", period{ 500ms });
+            tooltip_enabled   = config.take("tooltip/enabled", true);
+            debug_overlay     = config.take("debug/overlay", faux);
+            debug_toggle      = config.take("debug/toggle", "🐞"s);
+            show_regions      = config.take("regions/enabled", faux);
+        }
+
         conf()            = default;
         conf(conf const&) = default;
         conf(conf&&)      = default;
         conf& operator = (conf const&) = default;
-
-        conf(si32 mode)
+        conf(si32 mode, xml::settings& config)
             : session_id{ 0 },
               legacy_mode{ mode }
         {
-            clip_preview_size = twod{ 80,25 };
-            coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
-            tooltip_timeout   = 500ms;
-            tooltip_enabled   = true;
-            glow_fx           = faux;
-            debug_overlay     = faux;
-            debug_toggle      = "🐞";
-            show_regions      = faux;
+            read(config);
             simple            = !(legacy_mode & os::legacy::direct);
+            glow_fx           = faux;
             is_standalone_app = true;
         }
-        conf(xipc peer, si32 session_id)
+        conf(xipc peer, si32 session_id, xml::settings& config)
             : session_id{ session_id }
         {
             auto _ip     = peer->line(';');
             auto _name   = peer->line(';');
             auto _user   = peer->line(';');
             auto _mode   = peer->line(';');
+            auto _runcfg = peer->line(';');
+            auto xmlconfig = utf::unbase64(_runcfg);
+            config.merge(xmlconfig);
 
             _user = "[" + _user + ":" + std::to_string(session_id) + "]";
             auto c_info = utf::divide(_ip, " ");
-            ip   = c_info.size() > 0 ? c_info[0] : text{};
-            port = c_info.size() > 1 ? c_info[1] : text{};
+            ip                = c_info.size() > 0 ? c_info[0] : text{};
+            port              = c_info.size() > 1 ? c_info[1] : text{};
             legacy_mode       = utf::to_int(_mode, os::legacy::clean);
             os_user_id        = _user;
-            clip_preview_size = twod{ 80,25 };
-            //background_color  = app::shared::background_color;
-            coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
             fullname          = _name;
             name              = _user;
             title             = _user;
-            tooltip_timeout   = 500ms;
-            tooltip_enabled   = true;
-            glow_fx           = true;
-            debug_overlay     = faux;
-            debug_toggle      = "🐞";
-            show_regions      = faux;
+            selected          = config.take("/config/menu/selected", ""s);
+            read(config);
+            background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
+                                      .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
+            glow_fx           = config.take("glowfx", true);
             simple            = faux;
             is_standalone_app = faux;
         }
@@ -5291,6 +5394,9 @@ namespace netxs::console
     class gate
         : public base
     {
+    public:
+        conf props; // gate: Client properties.
+
         pro::keybd keybd{*this }; // gate: Keyboard controller.
         pro::mouse mouse{*this }; // gate: Mouse controller.
         pro::robot robot{*this }; // gate: Animation controller.
@@ -5310,7 +5416,6 @@ namespace netxs::console
         bool  native = faux; //gate: Extended functionality support.
         bool  fullscreen = faux; //gate: Fullscreen mode.
         si32  legacy = os::legacy::clean;
-        conf  props; // gate: Client properties.
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -5403,7 +5508,6 @@ namespace netxs::console
             if (result) base::strike();
         }
 
-    public:
         sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
         sptr background; // gate: Local UI background.
 
@@ -5798,14 +5902,14 @@ namespace netxs::console
         }
 
     protected:
-        gate(host& world, conf const& client_props)//, bool is_standalone_app = faux)
-            : world{ world }
+        template<class ...Args>
+        gate(host& world, Args&&... args)
+            : props{ std::forward<Args>(args)... },
+              world{ world }
         {
             limit.set(dot_11);
-            props = client_props;
             //todo unify
             title.live = faux;
-            input.set_instance_type(props.simple, props.is_standalone_app);
             if (!props.is_standalone_app)
             {
                 mouse.draggable<sysmouse::leftright>(true);

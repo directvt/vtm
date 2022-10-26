@@ -228,8 +228,8 @@ namespace netxs::ui
     {
         enum action { seize, drag, release };
 
-        static constexpr si32 MAX_RATIO = 0xFFFF;
-        static constexpr si32 HALF_RATIO = 0xFFFF >> 1;
+        static constexpr auto MAX_RATIO  = si32{ 0xFFFF      };
+        static constexpr auto HALF_RATIO = si32{ 0xFFFF >> 1 };
 
         sptr client_1; // fork: 1st object.
         sptr client_2; // fork: 2nd object.
@@ -1019,7 +1019,7 @@ namespace netxs::ui
 
         size_t len = 0;
 
-        static const si32 init_layout_len = 10000;
+        static const auto init_layout_len = si32{ 10000 };
         std::vector<item> layout;
         page_layout()
         {
@@ -2553,7 +2553,7 @@ namespace netxs::ui
     {
         pro::limit limit{ *this }; // item: Size limits.
 
-        static constexpr view dots = "…";
+        static constexpr auto dots = "…"sv;
         para name;
         bool flex; // item: Violate or not the label size, default is faux.
         bool test; // item: Place or not(default) the Two Dot Leader when there is not enough space.

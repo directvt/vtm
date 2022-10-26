@@ -85,7 +85,7 @@ namespace netxs::events
     static constexpr auto block = 4;
 
     // events: Return event level by its ID. Find the log base 2**block.
-    constexpr static inline auto level(type event)
+    static constexpr inline auto level(type event)
     {
         if (event == 0) return 0;
         auto level = 1;
@@ -93,7 +93,7 @@ namespace netxs::events
         return level;
     }
     // events: Return event level mask by its ID. Find the log base 2**block.
-    constexpr static inline type level_mask(type event)
+    static constexpr inline type level_mask(type event)
     {
         auto level = 0;
         while (event >>= block) { level += block; }
@@ -216,7 +216,7 @@ namespace netxs::events
             }
             else
             {
-                static constexpr type mask = (1 << events::block) - 1;
+                static constexpr auto mask = type{ (1 << events::block) - 1 };
                 auto itermask = mask; // Skip root event block.
                 auto subgroup = type{};
                 do

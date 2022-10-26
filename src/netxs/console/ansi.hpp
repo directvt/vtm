@@ -19,145 +19,145 @@ namespace netxs::ansi
     using namespace netxs::ui::atoms;
     using namespace netxs::utf;
 
-    static constexpr auto ESCCSI = "\033[";
-    static constexpr auto ESCOCS = "\033]";
+    static const auto ESCCSI = "\033[";
+    static const auto ESCOCS = "\033]";
 
-    static const char ESC_CSI    = '['; // ESC [ ...
-    static const char ESC_OCS    = ']'; // ESC ] ...
-    static const char ESC_DSC    = 'P'; // ESC P ... BELL/ST
-    static const char ESC_SOS    = 'X'; // ESC X ... BELL/ST
-    static const char ESC_PM     = '^'; // ESC ^ ... BELL/ST
-    static const char ESC_APC    = '_'; // ESC _ ... BELL/ST
+    static const auto ESC_CSI    = '['; // ESC [ ...
+    static const auto ESC_OCS    = ']'; // ESC ] ...
+    static const auto ESC_DSC    = 'P'; // ESC P ... BELL/ST
+    static const auto ESC_SOS    = 'X'; // ESC X ... BELL/ST
+    static const auto ESC_PM     = '^'; // ESC ^ ... BELL/ST
+    static const auto ESC_APC    = '_'; // ESC _ ... BELL/ST
 
-    static const char ESC_G0SET  = '('; // ESC ( c
-    static const char ESC_G1SET  = ')'; // ESC ) c
-    static const char ESC_G2SET  = '*'; // ESC * c
-    static const char ESC_G3SET  = '+'; // ESC + c
-    static const char ESC_G1xSET = '-'; // ESC - c
-    static const char ESC_G2xSET = '.'; // ESC . c
-    static const char ESC_G3xSET = '/'; // ESC / c
+    static const auto ESC_G0SET  = '('; // ESC ( c
+    static const auto ESC_G1SET  = ')'; // ESC ) c
+    static const auto ESC_G2SET  = '*'; // ESC * c
+    static const auto ESC_G3SET  = '+'; // ESC + c
+    static const auto ESC_G1xSET = '-'; // ESC - c
+    static const auto ESC_G2xSET = '.'; // ESC . c
+    static const auto ESC_G3xSET = '/'; // ESC / c
 
-    static const char ESC_CTRL   = ' '; // ESC sp F, ESC sp G, ESC sp L, ESC sp M, ESC sp N
-    static const char ESC_DECDHL = '#'; // ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
-    static const char ESC_CHRSET = '%'; // ESC % @, ESC % G  G: Select UTF-8, @: Select default.
+    static const auto ESC_CTRL   = ' '; // ESC sp F, ESC sp G, ESC sp L, ESC sp M, ESC sp N
+    static const auto ESC_DECDHL = '#'; // ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
+    static const auto ESC_CHRSET = '%'; // ESC % @, ESC % G  G: Select UTF-8, @: Select default.
 
-    static const char ESC_ST     ='\\'; // ESC backslash
-    static const char ESC_DELIM  = ';'; // ESC ;
-    static const char ESC_KEY_A  = '='; // ESC =  Application keypad.
-    static const char ESC_KEY_N  = '>'; // ESC >  Normal      keypad.
-    static const char ESC_DECBI  = '6'; // ESC 6  Back index,    DECBI.
-    static const char ESC_DECFI  = '9'; // ESC 9  Forward index, DECFI.
-    static const char ESC_SC     = '7'; // ESC 7  Save    caret position and rendition state.
-    static const char ESC_RC     = '8'; // ESC 8  Restore caret position and rendition state.
-    static const char ESC_HTS    = 'H'; // ESC H  Set tabstop at the current caret position.
-    static const char ESC_NEL    = 'E'; // ESC E  Move caret down and CR.
-    static const char ESC_CLB    = 'F'; // ESC F  Move caret to lower leftmost position.
-    static const char ESC_IND    = 'D'; // ESC D  Caret down.
-    static const char ESC_IR     = 'M'; // ESC M  Caret up.
-    static const char ESC_RIS    = 'c'; // ESC c  Reset terminal to initial state.
-    static const char ESC_MEMLK  = 'l'; // ESC l  Memory lock.
-    static const char ESC_MUNLK  = 'm'; // ESC m  Memory unlock.
-    static const char ESC_LS2    = 'n'; // ESC n  LS2.
-    static const char ESC_LS3    = 'o'; // ESC o  LS3.
-    static const char ESC_LS1R   = '~'; // ESC ~  LS1R.
-    static const char ESC_LS2R   = '}'; // ESC }  LS2R.
-    static const char ESC_LS3R   = '|'; // ESC |  LS3R.
-    static const char ESC_SS3    = 'O'; // ESC O  SS3.
-    static const char ESC_SS2    = 'N'; // ESC N  SS2.
-    static const char ESC_SPA    = 'V'; // ESC V  SPA.
-    static const char ESC_EPA    = 'W'; // ESC W  EPA.
-    static const char ESC_RID    = 'Z'; // ESC Z  Return ID.
+    static const auto ESC_ST     ='\\'; // ESC backslash
+    static const auto ESC_DELIM  = ';'; // ESC ;
+    static const auto ESC_KEY_A  = '='; // ESC =  Application keypad.
+    static const auto ESC_KEY_N  = '>'; // ESC >  Normal      keypad.
+    static const auto ESC_DECBI  = '6'; // ESC 6  Back index,    DECBI.
+    static const auto ESC_DECFI  = '9'; // ESC 9  Forward index, DECFI.
+    static const auto ESC_SC     = '7'; // ESC 7  Save    caret position and rendition state.
+    static const auto ESC_RC     = '8'; // ESC 8  Restore caret position and rendition state.
+    static const auto ESC_HTS    = 'H'; // ESC H  Set tabstop at the current caret position.
+    static const auto ESC_NEL    = 'E'; // ESC E  Move caret down and CR.
+    static const auto ESC_CLB    = 'F'; // ESC F  Move caret to lower leftmost position.
+    static const auto ESC_IND    = 'D'; // ESC D  Caret down.
+    static const auto ESC_IR     = 'M'; // ESC M  Caret up.
+    static const auto ESC_RIS    = 'c'; // ESC c  Reset terminal to initial state.
+    static const auto ESC_MEMLK  = 'l'; // ESC l  Memory lock.
+    static const auto ESC_MUNLK  = 'm'; // ESC m  Memory unlock.
+    static const auto ESC_LS2    = 'n'; // ESC n  LS2.
+    static const auto ESC_LS3    = 'o'; // ESC o  LS3.
+    static const auto ESC_LS1R   = '~'; // ESC ~  LS1R.
+    static const auto ESC_LS2R   = '}'; // ESC }  LS2R.
+    static const auto ESC_LS3R   = '|'; // ESC |  LS3R.
+    static const auto ESC_SS3    = 'O'; // ESC O  SS3.
+    static const auto ESC_SS2    = 'N'; // ESC N  SS2.
+    static const auto ESC_SPA    = 'V'; // ESC V  SPA.
+    static const auto ESC_EPA    = 'W'; // ESC W  EPA.
+    static const auto ESC_RID    = 'Z'; // ESC Z  Return ID.
 
-    static const char CSI_SPC_SLC = '@'; // CSI n SP   @  — Shift left n columns(s).
-    static const char CSI_SPC_SRC = 'A'; // CSI n SP   A  — Shift right n columns(s).
-    static const char CSI_SPC_CST = 'q'; // CSI n SP   q  — Set caret style (DECSCUSR).
+    static const auto CSI_SPC_SLC = '@'; // CSI n SP   @  — Shift left n columns(s).
+    static const auto CSI_SPC_SRC = 'A'; // CSI n SP   A  — Shift right n columns(s).
+    static const auto CSI_SPC_CST = 'q'; // CSI n SP   q  — Set caret style (DECSCUSR).
 
-    static const char CSI_HSH_SCP = 'P'; // CSI n #    P  — Push current palette colors onto stack. n default is 0.
-    static const char CSI_HSH_RCP = 'Q'; // CSI n #    Q  — Pop current palette colors from stack. n default is 0.
-    static const char CSI_HSH_SVA = 'p'; // CSI   #    p  — Push video attributes from stack (XTPUSHSGR).
-    static const char CSI_HSH_RVA = 'q'; // CSI   #    q  — Pop  video attributes from stack (XTPOPSGR).
-    static const char CSI_HSH_PUSH_SGR = '{'; // CSI # {  — Push SGR attributes onto stack (XTPUSHSGR).
-    static const char CSI_HSH_POP_SGR  = '}'; // CSI # }  — Pop  SGR attributes from stack (XTPOPSGR).
+    static const auto CSI_HSH_SCP = 'P'; // CSI n #    P  — Push current palette colors onto stack. n default is 0.
+    static const auto CSI_HSH_RCP = 'Q'; // CSI n #    Q  — Pop current palette colors from stack. n default is 0.
+    static const auto CSI_HSH_SVA = 'p'; // CSI   #    p  — Push video attributes from stack (XTPUSHSGR).
+    static const auto CSI_HSH_RVA = 'q'; // CSI   #    q  — Pop  video attributes from stack (XTPOPSGR).
+    static const auto CSI_HSH_PUSH_SGR = '{'; // CSI # {  — Push SGR attributes onto stack (XTPUSHSGR).
+    static const auto CSI_HSH_POP_SGR  = '}'; // CSI # }  — Pop  SGR attributes from stack (XTPOPSGR).
 
-    static const char CSI_DQT_SCP = 'q'; // CSI n "    q  — Select character protection attribute.
+    static const auto CSI_DQT_SCP = 'q'; // CSI n "    q  — Select character protection attribute.
 
-    static const char CSI_EXL_RST = 'p'; // CSI   !    p  — Reset terminal to initial state.
+    static const auto CSI_EXL_RST = 'p'; // CSI   !    p  — Reset terminal to initial state.
 
-    static const char CSI_QST_RTB = 'W'; // CSI   ?    W  — Reset tabstops to the defaults.
+    static const auto CSI_QST_RTB = 'W'; // CSI   ?    W  — Reset tabstops to the defaults.
 
-    static const char CSI_CUU = 'A';     // CSI n      A  — Caret Up.
-    static const char CSI_CUD = 'B';     // CSI n      B  — Caret Down.
-    static const char CSI_CUD2= 'e';     // CSI n      e  — Caret Down.
-    static const char CSI_CUF = 'C';     // CSI n      C  — Caret Forward.
-    static const char CSI_CUB = 'D';     // CSI n      D  — Caret Back.
-    static const char CSI_CNL = 'E';     // CSI n      E  — Caret Next Line.     Move n lines down and to the leftmost column.
-    static const char CSI_CPL = 'F';     // CSI n      F  — Caret Previous Line. Move n lines up   and to the leftmost column.
-    static const char CSI_CHX = 'G';     // CSI n      G  — Caret Horizontal Absolute.
-    static const char CSI_CHY = 'd';     // CSI n      d  — Caret Vertical Absolute.
-    static const char CSI_HVP = 'f';     // CSI n ; m  f  — Horizontal and Vertical Position.
-    static const char CSI_CUP = 'H';     // CSI n ; m  H  — Caret Position.
-    static const char CSI_CHT = 'I';     // CSI n      I  — Caret forward  n tab stops (default = 1).
-    static const char CSI_CBT = 'Z';     // CSI n      Z  — Caret backward n tab stops (default = 1).
-    static const char CSI_TBC = 'g';     // CSI n      g  — Reset tabstop value.
-    static const char CSI_SGR = 'm';     // CSI n [;k] m  — Select Graphic Rendition.
-    static const char CSI_DSR = 'n';     // CSI n      n  — Device Status Report (DSR). n==5 -> "OK"; n==6 -> CSI r ; c R
-    static const char DECSTBM = 'r';     // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
-    static const char CSI_SCP = 's';     // CSI        s  — Save caret Position.
-    static const char CSI_RCP = 'u';     // CSI        u  — Restore caret Position.
-    static const char CSI__EL = 'K';     // CSI n      K  — Erase 0: from caret to end, 1: from begin to caret, 2: all line.
-    static const char CSI__IL = 'L';     // CSI n      L  — Insert n blank lines.
-    static const char CSI__ED = 'J';     // CSI n      J  — Erase 0: from caret to end of screen, 1: from begin to caret, 2: all screen.
-    static const char CSI__DL = 'M';     // CSI n      M  — Delete n lines.
-    static const char CSI_DCH = 'P';     // CSI n      P  — Delete n character(s).
-    static const char CSI_LED = 'q';     // CSI n      q  — Load keyboard LEDs.
-    static const char CSI__SD = 'T';     // CSI n      T  — Scroll down by n lines, scrolled out lines are lost.
-    static const char CSI__SU = 'S';     // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost.
-    static const char CSI_WIN = 't';     // CSI n;m;k  t  — XTWINOPS, Terminal window props.
-    static const char CSI_ECH = 'X';     // CSI n      X  — Erase n character(s) ? difference with delete ?
-    static const char CSI_ICH = '@';     // CSI n      @  — Insert/wedge n character(s).
-    static const char CSI_PDA = 'c';     // CSI n      c  — Send device attributes (Primary DA).
-    static const char DECSET  = 'h';     // CSI ? n    h  — DECSET.
-    static const char DECRST  = 'l';     // CSI ? n    l  — DECRST.
-    static const char CSI_hRM = 'h';     // CSI n      h  — Reset mode (always Replace mode n=4).
-    static const char CSI_lRM = 'l';     // CSI n      l  — Reset mode (always Replace mode n=4).
-    static const char CSI_CCC = 'p';     // CSI n [; x1; x2; ...; xn ] p — Private vt command subset.
-    static const char W32_INP = '_';     // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
+    static const auto CSI_CUU = 'A';     // CSI n      A  — Caret Up.
+    static const auto CSI_CUD = 'B';     // CSI n      B  — Caret Down.
+    static const auto CSI_CUD2= 'e';     // CSI n      e  — Caret Down.
+    static const auto CSI_CUF = 'C';     // CSI n      C  — Caret Forward.
+    static const auto CSI_CUB = 'D';     // CSI n      D  — Caret Back.
+    static const auto CSI_CNL = 'E';     // CSI n      E  — Caret Next Line.     Move n lines down and to the leftmost column.
+    static const auto CSI_CPL = 'F';     // CSI n      F  — Caret Previous Line. Move n lines up   and to the leftmost column.
+    static const auto CSI_CHX = 'G';     // CSI n      G  — Caret Horizontal Absolute.
+    static const auto CSI_CHY = 'd';     // CSI n      d  — Caret Vertical Absolute.
+    static const auto CSI_HVP = 'f';     // CSI n ; m  f  — Horizontal and Vertical Position.
+    static const auto CSI_CUP = 'H';     // CSI n ; m  H  — Caret Position.
+    static const auto CSI_CHT = 'I';     // CSI n      I  — Caret forward  n tab stops (default = 1).
+    static const auto CSI_CBT = 'Z';     // CSI n      Z  — Caret backward n tab stops (default = 1).
+    static const auto CSI_TBC = 'g';     // CSI n      g  — Reset tabstop value.
+    static const auto CSI_SGR = 'm';     // CSI n [;k] m  — Select Graphic Rendition.
+    static const auto CSI_DSR = 'n';     // CSI n      n  — Device Status Report (DSR). n==5 -> "OK"; n==6 -> CSI r ; c R
+    static const auto DECSTBM = 'r';     // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
+    static const auto CSI_SCP = 's';     // CSI        s  — Save caret Position.
+    static const auto CSI_RCP = 'u';     // CSI        u  — Restore caret Position.
+    static const auto CSI__EL = 'K';     // CSI n      K  — Erase 0: from caret to end, 1: from begin to caret, 2: all line.
+    static const auto CSI__IL = 'L';     // CSI n      L  — Insert n blank lines.
+    static const auto CSI__ED = 'J';     // CSI n      J  — Erase 0: from caret to end of screen, 1: from begin to caret, 2: all screen.
+    static const auto CSI__DL = 'M';     // CSI n      M  — Delete n lines.
+    static const auto CSI_DCH = 'P';     // CSI n      P  — Delete n character(s).
+    static const auto CSI_LED = 'q';     // CSI n      q  — Load keyboard LEDs.
+    static const auto CSI__SD = 'T';     // CSI n      T  — Scroll down by n lines, scrolled out lines are lost.
+    static const auto CSI__SU = 'S';     // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost.
+    static const auto CSI_WIN = 't';     // CSI n;m;k  t  — XTWINOPS, Terminal window props.
+    static const auto CSI_ECH = 'X';     // CSI n      X  — Erase n character(s) ? difference with delete ?
+    static const auto CSI_ICH = '@';     // CSI n      @  — Insert/wedge n character(s).
+    static const auto CSI_PDA = 'c';     // CSI n      c  — Send device attributes (Primary DA).
+    static const auto DECSET  = 'h';     // CSI ? n    h  — DECSET.
+    static const auto DECRST  = 'l';     // CSI ? n    l  — DECRST.
+    static const auto CSI_hRM = 'h';     // CSI n      h  — Reset mode (always Replace mode n=4).
+    static const auto CSI_lRM = 'l';     // CSI n      l  — Reset mode (always Replace mode n=4).
+    static const auto CSI_CCC = 'p';     // CSI n [; x1; x2; ...; xn ] p — Private vt command subset.
+    static const auto W32_INP = '_';     // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
 
-    static const char C0_NUL = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
-    static const char C0_SOH = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
-    static const char C0_STX = '\x02'; // Start of Text       - First character of message text, and may be used to terminate the message heading.
-    static const char C0_ETX = '\x03'; // End of Text         - Often used as a "break" character (Ctrl-C) to interrupt or terminate a program or process.
-    static const char C0_EOT = '\x04'; // End of Transmssn    - Often used on Unix to indicate end-of-file on a terminal.
-    static const char C0_ENQ = '\x05'; // Enquiry             - Signal intended to trigger a response at the receiving end, to see if it is still present.
-    static const char C0_ACK = '\x06'; // Acknowledge         - Response to an ENQ, or an indication of successful receipt of a message.
-    static const char C0_BEL = '\x07'; // Bell, Alert     \a  - Originally used to sound a bell on the terminal. Later used for a beep on systems that didn't have a physical bell. May also quickly turn on and off inverse video (a visual bell).
-    static const char C0_BS  = '\x08'; // Backspace       \b  - Move the caret one position leftwards. On input, this may delete the character to the left of the caret. On output, where in early computer technology a character once printed could not be erased, the backspace was sometimes used to generate accented characters in ASCII. For example, à could be produced using the three character sequence a BS ` (or, using the characters’ hex values, 0x61 0x08 0x60). This usage is now deprecated and generally not supported. To provide disambiguation between the two potential uses of backspace, the cancel character control code was made part of the standard C1 control set.
-    static const char C0_HT  = '\x09'; // Character       \t  - Tabulation, Horizontal Tabulation	\t	Position to the next character tab stop.
-    static const char C0_LF  = '\x0A'; // Line Feed       \n  - On typewriters, printers, and some terminal emulators, moves the caret down one row without affecting its column position. On Unix, used to mark end-of-line. In DOS, Windows, and various network standards, LF is used following CR as part of the end-of-line mark.
-    static const char C0_VT  = '\x0B'; // Line Tab,VTab   \v  - Position the form at the next line tab stop.
-    static const char C0_FF  = '\x0C'; // Form Feed       \f  - On printers, load the next page. Treated as whitespace in many programming languages, and may be used to separate logical divisions in code. In some terminal emulators, it clears the screen. It still appears in some common plain text files as a page break character, such as the RFCs published by IETF.
-    static const char C0_CR  = '\x0D'; // Carriage Return \r  - Originally used to move the caret to column zero while staying on the same line. On classic Mac OS (pre-Mac OS X), as well as in earlier systems such as the Apple II and Commodore 64, used to mark end-of-line. In DOS, Windows, and various network standards, it is used preceding LF as part of the end-of-line mark. The Enter or Return key on a keyboard will send this character, but it may be converted to a different end-of-line sequence by a terminal program.
-    static const char C0_SO  = '\x0E'; // Shift Out           - Switch to an alternative character set.
-    static const char C0_SI  = '\x0F'; // Shift In            - Return to regular character set after Shift Out.
-    static const char C0_DLE = '\x10'; // Data Link Escape    - Cause the following octets to be interpreted as raw data, not as control codes or graphic characters. Returning to normal usage would be implementation dependent.
-    static const char C0_DC1 = '\x11'; // Device Control One (XON)    - These four control codes are reserved for device control, with the interpretation dependent upon the device to which they were connected.
-    static const char C0_DC2 = '\x12'; // Device Control Two          > DC1 and DC2 were intended primarily to indicate activating a device while DC3 and DC4 were intended primarily to indicate pausing or turning off a device.
-    static const char C0_DC3 = '\x13'; // Device Control Three (XOFF) > DC1 and DC3 (known also as XON and XOFF respectively in this usage) originated as the "start and stop remote paper-tape-reader" functions in ASCII Telex networks.
-    static const char C0_DC4 = '\x14'; // Device Control Four         > This teleprinter usage became the de facto standard for software flow control.[6]
-    static const char C0_NAK = '\x15'; // Negative Acknowldg  - Sent by a station as a negative response to the station with which the connection has been set up. In binary synchronous communication protocol, the NAK is used to indicate that an error was detected in the previously received block and that the receiver is ready to accept retransmission of that block. In multipoint systems, the NAK is used as the not-ready reply to a poll.
-    static const char C0_SYN = '\x16'; // Synchronous Idle    - Used in synchronous transmission systems to provide a signal from which synchronous correction may be achieved between data terminal equipment, particularly when no other character is being transmitted.
-    static const char C0_ETB = '\x17'; // End of Transmission Block  - Indicates the end of a transmission block of data when data are divided into such blocks for transmission purposes.
-    static const char C0_CAN = '\x18'; // Cancel              - Indicates that the data preceding it are in error or are to be disregarded.
-    static const char C0_EM  = '\x19'; // End of medium       - Intended as means of indicating on paper or magnetic tapes that the end of the usable portion of the tape had been reached.
-    static const char C0_SUB = '\x1A'; // Substitute          - Originally intended for use as a transmission control character to indicate that garbled or invalid characters had been received. It has often been put to use for other purposes when the in-band signaling of errors it provides is unneeded, especially where robust methods of error detection and correction are used, or where errors are expected to be rare enough to make using the character for other purposes advisable. In DOS, Windows and other CP/M derivatives, it is used to indicate the end of file, both when typing on the terminal, and sometimes in text files stored on disk.
-    static const char C0_ESC = '\x1B'; // Escape          \e  - The Esc key on the keyboard will cause this character to be sent on most systems. It can be used in software user interfaces to exit from a screen, menu, or mode, or in device-control protocols (e.g., printers and terminals) to signal that what follows is a special command sequence rather than normal text. In systems based on ISO/IEC 2022, even if another set of C0 control codes are used, this octet is required to always represent the escape character.
-    static const char C0_FS  = '\x1C'; // File Separator      - Can be used as delimiters to mark fields of data structures. If used for hierarchical levels, US is the lowest level (dividing plain-text data items), while RS, GS, and FS are of increasing level to divide groups made up of items of the level beneath it.
-    static const char C0_GS  = '\x1D'; // Group Separator.
-    static const char C0_RS  = '\x1E'; // Record Separator.
-    static const char C0_US  = '\x1F'; // Unit Separator.
-    static const char C0_DEL = '\x7F'; // Delete cell backward.
+    static const auto C0_NUL = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
+    static const auto C0_SOH = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
+    static const auto C0_STX = '\x02'; // Start of Text       - First character of message text, and may be used to terminate the message heading.
+    static const auto C0_ETX = '\x03'; // End of Text         - Often used as a "break" character (Ctrl-C) to interrupt or terminate a program or process.
+    static const auto C0_EOT = '\x04'; // End of Transmssn    - Often used on Unix to indicate end-of-file on a terminal.
+    static const auto C0_ENQ = '\x05'; // Enquiry             - Signal intended to trigger a response at the receiving end, to see if it is still present.
+    static const auto C0_ACK = '\x06'; // Acknowledge         - Response to an ENQ, or an indication of successful receipt of a message.
+    static const auto C0_BEL = '\x07'; // Bell, Alert     \a  - Originally used to sound a bell on the terminal. Later used for a beep on systems that didn't have a physical bell. May also quickly turn on and off inverse video (a visual bell).
+    static const auto C0_BS  = '\x08'; // Backspace       \b  - Move the caret one position leftwards. On input, this may delete the character to the left of the caret. On output, where in early computer technology a character once printed could not be erased, the backspace was sometimes used to generate accented characters in ASCII. For example, à could be produced using the three character sequence a BS ` (or, using the characters’ hex values, 0x61 0x08 0x60). This usage is now deprecated and generally not supported. To provide disambiguation between the two potential uses of backspace, the cancel character control code was made part of the standard C1 control set.
+    static const auto C0_HT  = '\x09'; // Character       \t  - Tabulation, Horizontal Tabulation	\t	Position to the next character tab stop.
+    static const auto C0_LF  = '\x0A'; // Line Feed       \n  - On typewriters, printers, and some terminal emulators, moves the caret down one row without affecting its column position. On Unix, used to mark end-of-line. In DOS, Windows, and various network standards, LF is used following CR as part of the end-of-line mark.
+    static const auto C0_VT  = '\x0B'; // Line Tab,VTab   \v  - Position the form at the next line tab stop.
+    static const auto C0_FF  = '\x0C'; // Form Feed       \f  - On printers, load the next page. Treated as whitespace in many programming languages, and may be used to separate logical divisions in code. In some terminal emulators, it clears the screen. It still appears in some common plain text files as a page break character, such as the RFCs published by IETF.
+    static const auto C0_CR  = '\x0D'; // Carriage Return \r  - Originally used to move the caret to column zero while staying on the same line. On classic Mac OS (pre-Mac OS X), as well as in earlier systems such as the Apple II and Commodore 64, used to mark end-of-line. In DOS, Windows, and various network standards, it is used preceding LF as part of the end-of-line mark. The Enter or Return key on a keyboard will send this character, but it may be converted to a different end-of-line sequence by a terminal program.
+    static const auto C0_SO  = '\x0E'; // Shift Out           - Switch to an alternative character set.
+    static const auto C0_SI  = '\x0F'; // Shift In            - Return to regular character set after Shift Out.
+    static const auto C0_DLE = '\x10'; // Data Link Escape    - Cause the following octets to be interpreted as raw data, not as control codes or graphic characters. Returning to normal usage would be implementation dependent.
+    static const auto C0_DC1 = '\x11'; // Device Control One (XON)    - These four control codes are reserved for device control, with the interpretation dependent upon the device to which they were connected.
+    static const auto C0_DC2 = '\x12'; // Device Control Two          > DC1 and DC2 were intended primarily to indicate activating a device while DC3 and DC4 were intended primarily to indicate pausing or turning off a device.
+    static const auto C0_DC3 = '\x13'; // Device Control Three (XOFF) > DC1 and DC3 (known also as XON and XOFF respectively in this usage) originated as the "start and stop remote paper-tape-reader" functions in ASCII Telex networks.
+    static const auto C0_DC4 = '\x14'; // Device Control Four         > This teleprinter usage became the de facto standard for software flow control.[6]
+    static const auto C0_NAK = '\x15'; // Negative Acknowldg  - Sent by a station as a negative response to the station with which the connection has been set up. In binary synchronous communication protocol, the NAK is used to indicate that an error was detected in the previously received block and that the receiver is ready to accept retransmission of that block. In multipoint systems, the NAK is used as the not-ready reply to a poll.
+    static const auto C0_SYN = '\x16'; // Synchronous Idle    - Used in synchronous transmission systems to provide a signal from which synchronous correction may be achieved between data terminal equipment, particularly when no other character is being transmitted.
+    static const auto C0_ETB = '\x17'; // End of Transmission Block  - Indicates the end of a transmission block of data when data are divided into such blocks for transmission purposes.
+    static const auto C0_CAN = '\x18'; // Cancel              - Indicates that the data preceding it are in error or are to be disregarded.
+    static const auto C0_EM  = '\x19'; // End of medium       - Intended as means of indicating on paper or magnetic tapes that the end of the usable portion of the tape had been reached.
+    static const auto C0_SUB = '\x1A'; // Substitute          - Originally intended for use as a transmission control character to indicate that garbled or invalid characters had been received. It has often been put to use for other purposes when the in-band signaling of errors it provides is unneeded, especially where robust methods of error detection and correction are used, or where errors are expected to be rare enough to make using the character for other purposes advisable. In DOS, Windows and other CP/M derivatives, it is used to indicate the end of file, both when typing on the terminal, and sometimes in text files stored on disk.
+    static const auto C0_ESC = '\x1B'; // Escape          \e  - The Esc key on the keyboard will cause this character to be sent on most systems. It can be used in software user interfaces to exit from a screen, menu, or mode, or in device-control protocols (e.g., printers and terminals) to signal that what follows is a special command sequence rather than normal text. In systems based on ISO/IEC 2022, even if another set of C0 control codes are used, this octet is required to always represent the escape character.
+    static const auto C0_FS  = '\x1C'; // File Separator      - Can be used as delimiters to mark fields of data structures. If used for hierarchical levels, US is the lowest level (dividing plain-text data items), while RS, GS, and FS are of increasing level to divide groups made up of items of the level beneath it.
+    static const auto C0_GS  = '\x1D'; // Group Separator.
+    static const auto C0_RS  = '\x1E'; // Record Separator.
+    static const auto C0_US  = '\x1F'; // Unit Separator.
+    static const auto C0_DEL = '\x7F'; // Delete cell backward.
 
-    static const si32 ctrl_break = 0xE046; // Pressed Ctrl+Break scancode.
+    static const auto ctrl_break = si32{ 0xE046 }; // Pressed Ctrl+Break scancode.
 
     static const auto OSC_LABEL_TITLE  = "0"   ; // Set icon label and title.
     static const auto OSC_LABEL        = "1"   ; // Set icon label.
@@ -176,95 +176,95 @@ namespace netxs::ansi
     static const auto OSC_TITLE_REPORT = "l"   ; // Get terminal window title.
     static const auto OSC_LABEL_REPORT = "L"   ; // Get terminal window icon label.
 
-    static const si32 SGR_RST       = 0;
-    static const si32 SGR_SAV       = 10;
-    static const si32 SGR_BOLD      = 1;
-    static const si32 SGR_FAINT     = 22;
-    static const si32 SGR_ITALIC    = 3;
-    static const si32 SGR_NONITALIC = 23;
-    static const si32 SGR_UND       = 4;
-    static const si32 SGR_DOUBLEUND = 21;
-    static const si32 SGR_NOUND     = 24;
-    static const si32 SGR_SLOWBLINK = 5;
-    static const si32 SGR_FASTBLINK = 6;
-    static const si32 SGR_NO_BLINK  = 25;
-    static const si32 SGR_INV       = 7;
-    static const si32 SGR_NOINV     = 27;
-    static const si32 SGR_STRIKE    = 9;
-    static const si32 SGR_NOSTRIKE  = 29;
-    static const si32 SGR_OVERLN    = 53;
-    static const si32 SGR_NOOVERLN  = 55;
-    static const si32 SGR_FG_BLK    = 30;
-    static const si32 SGR_FG_RED    = 31;
-    static const si32 SGR_FG_GRN    = 32;
-    static const si32 SGR_FG_YLW    = 33;
-    static const si32 SGR_FG_BLU    = 34;
-    static const si32 SGR_FG_MGT    = 35;
-    static const si32 SGR_FG_CYN    = 36;
-    static const si32 SGR_FG_WHT    = 37;
-    static const si32 SGR_FG_RGB    = 38;
-    static const si32 SGR_FG        = 39;
-    static const si32 SGR_BG_BLK    = 40;
-    static const si32 SGR_BG_RED    = 41;
-    static const si32 SGR_BG_GRN    = 42;
-    static const si32 SGR_BG_YLW    = 43;
-    static const si32 SGR_BG_BLU    = 44;
-    static const si32 SGR_BG_MGT    = 45;
-    static const si32 SGR_BG_CYN    = 46;
-    static const si32 SGR_BG_WHT    = 47;
-    static const si32 SGR_BG_RGB    = 48;
-    static const si32 SGR_BG        = 49;
-    static const si32 SGR_FG_BLK_LT = 90;
-    static const si32 SGR_FG_RED_LT = 91;
-    static const si32 SGR_FG_GRN_LT = 92;
-    static const si32 SGR_FG_YLW_LT = 93;
-    static const si32 SGR_FG_BLU_LT = 94;
-    static const si32 SGR_FG_MGT_LT = 95;
-    static const si32 SGR_FG_CYN_LT = 96;
-    static const si32 SGR_FG_WHT_LT = 97;
-    static const si32 SGR_BG_BLK_LT = 100;
-    static const si32 SGR_BG_RED_LT = 101;
-    static const si32 SGR_BG_GRN_LT = 102;
-    static const si32 SGR_BG_YLW_LT = 103;
-    static const si32 SGR_BG_BLU_LT = 104;
-    static const si32 SGR_BG_MGT_LT = 105;
-    static const si32 SGR_BG_CYN_LT = 106;
-    static const si32 SGR_BG_WHT_LT = 107;
+    static const auto SGR_RST       = 0;
+    static const auto SGR_SAV       = 10;
+    static const auto SGR_BOLD      = 1;
+    static const auto SGR_FAINT     = 22;
+    static const auto SGR_ITALIC    = 3;
+    static const auto SGR_NONITALIC = 23;
+    static const auto SGR_UND       = 4;
+    static const auto SGR_DOUBLEUND = 21;
+    static const auto SGR_NOUND     = 24;
+    static const auto SGR_SLOWBLINK = 5;
+    static const auto SGR_FASTBLINK = 6;
+    static const auto SGR_NO_BLINK  = 25;
+    static const auto SGR_INV       = 7;
+    static const auto SGR_NOINV     = 27;
+    static const auto SGR_STRIKE    = 9;
+    static const auto SGR_NOSTRIKE  = 29;
+    static const auto SGR_OVERLN    = 53;
+    static const auto SGR_NOOVERLN  = 55;
+    static const auto SGR_FG_BLK    = 30;
+    static const auto SGR_FG_RED    = 31;
+    static const auto SGR_FG_GRN    = 32;
+    static const auto SGR_FG_YLW    = 33;
+    static const auto SGR_FG_BLU    = 34;
+    static const auto SGR_FG_MGT    = 35;
+    static const auto SGR_FG_CYN    = 36;
+    static const auto SGR_FG_WHT    = 37;
+    static const auto SGR_FG_RGB    = 38;
+    static const auto SGR_FG        = 39;
+    static const auto SGR_BG_BLK    = 40;
+    static const auto SGR_BG_RED    = 41;
+    static const auto SGR_BG_GRN    = 42;
+    static const auto SGR_BG_YLW    = 43;
+    static const auto SGR_BG_BLU    = 44;
+    static const auto SGR_BG_MGT    = 45;
+    static const auto SGR_BG_CYN    = 46;
+    static const auto SGR_BG_WHT    = 47;
+    static const auto SGR_BG_RGB    = 48;
+    static const auto SGR_BG        = 49;
+    static const auto SGR_FG_BLK_LT = 90;
+    static const auto SGR_FG_RED_LT = 91;
+    static const auto SGR_FG_GRN_LT = 92;
+    static const auto SGR_FG_YLW_LT = 93;
+    static const auto SGR_FG_BLU_LT = 94;
+    static const auto SGR_FG_MGT_LT = 95;
+    static const auto SGR_FG_CYN_LT = 96;
+    static const auto SGR_FG_WHT_LT = 97;
+    static const auto SGR_BG_BLK_LT = 100;
+    static const auto SGR_BG_RED_LT = 101;
+    static const auto SGR_BG_GRN_LT = 102;
+    static const auto SGR_BG_YLW_LT = 103;
+    static const auto SGR_BG_BLU_LT = 104;
+    static const auto SGR_BG_MGT_LT = 105;
+    static const auto SGR_BG_CYN_LT = 106;
+    static const auto SGR_BG_WHT_LT = 107;
 
-    static const si32 CCC_NOP    = 0  ; // CSI             p  - no operation.
-    static const si32 CCC_RST    = 1  ; // CSI 1           p  - reset to zero all params (zz).
-    static const si32 CCC_CPP    = 2  ; // CSI 2 : x [: y] p  - caret percent position.
-    static const si32 CCC_CPX    = 3  ; // CSI 3 : x       p  - caret H percent position.
-    static const si32 CCC_CPY    = 4  ; // CSI 4 : y       p  - caret V percent position.
-    static const si32 CCC_TBS    = 5  ; // CSI 5 : n       p  - tab step length.
-    static const si32 CCC_MGN    = 6  ; // CSI 6 : l:r:t:b p  - margin left, right, top, bottom.
-    static const si32 CCC_MGL    = 7  ; // CSI 7 : n       p  - margin left   ╮
-    static const si32 CCC_MGR    = 8  ; // CSI 8 : n       p  - margin right  │ positive - native binding.
-    static const si32 CCC_MGT    = 9  ; // CSI 9 : n       p  - margin top    │ negative - oppisite binding.
-    static const si32 CCC_MGB    = 10 ; // CSI 10: n       p  - margin bottom ╯
+    static const auto CCC_NOP    = 0  ; // CSI             p  - no operation.
+    static const auto CCC_RST    = 1  ; // CSI 1           p  - reset to zero all params (zz).
+    static const auto CCC_CPP    = 2  ; // CSI 2 : x [: y] p  - caret percent position.
+    static const auto CCC_CPX    = 3  ; // CSI 3 : x       p  - caret H percent position.
+    static const auto CCC_CPY    = 4  ; // CSI 4 : y       p  - caret V percent position.
+    static const auto CCC_TBS    = 5  ; // CSI 5 : n       p  - tab step length.
+    static const auto CCC_MGN    = 6  ; // CSI 6 : l:r:t:b p  - margin left, right, top, bottom.
+    static const auto CCC_MGL    = 7  ; // CSI 7 : n       p  - margin left   ╮
+    static const auto CCC_MGR    = 8  ; // CSI 8 : n       p  - margin right  │ positive - native binding.
+    static const auto CCC_MGT    = 9  ; // CSI 9 : n       p  - margin top    │ negative - oppisite binding.
+    static const auto CCC_MGB    = 10 ; // CSI 10: n       p  - margin bottom ╯
 
-    static const si32 CCC_JET    = 11 ; // CSI 11: n       p  - text alignment (bias).
-    static const si32 CCC_WRP    = 12 ; // CSI 12: n       p  - text wrapping none/on/off.
-    static const si32 CCC_RTL    = 13 ; // CSI 13: n       p  - text right-to-left none/on/off.
-    static const si32 CCC_RLF    = 14 ; // CSI 14: n       p  - reverse line feed none/on/off.
+    static const auto CCC_JET    = 11 ; // CSI 11: n       p  - text alignment (bias).
+    static const auto CCC_WRP    = 12 ; // CSI 12: n       p  - text wrapping none/on/off.
+    static const auto CCC_RTL    = 13 ; // CSI 13: n       p  - text right-to-left none/on/off.
+    static const auto CCC_RLF    = 14 ; // CSI 14: n       p  - reverse line feed none/on/off.
 
-    static const si32 CCC_JET_or = 15 ; // CSI 15: n       p  - set text alignment (bias) if it is not set.
-    static const si32 CCC_WRP_or = 16 ; // CSI 16: n       p  - set text wrapping none/on/off if it is not set.
-    static const si32 CCC_RTL_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set.
-    static const si32 CCC_RLF_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set.
+    static const auto CCC_JET_or = 15 ; // CSI 15: n       p  - set text alignment (bias) if it is not set.
+    static const auto CCC_WRP_or = 16 ; // CSI 16: n       p  - set text wrapping none/on/off if it is not set.
+    static const auto CCC_RTL_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set.
+    static const auto CCC_RLF_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set.
 
-    static const si32 CCC_IDX    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id.
-    static const si32 CCC_CUP    = 20 ; // CSI 20: x [: y] p  - caret absolute position 0-based.
-    static const si32 CCC_CHX    = 21 ; // CSI 21: x       p  - caret H absolute position 0-based.
-    static const si32 CCC_CHY    = 22 ; // CSI 22: y       p  - caret V absolute position 0-based.
-    static const si32 CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
-    static const si32 CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
-    static const si32 CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
-    static const si32 CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
+    static const auto CCC_IDX    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id.
+    static const auto CCC_CUP    = 20 ; // CSI 20: x [: y] p  - caret absolute position 0-based.
+    static const auto CCC_CHX    = 21 ; // CSI 21: x       p  - caret H absolute position 0-based.
+    static const auto CCC_CHY    = 22 ; // CSI 22: y       p  - caret V absolute position 0-based.
+    static const auto CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
+    static const auto CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
+    static const auto CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
+    static const auto CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
 
-    static const si32 CCC_SGR    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
-    static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
-    static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
+    static const auto CCC_SGR    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
+    static const auto CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
+    static const auto CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
 
     static const auto mimetext = "text/plain"sv;
     static const auto mimeansi = "text/xterm"sv;
@@ -889,8 +889,8 @@ namespace netxs::ansi
             count,
         };
 
-        static constexpr auto defwrp = wrap::on; // deco: Default autowrap behavior.
-        static constexpr si32 maxtab = 255;      // deco: Tab length limit.
+        static constexpr auto defwrp = wrap::on;    // deco: Default autowrap behavior.
+        static constexpr auto maxtab = si32{ 255 }; // deco: Tab length limit.
 
         wrap wrapln : 2 = {}; // deco: Autowrap.
         bias adjust : 2 = {}; // deco: Horizontal alignment.
@@ -1553,7 +1553,7 @@ namespace netxs::ansi
         }
         void post(utf::frag const& cluster)
         {
-            static ansi::marker marker;
+            static auto marker = ansi::marker{};
 
             auto& utf8 = cluster.text;
             auto& attr = cluster.attr;
@@ -1810,7 +1810,7 @@ namespace netxs::ansi
         namespace binary
         {
             using type = byte;
-            static constexpr type is_list = 1 << (sizeof(type) * 8 - 1);
+            static constexpr auto is_list = type{ 1 << (sizeof(type) * 8 - 1) };
 
             //todo unify
             struct frag : public view
@@ -1823,31 +1823,34 @@ namespace netxs::ansi
                 struct mask
                 {
                     using twod = le_t<netxs::twod>;
+                    using sz_t = le_t<size_t>;
                     char mark_FF;
                     twod winsize;
+                    sz_t cfgsize;
                     char mark_FE;
                 };
 
-                static constexpr
-                auto size = sizeof(mask);
+                static constexpr auto size = sizeof(mask);
                 char data[size];
                 mask pack;
 
                 marker()
                 { }
-                marker(twod const& winsize)
+                marker(twod const& winsize, size_t cfgsize)
                 {
                     pack.mark_FF = initial;
                     pack.winsize.set(winsize);
+                    pack.cfgsize.set(cfgsize);
                     pack.mark_FE = initial - 1;
                 }
 
-                auto get_sz(twod& winsize)
+                auto get_sz(twod& winsize, size_t& cfgsize)
                 {
                     if (pack.mark_FF == initial
-                    && pack.mark_FE == initial - 1)
+                     && pack.mark_FE == initial - 1)
                     {
                         winsize = pack.winsize.get();
+                        cfgsize = pack.cfgsize.get();
                         return true;
                     }
                     else return faux;
@@ -2138,7 +2141,7 @@ namespace netxs::ansi
                 Base thing; // wrapper: Protected object.
 
             public:
-                static constexpr type kind = Base::kind;
+                static constexpr auto kind = Base::kind;
 
                 struct access
                 {
@@ -2204,7 +2207,7 @@ namespace netxs::ansi
             struct list
                 : stream
             {
-                static constexpr type kind = Type::kind | binary::is_list;
+                static constexpr auto kind = type{ Type::kind | binary::is_list };
 
                 Base copy;
                 Type item;
@@ -2288,7 +2291,7 @@ namespace netxs::ansi
             #define STRUCT(struct_name, struct_members)                               \
                 struct CAT(struct_name, _t) : public stream                           \
                 {                                                                     \
-                    static constexpr type kind = __COUNTER__ - _counter_base;         \
+                    static constexpr auto kind = type{ __COUNTER__ - _counter_base }; \
                     SEQ_ATTR(WRAP(struct_members))                                    \
                     CAT(struct_name, _t)()                                            \
                         : stream{ kind }                                              \
@@ -2311,7 +2314,7 @@ namespace netxs::ansi
             #define STRUCT_LITE(struct_name)                                          \
                 struct CAT(struct_name, _t) : public stream                           \
                 {                                                                     \
-                    static constexpr type kind = __COUNTER__ - _counter_base;         \
+                    static constexpr auto kind = type{ __COUNTER__ - _counter_base }; \
                     CAT(struct_name, _t)()                                            \
                         : stream{ kind }                                              \
                     { }                                                               \
@@ -2352,8 +2355,8 @@ namespace netxs::ansi
             STRUCT(native,            (bool, mode)) // CCC_EXT/* 25:1p */
             STRUCT(unknown_gc,        (ui64, token))
             STRUCT(fps,               (si32, frame_rate))
-            STRUCT(bgcolor,           (rgba, color))
-            STRUCT(fgcolor,           (rgba, color))
+            STRUCT(bgc,               (rgba, color))
+            STRUCT(fgc,               (rgba, color))
             STRUCT(slimmenu,          (bool, menusize))
             STRUCT(debugdata,         (text, data))
             STRUCT(debuglogs,         (text, data))
@@ -2368,7 +2371,7 @@ namespace netxs::ansi
                 : public stream
             {
             public:
-                static constexpr type kind = __COUNTER__ - _counter_base;
+                static constexpr auto kind = type{ __COUNTER__ - _counter_base };
 
                 bitmap_t()
                     : stream{ kind }
@@ -2380,10 +2383,10 @@ namespace netxs::ansi
 
                 struct subtype
                 {
-                    static constexpr byte nop = 0x00; // Apply current brush. nop = dif - refer.
-                    static constexpr byte dif = 0x20; // Cell dif.
-                    static constexpr byte mov = 0xFE; // Set insertion point. sz_t: offset.
-                    static constexpr byte rep = 0xFF; // Repeat current brush ui32 times. sz_t: N.
+                    static constexpr auto nop = byte{ 0x00 }; // Apply current brush. nop = dif - refer.
+                    static constexpr auto dif = byte{ 0x20 }; // Cell dif.
+                    static constexpr auto mov = byte{ 0xFE }; // Set insertion point. sz_t: offset.
+                    static constexpr auto rep = byte{ 0xFF }; // Repeat current brush ui32 times. sz_t: N.
                 };
 
                 enum : byte
@@ -2634,8 +2637,8 @@ namespace netxs::ansi
                 X(request_gc       ) /* Unknown gc token list.                        */\
                 X(unknown_gc       ) /* Unknown gc token.                             */\
                 X(fps              ) /* Set frame rate.                               */\
-                X(bgcolor          ) /* Set background color.                         */\
-                X(fgcolor          ) /* Set foreground color.                         */\
+                X(bgc              ) /* Set background color.                         */\
+                X(fgc              ) /* Set foreground color.                         */\
                 X(slimmenu         ) /* Set window menu size.                         */\
                 X(debugdata        ) /* Debug data.                                   */\
                 X(debuglogs        ) /* Debug logs.                                   */
