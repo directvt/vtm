@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
         switch (getopt.next())
         {
             case 'l':
-                log(app::shared::load::settings(cfpath).document->show());
+                log(app::shared::load::settings(cfpath, os::legacy::get_setup()).document->show());
                 return 0;
             case 'c':
                 cfpath = getopt.param();

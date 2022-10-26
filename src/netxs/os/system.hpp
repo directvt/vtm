@@ -995,13 +995,8 @@ namespace netxs::os
         }
         static void send_dmd(fd_t m_pipe_w, twod const& winsz, view config)
         {
-            auto cfsize = config.size();
-            auto buffer = ansi::dtvt::binary::marker{ winsz, cfsize };
+            auto buffer = ansi::dtvt::binary::marker{ winsz, config.size() };
             os::send<true>(m_pipe_w, buffer.data, buffer.size);
-            if (cfsize)
-            {
-                os::send<true>(m_pipe_w, config.data(), cfsize);
-            }
         }
         static auto peek_dmd(fd_t stdin_fd)
         {
@@ -4573,7 +4568,7 @@ namespace netxs::os
 
             operator bool () { return termlink; }
 
-            auto start(text cwd, text cmdline, twod winsz, view config, std::function<void(view)> input_hndl,
+            auto start(text cwd, text cmdline, twod winsz, text config, std::function<void(view)> input_hndl,
                                                                         std::function<void(view)> logs_hndl,
                                                                         std::function<void(si32)> preclose_hndl,
                                                                         std::function<void(si32)> shutdown_hndl)
@@ -4605,9 +4600,9 @@ namespace netxs::os
                         sa.nLength = sizeof(SECURITY_ATTRIBUTES);
                         sa.lpSecurityDescriptor = NULL;
                         sa.bInheritHandle = TRUE;
-                        if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, std::max(PIPE_BUF, static_cast<si32>(ansi::dtvt::binary::marker::size + config.size())))
-                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, PIPE_BUF)
-                         && ::CreatePipe(&m_pipe_l, &s_pipe_l, &sa, PIPE_BUF))
+                        if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
+                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0)
+                         && ::CreatePipe(&m_pipe_l, &s_pipe_l, &sa, 0))
                         {
                             os::legacy::send_dmd(m_pipe_w, winsz, config);
 
@@ -4688,9 +4683,6 @@ namespace netxs::os
                     ok(::pipe(to_client), "dtvt: client ipc unexpected result");
                     ok(::pipe(to_srvlog), "dtvt: srvlog ipc unexpected result");
 
-                    auto pipebuff = std::max(PIPE_BUF, static_cast<si32>(ansi::dtvt::binary::marker::size + config.size()));
-                    ok(::fcntl(to_client[1], F_SETPIPE_SZ, pipebuff), "dtvt: ::fcntl(to_client, F_SETPIPE_SZ...) unexpected result");
-
                     termlink.set(to_server[0], to_client[1], to_srvlog[0]);
                     os::legacy::send_dmd(to_client[1], winsz, config);
 
@@ -4746,6 +4738,12 @@ namespace netxs::os
 
                 #endif
 
+                if (config.size())
+                {
+                    auto guard = std::lock_guard{ writemtx };
+                    writebuf = config + writebuf;
+                }
+
                 stdinput = std::thread([&] { read_socket_thread(); });
                 stdwrite = std::thread([&] { send_socket_thread(); });
                 stderror = std::thread([&] { logs_socket_thread(); });
@@ -4781,7 +4779,6 @@ namespace netxs::os
                         else if (code == STILL_ACTIVE)
                         {
                             log("dtvt: child process still running");
-                            //std::this_thread::sleep_for(15s);
                             auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
                             if (!result || !::GetExitCodeProcess(prochndl, &code))
                             {
