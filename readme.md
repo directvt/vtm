@@ -63,7 +63,7 @@ vtm
 Build-time dependencies
  - [`git`](https://git-scm.com/download/win)
  - [`cmake`](https://learn.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-170#installation)
- - `Visual Studio 2019` or later (Desktop development with C++)
+ - [`Visual Studio 2019`](https://visualstudio.microsoft.com/downloads/) or later (Desktop development with C++)
  - `UTF-8` for worldwide language support, https://github.com/netxs-group/vtm/issues/175#issuecomment-1034734346
 
 Use `Developer Command Prompt` as a build environment
