@@ -78,8 +78,12 @@ namespace netxs::xml
     template<>
     auto take<si32>(view utf8) -> std::optional<si32>
     {
-        if (auto v = utf::to_int(utf8)) return v.value();
-        else                            return std::nullopt;
+        if (utf8.starts_with("0x"))
+        {
+            utf8.remove_prefix(2);
+            return utf::to_int<si32, 16>(utf8);
+        }
+        else return utf::to_int<si32, 10>(utf8);
     }
     template<>
     auto take<text>(view utf8) -> std::optional<text>
@@ -258,19 +262,21 @@ namespace netxs::xml
                 using iter = std::list<literal>::iterator;
 
                 suit& boss;
-                iter  upto;
                 type  kind;
+                iter  upto;
                 frag  part;
 
                 template<class ...Args>
                 literal(suit& boss, type kind, Args&&... args)
                     : boss{ boss },
                       kind{ kind },
+                      upto{ boss.data.end() },
                       part{ std::make_shared<text>(std::forward<Args>(args)...) }
                 { }
                 literal(suit& boss, type kind, frag part)
                     : boss{ boss },
                       kind{ kind },
+                      upto{ boss.data.end() },
                       part{ part }
                 { }
             };
@@ -982,11 +988,22 @@ namespace netxs::xml
             static constexpr auto value_fg     = rgba{ 0xFFf09690 };
             static constexpr auto value_bg     = rgba{ 0xFF202020 };
 
+            //test
+            //auto tmp = page.data.front().upto;
+            //auto clr = 0;
+
             auto yield = ansi::esc{};
             for (auto& item : page.data)
             {
                 auto kind = item.kind;
                 auto data_ptr = item.part;
+
+                //test
+                //if (item.upto == page.data.end() || tmp != item.upto)
+                //{
+                //    clr++;
+                //    tmp = item.upto;
+                //}
 
                 auto fgc = rgba{};
                 auto bgc = rgba{};
@@ -1013,17 +1030,13 @@ namespace netxs::xml
                     default: break;
                 }
                 auto& data = *data_ptr;
+                //test
+                //yield.bgc((tint)(clr % 8));
                 if (kind == type::tag_value)
                 {
                     auto temp = data;
-                    if (fgc)
-                    {
-                        //if (bgc) yield.fgc(fgc).bgc(bgc);
-                        //else     yield.fgc(fgc);
-                        //yield.add(xml::escape(temp)).nil();
-                        yield.fgc(fgc).add(xml::escape(temp)).nil();
-                    }
-                    else yield.add(xml::escape(temp));
+                    if (fgc) yield.fgc(fgc).add(xml::escape(temp)).nil();
+                    else     yield.add(xml::escape(temp));
                 }
                 else
                 {

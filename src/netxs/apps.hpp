@@ -55,39 +55,36 @@ R"==(
 #endif
 R"==(
             <hotkeys>    <!-- not implemented -->
-                <action*/>
-                <action=start key="Ctrl+'t'"/>
-                <action=close key="Ctrl+'z'"/>
+                <key*/>
+                <key="Ctrl+'t'" action=start />
+                <key="Ctrl+'z'" action=close />
             </hotkeys>
             <config>    <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only -->
                 <term>
                     <scrollback>
                         <size=20000 />
                         <growstep=0 />
+                        <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
+                        <wrap="on" />
                     </scrollback>
-                    <colors>
-                        <palette>
-                            <color0  = blackdk   /> <!-- See /config/set/* for the color name reference -->
-                            <color1  = reddk     />
-                            <color2  = greendk   />
-                            <color3  = yellowdk  />
-                            <color4  = bluedk    />
-                            <color5  = magentadk />
-                            <color6  = cyandk    />
-                            <color7  = whitedk   />
-                            <color8  = blacklt   />
-                            <color9  = redlt     />
-                            <color10 = greenlt   />
-                            <color11 = yellowlt  />
-                            <color12 = bluelt    />
-                            <color13 = magentalt />
-                            <color14 = cyanlt    />
-                            <color15 = whitelt   />
-                        </palette>
-                        <default>
-                            <fgc=15 /> <!-- 256-color index is allowed -->
-                            <bgc=0 />
-                        </default>
+                    <color>
+                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
+                        <color1  = reddk      />
+                        <color2  = greendk    />
+                        <color3  = yellowdk   />
+                        <color4  = bluedk     />
+                        <color5  = magentadk  />
+                        <color6  = cyandk     />
+                        <color7  = whitedk    />
+                        <color8  = blacklt    />
+                        <color9  = redlt      />
+                        <color10 = greenlt    />
+                        <color11 = yellowlt   />
+                        <color12 = bluelt     />
+                        <color13 = magentalt  />
+                        <color14 = cyanlt     />
+                        <color15 = whitelt    />
+                        <default bgc=0 fgc=15 />
                         <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
                         <selection>
                             <text fx=selection bgc=12 fgc=15 />
@@ -96,25 +93,24 @@ R"==(
                             <html fx=xlight/>
                             <none fx=selection bgc=8 fgc=7 />
                         </selection>
-                    </colors>
+                    </color>
                     <tablen=8 />      <!-- Tab length. -->
-                    <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
                         <blink="400"/>       <!-- blink period in ms -->
+                        <show=true/>
                     </cursor>
                     <menu>
                         <enabled="on"/>
-                        <slim="off"/>
+                        <slim="false"/>
                     </menu>
-                    <wrap="on"/>
                     <selection>
                         <mode="text"/> <!-- text | ansi | rich | html | none -->
                     </selection>
                     <hotkeys>
-                        <action*/>
-                        <action=findNext key="Alt+RightArrow"/>
-                        <action=findPrev key="Alt+LeftArrow"/>
+                        <key*/>
+                        <key="Alt+RightArrow" action=findNext />
+                        <key="Alt+LeftArrow"  action=findPrev />
                     </hotkeys>
                 </term>
             </config>
@@ -156,9 +152,9 @@ R"==(
         </width>
     </menu>
     <hotkeys>    <!-- not implemented -->
-        <action*/>
-        <action=prevWindow key="Ctrl+PgUp"/>
-        <action=nextWindow key="Ctrl+PgDn"/>
+        <key*/>
+        <key="Ctrl+PgUp" action=prevWindow />
+        <key="Ctrl+PgDn" action=nextWindow />
     </hotkeys>
     <appearance>
         <defaults>
@@ -168,7 +164,7 @@ R"==(
             <kb_focus=60 />
             <shadower=180 />
             <shadow=180 />
-            <lucidity=255 />
+            <lucidity=0xff /> <!-- not implemented -->
             <selector=48 />
             <highlight  fgc=purewhite  bgc=亮蓝       />
             <warning    fgc=whitelt    bgc=yellowdk   />
@@ -234,30 +230,27 @@ R"==(
         <scrollback>
             <size=20000 />
             <growstep=0 />
+            <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
+            <wrap="on" />
         </scrollback>
-        <colors>
-            <palette>
-                <color0  = blackdk   /> <!-- See /config/set/* for the color name reference -->
-                <color1  = reddk     />
-                <color2  = greendk   />
-                <color3  = yellowdk  />
-                <color4  = bluedk    />
-                <color5  = magentadk />
-                <color6  = cyandk    />
-                <color7  = whitedk   />
-                <color8  = blacklt   />
-                <color9  = redlt     />
-                <color10 = greenlt   />
-                <color11 = yellowlt  />
-                <color12 = bluelt    />
-                <color13 = magentalt />
-                <color14 = cyanlt    />
-                <color15 = whitelt   />
-            </palette>
-            <default>
-                <fgc=15 /> <!-- 256-color index is allowed -->
-                <bgc=0 />
-            </default>
+        <color>
+            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
+            <color1  = reddk      />
+            <color2  = greendk    />
+            <color3  = yellowdk   />
+            <color4  = bluedk     />
+            <color5  = magentadk  />
+            <color6  = cyandk     />
+            <color7  = whitedk    />
+            <color8  = blacklt    />
+            <color9  = redlt      />
+            <color10 = greenlt    />
+            <color11 = yellowlt   />
+            <color12 = bluelt     />
+            <color13 = magentalt  />
+            <color14 = cyanlt     />
+            <color15 = whitelt    />
+            <default bgc=0 fgc=15 />
             <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
                 <text fx=selection bgc=12 fgc=15 />
@@ -266,25 +259,24 @@ R"==(
                 <html fx=xlight />
                 <none fx=selection bgc=8 fgc=7 />
             </selection>
-        </colors>
+        </color>
         <tablen=8 />      <!-- Tab length. -->
-        <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
         <cursor>
             <style="underline"/> <!-- block | underline  -->
             <blink="400"/>       <!-- blink period in ms -->
+            <show=true/>
         </cursor>
         <menu>
             <enabled="on"/>
-            <slim=on />
+            <slim=true />
         </menu>
-        <wrap="on"/>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | none -->
         </selection>
         <hotkeys>
-            <action*/>
-            <action=findNext key="Alt+RightArrow"/>
-            <action=findPrev key="Alt+LeftArrow"/>
+            <key*/>
+            <key="Alt+RightArrow" action=findNext />
+            <key="Alt+LeftArrow"  action=findPrev />
         </hotkeys>
     </term>
     <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
