@@ -291,9 +291,8 @@ namespace netxs::app::term
                                     };
                                   });
 
-                            auto shell = os::get_shell();
-                            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell + " -i"
-                                                                                       : arg));
+                            auto shell = os::get_shell() + " -i";
+                            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config));
 
                             inst->attach_property(ui::term::events::colors::bg,      app::term::events::colors::bg)
                                 ->attach_property(ui::term::events::colors::fg,      app::term::events::colors::fg)

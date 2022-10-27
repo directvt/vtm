@@ -62,10 +62,10 @@ R"==(
             <config>    <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only -->
                 <term>
                     <scrollback>
-                        <size=20000 />
-                        <growstep=0 />
-                        <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
-                        <wrap="on" />
+                        <size=20000    />   <!-- Scrollback buffer length. -->
+                        <growstep=0    />   <!-- Scrollback buffer grow step. -->
+                        <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
+                        <wrap="on"     />   <!-- Lines wrapping mode. -->
                     </scrollback>
                     <color>
                         <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
@@ -84,17 +84,21 @@ R"==(
                         <color13 = magentalt  />
                         <color14 = cyanlt     />
                         <color15 = whitelt    />
-                        <default bgc=0 fgc=15 />
-                        <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+                        <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+                        <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
                         <selection>
-                            <text fx=selection bgc=12 fgc=15 />
+                            <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
                             <ansi fx=xlight/>
                             <rich fx=xlight/>
                             <html fx=xlight/>
-                            <none fx=selection bgc=8 fgc=7 />
+                            <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
                         </selection>
                     </color>
-                    <tablen=8 />      <!-- Tab length. -->
+                    <fields>
+                        <lucent=0xC0 /> <!-- Fields transparency level. -->
+                        <size=0 />      <!-- Left/right field size. -->
+                    </fields>
+                    <tablen=8 />        <!-- Tab length. -->
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
                         <blink="400"/>       <!-- blink period in ms -->
@@ -228,10 +232,10 @@ R"==(
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
-            <size=20000 />
-            <growstep=0 />
-            <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
-            <wrap="on" />
+            <size=20000    />   <!-- Scrollback buffer length. -->
+            <growstep=0    />   <!-- Scrollback buffer grow step. -->
+            <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
+            <wrap="off"    />   <!-- Lines wrapping mode. -->
         </scrollback>
         <color>
             <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
@@ -250,16 +254,20 @@ R"==(
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=0 fgc=15 />
-            <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+            <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+            <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
-                <text fx=selection bgc=12 fgc=15 />
-                <ansi fx=xlight />
-                <rich fx=xlight />
-                <html fx=xlight />
-                <none fx=selection bgc=8 fgc=7 />
+                <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                <ansi fx=xlight/>
+                <rich fx=xlight/>
+                <html fx=xlight/>
+                <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
             </selection>
         </color>
+        <fields>
+            <lucent=0xC0 /> <!-- Fields transparency level. -->
+            <size=0 />      <!-- Left/right field size. -->
+        </fields>
         <tablen=8 />      <!-- Tab length. -->
         <cursor>
             <style="underline"/> <!-- block | underline  -->
@@ -1223,8 +1231,8 @@ namespace netxs::app::shared
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
                     auto data = param.empty() ? os::get_shell() + " -i"
                                               : param;
-                    auto inst = scroll->attach(ui::term::ctor(cwd, data))
-                                      ->colors(whitelt, blackdk)
+                    auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
+                                      ->colors(whitelt, blackdk) //todo apply settings
                                       ->invoke([&](auto& boss)
                                       {
                                             //todo unify: Same as in app::term (term.hpp).
