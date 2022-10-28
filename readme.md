@@ -448,16 +448,16 @@ Note: The following configuration sections are not implemented yet
                 <key="Ctrl+'t'" action=start />
                 <key="Ctrl+'z'" action=close />
             </hotkeys>
-            <config>    <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only -->
+            <config>   <!-- not implemented, only base config applied -->  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
                         <size=20000    />   <!-- Scrollback buffer length. -->
-                        <growstep=0    />   <!-- Scrollback buffer grow step. -->
+                        <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
                         <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
                         <wrap="on"     />   <!-- Lines wrapping mode. -->
                     </scrollback>
                     <color>
-                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
+                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
                         <color1  = reddk      />
                         <color2  = greendk    />
                         <color3  = yellowdk   />
@@ -490,7 +490,7 @@ Note: The following configuration sections are not implemented yet
                     <tablen=8 />        <!-- Tab length. -->
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
-                        <blink="400"/>       <!-- blink period in ms -->
+                        <blink=400ms/>       <!-- blink period -->
                         <show=true/>
                     </cursor>
                     <menu>
@@ -524,7 +524,7 @@ Note: The following configuration sections are not implemented yet
    <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun>    <!-- not implemented -->
             <item*/>
-            <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default -->
+            <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default. -->
             <item wincoor=0,0 />
             <item wincoor=52%,0 />
             <item wincoor=0,52% />
@@ -542,14 +542,14 @@ Note: The following configuration sections are not implemented yet
     </hotkeys>
     <appearance>
         <defaults>
-            <fps=60 />
-            <bordersz=1,1 />
-            <brighter=60 />
-            <kb_focus=60 />
-            <shadower=180 />
-            <shadow=180 />
-            <lucidity=0xff /> <!-- not implemented -->
-            <selector=48 />
+            <fps      = 60   />
+            <bordersz = 1,1  />
+            <brighter = 60   />
+            <kb_focus = 60   />
+            <shadower = 180  />
+            <shadow   = 180  />
+            <lucidity = 0xff /> <!-- not implemented -->
+            <selector = 48   />
             <highlight  fgc=purewhite  bgc=亮蓝       />
             <warning    fgc=whitelt    bgc=yellowdk   />
             <danger     fgc=whitelt    bgc=redlt      />
@@ -563,8 +563,8 @@ Note: The following configuration sections are not implemented yet
             <brighter=0 />
         </runapp>
     </appearance>
-    <set>         <!-- Global namespace - Unresolved literals will be taken from here -->
-        <blackdk   = 0xFF101010 /> <!-- Color reference literals -->
+    <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
+        <blackdk   = 0xFF101010 /> <!-- Color reference literals. -->
         <reddk     = 0xFF1f0fc4 />
         <greendk   = 0xFF0ea112 />
         <yellowdk  = 0xFF009cc0 />
@@ -584,7 +584,7 @@ Note: The following configuration sections are not implemented yet
         <purewhite = 0xFFffffff />
         <nocolor   = 0x00000000 />
 
-        <黑     = blackdk   /> <!-- Localized color reference literals -->
+        <黑     = blackdk   /> <!-- Localized color reference literals. -->
         <红     = reddk     />
         <绿     = greendk   />
         <黄     = yellowdk  />
@@ -602,23 +602,23 @@ Note: The following configuration sections are not implemented yet
         <亮白   = whitelt   />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF000000 />
+        <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
         <clip_preview size=80x25 />
         <viewport coor=0,0 />
         <tooltip timeout=500ms enabled=true />
-        <glowfx=true />
-        <debug overlay=faux toggle="🐞" />
-        <regions enabled=faux />
+        <glowfx=true />                      <!-- Show glow effect around selected item. -->
+        <debug overlay=faux toggle="🐞" />  <!-- Display console debug info. -->
+        <regions enabled=faux />             <!-- Highlight UI objects boundaries. -->
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
             <size=20000    />   <!-- Scrollback buffer length. -->
-            <growstep=0    />   <!-- Scrollback buffer grow step. -->
+            <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
-            <wrap="off"    />   <!-- Lines wrapping mode. -->
+            <wrap="on"     />   <!-- Lines wrapping mode. -->
         </scrollback>
         <color>
-            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
+            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -646,12 +646,12 @@ Note: The following configuration sections are not implemented yet
         </color>
         <fields>
             <lucent=0xC0 /> <!-- Fields transparency level. -->
-            <size=0 />      <!-- Left/right field size. -->
+            <size=0      /> <!-- Left/right field size (for hz scrolling UX). -->
         </fields>
-        <tablen=8 />      <!-- Tab length. -->
+        <tablen=8 />   <!-- Tab length. -->
         <cursor>
             <style="underline"/> <!-- block | underline  -->
-            <blink="400"/>       <!-- blink period in ms -->
+            <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
         <menu>
@@ -661,7 +661,7 @@ Note: The following configuration sections are not implemented yet
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | none -->
         </selection>
-        <hotkeys>
+        <hotkeys>    <!-- not implemented -->
             <key*/>
             <key="Alt+RightArrow" action=findNext />
             <key="Alt+LeftArrow"  action=findPrev />

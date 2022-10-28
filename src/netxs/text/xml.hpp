@@ -986,8 +986,8 @@ namespace netxs::xml
             static constexpr auto value_bg     = rgba{ 0xFF202020 };
 
             //test
-            auto tmp = page.data.front().upto;
-            auto clr = 0;
+            //auto tmp = page.data.front().upto;
+            //auto clr = 0;
 
             auto yield = ansi::esc{};
             for (auto& item : page.data)
@@ -996,11 +996,11 @@ namespace netxs::xml
                 auto data_ptr = item.part;
 
                 //test
-                if (item.upto == page.data.end() || tmp != item.upto)
-                {
-                    clr++;
-                    tmp = item.upto;
-                }
+                //if (item.upto == page.data.end() || tmp != item.upto)
+                //{
+                //    clr++;
+                //    tmp = item.upto;
+                //}
 
                 auto fgc = rgba{};
                 auto bgc = rgba{};

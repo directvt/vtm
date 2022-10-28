@@ -109,6 +109,7 @@ namespace netxs::ui
         {
             using mime = clip::mime;
             using pals = std::remove_const_t<decltype(rgba::color256)>;
+            using time = period;
 
             si32 def_mxline;
             si32 def_length;
@@ -120,8 +121,9 @@ namespace netxs::ui
             mime def_selmod;
             rgba def_fcolor;
             rgba def_bcolor;
-            si32 def_cursor;
+            bool def_cursor;
             bool def_cur_on;
+            time def_period;
             cell def_selclr;
             cell def_offclr;
             cell def_dupclr;
@@ -134,9 +136,9 @@ namespace netxs::ui
                      { "ansi", clip::ansitext },
                      { "rich", clip::richtext },
                      { "html", clip::htmltext }};
-                static auto cursor_options = std::unordered_map<text, decltype(commands::cursor::blinking_underline)>
-                    {{ "underline", commands::cursor::blinking_underline },
-                     { "block"    , commands::cursor::blinking_box       }};
+                static auto cursor_options = std::unordered_map<text, bool>
+                    {{ "underline", faux },
+                     { "block"    , true }};
 
                 config.cd("/config/term/");
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
@@ -147,8 +149,9 @@ namespace netxs::ui
                 def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
                 def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
                 def_selmod =             config.take("selection/mode",       clip::textonly, selmod_options);
-                def_cur_on =             config.take("cursor/show",          bool{ 1 });
-                def_cursor =             config.take("cursor/style",         commands::cursor::blinking_underline, cursor_options);
+                def_cur_on =             config.take("cursor/show",          true);
+                def_cursor =             config.take("cursor/style",         true, cursor_options);
+                def_period =             config.take("cursor/blink",         time{ BLINK_PERIOD });
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
                 def_selclr =             config.take("color/selection/text", cell{}.bgc(bluelt).fgc(whitelt));
@@ -1275,7 +1278,7 @@ namespace netxs::ui
             {
                 if (parser::style.wrp() != old_style.wrp())
                 {
-                    auto status = parser::style.wrp() == wrap::none ? deco::defwrp
+                    auto status = parser::style.wrp() == wrap::none ? owner.config.def_wrpmod
                                                                     : parser::style.wrp();
                     owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
                 }
@@ -2800,16 +2803,21 @@ namespace netxs::ui
 
             static constexpr auto approx_threshold = si32{ 10000 }; //todo make it configurable
 
-            scroll_buf(term& boss, si32 buffer_size, si32 grow_step)
-                : bufferbase{ boss                   },
-                       batch{ buffer_size, grow_step },
-                       index{ 0                      },
-                       place{                        },
+            scroll_buf(term& boss)
+                : bufferbase{ boss },
+                       batch{ boss.config.def_length, boss.config.def_growup },
+                       index{ 0    },
+                       place{      },
                        shore{ boss.config.def_margin }
             {
+                parser::style.wrp(boss.config.def_wrpmod);
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(1);
                 index_rebuild();
+
+                auto brush = cell{ '\0' }.fgc(boss.config.def_fcolor).bgc(boss.config.def_bcolor).link(boss.id);
+                boss.base::color(brush); //todo unify (config with defaults)
+                parser::brush.reset(brush);
             }
             si32 get_size() const override { return batch.size;     }
             si32 get_peak() const override { return batch.peak - 1; }
@@ -6113,10 +6121,10 @@ namespace netxs::ui
         using buffer_ptr = bufferbase*;
         using vtty = os::pty<term>;
 
+        termconfig config; // term: Terminal settings.
         pro::timer worker; // term: Linear animation controller.
         pro::robot dynamo; // term: Linear animation controller.
         pro::caret cursor; // term: Text cursor controller.
-        termconfig config; // term: Terminal settings.
         term_state status; // term: Screen buffer status info.
         w_tracking wtrack; // term: Terminal title tracking object.
         f_tracking ftrack; // term: Keyboard focus tracking object.
@@ -6838,15 +6846,15 @@ namespace netxs::ui
             {
                 switch (cmd)
                 {
-                    case commands::ui::left:      console.selection_setjet(bias::left  ); break;
-                    case commands::ui::center:    console.selection_setjet(bias::center); break;
-                    case commands::ui::right:     console.selection_setjet(bias::right ); break;
-                    case commands::ui::togglewrp: console.selection_setwrp(); break;
-                    case commands::ui::togglesel: selection_selmod(); break;
-                    case commands::ui::reset:     decstr(); break;
+                    case commands::ui::left:      console.selection_setjet(bias::left  );         break;
+                    case commands::ui::center:    console.selection_setjet(bias::center);         break;
+                    case commands::ui::right:     console.selection_setjet(bias::right );         break;
+                    case commands::ui::togglewrp: console.selection_setwrp();                     break;
+                    case commands::ui::togglesel: selection_selmod();                             break;
+                    case commands::ui::reset:     decstr();                                       break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
-                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
-                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd);            break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev);            break;
                     default: break;
                 }
             }
@@ -6854,15 +6862,15 @@ namespace netxs::ui
             {
                 switch (cmd)
                 {
-                    case commands::ui::left:      console.style.jet(bias::left  ); break;
-                    case commands::ui::center:    console.style.jet(bias::center); break;
-                    case commands::ui::right:     console.style.jet(bias::right ); break;
+                    case commands::ui::left:      console.style.jet(bias::left  );      break;
+                    case commands::ui::center:    console.style.jet(bias::center);      break;
+                    case commands::ui::right:     console.style.jet(bias::right );      break;
                     case commands::ui::togglewrp: console.style.wrp(console.style.wrp() == wrap::on ? wrap::off : wrap::on); break;
-                    case commands::ui::togglesel: selection_selmod(); return; // Without resetting the viewport.
-                    case commands::ui::reset:     decstr(); break;
+                    case commands::ui::togglesel: selection_selmod();                   return; // Return without resetting the viewport.
+                    case commands::ui::reset:     decstr();                             break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
-                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
-                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd);  break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev);  break;
                     default: break;
                 }
                 follow[axis::Y] = true; // Reset viewport.
@@ -6908,12 +6916,12 @@ namespace netxs::ui
         }
         bool linux_console{};
        ~term(){ active = faux; }
-        //term(text cwd, text command_line, si32 max_scrollback_size = def_length, si32 grow_step = def_growup)
         term(text cwd, text cmd, xml::settings& xml_config)
             : config{ xml_config },
-              normal{ *this, config.def_length, config.def_growup },
+              normal{ *this },
               altbuf{ *this },
-              cursor{ *this },
+              target{&normal},
+              cursor{ *this, config.def_cur_on, config.def_cursor, dot_00, config.def_period },
               worker{ *this },
               dynamo{ *this },
               mtrack{ *this },
@@ -6933,12 +6941,7 @@ namespace netxs::ui
               selmod{ config.def_selmod }
         {
             linux_console = os::local_mode();
-            target = &normal;
-            //cursor.style(commands::cursor::blinking_box); // default=blinking_box
-            cursor.style(config.def_cursor); //todo make it via props like selmod
-            if (config.def_cur_on) cursor.show(); //todo revise (possible bug)
             form::keybd.accept(true); // Subscribe on keybd offers.
-            set_color(cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor).link(this->id)); //todo unify (config with defaults)
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
             publish_property(ui::term::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
@@ -6946,6 +6949,7 @@ namespace netxs::ui
             publish_property(ui::term::events::layout::wrapln, [&](auto& v){ v = target->style.wrp(); });
             publish_property(ui::term::events::layout::align,  [&](auto& v){ v = target->style.jet(); });
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
+            selection_selmod(config.def_selmod);
 
             SUBMIT(tier::anycast, e2::form::quit, item)
             {

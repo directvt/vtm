@@ -2510,20 +2510,21 @@ namespace netxs::console
             bool   live; // caret: Should the caret be drawn.
             bool   done; // caret: Is the caret already drawn.
             bool   down; // caret: Is the caret suppressed (lost focus).
+            bool   form; // caret: Caret style.
             rect   body; // caret: Caret position.
             period step; // caret: Blink interval. period::zero() if steady.
             moment next; // caret: Time of next blinking.
-            bool   form; // caret: Caret style: true - box; faux - underline.
 
         public:
             caret(base&&) = delete;
-            caret(base& boss, bool visible = faux, twod position = dot_00, bool abox = faux) : skill{ boss },
-                live{ faux },
-                done{ faux },
-                down{ faux },
-                form{ abox },
-                body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
-                step{ BLINK_PERIOD }
+            caret(base& boss, bool visible = faux, bool abox = faux, twod position = dot_00, period freq = BLINK_PERIOD)
+                : skill{ boss },
+                   live{ faux },
+                   done{ faux },
+                   down{ faux },
+                   form{ abox },
+                   body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
+                   step{ freq }
             {
                 boss.SUBMIT_T(tier::anycast, e2::form::highlight::any, conf, state)
                 {
