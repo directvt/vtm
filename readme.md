@@ -422,7 +422,6 @@ Type              | Parameter
 ### Configuration Example
 
 Note: The following configuration sections are not implemented yet
-- config/menu/item/param/*
 - config/menu/item/hotkeys
 - config/menu/autorun
 - config/hotkeys
@@ -452,10 +451,10 @@ Note: The following configuration sections are not implemented yet
             <config>    <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only -->
                 <term>
                     <scrollback>
-                        <size=20000 />
-                        <growstep=0 />
-                        <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
-                        <wrap="on" />
+                        <size=20000    />   <!-- Scrollback buffer length. -->
+                        <growstep=0    />   <!-- Scrollback buffer grow step. -->
+                        <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
+                        <wrap="on"     />   <!-- Lines wrapping mode. -->
                     </scrollback>
                     <color>
                         <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
@@ -474,17 +473,21 @@ Note: The following configuration sections are not implemented yet
                         <color13 = magentalt  />
                         <color14 = cyanlt     />
                         <color15 = whitelt    />
-                        <default bgc=0 fgc=15 />
-                        <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+                        <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+                        <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
                         <selection>
-                            <text fx=selection bgc=12 fgc=15 />
+                            <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
                             <ansi fx=xlight/>
                             <rich fx=xlight/>
                             <html fx=xlight/>
-                            <none fx=selection bgc=8 fgc=7 />
+                            <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
                         </selection>
                     </color>
-                    <tablen=8 />      <!-- Tab length. -->
+                    <fields>
+                        <lucent=0xC0 /> <!-- Fields transparency level. -->
+                        <size=0 />      <!-- Left/right field size. -->
+                    </fields>
+                    <tablen=8 />        <!-- Tab length. -->
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
                         <blink="400"/>       <!-- blink period in ms -->
@@ -507,6 +510,18 @@ Note: The following configuration sections are not implemented yet
         </item>
         <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run PowerShell "/>
         <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
+   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                         notes=" run Far Manager in its own window "/> -->
+   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    param="mc"               notes=" run Midnight Commander in its own window "/> -->
+        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
+        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
+        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
+        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
+   <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
+   <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
+   <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
+   <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
+   <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
+   <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun>    <!-- not implemented -->
             <item*/>
             <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default -->
@@ -597,10 +612,10 @@ Note: The following configuration sections are not implemented yet
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
-            <size=20000 />
-            <growstep=0 />
-            <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
-            <wrap="on" />
+            <size=20000    />   <!-- Scrollback buffer length. -->
+            <growstep=0    />   <!-- Scrollback buffer grow step. -->
+            <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
+            <wrap="off"    />   <!-- Lines wrapping mode. -->
         </scrollback>
         <color>
             <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
@@ -619,16 +634,20 @@ Note: The following configuration sections are not implemented yet
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=0 fgc=15 />
-            <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+            <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+            <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
-                <text fx=selection bgc=12 fgc=15 />
-                <ansi fx=xlight />
-                <rich fx=xlight />
-                <html fx=xlight />
-                <none fx=selection bgc=8 fgc=7 />
+                <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                <ansi fx=xlight/>
+                <rich fx=xlight/>
+                <html fx=xlight/>
+                <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
             </selection>
         </color>
+        <fields>
+            <lucent=0xC0 /> <!-- Fields transparency level. -->
+            <size=0 />      <!-- Left/right field size. -->
+        </fields>
         <tablen=8 />      <!-- Tab length. -->
         <cursor>
             <style="underline"/> <!-- block | underline  -->
@@ -679,14 +698,9 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
    - UTF-8 Everywhere
    - Unicode clustering
    - TrueColor/256-color support
-   - Auto-wrap mode `DECAWM` (with horizontal scrolling)
-   - Focus tracking `DECSET 1004`
-   - Bracketed paste mode `DECSET 2004`
-   - SGR attributes: overline, double underline, strikethrough, and others
-   - Save/restore terminal window title `XTWINOPS 22/23`
-   - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
-   - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
-   - Text selection by mouse #149  
+   - [VT-100 terminal emulation](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html) compatible
+   - Mouse tracking `DECSET 10060 Extended SGR` mode for mouse reporting outside of the terminal viewport; negative values support (See #62 for details)
+   - Text selection by mouse ( See #149 for details)
    - Configurable using VT-sequences
 
       Name         | Sequence                         | Description
