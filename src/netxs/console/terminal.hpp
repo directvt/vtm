@@ -110,7 +110,7 @@ namespace netxs::ui
             using mime = clip::mime;
             using pals = std::remove_const_t<decltype(rgba::color256)>;
 
-            si32 max_length;
+            si32 def_mxline;
             si32 def_length;
             si32 def_growup;
             wrap def_wrpmod;
@@ -139,21 +139,21 @@ namespace netxs::ui
                      { "block"    , commands::cursor::blinking_box       }};
 
                 config.cd("/config/term/");
-                max_length = config.take("scrollback/maxline",   si32{ 65535 });
-                def_length = config.take("scrollback/size",      si32{ 20000 });
-                def_growup = config.take("scrollback/growstep",  si32{ 0 }    );
-                def_wrpmod = config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
-                def_tablen = config.take("tablen",               si32{ 8 }    );
-                def_lucent = config.take("fields/lucent",        si32{ 0xC0 } );
-                def_margin = config.take("fields/size",          si32{ 0 }    );
-                def_selmod = config.take("selection/mode",       clip::textonly, selmod_options);
-                def_cur_on = config.take("cursor/show",          bool{ 1 });
-                def_cursor = config.take("cursor/style",         commands::cursor::blinking_underline, cursor_options);
-                def_fcolor = config.take("color/default/fgc",    rgba{ whitelt });
-                def_bcolor = config.take("color/default/bgc",    rgba{ blackdk });
-                def_selclr = config.take("color/selection/text", cell{}.bgc(bluelt).fgc(whitelt));
-                def_offclr = config.take("color/selection/none", cell{}.bgc(blacklt).fgc(whitedk));
-                def_dupclr = config.take("color/match",          cell{}.bgc(0xFF007F00).fgc(whitelt));
+                def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
+                def_length = std::max(1, config.take("scrollback/size",      si32{ 20000 }));
+                def_growup = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
+                def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
+                def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
+                def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
+                def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
+                def_selmod =             config.take("selection/mode",       clip::textonly, selmod_options);
+                def_cur_on =             config.take("cursor/show",          bool{ 1 });
+                def_cursor =             config.take("cursor/style",         commands::cursor::blinking_underline, cursor_options);
+                def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
+                def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
+                def_selclr =             config.take("color/selection/text", cell{}.bgc(bluelt).fgc(whitelt));
+                def_offclr =             config.take("color/selection/none", cell{}.bgc(blacklt).fgc(whitedk));
+                def_dupclr =             config.take("color/match",          cell{}.bgc(0xFF007F00).fgc(whitelt));
 
                 std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
@@ -1546,7 +1546,7 @@ namespace netxs::ui
             void stb()
             {
                 parser::flush();
-                if (coord.x <= 0 || coord.x > owner.config.max_length) return;
+                if (coord.x <= 0 || coord.x > owner.config.def_mxline) return;
                 resize_tabstops(coord.x);
                 auto  coor = coord.x - 1;
                 auto  head = stops.begin();
