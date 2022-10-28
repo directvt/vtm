@@ -108,6 +108,7 @@ namespace netxs::ui
         struct termconfig
         {
             using mime = clip::mime;
+            using pals = std::remove_const_t<decltype(rgba::color256)>;
 
             si32 max_length;
             si32 def_length;
@@ -124,29 +125,44 @@ namespace netxs::ui
             cell def_selclr;
             cell def_offclr;
             cell def_dupclr;
+            pals def_colors;
 
             termconfig(xml::settings& config)
-                : max_length{ config.take("/config/term/scrollback/maxline",   si32{ 65535 }) },
-                  def_length{ config.take("/config/term/scrollback/size",      si32{ 20000 }) },
-                  def_growup{ config.take("/config/term/scrollback/growstep",  si32{ 0 }    ) },
-                  def_tablen{ config.take("/config/term/tablen",               si32{ 8 }    ) },
-                  def_lucent{ config.take("/config/term/fields/lucent",        si32{ 0xC0 } ) },
-                  def_margin{ config.take("/config/term/fields/size",          si32{ 0 }    ) },
-                  def_wrpmod{ config.take("/config/term/scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off },
-                  def_selmod{ config.take("/config/term/selection/mode",       clip::textonly, {{ "text", clip::textonly },
-                                                                                                { "ansi", clip::ansitext },
-                                                                                                { "rich", clip::richtext },
-                                                                                                { "html", clip::htmltext }}) },
-                  def_cur_on{ config.take("/config/term/cursor/show",          bool{ 1 }) },
-                  def_cursor{ config.take("/config/term/cursor/style",         commands::cursor::blinking_underline, {{ "underline", commands::cursor::blinking_underline },
-                                                                                                                      { "block"    , commands::cursor::blinking_box       }}) },
-                  def_fcolor{ config.take("/config/term/color/default/fgc",    rgba{ whitelt }) },
-                  def_bcolor{ config.take("/config/term/color/default/bgc",    rgba{ blackdk }) },
-                  def_selclr{ config.take("/config/term/color/selection/text", cell{}.bgc(bluelt).fgc(whitelt)) },
-                  def_offclr{ config.take("/config/term/color/selection/none", cell{}.bgc(blacklt).fgc(whitedk)) },
-                  def_dupclr{ config.take("/config/term/color/match",          cell{}.bgc(0xFF007F00).fgc(whitelt)) }
-            { }
+            {
+                static auto selmod_options = std::unordered_map<text, decltype(clip::textonly)>
+                    {{ "text", clip::textonly },
+                     { "ansi", clip::ansitext },
+                     { "rich", clip::richtext },
+                     { "html", clip::htmltext }};
+                static auto cursor_options = std::unordered_map<text, decltype(commands::cursor::blinking_underline)>
+                    {{ "underline", commands::cursor::blinking_underline },
+                     { "block"    , commands::cursor::blinking_box       }};
+
+                config.cd("/config/term/");
+                max_length = config.take("scrollback/maxline",   si32{ 65535 });
+                def_length = config.take("scrollback/size",      si32{ 20000 });
+                def_growup = config.take("scrollback/growstep",  si32{ 0 }    );
+                def_wrpmod = config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
+                def_tablen = config.take("tablen",               si32{ 8 }    );
+                def_lucent = config.take("fields/lucent",        si32{ 0xC0 } );
+                def_margin = config.take("fields/size",          si32{ 0 }    );
+                def_selmod = config.take("selection/mode",       clip::textonly, selmod_options);
+                def_cur_on = config.take("cursor/show",          bool{ 1 });
+                def_cursor = config.take("cursor/style",         commands::cursor::blinking_underline, cursor_options);
+                def_fcolor = config.take("color/default/fgc",    rgba{ whitelt });
+                def_bcolor = config.take("color/default/bgc",    rgba{ blackdk });
+                def_selclr = config.take("color/selection/text", cell{}.bgc(bluelt).fgc(whitelt));
+                def_offclr = config.take("color/selection/none", cell{}.bgc(blacklt).fgc(whitedk));
+                def_dupclr = config.take("color/match",          cell{}.bgc(0xFF007F00).fgc(whitelt));
+
+                std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(def_colors));
+                for (auto i = 0; i < 16; i++)
+                {
+                    def_colors[i] = config.take("color/color" + std::to_string(i), def_colors[i]);
+                }
+            }
         };
+
         // term: VT-buffer status.
         struct term_state
         {
@@ -629,7 +645,7 @@ namespace netxs::ui
 
             void reset()
             {
-                std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(color));
+                std::copy(std::begin(owner.config.def_colors), std::end(owner.config.def_colors), std::begin(color));
             }
             auto to_byte(char c)
             {

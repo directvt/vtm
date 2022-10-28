@@ -49,7 +49,7 @@ namespace netxs::app::term
 {
     using events = netxs::events::userland::term;
 
-    const auto terminal_menu = [](bool full_size)
+    const auto terminal_menu = [](bool slim_size)
     {
         auto highlight_color = skin::color(tone::highlight);
         auto c3 = highlight_color;
@@ -231,7 +231,7 @@ namespace netxs::app::term
                 };
             }},
         };
-        return app::shared::custom_menu(full_size, items);
+        return app::shared::custom_menu(slim_size, items);
     };
 
     namespace
@@ -251,7 +251,8 @@ namespace netxs::app::term
                                                              ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB.fgc(), cB.bgc());
-                auto menu = object->attach(slot::_1, terminal_menu(true));
+                auto menusize = config.take("/config/term/menu/slim", faux);
+                auto menu = object->attach(slot::_1, terminal_menu(menusize));
                 auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });

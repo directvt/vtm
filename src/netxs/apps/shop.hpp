@@ -216,7 +216,7 @@ namespace netxs::app::shop
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
-                    menu_object->attach(slot::_1, app::shared::custom_menu(true, {}));
+                    menu_object->attach(slot::_1, app::shared::custom_menu(faux, {}));
                     menu_object->attach(slot::_2, ui::post::ctor())
                                ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                                ->upload(appstore_head)

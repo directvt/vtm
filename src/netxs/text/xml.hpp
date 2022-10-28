@@ -74,16 +74,13 @@ namespace netxs::xml
 
     template<class T>
     auto take(view utf8) -> std::optional<T>
-    { }
-    template<>
-    auto take<si32>(view utf8) -> std::optional<si32>
     {
         if (utf8.starts_with("0x"))
         {
             utf8.remove_prefix(2);
-            return utf::to_int<si32, 16>(utf8);
+            return utf::to_int<T, 16>(utf8);
         }
-        else return utf::to_int<si32, 10>(utf8);
+        else return utf::to_int<T, 10>(utf8);
     }
     template<>
     auto take<text>(view utf8) -> std::optional<text>

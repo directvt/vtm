@@ -420,7 +420,7 @@ R"==(
     };
 
     // Menu bar (shrinkable on right-click).
-    const auto custom_menu = [](bool full_size, app::shared::menu_list_type menu_items)
+    const auto custom_menu = [](bool slim_size, app::shared::menu_list_type menu_items)
     {
         auto highlight_color = skin::color(tone::highlight);
         auto danger_color    = skin::color(tone::danger);
@@ -493,7 +493,7 @@ R"==(
                      ->attach(ui::item::ctor("×"));
 
         auto menu_block = ui::park::ctor()
-            ->plugin<pro::limit>(twod{ -1, full_size ? 3 : 1 }, twod{ -1, full_size ? 3 : 1 })
+            ->plugin<pro::limit>(twod{ -1, slim_size ? 1 : 3 }, twod{ -1, slim_size ? 1 : 3 })
             ->invoke([&](ui::park& boss)
             {
                 scroll_hint->visible(hints, faux);
@@ -577,7 +577,7 @@ R"==(
             { true, ansi::und(true).add("D").nil().add("ata"), " Data menu item ", [&](auto& boss){ } },
             { true, ansi::und(true).add("H").nil().add("elp"), " Help menu item ", [&](auto& boss){ } },
         };
-        return custom_menu(true, items);
+        return custom_menu(faux, items);
     };
     const auto base_window = [](auto header, auto footer, auto menu_item_id)
     {
@@ -1193,7 +1193,7 @@ namespace netxs::app::shared
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA01f0fc4);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
+                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())
