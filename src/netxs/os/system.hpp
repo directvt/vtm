@@ -825,7 +825,7 @@ namespace netxs::os
                 }
                 else
                 {
-                    os::fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                    log("send: aborted write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
                     return faux;
                 }
             }

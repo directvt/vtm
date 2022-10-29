@@ -250,15 +250,15 @@ vtm can be configured in the `~/.config/vtm/settings.xml` file in xml format. Al
 
 ## Configuration file Format (settings.xml)
 
-Configuration file format is a slightly modified XML-format that allows to store hierarchical list of key=value pairs.
+Configuration file format is a slightly modified XML-format which allows to store hierarchical list of key=value pairs.
 
 ### Key differences from the standard XML
 
- - All values are UTF-8 string literals and can be specified without quotes if there are no spaces.
+ - Each value is the UTF-8 string literal and can be specified without quotes if there are no spaces.
  - There is no distinction between XML-attribute and XML-subobject notations, i.e. any specified XML-attribute is the XML-subobject.
  - In addition to a set of sub-objects, every object has its own textual value.
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax.
- - An object name ending in an asterisk indicates that this object is not an object, but is a template for all subsequent objects with the same name in this scope (see Templates section below).
+ - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope (see Templates section below).
  - Character escapes
    - `\e`  ASCII 0x1B ESC
    - `\t`  ASCII 0x09 TAB
@@ -376,9 +376,9 @@ The following declarations are the same
 Top-level element `<config>` contains the following objects
   - Single `<menu>` block - taskbar menu configuration.
     - Single `<selected>` object - the value of this attribute specifies which menu item id will be selected by default at the environment startup.
-    - Set of `<item>` objects - list of menu item definitions.
-    - Not implemented: Single `<autorun>` block - list of menu item to run at the environment startup.
-  - Not implemented: Single `<hotkeys>` block - global hotkeys/shortcuts configuration.
+    - Set of `<item>` objects - a list of menu item definitions.
+    - Not implemented: Single `<autorun>` block - a list of menu item to run at the environment startup.
+  - Not implemented: Single `<hotkeys>` block - a global hotkeys/shortcuts configuration.
 
 #### Taskbar menu item attributes
 
