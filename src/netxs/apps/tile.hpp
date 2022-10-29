@@ -842,7 +842,7 @@ namespace netxs::app::tile
                     };
                 });
 
-            object->attach(slot::_1, app::shared::custom_menu(true,
+            object->attach(slot::_1, app::shared::custom_menu(faux,
                     app::shared::menu_list_type
                     {
                         //  Green                                  ?Even    Red

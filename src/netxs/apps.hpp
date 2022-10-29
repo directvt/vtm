@@ -59,16 +59,16 @@ R"==(
                 <key="Ctrl+'t'" action=start />
                 <key="Ctrl+'z'" action=close />
             </hotkeys>
-            <config>    <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only -->
+            <config>   <!-- not implemented, only base config applied -->  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
-                        <size=20000 />
-                        <growstep=0 />
-                        <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
-                        <wrap="on" />
+                        <size=20000    />   <!-- Scrollback buffer length. -->
+                        <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
+                        <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
+                        <wrap="on"     />   <!-- Lines wrapping mode. -->
                     </scrollback>
                     <color>
-                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
+                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
                         <color1  = reddk      />
                         <color2  = greendk    />
                         <color3  = yellowdk   />
@@ -84,20 +84,24 @@ R"==(
                         <color13 = magentalt  />
                         <color14 = cyanlt     />
                         <color15 = whitelt    />
-                        <default bgc=0 fgc=15 />
-                        <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+                        <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+                        <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
                         <selection>
-                            <text fx=selection bgc=12 fgc=15 />
+                            <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
                             <ansi fx=xlight/>
                             <rich fx=xlight/>
                             <html fx=xlight/>
-                            <none fx=selection bgc=8 fgc=7 />
+                            <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
                         </selection>
                     </color>
-                    <tablen=8 />      <!-- Tab length. -->
+                    <fields>
+                        <lucent=0xC0 /> <!-- Fields transparency level. -->
+                        <size=0 />      <!-- Left/right field size. -->
+                    </fields>
+                    <tablen=8 />        <!-- Tab length. -->
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
-                        <blink="400"/>       <!-- blink period in ms -->
+                        <blink=400ms/>       <!-- blink period -->
                         <show=true/>
                     </cursor>
                     <menu>
@@ -140,7 +144,7 @@ R"==(
    <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun>    <!-- not implemented -->
             <item*/>
-            <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default -->
+            <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default. -->
             <item wincoor=0,0 />
             <item wincoor=52%,0 />
             <item wincoor=0,52% />
@@ -158,14 +162,14 @@ R"==(
     </hotkeys>
     <appearance>
         <defaults>
-            <fps=60 />
-            <bordersz=1,1 />
-            <brighter=60 />
-            <kb_focus=60 />
-            <shadower=180 />
-            <shadow=180 />
-            <lucidity=0xff /> <!-- not implemented -->
-            <selector=48 />
+            <fps      = 60   />
+            <bordersz = 1,1  />
+            <brighter = 60   />
+            <kb_focus = 60   />
+            <shadower = 180  />
+            <shadow   = 180  />
+            <lucidity = 0xff /> <!-- not implemented -->
+            <selector = 48   />
             <highlight  fgc=purewhite  bgc=亮蓝       />
             <warning    fgc=whitelt    bgc=yellowdk   />
             <danger     fgc=whitelt    bgc=redlt      />
@@ -179,8 +183,8 @@ R"==(
             <brighter=0 />
         </runapp>
     </appearance>
-    <set>         <!-- Global namespace - Unresolved literals will be taken from here -->
-        <blackdk   = 0xFF101010 /> <!-- Color reference literals -->
+    <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
+        <blackdk   = 0xFF101010 /> <!-- Color reference literals. -->
         <reddk     = 0xFF1f0fc4 />
         <greendk   = 0xFF0ea112 />
         <yellowdk  = 0xFF009cc0 />
@@ -200,7 +204,7 @@ R"==(
         <purewhite = 0xFFffffff />
         <nocolor   = 0x00000000 />
 
-        <黑     = blackdk   /> <!-- Localized color reference literals -->
+        <黑     = blackdk   /> <!-- Localized color reference literals. -->
         <红     = reddk     />
         <绿     = greendk   />
         <黄     = yellowdk  />
@@ -218,23 +222,23 @@ R"==(
         <亮白   = whitelt   />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF000000 />
+        <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
         <clip_preview size=80x25 />
         <viewport coor=0,0 />
         <tooltip timeout=500ms enabled=true />
-        <glowfx=true />
-        <debug overlay=faux toggle="🐞" />
-        <regions enabled=faux />
+        <glowfx=true />                      <!-- Show glow effect around selected item. -->
+        <debug overlay=faux toggle="🐞" />  <!-- Display console debug info. -->
+        <regions enabled=faux />             <!-- Highlight UI objects boundaries. -->
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
-            <size=20000 />
-            <growstep=0 />
-            <maxline=65535 /> <!-- Max line length. Line splits if it exceeds the limit. -->
-            <wrap="on" />
+            <size=20000    />   <!-- Scrollback buffer length. -->
+            <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
+            <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
+            <wrap="on"     />   <!-- Lines wrapping mode. -->
         </scrollback>
         <color>
-            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference -->
+            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -250,20 +254,24 @@ R"==(
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=0 fgc=15 />
-            <match fx=selection bgc="0xFF007F00" fgc=15 />  <!-- set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+            <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+            <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
-                <text fx=selection bgc=12 fgc=15 />
-                <ansi fx=xlight />
-                <rich fx=xlight />
-                <html fx=xlight />
-                <none fx=selection bgc=8 fgc=7 />
+                <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                <ansi fx=xlight/>
+                <rich fx=xlight/>
+                <html fx=xlight/>
+                <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
             </selection>
         </color>
-        <tablen=8 />      <!-- Tab length. -->
+        <fields>
+            <lucent=0xC0 /> <!-- Fields transparency level. -->
+            <size=0      /> <!-- Left/right field size (for hz scrolling UX). -->
+        </fields>
+        <tablen=8 />   <!-- Tab length. -->
         <cursor>
             <style="underline"/> <!-- block | underline  -->
-            <blink="400"/>       <!-- blink period in ms -->
+            <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
         <menu>
@@ -273,7 +281,7 @@ R"==(
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | none -->
         </selection>
-        <hotkeys>
+        <hotkeys>    <!-- not implemented -->
             <key*/>
             <key="Alt+RightArrow" action=findNext />
             <key="Alt+LeftArrow"  action=findPrev />
@@ -412,7 +420,7 @@ R"==(
     };
 
     // Menu bar (shrinkable on right-click).
-    const auto custom_menu = [](bool full_size, app::shared::menu_list_type menu_items)
+    const auto custom_menu = [](bool slim_size, app::shared::menu_list_type menu_items)
     {
         auto highlight_color = skin::color(tone::highlight);
         auto danger_color    = skin::color(tone::danger);
@@ -485,7 +493,7 @@ R"==(
                      ->attach(ui::item::ctor("×"));
 
         auto menu_block = ui::park::ctor()
-            ->plugin<pro::limit>(twod{ -1, full_size ? 3 : 1 }, twod{ -1, full_size ? 3 : 1 })
+            ->plugin<pro::limit>(twod{ -1, slim_size ? 1 : 3 }, twod{ -1, slim_size ? 1 : 3 })
             ->invoke([&](ui::park& boss)
             {
                 scroll_hint->visible(hints, faux);
@@ -569,7 +577,7 @@ R"==(
             { true, ansi::und(true).add("D").nil().add("ata"), " Data menu item ", [&](auto& boss){ } },
             { true, ansi::und(true).add("H").nil().add("elp"), " Help menu item ", [&](auto& boss){ } },
         };
-        return custom_menu(true, items);
+        return custom_menu(faux, items);
     };
     const auto base_window = [](auto header, auto footer, auto menu_item_id)
     {
@@ -1185,7 +1193,7 @@ namespace netxs::app::shared
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA01f0fc4);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
+                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())
@@ -1223,8 +1231,8 @@ namespace netxs::app::shared
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
                     auto data = param.empty() ? os::get_shell() + " -i"
                                               : param;
-                    auto inst = scroll->attach(ui::term::ctor(cwd, data))
-                                      ->colors(whitelt, blackdk)
+                    auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
+                                      ->colors(whitelt, blackdk) //todo apply settings
                                       ->invoke([&](auto& boss)
                                       {
                                             //todo unify: Same as in app::term (term.hpp).

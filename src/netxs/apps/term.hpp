@@ -49,7 +49,7 @@ namespace netxs::app::term
 {
     using events = netxs::events::userland::term;
 
-    const auto terminal_menu = [](bool full_size)
+    const auto terminal_menu = [](bool slim_size)
     {
         auto highlight_color = skin::color(tone::highlight);
         auto c3 = highlight_color;
@@ -231,7 +231,7 @@ namespace netxs::app::term
                 };
             }},
         };
-        return app::shared::custom_menu(full_size, items);
+        return app::shared::custom_menu(slim_size, items);
     };
 
     namespace
@@ -249,10 +249,21 @@ namespace netxs::app::term
                                                              ->plugin<pro::track>()
                                                              ->plugin<pro::acryl>()
                                                              ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(cB.fgc(), cB.bgc());
-                auto menu = object->attach(slot::_1, terminal_menu(true));
-                auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
+                auto menushow = config.take("/config/term/menu/enabled", true);
+                auto term_stat_area = netxs::sptr<ui::fork>{};
+                    if (menushow)
+                    {
+                        auto menusize = config.take("/config/term/menu/slim", faux);
+                        auto object = window->attach(ui::fork::ctor(axis::Y))
+                                            ->colors(cB.fgc(), cB.bgc());
+                        auto menu = object->attach(slot::_1, terminal_menu(menusize));
+                        term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
+                    }
+                    else
+                    {
+                        term_stat_area = window->attach(ui::fork::ctor(axis::Y))
+                                               ->colors(cB.fgc(), cB.bgc());
+                    }
                     auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
@@ -291,9 +302,8 @@ namespace netxs::app::term
                                     };
                                   });
 
-                            auto shell = os::get_shell();
-                            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell + " -i"
-                                                                                       : arg));
+                            auto shell = os::get_shell() + " -i";
+                            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config));
 
                             inst->attach_property(ui::term::events::colors::bg,      app::term::events::colors::bg)
                                 ->attach_property(ui::term::events::colors::fg,      app::term::events::colors::fg)
@@ -346,7 +356,8 @@ namespace netxs::app::term
                         }
                     auto scroll_bars = layers->attach(ui::fork::ctor());
                         auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                        auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+                        auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll))
+                                                ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
             return window;
         };
     }

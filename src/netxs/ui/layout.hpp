@@ -1427,6 +1427,9 @@ namespace netxs::ui::atoms
                 constexpr selection_t(T colors)
                     : colors{ colors }
                 { }
+                constexpr selection_t(cell const& brush)
+                    : colors{ brush.uv }
+                { }
                 template<class D>
                 inline void operator () (D& dst) const
                 {

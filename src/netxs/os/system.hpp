@@ -825,7 +825,7 @@ namespace netxs::os
                 }
                 else
                 {
-                    os::fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                    log("send: aborted write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
                     return faux;
                 }
             }
@@ -1168,73 +1168,80 @@ namespace netxs::os
     auto vt_mode()
     {
         auto mode = si32{ legacy::clean };
-        #if defined(_WIN32) // Set vt-mode unconditionally.
-            auto outmode = DWORD{};
-            if(::GetConsoleMode(STDOUT_FD, &outmode))
-            {
-                outmode |= nt::console::outmode::vt;
-                ::SetConsoleMode(STDOUT_FD, outmode);
-            }
-        #endif
         if (os::legacy::peek_dmd(STDIN_FD))
         {
             log("  os: DirectVT detected");
             mode |= legacy::direct;
         }
-        else if (auto term = os::get_env("TERM"); term.size())
+        else
         {
-            log("  os: terminal type \"", term, "\"");
+            #if defined(_WIN32) // Set vt-mode and UTF-8 codepage unconditionally.
 
-            auto vga16colors = { // https://github.com//termstandard/colors
-                "ansi",
-                "linux",
-                "xterm-color",
-                "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
-                "fbcon",
-            };
-            auto vga256colors = {
-                "rxvt-unicode-256color",
-            };
-
-            if (term.ends_with("16color") || term.ends_with("16colour"))
-            {
-                mode |= legacy::vga16;
-            }
-            else
-            {
-                for (auto& type : vga16colors)
+                auto outmode = DWORD{};
+                if(::GetConsoleMode(STDOUT_FD, &outmode))
                 {
-                    if (term == type)
-                    {
-                        mode |= legacy::vga16;
-                        break;
-                    }
+                    outmode |= nt::console::outmode::vt;
+                    ::SetConsoleMode(STDOUT_FD, outmode);
+                    ::SetConsoleOutputCP(65001);
+                    ::SetConsoleCP(65001);
                 }
-                if (!mode)
+
+            #endif
+            if (auto term = os::get_env("TERM"); term.size())
+            {
+                log("  os: terminal type \"", term, "\"");
+
+                auto vga16colors = { // https://github.com//termstandard/colors
+                    "ansi",
+                    "linux",
+                    "xterm-color",
+                    "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
+                    "fbcon",
+                };
+                auto vga256colors = {
+                    "rxvt-unicode-256color",
+                };
+
+                if (term.ends_with("16color") || term.ends_with("16colour"))
                 {
-                    for (auto& type : vga256colors)
+                    mode |= legacy::vga16;
+                }
+                else
+                {
+                    for (auto& type : vga16colors)
                     {
                         if (term == type)
                         {
-                            mode |= legacy::vga256;
+                            mode |= legacy::vga16;
                             break;
                         }
                     }
+                    if (!mode)
+                    {
+                        for (auto& type : vga256colors)
+                        {
+                            if (term == type)
+                            {
+                                mode |= legacy::vga256;
+                                break;
+                            }
+                        }
+                    }
                 }
+
+                if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
+                {
+                    log("  os: macOS Apple_Terminal detected");
+                    if (!(mode & legacy::vga16)) mode |= legacy::vga256;
+                }
+
+                if (os::local_mode()) mode |= legacy::mouse;
+
+                log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
+                                        : mode & legacy::vga256 ? "256-color"
+                                                                : "true-color");
+                log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
             }
-
-            if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
-            {
-                log("  os: macOS Apple_Terminal detected");
-                if (!(mode & legacy::vga16)) mode |= legacy::vga256;
-            }
-
-            if (os::local_mode()) mode |= legacy::mouse;
-
-            log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
-                                    : mode & legacy::vga256 ? "256-color"
-                                                            : "true-color");
-            log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
         }
         return mode;
     }

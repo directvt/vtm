@@ -59,11 +59,11 @@ int main(int argc, char* argv[])
                 log("Usage:\n\n ", os::current_module_file(), " [ -c <config_file> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
                     + "\n"s
                     + " No arguments\tRun client, auto start server if is not started.\n"s
-                        + "\t-c\tUse specified configuration file.\n"s
+                        + "\t-c <..>\tUse specified configuration file.\n"s
                         + "\t-l\tShow configuration and exit.\n"s
                         + "\t-d\tRun server in background.\n"s
                         + "\t-s\tRun server in interactive mode.\n"s
-                        + "\t-r\tRun standalone application.\n"s
+                        + "\t-r <..>\tRun standalone application.\n"s
                         + "\n"s
                         + "\tConfiguration file location precedence (descending priority):\n\n"s
                         + "\t\t1. Command line options; e.g., vtm -c path/to/settings.xml\n"s

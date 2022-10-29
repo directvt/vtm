@@ -74,16 +74,13 @@ namespace netxs::xml
 
     template<class T>
     auto take(view utf8) -> std::optional<T>
-    { }
-    template<>
-    auto take<si32>(view utf8) -> std::optional<si32>
     {
         if (utf8.starts_with("0x"))
         {
             utf8.remove_prefix(2);
-            return utf::to_int<si32, 16>(utf8);
+            return utf::to_int<T, 16>(utf8);
         }
-        else return utf::to_int<si32, 10>(utf8);
+        else return utf::to_int<T, 10>(utf8);
     }
     template<>
     auto take<text>(view utf8) -> std::optional<text>
@@ -988,11 +985,22 @@ namespace netxs::xml
             static constexpr auto value_fg     = rgba{ 0xFFf09690 };
             static constexpr auto value_bg     = rgba{ 0xFF202020 };
 
+            //test
+            //auto tmp = page.data.front().upto;
+            //auto clr = 0;
+
             auto yield = ansi::esc{};
             for (auto& item : page.data)
             {
                 auto kind = item.kind;
                 auto data_ptr = item.part;
+
+                //test
+                //if (item.upto == page.data.end() || tmp != item.upto)
+                //{
+                //    clr++;
+                //    tmp = item.upto;
+                //}
 
                 auto fgc = rgba{};
                 auto bgc = rgba{};
@@ -1019,6 +1027,8 @@ namespace netxs::xml
                     default: break;
                 }
                 auto& data = *data_ptr;
+                //test
+                //yield.bgc((tint)(clr % 8));
                 if (kind == type::tag_value)
                 {
                     auto temp = data;
@@ -1137,6 +1147,15 @@ namespace netxs::xml
                 if (crop.size()) return take("/config/set/" + crop, defval);
                 else             return defval;
             }
+        }
+        template<class T>
+        auto take(view path, T defval, std::unordered_map<text, T> dict)
+        {
+            if (path.empty()) return defval;
+            auto crop = take(path, ""s);
+            auto iter = dict.find(crop);
+            return iter == dict.end() ? defval
+                                      : iter->second;
         }
         auto take(view path, cell defval)
         {

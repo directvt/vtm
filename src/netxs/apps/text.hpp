@@ -215,7 +215,7 @@ utility like ctags is used to locate the definitions.
                             auto scroll = layers->attach(ui::rail::ctor())
                                                 ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
                                 auto edit_box = scroll->attach(ui::post::ctor(true))
-                                                      ->plugin<pro::caret>(true, twod{ 25,1 }, faux)
+                                                      ->plugin<pro::caret>(true, faux, twod{ 25,1 })
                                                       ->colors(blackdk, whitelt)
                                                       ->upload(ansi::wrp(wrap::off).mgl(1)
                                                       .add(topic3)

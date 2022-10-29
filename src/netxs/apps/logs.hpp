@@ -271,7 +271,7 @@ namespace netxs::app::logs
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB.fgc(), cB.bgc());
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
+                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux,
                     app::shared::menu_list_type{
                             //todo use it only in conjunction with the terminal
                             //{ true, "Codepoints", " Toggle button: Show or not codepoints ",
