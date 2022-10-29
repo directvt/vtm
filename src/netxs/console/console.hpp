@@ -5178,6 +5178,16 @@ namespace netxs::console
             auto& item = lock.thing;
             notify<tier::anycast>(e2::debug::logs, item.data);
         }
+        void handle(s11n::xs::form_header lock)
+        {
+            auto& item = lock.thing;
+            notify<tier::preview>(e2::form::prop::ui::header, item.new_header); //todo window_id
+        }
+        void handle(s11n::xs::form_footer lock)
+        {
+            auto& item = lock.thing;
+            notify<tier::preview>(e2::form::prop::ui::footer, item.new_footer); //todo window_id
+        }
     };
 
     // console: Bitmap changes analyzer.
@@ -5402,9 +5412,9 @@ namespace netxs::console
         pro::mouse mouse{*this }; // gate: Mouse controller.
         pro::robot robot{*this }; // gate: Animation controller.
         pro::maker maker{*this }; // gate: Form generator.
-        pro::title title{*this }; // gate: Logo watermark.
+        pro::title title{*this }; // gate: Window title/footer.
         pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
-        pro::input input{*this }; // gate: User input event handler.
+        pro::input input{*this }; // gate: Input event handler.
         pro::debug debug{*this }; // gate: Debug telemetry controller.
         pro::limit limit{*this }; // gate: Limit size to dot_11.
 
@@ -5689,12 +5699,6 @@ namespace netxs::console
                     canal.stop();
                     this->SIGNAL(tier::general, e2::shutdown, msg);
                 };
-                //SUBMIT_T(tier::release, e2::form::state::header, token, newheader)
-                //{
-                //    text title;
-                //    newheader.lyric->each([&](auto c) { title += c.txt(); });
-                //    conio.output(ansi::header(title));
-                //};
                 SUBMIT_T(tier::release, e2::form::prop::ui::footer, token, newfooter)
                 {
                     if (direct)

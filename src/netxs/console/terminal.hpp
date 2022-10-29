@@ -7383,6 +7383,14 @@ namespace netxs::ui
                 : s11n{ *this, owner.id },
                  owner{ owner }
             {
+                owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::header, token, utf8)
+                {
+                    s11n::form_header.send(owner, 0, utf8);
+                };
+                owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::footer, token, utf8)
+                {
+                    s11n::form_footer.send(owner, 0, utf8);
+                };
                 owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                 {
                     auto cause = owner.bell::protos<tier::release>();
@@ -7579,6 +7587,12 @@ namespace netxs::ui
                 {
                     if (unique != timer)
                     {
+                        auto header = e2::form::prop::ui::header.param();
+                        auto footer = e2::form::prop::ui::footer.param();
+                        this->riseup<tier::request>(e2::form::prop::ui::header, header);
+                        this->riseup<tier::request>(e2::form::prop::ui::footer, footer);
+                        stream.s11n::form_header.send(*this, 0, header);
+                        stream.s11n::form_footer.send(*this, 0, footer);
                         termsz(base::size());
                         auto procid = ptycon.start(curdir, cmdarg, termsz, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
                                                                                    [&](auto log_message) { onlogs(log_message); },
@@ -7606,7 +7620,7 @@ namespace netxs::ui
               opaque{ 0xFF },
               nodata{      },
               curdir{ cwd  },
-              cmdarg{command_line},
+              cmdarg{ command_line },
               xmlcfg{ config_view }
         {
             //todo make it configurable (max_drops)
