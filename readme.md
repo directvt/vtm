@@ -35,8 +35,7 @@ Text-based desktop environment inside your terminal*
   - OpenBSD
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
 - MS Windows
-  - Windows Desktop
-  - Windows Server
+  - Windows Server/Desktop/PE ([approx since Win8/2012](https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions))
 
 # Building from Source
 
@@ -441,7 +440,7 @@ Note: The following configuration sections are not implemented yet
             </notes>
         </item>
         <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
-        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term">
+        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term"/>
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
             <hotkeys>    <!-- not implemented -->
                 <key*/>
