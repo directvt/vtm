@@ -440,7 +440,7 @@ Note: The following configuration sections are not implemented yet
             </notes>
         </item>
         <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
-        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term">
+        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term"/>
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
             <hotkeys>    <!-- not implemented -->
                 <key*/>
