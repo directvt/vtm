@@ -2536,8 +2536,18 @@ struct consrv
         auto& console = *window_ptr;
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
         log("\tinput.size ", size);
-        if (packet.target->link != &uiterm.target) console.resize_viewport(size);
-        else                                       uiterm.window_resize(size);
+
+        if (size == twod{ 1500, 300 })
+        {
+            log("\twimc detected, turning off wrapping");
+            console.style.wrp(faux);
+        }
+        else if (packet.target->link != &uiterm.target)
+        {
+            console.resize_viewport(size);
+        }
+        else uiterm.window_resize(size);
+
         auto viewport = console.panel;
         packet.input.buffersz_x = viewport.x;
         packet.input.buffersz_y = viewport.y;
