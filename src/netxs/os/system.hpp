@@ -4358,6 +4358,10 @@ namespace netxs::os
                     argv.push_back(nullptr);
 
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
+                    if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
+                    {
+                        ::setenv("TERM_PROGRAM", "vtm", 1);
+                    }
                     ::execvp(argv.front(), argv.data());
 
                     auto errcode = errno;
