@@ -1755,6 +1755,7 @@ namespace netxs::console
             static const auto green  = "\\green"s;
             static const auto blue   = "\\blue"s;
             static const auto nline  = "\\line "s;
+            static const auto nnbsp  = "\\u8239 "" "s;  // U+202F   NARROW NO-BREAK SPACE (NNBSP)
             static const auto intro  = "{\\rtf1\\ansi\\deff0\\fcharset1"
                                        "\\chshdng0"  // Character shading. The N argument is a value representing the shading of the text in hundredths of a percent.
                                        "\\fs28{\\fonttbl{\\f0\\fmodern "s;
@@ -1764,10 +1765,17 @@ namespace netxs::console
             for (auto& line_ptr : batch)
             {
                 auto& curln = *line_ptr;
+                auto  space = true;
                 for (auto c : curln.locus)
                 {
                     if (c.cmd == ansi::fn::nl)
                     {
+                        if (dest.data.size() && dest.data.back() == ' ' && space)
+                        {
+                            dest.data.pop_back();
+                            dest.data += nnbsp;
+                            space = faux;
+                        }
                         while (c.arg--) dest.data += nline;
                     }
                 }
