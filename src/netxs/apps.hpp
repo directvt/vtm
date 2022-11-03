@@ -223,7 +223,9 @@ R"==(
     </set>
     <client>
         <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
-        <clip_preview size=80x25 />
+        <clipboard>
+            <preview enabled=true size=80x25 />
+        </clipboard>
         <viewport coor=0,0 />
         <tooltip timeout=500ms enabled=true />
         <glowfx=true />                      <!-- Show glow effect around selected item. -->
