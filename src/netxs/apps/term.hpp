@@ -353,11 +353,25 @@ namespace netxs::app::term
                                         boss.search(gear, feed::rev);
                                     };
                                 });
+
+                            auto scroll_bars = layers->attach(ui::fork::ctor());
+                                auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
+                                auto hz = term_stat_area->attach(slot::_2, ui::grip_fx2<axis::X>::ctor(scroll))
+                                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                        ->invoke([&](auto& boss)
+                                                        {
+                                                            auto bg = ui::term::events::colors::bg.param();
+                                                            inst->SIGNAL(tier::request, ui::term::events::colors::bg, bg);
+                                                            boss.color(cell{}.bgc(bg));
+                                                            inst->SUBMIT(tier::release, e2::form::prop::brush, brush)
+                                                            {
+                                                                auto b = brush;
+                                                                b.txt("");
+                                                                log(ansi::bgc(reddk), b, ansi::nil());
+                                                                boss.color(b);
+                                                            };
+                                                        });
                         }
-                    auto scroll_bars = layers->attach(ui::fork::ctor());
-                        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                        auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll))
-                                                ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
             return window;
         };
     }
