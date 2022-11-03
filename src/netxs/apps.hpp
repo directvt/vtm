@@ -111,7 +111,7 @@ R"==(
                     <selection>
                         <mode="text"/> <!-- text | ansi | rich | html | none -->
                     </selection>
-                    <hotkeys>
+                    <hotkeys>    <!-- not implemented -->
                         <key*/>
                         <key="Alt+RightArrow" action=findNext />
                         <key="Alt+LeftArrow"  action=findPrev />

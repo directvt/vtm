@@ -2896,7 +2896,8 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.handle = HWND{}; // Fake window handle to tell powershell that everything is under console control.
+        packet.reply.handle = reinterpret_cast<HWND>(-1); // - Fake window handle to tell powershell that everything is under console control.
+                                                          // - "git log" launches "less.exe" which crashes if reply=NULL.
         log("\tfake window handle 0x", utf::to_hex(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
