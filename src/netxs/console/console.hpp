@@ -5323,6 +5323,7 @@ namespace netxs::console
         text title;
         text selected;
         twod coor;
+        bool clip_preview_show;
         twod clip_preview_size;
         cell background_color;
         si32 legacy_mode;
@@ -5340,7 +5341,8 @@ namespace netxs::console
         void read(T&& config)
         {
             config.cd("/config/client/");
-            clip_preview_size = config.take("clip_preview/size", twod{ 80,25 });
+            clip_preview_show = config.take("clipboard/preview/enabled", true);
+            clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
             coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
             tooltip_timeout   = config.take("tooltip/timeout", period{ 500ms });
             tooltip_enabled   = config.take("tooltip/enabled", true);
@@ -5599,7 +5601,7 @@ namespace netxs::console
                             draw_mouse_pointer(canvas);
                         }
 
-                        if (!direct)
+                        if (!direct && props.clip_preview_show)
                         {
                             draw_clip_preview(canvas);
                         }
