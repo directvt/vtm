@@ -366,9 +366,7 @@ namespace netxs::app::term
                                                             inst->SUBMIT(tier::release, e2::form::prop::brush, brush)
                                                             {
                                                                 auto b = brush;
-                                                                b.txt("");
-                                                                log(ansi::bgc(reddk), b, ansi::nil());
-                                                                boss.color(b);
+                                                                boss.color(b.txt(""));
                                                             };
                                                         });
                         }
