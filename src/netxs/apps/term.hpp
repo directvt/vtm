@@ -249,14 +249,38 @@ namespace netxs::app::term
                                                              ->plugin<pro::track>()
                                                              ->plugin<pro::acryl>()
                                                              ->plugin<pro::cache>();
+                auto autohide = config.take("/config/term/menu/autohide", period{ 400ms });
                 auto menushow = config.take("/config/term/menu/enabled", true);
                 auto term_stat_area = netxs::sptr<ui::fork>{};
+                auto hide = netxs::sptr<ui::mock>{};
                     if (menushow)
                     {
                         auto menusize = config.take("/config/term/menu/slim", faux);
                         auto object = window->attach(ui::fork::ctor(axis::Y))
                                             ->colors(cB.fgc(), cB.bgc());
-                        auto menu = object->attach(slot::_1, terminal_menu(menusize));
+                        auto slot1 = object->attach(slot::_1, ui::veer::ctor());
+                            auto menu = slot1->attach(terminal_menu(menusize));
+                            hide = slot1->attach(ui::mock::ctor())
+                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                        ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+                            slot1->invoke([&](auto& boss)
+                            {
+                                auto menu_shadow = ptr::shadow(menu);
+                                auto boss_shadow = ptr::shadow(boss.This());
+                                boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
+                                {
+                                    if (auto menu_ptr = menu_shadow.lock())
+                                    if (auto boss_ptr = boss_shadow.lock())
+                                    {
+                                        auto& boss = *boss_ptr;
+                                        if (!!hits != (boss.back() == menu_ptr))
+                                        {
+                                            boss.roll();
+                                            boss.reflow();
+                                        }
+                                    }
+                                };
+                            });
                         term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     }
                     else
@@ -367,6 +391,16 @@ namespace netxs::app::term
                                                             {
                                                                 auto b = brush;
                                                                 boss.color(b.txt(""));
+                                                            };
+                                                        });
+                                            hide->invoke([&](auto& boss)
+                                                        {
+                                                            auto bg = ui::term::events::colors::bg.param();
+                                                            inst->SIGNAL(tier::request, ui::term::events::colors::bg, bg);
+                                                            boss.color(boss.color().fgc(bg));
+                                                            inst->SUBMIT(tier::release, e2::form::prop::brush, brush)
+                                                            {
+                                                                boss.color(boss.color().fgc(brush.bgc()));
                                                             };
                                                         });
                         }

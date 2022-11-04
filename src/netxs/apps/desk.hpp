@@ -35,9 +35,10 @@ namespace netxs::app::desk
             auto x4 = cell{ c4 }.bga(0x00);
             auto c5 = danger_color;
             auto x5 = cell{ c5 }.alpha(0x00);
-
+            auto fastfader = skin::timeout(tone::fastfader);
+            auto fader = skin::timeout(tone::fader);
             auto item_area = ui::pads::ctor(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
-                    ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
+                    ->plugin<pro::fader>(x4, c4, fastfader)
                     ->plugin<pro::notes>(" Running instance:                          \n"
                                          "   Left click to go to running instance     \n"
                                          "   Right click to pull the running instance ")
@@ -85,7 +86,7 @@ namespace netxs::app::desk
                         auto app_label = mark_app->attach(slot::_2,
                                     ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left), true, true));
                     auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }))
-                                                    ->template plugin<pro::fader>(x5, c5, 150ms)
+                                                    ->template plugin<pro::fader>(x5, c5, fader)
                                                     ->template plugin<pro::notes>(" Close instance ")
                                                     ->invoke([&](auto& boss)
                                                     {
@@ -141,7 +142,7 @@ namespace netxs::app::desk
                     continue;
                 }
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
-                                     ->template plugin<pro::fader>(x3, c3, 0ms)
+                                     ->template plugin<pro::fader>(x3, c3, skin::timeout(tone::fastfader))
                                      ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
                                      ->invoke([&](auto& boss)
                                      {
@@ -269,7 +270,7 @@ namespace netxs::app::desk
                     auto x3 = cell{ c3 }.alpha(0x00);
 
                     auto item_area = ui::pads::ctor(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                            ->plugin<pro::fader>(x3, c3, 150ms)
+                                            ->plugin<pro::fader>(x3, c3, skin::timeout(tone::fader))
                                             ->plugin<pro::notes>(" Connected user ");
                         auto user = item_area->attach(ui::item::ctor(ansi::esc(" &").nil().add(" ")
                                     .fgx(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
@@ -437,7 +438,7 @@ namespace netxs::app::desk
                                                 ->colors(cA.fgc(), cA.bgc());
                                         auto bttn_area = label_bttn->attach(slot::_2, ui::fork::ctor());
                                             auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,1,1 }))
-                                                                      ->plugin<pro::fader>(x6, c6, 150ms)
+                                                                      ->plugin<pro::fader>(x6, c6, skin::timeout(tone::fader))
                                                                       ->plugin<pro::notes>(" Show/hide user list ");
                                                 auto bttn = bttn_pads->attach(ui::item::ctor("<", faux));
                                 auto userlist_area = users_area->attach(slot::_2, ui::pads::ctor())
@@ -484,7 +485,7 @@ namespace netxs::app::desk
                             auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
                                                    ->plugin<pro::limit>(twod{ uibar_max_size, 3 }, twod{ -1, 3 });
                                 auto disconnect_park = bttns->attach(slot::_1, ui::park::ctor())
-                                                            ->plugin<pro::fader>(x2, c2, 150ms)
+                                                            ->plugin<pro::fader>(x2, c2, skin::timeout(tone::fader))
                                                             ->plugin<pro::notes>(" Leave current session ")
                                                             ->invoke([&](auto& boss)
                                                             {
@@ -497,7 +498,7 @@ namespace netxs::app::desk
                                 auto disconnect_area = disconnect_park->attach(snap::head, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));
                                 auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
                                 auto shutdown_park = bttns->attach(slot::_2, ui::park::ctor())
-                                                          ->plugin<pro::fader>(x1, c1, 150ms)
+                                                          ->plugin<pro::fader>(x1, c1, skin::timeout(tone::fader))
                                                           ->plugin<pro::notes>(" Disconnect all users and shutdown the server ")
                                                           ->invoke([&](auto& boss)
                                                           {

@@ -1997,6 +1997,8 @@ namespace netxs::console
     public:
 
         #define PROP_LIST                              \
+        X(fader     , "UI fader duration")             \
+        X(fastfader , "UI fast fader duration")        \
         X(kb_focus  , "Keyboard focus indicator")      \
         X(brighter  , "Highlighter modificator")       \
         X(shadower  , "Darklighter modificator")       \
