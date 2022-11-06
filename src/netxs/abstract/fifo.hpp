@@ -27,8 +27,8 @@ namespace netxs::generics
 
     public:
         static inline bool issub(ITEM const& value) { return (value & subbit) != (value & sigbit) >> 1; }
-        static inline auto desub(ITEM const& value) { return static_cast<ITEM>(value & ~subbit | (value & sigbit) >> 1); }
-        static inline auto insub(ITEM const& value) { return static_cast<ITEM>(value & ~subbit | (value & sigbit ^ sigbit) >> 1); }
+        static inline auto desub(ITEM const& value) { return static_cast<ITEM>((value & ~subbit) | (value & sigbit) >> 1); }
+        static inline auto insub(ITEM const& value) { return static_cast<ITEM>((value & ~subbit) | ((value & sigbit) ^ sigbit) >> 1); }
 
         static auto& fake() { static fifo empty; return empty; }
 

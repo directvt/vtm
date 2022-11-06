@@ -253,11 +253,15 @@ Configuration file format is a slightly modified XML-format which allows to stor
 
 ### Key differences from the standard XML
 
- - Each value is the UTF-8 string literal and can be specified without quotes if there are no spaces.
- - There is no distinction between XML-attribute and XML-subobject notations, i.e. any specified XML-attribute is the XML-subobject.
- - In addition to a set of sub-objects, every object has its own textual value.
- - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax.
- - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope (see Templates section below).
+ - All stored values are UTF-8 strings:
+   - `name=2000` and `name="2000"` has the same meaning.
+ - There is no distinction between XML-attribute and XML-subobject, i.e. any attributes are sub-objects:
+   - `<name param=value />` and `<name> <param=value /> </name>` has the same meaning.
+ - In addition to a set of sub-objects each object can contain its own text value:
+   - E.g. `<name=names_value param=params_value />`.
+ - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
+   - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` has the same meaning.
+ - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
  - Character escapes
    - `\e`  ASCII 0x1B ESC
    - `\t`  ASCII 0x09 TAB
@@ -335,7 +339,7 @@ The following forms of element declaration are equivalent
 
 #### Templates
 
-Use asterisk at the end of the element name to set defaults.
+Use asterisk at the end of the element name to set defaults. Using an asterisk with the parameter name of the first element in the list without any other nested arguments indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged.
 
 The following declarations are the same
 
@@ -372,7 +376,7 @@ The following declarations are the same
 
 ### Configuration Structure
 
-Top-level element `<config>` contains the following objects
+Top-level element `<config>` contains the following base objects
   - Single `<menu>` block - taskbar menu configuration.
     - Single `<selected>` object - the value of this attribute specifies which menu item id will be selected by default at the environment startup.
     - Set of `<item>` objects - a list of menu item definitions.

@@ -2360,7 +2360,7 @@ namespace netxs::ui::atoms
             {
                 return txt.empty()
                     || txt.front() == whitespace
-                    || txt.front() == '^' && txt.size() == 2; // C0 characters.
+                    ||(txt.front() == '^' && txt.size() == 2); // C0 characters.
             };
             auto empty = [&](auto txt)
             {

@@ -105,6 +105,7 @@ R"==(
                         <show=true/>
                     </cursor>
                     <menu>
+                        <autohide=faux/>  <!--  If true, show menu only on hover. -->
                         <enabled="on"/>
                         <slim="false"/>
                     </menu>
@@ -178,6 +179,7 @@ R"==(
             <inactive   fgc=blacklt    bgc=nocolor    />
             <menu_white fgc=whitelt    bgc=0x80404040 />
             <menu_black fgc=blackdk    bgc=0x80404040 />
+            <fader duration=150ms fast=0ms />
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0 />
@@ -277,6 +279,7 @@ R"==(
             <show=true/>
         </cursor>
         <menu>
+            <autohide=faux/>  <!--  If true, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
         </menu>
@@ -437,7 +440,7 @@ R"==(
             auto menu_list = menu_area->attach(slot::_1, ui::fork::ctor());
 
                 menu_list->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
-                         ->plugin<pro::fader>(x3, c3, 150ms)
+                         ->plugin<pro::fader>(x3, c3, skin::timeout(tone::fader))
                          ->plugin<pro::notes>(" Maximize/restore window ")
                          ->invoke([&](ui::pads& boss)
                          {
@@ -458,6 +461,7 @@ R"==(
 
                 auto scrl_grip = scrl_area->attach(scroll_hint);
 
+            auto fader = skin::timeout(tone::fader);
             for (auto& body : menu_items)
             {
                 auto& hover = std::get<0>(body);
@@ -467,7 +471,7 @@ R"==(
                 if (hover)
                 {
                     scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
-                             ->plugin<pro::fader>(x3, c3, 150ms)
+                             ->plugin<pro::fader>(x3, c3, fader)
                              ->plugin<pro::notes>(notes)
                              ->invoke(setup)
                              ->attach(ui::item::ctor(label, faux, true));
@@ -482,7 +486,7 @@ R"==(
                 }
             }
             menu_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
-                     ->plugin<pro::fader>(x1, c1, 150ms)
+                     ->plugin<pro::fader>(x1, c1, fader)
                      ->plugin<pro::notes>(" Close window ")
                      ->invoke([&](auto& boss)
                      {

@@ -986,6 +986,23 @@ namespace netxs::ui
             }
             return sptr{};
         }
+        // veer: Roll objects.
+        void roll(si32 dt = 1)
+        {
+            if (dt && subset.size() > 1)
+            {
+                if (dt > 0) while (dt--)
+                            {
+                                subset.push_front(subset.back());
+                                subset.pop_back();
+                            }
+                else        while (dt++)
+                            {
+                                subset.push_back(subset.front());
+                                subset.pop_front();
+                            }
+            }
+        }
         // veer: Create a new item of the specified subtype and attach it.
         template<class T>
         auto attach(T item_ptr)

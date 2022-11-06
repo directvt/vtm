@@ -90,7 +90,7 @@ namespace netxs::app::tile
                     auto x3 = cell{ c3 }.alpha(0x00);
 
                     return ui::pads::ctor(dent{ 1, 1, 0, 0 }, dent{})
-                        ->plugin<pro::fader>(x3, c3, 150ms)
+                        ->plugin<pro::fader>(x3, c3, skin::timeout(tone::fader))
                         ->branch(ui::item::ctor(header.empty() ? "- no title -" : header))
                         ->invoke([&](auto& boss)
                         {

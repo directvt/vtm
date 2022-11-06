@@ -582,6 +582,9 @@ namespace netxs::console
         cell menu_white;
         cell menu_black;
 
+        period fader_time;
+        period fader_fast;
+
         template<class V>
         struct _globals
         {
@@ -628,11 +631,18 @@ namespace netxs::console
             auto& global = _globals<void>::global;
             switch (parameter)
             {
-                case tone::prop::bordersz:
-                    global.border = size;
-                    break;
-                default:
-                    break;
+                case tone::prop::bordersz: global.border = size; break;
+                default: break;
+            }
+        }
+        static void setup(tone::prop parameter, period const& p)
+        {
+            auto& global = _globals<void>::global;
+            switch (parameter)
+            {
+                case tone::prop::fader:     global.fader_time = p; break;
+                case tone::prop::fastfader: global.fader_fast = p; break;
+                default: break;
             }
         }
         static void setup(tone::prop parameter, cell const& color)
@@ -686,6 +696,17 @@ namespace netxs::console
                 case tone::prop::shadow:   return global.sh_grades;
                 case tone::prop::selector: return global.sl_grades;
                 default:                   return global.hi_grades;
+            }
+        }
+        // skin:: Return global gradient for brighter/shadower.
+        static period& timeout(si32 property)
+        {
+            auto& global = _globals<void>::global;
+            switch (property)
+            {
+                case tone::prop::fader:     return global.fader_time;
+                case tone::prop::fastfader: return global.fader_fast;
+                default:                    return global.fader_time;
             }
         }
         // skin:: Return global border size.
@@ -4332,6 +4353,8 @@ namespace netxs::console
             skin::setup(tone::inactive  , config.take("inactive"  , cell{}));
             skin::setup(tone::menu_white, config.take("menu_white", cell{}));
             skin::setup(tone::menu_black, config.take("menu_black", cell{}));
+            skin::setup(tone::fader     , config.take("fader/duration", period{ 150ms }));
+            skin::setup(tone::fastfader , config.take("fader/fast"    , period{ 0ms }));
             hertz = config.take("fps");
             if (hertz <= 0) hertz = 60;
 
