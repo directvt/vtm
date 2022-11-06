@@ -105,6 +105,7 @@ R"==(
                         <show=true/>
                     </cursor>
                     <menu>
+                        <autohide=faux/>  <!--  If true, show menu only on hover. -->
                         <enabled="on"/>
                         <slim="false"/>
                     </menu>
@@ -278,7 +279,7 @@ R"==(
             <show=true/>
         </cursor>
         <menu>
-            <autohide=400ms/>  <!-- Hide the menu after a specified timeout when the mouse leaves. -->
+            <autohide=faux/>  <!--  If true, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
         </menu>

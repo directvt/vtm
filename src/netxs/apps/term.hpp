@@ -249,7 +249,7 @@ namespace netxs::app::term
                                                              ->plugin<pro::track>()
                                                              ->plugin<pro::acryl>()
                                                              ->plugin<pro::cache>();
-                auto autohide = config.take("/config/term/menu/autohide", period{ 400ms });
+                auto autohide = config.take("/config/term/menu/autohide", faux);
                 auto menushow = config.take("/config/term/menu/enabled", true);
                 auto term_stat_area = netxs::sptr<ui::fork>{};
                 auto hide = netxs::sptr<ui::mock>{};
@@ -260,9 +260,12 @@ namespace netxs::app::term
                                             ->colors(cB.fgc(), cB.bgc());
                         auto slot1 = object->attach(slot::_1, ui::veer::ctor());
                             auto menu = slot1->attach(terminal_menu(menusize));
-                            hide = slot1->attach(ui::mock::ctor())
-                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                        ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+                            if (autohide)
+                            {
+                                hide = slot1->attach(ui::mock::ctor())
+                                            ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                            ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+                            }
                             slot1->invoke([&](auto& boss)
                             {
                                 auto menu_shadow = ptr::shadow(menu);
@@ -393,6 +396,8 @@ namespace netxs::app::term
                                                                 boss.color(b.txt(""));
                                                             };
                                                         });
+                                        if (autohide)
+                                        {
                                             hide->invoke([&](auto& boss)
                                                         {
                                                             auto bg = ui::term::events::colors::bg.param();
@@ -403,6 +408,7 @@ namespace netxs::app::term
                                                                 boss.color(boss.color().fgc(brush.bgc()));
                                                             };
                                                         });
+                                        }
                         }
             return window;
         };
