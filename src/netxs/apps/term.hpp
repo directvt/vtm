@@ -249,48 +249,48 @@ namespace netxs::app::term
                                                              ->plugin<pro::track>()
                                                              ->plugin<pro::acryl>()
                                                              ->plugin<pro::cache>();
-                auto autohide = config.take("/config/term/menu/autohide", faux);
-                auto menushow = config.take("/config/term/menu/enabled", true);
-                auto term_stat_area = netxs::sptr<ui::fork>{};
-                auto hide = netxs::sptr<ui::mock>{};
-                    if (menushow)
+            auto autohide = config.take("/config/term/menu/autohide", faux);
+            auto menushow = config.take("/config/term/menu/enabled" , true);
+            auto menusize = config.take("/config/term/menu/slim"    , faux);
+            auto border = netxs::sptr<ui::mock>{};
+            auto object = window->attach(ui::fork::ctor(axis::Y))
+                                ->colors(cB.fgc(), cB.bgc());
+            auto slot1 = object->attach(slot::_1, ui::veer::ctor());
+            if (menushow)
+            {
+                auto menu = slot1->attach(terminal_menu(menusize));
+                if (autohide)
+                {
+                    border = slot1->attach(ui::mock::ctor())
+                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                  ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+                }
+                slot1->invoke([&](auto& boss)
+                {
+                    auto menu_shadow = ptr::shadow(menu);
+                    auto boss_shadow = ptr::shadow(boss.This());
+                    boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
                     {
-                        auto menusize = config.take("/config/term/menu/slim", faux);
-                        auto object = window->attach(ui::fork::ctor(axis::Y))
-                                            ->colors(cB.fgc(), cB.bgc());
-                        auto slot1 = object->attach(slot::_1, ui::veer::ctor());
-                            auto menu = slot1->attach(terminal_menu(menusize));
-                            if (autohide)
+                        if (auto menu_ptr = menu_shadow.lock())
+                        if (auto boss_ptr = boss_shadow.lock())
+                        {
+                            auto& boss = *boss_ptr;
+                            if (!!hits != (boss.back() == menu_ptr))
                             {
-                                hide = slot1->attach(ui::mock::ctor())
-                                            ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                            ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+                                boss.roll();
+                                boss.reflow();
                             }
-                            slot1->invoke([&](auto& boss)
-                            {
-                                auto menu_shadow = ptr::shadow(menu);
-                                auto boss_shadow = ptr::shadow(boss.This());
-                                boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
-                                {
-                                    if (auto menu_ptr = menu_shadow.lock())
-                                    if (auto boss_ptr = boss_shadow.lock())
-                                    {
-                                        auto& boss = *boss_ptr;
-                                        if (!!hits != (boss.back() == menu_ptr))
-                                        {
-                                            boss.roll();
-                                            boss.reflow();
-                                        }
-                                    }
-                                };
-                            });
-                        term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                    }
-                    else
-                    {
-                        term_stat_area = window->attach(ui::fork::ctor(axis::Y))
-                                               ->colors(cB.fgc(), cB.bgc());
-                    }
+                        }
+                    };
+                });
+            }
+            else
+            {
+                border = slot1->attach(ui::mock::ctor())
+                              ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                              ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+            }
+            auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
@@ -396,9 +396,9 @@ namespace netxs::app::term
                                                                 boss.color(b.txt(""));
                                                             };
                                                         });
-                                        if (autohide)
-                                        {
-                                            hide->invoke([&](auto& boss)
+                                                    if (border)
+                                                    {
+                                                        border->invoke([&](auto& boss)
                                                         {
                                                             auto bg = ui::term::events::colors::bg.param();
                                                             inst->SIGNAL(tier::request, ui::term::events::colors::bg, bg);
@@ -408,7 +408,7 @@ namespace netxs::app::term
                                                                 boss.color(boss.color().fgc(brush.bgc()));
                                                             };
                                                         });
-                                        }
+                                                    }
                         }
             return window;
         };
