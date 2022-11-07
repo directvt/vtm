@@ -228,8 +228,8 @@ namespace netxs::ui
     {
         enum action { seize, drag, release };
 
-        static constexpr si32 MAX_RATIO = 0xFFFF;
-        static constexpr si32 HALF_RATIO = 0xFFFF >> 1;
+        static constexpr auto MAX_RATIO  = si32{ 0xFFFF      };
+        static constexpr auto HALF_RATIO = si32{ 0xFFFF >> 1 };
 
         sptr client_1; // fork: 1st object.
         sptr client_2; // fork: 2nd object.
@@ -986,6 +986,23 @@ namespace netxs::ui
             }
             return sptr{};
         }
+        // veer: Roll objects.
+        void roll(si32 dt = 1)
+        {
+            if (dt && subset.size() > 1)
+            {
+                if (dt > 0) while (dt--)
+                            {
+                                subset.push_front(subset.back());
+                                subset.pop_back();
+                            }
+                else        while (dt++)
+                            {
+                                subset.push_back(subset.front());
+                                subset.pop_front();
+                            }
+            }
+        }
         // veer: Create a new item of the specified subtype and attach it.
         template<class T>
         auto attach(T item_ptr)
@@ -1019,7 +1036,7 @@ namespace netxs::ui
 
         size_t len = 0;
 
-        static const si32 init_layout_len = 10000;
+        static const auto init_layout_len = si32{ 10000 };
         std::vector<item> layout;
         page_layout()
         {
@@ -2454,6 +2471,405 @@ namespace netxs::ui
         }
     };
 
+    // controls: Scroll bar.
+    //template<axis AXIS, auto drawfx = noop{}> //todo apple clang doesn't get it
+    //class grip_fx
+    //    : public flow, public form<grip_fx<AXIS, drawfx>>
+    template<axis AXIS>
+    class grip_fx2
+        : public form<grip_fx2<AXIS>>
+    {
+        pro::timer timer{*this }; // grip: Minimize by timeout.
+        pro::limit limit{*this }; // grip: Size limits.
+
+        using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
+        using wptr = netxs::wptr<base>;
+        using form = ui::form<grip_fx2<AXIS>>;
+        using upon = e2::form::upon;
+
+        enum activity
+        {
+            mouse_leave = 0, // faux
+            mouse_hover = 1, // true
+            pager_first = 10,
+            pager_next  = 11,
+        };
+
+        struct math
+        {
+            rack  master_inf = {};                           // math: Master scroll info.
+            si32& master_len = master_inf.region     [AXIS]; // math: Master len.
+            si32& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
+            si32& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            si32& master_dir = master_inf.vector;            // math: Master scroll direction.
+            si32  scroll_len = 0; // math: Scrollbar len.
+            si32  scroll_pos = 0; // math: Scrollbar grip pos.
+            si32  scroll_box = 0; // math: Scrollbar grip len.
+            si32   m         = 0; // math: Master max pos.
+            si32   s         = 0; // math: Scroll max pos.
+            double r         = 1; // math: Scroll/master len ratio.
+
+            si32  cursor_pos = 0; // math: Mouse cursor position.
+
+            // math: Calc scroll to master metrics.
+            void s_to_m()
+            {
+                auto scroll_center = scroll_pos + scroll_box / 2.0;
+                auto master_center = scroll_len ? scroll_center / r
+                                                : 0;
+                master_pos = (si32)std::round(master_center - master_box / 2.0);
+
+                // Reset to extreme positions.
+                if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
+                if (scroll_pos == s && master_pos < m) master_pos = m;
+            }
+            // math: Calc master to scroll metrics.
+            void m_to_s()
+            {
+                r = (double)scroll_len / master_len;
+                auto master_middle = master_pos + master_box / 2.0;
+                auto scroll_middle = master_middle * r;
+                scroll_box = std::max(1, (si32)(master_box * r));
+                scroll_pos = (si32)std::round(scroll_middle - scroll_box / 2.0);
+
+                // Don't place the grip behind the scrollbar.
+                if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
+
+                // Extreme positions are always closed last.
+                s = scroll_len - scroll_box;
+                m = master_len - master_box;
+
+                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning.
+                {
+                    if (scroll_pos == 0 && master_pos > 0) scroll_pos = 1;
+                    if (scroll_pos == s && master_pos < m) scroll_pos = s - 1;
+                }
+            }
+            void update(rack const& scinfo)
+            {
+                master_inf = scinfo;
+                m_to_s();
+            }
+            void resize(twod const& new_size)
+            {
+                scroll_len = new_size[AXIS];
+                m_to_s();
+            }
+            void stepby(si32 delta)
+            {
+                scroll_pos = std::clamp(scroll_pos + delta, 0, s);
+                s_to_m();
+            }
+            void commit(rect& handle)
+            {
+                handle.coor[AXIS]+= scroll_pos;
+                handle.size[AXIS] = scroll_box;
+            }
+            auto inside(si32 coor)
+            {
+                if (coor >= scroll_pos + scroll_box) return 1; // Below the grip.
+                if (coor >= scroll_pos)              return 0; // Inside the grip.
+                                                     return-1; // Above the grip.
+            }
+            auto follow()
+            {
+                auto dir = scroll_len > 2 ? inside(cursor_pos)
+                                          : cursor_pos > 0 ? 1 // Don't stop to follow over
+                                                           :-1;//    box on small scrollbar.
+                return dir;
+            }
+            void setdir(si32 dir)
+            {
+                master_dir = -dir;
+            }
+        };
+
+        wptr boss;
+        hook memo;
+        si32 thin; // grip: Scrollbar thickness.
+        si32 init; // grip: Handle base width.
+        math calc; // grip: Scrollbar calculator.
+        bool wide; // grip: Is the scrollbar active.
+        si32 mult; // grip: Vertical bar width multiplier.
+
+        bool on_pager = faux;
+
+        template<class EVENT>
+        void send()
+        {
+            if (auto master = this->boss.lock())
+            {
+                master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
+            }
+        }
+        void config(si32 width)
+        {
+            thin = width;
+            auto lims = AXIS == axis::X ? twod{ -1,width }
+                                        : twod{ width,-1 };
+            limit.set(lims, lims);
+        }
+        void giveup(hids& gear)
+        {
+            if (on_pager)
+            {
+                gear.dismiss();
+            }
+            else
+            {
+                if (gear.captured(bell::id))
+                {
+                    if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
+                    {
+                        send<upon::scroll::cancel>();
+                    }
+                    base::deface();
+                    gear.setfree();
+                    gear.dismiss();
+                }
+            }
+        }
+        void pager(si32 dir)
+        {
+            calc.setdir(dir);
+            send<upon::scroll::bypage>();
+        }
+        auto pager_repeat()
+        {
+            if (on_pager)
+            {
+                auto dir = calc.follow();
+                pager(dir);
+            }
+            return on_pager;
+        }
+
+    public:
+        grip_fx2(sptr boss, si32 thickness = 1, si32 multiplier = 2)
+            : boss{ boss       },
+              thin{ thickness  },
+              wide{ faux       },
+              init{ thickness  },
+              mult{ multiplier }
+        {
+            config(thin);
+
+            boss->SUBMIT_T(tier::release, upon::scroll::bycoor::any, memo, scinfo)
+            {
+                calc.update(scinfo);
+                base::deface();
+            };
+
+            SUBMIT(tier::release, e2::size::any, new_size)
+            {
+                calc.resize(new_size);
+            };
+
+            using bttn = hids::events::mouse::button;
+            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
+            {
+                if (gear.whldt)
+                {
+                    auto dir = gear.whldt < 0 ? 1 : -1;
+                    pager(dir);
+                    gear.dismiss();
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::move, gear)
+            {
+                calc.cursor_pos = gear.mouse::coord[AXIS];
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+            {
+                gear.dismiss(); // Do not pass double clicks outside.
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
+            {
+                if (!on_pager)
+                if (this->form::template protos<tier::release>(bttn::down::left)
+                 || this->form::template protos<tier::release>(bttn::down::right))
+                if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
+                {
+                    if (gear.capture(bell::id))
+                    {
+                        on_pager = true;
+                        pager_repeat();
+                        gear.dismiss();
+
+                        timer.actify(activity::pager_first, REPEAT_DELAY, [&](auto p)
+                        {
+                            if (pager_repeat())
+                            {
+                                timer.actify(activity::pager_next, REPEAT_RATE, [&](auto d)
+                                {
+                                    return pager_repeat(); // Repeat until on_pager.
+                                });
+                            }
+                            return faux; // One shot call (first).
+                        });
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::up::any, gear)
+            {
+                if (on_pager && gear.captured(bell::id))
+                {
+                    if (this->form::template protos<tier::release>(bttn::up::left)
+                     || this->form::template protos<tier::release>(bttn::up::right))
+                    {
+                        gear.setfree();
+                        gear.dismiss();
+                        on_pager = faux;
+                        timer.pacify(activity::pager_first);
+                        timer.pacify(activity::pager_next);
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::up::right, gear)
+            {
+                //if (!gear.captured(bell::id)) //todo why?
+                {
+                    send<upon::scroll::cancel>();
+                    gear.dismiss();
+                }
+            };
+
+            SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
+            {
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
+                else
+                {
+                    if (gear.capture(bell::id))
+                    {
+                        gear.dismiss();
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
+            {
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
+                else
+                {
+                    if (gear.captured(bell::id))
+                    {
+                        if (auto delta = gear.mouse::delta.get()[AXIS])
+                        {
+                            calc.stepby(delta);
+                            send<upon::scroll::bycoor>();
+                            gear.dismiss();
+                        }
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
+            {
+                giveup(gear);
+            };
+            SUBMIT(tier::general, hids::events::halt, gear)
+            {
+                giveup(gear);
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
+            {
+                if (on_pager)
+                {
+                    gear.dismiss();
+                }
+                else
+                {
+                    if (gear.captured(bell::id))
+                    {
+                        if (this->form::template protos<tier::release>(bttn::drag::stop::right))
+                        {
+                            send<upon::scroll::cancel>();
+                        }
+                        base::deface();
+                        gear.setfree();
+                        gear.dismiss();
+                    }
+                }
+            };
+            SUBMIT(tier::release, e2::form::state::mouse, active)
+            {
+                auto apply = [&](auto active)
+                {
+                    wide = active;
+                    if (AXIS == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
+                                                               : init);      // wider on hover.
+                    base::reflow();
+                    return faux; // One shot call.
+                };
+
+                timer.pacify(activity::mouse_leave);
+
+                if (active) apply(activity::mouse_hover);
+                else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
+            };
+            //SUBMIT(tier::release, hids::events::mouse::move, gear)
+            //{
+            //	auto apply = [&](auto active)
+            //	{
+            //		wide = active;
+            //		if (AXIS == axis::Y) config(active ? init * 2 // Make vertical scrollbar
+            //		                                   : init);   //  wider on hover
+            //		base::reflow();
+            //		return faux; // One shot call
+            //	};
+            //
+            //	timer.pacify(activity::mouse_leave);
+            //	apply(activity::mouse_hover);
+            //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
+            //};
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                auto region = parent_canvas.view();
+                auto object = parent_canvas.full();
+                auto handle = region;
+
+                calc.commit(handle);
+
+                auto& handle_len = handle.size[AXIS];
+                auto& region_len = region.size[AXIS];
+                auto& object_len = object.size[AXIS];
+
+                handle = region.clip(handle);
+                handle_len = std::max(1, handle_len);
+
+                // Brightener isn't suitable for white backgrounds.
+                auto brighter = skin::color(tone::selector);
+                brighter.bga(std::min(0xFF, brighter.bga() * 3));
+                brighter.link(bell::id);
+
+                if (handle_len != region_len) // Show only if it is oversized.
+                {
+                    if (wide) // Draw full scrollbar on mouse hover
+                    {
+                        static auto box = ' ';
+                        parent_canvas.fill([&](cell& c) { c.txt(box).link(bell::id).xlight(); });
+                        parent_canvas.fill(handle, [&](cell& c) { c.bgc().mix(brighter.bgc()); });
+                    }
+                    else
+                    {
+                        static auto box = "▄"sv; //"▀"sv;
+                        parent_canvas.fill(handle, [&](cell& c) { c.link(bell::id).bgc().mix(brighter.bgc()); });
+                        parent_canvas.fill([&](cell& c) { c.inv(true).txt(box).fgc(base::color().bgc()); });
+                    }
+                }
+                else
+                {
+                    static auto box = "▄"sv;
+                    parent_canvas.fill([&](cell& c) { c.inv(true).txt(box).fgc(base::color().bgc()); });
+                }
+            };
+        }
+    };
+
     // controls: Container with margins (outer space) and padding (inner space).
     class pads
         : public form<pads>
@@ -2553,7 +2969,7 @@ namespace netxs::ui
     {
         pro::limit limit{ *this }; // item: Size limits.
 
-        static constexpr view dots = "…";
+        static constexpr auto dots = "…"sv;
         para name;
         bool flex; // item: Violate or not the label size, default is faux.
         bool test; // item: Place or not(default) the Two Dot Leader when there is not enough space.

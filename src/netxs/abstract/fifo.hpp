@@ -22,13 +22,13 @@ namespace netxs::generics
         //    “any parameter greater than 9 999 (decimal) is set to 9 999 (decimal)”.
         // In the DECSR (Secure Reset) - from 0 to 16 383 (decimal).
         // Our maximum for ITEM=int32_t is +/- 1 073 741 823 (wo two last bits)
-        constexpr static unsigned subbit = 1 << (std::numeric_limits<ITEM>::digits - 2);
-        constexpr static unsigned sigbit = 1 << (std::numeric_limits<ITEM>::digits - 1);
+        static constexpr auto subbit = unsigned{ 1 << (std::numeric_limits<ITEM>::digits - 2) };
+        static constexpr auto sigbit = unsigned{ 1 << (std::numeric_limits<ITEM>::digits - 1) };
 
     public:
         static inline bool issub(ITEM const& value) { return (value & subbit) != (value & sigbit) >> 1; }
-        static inline auto desub(ITEM const& value) { return static_cast<ITEM>(value & ~subbit | (value & sigbit) >> 1); }
-        static inline auto insub(ITEM const& value) { return static_cast<ITEM>(value & ~subbit | (value & sigbit ^ sigbit) >> 1); }
+        static inline auto desub(ITEM const& value) { return static_cast<ITEM>((value & ~subbit) | (value & sigbit) >> 1); }
+        static inline auto insub(ITEM const& value) { return static_cast<ITEM>((value & ~subbit) | ((value & sigbit) ^ sigbit) >> 1); }
 
         static auto& fake() { static fifo empty; return empty; }
 

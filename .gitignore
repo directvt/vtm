@@ -1,5 +1,6 @@
 /.vs
 /.vscode
+/build
 /src/build
 /src/.vs
 /bin

@@ -192,10 +192,11 @@ namespace netxs::app::shop
             return std::tuple{ appstore_head, appstore_body, desktopio_body };
         };
 
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, xml::settings& config)
         {
-            const static auto c3 = app::shared::c3;
-            const static auto x3 = app::shared::x3;
+            auto highlight_color = skin::color(tone::highlight);
+            auto c3 = highlight_color;
+            auto x3 = cell{ c3 }.alpha(0x00);
 
             auto [appstore_head, appstore_body, desktopio_body] = get_text();
             auto window = ui::cake::ctor();
@@ -215,7 +216,7 @@ namespace netxs::app::shop
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
-                    menu_object->attach(slot::_1, app::shared::custom_menu(true, {}));
+                    menu_object->attach(slot::_1, app::shared::custom_menu(faux, {}));
                     menu_object->attach(slot::_2, ui::post::ctor())
                                ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                                ->upload(appstore_head)

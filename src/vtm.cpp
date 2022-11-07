@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.1"
+#define DESKTOPIO_VER "v0.9.6f"
 #define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_MYPATH "vtm"
@@ -30,81 +30,73 @@ int main(int argc, char* argv[])
     auto banner = [&]{ log(DESKTOPIO_MYNAME); };
     auto whoami = type::client;
     auto params = text{};
-    auto maxfps = si32{ 60 };
-
+    auto cfpath = text{};
+    auto daemon = faux;
+    auto getopt = os::args{ argc, argv };
+    while (getopt)
     {
-        auto daemon = faux;
-        auto getopt = os::args{ argc, argv };
-        while (getopt)
+        switch (getopt.next())
         {
-            switch (getopt.next())
-            {
-                case 'r':
-                    whoami = type::runapp;
-                    params = getopt ? getopt.tail()
-                                    : text{ DESKTOPIO_DEFAPP };
-                    break;
-                case 's':
-                    whoami = type::server;
-                    params = getopt ? getopt.tail() : text{};
-                    break;
-                case 'd':
-                    daemon = true;
-                    params = getopt ? getopt.tail() : text{};
-                    break;
-                default:
-                    banner();
-                    log("Usage:\n\n ", os::current_module_file(), " [ -d [<config_file>] | -s [<config_file>] | -r [<app> [<args...>]] ]\n\n"s
-                                    + " No arguments\tRun client, auto start server if is not started.\n"s
-                                             + "\t-d\tRun server in background.\n"s
-                                             + "\t-s\tRun server in interactive mode.\n"s
-                                             + "\t-r\tRun standalone application.\n"s
-                                             + "\n"s
-                                             + "\tConfiguration file location precedence (descending priority):\n\n"s
-                                             + "\t\t1. Command line options; e.g., vtm -s path/to/settings.xml\n"s
-                                             + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
-                                             + "\t\t3. Hardcoded location \"~/.config/vtm/settings.xml\"\n"s
-                                             + "\t\t4. Predefined (hardcoded) configuration at apps.hpp(line:~28)\n"s
-                                             + "\n"s
-                                             + "\tList of registered applications:\n\n"s
-                                             + "\t\tTerm\tTerminal emulator (default)\n"s
-                                             + "\t\tText\t(Demo) Text editor\n"s
-                                             + "\t\tCalc\t(Demo) Spreadsheet calculator\n"s
-                                             + "\t\tGems\t(Demo) Desktopio application manager\n"s
-                                             );
-                    return 0;
-            }
-        }
-
-        if (daemon)
-        {
-            if (!os::daemonize(os::current_module_file(), params.empty() ? "-s"s : "-s " + params))
-            {
+            case 'r':
+                whoami = type::runapp;
+                params = getopt ? getopt.tail() : text{ DESKTOPIO_DEFAPP };
+                break;
+            case 's':
+                whoami = type::server;
+                break;
+            case 'd':
+                daemon = true;
+                break;
+            case 'l':
+                log(app::shared::load::settings(cfpath, os::legacy::get_setup()).document->show());
+                return 0;
+            case 'c':
+                cfpath = getopt.param();
+                if (cfpath.size()) break;
+                else os::fail("config file path not specified");
+            default:
                 banner();
-                log("main: failed to daemonize");
-                return 1;
-            }
-            else whoami = type::server;
+                log("Usage:\n\n ", os::current_module_file(), " [ -c <config_file> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
+                    + "\n"s
+                    + " No arguments\tRun client, auto start server if is not started.\n"s
+                        + "\t-c <..>\tUse specified configuration file.\n"s
+                        + "\t-l\tShow configuration and exit.\n"s
+                        + "\t-d\tRun server in background.\n"s
+                        + "\t-s\tRun server in interactive mode.\n"s
+                        + "\t-r <..>\tRun standalone application.\n"s
+                        + "\n"s
+                        + "\tConfiguration file location precedence (descending priority):\n\n"s
+                        + "\t\t1. Command line options; e.g., vtm -c path/to/settings.xml\n"s
+                        + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
+                        + "\t\t3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
+                        + "\t\t4. Default configuration\n"s
+                        + "\n"s
+                        + "\tList of registered applications:\n\n"s
+                        + "\t\tTerm\tTerminal emulator (default)\n"s
+                        + "\t\tText\t(Demo) Text editor\n"s
+                        + "\t\tCalc\t(Demo) Spreadsheet calculator\n"s
+                        + "\t\tGems\t(Demo) Desktopio application manager\n"s
+                        );
+                return 0;
         }
     }
 
+    if (daemon)
     {
-        //todo unify
-        //fps
-        //skin::setup(tone::lucidity, 192);
-        //skin::setup(tone::shadower, 0);
-        skin::setup(tone::kb_focus, 60);
-        skin::setup(tone::brighter, 60);//120);
-        skin::setup(tone::shadower, 180);//60);//40);// 20);
-        skin::setup(tone::shadow  , 180);//5);
-        skin::setup(tone::lucidity, 255);
-        skin::setup(tone::selector, 48);
-        skin::setup(tone::bordersz, dot_11);
+        if (!os::daemonize(os::current_module_file(), cfpath.empty() ? "-s"s : "-c " + cfpath + " -s"s))
+        {
+            banner();
+            os::fail("failed to daemonize");
+            return 1;
+        }
+        else whoami = type::server;
     }
+
+    banner();
+    auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
 
     if (whoami == type::server)
     {
-        banner();
         auto userid = os::user();
         auto usernm = os::get_env("USER");
         auto hostip = os::get_env("SSH_CLIENT");
@@ -112,13 +104,14 @@ int main(int argc, char* argv[])
         auto server = os::ipc::open<os::server>(prefix);
         if (!server)
         {
-            log("main: error: can't start desktopio server");
+            os::fail("can't start desktopio server");
             return 1;
         }
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
-        auto ground = base::create<hall>(server, maxfps);
+        config.cd("/config/appearance/defaults/");
+        auto ground = base::create<hall>(server, config);
         auto thread = os::pool{};
-        app::shared::init_app_registry(ground, params);
+        app::shared::activate(ground);
 
         log("main: listening socket ", server,
                          "\n\tuser: ", userid,
@@ -128,21 +121,17 @@ int main(int argc, char* argv[])
         {
             if (!client->cred(userid))
             {
-                log("main: abort: foreign users are not allowed to the session");
+                os::fail("foreign users are not allowed to the session");
                 continue;
             }
 
             thread.run([&, client](auto session_id)
             {
-                auto config = console::conf(client, session_id);
-                config.background_color = app::shared::background_color; //todo unify
-                log("user: incoming connection:", config);
-
-                if (auto window = ground->invite<gate>(config))
+                if (auto window = ground->invite<gate>(client, session_id, config))
                 {
                     log("user: new gate for ", client);
-                    auto deskmenu = app::shared::creator(app::shared::type_Desk)("", utf::concat(window->id, ";", config.os_user_id));
-                    auto bkground = app::shared::creator(app::shared::type_Fone)("", "gems; About; ");
+                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config);
+                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems; About; ", config);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }
@@ -156,7 +145,6 @@ int main(int argc, char* argv[])
     {
         if (whoami == type::client)
         {
-            banner();
             auto direct = !!(vtmode & os::legacy::direct);
             if (!direct) os::start_log(DESKTOPIO_MYPATH);
             auto userid = os::user();
@@ -171,13 +159,16 @@ int main(int argc, char* argv[])
                         });
             if (!client)
             {
-                log("main: error: no desktopio server connection");
+                os::fail("no desktopio server connection");
                 return 1;
             }
+
+            auto runcfg = utf::base64(config.utf8());
             client->send(utf::concat(hostip, ";",
                                      usernm, ";",
                                      userid, ";",
-                                     vtmode, ";"));
+                                     vtmode, ";",
+                                     runcfg, ";"));
             auto cons = os::tty::proxy(client);
             auto size = cons.ignite(vtmode);
             if (size.last)
@@ -187,8 +178,6 @@ int main(int argc, char* argv[])
         }
         else if (whoami == type::runapp)
         {
-            //todo unify
-            auto menusz = 3;
             auto shadow = params;
             utf::to_low(shadow);
                  if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
@@ -202,17 +191,14 @@ int main(int argc, char* argv[])
             else if (shadow.starts_with("settings"))   log("Desktopio Settings "           DESKTOPIO_VER);
             else
             {
-                menusz = 1;
                 params = DESKTOPIO_DEFAPP + " "s + params;
                 log(DESKTOPIO_APPINF);
             }
 
-            skin::setup(tone::brighter, 0);
-
-            auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, maxfps, menusz);
+            auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
             if (!success)
             {
-                log("main: console initialization error");
+                os::fail("console initialization error");
                 return 1;
             }
         }

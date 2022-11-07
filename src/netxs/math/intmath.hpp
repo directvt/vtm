@@ -683,15 +683,15 @@ namespace netxs
         using twod = T;
         using type = disintegrate<twod>;
 
-        ui16 gain = 0;
-        si32   dx = p1.x - p0.x;
-        si32   dy = p1.y - p0.y;
-        ui32   lx = std::abs(dx);
-        ui32   ly = std::abs(dy);
+        auto gain = static_cast<ui16>( 0 );
+        auto   dx = static_cast<si32>( p1.x - p0.x );
+        auto   dy = static_cast<si32>( p1.y - p0.y );
+        auto   lx = static_cast<ui32>( std::abs(dx) );
+        auto   ly = static_cast<ui32>( std::abs(dy) );
 
         rect = rect.normalize();
-        twod& coor = rect.coor;
-        twod& size = rect.size;
+        auto& coor = rect.coor;
+        auto& size = rect.size;
         p0 -= coor;
         p1 -= coor;
 
@@ -762,12 +762,12 @@ namespace netxs
 
         if (!size.inside(p0) || !size.inside(p1))
         {
-            float x1 = static_cast<float>(p0.x); float y1 = static_cast<float>(p0.y);
-            float x2 = static_cast<float>(p1.x); float y2 = static_cast<float>(p1.y);
-            float minx = -1.0f;// One element wide margin for antialiasing.
-            float miny = -1.0f;//
-            float maxx = size.x + 1.0f;
-            float maxy = size.y + 1.0f;
+            auto x1 = static_cast<float>(p0.x); auto y1 = static_cast<float>(p0.y);
+            auto x2 = static_cast<float>(p1.x); auto y2 = static_cast<float>(p1.y);
+            auto minx = -1.0f;// One element wide margin for antialiasing.
+            auto miny = -1.0f;//
+            auto maxx = size.x + 1.0f;
+            auto maxy = size.y + 1.0f;
 
             if (liang_barsky(minx, miny, maxx, maxy, x1, y1, x2, y2))
             {
@@ -858,7 +858,7 @@ namespace netxs
             while (s_ptr < limit)
             {
                 auto& first = s_ref(s_ptr);
-                RGB_T accum = first;
+                auto  accum = RGB_T{ first };
                 accum *= rad_1;
 
                 auto front = s_ptr;

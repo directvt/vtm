@@ -312,10 +312,13 @@ namespace netxs::app::calc
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
         };
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, xml::settings& config)
         {
-            const static auto c7 = app::shared::c7;
-            const static auto c3 = app::shared::c3;
+            auto highlight_color = skin::color(tone::highlight);
+            auto label_color     = skin::color(tone::label);
+            auto c3 = highlight_color;
+            auto x3 = cell{ c3 }.alpha(0x00);
+            auto c7 = label_color;
 
             auto [cellatix_rows, cellatix_cols, cellatix_text] = get_text();
 
@@ -340,6 +343,7 @@ namespace netxs::app::calc
                           boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                       };
                   });
+            auto fader = skin::timeout(tone::fader);
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu = object->attach(slot::_1, app::shared::main_menu());
@@ -351,11 +355,11 @@ namespace netxs::app::calc
                             auto func_line = func_body->attach(slot::_1, ui::fork::ctor());
                                 auto fx_sum = func_line->attach(slot::_1, ui::fork::ctor());
                                     auto fx = fx_sum->attach(slot::_1, ui::post::ctor())
-                                                    ->plugin<pro::fader>(c7, c3, 150ms)
+                                                    ->plugin<pro::fader>(c7, c3, fader)
                                                     ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" Fx "));
                                 auto ellipsis = func_line->attach(slot::_2, ui::post::ctor())
-                                                         ->plugin<pro::fader>(c7, c3, 150ms)
+                                                         ->plugin<pro::fader>(c7, c3, fader)
                                                          ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
                                                          ->upload(ansi::wrp(wrap::off).add(" … "));
                             auto body_area = func_body->attach(slot::_2, ui::fork::ctor(axis::Y));
@@ -402,7 +406,7 @@ namespace netxs::app::calc
                                                        .bgc(whitelt).fgc(blackdk).add(" Sheet1 "));
                             auto plus_pad = sheet_plus->attach(slot::_2, ui::fork::ctor());
                                 auto plus = plus_pad->attach(slot::_1, ui::post::ctor())
-                                                    ->plugin<pro::fader>(c7, c3, 150ms)
+                                                    ->plugin<pro::fader>(c7, c3, fader)
                                                     ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 3,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" + "));
                                 auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())

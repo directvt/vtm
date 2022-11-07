@@ -183,8 +183,10 @@ utility like ctags is used to locate the definitions.
 
 )";
 
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, xml::settings& config)
         {
+            auto highlight_color = skin::color(tone::highlight);
+
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
                   ->plugin<pro::track>()
@@ -213,11 +215,11 @@ utility like ctags is used to locate the definitions.
                             auto scroll = layers->attach(ui::rail::ctor())
                                                 ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
                                 auto edit_box = scroll->attach(ui::post::ctor(true))
-                                                      ->plugin<pro::caret>(true, twod{ 25,1 }, faux)
+                                                      ->plugin<pro::caret>(true, faux, twod{ 25,1 })
                                                       ->colors(blackdk, whitelt)
                                                       ->upload(ansi::wrp(wrap::off).mgl(1)
                                                       .add(topic3)
-                                                      .fgc(app::shared::highlight_color)
+                                                      .fgc(highlight_color.bgc())
                                                       .add("From Wikipedia, the free encyclopedia"));
                     auto status_line = body_area->attach(slot::_2, ui::post::ctor())
                                                 ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })

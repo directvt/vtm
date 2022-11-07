@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.1"
+#define DESKTOPIO_VER "v0.9.6f"
 #define DESKTOPIO_MYNAME "Desktopio Terminal " DESKTOPIO_VER
 #define DESKTOPIO_MYPATH "vtm/term"
 #define DESKTOPIO_DEFAPP "Term"
@@ -15,26 +15,44 @@ int main(int argc, char* argv[])
 {
     auto vtmode = os::vt_mode();
     auto syslog = os::ipc::logger(vtmode);
-    auto maxfps = si32{ 60 };
-    auto menusz = 1;
+    auto banner = [&]{ log(DESKTOPIO_MYNAME); };
     auto getopt = os::args{ argc, argv };
     auto params = DESKTOPIO_DEFAPP + " "s + getopt.tail();
+    auto cfpath = text{};
+    auto getopt = os::args{ argc, argv };
+    while (getopt)
+    {
+        switch (getopt.next())
+        {
+            case 'l':
+                log(app::shared::load::settings(cfpath, os::legacy::get_setup()).document->show());
+                return 0;
+            case 'c':
+                cfpath = getopt.param();
+                if (cfpath.size()) break;
+                else os::fail("config file path not specified");
+            default:
+                banner();
+                log("Usage:\n\n ", os::current_module_file(), " [ -c <config_file> ] [ -l ]\n"s
+                    + "\n"s
+                        + "\t-c\tUse specified configuration file.\n"s
+                        + "\t-l\tShow configuration and exit.\n"s
+                        + "\n"s
+                        + "\tConfiguration file location precedence (descending priority):\n\n"s
+                        + "\t\t1. Command line options; e.g., vtm -c path/to/settings.xml\n"s
+                        + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
+                        + "\t\t3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
+                        + "\t\t4. Default configuration\n"s
+                        );
+                return 0;
+        }
+    }
 
-    //todo unify
-    skin::setup(tone::kb_focus, 60);
-    skin::setup(tone::brighter, 0);
-    skin::setup(tone::shadower, 180);
-    skin::setup(tone::shadow  , 180);
-    skin::setup(tone::lucidity, 255);
-    skin::setup(tone::selector, 48);
-    skin::setup(tone::bordersz, dot_11);
+    banner();
+    auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
+    auto result = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
 
-    //todo unify
-    log(DESKTOPIO_MYNAME);
-
-    auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, maxfps, menusz);
-
-    if (success) return 0;
+    if (result) return 0;
     else
     {
         log("main: app initialization error");

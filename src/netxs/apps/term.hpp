@@ -49,10 +49,11 @@ namespace netxs::app::term
 {
     using events = netxs::events::userland::term;
 
-    const auto terminal_menu = [](bool full_size)
+    const auto terminal_menu = [](bool slim_size)
     {
-        const static auto c3 = app::shared::c3;
-        const static auto x3 = app::shared::x3;
+        auto highlight_color = skin::color(tone::highlight);
+        auto c3 = highlight_color;
+        auto x3 = cell{ c3 }.alpha(0x00);
 
         auto items = app::shared::menu_list_type
         {
@@ -113,6 +114,9 @@ namespace netxs::app::term
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::layout::wrapln, wrapln)
                 {
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
                     //todo unify, get boss base colors, don't use x3
                     boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
@@ -127,27 +131,43 @@ namespace netxs::app::term
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::selmod, selmod)
                 {
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
                     //todo unify, get boss base colors, don't use x3, make it configurable
                     switch (selmod)
                     {
                         default:
-                        case ui::term::xsgr::disabled:
-                            //"Selection"
+                        case clip::disabled:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Selection");
                             boss.color(x3.fgc(), x3.bgc());
                             break;
-                        case ui::term::xsgr::textonly:
-                            //"Text only"
+                        case clip::textonly:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Plaintext");
                             boss.color(0xFF00ff00, x3.bgc());
                             break;
-                        case ui::term::xsgr::ansitext:
-                            //"Rich-Text"
-                            //"+ANSI/SGR"
+                        case clip::ansitext:
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "ANSI-text");
                             boss.color(0xFF00ffff, x3.bgc());
                             break;
+                        case clip::richtext:
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, ansi::esc{}.
+                                fgc(0xFFede76d).add("R").
+                                fgc(0xFFbaed6d).add("T").
+                                fgc(0xFF3cff3c).add("F").
+                                fgc(0xFF35ffbd).add("-").
+                                fgc(0xFF31ffff).add("s").
+                                fgc(0xFF4fbdff).add("t").
+                                fgc(0xFF5e72ff).add("y").
+                                fgc(0xFF9d3cff).add("l").
+                                fgc(0xFFd631ff).add("e").nil());
+                            break;
+                        case clip::htmltext:
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "HTML-code");
+                            boss.color(0xFFffff00, x3.bgc());
+                            break;
                     }
+                    boss.deface();
                 };
             }},
             { true, "<", " Previuos match                    \n"
@@ -162,6 +182,9 @@ namespace netxs::app::term
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
                 {
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
                     //todo unify, get boss base colors, don't use x3
                     boss.color(mode & 2 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
@@ -178,6 +201,9 @@ namespace netxs::app::term
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
                 {
+                    auto highlight_color = skin::color(tone::highlight);
+                    auto c3 = highlight_color;
+                    auto x3 = cell{ c3 }.alpha(0x00);
                     //todo unify, get boss base colors, don't use x3
                     boss.color(mode & 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
@@ -205,13 +231,16 @@ namespace netxs::app::term
                 };
             }},
         };
-        return app::shared::custom_menu(full_size, items);
+        return app::shared::custom_menu(slim_size, items);
     };
 
     namespace
     {
-        auto build = [](text cwd, text arg)
+        auto build = [](text cwd, text arg, xml::settings& config)
         {
+            auto menu_white = skin::color(tone::menu_white);
+            auto cB = menu_white;
+
             auto window = ui::cake::ctor();
             auto arg_shadow = view{ arg };
             auto term_type = shared::app_class(arg_shadow);
@@ -220,10 +249,48 @@ namespace netxs::app::term
                                                              ->plugin<pro::track>()
                                                              ->plugin<pro::acryl>()
                                                              ->plugin<pro::cache>();
+            auto autohide = config.take("/config/term/menu/autohide", faux);
+            auto menushow = config.take("/config/term/menu/enabled" , true);
+            auto menusize = config.take("/config/term/menu/slim"    , faux);
+            auto border = netxs::sptr<ui::mock>{};
             auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, terminal_menu(true));
-                auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
+                                ->colors(cB.fgc(), cB.bgc());
+            auto slot1 = object->attach(slot::_1, ui::veer::ctor());
+            if (menushow)
+            {
+                auto menu = slot1->attach(terminal_menu(menusize));
+                if (autohide)
+                {
+                    border = slot1->attach(ui::mock::ctor())
+                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                  ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+                }
+                slot1->invoke([&](auto& boss)
+                {
+                    auto menu_shadow = ptr::shadow(menu);
+                    auto boss_shadow = ptr::shadow(boss.This());
+                    boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
+                    {
+                        if (auto menu_ptr = menu_shadow.lock())
+                        if (auto boss_ptr = boss_shadow.lock())
+                        {
+                            auto& boss = *boss_ptr;
+                            if (!!hits != (boss.back() == menu_ptr))
+                            {
+                                boss.roll();
+                                boss.reflow();
+                            }
+                        }
+                    };
+                });
+            }
+            else
+            {
+                border = slot1->attach(ui::mock::ctor())
+                              ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                              ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+            }
+            auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
@@ -262,9 +329,8 @@ namespace netxs::app::term
                                     };
                                   });
 
-                            auto shell = os::get_shell();
-                            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell + " -i"
-                                                                                       : arg));
+                            auto shell = os::get_shell() + " -i";
+                            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config));
 
                             inst->attach_property(ui::term::events::colors::bg,      app::term::events::colors::bg)
                                 ->attach_property(ui::term::events::colors::fg,      app::term::events::colors::fg)
@@ -314,10 +380,36 @@ namespace netxs::app::term
                                         boss.search(gear, feed::rev);
                                     };
                                 });
+
+                            auto scroll_bars = layers->attach(ui::fork::ctor());
+                                auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
+                                auto hz = term_stat_area->attach(slot::_2, ui::grip_fx2<axis::X>::ctor(scroll))
+                                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                        ->invoke([&](auto& boss)
+                                                        {
+                                                            auto bg = ui::term::events::colors::bg.param();
+                                                            inst->SIGNAL(tier::request, ui::term::events::colors::bg, bg);
+                                                            boss.color(cell{}.bgc(bg));
+                                                            inst->SUBMIT(tier::release, e2::form::prop::brush, brush)
+                                                            {
+                                                                auto b = brush;
+                                                                boss.color(b.txt(""));
+                                                            };
+                                                        });
+                                                    if (border)
+                                                    {
+                                                        border->invoke([&](auto& boss)
+                                                        {
+                                                            auto bg = ui::term::events::colors::bg.param();
+                                                            inst->SIGNAL(tier::request, ui::term::events::colors::bg, bg);
+                                                            boss.color(boss.color().fgc(bg));
+                                                            inst->SUBMIT(tier::release, e2::form::prop::brush, brush)
+                                                            {
+                                                                boss.color(boss.color().fgc(brush.bgc()));
+                                                            };
+                                                        });
+                                                    }
                         }
-                    auto scroll_bars = layers->attach(ui::fork::ctor());
-                        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                        auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
     }
