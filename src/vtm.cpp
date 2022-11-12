@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.6f"
+#define DESKTOPIO_VER "v0.9.6g"
 #define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_MYPATH "vtm"
