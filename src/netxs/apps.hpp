@@ -105,9 +105,9 @@ R"==(
                         <show=true/>
                     </cursor>
                     <menu>
-                        <autohide=faux/>  <!--  If true, show menu only on hover. -->
+                        <autohide=on/>  <!--  If true, show menu only on hover. -->
                         <enabled="on"/>
-                        <slim="false"/>
+                        <slim="true"/>
                     </menu>
                     <selection>
                         <mode="text"/> <!-- text | ansi | rich | html | none -->
@@ -179,7 +179,7 @@ R"==(
             <inactive   fgc=blacklt    bgc=nocolor    />
             <menu_white fgc=whitelt    bgc=0x80404040 />
             <menu_black fgc=blackdk    bgc=0x80404040 />
-            <fader duration=150ms fast=0ms />
+            <fader duration=0ms fast=0ms />  <!-- Fader animation config. -->
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0 />
@@ -279,7 +279,7 @@ R"==(
             <show=true/>
         </cursor>
         <menu>
-            <autohide=faux/>  <!--  If true, show menu only on hover. -->
+            <autohide=true/>  <!--  If true, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
         </menu>

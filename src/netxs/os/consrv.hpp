@@ -453,7 +453,22 @@ struct consrv
         auto generate(wiew wstr, ui32 s = 0)
         {
             buffer.reserve(wstr.size());
-            for (auto c : wstr) generate(c, s);
+            auto head = wstr.begin();
+            auto tail = wstr.end();
+            while (head != tail)
+            {
+                auto c = *head++;
+                if (c == '\n')
+                {
+                    if (head != tail && *head == '\r') head++;
+                    c = '\r';
+                }
+                else if (c == '\r' && head != tail && *head == '\n')
+                {
+                    head++;
+                }
+                generate(c, s);
+            }
             return true;
         }
         auto generate(view ustr)
@@ -771,6 +786,7 @@ struct consrv
                             "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
                             "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
                             "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
+                            "\n rec.Event.KeyEvent.wRepeatCount      ", (int)rec.Event.KeyEvent.wRepeatCount,
                             "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true" : "faux");
                     }
 
@@ -883,7 +899,8 @@ struct consrv
                             }
                         }
                     }
-                    if (!done) pops++;
+                    if (done) break;
+                    else      pops++;
                 }
 
                 if (pops)
