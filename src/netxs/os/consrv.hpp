@@ -461,11 +461,11 @@ struct consrv
                 if (c == '\n')
                 {
                     if (head != tail && *head == '\r') head++;
-                    c = '\r';
                 }
-                else if (c == '\r' && head != tail && *head == '\n')
+                else if (c == '\r')
                 {
-                    head++;
+                    if (head != tail && *head == '\n') head++;
+                    c = '\n';
                 }
                 generate(c, s);
             }
@@ -864,7 +864,7 @@ struct consrv
                                         if (n == 0) pops++;
                                     };
                                          if (stops & 1 << c)                { cook(c, 0); hist.save(line);                                }
-                                    else if (c == '\r'     )                { cook(c, 1); hist.done(line);                                }
+                                    else if (c == '\r' || c == '\n')        { cook(c, 1); hist.done(line);                                }
                                     else if (c == 'Z' - '@')                {             hist.swap(line, faux);                          }
                                     else if (c == 'Y' - '@')                {             hist.swap(line, true);                          }
                                     else if (c == 'I' - '@' && v == VK_TAB) { burn();     hist.save(line); line.insert("        ", mode); }
