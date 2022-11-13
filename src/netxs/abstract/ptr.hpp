@@ -56,6 +56,11 @@ namespace netxs
         {
             return std::weak_ptr<T>{ p };
         }
+        template <class T>
+        auto shared(T&& from)
+        {
+            return std::make_shared<std::decay_t<T>>(std::forward<T>(from));
+        }
     }
 
     template <class T1, class T2>

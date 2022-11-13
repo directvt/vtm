@@ -432,7 +432,9 @@ namespace netxs::app::test
                 });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))
                                  ->colors(whitelt, 0xA0db3700);
-                auto menu = object0->attach(slot::_1, app::shared::custom_menu(faux, {}));
+                config.cd("/config/test/", "/config/defapp/");
+                auto [menu_block, cover, menu_data] = app::shared::custom_menu(config, {});
+                auto menu = object0->attach(slot::_1, menu_block);
                 auto test_stat_area = object0->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())

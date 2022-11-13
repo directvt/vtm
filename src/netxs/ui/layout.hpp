@@ -1202,6 +1202,7 @@ namespace netxs::ui::atoms
         auto& blk (bool b)        { st.blk(b);          return *this; } // cell: Set Blink attribute.
         auto& rtl (bool b)        { st.rtl(b);          return *this; } // cell: Set Right-To-Left attribute.
         auto& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
+        auto& link(cell const& c) { id = c.id;          return *this; } // cell: Set link object ID.
         auto& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
         auto& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
         auto& txt (cell const& c) { gc = c.gc;          return *this; } // cell: Set Grapheme cluster from cell.

@@ -5942,6 +5942,7 @@ namespace netxs::console
             title.live = faux;
             if (!props.is_standalone_app)
             {
+                //todo move it to the desk (dragging)
                 mouse.draggable<sysmouse::leftright>(true);
                 mouse.draggable<sysmouse::left>(true);
                 SUBMIT(tier::release, e2::form::drag::start::any, gear)
