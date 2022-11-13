@@ -6025,7 +6025,9 @@ namespace netxs::console
                           : debug.start();
                 }
                 //todo unify
+                //todo move it to the desk
                 //if (gear.meta(hids::CTRL | hids::RCTRL))
+                if (!props.is_standalone_app)
                 {
                     //todo unify
                     auto pgup = keystrokes == "\033[5;5~"s
