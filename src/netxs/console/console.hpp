@@ -215,7 +215,6 @@ namespace netxs::events::userland
                 EVENT_XS( mouse   , const console::sysmouse ), // release: mouse activity.
                 EVENT_XS( keybd   , const console::syskeybd ), // release: keybd activity.
                 EVENT_XS( winsz   , const twod              ), // release: order to update terminal primary overlay.
-                EVENT_XS( native  , const bool              ), // release: extended functionality.
                 EVENT_XS( preclose, const bool              ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
                 EVENT_XS( quit    , const text              ), // release: quit, arg: text - bye msg.
                 EVENT_XS( pointer , const bool              ), // release: mouse pointer visibility.
@@ -5155,11 +5154,6 @@ namespace netxs::console
             auto& item = lock.thing;
             notify(e2::conio::pointer, item.mode);
         }
-        void handle(s11n::xs::native      lock)
-        {
-            auto& item = lock.thing;
-            notify(e2::conio::native, item.mode);
-        }
         void handle(s11n::xs::request_gc  lock)
         {
             auto& items = lock.thing;
@@ -5449,7 +5443,6 @@ namespace netxs::console
         bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
-        bool  native = faux; //gate: Extended functionality support.
         bool  fullscreen = faux; //gate: Fullscreen mode.
         si32  legacy = os::legacy::clean;
 
@@ -5694,10 +5687,6 @@ namespace netxs::console
                 SUBMIT_T(tier::release, e2::conio::unknown, token, unkstate)
                 {
                 };
-                SUBMIT_T(tier::release, e2::conio::native, token, extended)
-                {
-                    native = extended;
-                };
                 SUBMIT_T(tier::release, e2::conio::pointer, token, pointer)
                 {
                     legacy |= pointer ? os::legacy::mouse : 0;
@@ -5743,14 +5732,7 @@ namespace netxs::console
                     {
                         auto temp = text{};
                         temp.reserve(newheader.length());
-                        if (native)
-                        {
-                            temp = newheader;
-                        }
-                        else
-                        {
-                            para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
-                        }
+                        para{ newheader }.lyric->utf8(temp);
                         log("gate: title changed to '", temp, ansi::nil().add("'"));
                         conio.output(ansi::header(temp));
                     }
@@ -5909,7 +5891,6 @@ namespace netxs::console
                 else
                 {
                     input.check_focus();
-                    conio.output(ansi::ext(true));
                     if (props.title.size())
                     {
                         conio.output(ansi::header(props.title));

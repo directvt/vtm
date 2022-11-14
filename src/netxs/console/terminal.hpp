@@ -884,7 +884,6 @@ namespace netxs::ui
                 vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q);    }; // CCC_SBS: Set scrollback size.
-                vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); }; // CCC_EXT: Setup extended functionality.
                 vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->owner.setdef();     }; // CCC_RST: Reset to defaults.
                 vt.csier.table[CSI_CCC][CCC_SGR] = VT_PROC{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
                 vt.csier.table[CSI_CCC][CCC_SEL] = VT_PROC{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
@@ -6384,12 +6383,6 @@ namespace netxs::ui
             auto ring_size = queue(config.def_length);
             auto grow_step = queue(config.def_growup);
             normal.resize_history(ring_size, grow_step);
-        }
-        // term: Extended functionality response.
-        void native(bool are_u)
-        {
-            auto response = ansi::ext(are_u);
-            answer(response);
         }
         // term: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
