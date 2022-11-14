@@ -476,7 +476,7 @@ R"==(
                 auto scrl_list = scrl_rail->attach(ui::list::ctor(axis::X));
 
                 auto scroll_hint = ui::park::ctor();
-                auto hints = scroll_hint->attach(snap::stretch, snap::tail, ui::grip_fx<axis::X>::ctor(scrl_rail));
+                auto hints = scroll_hint->attach(snap::stretch, menusize ? snap::center : snap::tail, ui::grip_fx<axis::X>::ctor(scrl_rail));
 
                 auto scrl_grip = scrl_area->attach(scroll_hint);
 
