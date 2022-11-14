@@ -4234,7 +4234,7 @@ namespace netxs::os
                 {
                     auto errcode = os::error();
                     log("xpty: console server creation error ", errcode);
-                    terminal.onexit(errcode);
+                    terminal.onexit(errcode, "Console server creation error");
                     return;
                 }
 
@@ -4287,8 +4287,12 @@ namespace netxs::os
                 {
                     auto errcode = os::error();
                     log("xpty: child process creation error ", errcode);
+                    os::close( srv_hndl );
+                    os::close( ref_hndl );
                     con_serv.stop();
-                    terminal.onexit(errcode);
+                    terminal.onexit(errcode, "Process creation error \n"s
+                                             " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
+                                             " cmd: "s + cmdline + " "s);
                     return;
                 }
 
@@ -4365,11 +4369,10 @@ namespace netxs::os
                     ::execvp(argv.front(), argv.data());
 
                     auto errcode = errno;
-                    std::cerr << "xpty: exec error, errno=" << errcode << "\n" << std::flush;
-                    ::close(STDERR_FD);
-                    ::close(STDOUT_FD);
-                    ::close(STDIN_FD );
-                    os::exit(errcode);
+                    std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
+                                                                   " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
+                                                                   " cmd: "s + cmdline + " "s).nil() << std::flush;
+                    os::exit(ENOENT);
                 }
 
                 // Parent branch.
