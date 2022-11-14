@@ -346,7 +346,7 @@ namespace netxs::app::calc
             auto fader = skin::timeout(tone::fader);
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-                auto menu = object->attach(slot::_1, app::shared::main_menu());
+                auto menu = object->attach(slot::_1, app::shared::main_menu(config));
                 auto all_rail = object->attach(slot::_2, ui::rail::ctor());
                 auto all_stat = all_rail->attach(ui::fork::ctor(axis::Y))
                                         ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });

@@ -6467,12 +6467,12 @@ namespace netxs::ui
             });
         }
         // term: Shutdown callback handler.
-        void onexit(si32 code)
+        void onexit(si32 code, view msg = {})
         {
             log("term: exit code 0x", utf::to_hex(code));
             if (code)
             {
-                auto error = ansi::bgc(reddk).fgc(whitelt).add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil();
+                auto error = ansi::bgc(reddk).fgc(whitelt).add(msg).add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil();
                 ondata(error);
                 this->SUBMIT(tier::release, hids::events::keybd::any, gear)
                 {

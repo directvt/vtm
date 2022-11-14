@@ -208,7 +208,7 @@ utility like ctags is used to locate the definitions.
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA05f1a00);
-                auto menu = object->attach(slot::_1, app::shared::main_menu());
+                auto menu = object->attach(slot::_1, app::shared::main_menu(config));
                 auto body_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto fields = body_area->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
                         auto layers = fields->attach(ui::cake::ctor());

@@ -292,6 +292,20 @@ R"==(
             <key="Alt+LeftArrow"  action=findPrev />
         </hotkeys>
     </term>
+    <defapp>
+        <menu>
+            <autohide=faux />  <!--  If true, show menu only on hover. -->
+            <enabled="on"/>
+            <slim=faux />
+        </menu>
+    </defapp>
+    <tile>
+        <menu>
+            <autohide=true />  <!--  If true, show menu only on hover. -->
+            <enabled="on"/>
+            <slim=1 />
+        </menu>
+    </tile>
     <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </text>
@@ -425,7 +439,7 @@ R"==(
     };
 
     // Menu bar (shrinkable on right-click).
-    const auto custom_menu = [](bool slim_size, app::shared::menu_list_type menu_items)
+    const auto custom_menu = [](xml::settings& config, app::shared::menu_list_type menu_items)
     {
         auto highlight_color = skin::color(tone::highlight);
         auto danger_color    = skin::color(tone::danger);
@@ -433,6 +447,11 @@ R"==(
         auto x3 = cell{ c3 }.alpha(0x00);
         auto c1 = danger_color;
         auto x1 = cell{ c1 }.alpha(0x00);
+
+        auto slot1 = ui::veer::ctor();
+        auto autohide = config.take("menu/autohide", faux);
+        auto menushow = config.take("menu/enabled" , true);
+        auto menusize = config.take("menu/slim"    , faux);
 
         auto menu_area = ui::fork::ctor()
                         ->active();
@@ -499,7 +518,7 @@ R"==(
                      ->attach(ui::item::ctor("×"));
 
         auto menu_block = ui::park::ctor()
-            ->plugin<pro::limit>(twod{ -1, slim_size ? 1 : 3 }, twod{ -1, slim_size ? 1 : 3 })
+            ->plugin<pro::limit>(twod{ -1, menusize ? 1 : 3 }, twod{ -1, menusize ? 1 : 3 })
             ->invoke([&](ui::park& boss)
             {
                 scroll_hint->visible(hints, faux);
@@ -571,9 +590,35 @@ R"==(
             });
         menu_block->attach(snap::stretch, snap::center, menu_area);
 
-        return menu_block;
+        auto menu = slot1->attach(menu_block);
+                auto border = slot1->attach(ui::mock::ctor())
+                                   ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
+                     if (menushow == faux) autohide = faux;
+                else if (autohide == faux) slot1->roll();
+                slot1->invoke([&](auto& boss)
+                {
+                    auto menu_shadow = ptr::shadow(menu_block);
+                    auto boss_shadow = ptr::shadow(boss.This());
+                    auto hide_shadow = ptr::shared(autohide);
+                    boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
+                    {
+                        if (*hide_shadow)
+                        if (auto menu_ptr = menu_shadow.lock())
+                        if (auto boss_ptr = boss_shadow.lock())
+                        {
+                            auto& boss = *boss_ptr;
+                            if (!!hits != (boss.back() == menu_ptr))
+                            {
+                                boss.roll();
+                                boss.reflow();
+                            }
+                        }
+                    };
+                });
+
+        return std::tuple{ slot1, border, menu_block };
     };
-    const auto main_menu = []
+    const auto main_menu = [](xml::settings& config)
     {
         auto items = app::shared::menu_list_type
         {
@@ -583,7 +628,9 @@ R"==(
             { true, ansi::und(true).add("D").nil().add("ata"), " Data menu item ", [&](auto& boss){ } },
             { true, ansi::und(true).add("H").nil().add("elp"), " Help menu item ", [&](auto& boss){ } },
         };
-        return custom_menu(faux, items);
+        config.cd("/config/defapp/");
+        auto [menu, cover, menu_data] = custom_menu(config, items);
+        return menu;
     };
     const auto base_window = [](auto header, auto footer, auto menu_item_id)
     {
@@ -1199,7 +1246,9 @@ namespace netxs::app::shared
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA01f0fc4);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
+                config.cd("/config/defapp/");
+                auto [menu_block, cover, menu_data] = app::shared::custom_menu(config, {});
+                auto menu = object->attach(slot::_1, menu_block);
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())

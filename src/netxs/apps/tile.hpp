@@ -842,7 +842,8 @@ namespace netxs::app::tile
                     };
                 });
 
-            object->attach(slot::_1, app::shared::custom_menu(faux,
+            config.cd("/config/tile/", "/config/defapp/");
+            auto [menu_block, cover, menu_data] = app::shared::custom_menu(config,
                     app::shared::menu_list_type
                     {
                         //  Green                                  ?Even    Red
@@ -931,20 +932,31 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                    }))
-                    ->colors(cB.fgc(), cB.bgc())
-                    ->plugin<pro::focus>()
-                    ->plugin<pro::track>()
-                    ->plugin<pro::acryl>()
-                    ->invoke([](auto& boss)
-                    {
-                        boss.keybd.active();
-                        boss.SUBMIT(tier::anycast, e2::form::quit, item)
-                        {
-                            boss.base::template riseup<tier::release>(e2::form::quit, item);
-                        };
                     });
-
+            object->attach(slot::_1, menu_block)
+                  ->plugin<pro::focus>()
+                  ->invoke([](auto& boss)
+                  {
+                      boss.keybd.active();
+                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      {
+                          boss.base::template riseup<tier::release>(e2::form::quit, item);
+                      };
+                  });
+            menu_data->colors(cB.fgc(), cB.bgc())
+                     ->plugin<pro::track>()
+                     ->plugin<pro::acryl>();
+            auto menu_id = menu_block->id;
+            cover->invoke([&](auto& boss)
+            {
+                auto bar = cell{ "▀"sv }.link(menu_id);
+                boss.SUBMIT_BYVAL(tier::release, e2::render::any, parent_canvas)
+                {
+                    auto menu_white = skin::color(tone::menu_white);
+                    auto fgc = menu_white.bgc();
+                    parent_canvas.fill([&](cell& c) { c.fgc(fgc).txt(bar).link(bar); });
+                };
+            });
             if (cwd.size())
             {
                 auto err = std::error_code{};
