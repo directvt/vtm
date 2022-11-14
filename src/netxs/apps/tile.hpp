@@ -946,9 +946,10 @@ namespace netxs::app::tile
             menu_data->colors(cB.fgc(), cB.bgc())
                      ->plugin<pro::track>()
                      ->plugin<pro::acryl>();
+            auto menu_id = menu_block->id;
             cover->invoke([&](auto& boss)
             {
-                auto bar = cell{ "▀"sv }.link(menu_block->id);
+                auto bar = cell{ "▀"sv }.link(menu_id);
                 boss.SUBMIT_BYVAL(tier::release, e2::render::any, parent_canvas)
                 {
                     auto menu_white = skin::color(tone::menu_white);

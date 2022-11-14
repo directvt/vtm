@@ -307,10 +307,10 @@ namespace netxs::app::term
 
             auto [slot1, cover, menu_data] = terminal_menu(config);
             auto menu = object->attach(slot::_1, slot1);
-
+            auto menu_id = slot1->id;
             cover->invoke([&](auto& boss)
             {
-                boss.colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+                boss.colors(cell{ cB }.inv(true).txt("▀"sv).link(menu_id));
                 boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
                 {
                     boss.color(boss.color().fgc(bg));
