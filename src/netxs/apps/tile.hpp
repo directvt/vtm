@@ -555,7 +555,7 @@ namespace netxs::app::tile
                         }
                         else item.SIGNAL(tier::release, hids::events::upevent::kbannul, gear); // Exclude grips.
                     };
-                    hook oneoff; // One-time return ticket.
+                    subs oneoff; // One-time return ticket.
                     boss.SUBMIT_BYVAL(tier::release, e2::form::maximize, gear)
                     {
                         if (auto boss_ptr = shadow.lock())
@@ -597,6 +597,10 @@ namespace netxs::app::tile
                                                 boss.attach(item_ptr);
                                                 boss.base::reflow();
                                             }
+                                            oneoff.reset();
+                                        };
+                                        fullscreen_item->SUBMIT_T(tier::release, e2::dtor, oneoff, item_ptr)
+                                        {
                                             oneoff.reset();
                                         };
                                         boss.base::template riseup<tier::release>(e2::form::proceed::attach, fullscreen_item);
@@ -722,7 +726,6 @@ namespace netxs::app::tile
                             }
                         }
                     };
-
                     boss.SUBMIT(tier::release, events::backup, empty_slot_list)
                     {
                         if (boss.count())
