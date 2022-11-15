@@ -5380,6 +5380,7 @@ namespace netxs::console
             simple            = !(legacy_mode & os::legacy::direct);
             glow_fx           = faux;
             is_standalone_app = true;
+            title             = "";
         }
         conf(xipc peer, si32 session_id, xml::settings& config)
             : session_id{ session_id }
