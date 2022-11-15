@@ -699,14 +699,7 @@ namespace netxs::app::tile
                                 auto current_default = e2::data::changed.param();
                                 gate.SIGNAL(tier::request, e2::data::changed, current_default);
 
-                                auto& conf_list = app::shared::get::configs();
-                                auto config = conf_list[current_default];
-
-                                auto& creator = app::shared::create::builder(config.type);
-                                auto object = creator(config.cwd, config.param, config.settings);
-                                if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
-                                if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
-                                if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+                                auto [object, config] = app::shared::create::go(current_default);
 
                                 auto app = app_window(config.title, "", object, current_default);
                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
