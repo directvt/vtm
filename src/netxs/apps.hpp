@@ -816,8 +816,8 @@ R"==(
 
             //todo pass whole s11n::configuration map
             auto object = creator(config.cwd, config.param, config.settings);
-            if (config.bgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
-            if (config.fgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
+            if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
+            if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
 
             window->attach(object);

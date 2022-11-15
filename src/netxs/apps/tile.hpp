@@ -703,15 +703,19 @@ namespace netxs::app::tile
                                 auto config = conf_list[current_default];
 
                                 auto& creator = app::shared::create::builder(config.type);
-                                auto host = creator(config.cwd, config.param, config.settings);
-                                auto app = app_window(config.title, "", host, current_default);
+                                auto object = creator(config.cwd, config.param, config.settings);
+                                if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
+                                if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
+                                if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+
+                                auto app = app_window(config.title, "", object, current_default);
                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                 boss.attach(app);
 
                                 //todo unify, demo limits
                                 {
                                     insts_count++;
-                                    host->SUBMIT(tier::release, e2::dtor, id)
+                                    object->SUBMIT(tier::release, e2::dtor, id)
                                     {
                                         insts_count--;
                                         log("tile: inst: detached: ", insts_count, " id=", id);
@@ -721,7 +725,7 @@ namespace netxs::app::tile
 
                                 //todo unify
                                 gear.kb_focus_changed = faux;
-                                host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                object->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                             }
                         }
                     };
