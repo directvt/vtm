@@ -830,7 +830,7 @@ namespace netxs::app::tile
                         gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
                         //todo unify
                         auto& config = objs_config[menu_item_id];
-                        if (config.type == menuitem_t::type_Region) // Reset the currently selected application to the previous one.
+                        if (config.type == menuitem_t::type_Group) // Reset the currently selected application to the previous one.
                         {
                             gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
                             gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
