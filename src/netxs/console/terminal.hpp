@@ -367,6 +367,7 @@ namespace netxs::ui
             si32        proto = prot::x11;
             si32        state = mode::none;
             si32        smode = owner.config.def_selmod; // m_tracking: Selection mode state backup.
+            si32        bttns = {}; // m_tracking: Last buttons state.
 
             void capture(hids& gear)
             {
@@ -401,6 +402,7 @@ namespace netxs::ui
                     case prot::w32: owner.ptycon.mouse(gear, moved, wheel);  break;
                     default: break;
                 }
+                bttns = gear.get_buttons();
             }
             // m_tracking: Serialize mouse state.
             template<prot PROT>
@@ -447,12 +449,13 @@ namespace netxs::ui
                     // Gone
                     case hids::events::halt.id:
                         release(gear);
-                        if (auto buttons = gear.get_buttons())
+                        if (bttns) // Release pressed mouse buttons.
                         {
-                            // Release pressed mouse buttons.
+                            auto buttons = bttns;
                             if (buttons & (1 << sysmouse::left  )) proceed<PROT>(gear, up_left);
                             if (buttons & (1 << sysmouse::middle)) proceed<PROT>(gear, up_mddl);
                             if (buttons & (1 << sysmouse::right )) proceed<PROT>(gear, up_rght);
+                            bttns = {};
                         }
                         break;
                     default:

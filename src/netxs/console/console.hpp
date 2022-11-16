@@ -5882,9 +5882,9 @@ namespace netxs::console
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::any, token, gear)
                     {
-                        forward_event(gear);
+                        gear.capture(bell::id); // To avoid unhandled mouse pull processing.
                     };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, token, gear)
+                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::any, token, gear)
                     {
                         forward_event(gear);
                     };
