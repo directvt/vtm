@@ -49,7 +49,7 @@ namespace netxs::app::term
 {
     using events = netxs::events::userland::term;
 
-    const auto terminal_menu = [](bool slim_size)
+    const auto terminal_menu = [](xml::settings& config)
     {
         auto highlight_color = skin::color(tone::highlight);
         auto c3 = highlight_color;
@@ -231,7 +231,8 @@ namespace netxs::app::term
                 };
             }},
         };
-        return app::shared::custom_menu(slim_size, items);
+        config.cd("/config/term/", "/config/defapp/");
+        return app::shared::custom_menu(config, items);
     };
 
     namespace
@@ -249,52 +250,12 @@ namespace netxs::app::term
                                                              ->plugin<pro::track>()
                                                              ->plugin<pro::acryl>()
                                                              ->plugin<pro::cache>();
-            auto autohide = config.take("/config/term/menu/autohide", faux);
-            auto menushow = config.take("/config/term/menu/enabled" , true);
-            auto menusize = config.take("/config/term/menu/slim"    , faux);
-            auto border = netxs::sptr<ui::mock>{};
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB.fgc(), cB.bgc());
-            auto slot1 = object->attach(slot::_1, ui::veer::ctor());
-            if (menushow)
-            {
-                auto menu = slot1->attach(terminal_menu(menusize));
-                if (autohide)
-                {
-                    border = slot1->attach(ui::mock::ctor())
-                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                  ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
-                }
-                slot1->invoke([&](auto& boss)
-                {
-                    auto menu_shadow = ptr::shadow(menu);
-                    auto boss_shadow = ptr::shadow(boss.This());
-                    boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
-                    {
-                        if (auto menu_ptr = menu_shadow.lock())
-                        if (auto boss_ptr = boss_shadow.lock())
-                        {
-                            auto& boss = *boss_ptr;
-                            if (!!hits != (boss.back() == menu_ptr))
-                            {
-                                boss.roll();
-                                boss.reflow();
-                            }
-                        }
-                    };
-                });
-            }
-            else
-            {
-                border = slot1->attach(ui::mock::ctor())
-                              ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                              ->colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
-            }
             auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
-                        {
                             auto min_size = twod{ 12,1 }; // mc crashes when window is too small
                             auto max_size = -dot_11;
                             auto forced_clamp = faux;
@@ -332,84 +293,78 @@ namespace netxs::app::term
                             auto shell = os::get_shell() + " -i";
                             auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config));
 
-                            inst->attach_property(ui::term::events::colors::bg,      app::term::events::colors::bg)
-                                ->attach_property(ui::term::events::colors::fg,      app::term::events::colors::fg)
-                                ->attach_property(ui::term::events::selmod,          app::term::events::selmod)
-                                ->attach_property(ui::term::events::layout::wrapln,  app::term::events::layout::wrapln)
-                                ->attach_property(ui::term::events::layout::align,   app::term::events::layout::align)
-                                ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
-                                ->invoke([](auto& boss)
-                                {
-                                    boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
-                                    {
-                                        boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
-                                    };
-                                    boss.SUBMIT(tier::anycast, app::term::events::data::in, data)
-                                    {
-                                        boss.data_in(data);
-                                    };
-                                    boss.SUBMIT(tier::anycast, app::term::events::data::out, data)
-                                    {
-                                        boss.data_out(data);
-                                    };
-                                    //todo add color picker to the menu
-                                    boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
-                                    {
-                                        boss.set_bg_color(bg);
-                                    };
-                                    boss.SUBMIT(tier::anycast, app::term::events::colors::fg, fg)
-                                    {
-                                        boss.set_fg_color(fg);
-                                    };
-                                    boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
-                                    {
-                                        auto deed = boss.bell::template protos<tier::anycast>();
-                                             if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::bg, clr);
-                                        else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::fg, clr);
-                                    };
-                                    boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                                    {
-                                        boss.start();
-                                    };
-                                    boss.SUBMIT(tier::anycast, app::term::events::search::forward, gear)
-                                    {
-                                        boss.search(gear, feed::fwd);
-                                    };
-                                    boss.SUBMIT(tier::anycast, app::term::events::search::reverse, gear)
-                                    {
-                                        boss.search(gear, feed::rev);
-                                    };
-                                });
-
                             auto scroll_bars = layers->attach(ui::fork::ctor());
                                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                                 auto hz = term_stat_area->attach(slot::_2, ui::grip_fx2<axis::X>::ctor(scroll))
                                                         ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
                                                         ->invoke([&](auto& boss)
                                                         {
-                                                            auto bg = ui::term::events::colors::bg.param();
-                                                            inst->SIGNAL(tier::request, ui::term::events::colors::bg, bg);
-                                                            boss.color(cell{}.bgc(bg));
-                                                            inst->SUBMIT(tier::release, e2::form::prop::brush, brush)
+                                                            boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
                                                             {
-                                                                auto b = brush;
-                                                                boss.color(b.txt(""));
+                                                                boss.color(boss.color().bgc(bg).txt(""));
                                                             };
                                                         });
-                                                    if (border)
-                                                    {
-                                                        border->invoke([&](auto& boss)
-                                                        {
-                                                            auto bg = ui::term::events::colors::bg.param();
-                                                            inst->SIGNAL(tier::request, ui::term::events::colors::bg, bg);
-                                                            boss.color(boss.color().fgc(bg));
-                                                            inst->SUBMIT(tier::release, e2::form::prop::brush, brush)
-                                                            {
-                                                                boss.color(boss.color().fgc(brush.bgc()));
-                                                            };
-                                                        });
-                                                    }
-                        }
+
+            auto [slot1, cover, menu_data] = terminal_menu(config);
+            auto menu = object->attach(slot::_1, slot1);
+            auto menu_id = slot1->id;
+            cover->invoke([&](auto& boss)
+            {
+                boss.colors(cell{ cB }.inv(true).txt("▀"sv).link(menu_id));
+                boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
+                {
+                    boss.color(boss.color().fgc(bg));
+                };
+            });
+
+            inst->attach_property(ui::term::events::colors::bg,      app::term::events::colors::bg)
+                ->attach_property(ui::term::events::colors::fg,      app::term::events::colors::fg)
+                ->attach_property(ui::term::events::selmod,          app::term::events::selmod)
+                ->attach_property(ui::term::events::layout::wrapln,  app::term::events::layout::wrapln)
+                ->attach_property(ui::term::events::layout::align,   app::term::events::layout::align)
+                ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
+                ->invoke([](auto& boss)
+                {
+                    boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
+                    {
+                        boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::data::in, data)
+                    {
+                        boss.data_in(data);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::data::out, data)
+                    {
+                        boss.data_out(data);
+                    };
+                    //todo add color picker to the menu
+                    boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
+                    {
+                        boss.set_bg_color(bg);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::colors::fg, fg)
+                    {
+                        boss.set_fg_color(fg);
+                    };
+                    boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
+                    {
+                        auto deed = boss.bell::template protos<tier::anycast>();
+                             if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::bg, clr);
+                        else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::fg, clr);
+                    };
+                    boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                    {
+                        boss.start();
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::search::forward, gear)
+                    {
+                        boss.search(gear, feed::fwd);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::search::reverse, gear)
+                    {
+                        boss.search(gear, feed::rev);
+                    };
+                });
             return window;
         };
     }

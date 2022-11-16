@@ -328,10 +328,12 @@ namespace netxs::events
         std::vector<hook> tokens;
 
     public:
+        operator bool () const     { return tokens.size();                                                   }
         void  admit(hook&& t)      {        tokens.push_back(std::forward<hook>(t));                         }
         hook& extra()              { return tokens.emplace_back();                                           }
         auto  count() const        { return tokens.size();                                                   }
         void  clear()              {        tokens.clear();                                                  }
+        void  reset()              {        tokens.clear();                                                  }
         void  merge(subs const& m) {        tokens.insert( tokens.end(), m.tokens.begin(), m.tokens.end() ); }
     };
 

@@ -259,7 +259,6 @@ namespace netxs::ansi
     static const auto CCC_CHY    = 22 ; // CSI 22: y       p  - caret V absolute position 0-based.
     static const auto CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
     static const auto CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
-    static const auto CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
     static const auto CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
 
     static const auto CCC_SGR    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
@@ -728,7 +727,6 @@ namespace netxs::ansi
         auto& rlf_or(feed n)     { return add("\033[18:", n  , CSI_CCC); } // esc: Reverse line feed.
         auto& idx(si32 i)        { return add("\033[19:", i  , CSI_CCC); } // esc: Split the text run and associate the fragment with an id.
         auto& ref(si32 i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
-        auto& ext(si32 b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
         auto& show_mouse(si32 b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
     };
 
@@ -782,7 +780,6 @@ namespace netxs::ansi
     static auto mgr(si32 n)           { return esc{}.mgr(n);        } // ansi: Right margin.
     static auto mgt(si32 n)           { return esc{}.mgt(n);        } // ansi: Top margin.
     static auto mgb(si32 n)           { return esc{}.mgb(n);        } // ansi: Bottom margin.
-    static auto ext(bool b)           { return esc{}.ext(b);        } // ansi: Extended functionality.
     static auto fcs(bool b)           { return esc{}.fcs(b);        } // ansi: Terminal window focus.
     static auto jet(bias n)           { return esc{}.jet(n);        } // ansi: Text alignment.
     static auto wrp(wrap n)           { return esc{}.wrp(n);        } // ansi: Text wrapping.
@@ -1126,7 +1123,6 @@ namespace netxs::ansi
                     csi_ccc[CCC_IDX] = nullptr;
                     csi_ccc[CCC_REF] = nullptr;
                     csi_ccc[CCC_SBS] = nullptr;
-                    csi_ccc[CCC_EXT] = nullptr;
                     csi_ccc[CCC_SMS] = nullptr;
                     csi_ccc[CCC_SGR] = nullptr;
                     csi_ccc[CCC_SEL] = nullptr;
@@ -2352,7 +2348,6 @@ namespace netxs::ansi
             STRUCT(mouse_stop,        (id_t, gear_id))
             STRUCT(mouse_halt,        (id_t, gear_id))
             STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
-            STRUCT(native,            (bool, mode)) // CCC_EXT/* 25:1p */
             STRUCT(unknown_gc,        (ui64, token))
             STRUCT(fps,               (si32, frame_rate))
             STRUCT(bgc,               (rgba, color))
@@ -2633,7 +2628,6 @@ namespace netxs::ansi
                 X(mouse_stop       ) /* Mouse disconnected.                           */\
                 X(mouse_halt       ) /* Mouse leaves window.                          */\
                 X(mouse_show       ) /* Show mouse cursor.                            */\
-                X(native           ) /* Set native/desktopio mode.                    */\
                 X(request_gc       ) /* Unknown gc token list.                        */\
                 X(unknown_gc       ) /* Unknown gc token.                             */\
                 X(fps              ) /* Set frame rate.                               */\

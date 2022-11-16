@@ -215,7 +215,6 @@ namespace netxs::events::userland
                 EVENT_XS( mouse   , const console::sysmouse ), // release: mouse activity.
                 EVENT_XS( keybd   , const console::syskeybd ), // release: keybd activity.
                 EVENT_XS( winsz   , const twod              ), // release: order to update terminal primary overlay.
-                EVENT_XS( native  , const bool              ), // release: extended functionality.
                 EVENT_XS( preclose, const bool              ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
                 EVENT_XS( quit    , const text              ), // release: quit, arg: text - bye msg.
                 EVENT_XS( pointer , const bool              ), // release: mouse pointer visibility.
@@ -5155,11 +5154,6 @@ namespace netxs::console
             auto& item = lock.thing;
             notify(e2::conio::pointer, item.mode);
         }
-        void handle(s11n::xs::native      lock)
-        {
-            auto& item = lock.thing;
-            notify(e2::conio::native, item.mode);
-        }
         void handle(s11n::xs::request_gc  lock)
         {
             auto& items = lock.thing;
@@ -5386,6 +5380,7 @@ namespace netxs::console
             simple            = !(legacy_mode & os::legacy::direct);
             glow_fx           = faux;
             is_standalone_app = true;
+            title             = "";
         }
         conf(xipc peer, si32 session_id, xml::settings& config)
             : session_id{ session_id }
@@ -5449,7 +5444,6 @@ namespace netxs::console
         bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
-        bool  native = faux; //gate: Extended functionality support.
         bool  fullscreen = faux; //gate: Fullscreen mode.
         si32  legacy = os::legacy::clean;
 
@@ -5694,10 +5688,6 @@ namespace netxs::console
                 SUBMIT_T(tier::release, e2::conio::unknown, token, unkstate)
                 {
                 };
-                SUBMIT_T(tier::release, e2::conio::native, token, extended)
-                {
-                    native = extended;
-                };
                 SUBMIT_T(tier::release, e2::conio::pointer, token, pointer)
                 {
                     legacy |= pointer ? os::legacy::mouse : 0;
@@ -5743,14 +5733,7 @@ namespace netxs::console
                     {
                         auto temp = text{};
                         temp.reserve(newheader.length());
-                        if (native)
-                        {
-                            temp = newheader;
-                        }
-                        else
-                        {
-                            para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
-                        }
+                        para{ newheader }.lyric->utf8(temp);
                         log("gate: title changed to '", temp, ansi::nil().add("'"));
                         conio.output(ansi::header(temp));
                     }
@@ -5899,9 +5882,9 @@ namespace netxs::console
                     };
                     SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::any, token, gear)
                     {
-                        forward_event(gear);
+                        gear.capture(bell::id); // To avoid unhandled mouse pull processing.
                     };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, token, gear)
+                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::any, token, gear)
                     {
                         forward_event(gear);
                     };
@@ -5909,7 +5892,6 @@ namespace netxs::console
                 else
                 {
                     input.check_focus();
-                    conio.output(ansi::ext(true));
                     if (props.title.size())
                     {
                         conio.output(ansi::header(props.title));
@@ -5942,6 +5924,7 @@ namespace netxs::console
             title.live = faux;
             if (!props.is_standalone_app)
             {
+                //todo move it to the desk (dragging)
                 mouse.draggable<sysmouse::leftright>(true);
                 mouse.draggable<sysmouse::left>(true);
                 SUBMIT(tier::release, e2::form::drag::start::any, gear)
@@ -6025,7 +6008,9 @@ namespace netxs::console
                           : debug.start();
                 }
                 //todo unify
+                //todo move it to the desk
                 //if (gear.meta(hids::CTRL | hids::RCTRL))
+                if (!props.is_standalone_app)
                 {
                     //todo unify
                     auto pgup = keystrokes == "\033[5;5~"s

@@ -271,7 +271,8 @@ namespace netxs::app::logs
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB.fgc(), cB.bgc());
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux,
+                config.cd("/config/logs/", "/config/defapp/");
+                auto [menu_block, cover, menu_data] = app::shared::custom_menu(config,
                     app::shared::menu_list_type{
                             //todo use it only in conjunction with the terminal
                             //{ true, "Codepoints", " Toggle button: Show or not codepoints ",
@@ -299,7 +300,8 @@ namespace netxs::app::logs
                                     gear.dismiss(true);
                                 };
                             }},
-                        }));
+                        });
+                auto menu = object->attach(slot::_1, menu_block);
                 auto layers = object->attach(slot::_2, ui::cake::ctor());
                     auto scroll = layers->attach(ui::rail::ctor());
                     scroll->attach(base::create<post_logs>())

@@ -555,7 +555,7 @@ namespace netxs::app::tile
                         }
                         else item.SIGNAL(tier::release, hids::events::upevent::kbannul, gear); // Exclude grips.
                     };
-                    hook oneoff; // One-time return ticket.
+                    subs oneoff; // One-time return ticket.
                     boss.SUBMIT_BYVAL(tier::release, e2::form::maximize, gear)
                     {
                         if (auto boss_ptr = shadow.lock())
@@ -597,6 +597,10 @@ namespace netxs::app::tile
                                                 boss.attach(item_ptr);
                                                 boss.base::reflow();
                                             }
+                                            oneoff.reset();
+                                        };
+                                        fullscreen_item->SUBMIT_T(tier::release, e2::dtor, oneoff, item_ptr)
+                                        {
                                             oneoff.reset();
                                         };
                                         boss.base::template riseup<tier::release>(e2::form::proceed::attach, fullscreen_item);
@@ -699,19 +703,16 @@ namespace netxs::app::tile
                                 auto current_default = e2::data::changed.param();
                                 gate.SIGNAL(tier::request, e2::data::changed, current_default);
 
-                                auto& conf_list = app::shared::get::configs();
-                                auto config = conf_list[current_default];
+                                auto [object, config] = app::shared::create::go(current_default);
 
-                                auto& creator = app::shared::create::builder(config.type);
-                                auto host = creator(config.cwd, config.param, config.settings);
-                                auto app = app_window(config.title, "", host, current_default);
+                                auto app = app_window(config.title, "", object, current_default);
                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                 boss.attach(app);
 
                                 //todo unify, demo limits
                                 {
                                     insts_count++;
-                                    host->SUBMIT(tier::release, e2::dtor, id)
+                                    object->SUBMIT(tier::release, e2::dtor, id)
                                     {
                                         insts_count--;
                                         log("tile: inst: detached: ", insts_count, " id=", id);
@@ -721,11 +722,10 @@ namespace netxs::app::tile
 
                                 //todo unify
                                 gear.kb_focus_changed = faux;
-                                host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                object->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                             }
                         }
                     };
-
                     boss.SUBMIT(tier::release, events::backup, empty_slot_list)
                     {
                         if (boss.count())
@@ -833,7 +833,7 @@ namespace netxs::app::tile
                         gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
                         //todo unify
                         auto& config = objs_config[menu_item_id];
-                        if (config.type == menuitem_t::type_Region) // Reset the currently selected application to the previous one.
+                        if (config.type == menuitem_t::type_Group) // Reset the currently selected application to the previous one.
                         {
                             gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
                             gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
@@ -842,7 +842,8 @@ namespace netxs::app::tile
                     };
                 });
 
-            object->attach(slot::_1, app::shared::custom_menu(faux,
+            config.cd("/config/tile/", "/config/defapp/");
+            auto [menu_block, cover, menu_data] = app::shared::custom_menu(config,
                     app::shared::menu_list_type
                     {
                         //  Green                                  ?Even    Red
@@ -931,20 +932,31 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                    }))
-                    ->colors(cB.fgc(), cB.bgc())
-                    ->plugin<pro::focus>()
-                    ->plugin<pro::track>()
-                    ->plugin<pro::acryl>()
-                    ->invoke([](auto& boss)
-                    {
-                        boss.keybd.active();
-                        boss.SUBMIT(tier::anycast, e2::form::quit, item)
-                        {
-                            boss.base::template riseup<tier::release>(e2::form::quit, item);
-                        };
                     });
-
+            object->attach(slot::_1, menu_block)
+                  ->plugin<pro::focus>()
+                  ->invoke([](auto& boss)
+                  {
+                      boss.keybd.active();
+                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      {
+                          boss.base::template riseup<tier::release>(e2::form::quit, item);
+                      };
+                  });
+            menu_data->colors(cB.fgc(), cB.bgc())
+                     ->plugin<pro::track>()
+                     ->plugin<pro::acryl>();
+            auto menu_id = menu_block->id;
+            cover->invoke([&](auto& boss)
+            {
+                auto bar = cell{ "▀"sv }.link(menu_id);
+                boss.SUBMIT_BYVAL(tier::release, e2::render::any, parent_canvas)
+                {
+                    auto menu_white = skin::color(tone::menu_white);
+                    auto fgc = menu_white.bgc();
+                    parent_canvas.fill([&](cell& c) { c.fgc(fgc).txt(bar).link(bar); });
+                };
+            });
             if (cwd.size())
             {
                 auto err = std::error_code{};
