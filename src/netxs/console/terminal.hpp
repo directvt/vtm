@@ -367,6 +367,7 @@ namespace netxs::ui
             si32        proto = prot::x11;
             si32        state = mode::none;
             si32        smode = owner.config.def_selmod; // m_tracking: Selection mode state backup.
+            si32        bttns = {}; // m_tracking: Last buttons state.
 
             void capture(hids& gear)
             {
@@ -401,6 +402,7 @@ namespace netxs::ui
                     case prot::w32: owner.ptycon.mouse(gear, moved, wheel);  break;
                     default: break;
                 }
+                bttns = gear.get_buttons();
             }
             // m_tracking: Serialize mouse state.
             template<prot PROT>
@@ -447,12 +449,13 @@ namespace netxs::ui
                     // Gone
                     case hids::events::halt.id:
                         release(gear);
-                        if (auto buttons = gear.get_buttons())
+                        if (bttns) // Release pressed mouse buttons.
                         {
-                            // Release pressed mouse buttons.
+                            auto buttons = bttns;
                             if (buttons & (1 << sysmouse::left  )) proceed<PROT>(gear, up_left);
                             if (buttons & (1 << sysmouse::middle)) proceed<PROT>(gear, up_mddl);
                             if (buttons & (1 << sysmouse::right )) proceed<PROT>(gear, up_rght);
+                            bttns = {};
                         }
                         break;
                     default:
@@ -884,7 +887,6 @@ namespace netxs::ui
                 vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q);    }; // CCC_SBS: Set scrollback size.
-                vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); }; // CCC_EXT: Setup extended functionality.
                 vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->owner.setdef();     }; // CCC_RST: Reset to defaults.
                 vt.csier.table[CSI_CCC][CCC_SGR] = VT_PROC{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
                 vt.csier.table[CSI_CCC][CCC_SEL] = VT_PROC{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
@@ -6384,12 +6386,6 @@ namespace netxs::ui
             auto ring_size = queue(config.def_length);
             auto grow_step = queue(config.def_growup);
             normal.resize_history(ring_size, grow_step);
-        }
-        // term: Extended functionality response.
-        void native(bool are_u)
-        {
-            auto response = ansi::ext(are_u);
-            answer(response);
         }
         // term: Write tty data and flush the queue.
         void answer(ansi::esc& queue)

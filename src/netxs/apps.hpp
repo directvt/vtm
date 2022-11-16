@@ -476,7 +476,7 @@ R"==(
                 auto scrl_list = scrl_rail->attach(ui::list::ctor(axis::X));
 
                 auto scroll_hint = ui::park::ctor();
-                auto hints = scroll_hint->attach(snap::stretch, snap::tail, ui::grip_fx<axis::X>::ctor(scrl_rail));
+                auto hints = scroll_hint->attach(snap::stretch, menusize ? snap::center : snap::tail, ui::grip_fx<axis::X>::ctor(scrl_rail));
 
                 auto scrl_grip = scrl_area->attach(scroll_hint);
 
@@ -804,22 +804,24 @@ R"==(
                 }
             }
         };
-        auto at = [](auto& world, auto& what)
+        auto go = [](auto& menuid)
         {
             auto& conf_list = app::shared::get::configs();
-            auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(config.title, config.footer, what.menuid);
+            auto& config = conf_list[menuid];
+            auto& creator = app::shared::create::builder(config.type);
+            auto object = creator(config.cwd, config.param, config.settings);
+            if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
+            if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
+            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+            return std::pair{ object, config };
+        };
+        auto at = [](auto& world, auto& what)
+        {
+            auto [object, config] = app::shared::create::go(what.menuid);
 
+            auto window = app::shared::base_window(config.title, config.footer, what.menuid);
             if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
             else                                window->extend(what.square);
-            auto& creator = builder(config.type);
-
-            //todo pass whole s11n::configuration map
-            auto object = creator(config.cwd, config.param, config.settings);
-            if (config.bgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
-            if (config.fgc)  object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
-            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
-
             window->attach(object);
             log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
             world.branch(what.menuid, window, !config.hidden);
