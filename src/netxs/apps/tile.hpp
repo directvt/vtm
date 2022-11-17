@@ -1050,6 +1050,7 @@ namespace netxs::app::tile
                     };
                     boss.SUBMIT(tier::release, hids::events::upevent::kboffer, gear)
                     {
+                        // Set focus to all panes.
                         boss.SIGNAL(tier::anycast, app::tile::events::ui::select, gear);
                         gear.dismiss(true);
                     };
