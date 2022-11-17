@@ -731,8 +731,10 @@ R"==(
             [&](text, text, xml::settings&) -> sptr<base>
             {
                 auto window = ui::cake::ctor()
+                    ->plugin<pro::focus>()
                     ->invoke([&](auto& boss)
                     {
+                        boss.keybd.accept(true);
                         closing_on_quit(boss);
                         closing_by_gesture(boss);
                         boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
