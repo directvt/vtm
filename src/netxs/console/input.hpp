@@ -1028,6 +1028,7 @@ namespace netxs::input
         }
         void take(sysfocus const& f)
         {
+            kb_focus_changed = faux; //todo unify, see base::upevent handler
             if (f.enabled)
             {
                 auto s = state();
@@ -1038,8 +1039,6 @@ namespace netxs::input
             }
             else
             {
-                //todo unify, see base::upevent handler
-                kb_focus_changed = faux;
                 owner.bell::template signal<tier::release>(kbannul_event, *this);
             }
         }
