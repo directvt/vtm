@@ -1329,7 +1329,7 @@ namespace netxs::console
                     };
                 }
                 parent_shadow = parent_ptr;
-                // Propagate form events up to the visual branch.
+                // Propagate form events up to the visual branch ends (children).
                 // Exec after all subscriptions.
                 //todo implement via e2::cascade
                 parent_ptr->SUBMIT_T(tier::release, hids::events::upevent::any, kb_token, gear)
