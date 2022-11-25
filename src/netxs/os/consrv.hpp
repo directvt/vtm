@@ -487,22 +487,18 @@ struct consrv
                 signal.notify_one();
             }
         }
-        void mouse(input::hids& gear, bool moved, bool wheel, bool duple)
+        void mouse(input::hids& gear, twod const& coord, bool moved)
         {
-            auto state = os::ms_kbstate(gear.ctlstate);
-            auto bttns = ui32{};
-            if (gear.buttons[input::sysmouse::left  ].pressed) bttns |= FROM_LEFT_1ST_BUTTON_PRESSED;
-            if (gear.buttons[input::sysmouse::right ].pressed) bttns |= RIGHTMOST_BUTTON_PRESSED;
-            if (gear.buttons[input::sysmouse::middle].pressed) bttns |= FROM_LEFT_2ND_BUTTON_PRESSED;
-            if (gear.buttons[input::sysmouse::wheel ].pressed) bttns |= FROM_LEFT_3RD_BUTTON_PRESSED;
-            if (gear.buttons[input::sysmouse::win   ].pressed) bttns |= FROM_LEFT_4TH_BUTTON_PRESSED;
+            auto state = gear.m.winctrl;
+            auto bttns = gear.m.bitstat;
             auto flags = ui32{};
-            if (duple) flags |= DOUBLE_CLICK;
-            if (moved) flags |= MOUSE_MOVED;
-            if (wheel) // MOUSE_HWHEELED not used.
+            if (moved         ) flags |= MOUSE_MOVED;
+            if (gear.m.doubled) flags |= DOUBLE_CLICK;
+            if (gear.m.wheeldt)
             {
-                flags |= MOUSE_WHEELED;
-                bttns |= gear.whldt << 16;
+                     if (gear.m.wheeled) flags |= MOUSE_WHEELED;
+                else if (gear.m.hzwheel) flags |= MOUSE_HWHEELED;
+                bttns |= gear.m.wheeldt << 16;
             }
 
             auto lock = std::lock_guard{ locker };
@@ -515,8 +511,8 @@ struct consrv
                     {
                         .dwMousePosition =
                         {
-                            .X = (si16)std::min<si32>(gear.coord.x + server.uiterm.origin.x, std::numeric_limits<si16>::max()),
-                            .Y = (si16)std::min<si32>(gear.coord.y + server.uiterm.origin.y, std::numeric_limits<si16>::max()),
+                            .X = (si16)std::min<si32>(coord.x, std::numeric_limits<si16>::max()),
+                            .Y = (si16)std::min<si32>(coord.y, std::numeric_limits<si16>::max()),
                         },
                         .dwButtonState     = bttns,
                         .dwControlKeyState = state,

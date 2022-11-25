@@ -258,12 +258,12 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( left     , bool ),
                     EVENT_XS( right    , bool ),
-                    EVENT_XS( leftright, bool ),
                     EVENT_XS( middle   , bool ),
                     EVENT_XS( wheel    , bool ),
                     EVENT_XS( win      , bool ),
+                    EVENT_XS( leftright, bool ),
 
-                    INDEX_XS( left, right, leftright, middle, wheel, win ),
+                    INDEX_XS( left, right, middle, wheel, win, leftright ),
                 };
                 SUBSET_XS( layout )
                 {
@@ -412,45 +412,45 @@ namespace netxs::events::userland
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
-                        EVENT_XS( leftright, input::hids ),
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
 
-                        INDEX_XS( left, right, leftright, middle, wheel, win ),
+                        INDEX_XS( left, right, middle, wheel, win, leftright ),
                     };
                     SUBSET_XS( pull )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
-                        EVENT_XS( leftright, input::hids ),
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
 
-                        INDEX_XS( left, right, leftright, middle, wheel, win ),
+                        INDEX_XS( left, right, middle, wheel, win, leftright ),
                     };
                     SUBSET_XS( cancel )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
-                        EVENT_XS( leftright, input::hids ),
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
 
-                        INDEX_XS( left, right, leftright, middle, wheel, win ),
+                        INDEX_XS( left, right, middle, wheel, win, leftright ),
                     };
                     SUBSET_XS( stop )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
-                        EVENT_XS( leftright, input::hids ),
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
 
-                        INDEX_XS( left, right, leftright, middle, wheel, win ),
+                        INDEX_XS( left, right, middle, wheel, win, leftright ),
                     };
                 };
                 SUBSET_XS( prop )
@@ -3367,7 +3367,7 @@ namespace netxs::console
                 // pro::mouse: Forward all not expired mouse events to all parents.
                 boss.SUBMIT_T(tier::release, hids::events::mouse::any, memo, gear)
                 {
-                    if (gear && !gear.locks)
+                    if (gear && !gear.captured())
                     {
                         auto& offset = boss.base::coor();
                         gear.pass<tier::release>(boss.parent(), offset);
@@ -3415,10 +3415,10 @@ namespace netxs::console
                         default:
                         case e2::form::draggable::left     .id: draggable<sysmouse::left     >(enabled); break;
                         case e2::form::draggable::right    .id: draggable<sysmouse::right    >(enabled); break;
-                        case e2::form::draggable::leftright.id: draggable<sysmouse::leftright>(enabled); break;
                         case e2::form::draggable::middle   .id: draggable<sysmouse::middle   >(enabled); break;
                         case e2::form::draggable::wheel    .id: draggable<sysmouse::wheel    >(enabled); break;
                         case e2::form::draggable::win      .id: draggable<sysmouse::win      >(enabled); break;
+                        case e2::form::draggable::leftright.id: draggable<sysmouse::leftright>(enabled); break;
                     }
                 };
             }

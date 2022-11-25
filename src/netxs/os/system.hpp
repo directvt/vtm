@@ -3413,18 +3413,6 @@ namespace netxs::os
                 auto reply = std::vector<INPUT_RECORD>(1);
                 auto count = DWORD{};
                 fd_t waits[] = { STDIN_FD, signal };
-
-                auto xlate_bttns = [](auto bttns)
-                {
-                    auto b = ui32{};
-                    b |= bttns & FROM_LEFT_1ST_BUTTON_PRESSED ? (1 << input::sysmouse::left  ) : 0;
-                    b |= bttns & RIGHTMOST_BUTTON_PRESSED     ? (1 << input::sysmouse::right ) : 0;
-                    b |= bttns & FROM_LEFT_2ND_BUTTON_PRESSED ? (1 << input::sysmouse::middle) : 0;
-                    b |= bttns & FROM_LEFT_3RD_BUTTON_PRESSED ? (1 << input::sysmouse::wheel ) : 0;
-                    b |= bttns & FROM_LEFT_4TH_BUTTON_PRESSED ? (1 << input::sysmouse::win   ) : 0;
-                    return b;
-                };
-
                 auto& kbstate = _globals<void>::kbmod;
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
@@ -3474,7 +3462,7 @@ namespace netxs::os
                                             0,
                                             os::kbstate(kbstate, reply.Event.MouseEvent.dwControlKeyState),
                                             reply.Event.MouseEvent.dwControlKeyState,
-                                            xlate_bttns(reply.Event.MouseEvent.dwButtonState),
+                                            reply.Event.MouseEvent.dwButtonState & 0b00111111,
                                             reply.Event.MouseEvent.dwEventFlags,
                                             static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
                                             twod{ reply.Event.MouseEvent.dwMousePosition.X, reply.Event.MouseEvent.dwMousePosition.Y });
@@ -3777,21 +3765,19 @@ namespace netxs::os
 
                                                             if (ctl == 35 &&(m.buttons[input::sysmouse::left  ]
                                                                           || m.buttons[input::sysmouse::middle]
-                                                                          || m.buttons[input::sysmouse::right ]
-                                                                          || m.buttons[input::sysmouse::win   ]))
+                                                                          || m.buttons[input::sysmouse::right ]))
                                                             {
                                                                 // Moving without buttons (case when second release not fired: apple's terminal.app)
-                                                                m.buttons[input::sysmouse::left  ] = faux;
-                                                                m.buttons[input::sysmouse::middle] = faux;
-                                                                m.buttons[input::sysmouse::right ] = faux;
-                                                                m.buttons[input::sysmouse::win   ] = faux;
+                                                                m.buttons[input::sysmouse::left  ].test_and_set(faux);
+                                                                m.buttons[input::sysmouse::middle].test_and_set(faux);
+                                                                m.buttons[input::sysmouse::right ].test_and_set(faux);
                                                                 m.update_buttons();
                                                                 //notify(e2::conio::mouse, m);
                                                                 wired.mouse.send(ipcio,
                                                                     0,
                                                                     m.ctlstat,
                                                                     0, // winctrl
-                                                                    m.get_sysbuttons(),
+                                                                    m.bitstat,
                                                                     m.get_msflags(),
                                                                     m.wheeldt,
                                                                     m.coor);
@@ -3805,7 +3791,7 @@ namespace netxs::os
                                                                     0,
                                                                     m.ctlstat,
                                                                     0, // winctrl
-                                                                    m.get_sysbuttons(),
+                                                                    m.bitstat,
                                                                     m.get_msflags(),
                                                                     m.wheeldt,
                                                                     m.coor);
@@ -3813,17 +3799,9 @@ namespace netxs::os
                                                             }
                                                             switch (ctl)
                                                             {
-                                                                case 0: m.buttons[input::sysmouse::left  ] = ispressed; break;
-                                                                case 1: m.buttons[input::sysmouse::middle] = ispressed; break;
-                                                                case 2: m.buttons[input::sysmouse::right ] = ispressed; break;
-                                                                case 3: m.buttons[input::sysmouse::win   ] = ispressed; break;
-                                                                    //if (!ispressed) // WinSrv2019 vtmouse bug workaround
-                                                                    //{               //  - release any button always fires winbt release
-                                                                    //	m.button[sysmouse::left  ] = ispressed;
-                                                                    //	m.button[sysmouse::middle] = ispressed;
-                                                                    //	m.button[sysmouse::right ] = ispressed;
-                                                                    //}
-                                                                    //break;
+                                                                case 0: m.buttons[input::sysmouse::left  ].test_and_set(ispressed); break;
+                                                                case 1: m.buttons[input::sysmouse::middle].test_and_set(ispressed); break;
+                                                                case 2: m.buttons[input::sysmouse::right ].test_and_set(ispressed); break;
                                                                 case 64:
                                                                     m.wheeled = true;
                                                                     m.wheeldt = 1;
@@ -3846,7 +3824,7 @@ namespace netxs::os
                                                                     0,
                                                                     m.ctlstat,
                                                                     0, // winctrl
-                                                                    m.get_sysbuttons(),
+                                                                    m.bitstat,
                                                                     m.get_msflags(),
                                                                     m.wheeldt,
                                                                     m.coor);
@@ -4517,10 +4495,10 @@ namespace netxs::os
                 con_serv.events.keybd(gear, decckm);
             #endif
         }
-        void mouse(input::hids& gear, bool moved, bool wheeled, bool dblclick = faux)
+        void mouse(input::hids& gear, twod const& coord, bool moved)
         {
             #if defined(_WIN32)
-                con_serv.events.mouse(gear, moved, wheeled, dblclick);
+                con_serv.events.mouse(gear, coord, moved);
             #endif
         }
         void write(view data)

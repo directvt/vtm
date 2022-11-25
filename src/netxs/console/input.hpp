@@ -25,6 +25,7 @@ namespace netxs::events::userland
             GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
             GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
             GROUP_XS( upevent, input::hids ), // events streamed up (to children) of the visual tree by base::.
+            GROUP_XS( device , input::hids ), // Primary device event group for forwarding purposes.
 
             SUBSET_XS( clipbrd )
             {
@@ -114,7 +115,6 @@ namespace netxs::events::userland
             SUBSET_XS( mouse )
             {
                 EVENT_XS( move   , input::hids ),
-                EVENT_XS( shuffle, input::hids ), // movement within one cell.
                 EVENT_XS( focus  , input::hids ),
                 GROUP_XS( button , input::hids ),
                 GROUP_XS( scroll , input::hids ),
@@ -137,48 +137,48 @@ namespace netxs::events::userland
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
-                        EVENT_XS( leftright, input::hids ),
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
                     };
                     SUBSET_XS( down )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
-                        EVENT_XS( leftright, input::hids ),
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
                     };
                     SUBSET_XS( click )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
-                        EVENT_XS( leftright, input::hids ),
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
 
-                        INDEX_XS( left, right, leftright, middle, wheel, win ),
+                        INDEX_XS( left, right, middle, wheel, win, leftright ),
                     };
                     SUBSET_XS( dblclick )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
-                        EVENT_XS( leftright, input::hids ),
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
                     };
                     SUBSET_XS( tplclick )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
-                        EVENT_XS( leftright, input::hids ),
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
                     };
                     SUBSET_XS( drag )
                     {
@@ -191,45 +191,45 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( left     , input::hids ),
                             EVENT_XS( right    , input::hids ),
-                            EVENT_XS( leftright, input::hids ),
                             EVENT_XS( middle   , input::hids ),
                             EVENT_XS( wheel    , input::hids ),
                             EVENT_XS( win      , input::hids ),
+                            EVENT_XS( leftright, input::hids ),
 
-                            INDEX_XS( left, right, leftright, middle, wheel, win ),
+                            INDEX_XS( left, right, middle, wheel, win, leftright ),
                         };
                         SUBSET_XS( pull )
                         {
                             EVENT_XS( left     , input::hids ),
                             EVENT_XS( right    , input::hids ),
-                            EVENT_XS( leftright, input::hids ),
                             EVENT_XS( middle   , input::hids ),
                             EVENT_XS( wheel    , input::hids ),
                             EVENT_XS( win      , input::hids ),
+                            EVENT_XS( leftright, input::hids ),
 
-                            INDEX_XS( left, right, leftright, middle, wheel, win ),
+                            INDEX_XS( left, right,  middle, wheel, win, leftright ),
                         };
                         SUBSET_XS( cancel )
                         {
                             EVENT_XS( left     , input::hids ),
                             EVENT_XS( right    , input::hids ),
-                            EVENT_XS( leftright, input::hids ),
                             EVENT_XS( middle   , input::hids ),
                             EVENT_XS( wheel    , input::hids ),
                             EVENT_XS( win      , input::hids ),
+                            EVENT_XS( leftright, input::hids ),
 
-                            INDEX_XS( left, right, leftright, middle, wheel, win ),
+                            INDEX_XS( left, right, middle, wheel, win, leftright ),
                         };
                         SUBSET_XS( stop )
                         {
                             EVENT_XS( left     , input::hids ),
                             EVENT_XS( right    , input::hids ),
-                            EVENT_XS( leftright, input::hids ),
                             EVENT_XS( middle   , input::hids ),
                             EVENT_XS( wheel    , input::hids ),
                             EVENT_XS( win      , input::hids ),
+                            EVENT_XS( leftright, input::hids ),
 
-                            INDEX_XS( left, right, leftright, middle, wheel, win ),
+                            INDEX_XS( left, right, middle, wheel, win, leftright ),
                         };
                     };
                 };
@@ -238,6 +238,11 @@ namespace netxs::events::userland
             {
                 EVENT_XS( set, input::hids ), // release: Set keybd focus.
                 EVENT_XS( off, input::hids ), // release: Off keybd focus.
+            };
+            SUBSET_XS( device )
+            {
+                EVENT_XS( mouse, input::hids ), // release: Primary mouse event for forwarding purposes.
+                //EVENT_XS( keybd, input::hids ), // release: Primary keybd event for forwarding purposes.
             };
         };
     };
@@ -259,6 +264,7 @@ namespace netxs::input
     class sysmouse
     {
         using usable = netxs::events::userland::hids::mouse::button::click;
+        using test = testy<bool>;
 
     public:
         static constexpr auto numofbutton = 6;
@@ -266,10 +272,10 @@ namespace netxs::input
         {
             left      = usable::left     .index(),
             right     = usable::right    .index(),
-            leftright = usable::leftright.index(),
             middle    = usable::middle   .index(),
             wheel     = usable::wheel    .index(),
             win       = usable::win      .index(),
+            leftright = usable::leftright.index(),
             total     = numofbutton,
         };
         enum class stat
@@ -279,18 +285,19 @@ namespace netxs::input
             die,
         };
 
-        twod coor = dot_mx;            // sysmouse: Cursor coordinates.
-        stat control = stat::ok;        // sysmouse: Mouse status.
-        bool buttons[numofbutton] = {}; // sysmouse: Button states.
-        bool ismoved = faux;           // sysmouse: Movement through the cells.
-        bool shuffle = faux;           // sysmouse: Movement inside the cell.
-        bool doubled = faux;           // sysmouse: Double click.
-        bool wheeled = faux;           // sysmouse: Vertical scroll wheel.
-        bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
-        si32 wheeldt = 0;              // sysmouse: Scroll delta.
-        id_t      id = 0;              // sysmouse: Gear id.
-        ui32 ctlstat = 0;
-        ui32 winctrl = 0;
+        twod coor = dot_mx;        // sysmouse: Cursor coordinates.
+        stat control = stat::ok;   // sysmouse: Mouse status.
+        test buttons[numofbutton]; // sysmouse: Button states.
+        bool ismoved = {};         // sysmouse: Movement through the cells.
+        bool shuffle = {};         // sysmouse: Movement inside the cell.
+        bool doubled = {};         // sysmouse: Double click.
+        bool wheeled = {};         // sysmouse: Vertical scroll wheel.
+        bool hzwheel = {};         // sysmouse: Horizontal scroll wheel.
+        si32 wheeldt = {};         // sysmouse: Scroll delta.
+        id_t      id = {};         // sysmouse: Gear id.
+        ui32 ctlstat = {};         // sysmouse: Keybd modifiers state.
+        ui32 winctrl = {};         // sysmouse: Windows specific keybd modifier state.
+        ui32 bitstat = {};         // sysmouse: Button bit state.
 
         bool operator != (sysmouse const& m) const
         {
@@ -299,7 +306,7 @@ namespace netxs::input
             {
                 for (auto i = 0; i < numofbutton && result; i++)
                 {
-                    result &= buttons[i] == m.buttons[i];
+                    result &= buttons[i].last == m.buttons[i].last;
                 }
                 result &= ismoved == m.ismoved
                        && doubled == m.doubled
@@ -311,51 +318,46 @@ namespace netxs::input
         }
         void update_buttons()
         {
+            bitstat = {};
+            for (auto i = 0; i < leftright; i++)
+            {
+                if (buttons[i]) bitstat |= 1 << i;
+            }
+
             // Interpret button combinations
             //todo possible bug in Apple's Terminal - it does not return the second release
             //                                        in case the two buttons are pressed.
-            buttons[leftright] = (buttons[left     ] && buttons[right])
-                              || (buttons[leftright] && buttons[left ])
-                              || (buttons[leftright] && buttons[right]);
+            buttons[leftright].test_and_set( (buttons[left]      && buttons[right])
+                                          || (buttons[leftright] && buttons[left ])
+                                          || (buttons[leftright] && buttons[right]) );
         }
         // sysmouse: Set buttons using bit field.
         void set_buttons(si32 bitfield)
         {
             for (auto i = 0; i < leftright; i++) // Skip LeftRight. LeftRight is set by sysmouse::update_buttons().
             {
-                buttons[i] = bitfield & (1 << i);
+                buttons[i].test_and_set(bitfield & (1 << i));
             }
-            for (auto i = leftright + 1; i < numofbutton; i++)
-            {
-                buttons[i] = bitfield & (1 << i);
-            }
+            bitstat = bitfield & (std::numeric_limits<ui32>::max() >> (32 - numofbutton));
         }
-        // sysmouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
-        template<class T>
-        static si32 get_buttons(T& buttons)
-        {
-            si32 bitfield = 0;
-            for (auto i = 0; i < numofbutton; i++)
-            {
-                if (buttons[i].pressed) bitfield |= 1 << i;
-            }
-            return bitfield;
-        }
-        // sysmouse: .
-        ui32 get_sysbuttons()
-        {
-            ui32 bitfield = 0;
-            for (auto i = 0; i < numofbutton; i++)
-            {
-                if (buttons[i]) bitfield |= 1 << i;
-            }
-            return bitfield;
-        }
-        // sysmouse: .
+        // sysmouse: Get windows specific mouse flags.
         ui32 get_msflags()
         {
-            return (wheeldt ? (1 << 2) : 0)
-                 | (hzwheel ? (1 << 3) : 0);
+            auto flags = ui32{};
+            if (doubled) flags |= 1 << 1; //DOUBLE_CLICK
+            if (wheeldt) flags |= 1 << 2; //MOUSE_WHEELED
+            if (hzwheel) flags |= 1 << 3; //MOUSE_HWHEELED
+            return flags;
+        }
+        friend auto& operator << (std::ostream& s, sysmouse const& m)
+        {
+            return s << "{ " << "b=" << utf::to_bin((byte)m.buttons[sysmouse::total].last)
+                             << "\n coor="    << m.coor
+                             << "\n wheeled=" << m.wheeled
+                             << "\n wheeldt=" << m.wheeldt
+                             << "\n ctlstat=" << m.ctlstat
+                             << "\n doubled=" << m.doubled
+                             << " }";
         }
     };
 
@@ -429,8 +431,8 @@ namespace netxs::input
         enum bttns
         {
             first = sysmouse::left     ,
-            midst = sysmouse::middle   ,
             other = sysmouse::right    ,
+            midst = sysmouse::middle   ,
             third = sysmouse::wheel    ,
             extra = sysmouse::win      ,
             joint = sysmouse::leftright,
@@ -447,7 +449,6 @@ namespace netxs::input
         static constexpr auto dblclick = mouse_event::button::dblclick::    any.group<total>();
         static constexpr auto tplclick = mouse_event::button::tplclick::    any.group<total>();
         static constexpr auto movement = mouse_event::move.id;
-        static constexpr auto idleness = mouse_event::shuffle.id;
         static constexpr auto scrollup = mouse_event::scroll::up.id;
         static constexpr auto scrolldn = mouse_event::scroll::down.id;
 
@@ -483,7 +484,6 @@ namespace netxs::input
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner.
         id_t   hover = 0;       // mouse: Hover control ID.
         id_t   start = 0;       // mouse: Initiator control ID.
-        //hint   cause = e2::any; // mouse: Current event id.
         hint   cause = 0; // mouse: Current event id.
         bool   debug = faux; // mouse: Trace mouse events.
 
@@ -499,194 +499,198 @@ namespace netxs::input
         knob buttons[sysmouse::total];
         idxs pressed_list;
         idxs flipped_list;
+        sysmouse m;
 
-        void update(sysmouse m)
+        void update(sysmouse const& m0)
         {
-            //if (m.shuffle)
-            //{
-            //	//mouse.coord = m.coor;
-            //	//action(idleness);
-            //}
-            //else
+            m = m0;
+            auto busy = captured();
+            if (busy && fire_fast()) //todo fire_fast on mods press
             {
-                if (m.buttons[joint])
+                delta.set(m.coor - prime);
+                coord = m.coor;
+                prime = m.coor;
+                action(movement); // Update mouse enter/leave state.
+                return;
+            }
+
+            if (m.buttons[joint])
+            {
+                if (buttons[first].dragged)
                 {
-                    if (buttons[first].dragged)
-                    {
-                        buttons[first].dragged = faux;
-                        action(dragcncl, first);
-                    }
-                    if (buttons[other].dragged)
-                    {
-                        buttons[other].dragged = faux;
-                        action(dragcncl, other);
-                    }
-                    m.buttons[first] = faux;
-                    m.buttons[other] = faux;
+                    buttons[first].dragged = faux;
+                    action(dragcncl, first);
                 }
-
-                // In order to avoid single button tracking (Click, Pull, etc)
-                buttons[first].succeed = !(m.buttons[joint] || buttons[joint].pressed);
-                buttons[other].succeed = buttons[first].succeed;
-
-                auto sysptr = std::begin(m.buttons);
-                auto genptr = std::begin(  buttons);
-                if (m.ismoved)
+                if (buttons[other].dragged)
                 {
-                    delta.set(m.coor - prime);
-                    for (auto i = 0; i < total; i++)
-                    {
-                        auto& genbtn = *genptr++;
-                        auto& sysbtn = *sysptr++;
-                        if (sysbtn)
-                        {
-                            if (genbtn.flipped)
-                            {
-                                genbtn.flipped = faux;
-                                if (buttons[i].succeed)
-                                {
-                                    genbtn.dragged = true;
-                                    action(dragstrt, i);
-                                }
-                            }
-                            pressed_list.push_back(i);
-                        }
-                    }
-
-                    //delta.set(m.coor - prime);
-
-                    coord = m.coor;
-                    prime = m.coor;
-
-                    if (pressed_list.size())
-                    {
-                        for (auto i : pressed_list)
-                        {
-                            if (buttons[i].succeed)
-                            {
-                                action(dragpull, i);
-                            }
-                        }
-                        pressed_list.clear();
-                    }
-
-                    action(movement);
-
-                    sysptr = std::begin(m.buttons);
-                    genptr = std::begin(  buttons);
+                    buttons[other].dragged = faux;
+                    action(dragcncl, other);
                 }
+                m.buttons[first] = faux;
+                m.buttons[other] = faux;
+            }
 
+            // In order to avoid single button tracking (Click, Pull, etc)
+            buttons[first].succeed = !(m.buttons[joint] || buttons[joint].pressed);
+            buttons[other].succeed = buttons[first].succeed;
+
+            auto sysptr = std::begin(m.buttons);
+            auto genptr = std::begin(  buttons);
+            if (m.ismoved)
+            {
+                delta.set(m.coor - prime);
                 for (auto i = 0; i < total; i++)
                 {
                     auto& genbtn = *genptr++;
                     auto& sysbtn = *sysptr++;
-
-                    genbtn.flipped = genbtn.pressed(sysbtn);
-                    if (genbtn.flipped)
-                    {
-                        flipped_list.push_back(i);
-                    }
                     if (sysbtn)
                     {
+                        if (genbtn.flipped)
+                        {
+                            genbtn.flipped = faux;
+                            if (buttons[i].succeed)
+                            {
+                                genbtn.dragged = true;
+                                action(dragstrt, i);
+                            }
+                        }
                         pressed_list.push_back(i);
                     }
                 }
 
                 coord = m.coor;
-                if (debug) // Overlay needs current values for every frame
+                prime = m.coor;
+
+                if (pressed_list.size())
+                {
+                    for (auto i : pressed_list)
+                    {
+                        if (buttons[i].succeed)
+                        {
+                            action(dragpull, i);
+                        }
+                    }
+                    pressed_list.clear();
+                }
+
+                action(movement);
+
+                sysptr = std::begin(m.buttons);
+                genptr = std::begin(  buttons);
+            }
+
+            if (!busy && fire_fast()) return;
+
+            for (auto i = 0; i < total; i++)
+            {
+                auto& genbtn = *genptr++;
+                auto& sysbtn = *sysptr++;
+
+                genbtn.flipped = genbtn.pressed(sysbtn);
+                if (genbtn.flipped)
+                {
+                    flipped_list.push_back(i);
+                }
+                if (sysbtn)
+                {
+                    pressed_list.push_back(i);
+                }
+            }
+
+            coord = m.coor;
+            if (debug) // Overlay needs current values for every frame
+            {
+                scrll = m.wheeled;
+                hzwhl = m.hzwheel;
+                whldt = m.wheeldt;
+            }
+            // Double clicks is a win32 console story only.
+            // We catch them ourselves.
+            //if (m.doubled && pressed_list.size())
+            //{
+            //	for (auto i : pressed_list)
+            //	{
+            //		action(dblclick, i);
+            //	}
+            //}
+            //else if (m.wheeled)
+            if (m.wheeled)
+            {
+                if (debug == faux)
                 {
                     scrll = m.wheeled;
                     hzwhl = m.hzwheel;
                     whldt = m.wheeldt;
-                }
-                // Double clicks is a win32 console only story.
-                // We catch them ourselves.
-                //if (m.doubled && pressed_list.size())
-                //{
-                //	for (auto i : pressed_list)
-                //	{
-                //		action(dblclick, i);
-                //	}
-                //}
-                //else if (m.wheeled)
-                if (m.wheeled)
-                {
-                    if (debug == faux)
-                    {
-                        scrll = m.wheeled;
-                        hzwhl = m.hzwheel;
-                        whldt = m.wheeldt;
-                        action(m.wheeldt > 0 ? scrollup : scrolldn);
-                        scrll = faux;
-                        hzwhl = faux;
-                        whldt = 0;
-                    }
-                    else
-                    {
-                        action(m.wheeldt > 0 ? scrollup : scrolldn);
-                    }
+                    action(m.wheeldt > 0 ? scrollup : scrolldn);
+                    scrll = faux;
+                    hzwhl = faux;
+                    whldt = 0;
                 }
                 else
                 {
-                    for (auto i : flipped_list)
+                    action(m.wheeldt > 0 ? scrollup : scrolldn);
+                }
+            }
+            else
+            {
+                for (auto i : flipped_list)
+                {
+                    auto& b = buttons[i];
+                    if (b.pressed)
                     {
-                        auto& b = buttons[i];
-                        if (b.pressed)
+                        action(pushdown, i);
+                    }
+                    else
+                    {
+                        if (b.dragged)
                         {
-                            action(pushdown, i);
+                            b.dragged = faux;
+                            action(dragstop, i);
                         }
                         else
                         {
-                            if (b.dragged)
+                            if (b.succeed)
                             {
-                                b.dragged = faux;
-                                action(dragstop, i);
+                                action(sglclick, i);
                             }
-                            else
+                            if (!nodbl)
                             {
-                                if (b.succeed)
+                                // Fire a double/triple-click if delay is not expired
+                                // and the mouse is at the same position.
+                                auto& s = stamp[i];
+                                auto fired = tempus::now();
+                                if (fired - s.fired < delay && s.coord == coord)
                                 {
-                                    action(sglclick, i);
-                                }
-                                if (!nodbl)
-                                {
-                                    // Fire double/triple-click if delay is not expired
-                                    // and the mouse at the same position.
-                                    auto& s = stamp[i];
-                                    auto fired = tempus::now();
-                                    if (fired - s.fired < delay && s.coord == coord)
+                                    if (b.succeed)
                                     {
-                                        if (b.succeed)
+                                        if (s.count == 1)
                                         {
-                                            if (s.count == 1)
-                                            {
-                                                action(dblclick, i);
-                                                s.fired = fired;
-                                                s.count = 2;
-                                            }
-                                            else if (s.count == 2)
-                                            {
-                                                action(tplclick, i);
-                                                s.fired = {};
-                                                s.count = {};
-                                            }
+                                            action(dblclick, i);
+                                            s.fired = fired;
+                                            s.count = 2;
+                                        }
+                                        else if (s.count == 2)
+                                        {
+                                            action(tplclick, i);
+                                            s.fired = {};
+                                            s.count = {};
                                         }
                                     }
-                                    else
-                                    {
-                                        s.fired = fired;
-                                        s.coord = coord;
-                                        s.count = 1;
-                                    }
+                                }
+                                else
+                                {
+                                    s.fired = fired;
+                                    s.coord = coord;
+                                    s.count = 1;
                                 }
                             }
-                            action(released, i);
                         }
+                        action(released, i);
                     }
                 }
-                if (flipped_list.size()) flipped_list.clear();
-                if (pressed_list.size()) pressed_list.clear();
             }
+            if (flipped_list.size()) flipped_list.clear();
+            if (pressed_list.size()) pressed_list.clear();
         }
         template<class TT>
         void action(TT const& event_subset, si32 _index)
@@ -701,6 +705,7 @@ namespace netxs::input
         }
 
         virtual void fire(hint cause) = 0;
+        virtual bool fire_fast() = 0;
 
         // mouse: Initiator of visual tree informing about mouse enters/leaves.
         template<bool ENTERED>
@@ -733,7 +738,7 @@ namespace netxs::input
         // mouse: Is the mouse seized/captured?
         bool captured() const
         {
-            return locks != 0;
+            return swift;
         }
         // mouse: Seize specified mouse control.
         bool capture(id_t asker)
@@ -753,11 +758,6 @@ namespace netxs::input
             locks = force ? 0
                           : locks & ~(1 << index);
             if (!locks) swift = {};
-        }
-        // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
-        si32 get_buttons()
-        {
-            return sysmouse::get_buttons(mouse::buttons);
         }
     };
 
@@ -831,6 +831,8 @@ namespace netxs::input
         static constexpr auto focus_off     = events::focus::off          .id;
         static constexpr auto halt_event    = events::halt                .id;
         static constexpr auto die_event     = events::die                 .id;
+        static constexpr auto m_device      = events::device::mouse       .id;
+        //static constexpr auto k_device = events::device::keybd.id;
 
     public:
         bell& owner;
@@ -1018,7 +1020,7 @@ namespace netxs::input
             winctrl  = m.winctrl;
             disabled = faux;
             mouse::update(m);
-            push = mouse::get_buttons();
+            push = m.bitstat;
         }
         void take(syskeybd const& k)
         {
@@ -1050,14 +1052,14 @@ namespace netxs::input
         {
             if (object)
             {
-                auto temp = coord;
-                coord += offset;
+                auto temp = mouse::coord;
+                mouse::coord += offset;
                 if (relative)
                 {
                     object->global(coord);
                 }
                 object->bell::template signal<TIER>(mouse::cause, *this);
-                coord = temp;
+                mouse::coord = temp;
             }
         }
         void mouse_leave(id_t last_id, id_t start_id)
@@ -1152,6 +1154,27 @@ namespace netxs::input
 
                 owner.bell::template signal<tier::release>(cause, *this); // Pass unhandled event to the gate.
             }
+        }
+        bool fire_fast()
+        {
+            if (disabled) return true;
+            alive = true;
+            auto next_id = mouse::swift ? mouse::swift
+                                        : idmap.link(m.coor);
+            if (next_id != owner.id)
+            {
+                if (auto next_ptr = bell::getref(next_id))
+                {
+                    auto& next = *next_ptr;
+                    auto  temp = m.coor;
+                    m.coor += idmap.coor();
+                    next.global(m.coor);
+                    next.bell::template signal<tier::release>(m_device, *this);
+                    m.coor = temp;
+                }
+                else if (mouse::swift == next_id) mouse::setfree();
+            }
+            return !alive;
         }
         void fire_keybd()
         {

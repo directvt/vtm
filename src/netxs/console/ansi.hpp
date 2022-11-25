@@ -674,14 +674,104 @@ namespace netxs::ansi
             osc_palette(15, rgba::color256[tint::whitelt  ]);
             return *this;
         }
-        auto& mouse_sgr(si32 ctrl, twod const& coor, bool ispressed) // esc: Mouse tracking report (SGR).
+        template<class T>
+        auto& mouse_sgr(T const& gear, twod const& coor) // esc: Mouse tracking report (SGR).
         {
+            using hids = T;
+            using sysmouse = decltype(gear.m);
+            static constexpr auto left     = si32{ 0  };
+            static constexpr auto mddl     = si32{ 1  };
+            static constexpr auto rght     = si32{ 2  };
+            static constexpr auto btup     = si32{ 3  };
+            static constexpr auto idle     = si32{ 32 };
+            static constexpr auto wheel_up = si32{ 64 };
+            static constexpr auto wheel_dn = si32{ 65 };
+
+            auto ctrl = si32{};
+            if (gear.m.ctlstat & hids::anyShift) ctrl |= 0x04;
+            if (gear.m.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
+            if (gear.m.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+
+            auto& m_left = gear.m.buttons[sysmouse::left  ];
+            auto& m_rght = gear.m.buttons[sysmouse::right ];
+            auto& m_mddl = gear.m.buttons[sysmouse::middle];
+            auto& m_stat = gear.m.bitstat;
+            auto pressed = bool{};
+
+            if (m_left.test)
+            {
+                ctrl |= left;
+                pressed = m_left;
+            }
+            else if (m_rght.test)
+            {
+                ctrl |= rght;
+                pressed = m_rght;
+            }
+            else if (m_mddl.test)
+            {
+                ctrl |= mddl;
+                pressed = m_mddl;
+            }
+            else if (gear.m.wheeled)
+            {
+                ctrl |= gear.m.wheeldt > 0 ? wheel_up
+                                           : wheel_dn;
+                pressed = true;
+            }
+            else if (m_stat)
+            {
+                     if (m_left) ctrl |= left;
+                else if (m_rght) ctrl |= rght;
+                else if (m_mddl) ctrl |= mddl;
+                ctrl |= idle;
+                pressed = true;
+            }
+            else
+            {
+                ctrl |= idle + btup;
+                pressed = faux;
+            }
             return add("\033[<", ctrl, ';',
                            coor.x + 1, ';',
-                           coor.y + 1, ispressed ? 'M' : 'm');
+                           coor.y + 1, pressed ? 'M' : 'm');
         }
-        auto& mouse_x11(si32 ctrl, twod const& coor) // esc: Mouse tracking report (X11).
+        template<class T>
+        auto& mouse_x11(T const& gear, twod const& coor) // esc: Mouse tracking report (X11).
         {
+            using hids = T;
+            using sysmouse = decltype(gear.m);
+            static constexpr auto left     = si32{ 0  };
+            static constexpr auto mddl     = si32{ 1  };
+            static constexpr auto rght     = si32{ 2  };
+            static constexpr auto btup     = si32{ 3  };
+            static constexpr auto idle     = si32{ 32 };
+            static constexpr auto wheel_up = si32{ 64 };
+            static constexpr auto wheel_dn = si32{ 65 };
+
+            auto ctrl = si32{};
+            if (gear.m.ctlstat & hids::anyShift) ctrl |= 0x04;
+            if (gear.m.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
+            if (gear.m.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+
+            auto& m_left = gear.m.buttons[sysmouse::left  ];
+            auto& m_rght = gear.m.buttons[sysmouse::right ];
+            auto& m_mddl = gear.m.buttons[sysmouse::middle];
+            auto& m_stat = gear.m.bitstat;
+
+                 if (m_left.test) ctrl |= m_left ? left : btup;
+            else if (m_rght.test) ctrl |= m_rght ? rght : btup;
+            else if (m_mddl.test) ctrl |= m_mddl ? mddl : btup;
+            else if (gear.m.wheeled) ctrl |= gear.m.wheeldt > 0 ? wheel_up
+                                                                : wheel_dn;
+            else if (m_stat)
+            {
+                     if (m_left) ctrl |= left;
+                else if (m_rght) ctrl |= rght;
+                else if (m_mddl) ctrl |= mddl;
+                ctrl |= idle;
+            }
+            else ctrl |= idle + btup;
             return add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 255-32) + 32),
                                  static_cast<char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
                                  static_cast<char>(std::clamp(coor.y + 1, 1, 255-32) + 32));

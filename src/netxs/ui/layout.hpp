@@ -2252,7 +2252,8 @@ namespace netxs::ui::atoms
             target = canvas;
             return region.size;
         }
-        void copy(core& dest) const // core: Copy only grid of the canvas to the specified core.
+        template<class Face>
+        void copy(Face& dest) const // core: Copy only grid of the canvas to the specified core.
         {
             dest.size(region.size);
             dest.canvas = canvas;

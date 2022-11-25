@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.6j"
+#define DESKTOPIO_VER "v0.9.6k"
 #define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_MYPATH "vtm"
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
                 {
                     log("user: new gate for ", client);
                     auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config);
-                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems; About; ", config);
+                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems;About;", config);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }
