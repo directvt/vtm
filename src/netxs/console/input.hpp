@@ -351,7 +351,7 @@ namespace netxs::input
         }
         friend auto& operator << (std::ostream& s, sysmouse const& m)
         {
-            return s << "{ " << "b=" << utf::to_bin((byte)m.buttons[sysmouse::total].last)
+            return s << "{ " << "b=" << utf::to_bin((byte)m.bitstat)
                              << "\n coor="    << m.coor
                              << "\n wheeled=" << m.wheeled
                              << "\n wheeldt=" << m.wheeldt
@@ -463,6 +463,54 @@ namespace netxs::input
             bool        succeed = { true };
         };
 
+        auto& take_button_state()
+        {
+            auto head = button_state_str.begin();
+            for (auto i = 0; i < total; i++)
+            {
+                *head++ = buttons[i].pressed.prev;
+                *head++ = buttons[i].pressed.last;
+                *head++ = buttons[i].pressed.test;
+                *head++ = buttons[i].flipped     ;
+                *head++ = buttons[i].dragged     ;
+                *head++ = buttons[i].succeed     ;
+            }
+            return button_state_str;
+        }
+        auto load_button_state(view button_state_str)
+        {
+            if (button_state_str.size() != sysmouse::total * 6 /*size of knob*/)
+            {
+                log("hids: Unexpected button state length ", button_state_str.size());
+                return;
+            }
+            auto head = button_state_str.begin();
+            for (auto i = 0; i < total; i++)
+            {
+                buttons[i].pressed.prev = *head++;
+                buttons[i].pressed.last = *head++;
+                buttons[i].pressed.test = *head++;
+                buttons[i].flipped      = *head++;
+                buttons[i].dragged      = *head++;
+                buttons[i].succeed      = *head++;
+            }
+        }
+        auto wipe_button_state()
+        {
+            for (auto i = 0; i < total; i++)
+            {
+                m.buttons[i] = faux;
+                buttons[i].pressed = faux;
+
+                ////buttons[i].pressed.prev = faux;
+                ////buttons[i].pressed.last = faux;
+                ////buttons[i].pressed.test = faux;
+                buttons[i].flipped      = faux;
+                buttons[i].dragged      = faux;
+                buttons[i].succeed      = faux;
+            }
+        }
+
         template<class LAW>
         auto fader(period spell)
         {
@@ -496,6 +544,7 @@ namespace netxs::input
         stamp[sysmouse::total] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
         static constexpr auto delay = 500ms;   // mouse: Double-click threshold.
 
+        text button_state_str = text(6 * total, 0);
         knob buttons[sysmouse::total];
         idxs pressed_list;
         idxs flipped_list;
@@ -940,11 +989,12 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint cause, twod const& coor)
+        void replay(hint cause, twod const& coor, qiew button_state)
         {
             alive = true;
             coord = coor;
             mouse::cause = cause;
+            mouse::load_button_state(button_state);
         }
         auto state()
         {

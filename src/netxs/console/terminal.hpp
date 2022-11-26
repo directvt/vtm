@@ -6326,7 +6326,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (onlogs) SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
                 ansi::parse(data, target);
             });
         }
@@ -6335,7 +6335,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (onlogs) SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
                 ansi::parse(data, target);
             });
         }
@@ -7080,7 +7080,7 @@ namespace netxs::ui
                     auto& gear = *gear_ptr;
                     if (gear.captured(owner.id)) gear.setfree(true);
                     log("   event ", m.cause);
-                    gear.replay(m.cause, m.coord + owner.base::coor());
+                    gear.replay(m.cause, m.coord + owner.base::coor(), m.buttons);
                     gear.pass<tier::release>(parent_ptr, owner.base::coor());
                     if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                     {
@@ -7460,7 +7460,7 @@ namespace netxs::ui
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 if (ptycon) ptycon.stop();
-                else        base::riseup<tier::release>(e2::form::quit, item);
+                else        this->base::riseup<tier::release>(e2::form::quit, item);
             };
             SUBMIT(tier::release, e2::coor::any, coor)
             {

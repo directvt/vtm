@@ -2414,7 +2414,7 @@ namespace netxs::ansi
             STRUCT(frame_element,     (frag, data))
             STRUCT(jgc_element,       (ui64, token) (text, cluster))
             STRUCT(tooltip_element,   (id_t, gear_id) (text, tip_text))
-            STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord))
+            STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord)  (text, buttons))
             STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
             STRUCT(request_clipboard, (id_t, gear_id))
             STRUCT(set_focus,         (id_t, gear_id) (bool, combine_focus) (bool, force_group_focus))

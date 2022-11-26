@@ -5826,7 +5826,7 @@ namespace netxs::console
                 {
                     log("event id ", gear.mouse::cause);
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    conio.mouse_event.send(canal, ext_gear_id, gear.mouse::cause, gear.coord);
+                    conio.mouse_event.send(canal, ext_gear_id, gear.mouse::cause, gear.coord, gear.take_button_state());
                     gear.dismiss();
                 };
                 if (direct) // Forward unhandled events outside.
@@ -5894,6 +5894,8 @@ namespace netxs::console
                     SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, token, gear) // Only pull::any to avoid double drag::stop/cancel.
                     {
                         forward_event(gear);
+                        gear.setfree();
+                        gear.wipe_button_state();
                     };
                 }
                 else
@@ -6046,7 +6048,7 @@ namespace netxs::console
             {
                 if (gear.clear_clip_data())
                 {
-                    bell::template expire<tier::release>();
+                    this->bell::template expire<tier::release>();
                     gear.dismiss();
                 }
             };
