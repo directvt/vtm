@@ -745,6 +745,7 @@ namespace netxs::input
         {
             if (!swift || swift == asker)
             {
+                log("capture id ", asker);
                 swift = asker;
                 if (index != mouse::none) locks |= 1 << index;
                 return true;

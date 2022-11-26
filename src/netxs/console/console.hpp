@@ -4213,6 +4213,7 @@ namespace netxs::console
                     if (boss.size().inside(gear.coord)
                     && !gear.kbmod())
                     {
+                        log("d_n_d start ", boss.id, " captured by ", gear.swift);
                         drags = true;
                         coord = gear.coord;
                         under = {};
@@ -4220,18 +4221,22 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, memo, gear)
                 {
+                    log("d_n_d pull ", boss.id , " drags ", drags?"on":"off", " captured by ", gear.swift);
+
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              coord = gear.coord - gear.delta.get();
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::any, memo, gear)
                 {
+                    log("d_n_d stop ", boss.id , " drags ", drags?"on":"off", " captured by ", gear.swift);
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              proceed(true);
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::any, memo, gear)
                 {
+                    log("d_n_d cancel ", boss.id , " drags ", drags?"on":"off", " captured by ", gear.swift);
                     if (!drags) return;
                     //todo revise (panoramic scrolling with left + right)
                     //proceed(faux);
@@ -5819,9 +5824,9 @@ namespace netxs::console
 
                 auto forward_event = [&](hids& gear)
                 {
-                    auto deed = bell::protos<tier::release>();
+                    log("event id ", gear.mouse::cause);
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    conio.mouse_event.send(canal, ext_gear_id, deed, gear.coord);
+                    conio.mouse_event.send(canal, ext_gear_id, gear.mouse::cause, gear.coord);
                     gear.dismiss();
                 };
                 if (direct) // Forward unhandled events outside.
@@ -5855,7 +5860,8 @@ namespace netxs::console
                     };
                     SUBMIT_T(tier::release, e2::form::maximize, token, gear)
                     {
-                        forward_event(gear);
+                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                        conio.maximize.send(conio, ext_gear_id);
                     };
                     SUBMIT_T(tier::release, hids::events::notify::keybd::test, token, from_gear)
                     {
@@ -5883,8 +5889,9 @@ namespace netxs::console
                     SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::any, token, gear)
                     {
                         gear.capture(bell::id); // To avoid unhandled mouse pull processing.
+                        forward_event(gear);
                     };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::any, token, gear)
+                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, token, gear) // Only pull::any to avoid double drag::stop/cancel.
                     {
                         forward_event(gear);
                     };

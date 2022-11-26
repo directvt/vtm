@@ -2419,6 +2419,7 @@ namespace netxs::ansi
             STRUCT(request_clipboard, (id_t, gear_id))
             STRUCT(set_focus,         (id_t, gear_id) (bool, combine_focus) (bool, force_group_focus))
             STRUCT(off_focus,         (id_t, gear_id))
+            STRUCT(maximize,          (id_t, gear_id))
             STRUCT(form_header,       (id_t, window_id) (text, new_header))
             STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
             STRUCT(warping,           (id_t, window_id) (dent, warpdata))
@@ -2697,6 +2698,7 @@ namespace netxs::ansi
                 X(request_clipboard) /* Request main clipboard data.                  */\
                 X(off_focus        ) /* Request to remove focus.                      */\
                 X(set_focus        ) /* Request to set focus.                         */\
+                X(maximize         ) /* Request to maximize/restore                   */\
                 X(form_header      ) /* Set window title.                             */\
                 X(form_footer      ) /* Set window footer.                            */\
                 X(warping          ) /* Warp resize.                                  */\

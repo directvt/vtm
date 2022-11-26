@@ -7056,6 +7056,19 @@ namespace netxs::ui
                 }
                 //todo full strike to redraw with new clusters
             }
+            void handle(s11n::xs::maximize            lock)
+            {
+                auto& m = lock.thing;
+                auto lock_ui = events::sync{};
+                if (auto ptr = bell::getref(m.gear_id))
+                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto parent_ptr = owner.base::parent())
+                {
+                    auto& gear = *gear_ptr;
+                    if (gear.captured(owner.id)) gear.setfree(true);
+                    parent_ptr->riseup<tier::release>(e2::form::maximize, gear);
+                }
+            };
             void handle(s11n::xs::mouse_event         lock)
             {
                 auto& m = lock.thing;
@@ -7066,11 +7079,7 @@ namespace netxs::ui
                 {
                     auto& gear = *gear_ptr;
                     if (gear.captured(owner.id)) gear.setfree(true);
-                    if (m.cause == e2::form::maximize.id) //todo make it as a s11n object like expose do
-                    {
-                        parent_ptr->riseup<tier::release>(e2::form::maximize, gear);    
-                        return;
-                    }
+                    log("   event ", m.cause);
                     gear.replay(m.cause, m.coord + owner.base::coor());
                     gear.pass<tier::release>(parent_ptr, owner.base::coor());
                     if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
