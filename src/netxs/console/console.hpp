@@ -5052,7 +5052,8 @@ namespace netxs::console
         {
             netxs::events::enqueue(owner, [d = data](auto& boss) mutable
             {
-                boss.SIGNAL(TIER, E{}, d);
+                //boss.SIGNAL(TIER, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
+                boss.bell::template signal<TIER>(E::id, static_cast<typename E::type &&>(d));
             });
         }
         void handle(s11n::xs::focus       lock)

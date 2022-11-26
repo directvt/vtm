@@ -989,7 +989,7 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint cause, twod const& coor, qiew button_state)
+        void replay(hint cause, twod const& coor, view button_state)
         {
             alive = true;
             coord = coor;
