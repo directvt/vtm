@@ -487,10 +487,10 @@ struct consrv
                 signal.notify_one();
             }
         }
-        void mouse(input::hids& gear, twod const& coord, bool moved)
+        void mouse(input::hids& gear, bool moved, twod const& coord)
         {
             auto state = gear.m.winctrl;
-            auto bttns = gear.m.bitstat;
+            auto bttns = gear.m.buttons & 0b00011111;
             auto flags = ui32{};
             if (moved         ) flags |= MOUSE_MOVED;
             if (gear.m.doubled) flags |= DOUBLE_CLICK;

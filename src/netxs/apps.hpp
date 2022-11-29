@@ -229,6 +229,7 @@ R"==(
             <preview enabled=true size=80x25 />
         </clipboard>
         <viewport coor=0,0 />
+        <mouse dblclick=500ms />
         <tooltip timeout=500ms enabled=true />
         <glowfx=true />                      <!-- Show glow effect around selected item. -->
         <debug overlay=faux toggle="🐞" />  <!-- Display console debug info. -->

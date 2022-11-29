@@ -246,15 +246,14 @@ namespace netxs::ui
             testy<twod> coord; // m_tracking: Last coord of mouse cursor.
             ansi::esc   queue; // m_tracking: Buffer.
             subs        token; // m_tracking: Subscription token.
-            bool        moved; // m_tracking: .
             si32        proto; // m_tracking: .
             si32        state; // m_tracking: .
             si32        smode; // m_tracking: Selection mode state backup.
             si32        bttns; // m_tracking: Last buttons state.
+            sysmouse    saved; // m_tracking: Last mouse state.
 
             m_tracking(term& owner)
                 : owner{ owner                   },
-                  moved{ faux                    },
                   proto{ prot::x11               },
                   state{ mode::none              },
                   smode{ owner.config.def_selmod },
@@ -265,11 +264,9 @@ namespace netxs::ui
 
             void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
             {
-                auto& m = gear.m;
-                auto& lbutton = m.buttons[sysmouse::left];
-                auto& rbutton = m.buttons[sysmouse::right];
-                auto& mbutton = m.buttons[sysmouse::middle];
-                if (rbutton.last && rbutton.test)
+                auto m = std::bitset<8>{ gear.m.buttons };
+                auto s = std::bitset<8>{ saved. buttons };
+                if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
                     auto gear_test = e2::form::state::keybd::find.param();
                     gear_test.first = gear.id;
@@ -285,8 +282,8 @@ namespace netxs::ui
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }
-                else if ((lbutton.last && lbutton.test)
-                      || (mbutton.last && mbutton.test))
+                else if ((m[hids::buttons::left  ] && !s[hids::buttons::left  ])
+                      || (m[hids::buttons::middle] && !s[hids::buttons::middle]))
                 {
                     auto gear_test = e2::form::state::keybd::find.param();
                     gear_test.first = gear.id;
@@ -313,18 +310,22 @@ namespace netxs::ui
                         {
                             if (gear.captured(owner.id))
                             {
-                                if (!gear.m.bitstat) gear.setfree(true);
+                                if (!gear.m.buttons) gear.setfree(true);
                             }
-                            else if (gear.m.bitstat) gear.capture(owner.id);
+                            else if (gear.m.buttons) gear.capture(owner.id);
                             auto& console = *owner.target;
-                            auto c = gear.m.coor;
+                            auto c = gear.m.coordxy;
                             c.y -= console.get_basis();
-                            moved = coord((state & mode::over) ? c
-                                                               : std::clamp(c, dot_00, console.panel - dot_11));
-                                 if (proto == w32) owner.ptycon.mouse(gear, coord, moved);
-                            else if (proto == sgr) queue.   mouse_sgr(gear, coord);
-                            else if (proto == x11) queue.   mouse_x11(gear, coord);
-                            owner.answer(queue);
+                            auto moved = coord((state & mode::over) ? c
+                                                                    : std::clamp(c, dot_00, console.panel - dot_11));
+                            if (saved.changed != gear.m.changed)
+                            {
+                                     if (proto == w32) owner.ptycon.mouse(gear, moved, coord);
+                                else if (proto == sgr) queue.   mouse_sgr(gear, saved, coord);
+                                else if (proto == x11) queue.   mouse_x11(gear, saved, coord);
+                                owner.answer(queue);
+                                saved = gear.m;
+                            }
                             gear.dismiss();
                         }
                     };
@@ -7079,8 +7080,7 @@ namespace netxs::ui
                 {
                     auto& gear = *gear_ptr;
                     if (gear.captured(owner.id)) gear.setfree(true);
-                    log("   event ", m.cause);
-                    gear.replay(m.cause, m.coord + owner.base::coor(), m.buttons);
+                    gear.replay(m.cause, m.coord + owner.base::coor(), m.delta, m.buttons);
                     gear.pass<tier::release>(parent_ptr, owner.base::coor());
                     if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                     {
@@ -7213,25 +7213,31 @@ namespace netxs::ui
                 {
                     if (gear.captured(owner.id))
                     {
-                        if (!gear.m.bitstat) gear.setfree(true);
+                        if (!gear.m.buttons) gear.setfree(true);
                     }
-                    else if (gear.m.bitstat) gear.capture(owner.id);
-                    auto& m = gear.m;
-                    s11n::mouse.send(owner, gear.id, m.ctlstat, m.winctrl, m.bitstat, m.get_msflags(), m.wheeldt, m.coor);
+                    else if (gear.m.buttons) gear.capture(owner.id);
+                    gear.m.gear_id = gear.id;
+                    s11n::mouse.send(owner, gear.m);
                     gear.dismiss();
                 };
                 owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                 {
                     gear.setfree(true);
-                    s11n::mouse_stop.send(owner, gear.id);
+                    gear.m.gear_id = gear.id;
+                    gear.m.enabled = hids::stat::die;
+                    s11n::mouse.send(owner, gear.m);
                 };
                 owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                 {
-                    s11n::mouse_halt.send(owner, gear.id);
+                    gear.m.gear_id = gear.id;
+                    gear.m.enabled = hids::stat::halt;
+                    s11n::mouse.send(owner, gear.m);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
                 {
-                    s11n::mouse_halt.send(owner, gear.id);
+                    gear.m.gear_id = gear.id;
+                    gear.m.enabled = hids::stat::halt;
+                    s11n::mouse.send(owner, gear.m);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
                 {

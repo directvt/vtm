@@ -1648,14 +1648,14 @@ namespace netxs::console
                     outer_rect = outer;
                 };
 
-                engage<sysmouse::left>();
-                engage<sysmouse::leftright>();
+                engage<hids::buttons::left>();
+                engage<hids::buttons::leftright>();
             }
             // pro::sizer: Configuring the mouse button to operate.
-            template<sysmouse::bttns BUTTON>
+            template<hids::buttons Button>
             void engage()
             {
-                boss.SIGNAL(tier::release, e2::form::draggable::_<BUTTON>, true);
+                boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
                 boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
                 {
                     if (items.take(gear).calc(boss, gear.coord, outer, inner, width))
@@ -1663,25 +1663,25 @@ namespace netxs::console
                         boss.base::deface(); // Deface only if mouse moved.
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::start::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::start::_<Button>, memo, gear)
                 {
                     if (items.take(gear).grab(boss, gear.coord, outer))
                     {
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<Button>, memo, gear)
                 {
                     if (items.take(gear).drag(boss, gear.coord, outer))
                     {
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<Button>, memo, gear)
                 {
                     items.take(gear).drop();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::stop::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::stop::_<Button>, memo, gear)
                 {
                     items.take(gear).drop();
                     boss.SIGNAL(tier::release, e2::form::upon::dragged, gear);
@@ -1732,17 +1732,17 @@ namespace netxs::console
                 {
                     items.dec(gear);
                 };
-                engage<sysmouse::left>();
+                engage<hids::buttons::left>();
             }
             mover(base& boss)
                 : mover{ boss, boss.This() }
             { }
             // pro::mover: Configuring the mouse button to operate.
-            template<sysmouse::bttns BUTTON>
+            template<hids::buttons Button>
             void engage()
             {
-                boss.SIGNAL(tier::release, e2::form::draggable::_<BUTTON>, true);
-                boss.SUBMIT_T(tier::release, e2::form::drag::start::_<BUTTON>, memo, gear)
+                boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
+                boss.SUBMIT_T(tier::release, e2::form::drag::start::_<Button>, memo, gear)
                 {
                     if ((dest_object = dest_shadow.lock()))
                     {
@@ -1750,7 +1750,7 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<Button>, memo, gear)
                 {
                     if (dest_object)
                     {
@@ -1760,7 +1760,7 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<Button>, memo, gear)
                 {
                     if (dest_object)
                     {
@@ -1768,7 +1768,7 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::stop::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::stop::_<Button>, memo, gear)
                 {
                     if (dest_object)
                     {
@@ -2793,9 +2793,6 @@ namespace netxs::console
             X(mouse_btn_6  , "5th button"       ) \
             X(last_event   , "event"            )
 
-            //X(key_repeat   , "key copy"         )
-            //X(menu_id      , "menu id"          )
-
             #define X(a, b) a,
             enum prop { PROP_LIST count };
             #undef X
@@ -2929,46 +2926,27 @@ namespace netxs::console
                 {
                     if (bypass) return;
                     shadow();
-                    auto& m = gear;
                     status[prop::last_event].set(stress) = "mouse";
                     status[prop::mouse_pos ].set(stress) =
-                        (m.coord.x < 10000 ? std::to_string(m.coord.x) : "-") + " : " +
-                        (m.coord.y < 10000 ? std::to_string(m.coord.y) : "-") ;
+                        (gear.coord.x < 10000 ? std::to_string(gear.coord.x) : "-") + " : " +
+                        (gear.coord.y < 10000 ? std::to_string(gear.coord.y) : "-") ;
 
-                    for (auto btn = 0; btn < sysmouse::numofbutton; btn++)
+                    for (auto i = 0; i < hids::numofbuttons; i++)
                     {
-                        auto& state = status[prop::mouse_btn_1 + btn].set(stress);
-
-                        state = m.buttons[btn].pressed ? "pressed" : "";
-                        if (m.buttons[btn].flipped)
-                        {
-                            state += state.length() ? " | flipped" : "flipped";
-                        }
-
-                        if (m.buttons[btn].dragged)
-                        {
-                            state += state.length() ? " | dragged" : "dragged";
-                        }
-
-                        state += state.length() ? "" : "idle";
+                        auto& state = status[prop::mouse_btn_1 + i].set(stress);
+                        if (gear.bttns[i].pressed) state = "pressed";
+                        if (gear.bttns[i].dragged) state += state.empty() ? "dragged" : " | dragged";
+                        if (state.empty())         state += "idle";
                     }
-                    status[prop::mouse_wheeldt].set(stress) = std::to_string(m.whldt);
-                    status[prop::mouse_hzwheel].set(stress) = m.hzwhl ? "active" : "idle";
-                    status[prop::mouse_vtwheel].set(stress) = m.scrll ? "active" : "idle";
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.meta());
+
+                    status[prop::mouse_wheeldt].set(stress) = std::to_string(gear.whldt);
+                    status[prop::mouse_hzwheel].set(stress) = gear.hzwhl ? "active" : "idle";
+                    status[prop::mouse_vtwheel].set(stress) = gear.scrll ? "active" : "idle";
+                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(gear.meta());
                 };
-
-                //boss.SUBMIT_T(tier::release, e2::conio::menu, memo, iface)
-                //{
-                //	//shadow();
-                //	status[prop::last_event].set(stress) = "UI";
-                //	status[prop::menu_id].set(stress) = "UI:" + std::to_string(iface);
-                //};
-
-                boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, k)
                 {
                     shadow();
-                    auto& k = gear;
 
                     #if defined(KEYLOG)
                         log("debug fired ", utf::debase(k.cluster));
@@ -2979,7 +2957,6 @@ namespace netxs::console
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
                     status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
                     status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );
-                    //status[prop::key_repeat   ].set(stress) = std::to_string(k.imitate);
 
                     if (k.cluster.length())
                     {
@@ -2993,7 +2970,6 @@ namespace netxs::console
                         status[prop::key_character].set(stress) = t;
                     }
                 };
-
                 //boss.SUBMIT_T(tier::release, e2::conio::focus, owner::memo, f)
                 //{
                 //	shadow();
@@ -3413,12 +3389,12 @@ namespace netxs::console
                     switch (auto deed = boss.bell::protos<tier::release>())
                     {
                         default:
-                        case e2::form::draggable::left     .id: draggable<sysmouse::left     >(enabled); break;
-                        case e2::form::draggable::right    .id: draggable<sysmouse::right    >(enabled); break;
-                        case e2::form::draggable::middle   .id: draggable<sysmouse::middle   >(enabled); break;
-                        case e2::form::draggable::wheel    .id: draggable<sysmouse::wheel    >(enabled); break;
-                        case e2::form::draggable::win      .id: draggable<sysmouse::win      >(enabled); break;
-                        case e2::form::draggable::leftright.id: draggable<sysmouse::leftright>(enabled); break;
+                        case e2::form::draggable::left     .id: draggable<hids::buttons::left     >(enabled); break;
+                        case e2::form::draggable::right    .id: draggable<hids::buttons::right    >(enabled); break;
+                        case e2::form::draggable::middle   .id: draggable<hids::buttons::middle   >(enabled); break;
+                        case e2::form::draggable::wheel    .id: draggable<hids::buttons::wheel    >(enabled); break;
+                        case e2::form::draggable::win      .id: draggable<hids::buttons::win      >(enabled); break;
+                        case e2::form::draggable::leftright.id: draggable<hids::buttons::leftright>(enabled); break;
                     }
                 };
             }
@@ -3435,57 +3411,57 @@ namespace netxs::console
             {
                 omni = b;
             }
-            template<sysmouse::bttns BUTTON>
+            template<hids::buttons Button>
             void draggable(bool enabled)
             {
                 if (!enabled)
                 {
-                    dragmemo[BUTTON].clear();
-                    drag &= ~(1 << BUTTON);
+                    dragmemo[Button].clear();
+                    drag &= ~(1 << Button);
                 }
-                else if (!(drag & 1 << BUTTON))
+                else if (!(drag & 1 << Button))
                 {
-                    drag |= 1 << BUTTON;
+                    drag |= 1 << Button;
                     //using bttn = hids::events::mouse::button; //MSVC 16.9.4 don't get it
-                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::_<BUTTON>, dragmemo[BUTTON], gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::_<Button>, dragmemo[Button], gear)
                     {
                         if (gear.capture(boss.bell::id))
                         {
-                            boss.SIGNAL(tier::release, e2::form::drag::start::_<BUTTON>, gear);
+                            boss.SIGNAL(tier::release, e2::form::drag::start::_<Button>, gear);
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::_<BUTTON>, dragmemo[BUTTON], gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::_<Button>, dragmemo[Button], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
-                            boss.SIGNAL(tier::release, e2::form::drag::pull::_<BUTTON>, gear);
+                            boss.SIGNAL(tier::release, e2::form::drag::pull::_<Button>, gear);
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::_<BUTTON>, dragmemo[BUTTON], gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::_<Button>, dragmemo[Button], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
-                            boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
+                            boss.SIGNAL(tier::release, e2::form::drag::cancel::_<Button>, gear);
                             gear.setfree();
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_T(tier::general, hids::events::halt, dragmemo[BUTTON], gear)
+                    boss.SUBMIT_T(tier::general, hids::events::halt, dragmemo[Button], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
-                            boss.SIGNAL(tier::release, e2::form::drag::cancel::_<BUTTON>, gear);
+                            boss.SIGNAL(tier::release, e2::form::drag::cancel::_<Button>, gear);
                             gear.setfree();
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::_<BUTTON>, dragmemo[BUTTON], gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::_<Button>, dragmemo[Button], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
-                            boss.SIGNAL(tier::release, e2::form::drag::stop::_<BUTTON>, gear);
+                            boss.SIGNAL(tier::release, e2::form::drag::stop::_<Button>, gear);
                             gear.setfree();
                             gear.dismiss();
                         }
@@ -3560,6 +3536,7 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
+            period& dblclick_timeout;
             period& tooltip_timeout;
             bool&   simple_instance;
             bool&   standalone_instance;
@@ -3567,10 +3544,10 @@ namespace netxs::console
             template<class T>
             void forward(T& device)
             {
-                auto gear_it = gears.find(device.id);
+                auto gear_it = gears.find(device.gear_id);
                 if (gear_it == gears.end())
                 {
-                    gear_it = gears.emplace(device.id, bell::create<topgear>(device.id == 0, boss, xmap, tooltip_timeout, simple_instance)).first;
+                    gear_it = gears.emplace(device.gear_id, bell::create<topgear>(device.gear_id == 0, boss, xmap, dblclick_timeout, tooltip_timeout, simple_instance)).first;
                 }
                 auto& [_id, gear_ptr] = *gear_it;
                 gear_ptr->hids::take(device);
@@ -3586,6 +3563,7 @@ namespace netxs::console
             template<class T>
             input(T& boss)
                 : skill{ boss },
+                  dblclick_timeout{    boss.props.dblclick_timeout },
                   tooltip_timeout{     boss.props.tooltip_timeout },
                   simple_instance{     boss.props.simple },
                   standalone_instance{ boss.props.is_standalone_app }
@@ -3604,6 +3582,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::prop::brush, memo, brush)
                 {
+                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.mark(brush);
                 };
                 boss.SUBMIT_T(tier::release, e2::size::any, memo, newsize)
@@ -3613,41 +3592,44 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::coor::any, memo, newcoor)
                 {
+                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.move(newcoor);
                 };
-                boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, mousestate)
+                boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, m)
                 {
-                    if (mousestate.control != sysmouse::stat::ok)
+                    if (m.enabled != hids::stat::ok)
                     {
-                        auto gear_it = gears.find(mousestate.id);
+                        auto gear_it = gears.find(m.gear_id);
                         if (gear_it != gears.end())
                         {
-                            switch (mousestate.control)
+                            switch (m.enabled)
                             {
-                                case sysmouse::stat::ok:   break;
-                                case sysmouse::stat::halt: gear_it->second->deactivate(); break;
-                                case sysmouse::stat::die:  gears.erase(gear_it);          break;
+                                case hids::stat::ok:   break;
+                                case hids::stat::halt: gear_it->second->deactivate(); break;
+                                case hids::stat::die:  gears.erase(gear_it);          break;
                             }
                         }
                         boss.strike();
                     }
-                    else forward(mousestate);
+                    else forward(m);
                 };
-                boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, keybdstate)
+                boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, k)
                 {
-                    forward(keybdstate);
+                    forward(k);
                 };
-                boss.SUBMIT_T(tier::release, e2::conio::focus, memo, focusstate)
+                boss.SUBMIT_T(tier::release, e2::conio::focus, memo, f)
                 {
-                    forward(focusstate);
+                    forward(f);
                 };
             }
             void check_focus()
             {
                 if (simple_instance)
                 {
-                    auto focusstate = sysfocus{ .id = 0, .enabled = true };
-                    boss.SIGNAL(tier::release, e2::conio::focus, focusstate);
+                    auto f = sysfocus{};
+                    f.gear_id = 0;
+                    f.enabled = true;
+                    boss.SIGNAL(tier::release, e2::conio::focus, f);
                 }
             }
             auto is_not_standalone_instance()
@@ -3658,7 +3640,9 @@ namespace netxs::console
             {
                 for (auto& [id, gear_ptr] : gears)
                 {
-                    gear_ptr->fire(event_id);
+                    auto& gear = *gear_ptr;
+                    gear.fire_fast();
+                    gear.fire(event_id);
                 }
             }
             auto get_foreign_gear_id(id_t gear_id)
@@ -4213,7 +4197,6 @@ namespace netxs::console
                     if (boss.size().inside(gear.coord)
                     && !gear.kbmod())
                     {
-                        log("d_n_d start ", boss.id, " captured by ", gear.swift);
                         drags = true;
                         coord = gear.coord;
                         under = {};
@@ -4221,25 +4204,19 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, memo, gear)
                 {
-                    log("d_n_d pull ", boss.id , " drags ", drags?"on":"off", " captured by ", gear.swift);
-
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              coord = gear.coord - gear.delta.get();
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::any, memo, gear)
                 {
-                    log("d_n_d stop ", boss.id , " drags ", drags?"on":"off", " captured by ", gear.swift);
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              proceed(true);
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::any, memo, gear)
                 {
-                    log("d_n_d cancel ", boss.id , " drags ", drags?"on":"off", " captured by ", gear.swift);
                     if (!drags) return;
-                    //todo revise (panoramic scrolling with left + right)
-                    //proceed(faux);
                     if (gear.kbmod()) proceed(faux);
                     else              proceed(true);
                 };
@@ -5004,17 +4981,12 @@ namespace netxs::console
             }
         };
 
-        struct sysgears
-        {
-            sysmouse mouse = {};
-            syskeybd keybd = {};
-            sysfocus focus = {};
-        };
-
-        ipc&                               canal; // link: Data highway.
-        sptr                               owner; // link: Link owner.
-        relay_t                            relay; // link: Clipboard relay.
-        std::unordered_map<id_t, sysgears> gears; // link: Input devices state.
+        ipc&     canal; // link: Data highway.
+        sptr     owner; // link: Link owner.
+        relay_t  relay; // link: Clipboard relay.
+        sysmouse mouse; // link: Mouse transit buffer.
+        syskeybd keybd; // link: Keybd transit buffer.
+        sysfocus focus; // link: Focus transit buffer.
 
     public:
         // link: Send data outside.
@@ -5058,13 +5030,8 @@ namespace netxs::console
         }
         void handle(s11n::xs::focus       lock)
         {
-            auto& item = lock.thing;
-            auto& f = gears[item.gear_id].focus;
-            f.id      = item.gear_id;
-            f.enabled = item.state;
-            f.combine_focus = item.combine_focus;
-            f.force_group_focus = item.force_group_focus;
-            notify(e2::conio::focus, f);
+            auto& focus = lock.thing;
+            notify(e2::conio::focus, focus);
         }
         void handle(s11n::xs::winsz       lock)
         {
@@ -5078,82 +5045,33 @@ namespace netxs::console
         }
         void handle(s11n::xs::keybd       lock)
         {
-            auto& item = lock.thing;
-            auto& k = gears[item.gear_id].keybd;
-            k.id      = item.gear_id;
-            k.virtcod = item.virtcod;
-            k.scancod = item.scancod;
-            k.pressed = item.pressed;
-            k.ctlstat = item.ctlstat;
-            k.winctrl = item.winctrl;
-            k.imitate = item.imitate;
-            k.cluster = item.cluster;
-            k.winchar = item.winchar;
-            notify(e2::conio::keybd, k);
+            auto& keybd = lock.thing;
+            notify(e2::conio::keybd, keybd);
         }
         void handle(s11n::xs::plain       lock)
         {
             auto& item = lock.thing;
-            auto& k = gears[item.gear_id].keybd;
-            k.id      = item.gear_id;
-            k.cluster = item.utf8txt;
-            k.pressed = true;
-            notify(e2::conio::keybd, k);
-            k.pressed = faux;
-            notify(e2::conio::keybd, k);
+            keybd = {};
+            keybd.gear_id = item.gear_id;
+            keybd.cluster = item.utf8txt;
+            keybd.pressed = true;
+            notify(e2::conio::keybd, keybd);
+            keybd.pressed = faux;
+            notify(e2::conio::keybd, keybd);
         }
         void handle(s11n::xs::ctrls       lock)
         {
             auto& item = lock.thing;
-            auto& k = gears[item.gear_id].keybd;
-            k.id      = item.gear_id;
-            k.ctlstat = item.ctlstat;
-            k.cluster = {};
-            k.pressed = faux;
-            notify(e2::conio::keybd, k);
+            keybd = {};
+            keybd.gear_id = item.gear_id;
+            keybd.ctlstat = item.ctlstat;
+            keybd.pressed = faux;
+            notify(e2::conio::keybd, keybd);
         }
         void handle(s11n::xs::mouse       lock)
         {
-            auto& item = lock.thing;
-            auto gear_id = item.gear_id;
-            auto buttons = item.buttons;
-            auto ctlstat = item.ctlstat;
-            auto msflags = item.msflags;
-            auto wheeldt = item.wheeldt;
-            auto coordxy = item.coordxy;
-            auto& m = gears[gear_id].mouse;
-            m.set_buttons(buttons);
-            m.id      = gear_id;
-            m.control = sysmouse::stat::ok;
-            m.ismoved = m.coor(coordxy);
-            m.shuffle = !m.ismoved && (msflags & (1 << 0)); // MOUSE_MOVED
-            m.doubled = msflags & (1 << 1); // DOUBLE_CLICK -- Makes no sense (ignored)
-            m.wheeled = msflags & (1 << 2); // MOUSE_WHEELED
-            m.hzwheel = msflags & (1 << 3); // MOUSE_HWHEELED
-            m.wheeldt = wheeldt;
-            m.ctlstat = ctlstat;
-            m.winctrl = item.winctrl;
-            if (!m.shuffle)
-            {
-                m.update_buttons();
-                notify(e2::conio::mouse, m);
-            }
-        }
-        void handle(s11n::xs::mouse_stop  lock)
-        {
-            auto& item = lock.thing;
-            auto& m = gears[item.gear_id].mouse;
-            m.id      = item.gear_id;
-            m.control = sysmouse::stat::die;
-            notify(e2::conio::mouse, m);
-        }
-        void handle(s11n::xs::mouse_halt  lock)
-        {
-            auto& item = lock.thing;
-            auto& m = gears[item.gear_id].mouse;
-            m.id      = item.gear_id;
-            m.control = sysmouse::stat::halt;
-            notify(e2::conio::mouse, m);
+            auto& mouse = lock.thing;
+            notify(e2::conio::mouse, mouse);
         }
         void handle(s11n::xs::mouse_show  lock)
         {
@@ -5336,6 +5254,8 @@ namespace netxs::console
     // console: Client properties.
     class conf
     {
+        using time = period;
+
     public:
         text ip;
         text port;
@@ -5351,7 +5271,8 @@ namespace netxs::console
         cell background_color;
         si32 legacy_mode;
         si32 session_id;
-        period tooltip_timeout; // conf: Timeout for tooltip.
+        time dblclick_timeout; // conf: Double click timeout.
+        time tooltip_timeout; // conf: Timeout for tooltip.
         bool tooltip_enabled; // conf: Enable tooltips.
         bool glow_fx; // conf: Enable glow effect in main menu.
         bool debug_overlay; // conf: Enable to show debug overlay.
@@ -5367,7 +5288,8 @@ namespace netxs::console
             clip_preview_show = config.take("clipboard/preview/enabled", true);
             clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
             coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
-            tooltip_timeout   = config.take("tooltip/timeout", period{ 500ms });
+            dblclick_timeout  = config.take("mouse/dblclick",  time{ 500ms });
+            tooltip_timeout   = config.take("tooltip/timeout", time{ 500ms });
             tooltip_enabled   = config.take("tooltip/enabled", true);
             debug_overlay     = config.take("debug/overlay", faux);
             debug_toggle      = config.take("debug/toggle", "🐞"s);
@@ -5481,8 +5403,8 @@ namespace netxs::console
                 auto& gear = *gear_ptr;
                 area.coor = coor + gear.coord;
                 area.coor -= base;
-                if (gear.push) brush.txt(64 + gear.push).bgc(reddk).fgc(0xFFffffff);
-                else           brush.txt("\u2588"/* █ */).bgc(0x00).fgc(0xFF00ff00);
+                if (gear.m.buttons) brush.txt(64 + gear.m.buttons).bgc(reddk).fgc(0xFFffffff);
+                else                brush.txt("\u2588"/* █ */).bgc(0x00).fgc(0xFF00ff00);
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
@@ -5823,13 +5745,6 @@ namespace netxs::console
                     ground(bkground);
                 }
 
-                auto forward_event = [&](hids& gear)
-                {
-                    log("event id ", gear.mouse::cause);
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    conio.mouse_event.send(canal, ext_gear_id, gear.mouse::cause, gear.coord, gear.take_button_state());
-                    gear.dismiss();
-                };
                 if (direct) // Forward unhandled events outside.
                 {
                     SUBMIT_T(tier::anycast, e2::debug::request, token, count)
@@ -5838,10 +5753,7 @@ namespace netxs::console
                     };
                     SUBMIT_T(tier::release, e2::config::fps, token, fps)
                     {
-                        if (fps > 0)
-                        {
-                            SIGNAL_GLOBAL(e2::config::fps, fps);
-                        }
+                        if (fps > 0) SIGNAL_GLOBAL(e2::config::fps, fps);
                     };
                     SUBMIT_T(tier::preview, e2::config::fps, token, fps)
                     {
@@ -5875,28 +5787,34 @@ namespace netxs::console
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                         conio.off_focus.send(conio, ext_gear_id);
                     };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::tplclick::any, token, gear)
+                    SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
                     {
-                        forward_event(gear);
-                    };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::any, token, gear)
-                    {
-                        forward_event(gear);
-                    };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::click::any, token, gear)
-                    {
-                        forward_event(gear);
-                    };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::any, token, gear)
-                    {
-                        gear.capture(bell::id); // To avoid unhandled mouse pull processing.
-                        forward_event(gear);
-                    };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, token, gear) // Only pull::any to avoid double drag::stop/cancel.
-                    {
-                        forward_event(gear);
-                        gear.setfree();
-                        gear.wipe_button_state();
+                        using button = hids::events::mouse::button;
+                        auto forward = faux;
+                        auto cause = gear.mouse::cause;//this->bell::protos<tier::release>();
+                        if (events::subevent(cause, button::click     ::any.id)
+                         || events::subevent(cause, button::dblclick  ::any.id)
+                         || events::subevent(cause, button::tplclick  ::any.id)
+                         || events::subevent(cause, button::drag::pull::any.id))
+                        {
+                            forward = true;
+                        }
+                        else if (events::subevent(cause, button::drag::start::any.id))
+                        {
+                            gear.capture(bell::id); // To avoid unhandled mouse pull processing.
+                            forward = true;
+                        }
+                        else if (events::subevent(cause, button::drag::cancel::any.id)
+                              || events::subevent(cause, button::drag::stop  ::any.id))
+                        {
+                            gear.setfree();
+                        }
+                        if (forward)
+                        {
+                            auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                            conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                            gear.dismiss();
+                        }
                     };
                 }
                 else
@@ -5935,8 +5853,8 @@ namespace netxs::console
             if (!props.is_standalone_app)
             {
                 //todo move it to the desk (dragging)
-                mouse.draggable<sysmouse::leftright>(true);
-                mouse.draggable<sysmouse::left>(true);
+                mouse.draggable<hids::buttons::leftright>(true);
+                mouse.draggable<hids::buttons::left>(true);
                 SUBMIT(tier::release, e2::form::drag::start::any, gear)
                 {
                     robot.pacify();

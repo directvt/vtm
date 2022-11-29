@@ -158,7 +158,7 @@ namespace netxs::console
                     else items.del(gear);
                     recalc();
                 };
-                engage<sysmouse::left>();
+                engage<hids::buttons::left>();
             }
             void recalc()
             {
@@ -194,23 +194,23 @@ namespace netxs::console
                 boss.SIGNAL(tier::release, e2::data::text, data);
             }
             // pro::cell_highlight: Configuring the mouse button to operate.
-            template<sysmouse::bttns BUTTON>
+            template<hids::buttons Button>
             void engage()
             {
-                boss.SIGNAL(tier::release, e2::form::draggable::_<BUTTON>, true);
+                boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
                 boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
                 {
                     items.take(gear).calc(boss, gear.coord);
                     boss.base::deface();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::start::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::start::_<Button>, memo, gear)
                 {
                     if (items.take(gear).grab(gear.coord, gear.meta(hids::anyCtrl)))
                     {
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<Button>, memo, gear)
                 {
                     if (items.take(gear).drag(gear.coord))
                     {
@@ -218,12 +218,12 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<Button>, memo, gear)
                 {
                     items.take(gear).drop();
                     recalc();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::stop::_<BUTTON>, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::form::drag::stop::_<Button>, memo, gear)
                 {
                     items.take(gear).drop();
                     recalc();

@@ -22,6 +22,8 @@
         #define MAKE_ATTR(type, name, ...) type name{};
         #define MAKE_SIGN(type, name, ...) type name
         #define MAKE_TYPE(type, name, ...) type
+        #define MAKE_TEMP(type, name, ...) this->name = source. name;
+        #define MAKE_LOGS(type, name, ...) s << "\n\t " << #name << ": " << o.name;
 
         #define SEQ_ATTR__odd(...) MAKE_ATTR __VA_ARGS__ SEQ_ATTR_even
         #define SEQ_ATTR_even(...) MAKE_ATTR __VA_ARGS__ SEQ_ATTR__odd
@@ -34,6 +36,18 @@
         #define SEQ_INIT_even_last
         #define SEQ_INIT__odd_last
         #define SEQ_INIT(args) EVAL(CAT(SEQ_INIT__odd args, _last))
+
+        #define SEQ_TEMP__odd(...) MAKE_TEMP __VA_ARGS__ SEQ_TEMP_even
+        #define SEQ_TEMP_even(...) MAKE_TEMP __VA_ARGS__ SEQ_TEMP__odd
+        #define SEQ_TEMP_even_last
+        #define SEQ_TEMP__odd_last
+        #define SEQ_TEMP(args) EVAL(CAT(SEQ_TEMP__odd args, _last))
+
+        #define SEQ_LOGS__odd(...) MAKE_LOGS __VA_ARGS__ SEQ_LOGS_even
+        #define SEQ_LOGS_even(...) MAKE_LOGS __VA_ARGS__ SEQ_LOGS__odd
+        #define SEQ_LOGS_even_last
+        #define SEQ_LOGS__odd_last
+        #define SEQ_LOGS(args) EVAL(CAT(SEQ_LOGS__odd args, _last))
 
         #define SEQ_SIGN__odd(...) MAKE_SIGN __VA_ARGS__, SEQ_SIGN_even
         #define SEQ_SIGN_even(...) MAKE_SIGN __VA_ARGS__, SEQ_SIGN__odd
