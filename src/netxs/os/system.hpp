@@ -3733,12 +3733,12 @@ namespace netxs::os
                                                                 m.changed++;
                                                                 wired.sysmouse.send(ipcio, m);
                                                             }
-                                                            //auto ismoved = m.coordxy({ x, y });
-                                                            //if (ismoved) // Moving should be fired first
-                                                            //{
-                                                            //    m.changed++;
-                                                            //    wired.sysmouse.send(ipcio, m);
-                                                            //}
+                                                            auto ismoved = m.coordxy({ x, y });
+                                                            if (ismoved) // Moving should be fired first
+                                                            {
+                                                                m.changed++;
+                                                                wired.sysmouse.send(ipcio, m);
+                                                            }
                                                             auto m_buttons = std::bitset<8>(m.buttons);
                                                             switch (ctl)
                                                             {
@@ -3754,7 +3754,7 @@ namespace netxs::os
                                                                     m.wheeldt = -1;
                                                                     break;
                                                                 default:
-                                                                    fire = m.coordxy({ x, y });
+                                                                    fire = faux;
                                                                     break;
                                                             }
                                                             m.buttons = m_buttons.to_ulong(); //todo optimize
