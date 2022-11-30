@@ -390,16 +390,16 @@ namespace netxs::input
             return delta.fader<LAW>(spell);
         }
         // mouse: Extended mouse event generation.
-        void update(sysmouse const& m0)
+        void update(sysmouse& m0)
         {
-            m.set(m0);
-            auto m_buttons = std::bitset<8>(m.buttons);
+            auto m_buttons = std::bitset<8>(m0.buttons);
             // Interpret button combinations.
             //todo possible bug in Apple's Terminal - it does not return the second release
             //                                        in case when two buttons are pressed.
-            m_buttons[leftright] = (m_buttons[leftright] && (m_buttons[left] || m_buttons[right]))
-                                                         || (m_buttons[left] && m_buttons[right]);
-            //m.buttons = m_buttons.to_ulong();
+            m_buttons[leftright] = (bttns[leftright].pressed && (m_buttons[left] || m_buttons[right]))
+                                                             || (m_buttons[left] && m_buttons[right]);
+            m0.buttons = m_buttons.to_ulong();
+            m.set(m0);
             auto busy = captured();
             if (busy && fire_fast()) //todo fire_fast on mods press
             {
@@ -409,7 +409,6 @@ namespace netxs::input
                 fire(movement); // Update mouse enter/leave state.
                 return;
             }
-
             if (m_buttons[leftright]) // Cancel left and right dragging if it is.
             {
                 if (bttns[left].dragged)
@@ -651,7 +650,7 @@ namespace netxs::input
         ui16 scancod = {};
         hint cause = netxs::events::userland::hids::keybd::any.id;
 
-        void update(syskeybd const& k)
+        void update(syskeybd& k)
         {
             pressed = k.pressed;
             imitate = k.imitate;
@@ -894,20 +893,20 @@ namespace netxs::input
         {
             return alive;
         }
-        void take(sysmouse const& m)
+        void take(sysmouse& m)
         {
             ctlstate = m.ctlstat;
             winctrl  = m.winctrl;
             disabled = faux;
             mouse::update(m);
         }
-        void take(syskeybd const& k)
+        void take(syskeybd& k)
         {
             ctlstate = k.ctlstat;
             winctrl  = k.winctrl;
             keybd::update(k);
         }
-        void take(sysfocus const& f)
+        void take(sysfocus& f)
         {
             kb_focus_changed = faux; //todo unify, see base::upevent handler
             if (f.enabled)
@@ -977,6 +976,8 @@ namespace netxs::input
         }
         void deactivate()
         {
+            mouse::load_button_state(0);
+            mouse::m.buttons = {};
             take_mouse_focus(owner);
             bell::signal_global(halt_event, *this);
             disabled = true;
@@ -1194,7 +1195,6 @@ namespace netxs::input
             inst_ptr->bell::template signal<tier::release>(kbannul_event, *this);
             owner.bell::template signal<tier::release>(focus_off, *this);
         }
-
         auto interpret()
         {
             auto textline = text{};

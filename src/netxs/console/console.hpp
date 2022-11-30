@@ -209,15 +209,15 @@ namespace netxs::events::userland
             };
             SUBSET_XS( conio )
             {
-                EVENT_XS( unknown , const si32            ), // release: return platform unknown event code.
-                EVENT_XS( error   , const si32            ), // release: return error code.
-                EVENT_XS( focus   , const input::sysfocus ), // release: focus activity.
-                EVENT_XS( mouse   , const input::sysmouse ), // release: mouse activity.
-                EVENT_XS( keybd   , const input::syskeybd ), // release: keybd activity.
-                EVENT_XS( winsz   , const twod            ), // release: order to update terminal primary overlay.
-                EVENT_XS( preclose, const bool            ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
-                EVENT_XS( quit    , const text            ), // release: quit, arg: text - bye msg.
-                EVENT_XS( pointer , const bool            ), // release: mouse pointer visibility.
+                EVENT_XS( unknown , const si32      ), // release: return platform unknown event code.
+                EVENT_XS( error   , const si32      ), // release: return error code.
+                EVENT_XS( focus   , input::sysfocus ), // release: focus activity.
+                EVENT_XS( mouse   , input::sysmouse ), // release: mouse activity.
+                EVENT_XS( keybd   , input::syskeybd ), // release: keybd activity.
+                EVENT_XS( winsz   , const twod      ), // release: order to update terminal primary overlay.
+                EVENT_XS( preclose, const bool      ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
+                EVENT_XS( quit    , const text      ), // release: quit, arg: text - bye msg.
+                EVENT_XS( pointer , const bool      ), // release: mouse pointer visibility.
                 //EVENT_XS( menu  , si32 ),
             };
             SUBSET_XS( data )
@@ -2787,10 +2787,10 @@ namespace netxs::console
             X(mouse_vtwheel, "V wheel"          ) \
             X(mouse_btn_1  , "left button"      ) \
             X(mouse_btn_2  , "right button"     ) \
-            X(mouse_btn_3  , "left+right combo" ) \
-            X(mouse_btn_4  , "middle button"    ) \
-            X(mouse_btn_5  , "4th button"       ) \
-            X(mouse_btn_6  , "5th button"       ) \
+            X(mouse_btn_3  , "middle button"    ) \
+            X(mouse_btn_4  , "4th button"       ) \
+            X(mouse_btn_5  , "5th button"       ) \
+            X(mouse_btn_6  , "left+right combo" ) \
             X(last_event   , "event"            )
 
             #define X(a, b) a,
@@ -2906,7 +2906,7 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::general, e2::config::fps, memo, fps)
                 {
                     status[prop::frame_rate].set(stress) = std::to_string(fps);
-                    boss.base::strike(); // to update debug info
+                    boss.base::strike();
                 };
                 {
                     auto fps = e2::config::fps.param(-1);
@@ -2915,34 +2915,33 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, e2::conio::focus, memo, focusstate)
                 {
                     update(focusstate.enabled);
-                    boss.base::strike(); // to update debug info
+                    boss.base::strike();
                 };
                 boss.SUBMIT_T(tier::release, e2::size::any, memo, newsize)
                 {
                     update(newsize);
                 };
 
-                boss.SUBMIT_T(tier::preview, hids::events::mouse::any, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, m)
                 {
                     if (bypass) return;
                     shadow();
                     status[prop::last_event].set(stress) = "mouse";
                     status[prop::mouse_pos ].set(stress) =
-                        (gear.coord.x < 10000 ? std::to_string(gear.coord.x) : "-") + " : " +
-                        (gear.coord.y < 10000 ? std::to_string(gear.coord.y) : "-") ;
+                        (m.coordxy.x < 10000 ? std::to_string(m.coordxy.x) : "-") + " : " +
+                        (m.coordxy.y < 10000 ? std::to_string(m.coordxy.y) : "-") ;
 
+                    auto m_buttons = std::bitset<8>(m.buttons);
                     for (auto i = 0; i < hids::numofbuttons; i++)
                     {
                         auto& state = status[prop::mouse_btn_1 + i].set(stress);
-                        if (gear.bttns[i].pressed) state = "pressed";
-                        if (gear.bttns[i].dragged) state += state.empty() ? "dragged" : " | dragged";
-                        if (state.empty())         state += "idle";
+                        state = m_buttons[i] ? "pressed" : "idle   ";
                     }
 
-                    status[prop::mouse_wheeldt].set(stress) = std::to_string(gear.whldt);
-                    status[prop::mouse_hzwheel].set(stress) = gear.hzwhl ? "active" : "idle";
-                    status[prop::mouse_vtwheel].set(stress) = gear.scrll ? "active" : "idle";
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(gear.meta());
+                    status[prop::mouse_wheeldt].set(stress) = m.wheeldt ? std::to_string(m.wheeldt) :  " -- "s;
+                    status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
+                    status[prop::mouse_vtwheel].set(stress) = m.wheeled ? "active" : "idle  ";
+                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
                 };
                 boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, k)
                 {
@@ -2970,12 +2969,6 @@ namespace netxs::console
                         status[prop::key_character].set(stress) = t;
                     }
                 };
-                //boss.SUBMIT_T(tier::release, e2::conio::focus, owner::memo, f)
-                //{
-                //	shadow();
-                //	status[prop::last_event].set(stress) = "focus";
-                //	status[prop::focused].set(stress) = f ? "active" : "lost";
-                //});
 
                 boss.SUBMIT_T(tier::release, e2::conio::error, memo, e)
                 {
