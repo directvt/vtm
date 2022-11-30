@@ -4374,7 +4374,7 @@ namespace netxs::console
             };
             SUBMIT_T(tier::general, e2::shutdown, token, msg)
             {
-                log("host: shutdown: ", msg);
+                //log("host: shutdown: ", msg); //todo Deadlock with intensive logging (inside the std::cout.operator<<()).
                 joint->shut();
             };
             synch.ignite(hertz);

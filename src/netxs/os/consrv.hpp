@@ -500,7 +500,6 @@ struct consrv
                 else if (gear.m.hzwheel) flags |= MOUSE_HWHEELED;
                 bttns |= gear.m.wheeldt << 16;
             }
-
             auto lock = std::lock_guard{ locker };
             buffer.emplace_back(INPUT_RECORD
             {
@@ -511,8 +510,8 @@ struct consrv
                     {
                         .dwMousePosition =
                         {
-                            .X = (si16)std::min<si32>(coord.x, std::numeric_limits<si16>::max()),
-                            .Y = (si16)std::min<si32>(coord.y, std::numeric_limits<si16>::max()),
+                            .X = (si16)std::clamp<si32>(coord.x, 0, std::numeric_limits<si16>::max()),
+                            .Y = (si16)std::clamp<si32>(coord.y, 0, std::numeric_limits<si16>::max()),
                         },
                         .dwButtonState     = bttns,
                         .dwControlKeyState = state,
