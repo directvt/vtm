@@ -104,11 +104,11 @@ namespace netxs::os
     }
 
     namespace fs = std::filesystem;
-    using list = std::vector<text>;
-    using xipc = std::shared_ptr<ipc::iobase>;
     using namespace std::chrono_literals;
     using namespace std::literals;
     using namespace netxs::ui::atoms;
+    using list = std::vector<text>;
+    using xipc = std::shared_ptr<ipc::iobase>;
     using page = console::page;
     using para = console::para;
     using rich = console::rich;
@@ -3335,7 +3335,7 @@ namespace netxs::os
                             auto bKeyDown = faux;
                             auto wRepeatCount = 1;
                             auto UnicodeChar = L'\x03'; // ansi::C0_ETX
-                            wired.keybd.send(*ipcio,
+                            wired.syskeybd.send(*ipcio,
                                 0,
                                 os::kbstate(kbmod, dwControlKeyState),
                                 dwControlKeyState,
@@ -3447,7 +3447,7 @@ namespace netxs::os
                                 switch (reply.EventType)
                                 {
                                     case KEY_EVENT:
-                                        wired.keybd.send(ipcio,
+                                        wired.syskeybd.send(ipcio,
                                             0,
                                             os::kbstate(kbstate, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
                                             reply.Event.KeyEvent.dwControlKeyState,
@@ -3459,7 +3459,7 @@ namespace netxs::os
                                             reply.Event.KeyEvent.uChar.UnicodeChar);
                                         break;
                                     case MOUSE_EVENT:
-                                        wired.mouse.send(ipcio,
+                                        wired.sysmouse.send(ipcio,
                                             0,
                                             input::hids::ok,
                                             os::kbstate(kbstate, reply.Event.MouseEvent.dwControlKeyState),
@@ -3476,7 +3476,7 @@ namespace netxs::os
                                         _globals<void>::resize_handler();
                                         break;
                                     case FOCUS_EVENT:
-                                        wired.focus.send(ipcio,
+                                        wired.sysfocus.send(ipcio,
                                             0,
                                             reply.Event.FocusEvent.bSetFocus,
                                             faux,
@@ -3636,7 +3636,7 @@ namespace netxs::os
                                 k.gear_id = 0;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, 1);
-                                wired.keybd.send(ipcio, k);
+                                wired.syskeybd.send(ipcio, k);
                                 total.clear();
                                 break;
                             }
@@ -3646,7 +3646,7 @@ namespace netxs::os
                                 k.gear_id = 0;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, 1);
-                                wired.keybd.send(ipcio, k);
+                                wired.syskeybd.send(ipcio, k);
                                 total = strv.substr(1);
                                 break;
                             }
@@ -3658,14 +3658,14 @@ namespace netxs::os
                                 {
                                     f.gear_id = 0;
                                     f.enabled = true;
-                                    wired.focus.send(ipcio, f);
+                                    wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == 'O')
                                 {
                                     f.gear_id = 0;
                                     f.enabled = faux;
-                                    wired.focus.send(ipcio, f);
+                                    wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == '<') // \033[<0;x;yM/m
@@ -3731,13 +3731,13 @@ namespace netxs::os
                                                             {
                                                                 m.buttons = {};
                                                                 m.changed++;
-                                                                wired.mouse.send(ipcio, m);
+                                                                wired.sysmouse.send(ipcio, m);
                                                             }
                                                             //auto ismoved = m.coordxy({ x, y });
                                                             //if (ismoved) // Moving should be fired first
                                                             //{
                                                             //    m.changed++;
-                                                            //    wired.mouse.send(ipcio, m);
+                                                            //    wired.sysmouse.send(ipcio, m);
                                                             //}
                                                             auto m_buttons = std::bitset<8>(m.buttons);
                                                             switch (ctl)
@@ -3761,7 +3761,7 @@ namespace netxs::os
                                                             if (fire)
                                                             {
                                                                 m.changed++;
-                                                                wired.mouse.send(ipcio, m);
+                                                                wired.sysmouse.send(ipcio, m);
                                                             }
                                                         }
                                                     }
@@ -3809,7 +3809,7 @@ namespace netxs::os
                                 k.gear_id = 0;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, i);
-                                wired.keybd.send(ipcio, k);
+                                wired.syskeybd.send(ipcio, k);
                                 total = strv.substr(i);
                                 strv = total;
                             }
@@ -3854,7 +3854,7 @@ namespace netxs::os
                              || state.shift(get_kb_state())
                              || state.wheel)
                             {
-                                wired.mouse.send(ipcio,
+                                wired.sysmouse.send(ipcio,
                                     0,
                                     input::hids::ok,
                                     state.shift.last,

@@ -209,15 +209,15 @@ namespace netxs::events::userland
             };
             SUBSET_XS( conio )
             {
-                EVENT_XS( unknown , const si32              ), // release: return platform unknown event code.
-                EVENT_XS( error   , const si32              ), // release: return error code.
-                EVENT_XS( focus   , const console::sysfocus ), // release: focus activity.
-                EVENT_XS( mouse   , const console::sysmouse ), // release: mouse activity.
-                EVENT_XS( keybd   , const console::syskeybd ), // release: keybd activity.
-                EVENT_XS( winsz   , const twod              ), // release: order to update terminal primary overlay.
-                EVENT_XS( preclose, const bool              ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
-                EVENT_XS( quit    , const text              ), // release: quit, arg: text - bye msg.
-                EVENT_XS( pointer , const bool              ), // release: mouse pointer visibility.
+                EVENT_XS( unknown , const si32            ), // release: return platform unknown event code.
+                EVENT_XS( error   , const si32            ), // release: return error code.
+                EVENT_XS( focus   , const input::sysfocus ), // release: focus activity.
+                EVENT_XS( mouse   , const input::sysmouse ), // release: mouse activity.
+                EVENT_XS( keybd   , const input::syskeybd ), // release: keybd activity.
+                EVENT_XS( winsz   , const twod            ), // release: order to update terminal primary overlay.
+                EVENT_XS( preclose, const bool            ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
+                EVENT_XS( quit    , const text            ), // release: quit, arg: text - bye msg.
+                EVENT_XS( pointer , const bool            ), // release: mouse pointer visibility.
                 //EVENT_XS( menu  , si32 ),
             };
             SUBSET_XS( data )
@@ -4984,9 +4984,6 @@ namespace netxs::console
         ipc&     canal; // link: Data highway.
         sptr     owner; // link: Link owner.
         relay_t  relay; // link: Clipboard relay.
-        sysmouse mouse; // link: Mouse transit buffer.
-        syskeybd keybd; // link: Keybd transit buffer.
-        sysfocus focus; // link: Focus transit buffer.
 
     public:
         // link: Send data outside.
@@ -5028,7 +5025,7 @@ namespace netxs::console
                 boss.bell::template signal<TIER>(E::id, static_cast<typename E::type &&>(d));
             });
         }
-        void handle(s11n::xs::focus       lock)
+        void handle(s11n::xs::sysfocus    lock)
         {
             auto& focus = lock.thing;
             notify(e2::conio::focus, focus);
@@ -5043,15 +5040,17 @@ namespace netxs::console
             auto& item = lock.thing;
             relay.set(item.gear_id, item.data, static_cast<clip::mime>(item.mimetype));
         }
-        void handle(s11n::xs::keybd       lock)
+        void handle(s11n::xs::syskeybd    lock)
         {
             auto& keybd = lock.thing;
             notify(e2::conio::keybd, keybd);
         }
         void handle(s11n::xs::plain       lock)
         {
+            auto k = s11n::syskeybd.freeze();
+            auto& keybd = k.thing;
             auto& item = lock.thing;
-            keybd = {};
+            keybd.wipe();
             keybd.gear_id = item.gear_id;
             keybd.cluster = item.utf8txt;
             keybd.pressed = true;
@@ -5061,14 +5060,16 @@ namespace netxs::console
         }
         void handle(s11n::xs::ctrls       lock)
         {
+            auto k = s11n::syskeybd.freeze();
+            auto& keybd = k.thing;
             auto& item = lock.thing;
-            keybd = {};
+            keybd.wipe();
             keybd.gear_id = item.gear_id;
             keybd.ctlstat = item.ctlstat;
             keybd.pressed = faux;
             notify(e2::conio::keybd, keybd);
         }
-        void handle(s11n::xs::mouse       lock)
+        void handle(s11n::xs::sysmouse    lock)
         {
             auto& mouse = lock.thing;
             notify(e2::conio::mouse, mouse);

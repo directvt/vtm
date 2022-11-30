@@ -258,9 +258,9 @@ namespace netxs::input
     using netxs::events::hook;
     using netxs::events::id_t;
     using netxs::ansi::clip;
-    using sysmouse = ansi::dtvt::binary::mouse_t;
-    using syskeybd = ansi::dtvt::binary::keybd_t;
-    using sysfocus = ansi::dtvt::binary::focus_t;
+    using sysmouse = ansi::dtvt::binary::sysmouse_t;
+    using syskeybd = ansi::dtvt::binary::syskeybd_t;
+    using sysfocus = ansi::dtvt::binary::sysfocus_t;
 
     // console: Mouse tracker.
     struct mouse

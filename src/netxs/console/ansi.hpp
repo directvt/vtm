@@ -2408,6 +2408,11 @@ namespace netxs::ansi
                         std::tie(SEQ_NAME(WRAP(struct_members)) _tmp) =               \
                             stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(_data); \
                     }                                                                 \
+                    void wipe()                                                       \
+                    {                                                                 \
+                        SEQ_WIPE(WRAP(struct_members))                                \
+                        stream::reset();                                              \
+                    }                                                                 \
                                                                                       \
                     friend std::ostream& operator << (std::ostream& s,                \
                                                         CAT(struct_name, _t) const& o)\
@@ -2430,7 +2435,8 @@ namespace netxs::ansi
                     void set() {}                                                     \
                     void get(view& data) {}                                           \
                                                                                       \
-                    friend std::ostream& operator << (std::ostream& s, CAT(struct_name, _t) const& o)\
+                    friend std::ostream& operator << (std::ostream& s,                \
+                                                        CAT(struct_name, _t) const& o)\
                     {                                                                 \
                         return s << #struct_name " { }";                              \
                     }                                                                 \
@@ -2461,19 +2467,19 @@ namespace netxs::ansi
             STRUCT_LITE(request_debug)
 
             // Input stream.
-            STRUCT(focus,             (id_t, gear_id) (bool, enabled) (bool, combine_focus) (bool, force_group_focus))
-            STRUCT(keybd,             (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
-            STRUCT(mouse,             (id_t, gear_id)  // mouse: Devide id.
-                                      (ui32, enabled)  // mouse: Mouse device health status.
-                                      (ui32, ctlstat)  // mouse: Keybd modifiers state.
-                                      (ui32, winctrl)  // mouse: Windows specific keybd modifier state.
-                                      (ui32, buttons)  // mouse: Buttons bit state.
-                                      (bool, doubled)  // mouse: Double click.
-                                      (bool, wheeled)  // mouse: Vertical scroll wheel.
-                                      (bool, hzwheel)  // mouse: Horizontal scroll wheel.
-                                      (si32, wheeldt)  // mouse: Scroll delta.
-                                      (twod, coordxy)  // mouse: Cursor coordinates.
-                                      (ui32, changed)) // mouse: Update stamp.
+            STRUCT(sysfocus,          (id_t, gear_id) (bool, enabled) (bool, combine_focus) (bool, force_group_focus))
+            STRUCT(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
+            STRUCT(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
+                                      (ui32, enabled)  // sysmouse: Mouse device health status.
+                                      (ui32, ctlstat)  // sysmouse: Keybd modifiers state.
+                                      (ui32, winctrl)  // sysmouse: Windows specific keybd modifier state.
+                                      (ui32, buttons)  // sysmouse: Buttons bit state.
+                                      (bool, doubled)  // sysmouse: Double click.
+                                      (bool, wheeled)  // sysmouse: Vertical scroll wheel.
+                                      (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
+                                      (si32, wheeldt)  // sysmouse: Scroll delta.
+                                      (twod, coordxy)  // sysmouse: Cursor coordinates.
+                                      (ui32, changed)) // sysmouse: Update stamp.
             STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
             STRUCT(winsz,             (id_t, gear_id) (twod, winsize))
             STRUCT(clipdata,          (id_t, gear_id) (text, data) (si32, mimetype))
@@ -2750,14 +2756,14 @@ namespace netxs::ansi
                 X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
                 X(request_debug    ) /* Request debug output redirection to stdin.    */\
                 /* Input stream                                                       */\
-                X(focus            ) /* Set/unset focus.                              */\
+                X(sysfocus         ) /* System focus state.                              */\
+                X(syskeybd         ) /* System keybd device.                                 */\
+                X(sysmouse         ) /* System mouse device.                                 */\
+                X(mouse_show       ) /* Show mouse cursor.                            */\
                 X(winsz            ) /* Window resize.                                */\
                 X(clipdata         ) /* Clipboard raw data.                           */\
                 X(plain            ) /* Raw text input.                               */\
                 X(ctrls            ) /* Keyboard modifiers state.                     */\
-                X(keybd            ) /* Keybd events.                                 */\
-                X(mouse            ) /* Mouse events.                                 */\
-                X(mouse_show       ) /* Show mouse cursor.                            */\
                 X(request_gc       ) /* Unknown gc token list.                        */\
                 X(unknown_gc       ) /* Unknown gc token.                             */\
                 X(fps              ) /* Set frame rate.                               */\

@@ -7217,7 +7217,7 @@ namespace netxs::ui
                     }
                     else if (gear.m.buttons) gear.capture(owner.id);
                     gear.m.gear_id = gear.id;
-                    s11n::mouse.send(owner, gear.m);
+                    s11n::sysmouse.send(owner, gear.m);
                     gear.dismiss();
                 };
                 owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
@@ -7225,19 +7225,19 @@ namespace netxs::ui
                     gear.setfree(true);
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::die;
-                    s11n::mouse.send(owner, gear.m);
+                    s11n::sysmouse.send(owner, gear.m);
                 };
                 owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                 {
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::halt;
-                    s11n::mouse.send(owner, gear.m);
+                    s11n::sysmouse.send(owner, gear.m);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
                 {
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::halt;
-                    s11n::mouse.send(owner, gear.m);
+                    s11n::sysmouse.send(owner, gear.m);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
                 {
@@ -7252,40 +7252,40 @@ namespace netxs::ui
                         }
                         log("dtvt: key strokes bin: ", d.str());
                     #endif
-                    s11n::keybd.send(owner, gear.id,
-                                            gear.ctlstate,
-                                            gear.winctrl,
-                                            gear.virtcod,
-                                            gear.scancod,
-                                            gear.pressed,
-                                            gear.imitate,
-                                            gear.cluster,
-                                            gear.winchar);
+                    s11n::syskeybd.send(owner, gear.id,
+                                               gear.ctlstate,
+                                               gear.winctrl,
+                                               gear.virtcod,
+                                               gear.scancod,
+                                               gear.pressed,
+                                               gear.imitate,
+                                               gear.cluster,
+                                               gear.winchar);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
                 {
                     auto focus_state = true;
-                    s11n::focus.send(owner, gear.id,
-                                            focus_state,
-                                            gear.combine_focus,
-                                            gear.force_group_focus);
+                    s11n::sysfocus.send(owner, gear.id,
+                                               focus_state,
+                                               gear.combine_focus,
+                                               gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
                 {
                     gear.remove_from_kb_focus(owner.This());
                     auto focus_state = faux;
-                    s11n::focus.send(owner, gear.id,
-                                            focus_state,
-                                            gear.combine_focus,
-                                            gear.force_group_focus);
+                    s11n::sysfocus.send(owner, gear.id,
+                                               focus_state,
+                                               gear.combine_focus,
+                                               gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, gear)
                 {
                     auto focus_state = faux;
-                    s11n::focus.send(owner, gear.id,
-                                            focus_state,
-                                            gear.combine_focus,
-                                            gear.force_group_focus);
+                    s11n::sysfocus.send(owner, gear.id,
+                                               focus_state,
+                                               gear.combine_focus,
+                                               gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::general, e2::config::fps, token, frame_rate)
                 {
