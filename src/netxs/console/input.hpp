@@ -814,9 +814,11 @@ namespace netxs::input
 
         void replay(hint cause, twod const& coord, twod const& delta, ui32 button_state)
         {
+            static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
+            static constexpr auto base = mask & hids::events::mouse::button::any.id;
             alive = true;
             mouse::coord = coord;
-            mouse::cause = cause;
+            mouse::cause = (cause & ~mask) | base; // Remove the dependency on the event tree root.
             mouse::delta.set(delta);
             mouse::load_button_state(button_state);
         }
