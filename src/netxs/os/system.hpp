@@ -3725,26 +3725,18 @@ namespace netxs::os
                                                             if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
                                                             ctl &= ~0b00011100;
 
-                                                            auto fire = true;
-
                                                             if (ctl == 35 && m.buttons) // Moving without buttons (case when second release not fired: apple's terminal.app)
                                                             {
                                                                 m.buttons = {};
                                                                 m.changed++;
                                                                 wired.sysmouse.send(ipcio, m);
                                                             }
-                                                            auto ismoved = m.coordxy({ x, y });
-                                                            if (ismoved) // Moving should be fired first
-                                                            {
-                                                                m.changed++;
-                                                                wired.sysmouse.send(ipcio, m);
-                                                            }
-                                                            auto m_buttons = std::bitset<8>(m.buttons);
+                                                            m.coordxy = { x, y };
                                                             switch (ctl)
                                                             {
-                                                                case 0: m_buttons[input::hids::left  ] = ispressed; break;
-                                                                case 1: m_buttons[input::hids::middle] = ispressed; break;
-                                                                case 2: m_buttons[input::hids::right ] = ispressed; break;
+                                                                case 0: netxs::set_bit<input::hids::left  >(m.buttons, ispressed); break;
+                                                                case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
+                                                                case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
                                                                 case 64:
                                                                     m.wheeled = true;
                                                                     m.wheeldt = 1;
@@ -3753,16 +3745,9 @@ namespace netxs::os
                                                                     m.wheeled = true;
                                                                     m.wheeldt = -1;
                                                                     break;
-                                                                default:
-                                                                    fire = faux;
-                                                                    break;
                                                             }
-                                                            m.buttons = m_buttons.to_ulong(); //todo optimize
-                                                            if (fire)
-                                                            {
-                                                                m.changed++;
-                                                                wired.sysmouse.send(ipcio, m);
-                                                            }
+                                                            m.changed++;
+                                                            wired.sysmouse.send(ipcio, m);
                                                         }
                                                     }
                                                 }
