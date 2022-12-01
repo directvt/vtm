@@ -2492,6 +2492,7 @@ namespace netxs::ansi
             STRUCT(slimmenu,          (bool, menusize))
             STRUCT(debugdata,         (text, data))
             STRUCT(debuglogs,         (text, data))
+            STRUCT(debugtext,         (text, data))
 
             #undef STRUCT
             #undef STRUCT_LITE
@@ -2756,9 +2757,9 @@ namespace netxs::ansi
                 X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
                 X(request_debug    ) /* Request debug output redirection to stdin.    */\
                 /* Input stream                                                       */\
-                X(sysfocus         ) /* System focus state.                              */\
-                X(syskeybd         ) /* System keybd device.                                 */\
-                X(sysmouse         ) /* System mouse device.                                 */\
+                X(sysfocus         ) /* System focus state.                           */\
+                X(syskeybd         ) /* System keybd device.                          */\
+                X(sysmouse         ) /* System mouse device.                          */\
                 X(mouse_show       ) /* Show mouse cursor.                            */\
                 X(winsz            ) /* Window resize.                                */\
                 X(clipdata         ) /* Clipboard raw data.                           */\
@@ -2771,7 +2772,8 @@ namespace netxs::ansi
                 X(fgc              ) /* Set foreground color.                         */\
                 X(slimmenu         ) /* Set window menu size.                         */\
                 X(debugdata        ) /* Debug data.                                   */\
-                X(debuglogs        ) /* Debug logs.                                   */
+                X(debuglogs        ) /* Debug logs.                                   */\
+                X(debugtext        ) /* Debug forwarding.                             */
 
                 struct xs
                 {

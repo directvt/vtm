@@ -5113,6 +5113,11 @@ namespace netxs::console
             auto& item = lock.thing;
             notify<tier::anycast>(e2::debug::logs, item.data);
         }
+        void handle(s11n::xs::debugtext   lock)
+        {
+            auto& item = lock.thing;
+            log(item.data);
+        }
         void handle(s11n::xs::form_header lock)
         {
             auto& item = lock.thing;

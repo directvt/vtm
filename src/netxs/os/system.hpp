@@ -3495,18 +3495,10 @@ namespace netxs::os
                 auto legacy_mouse = !!(mode & os::legacy::mouse);
                 auto legacy_color = !!(mode & os::legacy::vga16);
                 auto micefd = INVALID_FD;
-                auto mcoor = twod{};
+                auto mcoord = twod{};
                 auto buffer = text(os::stdin_buf_size, '\0');
                 auto ttynum = si32{ 0 };
 
-                struct
-                {
-                    testy<twod> coord = {};
-                    testy<si32> shift = {};
-                    testy<si32> bttns = {};
-                    bool        wheel = {};
-                    ui32        stamp = {};
-                } state;
                 auto get_kb_state = []
                 {
                     auto state = si32{ 0 };
@@ -3805,13 +3797,17 @@ namespace netxs::os
                 auto h_proc = [&]
                 {
                     auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                    if (micefd != INVALID_FD
-                     && state.shift(get_kb_state()))
+                    if (micefd != INVALID_FD)
                     {
-                        wired.ctrls.send(ipcio,
-                            0,
-                            state.shift.last);
-                    }
+                        auto kb_state = get_kb_state();
+                        if (m.ctlstat != kb_state)
+                        {
+                            m.ctlstat = kb_state;
+                            wired.ctrls.send(ipcio,
+                                m.gear_id,
+                                m.ctlstat);
+                        }
+                     }
                     filter(data);
                 };
                 auto m_proc = [&]
@@ -3827,31 +3823,18 @@ namespace netxs::os
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
                             auto scale = twod{ 6,12 }; //todo magic numbers
-                            auto bttns = data[0] & 7;
-                            mcoor.x   += data[1];
-                            mcoor.y   -= data[2];
-                            auto wheel =-size == 4 ? data[3] : 0;
                             auto limit = _globals<void>::winsz.last * scale;
-                            if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
-                            state.wheel = !!wheel;
-                            if (state.coord(mcoor / scale)
-                             || state.bttns(bttns)
-                             || state.shift(get_kb_state())
-                             || state.wheel)
-                            {
-                                wired.sysmouse.send(ipcio,
-                                    0,
-                                    input::hids::ok,
-                                    state.shift.last,
-                                    0, // winctrl
-                                    state.bttns.last,
-                                    faux, // doubled
-                                    state.wheel,
-                                    faux, //hzwheel
-                                    wheel,
-                                    state.coord,
-                                    state.stamp++);
-                            }
+                            auto bttns = data[0] & 7;
+                            mcoord.x  += data[1];
+                            mcoord.y  -= data[2];
+                            if (bttns == 0) mcoord = std::clamp(mcoord, dot_00, limit);
+                            m.wheeldt = size == 4 ? -data[3] : 0;
+                            m.wheeled = m.wheeldt;
+                            m.coordxy = { mcoord / scale };
+                            m.buttons = bttns;
+                            m.ctlstat = get_kb_state();
+                            m.changed++;
+                            wired.sysmouse.send(ipcio, m);
                         }
                     #endif
                     }
