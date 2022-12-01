@@ -6,6 +6,7 @@
 
 #include "../ui/layout.hpp"
 #include "../abstract/tree.hpp"
+#include "../datetime/quartz.hpp"
 
 #include <mutex>
 #include <array>
@@ -674,14 +675,110 @@ namespace netxs::ansi
             osc_palette(15, rgba::color256[tint::whitelt  ]);
             return *this;
         }
-        auto& mouse_sgr(si32 ctrl, twod const& coor, bool ispressed) // esc: Mouse tracking report (SGR).
+        template<class T, class S>
+        auto& mouse_sgr(T const& gear, S const& cached, twod const& coor) // esc: Mouse tracking report (SGR).
         {
+            using hids = T;
+            static constexpr auto left     = si32{ 0  };
+            static constexpr auto mddl     = si32{ 1  };
+            static constexpr auto rght     = si32{ 2  };
+            static constexpr auto btup     = si32{ 3  };
+            static constexpr auto idle     = si32{ 32 };
+            static constexpr auto wheel_up = si32{ 64 };
+            static constexpr auto wheel_dn = si32{ 65 };
+
+            auto ctrl = si32{};
+            if (gear.m.ctlstat & hids::anyShift) ctrl |= 0x04;
+            if (gear.m.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
+            if (gear.m.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+
+            auto m_bttn = std::bitset<8>{ gear.m.buttons };
+            auto s_bttn = std::bitset<8>{ cached.buttons };
+            auto m_left = m_bttn[hids::left  ];
+            auto m_rght = m_bttn[hids::right ];
+            auto m_mddl = m_bttn[hids::middle];
+            auto s_left = s_bttn[hids::left  ];
+            auto s_rght = s_bttn[hids::right ];
+            auto s_mddl = s_bttn[hids::middle];
+            auto pressed = bool{};
+
+            if (m_left != s_left)
+            {
+                ctrl |= left;
+                pressed = m_left;
+            }
+            else if (m_rght != s_rght)
+            {
+                ctrl |= rght;
+                pressed = m_rght;
+            }
+            else if (m_mddl != s_mddl)
+            {
+                ctrl |= mddl;
+                pressed = m_mddl;
+            }
+            else if (gear.m.wheeled)
+            {
+                ctrl |= gear.m.wheeldt > 0 ? wheel_up
+                                           : wheel_dn;
+                pressed = true;
+            }
+            else if (gear.m.buttons)
+            {
+                     if (m_left) ctrl |= left;
+                else if (m_rght) ctrl |= rght;
+                else if (m_mddl) ctrl |= mddl;
+                ctrl |= idle;
+                pressed = true;
+            }
+            else
+            {
+                ctrl |= idle + btup;
+                pressed = faux;
+            }
             return add("\033[<", ctrl, ';',
                            coor.x + 1, ';',
-                           coor.y + 1, ispressed ? 'M' : 'm');
+                           coor.y + 1, pressed ? 'M' : 'm');
         }
-        auto& mouse_x11(si32 ctrl, twod const& coor) // esc: Mouse tracking report (X11).
+        template<class T, class S>
+        auto& mouse_x11(T const& gear, S const& cached, twod const& coor) // esc: Mouse tracking report (X11).
         {
+            using hids = T;
+            static constexpr auto left     = si32{ 0  };
+            static constexpr auto mddl     = si32{ 1  };
+            static constexpr auto rght     = si32{ 2  };
+            static constexpr auto btup     = si32{ 3  };
+            static constexpr auto idle     = si32{ 32 };
+            static constexpr auto wheel_up = si32{ 64 };
+            static constexpr auto wheel_dn = si32{ 65 };
+
+            auto ctrl = si32{};
+            if (gear.m.ctlstat & hids::anyShift) ctrl |= 0x04;
+            if (gear.m.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
+            if (gear.m.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+
+            auto m_bttn = std::bitset<8>{ gear.m.buttons };
+            auto s_bttn = std::bitset<8>{ cached.buttons };
+            auto m_left = m_bttn[hids::left  ];
+            auto m_rght = m_bttn[hids::right ];
+            auto m_mddl = m_bttn[hids::middle];
+            auto s_left = s_bttn[hids::left  ];
+            auto s_rght = s_bttn[hids::right ];
+            auto s_mddl = s_bttn[hids::middle];
+
+                 if (m_left != s_left) ctrl |= m_left ? left : btup;
+            else if (m_rght != s_rght) ctrl |= m_rght ? rght : btup;
+            else if (m_mddl != s_mddl) ctrl |= m_mddl ? mddl : btup;
+            else if (gear.m.wheeled  ) ctrl |= gear.m.wheeldt > 0 ? wheel_up
+                                                                  : wheel_dn;
+            else if (gear.m.buttons)
+            {
+                     if (m_left) ctrl |= left;
+                else if (m_rght) ctrl |= rght;
+                else if (m_mddl) ctrl |= mddl;
+                ctrl |= idle;
+            }
+            else ctrl |= idle + btup;
             return add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 255-32) + 32),
                                  static_cast<char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
                                  static_cast<char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
@@ -2298,11 +2395,32 @@ namespace netxs::ansi
                         stream::reset();                                              \
                         stream::add(SEQ_NAME(WRAP(struct_members)) noop{});           \
                     }                                                                 \
+                    template<class T>                                                 \
+                    void set(T&& source)                                              \
+                    {                                                                 \
+                        SEQ_TEMP(WRAP(struct_members))                                \
+                        stream::reset();                                              \
+                        stream::add(SEQ_NAME(WRAP(struct_members)) noop{});           \
+                    }                                                                 \
                     void get(view& _data)                                             \
                     {                                                                 \
                         int _tmp;                                                     \
                         std::tie(SEQ_NAME(WRAP(struct_members)) _tmp) =               \
                             stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(_data); \
+                    }                                                                 \
+                    void wipe()                                                       \
+                    {                                                                 \
+                        SEQ_WIPE(WRAP(struct_members))                                \
+                        stream::reset();                                              \
+                    }                                                                 \
+                                                                                      \
+                    friend std::ostream& operator << (std::ostream& s,                \
+                                                        CAT(struct_name, _t) const& o)\
+                    {                                                                 \
+                        s << #struct_name " {";                                       \
+                        SEQ_LOGS(WRAP(struct_members))                                \
+                        s << " }";                                                    \
+                        return s;                                                     \
                     }                                                                 \
                 };                                                                    \
                 using struct_name = wrapper<CAT(struct_name, _t)>;
@@ -2316,19 +2434,30 @@ namespace netxs::ansi
                     { }                                                               \
                     void set() {}                                                     \
                     void get(view& data) {}                                           \
+                                                                                      \
+                    friend std::ostream& operator << (std::ostream& s,                \
+                                                        CAT(struct_name, _t) const& o)\
+                    {                                                                 \
+                        return s << #struct_name " { }";                              \
+                    }                                                                 \
                 };                                                                    \
                 using struct_name = wrapper<CAT(struct_name, _t)>;
 
             using imap = netxs::imap<text, text>;
+            //todo unify
+            static auto& operator << (std::ostream& s, imap const& o) { return s << "{...}"; }
+            static auto& operator << (std::ostream& s, wchr const& o) { return s << "0x" << utf::to_hex(o); }
+
             // Output stream.
             STRUCT(frame_element,     (frag, data))
             STRUCT(jgc_element,       (ui64, token) (text, cluster))
             STRUCT(tooltip_element,   (id_t, gear_id) (text, tip_text))
-            STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord))
+            STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
             STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
             STRUCT(request_clipboard, (id_t, gear_id))
             STRUCT(set_focus,         (id_t, gear_id) (bool, combine_focus) (bool, force_group_focus))
             STRUCT(off_focus,         (id_t, gear_id))
+            STRUCT(maximize,          (id_t, gear_id))
             STRUCT(form_header,       (id_t, window_id) (text, new_header))
             STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
             STRUCT(warping,           (id_t, window_id) (dent, warpdata))
@@ -2338,16 +2467,24 @@ namespace netxs::ansi
             STRUCT_LITE(request_debug)
 
             // Input stream.
-            STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, combine_focus) (bool, force_group_focus))
+            STRUCT(sysfocus,          (id_t, gear_id) (bool, enabled) (bool, combine_focus) (bool, force_group_focus))
+            STRUCT(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
+            STRUCT(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
+                                      (ui32, enabled)  // sysmouse: Mouse device health status.
+                                      (ui32, ctlstat)  // sysmouse: Keybd modifiers state.
+                                      (ui32, winctrl)  // sysmouse: Windows specific keybd modifier state.
+                                      (ui32, buttons)  // sysmouse: Buttons bit state.
+                                      (bool, doubled)  // sysmouse: Double click.
+                                      (bool, wheeled)  // sysmouse: Vertical scroll wheel.
+                                      (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
+                                      (si32, wheeldt)  // sysmouse: Scroll delta.
+                                      (twod, coordxy)  // sysmouse: Cursor coordinates.
+                                      (ui32, changed)) // sysmouse: Update stamp.
+            STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
             STRUCT(winsz,             (id_t, gear_id) (twod, winsize))
             STRUCT(clipdata,          (id_t, gear_id) (text, data) (si32, mimetype))
             STRUCT(plain,             (id_t, gear_id) (text, utf8txt))
             STRUCT(ctrls,             (id_t, gear_id) (ui32, ctlstat))
-            STRUCT(keybd,             (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
-            STRUCT(mouse,             (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, buttons) (ui32, msflags) (ui32, wheeldt) (twod, coordxy))
-            STRUCT(mouse_stop,        (id_t, gear_id))
-            STRUCT(mouse_halt,        (id_t, gear_id))
-            STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
             STRUCT(unknown_gc,        (ui64, token))
             STRUCT(fps,               (si32, frame_rate))
             STRUCT(bgc,               (rgba, color))
@@ -2355,6 +2492,7 @@ namespace netxs::ansi
             STRUCT(slimmenu,          (bool, menusize))
             STRUCT(debugdata,         (text, data))
             STRUCT(debuglogs,         (text, data))
+            STRUCT(debugtext,         (text, data))
 
             #undef STRUCT
             #undef STRUCT_LITE
@@ -2607,6 +2745,7 @@ namespace netxs::ansi
                 X(request_clipboard) /* Request main clipboard data.                  */\
                 X(off_focus        ) /* Request to remove focus.                      */\
                 X(set_focus        ) /* Request to set focus.                         */\
+                X(maximize         ) /* Request to maximize/restore                   */\
                 X(form_header      ) /* Set window title.                             */\
                 X(form_footer      ) /* Set window footer.                            */\
                 X(warping          ) /* Warp resize.                                  */\
@@ -2618,16 +2757,14 @@ namespace netxs::ansi
                 X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
                 X(request_debug    ) /* Request debug output redirection to stdin.    */\
                 /* Input stream                                                       */\
-                X(focus            ) /* Set/unset focus.                              */\
+                X(sysfocus         ) /* System focus state.                           */\
+                X(syskeybd         ) /* System keybd device.                          */\
+                X(sysmouse         ) /* System mouse device.                          */\
+                X(mouse_show       ) /* Show mouse cursor.                            */\
                 X(winsz            ) /* Window resize.                                */\
                 X(clipdata         ) /* Clipboard raw data.                           */\
                 X(plain            ) /* Raw text input.                               */\
                 X(ctrls            ) /* Keyboard modifiers state.                     */\
-                X(keybd            ) /* Keybd events.                                 */\
-                X(mouse            ) /* Mouse events.                                 */\
-                X(mouse_stop       ) /* Mouse disconnected.                           */\
-                X(mouse_halt       ) /* Mouse leaves window.                          */\
-                X(mouse_show       ) /* Show mouse cursor.                            */\
                 X(request_gc       ) /* Unknown gc token list.                        */\
                 X(unknown_gc       ) /* Unknown gc token.                             */\
                 X(fps              ) /* Set frame rate.                               */\
@@ -2635,7 +2772,8 @@ namespace netxs::ansi
                 X(fgc              ) /* Set foreground color.                         */\
                 X(slimmenu         ) /* Set window menu size.                         */\
                 X(debugdata        ) /* Debug data.                                   */\
-                X(debuglogs        ) /* Debug logs.                                   */
+                X(debuglogs        ) /* Debug logs.                                   */\
+                X(debugtext        ) /* Debug forwarding.                             */
 
                 struct xs
                 {

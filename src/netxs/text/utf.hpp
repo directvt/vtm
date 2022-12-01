@@ -16,6 +16,7 @@
 #include <optional>
 #include <sstream>
 #include <span>
+#include <bitset>
 
 #define GRAPHEME_CLUSTER_LIMIT (31) // Limits the number of code points in a grapheme cluster to a number sufficient for any possible linguistic situation.
 #define CLUSTER_FIELD_SIZE     (5)
@@ -1155,6 +1156,11 @@ namespace netxs::utf
         else return std::to_string(number);
     }
 
+    template<class T, int L = std::numeric_limits<T>::digits>
+    auto to_bin(T n)
+    {
+        return std::bitset<L>(n).to_string();
+    }
     template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(V number, size_t width = sizeof(V) * 2, char filler = '0')
     {

@@ -104,11 +104,11 @@ namespace netxs::os
     }
 
     namespace fs = std::filesystem;
-    using list = std::vector<text>;
-    using xipc = std::shared_ptr<ipc::iobase>;
     using namespace std::chrono_literals;
     using namespace std::literals;
     using namespace netxs::ui::atoms;
+    using list = std::vector<text>;
+    using xipc = std::shared_ptr<ipc::iobase>;
     using page = console::page;
     using para = console::para;
     using rich = console::rich;
@@ -3335,7 +3335,7 @@ namespace netxs::os
                             auto bKeyDown = faux;
                             auto wRepeatCount = 1;
                             auto UnicodeChar = L'\x03'; // ansi::C0_ETX
-                            wired.keybd.send(*ipcio,
+                            wired.syskeybd.send(*ipcio,
                                 0,
                                 os::kbstate(kbmod, dwControlKeyState),
                                 dwControlKeyState,
@@ -3412,19 +3412,8 @@ namespace netxs::os
                 // or return 0 bytes read.
                 auto reply = std::vector<INPUT_RECORD>(1);
                 auto count = DWORD{};
+                auto stamp = ui32{};
                 fd_t waits[] = { STDIN_FD, signal };
-
-                auto xlate_bttns = [](auto bttns)
-                {
-                    auto b = ui32{};
-                    b |= bttns & FROM_LEFT_1ST_BUTTON_PRESSED ? (1 << input::sysmouse::left  ) : 0;
-                    b |= bttns & RIGHTMOST_BUTTON_PRESSED     ? (1 << input::sysmouse::right ) : 0;
-                    b |= bttns & FROM_LEFT_2ND_BUTTON_PRESSED ? (1 << input::sysmouse::middle) : 0;
-                    b |= bttns & FROM_LEFT_3RD_BUTTON_PRESSED ? (1 << input::sysmouse::wheel ) : 0;
-                    b |= bttns & FROM_LEFT_4TH_BUTTON_PRESSED ? (1 << input::sysmouse::win   ) : 0;
-                    return b;
-                };
-
                 auto& kbstate = _globals<void>::kbmod;
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
@@ -3458,7 +3447,7 @@ namespace netxs::os
                                 switch (reply.EventType)
                                 {
                                     case KEY_EVENT:
-                                        wired.keybd.send(ipcio,
+                                        wired.syskeybd.send(ipcio,
                                             0,
                                             os::kbstate(kbstate, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
                                             reply.Event.KeyEvent.dwControlKeyState,
@@ -3470,20 +3459,24 @@ namespace netxs::os
                                             reply.Event.KeyEvent.uChar.UnicodeChar);
                                         break;
                                     case MOUSE_EVENT:
-                                        wired.mouse.send(ipcio,
+                                        wired.sysmouse.send(ipcio,
                                             0,
+                                            input::hids::ok,
                                             os::kbstate(kbstate, reply.Event.MouseEvent.dwControlKeyState),
                                             reply.Event.MouseEvent.dwControlKeyState,
-                                            xlate_bttns(reply.Event.MouseEvent.dwButtonState),
-                                            reply.Event.MouseEvent.dwEventFlags,
+                                            reply.Event.MouseEvent.dwButtonState & 0b00011111,
+                                            reply.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK,
+                                            reply.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED,
+                                            reply.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED,
                                             static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
-                                            twod{ reply.Event.MouseEvent.dwMousePosition.X, reply.Event.MouseEvent.dwMousePosition.Y });
+                                            twod{ reply.Event.MouseEvent.dwMousePosition.X, reply.Event.MouseEvent.dwMousePosition.Y },
+                                            stamp++);
                                         break;
                                     case WINDOW_BUFFER_SIZE_EVENT:
                                         _globals<void>::resize_handler();
                                         break;
                                     case FOCUS_EVENT:
-                                        wired.focus.send(ipcio,
+                                        wired.sysfocus.send(ipcio,
                                             0,
                                             reply.Event.FocusEvent.bSetFocus,
                                             faux,
@@ -3502,17 +3495,10 @@ namespace netxs::os
                 auto legacy_mouse = !!(mode & os::legacy::mouse);
                 auto legacy_color = !!(mode & os::legacy::vga16);
                 auto micefd = INVALID_FD;
-                auto mcoor = twod{};
+                auto mcoord = twod{};
                 auto buffer = text(os::stdin_buf_size, '\0');
                 auto ttynum = si32{ 0 };
 
-                struct
-                {
-                    testy<twod> coord;
-                    testy<si32> shift = 0;
-                    testy<si32> bttns = 0;
-                    si32        flags = 0;
-                } state;
                 auto get_kb_state = []
                 {
                     auto state = si32{ 0 };
@@ -3573,13 +3559,9 @@ namespace netxs::os
                     }
                 }
 
-                struct sysgears
-                {
-                    input::sysmouse mouse = {};
-                    input::syskeybd keybd = {};
-                    input::sysfocus focus = {};
-                };
-                auto gears = std::unordered_map<id_t, sysgears>{};
+                auto m = input::sysmouse{};
+                auto k = input::syskeybd{};
+                auto f = input::sysfocus{};
                 auto close = faux;
                 auto total = text{};
                 auto digit = [](auto c) { return c >= '0' && c <= '9'; };
@@ -3643,44 +3625,20 @@ namespace netxs::os
                             if (pos == len) // the only one esc
                             {
                                 // Pass Esc.
-                                auto id = 0;
-                                auto& k = gears[id].keybd;
-                                k.id      = id;
+                                k.gear_id = 0;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, 1);
-                                //notify(e2::conio::keybd, k);
-                                wired.keybd.send(ipcio,
-                                    0,
-                                    k.ctlstat,
-                                    0, // winctrl
-                                    k.virtcod,
-                                    k.scancod,
-                                    k.pressed,
-                                    k.imitate,
-                                    k.cluster,
-                                    0); // winchar
+                                wired.syskeybd.send(ipcio, k);
                                 total.clear();
                                 break;
                             }
                             else if (strv.at(pos) == '\033') // two consecutive escapes
                             {
                                 // Pass Esc.
-                                auto id = 0;
-                                auto& k = gears[id].keybd;
-                                k.id      = id;
+                                k.gear_id = 0;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, 1);
-                                //notify(e2::conio::keybd, k);
-                                wired.keybd.send(ipcio,
-                                    0,
-                                    k.ctlstat,
-                                    0, // winctrl
-                                    k.virtcod,
-                                    k.scancod,
-                                    k.pressed,
-                                    k.imitate,
-                                    k.cluster,
-                                    0); // winchar
+                                wired.syskeybd.send(ipcio, k);
                                 total = strv.substr(1);
                                 break;
                             }
@@ -3690,30 +3648,16 @@ namespace netxs::os
                                 if (++pos == len) { total = strv; break; }//incomlpete
                                 if (strv.at(pos) == 'I')
                                 {
-                                    auto id = 0;
-                                    auto& f = gears[id].focus;
-                                    f.id      = id;
+                                    f.gear_id = 0;
                                     f.enabled = true;
-                                    //notify(e2::conio::focus, f);
-                                    wired.focus.send(ipcio,
-                                        0,
-                                        f.enabled,
-                                        f.combine_focus,
-                                        f.force_group_focus);
+                                    wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == 'O')
                                 {
-                                    auto id = 0;
-                                    auto& f = gears[id].focus;
-                                    f.id      = id;
+                                    f.gear_id = 0;
                                     f.enabled = faux;
-                                    //notify(e2::conio::focus, f);
-                                    wired.focus.send(ipcio,
-                                        0,
-                                        f.enabled,
-                                        f.combine_focus,
-                                        f.force_group_focus);
+                                    wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == '<') // \033[<0;x;yM/m
@@ -3755,75 +3699,36 @@ namespace netxs::os
                                                             auto x = clamp(pos_x.value() - 1);
                                                             auto y = clamp(pos_y.value() - 1);
                                                             auto ctl = ctrl.value();
-                                                            auto id = 0;
-                                                            auto& m = gears[id].mouse;
 
+                                                            m.gear_id = {};
+                                                            m.enabled = {};
+                                                            m.winctrl = {};
+                                                            m.doubled = {};
+                                                            m.wheeled = {};
+                                                            m.hzwheel = {};
+                                                            m.wheeldt = {};
+                                                            m.ctlstat = {};
                                                             // 00000 000
                                                             //   ||| |||
                                                             //   ||| |------ btn state
                                                             //   |---------- ctl state
-                                                            m.ctlstat = {};
                                                             if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
                                                             if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
                                                             if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
-                                                            ctl = ctl & ~0b00011100;
+                                                            ctl &= ~0b00011100;
 
-                                                            m.id      = id;
-                                                            m.shuffle = faux;
-                                                            m.wheeled = faux;
-                                                            m.wheeldt = 0;
-
-                                                            auto fire = true;
-
-                                                            if (ctl == 35 &&(m.buttons[input::sysmouse::left  ]
-                                                                          || m.buttons[input::sysmouse::middle]
-                                                                          || m.buttons[input::sysmouse::right ]
-                                                                          || m.buttons[input::sysmouse::win   ]))
+                                                            if (ctl == 35 && m.buttons) // Moving without buttons (case when second release not fired: apple's terminal.app)
                                                             {
-                                                                // Moving without buttons (case when second release not fired: apple's terminal.app)
-                                                                m.buttons[input::sysmouse::left  ] = faux;
-                                                                m.buttons[input::sysmouse::middle] = faux;
-                                                                m.buttons[input::sysmouse::right ] = faux;
-                                                                m.buttons[input::sysmouse::win   ] = faux;
-                                                                m.update_buttons();
-                                                                //notify(e2::conio::mouse, m);
-                                                                wired.mouse.send(ipcio,
-                                                                    0,
-                                                                    m.ctlstat,
-                                                                    0, // winctrl
-                                                                    m.get_sysbuttons(),
-                                                                    m.get_msflags(),
-                                                                    m.wheeldt,
-                                                                    m.coor);
+                                                                m.buttons = {};
+                                                                m.changed++;
+                                                                wired.sysmouse.send(ipcio, m);
                                                             }
-                                                            // Moving should be fired first
-                                                            if ((m.ismoved = m.coor({ x, y })))
-                                                            {
-                                                                m.update_buttons();
-                                                                //notify(e2::conio::mouse, m);
-                                                                wired.mouse.send(ipcio,
-                                                                    0,
-                                                                    m.ctlstat,
-                                                                    0, // winctrl
-                                                                    m.get_sysbuttons(),
-                                                                    m.get_msflags(),
-                                                                    m.wheeldt,
-                                                                    m.coor);
-                                                                m.ismoved = faux;
-                                                            }
+                                                            m.coordxy = { x, y };
                                                             switch (ctl)
                                                             {
-                                                                case 0: m.buttons[input::sysmouse::left  ] = ispressed; break;
-                                                                case 1: m.buttons[input::sysmouse::middle] = ispressed; break;
-                                                                case 2: m.buttons[input::sysmouse::right ] = ispressed; break;
-                                                                case 3: m.buttons[input::sysmouse::win   ] = ispressed; break;
-                                                                    //if (!ispressed) // WinSrv2019 vtmouse bug workaround
-                                                                    //{               //  - release any button always fires winbt release
-                                                                    //	m.button[sysmouse::left  ] = ispressed;
-                                                                    //	m.button[sysmouse::middle] = ispressed;
-                                                                    //	m.button[sysmouse::right ] = ispressed;
-                                                                    //}
-                                                                    //break;
+                                                                case 0: netxs::set_bit<input::hids::left  >(m.buttons, ispressed); break;
+                                                                case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
+                                                                case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
                                                                 case 64:
                                                                     m.wheeled = true;
                                                                     m.wheeldt = 1;
@@ -3832,25 +3737,9 @@ namespace netxs::os
                                                                     m.wheeled = true;
                                                                     m.wheeldt = -1;
                                                                     break;
-                                                                default:
-                                                                    fire = faux;
-                                                                    m.shuffle = !m.ismoved;
-                                                                    break;
                                                             }
-
-                                                            if (fire)
-                                                            {
-                                                                m.update_buttons();
-                                                                //notify(e2::conio::mouse, m);
-                                                                wired.mouse.send(ipcio,
-                                                                    0,
-                                                                    m.ctlstat,
-                                                                    0, // winctrl
-                                                                    m.get_sysbuttons(),
-                                                                    m.get_msflags(),
-                                                                    m.wheeldt,
-                                                                    m.coor);
-                                                            }
+                                                            m.changed++;
+                                                            wired.sysmouse.send(ipcio, m);
                                                         }
                                                     }
                                                 }
@@ -3894,22 +3783,10 @@ namespace netxs::os
 
                             if (i)
                             {
-                                auto id = 0;
-                                auto& k = gears[id].keybd;
-                                k.id      = id;
+                                k.gear_id = 0;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, i);
-                                //notify(e2::conio::keybd, k);
-                                wired.keybd.send(ipcio,
-                                    0,
-                                    k.ctlstat,
-                                    0, // winctrl
-                                    k.virtcod,
-                                    k.scancod,
-                                    k.pressed,
-                                    k.imitate,
-                                    k.cluster,
-                                    0); // winchar
+                                wired.syskeybd.send(ipcio, k);
                                 total = strv.substr(i);
                                 strv = total;
                             }
@@ -3920,13 +3797,17 @@ namespace netxs::os
                 auto h_proc = [&]
                 {
                     auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                    if (micefd != INVALID_FD
-                     && state.shift(get_kb_state()))
+                    if (micefd != INVALID_FD)
                     {
-                        wired.ctrls.send(ipcio,
-                            0,
-                            state.shift.last);
-                    }
+                        auto kb_state = get_kb_state();
+                        if (m.ctlstat != kb_state)
+                        {
+                            m.ctlstat = kb_state;
+                            wired.ctrls.send(ipcio,
+                                m.gear_id,
+                                m.ctlstat);
+                        }
+                     }
                     filter(data);
                 };
                 auto m_proc = [&]
@@ -3942,27 +3823,18 @@ namespace netxs::os
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
                             auto scale = twod{ 6,12 }; //todo magic numbers
-                            auto bttns = data[0] & 7;
-                            mcoor.x   += data[1];
-                            mcoor.y   -= data[2];
-                            auto wheel =-size == 4 ? data[3] : 0;
                             auto limit = _globals<void>::winsz.last * scale;
-                            if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
-                            state.flags = wheel ? 4 : 0;
-                            if (state.coord(mcoor / scale)
-                             || state.bttns(bttns)
-                             || state.shift(get_kb_state())
-                             || state.flags)
-                            {
-                                wired.mouse.send(ipcio,
-                                    0,
-                                    state.flags,
-                                    0, // winctrl
-                                    state.bttns.last,
-                                    state.flags,
-                                    wheel,
-                                    state.coord);
-                            }
+                            auto bttns = data[0] & 7;
+                            mcoord.x  += data[1];
+                            mcoord.y  -= data[2];
+                            if (bttns == 0) mcoord = std::clamp(mcoord, dot_00, limit);
+                            m.wheeldt = size == 4 ? -data[3] : 0;
+                            m.wheeled = m.wheeldt;
+                            m.coordxy = { mcoord / scale };
+                            m.buttons = bttns;
+                            m.ctlstat = get_kb_state();
+                            m.changed++;
+                            wired.sysmouse.send(ipcio, m);
                         }
                     #endif
                     }
@@ -4517,10 +4389,10 @@ namespace netxs::os
                 con_serv.events.keybd(gear, decckm);
             #endif
         }
-        void mouse(input::hids& gear, bool moved, bool wheeled, bool dblclick = faux)
+        void mouse(input::hids& gear, bool moved, twod const& coord)
         {
             #if defined(_WIN32)
-                con_serv.events.mouse(gear, moved, wheeled, dblclick);
+                con_serv.events.mouse(gear, moved, coord);
             #endif
         }
         void write(view data)

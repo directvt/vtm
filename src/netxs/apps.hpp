@@ -229,6 +229,7 @@ R"==(
             <preview enabled=true size=80x25 />
         </clipboard>
         <viewport coor=0,0 />
+        <mouse dblclick=500ms />
         <tooltip timeout=500ms enabled=true />
         <glowfx=true />                      <!-- Show glow effect around selected item. -->
         <debug overlay=faux toggle="🐞" />  <!-- Display console debug info. -->
@@ -1391,6 +1392,7 @@ namespace netxs::app::shared
                             m.title = name; // Use the same title as the menu label.
                             m.param = args;
                             m.hidden = true;
+                            m.settings = config; //todo it is dangerous
                             menu_list[name];
 
                             auto current_default = e2::data::changed.param();
@@ -1409,12 +1411,9 @@ namespace netxs::app::shared
         };
         auto build_DirectVT      = [](text cwd, text param, xml::settings& config)
         {
-            auto window = ui::cake::ctor()
+            return ui::dtvt::ctor(cwd, param, config.utf8()) //todo pass subconfig
                 ->plugin<pro::limit>(dot_11)
-                ->plugin<pro::focus>();
-
-            //todo pass subconfig
-            auto direct = ui::dtvt::ctor(cwd, param, config.utf8())
+                ->plugin<pro::focus>()
                 ->invoke([](auto& boss)
                 {
                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
@@ -1422,8 +1421,6 @@ namespace netxs::app::shared
                         boss.start();
                     };
                 });
-            window->attach(direct);
-            return window;
         };
         auto build_ANSIVT        = [](text cwd, text param, xml::settings& config)
         {
