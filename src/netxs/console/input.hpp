@@ -321,7 +321,6 @@ namespace netxs::input
         twod coord = {}; // mouse: Relative mouse cursor coordinates.
         tail delta = {}; // mouse: History of mouse movements for a specified period of time.
         bool reach = {}; // mouse: Has the event tree relay reached the mouse event target.
-        bool debug = {}; // mouse: Trace mouse events.
         bool nodbl = {}; // mouse: Whether single click event processed (to prevent double clicks).
         bool scrll = {}; // mouse: Vertical scrolling.
         bool hzwhl = {}; // mouse: Horizontal scrolling.
@@ -526,28 +525,16 @@ namespace netxs::input
             }
 
             coord = m.coordxy;
-            if (debug) // Overlay needs current values for every frame
+            if (m.wheeled || m.hzwheel)
             {
                 scrll = m.wheeled;
                 hzwhl = m.hzwheel;
                 whldt = m.wheeldt;
-            }
-            if (m.wheeled)
-            {
-                if (debug == faux)
-                {
-                    scrll = m.wheeled;
-                    hzwhl = m.hzwheel;
-                    whldt = m.wheeldt;
-                    fire(m.wheeldt > 0 ? scrollup : scrolldn);
-                    scrll = faux;
-                    hzwhl = faux;
-                    whldt = 0;
-                }
-                else
-                {
-                    fire(m.wheeldt > 0 ? scrollup : scrolldn);
-                }
+                fire(m.wheeldt > 0 ? scrollup : scrolldn);
+                m.wheeled = {}; // Clear one-shot events.
+                m.hzwheel = {};
+                m.wheeldt = {};
+                m.doubled = {};
             }
         }
         // mouse: Initiator of visual tree informing about mouse enters/leaves.
@@ -1054,6 +1041,13 @@ namespace netxs::input
                     next.global(m.coordxy);
                     next.bell::template signal<tier::release>(m_device, *this);
                     m.coordxy = temp;
+                    if (!alive) // Clear one-shot events on success.
+                    {
+                        m.wheeled = {};
+                        m.wheeldt = {};
+                        m.hzwheel = {};
+                        m.doubled = {};
+                    }
                 }
                 else if (mouse::swift == next_id) mouse::setfree();
             }
