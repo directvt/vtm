@@ -3523,16 +3523,13 @@ namespace netxs::os
                     log(" tty: compatibility mode");
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
                     auto mouse_device = "/dev/input/mice";
-                    auto mouse_fallback = "/dev/input/mice_vtm";
+                    auto mouse_fallback1 = "/dev/input/mice.vtm";
+                    auto mouse_fallback2 = "/dev/input/mice_vtm"; //todo deprecated
                     auto fd = ::open(mouse_device, O_RDWR);
-                    if (fd == -1)
-                    {
-                        fd = ::open(mouse_fallback, O_RDWR);
-                    }
-                    if (fd == -1)
-                    {
-                        log(" tty: error opening ", mouse_device, " and ", mouse_fallback, ", error ", errno, errno == 13 ? " - permission denied" : "");
-                    }
+                    if (fd == -1) fd = ::open(mouse_fallback1, O_RDWR);
+                    if (fd == -1) log(" tty: error opening ", mouse_device, " and ", mouse_fallback1, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    if (fd == -1) fd = ::open(mouse_fallback2, O_RDWR);
+                    if (fd == -1) log(" tty: error opening ", mouse_device, " and ", mouse_fallback2, ", error ", errno, errno == 13 ? " - permission denied" : "");
                     else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
                     {
                         char ack;
@@ -3708,10 +3705,10 @@ namespace netxs::os
                                                             m.hzwheel = {};
                                                             m.wheeldt = {};
                                                             m.ctlstat = {};
-                                                            // 00000 000
-                                                            //   ||| |||
-                                                            //   ||| |------ btn state
-                                                            //   |---------- ctl state
+                                                            // 000 000 00
+                                                            //   | ||| ||
+                                                            //   | ||| ------ button number
+                                                            //   | ---------- ctl state
                                                             if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
                                                             if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
                                                             if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
