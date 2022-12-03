@@ -218,6 +218,7 @@ namespace netxs::events::userland
                 EVENT_XS( preclose, const bool      ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
                 EVENT_XS( quit    , const text      ), // release: quit, arg: text - bye msg.
                 EVENT_XS( pointer , const bool      ), // release: mouse pointer visibility.
+                EVENT_XS( clipdata, const ansi::clip), // release: OS clipboard update.
                 //EVENT_XS( menu  , si32 ),
             };
             SUBSET_XS( data )
@@ -3493,7 +3494,7 @@ namespace netxs::console
                     }
                     return not_empty;
                 }
-                void set_clip_data(twod const& size, clip const& data) override
+                void set_clip_data(twod const& size, clip const& data, bool forward = true) override
                 {
                     if (data.utf8.size())
                     {
@@ -3511,7 +3512,7 @@ namespace netxs::console
                         clip_preview.wipe();
                         clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
                     }
-                    owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+                    if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
                 }
                 clip get_clip_data() override
                 {
@@ -3645,6 +3646,18 @@ namespace netxs::console
                     if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
                 }
                 return std::pair{ id_t{}, sptr<topgear>{} };
+            }
+            auto set_clip_data(twod const& size, clip const& clipdata)
+            {
+                if (gears.empty())
+                {
+                    gears.emplace(0, bell::create<topgear>(true, boss, xmap, dblclick_timeout, tooltip_timeout, simple_instance));
+                }
+                for (auto& [id, gear_ptr] : gears)
+                {
+                    auto& gear = *gear_ptr;
+                    gear.set_clip_data(size, clipdata, faux);
+                }
             }
         };
 
@@ -5010,7 +5023,7 @@ namespace netxs::console
 
         // link: Send an event message to the link owner.
         template<tier TIER = tier::release, class E, class T>
-        void notify(E, T& data)
+        void notify(E, T&& data)
         {
             netxs::events::enqueue(owner, [d = data](auto& boss) mutable
             {
@@ -5032,6 +5045,11 @@ namespace netxs::console
         {
             auto& item = lock.thing;
             relay.set(item.gear_id, item.data, static_cast<clip::mime>(item.mimetype));
+        }
+        void handle(s11n::xs::osclipdata  lock)
+        {
+            auto& item = lock.thing;
+            notify(e2::conio::clipdata, clip{ item.data, static_cast<clip::mime>(item.mimetype) });
         }
         void handle(s11n::xs::syskeybd    lock)
         {
@@ -5624,6 +5642,13 @@ namespace netxs::console
                     auto msg = text{ "\n\rgate: Term error: " } + std::to_string(errcode) + "\r\n";
                     log("gate: error byemsg: ", msg);
                     canal.stop();
+                };
+                SUBMIT_T(tier::release, e2::conio::clipdata, token, clipdata)
+                {
+                    if (!direct)
+                    {
+                        input.set_clip_data(base::size() / 2, clipdata);
+                    }
                 };
                 SUBMIT_T(tier::release, e2::conio::quit, token, msg)
                 {

@@ -129,6 +129,15 @@ namespace netxs::os
         static const auto PIPE_BUF     = si32{ 65536 };
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
+        static auto clipboard_sequence = std::numeric_limits<DWORD>::max();
+        static auto cf_text = CF_UNICODETEXT;
+        static auto cf_utf8 = CF_TEXT;
+        static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
+        static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
+        static auto cf_ansi = ::RegisterClipboardFormatA("ANSI/VT Format");
+        static auto cf_sec1 = ::RegisterClipboardFormatA("ExcludeClipboardContentFromMonitorProcessing");
+        static auto cf_sec2 = ::RegisterClipboardFormatA("CanIncludeInClipboardHistory");
+        static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
 
         //static constexpr auto security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -1769,21 +1778,12 @@ namespace netxs::os
         //                                         cf_ansi: ANSI-text UTF-8 with mime mark
         //
         //  cf_ansi format: payload=mime;utf8_data
+
         using ansi::clip;
 
         auto success = faux;
         #if defined(_WIN32)
 
-            static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
-            static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
-            static auto cf_ansi = ::RegisterClipboardFormatA("ANSI/VT Format");
-            
-            static auto cf_sec1 = ::RegisterClipboardFormatA("ExcludeClipboardContentFromMonitorProcessing");
-            static auto cf_sec2 = ::RegisterClipboardFormatA("CanIncludeInClipboardHistory");
-            static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
-
-            static auto cf_text = CF_UNICODETEXT;
-            static auto cf_utf8 = CF_TEXT;
             auto send = [&](auto cf_format, view data)
             {
                 auto _send = [&](auto const& data)
@@ -1802,15 +1802,15 @@ namespace netxs::os
                     }
                     else log("  os: ::GlobalAlloc returns unexpected result");
                 };
-                cf_format == cf_text ? _send(utf::to_utf(data))
-                                     : _send(data);
+                cf_format == os::cf_text ? _send(utf::to_utf(data))
+                                         : _send(data);
             };
 
             ok(::OpenClipboard(nullptr), "::OpenClipboard");
             ok(::EmptyClipboard(), "::EmptyClipboard");
             if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
             {
-                send(cf_text, utf8);
+                send(os::cf_text, utf8);
             }
             else
             {
@@ -1822,34 +1822,35 @@ namespace netxs::os
                 {
                     auto rich = post.to_rich(font);
                     auto utf8 = post.to_utf8();
-                    send(cf_rich, rich);
-                    send(cf_text, utf8);
+                    send(os::cf_rich, rich);
+                    send(os::cf_text, utf8);
                 }
                 else if (mime.starts_with(ansi::mimehtml))
                 {
                     auto [html, code] = post.to_html(font);
-                    send(cf_html, html);
-                    send(cf_text, code);
+                    send(os::cf_html, html);
+                    send(os::cf_text, code);
                 }
                 else if (mime.starts_with(ansi::mimeansi))
                 {
                     auto rich = post.to_rich(font);
-                    send(cf_rich, rich);
-                    send(cf_text, utf8);
+                    send(os::cf_rich, rich);
+                    send(os::cf_text, utf8);
                 }
                 else if (mime.starts_with(ansi::mimehide))
                 {
-                    send(cf_sec1, "1");
-                    send(cf_sec2, "0");
-                    send(cf_sec3, "0");
-                    send(cf_text, utf8);
+                    send(os::cf_sec1, "1");
+                    send(os::cf_sec2, "0");
+                    send(os::cf_sec3, "0");
+                    send(os::cf_text, utf8);
                 }
                 else
                 {
-                    send(cf_utf8, utf8);
+                    send(os::cf_utf8, utf8);
                 }
             }
-            send(cf_ansi, ansi::add(mime, ";", utf8));
+            send(os::cf_ansi, ansi::add(mime, ";", utf8));
+            os::clipboard_sequence = ::GetClipboardSequenceNumber();
             ok(::CloseClipboard(), "::CloseClipboard");
 
         #elif defined(__APPLE__)
@@ -3888,6 +3889,95 @@ namespace netxs::os
             log(" tty: id: ", std::this_thread::get_id(), " reading thread ended");
         }
 
+        void clipbd(si32 mode)
+        {
+            if (mode & legacy::direct) return;
+            log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread started");
+
+            #if defined(_WIN32)
+
+                auto wndname = text{ "vtmWindowClass" };
+                auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
+                {
+                    auto& ipcio =*_globals<void>::ipcio;
+                    auto& wired = _globals<void>::wired;
+                    switch (uMsg)
+                    {
+                        case WM_CREATE:
+                            ok(::AddClipboardFormatListener(hwnd), "unexpected result from ::AddClipboardFormatListener()");
+                        case WM_CLIPBOARDUPDATE:
+                            ok(::OpenClipboard(nullptr), "::OpenClipboard");
+                            if (auto seqno = ::GetClipboardSequenceNumber();
+                                     seqno != os::clipboard_sequence)
+                            {
+                                os::clipboard_sequence = seqno;
+                                auto gear_id = id_t{ 0 };
+                                if (auto format = ::EnumClipboardFormats(0))
+                                {
+                                    while (format = ::EnumClipboardFormats(format))
+                                    {
+                                        if (format == os::cf_utf8)
+                                        {
+                                            auto mime = ansi::clip::textonly;
+                                            auto hglb = ::GetClipboardData(format);
+                                            auto lptr = ::GlobalLock(hglb);
+                                            auto size = ::GlobalSize(hglb);
+                                            wired.osclipdata.send(ipcio, gear_id, text((char*)lptr, size), mime);
+                                            ::GlobalUnlock(hglb);
+                                        }
+                                        //...
+                                    }
+                                }
+                                else wired.osclipdata.send(ipcio, gear_id, text{}, ansi::clip::textonly);
+                            }
+                            ok(::CloseClipboard(), "::CloseClipboard");
+                            break;
+                        case WM_DESTROY:
+                            ok(::RemoveClipboardFormatListener(hwnd), "unexpected result from ::RemoveClipboardFormatListener()");
+                            ::PostQuitMessage(0);
+                            break;
+                        default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
+                    }
+                    return (LRESULT) NULL;
+                };
+                auto wnddata = WNDCLASSEXA
+                {
+                    .cbSize        = sizeof(WNDCLASSEX),
+                    .lpfnWndProc   = wndproc,
+                    .lpszClassName = wndname.c_str(),
+                };
+                if (ok(::RegisterClassExA(&wnddata), "unexpected result from ::RegisterClassExA()"))
+                {
+                    auto hwnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    auto next = MSG{};
+                    while (next.message != WM_QUIT)
+                    {
+                        if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&signal, FALSE, INFINITE, QS_POSTMESSAGE);
+                                 yield == WAIT_OBJECT_0)
+                        {
+                            ::DestroyWindow(hwnd);
+                            break;
+                        }
+                        while (::PeekMessageA(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
+                        {
+                            ::DispatchMessageA(&next);
+                        }
+                    }
+                }
+
+            #elif defined(__APPLE__)
+
+                //todo macOS clipboard watcher
+
+            #else
+
+                //todo X11 and Wayland clipboard watcher
+
+            #endif
+
+            log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread ended");
+        }
+
         tty()
         { }
 
@@ -3960,7 +4050,7 @@ namespace netxs::os
                               | nt::console::outmode::vt
                               | nt::console::outmode::no_auto_cr
                               };
-                
+
                 ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
                 ok(::SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(sig_hndl), TRUE), "SetConsoleCtrlHandler failed");
 
@@ -4002,6 +4092,7 @@ namespace netxs::os
             os::vgafont_update(mode);
 
             auto input = std::thread{ [&]{ reader(mode); } };
+            auto clips = std::thread{ [&]{ clipbd(mode); } };
 
             while (output(ipcio.recv()))
             { }
@@ -4009,6 +4100,7 @@ namespace netxs::os
 
             ipcio.stop();
             signal.reset();
+            clips.join();
             input.join();
         }
     };
@@ -4160,7 +4252,7 @@ namespace netxs::os
                                             nullptr,
                                             nullptr);
                 ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                            0,                              
+                                            0,
                                             ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
                                            &ref_hndl,
                                      sizeof(ref_hndl),

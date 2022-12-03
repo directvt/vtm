@@ -37,7 +37,7 @@ namespace netxs::app::shared
                        Using an asterisk with the parameter name of the first element in the list without any other nested arguments
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
         <item splitter label="apps">
-            <notes> 
+            <notes>
                 " Default applications group                         \n"
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>

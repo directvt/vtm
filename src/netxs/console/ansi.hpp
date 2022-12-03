@@ -2506,6 +2506,7 @@ namespace netxs::ansi
             STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
             STRUCT(winsz,             (id_t, gear_id) (twod, winsize))
             STRUCT(clipdata,          (id_t, gear_id) (text, data) (si32, mimetype))
+            STRUCT(osclipdata,        (id_t, gear_id) (text, data) (si32, mimetype))
             STRUCT(plain,             (id_t, gear_id) (text, utf8txt))
             STRUCT(ctrls,             (id_t, gear_id) (ui32, ctlstat))
             STRUCT(unknown_gc,        (ui64, token))
@@ -2786,6 +2787,7 @@ namespace netxs::ansi
                 X(mouse_show       ) /* Show mouse cursor.                            */\
                 X(winsz            ) /* Window resize.                                */\
                 X(clipdata         ) /* Clipboard raw data.                           */\
+                X(osclipdata       ) /* OS Clipboard updatedata.                      */\
                 X(plain            ) /* Raw text input.                               */\
                 X(ctrls            ) /* Keyboard modifiers state.                     */\
                 X(request_gc       ) /* Unknown gc token list.                        */\

@@ -293,7 +293,7 @@ namespace netxs::xml
                   file{ file },
                   deep{ 0    }
             { }
-           ~suit() { live = faux; } 
+           ~suit() { live = faux; }
 
             auto& last_type()
             {
@@ -530,7 +530,7 @@ namespace netxs::xml
                         auto delim_view = view(&delim, 1);
                         auto crop = utf::get_quote(data, delim_view);
                         item_ptr = std::make_shared<text>(xml::unescape(crop));
-                        if constexpr (Append_page) 
+                        if constexpr (Append_page)
                         {
                             page.append(type::quotes, delim_view);
                             page.append(type::tag_value, item_ptr);
@@ -875,7 +875,7 @@ namespace netxs::xml
                         item.kind = type::unknown;
                         if (kind == type::begin_tag) break;
                     }
-                    
+
                     tag_ptr = std::make_shared<text>("");
                     page.append(type::tag_value, tag_ptr);
                     log(" xml: empty tag name at ", page.file, ":", page.lines());
@@ -953,7 +953,7 @@ namespace netxs::xml
         template<class T>
         auto set(T&& path)
         {
-            
+
         }
         auto utf8()
         {

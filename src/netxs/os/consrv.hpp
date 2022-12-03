@@ -204,7 +204,7 @@ struct consrv
         cell backup; // clnt: Text attributes to restore on detach.
         bufs alters; // clnt: Additional scrollback buffers.
     };
-    
+
     using hndl = clnt::hndl;
 
     struct base
@@ -532,7 +532,7 @@ struct consrv
                 {
                     .WindowBufferSizeEvent =
                     {
-                        .dwSize = 
+                        .dwSize =
                         {
                             .X = (si16)std::min<si32>(winsize.x, std::numeric_limits<si16>::max()),
                             .Y = (si16)std::min<si32>(winsize.y, std::numeric_limits<si16>::max()),
@@ -661,7 +661,7 @@ struct consrv
                 }
 
                 auto shift = s & shift_pressed ? shift_pressed : 0;
-                auto alt   = s & alt___pressed ? alt___pressed : 0; 
+                auto alt   = s & alt___pressed ? alt___pressed : 0;
                 auto ctrl  = s & ctrl__pressed ? ctrl__pressed : 0;
                 if (shift || alt || ctrl)
                 {
@@ -875,7 +875,7 @@ struct consrv
                                     else
                                     {
                                         burn();
-                                        hist.save(line); 
+                                        hist.save(line);
                                         line.insert(cell{}.c0_to_txt(c), mode);
                                     }
                                 }
@@ -1013,7 +1013,7 @@ struct consrv
                     answer.buffer = &packet.input; // Restore after copy.
 
                     if (closed || cancel) return;
-                    
+
                     cooked.ustr.clear();
                     if (server.inpmod & nt::console::inmode::cooked)
                     {
@@ -2810,7 +2810,7 @@ struct consrv
         packet.reply.sizey = 20;
         packet.reply.pitch = 0;
         packet.reply.heavy = 0;
-        auto brand = L"Consolas"s + L'\0'; 
+        auto brand = L"Consolas"s + L'\0';
         std::copy(std::begin(brand), std::end(brand), std::begin(packet.reply.brand));
         log("\tinput.fullscreen ", packet.input.fullscreen ? "true" : "faux",
           "\n\treply.index ",      packet.reply.index,
