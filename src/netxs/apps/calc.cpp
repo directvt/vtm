@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.6k"
+#define DESKTOPIO_VER "v0.9.6l"
 #define DESKTOPIO_MYNAME "Desktopio Calc " DESKTOPIO_VER
 #define DESKTOPIO_MYPATH "vtm/calc"
 #define DESKTOPIO_DEFAPP "Calc"

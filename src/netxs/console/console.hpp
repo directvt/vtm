@@ -5829,7 +5829,7 @@ namespace netxs::console
 
             lock.unlock();
 
-            os::direct::pty::reading_loop(canal, [&](view data){ conio.sync(data); });
+            ansi::dtvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
 
             lock.lock();
                 log("link: signaling to close the read channel ", canal);

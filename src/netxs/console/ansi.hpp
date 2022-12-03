@@ -270,6 +270,7 @@ namespace netxs::ansi
     static const auto mimeansi = "text/xterm"sv;
     static const auto mimehtml = "text/html"sv;
     static const auto mimerich = "text/rtf"sv;
+    static const auto mimehide = "hidden/plain"sv;
 
     struct clip
     {
@@ -280,6 +281,7 @@ namespace netxs::ansi
             ansitext,
             richtext,
             htmltext,
+            screened, // mime: Sensitive textonly data.
             count,
         };
 
@@ -2155,6 +2157,27 @@ namespace netxs::ansi
                     }
                     auto crop = qiew(head, iter - head);
                     return crop;
+                }
+                // stream: .
+                template<class T, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, qiew>>>
+                static void reading_loop(T& link, P&& proc)
+                {
+                    auto flow = text{};
+                    while (link)
+                    {
+                        auto shot = link.recv();
+                        if (shot && link)
+                        {
+                            flow += shot;
+                            if (auto crop = purify(flow))
+                            {
+                                if constexpr (Plain) proc(crop);
+                                else            if (!proc(crop)) break;
+                                flow.erase(0, crop.size()); // Delete processed data.
+                            }
+                        }
+                        else break;
+                    }
                 }
 
                 // stream: .

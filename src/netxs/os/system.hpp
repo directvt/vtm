@@ -1748,16 +1748,27 @@ namespace netxs::os
         // Generate the following formats:
         //   clip::textonly | clip::disabled
         //        CF_UNICODETEXT: Raw UTF-16
+        //               cf_ansi: ANSI-text UTF-8 with mime mark
         //   clip::ansitext
         //               cf_rich: RTF-group UTF-8
         //        CF_UNICODETEXT: ANSI-text UTF-16
+        //               cf_ansi: ANSI-text UTF-8 with mime mark
         //   clip::richtext
         //               cf_rich: RTF-group UTF-8
         //        CF_UNICODETEXT: Plaintext UTF-16
+        //               cf_ansi: ANSI-text UTF-8 with mime mark
         //   clip::htmltext
+        //               cf_ansi: ANSI-text UTF-8 with mime mark
         //               cf_html: HTML-code UTF-8
         //        CF_UNICODETEXT: HTML-code UTF-16
+        //   clip::screened (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
+        //    ExcludeClipboardContentFromMonitorProcessing: 1
+        //                    CanIncludeInClipboardHistory: 0
+        //                       CanUploadToCloudClipboard: 0
+        //                                  CF_UNICODETEXT: Raw UTF-16
+        //                                         cf_ansi: ANSI-text UTF-8 with mime mark
         //
+        //  cf_ansi format: payload=mime;utf8_data
         using ansi::clip;
 
         auto success = faux;
@@ -1765,6 +1776,12 @@ namespace netxs::os
 
             static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
             static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
+            static auto cf_ansi = ::RegisterClipboardFormatA("ANSI/VT Format");
+            
+            static auto cf_sec1 = ::RegisterClipboardFormatA("ExcludeClipboardContentFromMonitorProcessing");
+            static auto cf_sec2 = ::RegisterClipboardFormatA("CanIncludeInClipboardHistory");
+            static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
+
             static auto cf_text = CF_UNICODETEXT;
             static auto cf_utf8 = CF_TEXT;
             auto send = [&](auto cf_format, view data)
@@ -1820,11 +1837,19 @@ namespace netxs::os
                     send(cf_rich, rich);
                     send(cf_text, utf8);
                 }
+                else if (mime.starts_with(ansi::mimehide))
+                {
+                    send(cf_sec1, "1");
+                    send(cf_sec2, "0");
+                    send(cf_sec3, "0");
+                    send(cf_text, utf8);
+                }
                 else
                 {
                     send(cf_utf8, utf8);
                 }
             }
+            send(cf_ansi, ansi::add(mime, ";", utf8));
             ok(::CloseClipboard(), "::CloseClipboard");
 
         #elif defined(__APPLE__)
@@ -3876,7 +3901,7 @@ namespace netxs::os
         {
             static auto ocs52head = "\033]52;"sv;
 
-            if (buffer.size() || utf8.starts_with(ocs52head))
+            if (buffer.size() || utf8.starts_with(ocs52head)) //todo use binary protocol for output (dtvt)
             {
                 buffer += utf8;
                 utf8 = view{ buffer };
@@ -4711,39 +4736,15 @@ namespace netxs::os
                 }
                 log("dtvt: id: ", thread_id, " logging thread ended");
             }
-
-            template<class T, class P>
-            static void reading_loop(T& termlink, P&& receiver)
-            {
-                auto flow = text{};
-                while (termlink)
-                {
-                    auto shot = termlink.recv();
-                    if (shot && termlink)
-                    {
-                        flow += shot;
-                        if (auto crop = ansi::dtvt::binary::stream::purify(flow))
-                        {
-                            receiver(crop);
-                            flow.erase(0, crop.size()); // Delete processed data.
-                        }
-                    }
-                    else break;
-                }
-            }
             void read_socket_thread()
             {
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
 
-                reading_loop(termlink, receiver);
+                ansi::dtvt::binary::stream::reading_loop(termlink, receiver);
 
-                //todo test
-                //if (termlink)
-                {
-                    preclose(0); //todo send msg from the client app
-                    auto exit_code = wait_child();
-                    shutdown(exit_code);
-                }
+                preclose(0); //todo send msg from the client app
+                auto exit_code = wait_child();
+                shutdown(exit_code);
                 log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
             }
             void send_socket_thread()
