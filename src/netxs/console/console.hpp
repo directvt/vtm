@@ -5659,6 +5659,7 @@ namespace netxs::console
                     if (!direct)
                     {
                         input.set_clip_data(base::size() / 2, clipdata);
+                        base::deface();
                     }
                 };
                 SUBMIT_T(tier::release, e2::conio::quit, token, msg)

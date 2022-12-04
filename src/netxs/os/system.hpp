@@ -3908,6 +3908,7 @@ namespace netxs::os
                 {
                     auto& ipcio =*_globals<void>::ipcio;
                     auto& wired = _globals<void>::wired;
+                    auto gear_id = id_t{ 0 };
                     switch (uMsg)
                     {
                         case WM_CREATE:
@@ -3915,27 +3916,45 @@ namespace netxs::os
                         case WM_CLIPBOARDUPDATE:
                         {
                             auto lock = std::lock_guard{ os::clipboard_mutex };
-                            ok(::OpenClipboard(nullptr), "::OpenClipboard");
+                            while (!::OpenClipboard(hwnd)) // Waiting clipboard access.
+                            {
+                                if (os::error() != ERROR_ACCESS_DENIED)
+                                {
+                                    auto error = "OpenClipboard() returns unexpected result, code "s + std::to_string(os::error());
+                                    wired.osclipdata.send(ipcio, gear_id, error, ansi::clip::textonly);
+                                    return (LRESULT) NULL;
+                                }
+                                std::this_thread::yield();
+                            }
                             if (auto seqno = ::GetClipboardSequenceNumber();
                                      seqno != os::clipboard_sequence)
                             {
                                 os::clipboard_sequence = seqno;
-                                auto gear_id = id_t{ 0 };
                                 if (auto format = ::EnumClipboardFormats(0))
                                 {
-                                    while (format = ::EnumClipboardFormats(format))
+                                    auto hidden = ::GetClipboardData(cf_sec1);
+                                    do
                                     {
-                                        if (format == os::cf_utf8)
+                                        if (format == os::cf_text)
                                         {
-                                            auto mime = ansi::clip::textonly;
-                                            auto hglb = ::GetClipboardData(format);
-                                            auto lptr = ::GlobalLock(hglb);
-                                            auto size = ::GlobalSize(hglb);
-                                            wired.osclipdata.send(ipcio, gear_id, text((char*)lptr, size), mime);
-                                            ::GlobalUnlock(hglb);
+                                            auto mime = hidden ? ansi::clip::password : ansi::clip::textonly;
+                                            if (auto hglb = ::GetClipboardData(format))
+                                            if (auto lptr = ::GlobalLock(hglb))
+                                            {
+                                                auto size = ::GlobalSize(hglb);
+                                                wired.osclipdata.send(ipcio, gear_id, utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), mime);
+                                                ::GlobalUnlock(hglb);
+                                                break;
+                                            }
+                                            auto error = "GlobalLock() returns unexpected result, code "s + std::to_string(os::error());
+                                            wired.osclipdata.send(ipcio, gear_id, error, ansi::clip::textonly);
                                         }
-                                        //...
+                                        else
+                                        {
+                                            //todo proceed other formats (ansi/vt)
+                                        }
                                     }
+                                    while (format = ::EnumClipboardFormats(format));
                                 }
                                 else wired.osclipdata.send(ipcio, gear_id, text{}, ansi::clip::textonly);
                             }
@@ -3962,7 +3981,7 @@ namespace netxs::os
                     auto next = MSG{};
                     while (next.message != WM_QUIT)
                     {
-                        if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&signal, FALSE, INFINITE, QS_POSTMESSAGE);
+                        if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&signal, FALSE, INFINITE, QS_ALLINPUT);
                                  yield == WAIT_OBJECT_0)
                         {
                             ::DestroyWindow(hwnd);
