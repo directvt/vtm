@@ -130,6 +130,7 @@ namespace netxs::os
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
         static auto clipboard_sequence = std::numeric_limits<DWORD>::max();
+        static auto clipboard_mutex    = std::mutex();
         static auto cf_text = CF_UNICODETEXT;
         static auto cf_utf8 = CF_TEXT;
         static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
@@ -1770,14 +1771,14 @@ namespace netxs::os
         //               cf_ansi: ANSI-text UTF-8 with mime mark
         //               cf_html: HTML-code UTF-8
         //        CF_UNICODETEXT: HTML-code UTF-16
-        //   clip::screened (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
+        //   clip::password (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
         //    ExcludeClipboardContentFromMonitorProcessing: 1
         //                    CanIncludeInClipboardHistory: 0
         //                       CanUploadToCloudClipboard: 0
         //                                  CF_UNICODETEXT: Raw UTF-16
         //                                         cf_ansi: ANSI-text UTF-8 with mime mark
         //
-        //  cf_ansi format: payload=mime;utf8_data
+        //  cf_ansi format: payload=rest_after_length;mime;utf8_data
 
         using ansi::clip;
 
@@ -1806,52 +1807,58 @@ namespace netxs::os
                                          : _send(data);
             };
 
+            auto lock = std::lock_guard{ os::clipboard_mutex };
             ok(::OpenClipboard(nullptr), "::OpenClipboard");
             ok(::EmptyClipboard(), "::EmptyClipboard");
-            if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
+            if (utf8.size())
             {
-                send(os::cf_text, utf8);
-            }
-            else
-            {
-                auto post = page{ utf8 };
-                auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
-                ::GetCurrentConsoleFontEx(STDOUT_FD, faux, &info);
-                auto font = utf::to_utf(info.FaceName);
-                if (mime.starts_with(ansi::mimerich))
+                if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
                 {
-                    auto rich = post.to_rich(font);
-                    auto utf8 = post.to_utf8();
-                    send(os::cf_rich, rich);
-                    send(os::cf_text, utf8);
-                }
-                else if (mime.starts_with(ansi::mimehtml))
-                {
-                    auto [html, code] = post.to_html(font);
-                    send(os::cf_html, html);
-                    send(os::cf_text, code);
-                }
-                else if (mime.starts_with(ansi::mimeansi))
-                {
-                    auto rich = post.to_rich(font);
-                    send(os::cf_rich, rich);
-                    send(os::cf_text, utf8);
-                }
-                else if (mime.starts_with(ansi::mimehide))
-                {
-                    send(os::cf_sec1, "1");
-                    send(os::cf_sec2, "0");
-                    send(os::cf_sec3, "0");
                     send(os::cf_text, utf8);
                 }
                 else
                 {
-                    send(os::cf_utf8, utf8);
+                    auto post = page{ utf8 };
+                    auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
+                    ::GetCurrentConsoleFontEx(STDOUT_FD, faux, &info);
+                    auto font = utf::to_utf(info.FaceName);
+                    if (mime.starts_with(ansi::mimerich))
+                    {
+                        auto rich = post.to_rich(font);
+                        auto utf8 = post.to_utf8();
+                        send(os::cf_rich, rich);
+                        send(os::cf_text, utf8);
+                    }
+                    else if (mime.starts_with(ansi::mimehtml))
+                    {
+                        auto [html, code] = post.to_html(font);
+                        send(os::cf_html, html);
+                        send(os::cf_text, code);
+                    }
+                    else if (mime.starts_with(ansi::mimeansi))
+                    {
+                        auto rich = post.to_rich(font);
+                        send(os::cf_rich, rich);
+                        send(os::cf_text, utf8);
+                    }
+                    else if (mime.starts_with(ansi::mimehide))
+                    {
+                        send(os::cf_sec1, "1");
+                        send(os::cf_sec2, "0");
+                        send(os::cf_sec3, "0");
+                        send(os::cf_text, utf8);
+                    }
+                    else
+                    {
+                        send(os::cf_utf8, utf8);
+                    }
                 }
+                auto crop = ansi::add(mime, ";", utf8);
+                crop = std::to_string(crop.size()) + ";" + crop; 
+                send(os::cf_ansi, crop);
             }
-            send(os::cf_ansi, ansi::add(mime, ";", utf8));
-            os::clipboard_sequence = ::GetClipboardSequenceNumber();
             ok(::CloseClipboard(), "::CloseClipboard");
+            os::clipboard_sequence = ::GetClipboardSequenceNumber(); // The sequence number is incremented while closing the clipboard.
 
         #elif defined(__APPLE__)
 
@@ -3906,6 +3913,8 @@ namespace netxs::os
                         case WM_CREATE:
                             ok(::AddClipboardFormatListener(hwnd), "unexpected result from ::AddClipboardFormatListener()");
                         case WM_CLIPBOARDUPDATE:
+                        {
+                            auto lock = std::lock_guard{ os::clipboard_mutex };
                             ok(::OpenClipboard(nullptr), "::OpenClipboard");
                             if (auto seqno = ::GetClipboardSequenceNumber();
                                      seqno != os::clipboard_sequence)
@@ -3932,6 +3941,7 @@ namespace netxs::os
                             }
                             ok(::CloseClipboard(), "::CloseClipboard");
                             break;
+                        }
                         case WM_DESTROY:
                             ok(::RemoveClipboardFormatListener(hwnd), "unexpected result from ::RemoveClipboardFormatListener()");
                             ::PostQuitMessage(0);

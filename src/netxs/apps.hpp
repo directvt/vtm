@@ -88,6 +88,7 @@ R"==(
                         <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
                         <selection>
                             <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                            <pass fx=selection bgc=bluelt fgc=whitelt />
                             <ansi fx=xlight/>
                             <rich fx=xlight/>
                             <html fx=xlight/>
@@ -110,7 +111,7 @@ R"==(
                         <slim="true"/>
                     </menu>
                     <selection>
-                        <mode="text"/> <!-- text | ansi | rich | html | none -->
+                        <mode="text"/> <!-- text | ansi | rich | html | pass | none -->
                     </selection>
                     <hotkeys>    <!-- not implemented -->
                         <key*/>
@@ -263,6 +264,7 @@ R"==(
             <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
                 <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                <pass fx=selection bgc=bluelt fgc=whitelt />
                 <ansi fx=xlight/>
                 <rich fx=xlight/>
                 <html fx=xlight/>
@@ -285,7 +287,7 @@ R"==(
             <slim=true />
         </menu>
         <selection>
-            <mode="text"/> <!-- text | ansi | rich | html | none -->
+            <mode="text"/> <!-- text | ansi | rich | html | pass | none -->
         </selection>
         <hotkeys>    <!-- not implemented -->
             <key*/>

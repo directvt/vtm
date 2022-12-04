@@ -281,7 +281,7 @@ namespace netxs::ansi
             ansitext,
             richtext,
             htmltext,
-            screened, // mime: Sensitive textonly data.
+            password, // mime: Sensitive textonly data.
             count,
         };
 
@@ -643,6 +643,7 @@ namespace netxs::ansi
             return add("\033]52;", kind == clip::htmltext ? mimehtml
                                  : kind == clip::richtext ? mimerich
                                  : kind == clip::ansitext ? mimeansi
+                                 : kind == clip::password ? mimehide
                                                           : mimetext, ";", utf::base64(utf8), C0_BEL);
         }
         auto& old_palette(si32 i, rgba const& c) // esc: Set color palette (Linux console).
@@ -2787,7 +2788,7 @@ namespace netxs::ansi
                 X(mouse_show       ) /* Show mouse cursor.                            */\
                 X(winsz            ) /* Window resize.                                */\
                 X(clipdata         ) /* Clipboard raw data.                           */\
-                X(osclipdata       ) /* OS Clipboard updatedata.                      */\
+                X(osclipdata       ) /* OS clipboard data.                            */\
                 X(plain            ) /* Raw text input.                               */\
                 X(ctrls            ) /* Keyboard modifiers state.                     */\
                 X(request_gc       ) /* Unknown gc token list.                        */\

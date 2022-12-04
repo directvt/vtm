@@ -3506,11 +3506,22 @@ namespace netxs::console
                     clip_rawdata = data;
                     if (not_directvt)
                     {
-                        auto block = page{ data.utf8 };
-                        clip_preview.mark(cell{});
-                        clip_preview.size(preview_size);
-                        clip_preview.wipe();
-                        clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                        if (data.kind == clip::password)
+                        {
+                            auto block = page{ " Protected Data " };
+                            clip_preview.mark(cell{}.bgc(0x7Fffffff).fgc(0xFF000000));
+                            clip_preview.size(twod{ 80,25 });
+                            clip_preview.wipe();
+                            clip_preview.output(block);
+                        }
+                        else
+                        {
+                            auto block = page{ data.utf8 };
+                            clip_preview.mark(cell{});
+                            clip_preview.size(preview_size);
+                            clip_preview.wipe();
+                            clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                        }
                     }
                     if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
                 }
