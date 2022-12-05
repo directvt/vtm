@@ -136,7 +136,7 @@ namespace netxs::ui
                      { "ansi", clip::ansitext },
                      { "rich", clip::richtext },
                      { "html", clip::htmltext },
-                     { "pass", clip::password }};
+                     { "protected", clip::safetext }};
                 static auto cursor_options = std::unordered_map<text, bool>
                     {{ "underline", faux },
                      { "block"    , true }};
@@ -1838,7 +1838,7 @@ namespace netxs::ui
                     case clip::richtext: work(cell::shaders::xlight); break;
                     case clip::htmltext: work(cell::shaders::xlight); break;
                     case clip::textonly: work(cell::shaders::selection(owner.config.def_selclr)); break;
-                    case clip::password: work(cell::shaders::selection(owner.config.def_selclr)); break;
+                    case clip::safetext: work(cell::shaders::selection(owner.config.def_selclr)); break;
                     default:             work(cell::shaders::selection(owner.config.def_offclr)); break;
                 }
             }
@@ -1900,7 +1900,7 @@ namespace netxs::ui
                 if (selbox || grip_1.coor.y == grip_2.coor.y)
                 {
                     selmod == clip::textonly ||
-                    selmod == clip::password ? buffer.s11n<faux>(canvas, square)
+                    selmod == clip::safetext ? buffer.s11n<faux>(canvas, square)
                                              : buffer.s11n<true>(canvas, square);
                 }
                 else
@@ -1910,7 +1910,7 @@ namespace netxs::ui
                     auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
                     auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
                     if (selmod == clip::textonly
-                     || selmod == clip::password)
+                     || selmod == clip::safetext)
                     {
                         buffer.s11n<faux, true, faux>(canvas, part_1);
                         buffer.s11n<faux, faux, faux>(canvas, part_2);
@@ -5408,7 +5408,7 @@ namespace netxs::ui
                     }
                     while (head++ != tail);
                     selmod == clip::textonly ||
-                    selmod == clip::password ? yield.s11n<faux, faux, true>(dest, mark)
+                    selmod == clip::safetext ? yield.s11n<faux, faux, true>(dest, mark)
                                              : yield.s11n<true, faux, true>(dest, mark);
                 }
                 else
@@ -5441,7 +5441,7 @@ namespace netxs::ui
                         if (yield.length()) yield.pop_back(); // Pop last eol.
                     };
                     if (selmod == clip::textonly
-                     || selmod == clip::password)
+                     || selmod == clip::safetext)
                     {
                         build([&](auto& curln)
                         {
@@ -5478,7 +5478,7 @@ namespace netxs::ui
                 auto selbox = selection_selbox();
                 if (!selection_active()) return std::move(yield);
                 if (selmod != clip::textonly
-                 && selmod != clip::password) yield.nil();
+                 && selmod != clip::safetext) yield.nil();
                 len = yield.size();
                 if (uptop.role != grip::idle)
                 {

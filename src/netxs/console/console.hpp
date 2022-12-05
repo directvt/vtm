@@ -1384,6 +1384,112 @@ namespace netxs::console
         }
     };
 
+    // console: Client properties.
+    class conf
+    {
+        using time = period;
+
+    public:
+        text ip;
+        text port;
+        text fullname;
+        text region;
+        text name;
+        text os_user_id;
+        text title;
+        text selected;
+        twod coor;
+        time clip_preview_time;
+        cell clip_preview_clrs;
+        byte clip_preview_alfa;
+        bool clip_preview_show;
+        twod clip_preview_size;
+        cell background_color;
+        si32 legacy_mode;
+        si32 session_id;
+        time dblclick_timeout; // conf: Double click timeout.
+        time tooltip_timeout; // conf: Timeout for tooltip.
+        cell tooltip_colors; // conf: Tooltip rendering colors.
+        bool tooltip_enabled; // conf: Enable tooltips.
+        bool glow_fx; // conf: Enable glow effect in main menu.
+        bool debug_overlay; // conf: Enable to show debug overlay.
+        text debug_toggle; // conf: Debug toggle shortcut.
+        bool show_regions; // conf: Highlight region ownership.
+        bool simple; // conf: Isn't it a directvt app.
+        bool is_standalone_app; // conf: .
+
+        template<class T>
+        void read(T&& config)
+        {
+            config.cd("/config/client/");
+            clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
+            clip_preview_time = config.take("clipboard/preview/timeout", time{ 3s });
+            clip_preview_alfa = config.take("clipboard/preview/alpha", 0x1f);
+            clip_preview_show = config.take("clipboard/preview/enabled", true);
+            clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
+            coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
+            dblclick_timeout  = config.take("mouse/dblclick",  time{ 500ms });
+            tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
+            tooltip_timeout   = config.take("tooltip/timeout", time{ 500ms });
+            tooltip_enabled   = config.take("tooltip/enabled", true);
+            debug_overlay     = config.take("debug/overlay", faux);
+            debug_toggle      = config.take("debug/toggle", "🐞"s);
+            show_regions      = config.take("regions/enabled", faux);
+        }
+
+        conf()            = default;
+        conf(conf const&) = default;
+        conf(conf&&)      = default;
+        conf& operator = (conf const&) = default;
+        conf(si32 mode, xml::settings& config)
+            : session_id{ 0 },
+              legacy_mode{ mode }
+        {
+            read(config);
+            simple            = !(legacy_mode & os::legacy::direct);
+            glow_fx           = faux;
+            is_standalone_app = true;
+            title             = "";
+        }
+        conf(xipc peer, si32 session_id, xml::settings& config)
+            : session_id{ session_id }
+        {
+            auto _ip     = peer->line(';');
+            auto _name   = peer->line(';');
+            auto _user   = peer->line(';');
+            auto _mode   = peer->line(';');
+            auto _runcfg = peer->line(';');
+            auto xmlconfig = utf::unbase64(_runcfg);
+            config.merge(xmlconfig);
+
+            _user = "[" + _user + ":" + std::to_string(session_id) + "]";
+            auto c_info = utf::divide(_ip, " ");
+            ip                = c_info.size() > 0 ? c_info[0] : text{};
+            port              = c_info.size() > 1 ? c_info[1] : text{};
+            legacy_mode       = utf::to_int(_mode, os::legacy::clean);
+            os_user_id        = _user;
+            fullname          = _name;
+            name              = _user;
+            title             = _user;
+            selected          = config.take("/config/menu/selected", ""s);
+            read(config);
+            background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
+                                      .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
+            glow_fx           = config.take("glowfx", true);
+            simple            = faux;
+            is_standalone_app = faux;
+        }
+
+        friend auto& operator << (std::ostream& s, conf const& c)
+        {
+            return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
+                     << "\n\tregion: " << c.region
+                     << "\n\t  name: " << c.fullname
+                     << "\n\t  user: " << c.os_user_id
+                     << "\n\t  mode: " << os::legacy::str(c.legacy_mode);
+        }
+    };
+
     // console: Template modules for the base class behavior extension.
     namespace pro
     {
@@ -3471,14 +3577,16 @@ namespace netxs::console
             struct topgear
                 : public hids
             {
+                conf& props;
                 clip clip_rawdata{}; // topgear: Clipboard data.
                 face clip_preview{}; // topgear: Clipboard preview render.
                 twod preview_size{}; // topgear: Clipboard preview render size.
                 bool not_directvt{}; // topgear: Is it the top level gear (not directvt).
 
                 template<class ...Args>
-                topgear(bool not_directvt, Args&&... args)
+                topgear(conf& props, bool not_directvt, Args&&... args)
                     : hids{ std::forward<Args>(args)... },
+                      props{ props },
                       not_directvt{ not_directvt }
                 { }
 
@@ -3506,7 +3614,7 @@ namespace netxs::console
                     clip_rawdata = data;
                     if (not_directvt)
                     {
-                        if (data.kind == clip::password)
+                        if (data.kind == clip::safetext)
                         {
                             auto block = page{ " Protected Data " };
                             clip_preview.mark(cell{}.bgc(0x7Fffffff).fgc(0xFF000000));
@@ -3514,16 +3622,25 @@ namespace netxs::console
                             clip_preview.wipe();
                             clip_preview.output(block);
                         }
+                        else if (data.kind == clip::textonly)
+                        {
+                            auto block = page{ data.utf8 };
+                            clip_preview.mark(cell{});
+                            clip_preview.size(preview_size);
+                            clip_preview.wipe();
+                            clip_preview.output(block, cell::shaders::selection(props.clip_preview_clrs)); //todo make transparency configurable
+                        }
                         else
                         {
                             auto block = page{ data.utf8 };
                             clip_preview.mark(cell{});
                             clip_preview.size(preview_size);
                             clip_preview.wipe();
-                            clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
+                            clip_preview.output(block, cell::shaders::xlucent(props.clip_preview_alfa));
                         }
                     }
                     if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+                    mouse::delta.set(); // Update time stamp.
                 }
                 clip get_clip_data() override
                 {
@@ -3541,10 +3658,7 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            period& dblclick_timeout;
-            period& tooltip_timeout;
-            bool&   simple_instance;
-            bool&   standalone_instance;
+            conf& props;
 
             template<class T>
             void forward(T& device)
@@ -3552,7 +3666,7 @@ namespace netxs::console
                 auto gear_it = gears.find(device.gear_id);
                 if (gear_it == gears.end())
                 {
-                    gear_it = gears.emplace(device.gear_id, bell::create<topgear>(device.gear_id == 0, boss, xmap, dblclick_timeout, tooltip_timeout, simple_instance)).first;
+                    gear_it = gears.emplace(device.gear_id, bell::create<topgear>(props, device.gear_id == 0, boss, xmap, props.dblclick_timeout, props.tooltip_timeout, props.simple)).first;
                 }
                 auto& [_id, gear_ptr] = *gear_it;
                 gear_ptr->hids::take(device);
@@ -3567,11 +3681,8 @@ namespace netxs::console
             input(base&&) = delete;
             template<class T>
             input(T& boss)
-                : skill{ boss },
-                  dblclick_timeout{    boss.props.dblclick_timeout },
-                  tooltip_timeout{     boss.props.tooltip_timeout },
-                  simple_instance{     boss.props.simple },
-                  standalone_instance{ boss.props.is_standalone_app }
+                : skill{ boss       },
+                  props{ boss.props }
             {
                 xmap.link(boss.bell::id);
                 xmap.move(boss.base::coor());
@@ -3629,17 +3740,13 @@ namespace netxs::console
             }
             void check_focus()
             {
-                if (simple_instance)
+                if (props.simple)
                 {
                     auto f = sysfocus{};
                     f.gear_id = 0;
                     f.enabled = true;
                     boss.SIGNAL(tier::release, e2::conio::focus, f);
                 }
-            }
-            auto is_not_standalone_instance()
-            {
-                return !standalone_instance;
             }
             void fire(events::id_t event_id)
             {
@@ -3662,7 +3769,7 @@ namespace netxs::console
             {
                 if (gears.empty())
                 {
-                    gears.emplace(0, bell::create<topgear>(true, boss, xmap, dblclick_timeout, tooltip_timeout, simple_instance));
+                    gears.emplace(0, bell::create<topgear>(props, true, boss, xmap, props.dblclick_timeout, props.tooltip_timeout, props.simple));
                 }
                 for (auto& [id, gear_ptr] : gears)
                 {
@@ -5279,104 +5386,6 @@ namespace netxs::console
         }
     };
 
-    // console: Client properties.
-    class conf
-    {
-        using time = period;
-
-    public:
-        text ip;
-        text port;
-        text fullname;
-        text region;
-        text name;
-        text os_user_id;
-        text title;
-        text selected;
-        twod coor;
-        bool clip_preview_show;
-        twod clip_preview_size;
-        cell background_color;
-        si32 legacy_mode;
-        si32 session_id;
-        time dblclick_timeout; // conf: Double click timeout.
-        time tooltip_timeout; // conf: Timeout for tooltip.
-        bool tooltip_enabled; // conf: Enable tooltips.
-        bool glow_fx; // conf: Enable glow effect in main menu.
-        bool debug_overlay; // conf: Enable to show debug overlay.
-        text debug_toggle; // conf: Debug toggle shortcut.
-        bool show_regions; // conf: Highlight region ownership.
-        bool simple; // conf: Isn't it a directvt app.
-        bool is_standalone_app; // conf: .
-
-        template<class T>
-        void read(T&& config)
-        {
-            config.cd("/config/client/");
-            clip_preview_show = config.take("clipboard/preview/enabled", true);
-            clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
-            coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
-            dblclick_timeout  = config.take("mouse/dblclick",  time{ 500ms });
-            tooltip_timeout   = config.take("tooltip/timeout", time{ 500ms });
-            tooltip_enabled   = config.take("tooltip/enabled", true);
-            debug_overlay     = config.take("debug/overlay", faux);
-            debug_toggle      = config.take("debug/toggle", "🐞"s);
-            show_regions      = config.take("regions/enabled", faux);
-        }
-
-        conf()            = default;
-        conf(conf const&) = default;
-        conf(conf&&)      = default;
-        conf& operator = (conf const&) = default;
-        conf(si32 mode, xml::settings& config)
-            : session_id{ 0 },
-              legacy_mode{ mode }
-        {
-            read(config);
-            simple            = !(legacy_mode & os::legacy::direct);
-            glow_fx           = faux;
-            is_standalone_app = true;
-            title             = "";
-        }
-        conf(xipc peer, si32 session_id, xml::settings& config)
-            : session_id{ session_id }
-        {
-            auto _ip     = peer->line(';');
-            auto _name   = peer->line(';');
-            auto _user   = peer->line(';');
-            auto _mode   = peer->line(';');
-            auto _runcfg = peer->line(';');
-            auto xmlconfig = utf::unbase64(_runcfg);
-            config.merge(xmlconfig);
-
-            _user = "[" + _user + ":" + std::to_string(session_id) + "]";
-            auto c_info = utf::divide(_ip, " ");
-            ip                = c_info.size() > 0 ? c_info[0] : text{};
-            port              = c_info.size() > 1 ? c_info[1] : text{};
-            legacy_mode       = utf::to_int(_mode, os::legacy::clean);
-            os_user_id        = _user;
-            fullname          = _name;
-            name              = _user;
-            title             = _user;
-            selected          = config.take("/config/menu/selected", ""s);
-            read(config);
-            background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
-                                      .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
-            glow_fx           = config.take("glowfx", true);
-            simple            = faux;
-            is_standalone_app = faux;
-        }
-
-        friend auto& operator << (std::ostream& s, conf const& c)
-        {
-            return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
-                     << "\n\tregion: " << c.region
-                     << "\n\t  name: " << c.fullname
-                     << "\n\t  user: " << c.os_user_id
-                     << "\n\t  mode: " << os::legacy::str(c.legacy_mode);
-        }
-    };
-
     // console: Client's gate.
     class gate
         : public base
@@ -5436,19 +5445,22 @@ namespace netxs::console
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
-        void draw_clip_preview(face& canvas)
+        void draw_clip_preview(face& canvas, moment const& stamp)
         {
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                auto coor = gear.coord + dot_21 * 2;
-                gear.clip_preview.move(coor);
-                canvas.plot(gear.clip_preview, cell::shaders::lite);
+                if (props.clip_preview_time == period::zero()
+                 || props.clip_preview_time > stamp - gear.delta.stamp())
+                {
+                    auto coor = gear.coord + dot_21 * 2;
+                    gear.clip_preview.move(coor);
+                    canvas.plot(gear.clip_preview, cell::shaders::lite);
+                }
             }
         }
         void draw_tooltips(face& canvas)
         {
-            static constexpr auto def_tooltip = { rgba{ 0xFFffffff }, rgba{ 0xFF000000 } }; //todo unify
             auto full = canvas.full();
             for (auto& [id, gear_ptr] : input.gears)
             {
@@ -5464,7 +5476,7 @@ namespace netxs::console
                         area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
                         canvas.full(area);
                         canvas.cup(dot_00);
-                        canvas.output(tooltip_page, cell::shaders::selection(def_tooltip));
+                        canvas.output(tooltip_page, cell::shaders::selection(props.tooltip_colors));
                         canvas.full(full);
                     }
                 }
@@ -5554,7 +5566,7 @@ namespace netxs::console
                     if (damaged)
                     {
                         canvas.wipe(world.bell::id);
-                        if (input.is_not_standalone_instance())
+                        if (!props.is_standalone_app)
                         {
                             if (background) // Render active wallpaper.
                             {
@@ -5576,7 +5588,7 @@ namespace netxs::console
 
                         if (!direct && props.clip_preview_show)
                         {
-                            draw_clip_preview(canvas);
+                            draw_clip_preview(canvas, stamp);
                         }
 
                         if (props.tooltip_enabled)

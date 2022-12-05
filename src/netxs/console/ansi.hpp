@@ -270,7 +270,7 @@ namespace netxs::ansi
     static const auto mimeansi = "text/xterm"sv;
     static const auto mimehtml = "text/html"sv;
     static const auto mimerich = "text/rtf"sv;
-    static const auto mimehide = "hidden/plain"sv;
+    static const auto mimesafe = "text/protected"sv;
 
     struct clip
     {
@@ -281,7 +281,7 @@ namespace netxs::ansi
             ansitext,
             richtext,
             htmltext,
-            password, // mime: Sensitive textonly data.
+            safetext, // mime: Sensitive textonly data.
             count,
         };
 
@@ -643,7 +643,7 @@ namespace netxs::ansi
             return add("\033]52;", kind == clip::htmltext ? mimehtml
                                  : kind == clip::richtext ? mimerich
                                  : kind == clip::ansitext ? mimeansi
-                                 : kind == clip::password ? mimehide
+                                 : kind == clip::safetext ? mimesafe
                                                           : mimetext, ";", utf::base64(utf8), C0_BEL);
         }
         auto& old_palette(si32 i, rgba const& c) // esc: Set color palette (Linux console).

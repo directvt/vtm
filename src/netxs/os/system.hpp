@@ -1771,7 +1771,7 @@ namespace netxs::os
         //               cf_ansi: ANSI-text UTF-8 with mime mark
         //               cf_html: HTML-code UTF-8
         //        CF_UNICODETEXT: HTML-code UTF-16
-        //   clip::password (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
+        //   clip::safetext (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
         //    ExcludeClipboardContentFromMonitorProcessing: 1
         //                    CanIncludeInClipboardHistory: 0
         //                       CanUploadToCloudClipboard: 0
@@ -1841,7 +1841,7 @@ namespace netxs::os
                         send(os::cf_rich, rich);
                         send(os::cf_text, utf8);
                     }
-                    else if (mime.starts_with(ansi::mimehide))
+                    else if (mime.starts_with(ansi::mimesafe))
                     {
                         send(os::cf_sec1, "1");
                         send(os::cf_sec2, "0");
@@ -3937,7 +3937,7 @@ namespace netxs::os
                                     {
                                         if (format == os::cf_text)
                                         {
-                                            auto mime = hidden ? ansi::clip::password : ansi::clip::textonly;
+                                            auto mime = hidden ? ansi::clip::safetext : ansi::clip::textonly;
                                             if (auto hglb = ::GetClipboardData(format))
                                             if (auto lptr = ::GlobalLock(hglb))
                                             {
