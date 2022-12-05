@@ -229,7 +229,7 @@ R"==(
         <clipboard>
             <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0x1f />  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
-                <timeout=3s />  <!-- Preview hide timeout. Set it to zero to disable hiding. -->
+                <timeout=3s />  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
             </preview>
         </clipboard>
         <viewport coor=0,0 />

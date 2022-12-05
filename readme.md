@@ -444,7 +444,6 @@ Note: The following configuration sections are not implemented yet
             </notes>
         </item>
         <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
-        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term"/>
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
             <hotkeys>    <!-- not implemented -->
                 <key*/>
@@ -480,6 +479,7 @@ Note: The following configuration sections are not implemented yet
                         <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
                         <selection>
                             <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                            <protected fx=selection bgc=bluelt fgc=whitelt />
                             <ansi fx=xlight/>
                             <rich fx=xlight/>
                             <html fx=xlight/>
@@ -497,11 +497,12 @@ Note: The following configuration sections are not implemented yet
                         <show=true/>
                     </cursor>
                     <menu>
+                        <autohide=on/>  <!--  If true, show menu only on hover. -->
                         <enabled="on"/>
-                        <slim="false"/>
+                        <slim="true"/>
                     </menu>
                     <selection>
-                        <mode="text"/> <!-- text | ansi | rich | html | none -->
+                        <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
                     <hotkeys>    <!-- not implemented -->
                         <key*/>
@@ -561,6 +562,7 @@ Note: The following configuration sections are not implemented yet
             <inactive   fgc=blacklt    bgc=nocolor    />
             <menu_white fgc=whitelt    bgc=0x80404040 />
             <menu_black fgc=blackdk    bgc=0x80404040 />
+            <fader duration=0ms fast=0ms />  <!-- Fader animation config. -->
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0 />
@@ -607,10 +609,14 @@ Note: The following configuration sections are not implemented yet
     <client>
         <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
         <clipboard>
-            <preview enabled=true size=80x25 />
+            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
+                <alpha=0x1f />  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
+                <timeout=3s />  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
+            </preview>
         </clipboard>
         <viewport coor=0,0 />
-        <tooltip timeout=500ms enabled=true />
+        <mouse dblclick=500ms />
+        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite />
         <glowfx=true />                      <!-- Show glow effect around selected item. -->
         <debug overlay=faux toggle="🐞" />  <!-- Display console debug info. -->
         <regions enabled=faux />             <!-- Highlight UI objects boundaries. -->
@@ -643,7 +649,7 @@ Note: The following configuration sections are not implemented yet
             <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
                 <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                <pass fx=selection bgc=bluelt fgc=whitelt />
+                <protected fx=selection bgc=bluelt fgc=whitelt />
                 <ansi fx=xlight/>
                 <rich fx=xlight/>
                 <html fx=xlight/>
@@ -661,11 +667,12 @@ Note: The following configuration sections are not implemented yet
             <show=true/>
         </cursor>
         <menu>
+            <autohide=true/>  <!--  If true, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
         </menu>
         <selection>
-            <mode="text"/> <!-- text | ansi | rich | html | pass | none -->
+            <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
         </selection>
         <hotkeys>    <!-- not implemented -->
             <key*/>
@@ -673,6 +680,20 @@ Note: The following configuration sections are not implemented yet
             <key="Alt+LeftArrow"  action=findPrev />
         </hotkeys>
     </term>
+    <defapp>
+        <menu>
+            <autohide=faux />  <!--  If true, show menu only on hover. -->
+            <enabled="on"/>
+            <slim=faux />
+        </menu>
+    </defapp>
+    <tile>
+        <menu>
+            <autohide=true />  <!--  If true, show menu only on hover. -->
+            <enabled="on"/>
+            <slim=1 />
+        </menu>
+    </tile>
     <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </text>
@@ -713,7 +734,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
       -------------|----------------------------------|-------------
       `CCC_SBS`    | `CSI` 24 : n : m `p`             | Set scrollback buffer size, `int32_t`<br>`n` Initial buffer size in lines; 0 — grow step is used for initial size; _default (if omitted) is 20.000_<br>`m` Grow step for unlimited buffer; _default (if omitted) is 0_ — for fixed size buffer
       `CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background using SGR parameters (one attribute at once)<br>`Pm` Colon-separated list of attribute parameters, 0 — reset all attributes, _default is 0_
-      `CCC_SEL`    | `CSI` 29 : n `p`                 | Set selection mode, _default is 0_<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview)
+      `CCC_SEL`    | `CSI` 29 : n `p`                 | Set selection mode, _default is 0_<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
       `CCC_PAD`    | `CSI` 30 : n `p`                 | Set scrollbuffer side padding<br>`n` Width in cells, _max = 255, default is 0_
       `CCC_RST`    | `CSI` 1 `p`                      | Reset all parameters to default
       `CCC_TBS`    | `CSI` 5 : n `p`                  | Set tabulation length<br>`n` Length in cells, _max = 256, default is 8_
