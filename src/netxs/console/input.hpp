@@ -397,7 +397,7 @@ namespace netxs::input
             //                                        in case when two buttons are pressed.
             m_buttons[leftright] = (bttns[leftright].pressed && (m_buttons[left] || m_buttons[right]))
                                                              || (m_buttons[left] && m_buttons[right]);
-            m0.buttons = m_buttons.to_ulong();
+            m0.buttons = static_cast<ui32>(m_buttons.to_ulong());
             m.set(m0);
             auto busy = captured();
             if (busy && fire_fast()) //todo fire_fast on mods press
@@ -422,7 +422,7 @@ namespace netxs::input
                 }
                 m_buttons[left ] = faux;
                 m_buttons[right] = faux;
-                m.buttons = m_buttons.to_ulong();
+                m.buttons = static_cast<ui32>(m_buttons.to_ulong());
             }
 
             // Suppress left and right to avoid single button tracking (click, pull, etc)
