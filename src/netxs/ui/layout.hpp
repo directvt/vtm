@@ -1494,7 +1494,6 @@ namespace netxs::ui::atoms
     enum class bias : unsigned char { none, left, right, center, };
     enum class wrap : unsigned char { none, on,  off,            };
     enum class rtol : unsigned char { none, rtl, ltr,            };
-    enum class feed : unsigned char { none, rev, fwd,            };
 
     struct rect
     {

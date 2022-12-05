@@ -638,13 +638,13 @@ namespace netxs::ansi
         auto& save_palette()        { return add("\033[#P"                           ); } // esc: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // esc: Pop  palette from stack XTPOPCOLORS.
         auto& old_palette_reset()   { return add("\033]R"                            ); } // esc: Reset color palette (Linux console).
-        auto& clipbuf(clip::mime kind, view utf8) // esc: Set clipboard buffer.
+        auto& clipbuf(twod size, clip::mime kind, view utf8) // esc: Set clipboard buffer.
         {
             return add("\033]52;", kind == clip::htmltext ? mimehtml
                                  : kind == clip::richtext ? mimerich
                                  : kind == clip::ansitext ? mimeansi
                                  : kind == clip::safetext ? mimesafe
-                                                          : mimetext, ";", utf::base64(utf8), C0_BEL);
+                                                          : mimetext, "/", size.x, "/", size.y, ";", utf::base64(utf8), C0_BEL);
         }
         auto& old_palette(si32 i, rgba const& c) // esc: Set color palette (Linux console).
         {

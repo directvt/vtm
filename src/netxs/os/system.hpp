@@ -1778,11 +1778,21 @@ namespace netxs::os
         //                                  CF_UNICODETEXT: Raw UTF-16
         //                                         cf_ansi: ANSI-text UTF-8 with mime mark
         //
-        //  cf_ansi format: payload=rest_after_length;mime;utf8_data
+        //  cf_ansi format: payload=mime_type/size_x/size_y;utf8_data
 
         using ansi::clip;
 
         auto success = faux;
+        auto size = twod{ 80,25 };
+        {
+            auto i = 1;
+            utf::divide<feed::rev>(mime, '/', [&](auto frag)
+            {
+                if (auto v = utf::to_int(frag)) size[i] = v.value();
+                return i--;
+            });
+        }
+
         #if defined(_WIN32)
 
             auto send = [&](auto cf_format, view data)
@@ -1854,7 +1864,6 @@ namespace netxs::os
                     }
                 }
                 auto crop = ansi::add(mime, ";", utf8);
-                crop = std::to_string(crop.size()) + ";" + crop; 
                 send(os::cf_ansi, crop);
             }
             ok(::CloseClipboard(), "::CloseClipboard");
@@ -1895,21 +1904,21 @@ namespace netxs::os
             {
                 auto post = page{ utf8 };
                 auto rich = post.to_rich();
-                yield.clipbuf(clip::richtext, rich);
+                yield.clipbuf(size, clip::richtext, rich);
             }
             else if (mime.starts_with(ansi::mimehtml))
             {
                 auto post = page{ utf8 };
                 auto [html, code] = post.to_html();
-                yield.clipbuf(clip::htmltext, code);
+                yield.clipbuf(size, clip::htmltext, code);
             }
             else if (mime.starts_with(ansi::mimeansi))
             {
-                yield.clipbuf(clip::ansitext, utf8);
+                yield.clipbuf(size, clip::ansitext, utf8);
             }
             else
             {
-                yield.clipbuf(clip::textonly, utf8);
+                yield.clipbuf(size, clip::textonly, utf8);
             }
             os::send<true>(STDOUT_FD, yield.data(), yield.size());
             success = true;
@@ -3933,7 +3942,23 @@ namespace netxs::os
                                 if (auto format = ::EnumClipboardFormats(0))
                                 {
                                     auto hidden = ::GetClipboardData(cf_sec1);
-                                    do
+                                    if (auto hglb = ::GetClipboardData(cf_ansi)) // Our clipboard format.
+                                    {
+                                        if (auto lptr = ::GlobalLock(hglb))
+                                        {
+                                            auto size = ::GlobalSize(hglb);
+                                            auto data = view((char*)lptr, size - 1/*trailing null*/);
+                                            auto mime = ansi::clip::disabled;
+                                            wired.osclipdata.send(ipcio, gear_id, text{ data }, mime);
+                                            ::GlobalUnlock(hglb);
+                                        }
+                                        else
+                                        {
+                                            auto error = "GlobalLock() returns unexpected result, code "s + std::to_string(os::error());
+                                            wired.osclipdata.send(ipcio, gear_id, error, ansi::clip::textonly);
+                                        }
+                                    }
+                                    else do
                                     {
                                         if (format == os::cf_text)
                                         {
@@ -3951,7 +3976,7 @@ namespace netxs::os
                                         }
                                         else
                                         {
-                                            //todo proceed other formats (ansi/vt)
+                                            //todo proceed other formats (rich/html/...)
                                         }
                                     }
                                     while (format = ::EnumClipboardFormats(format));

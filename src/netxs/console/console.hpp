@@ -3604,17 +3604,48 @@ namespace netxs::console
                 }
                 void set_clip_data(twod const& size, clip const& data, bool forward = true) override
                 {
-                    if (data.utf8.size())
+                    auto rawsize = dot_00;
+                    auto rawdata = view{ data.utf8 };
+                    if (data.kind == clip::disabled)
                     {
-                        preview_size = size != dot_00 ? size
-                                                      : preview_size == dot_00 ? twod{ 80,25 } //todo make it configurable
-                                                                               : preview_size;
+                        clip_rawdata.kind = ansi::clip::textonly;
+                        // rawdata=mime/size_x/size_y;data
+                             if (rawdata.starts_with(ansi::mimeansi)) { rawdata.remove_prefix(ansi::mimeansi.length()); clip_rawdata.kind = ansi::clip::ansitext; }
+                        else if (rawdata.starts_with(ansi::mimetext)) { rawdata.remove_prefix(ansi::mimetext.length()); clip_rawdata.kind = ansi::clip::textonly; }
+                        else if (rawdata.starts_with(ansi::mimerich)) { rawdata.remove_prefix(ansi::mimerich.length()); clip_rawdata.kind = ansi::clip::richtext; }
+                        else if (rawdata.starts_with(ansi::mimehtml)) { rawdata.remove_prefix(ansi::mimehtml.length()); clip_rawdata.kind = ansi::clip::htmltext; }
+                        else if (rawdata.starts_with(ansi::mimesafe)) { rawdata.remove_prefix(ansi::mimesafe.length()); clip_rawdata.kind = ansi::clip::safetext; }
+                        else
+                        {
+                            rawdata = {};
+                        }
+                        if (rawdata.size())
+                        {
+                            rawdata.remove_prefix(1);
+                            if (auto v = utf::to_int(rawdata))
+                            {
+                                rawsize.x = std::abs(v.value());
+                                rawdata.remove_prefix(1);
+                                if (auto v = utf::to_int(rawdata))
+                                {
+                                    rawsize.y = std::abs(v.value());
+                                    if (rawdata.size()) rawdata.remove_prefix(1);
+                                }
+                                else rawsize.x = 0;
+                            }
+                        }
                     }
-                    else preview_size = dot_00;
-                    clip_rawdata = data;
+                    else clip_rawdata.kind = data.kind;
+
+                    preview_size = rawdata.empty() ? dot_00
+                                 : rawsize         ? rawsize
+                                 : size            ? size
+                                 : preview_size    ? preview_size
+                                                   : twod{ 80,25 }; //todo make it configurable
+                    clip_rawdata.utf8 = rawdata;
                     if (not_directvt)
                     {
-                        if (data.kind == clip::safetext)
+                        if (clip_rawdata.kind == clip::safetext)
                         {
                             auto block = page{ " Protected Data " };
                             clip_preview.mark(cell{}.bgc(0x7Fffffff).fgc(0xFF000000));
@@ -3622,9 +3653,9 @@ namespace netxs::console
                             clip_preview.wipe();
                             clip_preview.output(block);
                         }
-                        else if (data.kind == clip::textonly)
+                        else if (clip_rawdata.kind == clip::textonly)
                         {
-                            auto block = page{ data.utf8 };
+                            auto block = page{ rawdata };
                             clip_preview.mark(cell{});
                             clip_preview.size(preview_size);
                             clip_preview.wipe();
@@ -3632,7 +3663,7 @@ namespace netxs::console
                         }
                         else
                         {
-                            auto block = page{ data.utf8 };
+                            auto block = page{ rawdata };
                             clip_preview.mark(cell{});
                             clip_preview.size(preview_size);
                             clip_preview.wipe();
@@ -5758,7 +5789,7 @@ namespace netxs::console
                     auto& data = gear.clip_rawdata;
                     auto& size = gear.preview_size;
                     if (direct) conio.set_clipboard.send(canal, ext_gear_id, size, data.utf8, data.kind);
-                    else        conio.output(ansi::clipbuf(data.kind, data.utf8)); // OSC 52
+                    else        conio.output(ansi::clipbuf(size, data.kind, data.utf8)); // OSC 52
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
                 {
