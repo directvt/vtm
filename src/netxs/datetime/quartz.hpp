@@ -213,10 +213,20 @@ namespace netxs::datetime
                 rec.item = item;
             }
         }
+        // tail: Update last time stamp.
+        void set()
+        {
+            set(hist[iter].item);
+        }
         // tail: Return last value.
         auto& get() const
         {
             return hist[iter].item;
+        }
+        // tail: Return last time stamp.
+        auto& stamp() const
+        {
+            return hist[iter].time;
         }
         // tail: Shrink tail size to 1 and free memory.
         void dry()

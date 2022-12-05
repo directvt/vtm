@@ -1306,7 +1306,7 @@ namespace netxs::ui::atoms
                      << "\n\tblk " <<(c.blk() ? "true" : "faux")
                      << "\n\tinv " <<(c.inv() ? "true" : "faux")
                      << "\n\tbld " <<(c.bld() ? "true" : "faux")
-                     << "\n\tund " <<(c.und() == 0 ? "none" 
+                     << "\n\tund " <<(c.und() == 0 ? "none"
                                     : c.und() == 1 ? "single"
                                                    : "double");
         }

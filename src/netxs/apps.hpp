@@ -37,7 +37,7 @@ namespace netxs::app::shared
                        Using an asterisk with the parameter name of the first element in the list without any other nested arguments
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
         <item splitter label="apps">
-            <notes> 
+            <notes>
                 " Default applications group                         \n"
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
@@ -88,6 +88,7 @@ R"==(
                         <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
                         <selection>
                             <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                            <protected fx=selection bgc=bluelt fgc=whitelt />
                             <ansi fx=xlight/>
                             <rich fx=xlight/>
                             <html fx=xlight/>
@@ -110,7 +111,7 @@ R"==(
                         <slim="true"/>
                     </menu>
                     <selection>
-                        <mode="text"/> <!-- text | ansi | rich | html | none -->
+                        <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
                     <hotkeys>    <!-- not implemented -->
                         <key*/>
@@ -226,11 +227,14 @@ R"==(
     <client>
         <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
         <clipboard>
-            <preview enabled=true size=80x25 />
+            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
+                <alpha=0x1f />  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
+                <timeout=3s />  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
+            </preview>
         </clipboard>
         <viewport coor=0,0 />
         <mouse dblclick=500ms />
-        <tooltip timeout=500ms enabled=true />
+        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite />
         <glowfx=true />                      <!-- Show glow effect around selected item. -->
         <debug overlay=faux toggle="🐞" />  <!-- Display console debug info. -->
         <regions enabled=faux />             <!-- Highlight UI objects boundaries. -->
@@ -263,6 +267,7 @@ R"==(
             <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
                 <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                <protected fx=selection bgc=bluelt fgc=whitelt />
                 <ansi fx=xlight/>
                 <rich fx=xlight/>
                 <html fx=xlight/>
@@ -285,7 +290,7 @@ R"==(
             <slim=true />
         </menu>
         <selection>
-            <mode="text"/> <!-- text | ansi | rich | html | none -->
+            <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
         </selection>
         <hotkeys>    <!-- not implemented -->
             <key*/>

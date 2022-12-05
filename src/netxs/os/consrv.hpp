@@ -204,7 +204,7 @@ struct consrv
         cell backup; // clnt: Text attributes to restore on detach.
         bufs alters; // clnt: Additional scrollback buffers.
     };
-    
+
     using hndl = clnt::hndl;
 
     struct base
@@ -532,7 +532,7 @@ struct consrv
                 {
                     .WindowBufferSizeEvent =
                     {
-                        .dwSize = 
+                        .dwSize =
                         {
                             .X = (si16)std::min<si32>(winsize.x, std::numeric_limits<si16>::max()),
                             .Y = (si16)std::min<si32>(winsize.y, std::numeric_limits<si16>::max()),
@@ -661,7 +661,7 @@ struct consrv
                 }
 
                 auto shift = s & shift_pressed ? shift_pressed : 0;
-                auto alt   = s & alt___pressed ? alt___pressed : 0; 
+                auto alt   = s & alt___pressed ? alt___pressed : 0;
                 auto ctrl  = s & ctrl__pressed ? ctrl__pressed : 0;
                 if (shift || alt || ctrl)
                 {
@@ -875,7 +875,7 @@ struct consrv
                                     else
                                     {
                                         burn();
-                                        hist.save(line); 
+                                        hist.save(line);
                                         line.insert(cell{}.c0_to_txt(c), mode);
                                     }
                                 }
@@ -1013,7 +1013,7 @@ struct consrv
                     answer.buffer = &packet.input; // Restore after copy.
 
                     if (closed || cancel) return;
-                    
+
                     cooked.ustr.clear();
                     if (server.inpmod & nt::console::inmode::cooked)
                     {
@@ -2810,7 +2810,7 @@ struct consrv
         packet.reply.sizey = 20;
         packet.reply.pitch = 0;
         packet.reply.heavy = 0;
-        auto brand = L"Consolas"s + L'\0'; 
+        auto brand = L"Consolas"s + L'\0';
         std::copy(std::begin(brand), std::end(brand), std::begin(packet.reply.brand));
         log("\tinput.fullscreen ", packet.input.fullscreen ? "true" : "faux",
           "\n\treply.index ",      packet.reply.index,
@@ -2908,8 +2908,9 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.handle = reinterpret_cast<HWND>(-1); // - Fake window handle to tell powershell that everything is under console control.
-                                                          // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
+        packet.reply.handle = winhnd; // - Fake window handle to tell powershell that everything is under console control.
+                                      // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
+                                      // - "Far.exe" set their icon to all windows in the system if reply=-1.
         log("\tfake window handle 0x", utf::to_hex(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
@@ -3174,6 +3175,9 @@ struct consrv
     view        prompt; // consrv: Log prompt.
     list        joined; // consrv: Attached processes list.
     std::thread server; // consrv: Main thread.
+    std::thread window; // consrv: Win32 window message loop.
+    HWND        winhnd; // consrv: Win32 window handle.
+    fire        signal; // consrv: Win32 window message loop unblocker.
     cdrw        answer; // consrv: Reply cue.
     task        upload; // consrv: Console driver request.
     text        buffer; // consrv: Temp buffer.
@@ -3190,6 +3194,54 @@ struct consrv
     void start()
     {
         reset();
+        window = std::thread{ [&]
+        {
+            auto wndname = text{ "vtmConsoleWindowClass" };
+            auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
+            {
+                switch (uMsg)
+                {
+                    case WM_CREATE: break;
+                    case WM_DESTROY: ::PostQuitMessage(0); break;
+                    default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
+                }
+                return (LRESULT) NULL;
+            };
+            auto wnddata = WNDCLASSEXA
+            {
+                .cbSize        = sizeof(WNDCLASSEX),
+                .lpfnWndProc   = wndproc,
+                .lpszClassName = wndname.c_str(),
+            };
+            if (ok(::RegisterClassExA(&wnddata), "unexpected result from ::RegisterClassExA()")
+               && (winhnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
+            {
+                auto next = MSG{};
+                while (next.message != WM_QUIT)
+                {
+                    if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&signal, FALSE, INFINITE, QS_ALLINPUT);
+                             yield == WAIT_OBJECT_0)
+                    {
+                        ::DestroyWindow(winhnd);
+                        return;
+                    }
+                    while (::PeekMessageA(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
+                    {
+                        ::DispatchMessageA(&next);
+                    }
+                }
+            }
+            else
+            {
+                os::fail(prompt, "failed to create win32 window object");
+                winhnd = reinterpret_cast<HWND>(-1);
+                return;
+            }
+        }};
+        while (!winhnd) // Waiting for a win32 window to be created.
+        {
+            std::this_thread::yield();
+        }
         server = std::thread{ [&]
         {
             while (condrv != INVALID_FD)
@@ -3226,10 +3278,9 @@ struct consrv
     void stop()
     {
         events.stop();
-        if (server.joinable())
-        {
-            server.join();
-        }
+        signal.reset();
+        if (window.joinable()) window.join();
+        if (server.joinable()) server.join();
         log(prompt, "stop()");
     }
     template<class T>
@@ -3269,6 +3320,7 @@ struct consrv
           events{ *this  },
           impcls{ faux   },
           answer{        },
+          winhnd{        },
           prompt{ " pty: consrv: " }
     {
         using _ = consrv;

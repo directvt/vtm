@@ -270,6 +270,7 @@ namespace netxs::ansi
     static const auto mimeansi = "text/xterm"sv;
     static const auto mimehtml = "text/html"sv;
     static const auto mimerich = "text/rtf"sv;
+    static const auto mimesafe = "text/protected"sv;
 
     struct clip
     {
@@ -280,6 +281,7 @@ namespace netxs::ansi
             ansitext,
             richtext,
             htmltext,
+            safetext, // mime: Sensitive textonly data.
             count,
         };
 
@@ -641,6 +643,7 @@ namespace netxs::ansi
             return add("\033]52;", kind == clip::htmltext ? mimehtml
                                  : kind == clip::richtext ? mimerich
                                  : kind == clip::ansitext ? mimeansi
+                                 : kind == clip::safetext ? mimesafe
                                                           : mimetext, ";", utf::base64(utf8), C0_BEL);
         }
         auto& old_palette(si32 i, rgba const& c) // esc: Set color palette (Linux console).
@@ -2156,6 +2159,27 @@ namespace netxs::ansi
                     auto crop = qiew(head, iter - head);
                     return crop;
                 }
+                // stream: .
+                template<class T, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, qiew>>>
+                static void reading_loop(T& link, P&& proc)
+                {
+                    auto flow = text{};
+                    while (link)
+                    {
+                        auto shot = link.recv();
+                        if (shot && link)
+                        {
+                            flow += shot;
+                            if (auto crop = purify(flow))
+                            {
+                                if constexpr (Plain) proc(crop);
+                                else            if (!proc(crop)) break;
+                                flow.erase(0, crop.size()); // Delete processed data.
+                            }
+                        }
+                        else break;
+                    }
+                }
 
                 // stream: .
                 auto length() const
@@ -2483,6 +2507,7 @@ namespace netxs::ansi
             STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
             STRUCT(winsz,             (id_t, gear_id) (twod, winsize))
             STRUCT(clipdata,          (id_t, gear_id) (text, data) (si32, mimetype))
+            STRUCT(osclipdata,        (id_t, gear_id) (text, data) (si32, mimetype))
             STRUCT(plain,             (id_t, gear_id) (text, utf8txt))
             STRUCT(ctrls,             (id_t, gear_id) (ui32, ctlstat))
             STRUCT(unknown_gc,        (ui64, token))
@@ -2763,6 +2788,7 @@ namespace netxs::ansi
                 X(mouse_show       ) /* Show mouse cursor.                            */\
                 X(winsz            ) /* Window resize.                                */\
                 X(clipdata         ) /* Clipboard raw data.                           */\
+                X(osclipdata       ) /* OS clipboard data.                            */\
                 X(plain            ) /* Raw text input.                               */\
                 X(ctrls            ) /* Keyboard modifiers state.                     */\
                 X(request_gc       ) /* Unknown gc token list.                        */\

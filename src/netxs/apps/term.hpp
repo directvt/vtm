@@ -166,6 +166,10 @@ namespace netxs::app::term
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "HTML-code");
                             boss.color(0xFFffff00, x3.bgc());
                             break;
+                        case clip::safetext:
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Protected");
+                            boss.color(0xFFffff00, x3.bgc());
+                            break;
                     }
                     boss.deface();
                 };
