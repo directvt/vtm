@@ -1022,7 +1022,11 @@ namespace netxs::ui::atoms
         {
         	uv.fg.mix_one(c.uv.fg);
         	uv.bg.mix_one(c.uv.bg);
-        	if (c.wdt()) gc = c.gc;
+        	if (c.wdt())
+            {
+                st = c.st;
+                gc = c.gc;
+            }
         }
         // cell: Mix colors using alpha.
         void mix(cell const& c, byte alpha)
