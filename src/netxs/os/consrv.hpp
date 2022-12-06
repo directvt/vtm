@@ -2911,6 +2911,10 @@ struct consrv
         packet.reply.handle = winhnd; // - Fake window handle to tell powershell that everything is under console control.
                                       // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
                                       // - "Far.exe" set their icon to all windows in the system if reply=-1.
+                                      // - msys uses the handle to determine what processes are running in the same session.
+                                      // - vim sets the icon of its hosting window.
+                                      // - the handle is used to show/hide GUI console window.
+                                      // - usaed for SetConsoleTitle().
         log("\tfake window handle 0x", utf::to_hex(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
@@ -3199,6 +3203,7 @@ struct consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
+                log(" pty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
