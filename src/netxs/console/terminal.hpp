@@ -1899,6 +1899,7 @@ namespace netxs::ui
                 square.normalize_itself();
                 if (selbox || grip_1.coor.y == grip_2.coor.y)
                 {
+                    selmod == clip::disabled ||
                     selmod == clip::textonly ||
                     selmod == clip::safetext ? buffer.s11n<faux>(canvas, square)
                                              : buffer.s11n<true>(canvas, square);
@@ -1910,7 +1911,8 @@ namespace netxs::ui
                     auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
                     auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
                     if (selmod == clip::textonly
-                     || selmod == clip::safetext)
+                     || selmod == clip::safetext
+                     || selmod == clip::disabled)
                     {
                         buffer.s11n<faux, true, faux>(canvas, part_1);
                         buffer.s11n<faux, faux, faux>(canvas, part_2);
@@ -5407,6 +5409,7 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
+                    selmod == clip::disabled ||
                     selmod == clip::textonly ||
                     selmod == clip::safetext ? yield.s11n<faux, faux, true>(dest, mark)
                                              : yield.s11n<true, faux, true>(dest, mark);
@@ -5441,7 +5444,8 @@ namespace netxs::ui
                         if (yield.length()) yield.pop_back(); // Pop last eol.
                     };
                     if (selmod == clip::textonly
-                     || selmod == clip::safetext)
+                     || selmod == clip::safetext
+                     || selmod == clip::disabled)
                     {
                         build([&](auto& curln)
                         {
@@ -6470,11 +6474,13 @@ namespace netxs::ui
                 auto data = console.selection_pickup(selmod);
                 if (data.size())
                 {
+                    auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
+                                                                   : static_cast<clip::mime>(selmod);
                     //todo unify (hids)
                     auto state = gear.state();
                     gear.combine_focus = true; // Preserve all selected panes.
                     gear.offer_kb_focus(this->This());
-                    gear.set_clip_data(target->panel, clip{ data, static_cast<clip::mime>(selmod) });
+                    gear.set_clip_data(target->panel, clip{ data, mimetype });
                     gear.state(state);
                 }
                 if (gear.meta(hids::anyCtrl) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
