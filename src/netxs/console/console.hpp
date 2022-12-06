@@ -3645,29 +3645,50 @@ namespace netxs::console
                     clip_rawdata.utf8 = rawdata;
                     if (not_directvt)
                     {
+                        auto clip_shadow_size = 7;
+                        auto use_shadow = true;
+                        auto draw_shadow = [&](auto& block)
+                        {
+                            clip_preview.mark(cell{});
+                            clip_preview.wipe();
+                            clip_preview.size(dot_21 * clip_shadow_size * 2 + preview_size);
+                            auto full = rect{ dot_21 * clip_shadow_size + dot_21, preview_size };
+                            while (clip_shadow_size--)
+                            {
+                                clip_preview.reset();
+                                clip_preview.full(full);
+                                clip_preview.output(block, cell::shaders::selection(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                                clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
+                            }
+                            full.coor -= dot_21;
+                            clip_preview.reset();
+                            clip_preview.full(full);
+                        };
                         if (clip_rawdata.kind == clip::safetext)
                         {
                             auto block = page{ " Protected Data " };
+                            preview_size = twod{ 16, 1 };
+                            if (use_shadow) draw_shadow(block);
+                            else
+                            {
+                                clip_preview.size(preview_size);
+                                clip_preview.wipe();
+                            }
                             clip_preview.mark(cell{}.bgc(0x7Fffffff).fgc(0xFF000000));
-                            clip_preview.size(twod{ 80,25 });
-                            clip_preview.wipe();
                             clip_preview.output(block);
-                        }
-                        else if (clip_rawdata.kind == clip::textonly)
-                        {
-                            auto block = page{ rawdata };
-                            clip_preview.mark(cell{});
-                            clip_preview.size(preview_size);
-                            clip_preview.wipe();
-                            clip_preview.output(block, cell::shaders::selection(props.clip_preview_clrs)); //todo make transparency configurable
                         }
                         else
                         {
                             auto block = page{ rawdata };
+                            if (use_shadow) draw_shadow(block);
+                            else
+                            {
+                                clip_preview.size(preview_size);
+                                clip_preview.wipe();
+                            }
                             clip_preview.mark(cell{});
-                            clip_preview.size(preview_size);
-                            clip_preview.wipe();
-                            clip_preview.output(block, cell::shaders::xlucent(props.clip_preview_alfa));
+                            if (clip_rawdata.kind == clip::textonly) clip_preview.output(block, cell::shaders::selection(props.clip_preview_clrs));
+                            else                                     clip_preview.output(block, cell::shaders::xlucent(  props.clip_preview_alfa));
                         }
                     }
                     if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
@@ -5485,8 +5506,9 @@ namespace netxs::console
                  || props.clip_preview_time > stamp - gear.delta.stamp())
                 {
                     auto coor = gear.coord + dot_21 * 2;
-                    gear.clip_preview.move(coor);
-                    canvas.plot(gear.clip_preview, cell::shaders::lite);
+                    auto full = gear.clip_preview.full();
+                    gear.clip_preview.move(coor - full.coor);
+                    canvas.plot(gear.clip_preview, cell::shaders::mix);
                 }
             }
         }

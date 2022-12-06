@@ -1912,7 +1912,7 @@ namespace netxs::os
                 auto [html, code] = post.to_html();
                 yield.clipbuf(size, clip::htmltext, code);
             }
-            else if (mime.starts_with(ansi::mimeansi))
+            else if (mime.starts_with(ansi::mimeansi)) //todo GH#216
             {
                 yield.clipbuf(size, clip::ansitext, utf8);
             }
