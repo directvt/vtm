@@ -466,66 +466,71 @@ namespace netxs::ui::atoms
     template<class T>
     struct irgb
     {
-        T r, g, b;
+        T r, g, b, a;
 
         irgb() = default;
 
-        irgb(T r, T g, T b)
-            : r{ r }, g{ g }, b{ b }
+        irgb(T r, T g, T b, T a = { -1 })
+            : r{ r }, g{ g }, b{ b }, a{ a }
         { }
 
         irgb(rgba const& c)
             : r { c.chan.r },
               g { c.chan.g },
-              b { c.chan.b }
+              b { c.chan.b },
+              a { c.chan.a }
         { }
 
-        operator rgba() const { return rgba{ r, g, b }; }
+        operator rgba() const { return rgba{ r, g, b, a }; }
 
         template<class N>
         auto operator / (N v) const
         {
-            return irgb<T>{ r / v, g / v, b / v }; // 10% faster than divround.
-
-            //return irgb<T>{ utils::divround(r, v),
-            //                utils::divround(g, v),
-            //                utils::divround(b, v) };
+            return irgb<T>{ r / v, g / v, b / v, a / v }; // 10% faster than divround.
         }
 
         template<class N>
         void operator *= (N v)
         {
-            r *= v; g *= v; b *= v;
+            r *= v;
+            g *= v;
+            b *= v;
+            a *= v;
         }
         void operator = (irgb const& c)
         {
             r = c.r;
             g = c.g;
             b = c.b;
+            a = c.a;
         }
         void operator += (irgb const& c)
         {
             r += c.r;
             g += c.g;
             b += c.b;
+            a += c.a;
         }
         void operator -= (irgb const& c)
         {
             r -= c.r;
             g -= c.g;
             b -= c.b;
+            a -= c.a;
         }
         void operator += (rgba const& c)
         {
             r += c.chan.r;
             g += c.chan.g;
             b += c.chan.b;
+            a += c.chan.a;
         }
         void operator -= (rgba const& c)
         {
             r -= c.chan.r;
             g -= c.chan.g;
             b -= c.chan.b;
+            a -= c.chan.a;
         }
     };
 
@@ -1012,6 +1017,17 @@ namespace netxs::ui::atoms
         {
             if (c.gc.glyph[1] != 0) fuse(c);
         }
+        // cell: Mix cell colors.
+        void mix(cell const& c)
+        {
+        	uv.fg.mix_one(c.uv.fg);
+        	uv.bg.mix_one(c.uv.bg);
+        	if (c.wdt())
+            {
+                st = c.st;
+                gc = c.gc;
+            }
+        }
         // cell: Mix colors using alpha.
         void mix(cell const& c, byte alpha)
         {
@@ -1362,6 +1378,11 @@ namespace netxs::ui::atoms
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.set(src); }
             };
+            struct mix_t : public brush_t<mix_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mix(src); }
+            };
             struct full_t : public brush_t<full_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -1472,6 +1493,7 @@ namespace netxs::ui::atoms
             static constexpr auto      fullid(id_t newid) { return      fullid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
+            static constexpr auto      mix =      mix_t{};
             static constexpr auto     lite =     lite_t{};
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};

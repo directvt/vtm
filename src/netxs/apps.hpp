@@ -228,8 +228,9 @@ R"==(
         <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
         <clipboard>
             <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
-                <alpha=0x1f />  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
+                <alpha=0xFF />  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
                 <timeout=3s />  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
+                <shadow=7   />  <!-- Preview shadow strength (0-10). -->
             </preview>
         </clipboard>
         <viewport coor=0,0 />

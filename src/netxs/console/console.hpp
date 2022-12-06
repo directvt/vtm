@@ -1404,6 +1404,7 @@ namespace netxs::console
         byte clip_preview_alfa;
         bool clip_preview_show;
         twod clip_preview_size;
+        si32 clip_preview_glow;
         cell background_color;
         si32 legacy_mode;
         si32 session_id;
@@ -1424,7 +1425,8 @@ namespace netxs::console
             config.cd("/config/client/");
             clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
             clip_preview_time = config.take("clipboard/preview/timeout", time{ 3s });
-            clip_preview_alfa = config.take("clipboard/preview/alpha", 0x1f);
+            clip_preview_alfa = config.take("clipboard/preview/alpha", 0xFF);
+            clip_preview_glow = config.take("clipboard/preview/shadow", 7);
             clip_preview_show = config.take("clipboard/preview/enabled", true);
             clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
             coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
@@ -1435,6 +1437,7 @@ namespace netxs::console
             debug_overlay     = config.take("debug/overlay", faux);
             debug_toggle      = config.take("debug/toggle", "🐞"s);
             show_regions      = config.take("regions/enabled", faux);
+            clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
         }
 
         conf()            = default;
@@ -3645,29 +3648,50 @@ namespace netxs::console
                     clip_rawdata.utf8 = rawdata;
                     if (not_directvt)
                     {
+                        auto clip_shadow_size = props.clip_preview_glow;
+                        auto draw_shadow = [&](auto& block)
+                        {
+                            clip_preview.mark(cell{});
+                            clip_preview.wipe();
+                            clip_preview.size(dot_21 * clip_shadow_size * 2 + preview_size);
+                            auto full = rect{ dot_21 * clip_shadow_size + dot_21, preview_size };
+                            while (clip_shadow_size--)
+                            {
+                                clip_preview.reset();
+                                clip_preview.full(full);
+                                clip_preview.output(block, cell::shaders::selection(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                                clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
+                            }
+                            full.coor -= dot_21;
+                            clip_preview.reset();
+                            clip_preview.full(full);
+                        };
                         if (clip_rawdata.kind == clip::safetext)
                         {
-                            auto block = page{ " Protected Data " };
+                            auto blank = " Protected Data "sv;
+                            auto block = page{ blank };
+                            preview_size = twod{ static_cast<si32>(blank.size()), 1 }; //todo unify (i18n)
+                            if (clip_shadow_size) draw_shadow(block);
+                            else
+                            {
+                                clip_preview.size(preview_size);
+                                clip_preview.wipe();
+                            }
                             clip_preview.mark(cell{}.bgc(0x7Fffffff).fgc(0xFF000000));
-                            clip_preview.size(twod{ 80,25 });
-                            clip_preview.wipe();
                             clip_preview.output(block);
-                        }
-                        else if (clip_rawdata.kind == clip::textonly)
-                        {
-                            auto block = page{ rawdata };
-                            clip_preview.mark(cell{});
-                            clip_preview.size(preview_size);
-                            clip_preview.wipe();
-                            clip_preview.output(block, cell::shaders::selection(props.clip_preview_clrs)); //todo make transparency configurable
                         }
                         else
                         {
                             auto block = page{ rawdata };
+                            if (clip_shadow_size) draw_shadow(block);
+                            else
+                            {
+                                clip_preview.size(preview_size);
+                                clip_preview.wipe();
+                            }
                             clip_preview.mark(cell{});
-                            clip_preview.size(preview_size);
-                            clip_preview.wipe();
-                            clip_preview.output(block, cell::shaders::xlucent(props.clip_preview_alfa));
+                            if (clip_rawdata.kind == clip::textonly) clip_preview.output(block, cell::shaders::selection(props.clip_preview_clrs));
+                            else                                     clip_preview.output(block, cell::shaders::xlucent(  props.clip_preview_alfa));
                         }
                     }
                     if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
@@ -5485,8 +5509,9 @@ namespace netxs::console
                  || props.clip_preview_time > stamp - gear.delta.stamp())
                 {
                     auto coor = gear.coord + dot_21 * 2;
-                    gear.clip_preview.move(coor);
-                    canvas.plot(gear.clip_preview, cell::shaders::lite);
+                    auto full = gear.clip_preview.full();
+                    gear.clip_preview.move(coor - full.coor);
+                    canvas.plot(gear.clip_preview, cell::shaders::mix);
                 }
             }
         }
