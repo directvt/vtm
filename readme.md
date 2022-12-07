@@ -43,7 +43,7 @@ Text-based desktop environment inside your terminal*
 
 Build-time dependencies
  - `git`
- - `cmake`
+ - `cmake` (https://github.com/netxs-group/vtm/issues/172#issuecomment-1340519942)
  - C++20 compiler
  - Minimal requirements to compile
    - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `3GB` of RAM
