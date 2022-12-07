@@ -1904,21 +1904,21 @@ namespace netxs::os
             {
                 auto post = page{ utf8 };
                 auto rich = post.to_rich();
-                yield.clipbuf(size, clip::richtext, rich);
+                yield.clipbuf(size, rich, clip::richtext);
             }
             else if (mime.starts_with(ansi::mimehtml))
             {
                 auto post = page{ utf8 };
                 auto [html, code] = post.to_html();
-                yield.clipbuf(size, clip::htmltext, code);
+                yield.clipbuf(size, code, clip::htmltext);
             }
             else if (mime.starts_with(ansi::mimeansi)) //todo GH#216
             {
-                yield.clipbuf(size, clip::ansitext, utf8);
+                yield.clipbuf(size, utf8, clip::ansitext);
             }
             else
             {
-                yield.clipbuf(size, clip::textonly, utf8);
+                yield.clipbuf(size, utf8, clip::textonly);
             }
             os::send<true>(STDOUT_FD, yield.data(), yield.size());
             success = true;

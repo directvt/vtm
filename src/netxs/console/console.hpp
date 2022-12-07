@@ -218,7 +218,7 @@ namespace netxs::events::userland
                 EVENT_XS( preclose, const bool      ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
                 EVENT_XS( quit    , const text      ), // release: quit, arg: text - bye msg.
                 EVENT_XS( pointer , const bool      ), // release: mouse pointer visibility.
-                EVENT_XS( clipdata, const ansi::clip), // release: OS clipboard update.
+                EVENT_XS( clipdata, ansi::clip      ), // release: OS clipboard update.
                 //EVENT_XS( menu  , si32 ),
             };
             SUBSET_XS( data )
@@ -3583,7 +3583,6 @@ namespace netxs::console
                 conf& props;
                 clip clip_rawdata{}; // topgear: Clipboard data.
                 face clip_preview{}; // topgear: Clipboard preview render.
-                twod preview_size{}; // topgear: Clipboard preview render size.
                 bool not_directvt{}; // topgear: Is it the top level gear (not directvt).
 
                 template<class ...Args>
@@ -3596,56 +3595,17 @@ namespace netxs::console
                 bool clear_clip_data() override
                 {
                     auto not_empty = !!clip_rawdata.utf8.size();
-                    preview_size = dot_00;
                     clip_rawdata.clear();
                     owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
                     if (not_directvt)
                     {
-                        clip_preview.size(preview_size);
+                        clip_preview.size(clip_rawdata.size);
                     }
                     return not_empty;
                 }
-                void set_clip_data(twod const& size, clip const& data, bool forward = true) override
+                void set_clip_data(clip const& data, bool forward = true) override
                 {
-                    auto rawsize = dot_00;
-                    auto rawdata = view{ data.utf8 };
-                    if (data.kind == clip::disabled)
-                    {
-                        clip_rawdata.kind = ansi::clip::textonly;
-                        // rawdata=mime/size_x/size_y;data
-                             if (rawdata.starts_with(ansi::mimeansi)) { rawdata.remove_prefix(ansi::mimeansi.length()); clip_rawdata.kind = ansi::clip::ansitext; }
-                        else if (rawdata.starts_with(ansi::mimetext)) { rawdata.remove_prefix(ansi::mimetext.length()); clip_rawdata.kind = ansi::clip::textonly; }
-                        else if (rawdata.starts_with(ansi::mimerich)) { rawdata.remove_prefix(ansi::mimerich.length()); clip_rawdata.kind = ansi::clip::richtext; }
-                        else if (rawdata.starts_with(ansi::mimehtml)) { rawdata.remove_prefix(ansi::mimehtml.length()); clip_rawdata.kind = ansi::clip::htmltext; }
-                        else if (rawdata.starts_with(ansi::mimesafe)) { rawdata.remove_prefix(ansi::mimesafe.length()); clip_rawdata.kind = ansi::clip::safetext; }
-                        else
-                        {
-                            rawdata = {};
-                        }
-                        if (rawdata.size())
-                        {
-                            rawdata.remove_prefix(1);
-                            if (auto v = utf::to_int(rawdata))
-                            {
-                                rawsize.x = std::abs(v.value());
-                                rawdata.remove_prefix(1);
-                                if (auto v = utf::to_int(rawdata))
-                                {
-                                    rawsize.y = std::abs(v.value());
-                                    if (rawdata.size()) rawdata.remove_prefix(1);
-                                }
-                                else rawsize.x = 0;
-                            }
-                        }
-                    }
-                    else clip_rawdata.kind = data.kind;
-
-                    preview_size = rawdata.empty() ? dot_00
-                                 : rawsize         ? rawsize
-                                 : size            ? size
-                                 : preview_size    ? preview_size
-                                                   : twod{ 80,25 }; //todo make it configurable
-                    clip_rawdata.utf8 = rawdata;
+                    clip_rawdata.set(data);
                     if (not_directvt)
                     {
                         auto clip_shadow_size = props.clip_preview_glow;
@@ -3653,8 +3613,8 @@ namespace netxs::console
                         {
                             clip_preview.mark(cell{});
                             clip_preview.wipe();
-                            clip_preview.size(dot_21 * clip_shadow_size * 2 + preview_size);
-                            auto full = rect{ dot_21 * clip_shadow_size + dot_21, preview_size };
+                            clip_preview.size(dot_21 * clip_shadow_size * 2 + clip_rawdata.size);
+                            auto full = rect{ dot_21 * clip_shadow_size + dot_21, clip_rawdata.size };
                             while (clip_shadow_size--)
                             {
                                 clip_preview.reset();
@@ -3668,25 +3628,24 @@ namespace netxs::console
                         };
                         if (clip_rawdata.kind == clip::safetext)
                         {
-                            auto blank = " Protected Data "sv;
+                            auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
                             auto block = page{ blank };
-                            preview_size = twod{ static_cast<si32>(blank.size()), 1 }; //todo unify (i18n)
+                            clip_rawdata.size = block.current().size();
                             if (clip_shadow_size) draw_shadow(block);
                             else
                             {
-                                clip_preview.size(preview_size);
+                                clip_preview.size(clip_rawdata.size);
                                 clip_preview.wipe();
                             }
-                            clip_preview.mark(cell{}.bgc(0x7Fffffff).fgc(0xFF000000));
                             clip_preview.output(block);
                         }
                         else
                         {
-                            auto block = page{ rawdata };
+                            auto block = page{ clip_rawdata.utf8 };
                             if (clip_shadow_size) draw_shadow(block);
                             else
                             {
-                                clip_preview.size(preview_size);
+                                clip_preview.size(clip_rawdata.size);
                                 clip_preview.wipe();
                             }
                             clip_preview.mark(cell{});
@@ -3748,7 +3707,7 @@ namespace netxs::console
                     data.s11n(xmap, gear.slot);
                     if (data.length())
                     {
-                        gear.set_clip_data(gear.slot.size, clip{ data, clip::ansitext });
+                        gear.set_clip_data(clip{ gear.slot.size, data, clip::ansitext });
                     }
                 };
                 boss.SUBMIT_T(tier::release, e2::form::prop::brush, memo, brush)
@@ -3820,7 +3779,7 @@ namespace netxs::console
                 }
                 return std::pair{ id_t{}, sptr<topgear>{} };
             }
-            auto set_clip_data(twod const& size, clip const& clipdata)
+            auto set_clip_data(clip const& clipdata)
             {
                 if (gears.empty())
                 {
@@ -3829,7 +3788,7 @@ namespace netxs::console
                 for (auto& [id, gear_ptr] : gears)
                 {
                     auto& gear = *gear_ptr;
-                    gear.set_clip_data(size, clipdata, faux);
+                    gear.set_clip_data(clipdata, faux);
                 }
             }
         };
@@ -5222,7 +5181,7 @@ namespace netxs::console
         void handle(s11n::xs::osclipdata  lock)
         {
             auto& item = lock.thing;
-            notify(e2::conio::clipdata, clip{ item.data, static_cast<clip::mime>(item.mimetype) });
+            notify(e2::conio::clipdata, clip{ dot_00, item.data, static_cast<clip::mime>(item.mimetype) });
         }
         void handle(s11n::xs::syskeybd    lock)
         {
@@ -5606,13 +5565,10 @@ namespace netxs::console
                 SIGNAL(tier::preview, e2::form::prop::ui::header, conf_usr_name);
                 base::moveby(props.coor);
 
-                //todo hids
-                //clip_preview.size(props.clip_preview_size); //todo unify/make it configurable
-
                 auto& canal = *termio;
                 link conio{ canal, This() }; // gate: Terminal IO.
                 diff paint{ canal, vtmode }; // gate: Rendering loop.
-                subs token;                   // gate: Subscription tokens.
+                subs token;                  // gate: Subscription tokens.
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -5726,7 +5682,8 @@ namespace netxs::console
                 {
                     if (!direct)
                     {
-                        input.set_clip_data(base::size() / 2, clipdata);
+                        clipdata.size = base::size() / 2;
+                        input.set_clip_data(clipdata);
                         base::deface();
                     }
                 };
@@ -5812,9 +5769,8 @@ namespace netxs::console
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                     auto& gear =*gear_ptr;
                     auto& data = gear.clip_rawdata;
-                    auto& size = gear.preview_size;
-                    if (direct) conio.set_clipboard.send(canal, ext_gear_id, size, data.utf8, data.kind);
-                    else        conio.output(ansi::clipbuf(size, data.kind, data.utf8)); // OSC 52
+                    if (direct) conio.set_clipboard.send(canal, ext_gear_id, data.size, data.utf8, data.kind);
+                    else        conio.output(ansi::clipbuf(                  data.size, data.utf8, data.kind));
                 };
                 SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
                 {

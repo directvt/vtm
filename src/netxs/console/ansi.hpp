@@ -285,13 +285,63 @@ namespace netxs::ansi
             count,
         };
 
-        text utf8{};
-        mime kind{ mime::ansitext };
+        twod size;
+        text utf8;
+        mime kind;
 
+        clip()
+            : kind{ mime::ansitext }
+        { }
+        clip(twod const& size, view utf8, mime kind)
+            : size{ size },
+              utf8{ utf8 },
+              kind{ kind }
+        { }
+        void set(clip const& data)
+        {
+            size = dot_00;
+            auto rawdata = view{ data.utf8 };
+            if (data.kind == mime::disabled)
+            {
+                kind = ansi::clip::textonly;
+                // rawdata=mime/size_x/size_y;data
+                     if (rawdata.starts_with(ansi::mimeansi)) { rawdata.remove_prefix(ansi::mimeansi.length()); kind = mime::ansitext; }
+                else if (rawdata.starts_with(ansi::mimetext)) { rawdata.remove_prefix(ansi::mimetext.length()); kind = mime::textonly; }
+                else if (rawdata.starts_with(ansi::mimerich)) { rawdata.remove_prefix(ansi::mimerich.length()); kind = mime::richtext; }
+                else if (rawdata.starts_with(ansi::mimehtml)) { rawdata.remove_prefix(ansi::mimehtml.length()); kind = mime::htmltext; }
+                else if (rawdata.starts_with(ansi::mimesafe)) { rawdata.remove_prefix(ansi::mimesafe.length()); kind = mime::safetext; }
+                else
+                {
+                    rawdata = {};
+                }
+                if (rawdata.size())
+                {
+                    rawdata.remove_prefix(1);
+                    if (auto v = utf::to_int(rawdata))
+                    {
+                        size.x = std::abs(v.value());
+                        rawdata.remove_prefix(1);
+                        if (auto v = utf::to_int(rawdata))
+                        {
+                            size.y = std::abs(v.value());
+                            if (rawdata.size()) rawdata.remove_prefix(1);
+                        }
+                        else size.x = 0;
+                    }
+                }
+            }
+            else kind = data.kind;
+            utf8 = rawdata;
+            size = rawdata.empty() ? dot_00
+                 : size            ? size
+                 : data.size       ? data.size
+                                   : twod{ 80,25 }; //todo make it configurable
+        }
         void clear()
         {
             utf8.clear();
             kind = mime::ansitext;
+            size = dot_00;
         }
     };
 
@@ -638,7 +688,7 @@ namespace netxs::ansi
         auto& save_palette()        { return add("\033[#P"                           ); } // esc: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // esc: Pop  palette from stack XTPOPCOLORS.
         auto& old_palette_reset()   { return add("\033]R"                            ); } // esc: Reset color palette (Linux console).
-        auto& clipbuf(twod size, clip::mime kind, view utf8) // esc: Set clipboard buffer.
+        auto& clipbuf(twod size, view utf8, clip::mime kind) // esc: Set clipboard buffer.
         {
             return add("\033]52;", kind == clip::htmltext ? mimehtml
                                  : kind == clip::richtext ? mimerich
