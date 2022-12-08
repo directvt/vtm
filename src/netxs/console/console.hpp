@@ -4168,7 +4168,7 @@ namespace netxs::console
 
         public:
             focus(base&&) = delete;
-            focus(base& boss)
+            focus(base& boss, bool visible = true)
                 : skill{ boss }
             {
                 boss.SUBMIT_T(tier::general, e2::form::proceed::functor, memo, proc)
@@ -4252,43 +4252,46 @@ namespace netxs::console
                         boss.SIGNAL(tier::anycast, e2::form::highlight::any, faux);
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
+                if (visible)
                 {
-                    //todo revise, too many fillings (mold's artifacts)
-                    auto normal = boss.base::color();
-                    auto title_fg_color = rgba{ 0xFFffffff };
-                    if (!pool.empty())
+                    boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                     {
-                        auto bright = skin::color(tone::brighter);
-                        auto shadow = skin::color(tone::shadower);
-                        //todo unify, make it more contrast
-                        shadow.alpha(0x80);
-                        bright.fgc(title_fg_color);
-                        shadow.fgc(title_fg_color);
-                        auto fillup = [&](auto bright, auto shadow)
+                        //todo revise, too many fillings (mold's artifacts)
+                        auto normal = boss.base::color();
+                        auto title_fg_color = rgba{ 0xFFffffff };
+                        if (!pool.empty())
                         {
-                            parent_canvas.fill(shadow);
-                        };
-                        if (normal.bgc().alpha())
-                        {
-                            auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
-                            auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
-                            fillup(fuse_shadow, fuse_bright);
+                            auto bright = skin::color(tone::brighter);
+                            auto shadow = skin::color(tone::shadower);
+                            //todo unify, make it more contrast
+                            shadow.alpha(0x80);
+                            bright.fgc(title_fg_color);
+                            shadow.fgc(title_fg_color);
+                            auto fillup = [&](auto bright, auto shadow)
+                            {
+                                parent_canvas.fill(shadow);
+                            };
+                            if (normal.bgc().alpha())
+                            {
+                                auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
+                                auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
+                                fillup(fuse_shadow, fuse_bright);
+                            }
+                            else
+                            {
+                                auto only_bright = [&](cell& c) { c.fuse(bright); };
+                                auto only_shadow = [&](cell& c) { c.fuse(shadow); };
+                                fillup(only_shadow, only_bright);
+                            }
+                            // Draw the border around
+                            auto area = parent_canvas.full();
+                            auto mark = skin::color(tone::kb_focus);
+                            mark.fgc(title_fg_color); //todo unify, make it more contrast
+                            auto fill = [&](cell& c) { c.fuse(mark); };
+                            parent_canvas.cage(area, dot_21, fill);
                         }
-                        else
-                        {
-                            auto only_bright = [&](cell& c) { c.fuse(bright); };
-                            auto only_shadow = [&](cell& c) { c.fuse(shadow); };
-                            fillup(only_shadow, only_bright);
-                        }
-                        // Draw the border around
-                        auto area = parent_canvas.full();
-                        auto mark = skin::color(tone::kb_focus);
-                        mark.fgc(title_fg_color); //todo unify, make it more contrast
-                        auto fill = [&](cell& c) { c.fuse(mark); };
-                        parent_canvas.cage(area, dot_21, fill);
-                    }
-                };
+                    };
+                }
             }
         };
 
