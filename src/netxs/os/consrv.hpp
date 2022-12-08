@@ -3218,7 +3218,7 @@ struct consrv
                 .lpfnWndProc   = wndproc,
                 .lpszClassName = wndname.c_str(),
             };
-            if (ok(::RegisterClassExA(&wnddata), "unexpected result from ::RegisterClassExA()")
+            if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "unexpected result from ::RegisterClassExA()")
                && (winhnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
             {
                 auto next = MSG{};

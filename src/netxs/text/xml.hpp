@@ -476,14 +476,14 @@ namespace netxs::xml
             auto peek(view temp, type& what, type& last)
             {
                 last = what;
-                if (last == type::na)
+                if (temp.empty()) what = type::eof;
+                else if (last == type::na)
                 {
                     if (!temp.starts_with(view_comment_begin)
                      && !temp.starts_with(view_close_tag    )
                      &&  temp.starts_with(view_begin_tag    )) what = type::begin_tag;
                     else return;
                 }
-                else if (temp.empty())                         what = type::eof;
                 else if (temp.starts_with(view_comment_begin)) what = type::comment_begin;
                 else if (temp.starts_with(view_close_tag    )) what = type::close_tag;
                 else if (temp.starts_with(view_begin_tag    )) what = type::begin_tag;
@@ -1177,9 +1177,10 @@ namespace netxs::xml
         {
             return document->utf8();
         }
-        auto merge(view run_config)
+        auto merge(view run_config_utf8)
         {
-            //todo implement
+            //auto run_config = xml::document{ run_config_utf8 };
+            //log(run_config.show());
         }
     };
 }
