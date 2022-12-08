@@ -5368,11 +5368,6 @@ namespace netxs::ui
                 dnbox.move({ 0, y_end + 1     });
                 dest.plot(upbox, cell::shaders::full);
                 dest.plot(dnbox, cell::shaders::full);
-                //test
-                //auto temp = ansi::esc{};
-                //auto mark = cell{};
-                //temp.s11n<true, faux, true>(dest, mark);
-                //owner.forward_clipboard<faux>(temp);
             }
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(ansi::esc& yield, si32 selmod)
@@ -6040,21 +6035,23 @@ namespace netxs::ui
         vtty       ptycon; // term: PTY device. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
-        template<bool Decode = true>
         void forward_clipboard(view data)
         {
-            // Take all foci.
             auto gates = e2::form::state::keybd::enlist.param();
-            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
-            // Signal them to set the clipboard data.
-            for (auto gate_id : gates)
+            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates); // Take all foci.
+            for (auto gate_id : gates) // Signal them to set the clipboard data.
             {
                 if (auto ptr = bell::getref(gate_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    //todo take MIME type from the OSC52 first arg
-                    if constexpr (Decode) gear_ptr->set_clip_data(target->panel, clip{ utf::unbase64(utf::remain(data, ';')), clip::ansitext });
-                    else                  gear_ptr->set_clip_data(target->panel, clip{ text{ data }, clip::ansitext });
+                    auto pos = data.find(';');
+                    if (pos != text::npos)
+                    {
+                        auto utf8 = text{};
+                        utf8 += data.substr(0, ++pos);
+                        utf8 += utf::unbase64(data.substr(pos));
+                        gear_ptr->set_clip_data(clip{ target->panel, utf8, clip::disabled });
+                    }
                 }
             }
         }
@@ -6480,7 +6477,7 @@ namespace netxs::ui
                     auto state = gear.state();
                     gear.combine_focus = true; // Preserve all selected panes.
                     gear.offer_kb_focus(this->This());
-                    gear.set_clip_data(target->panel, clip{ data, mimetype });
+                    gear.set_clip_data(clip{ target->panel, data, mimetype });
                     gear.state(state);
                 }
                 if (gear.meta(hids::anyCtrl) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
@@ -7119,7 +7116,7 @@ namespace netxs::ui
                 if (auto ptr = bell::getref(c.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    gear_ptr->set_clip_data(c.clip_prev_size, clip{ c.clipdata, static_cast<clip::mime>(c.mimetype) });
+                    gear_ptr->set_clip_data(clip{ c.clip_prev_size, c.clipdata, static_cast<clip::mime>(c.mimetype) });
                 }
             }
             void handle(s11n::xs::request_clipboard   lock)

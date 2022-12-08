@@ -1263,16 +1263,10 @@ namespace netxs::utf
             auto pos = 0_sz;
             while ((pos = utf8.find(delimiter, cur)) != V1::npos)
             {
-                if constexpr (Plain)
-                {
-                    proc(view{ utf8.data() + cur, pos - cur });
-                    cur = pos + 1;
-                }
-                else
-                {
-                    if (!proc(view{ utf8.data() + cur, pos - cur })) return;
-                    cur = pos + 1;
-                }
+                auto frag = view{ utf8.data() + cur, pos - cur };
+                if constexpr (Plain) proc(frag);
+                else            if (!proc(frag)) return;
+                cur = pos + 1;
             }
             auto end = view{ utf8.data() + cur, utf8.size() - cur };
             proc(end);
@@ -1281,18 +1275,13 @@ namespace netxs::utf
         {
             auto cur = utf8.size();
             auto pos = utf8.size();
-            while ((pos = utf8.rfind(delimiter, cur)) != V1::npos)
+            while (cur && (pos = utf8.rfind(delimiter, cur - 1)) != V1::npos)
             {
-                if constexpr (Plain)
-                {
-                    proc(view{ utf8.data() + pos + 1, cur });
-                    cur = pos;
-                }
-                else
-                {
-                    if (!proc(view{ utf8.data() + pos + 1, cur })) return;
-                    cur = pos;
-                }
+                auto next = pos + 1;
+                auto frag = view{ utf8.data() + next, cur - next };
+                if constexpr (Plain) proc(frag);
+                else            if (!proc(frag)) return;
+                cur = pos;
             }
             auto end = view{ utf8.data(), cur };
             proc(end);

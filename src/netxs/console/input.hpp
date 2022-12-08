@@ -713,7 +713,7 @@ namespace netxs::input
         si32 countdown = 0;
 
         virtual bool clear_clip_data()                                                      = 0;
-        virtual void set_clip_data(twod const& size, clip const& data, bool forward = true) = 0;
+        virtual void set_clip_data(clip const& data, bool forward = true) = 0;
         virtual clip get_clip_data()                                                        = 0;
 
         auto tooltip_enabled()
