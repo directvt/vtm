@@ -303,6 +303,7 @@ namespace netxs::ansi
             auto rawdata = view{ data.utf8 };
             if (data.kind == mime::disabled)
             {
+                auto valid = true;
                 kind = ansi::clip::textonly;
                 // rawdata=mime/size_x/size_y;data
                      if (rawdata.starts_with(ansi::mimeansi)) { rawdata.remove_prefix(ansi::mimeansi.length()); kind = mime::ansitext; }
@@ -312,21 +313,44 @@ namespace netxs::ansi
                 else if (rawdata.starts_with(ansi::mimesafe)) { rawdata.remove_prefix(ansi::mimesafe.length()); kind = mime::safetext; }
                 else
                 {
-                    rawdata = {};
-                }
-                if (rawdata.size())
-                {
-                    rawdata.remove_prefix(1);
-                    if (auto v = utf::to_int(rawdata))
+                    valid = faux;
+                    kind = mime::textonly;
+                    auto pos = rawdata.find(';');
+                    if (pos != text::npos)
                     {
-                        size.x = std::abs(v.value());
+                        rawdata = rawdata.substr(pos + 1);
+                    }
+                    else rawdata = {};
+                }
+                if (valid && rawdata.size())
+                {
+                    if (rawdata.front() == '/') // Proceed preview size if present.
+                    {
                         rawdata.remove_prefix(1);
                         if (auto v = utf::to_int(rawdata))
                         {
-                            size.y = std::abs(v.value());
-                            if (rawdata.size()) rawdata.remove_prefix(1);
+                            static constexpr auto max_value = twod{ 2000, 1000 }; //todo unify
+                            size.x = v.value();
+                            if (rawdata.size())
+                            {
+                                rawdata.remove_prefix(1);
+                                if (auto v = utf::to_int(rawdata))
+                                {
+                                    size.y = v.value();
+                                }
+                                else size.x = 0;
+                            }
+                            size = std::clamp(size, dot_00, max_value);
                         }
-                        else size.x = 0;
+                    }
+                    if (rawdata.size() && rawdata.front() == ';')
+                    {
+                        rawdata.remove_prefix(1);
+                    }
+                    else // Unknown format.
+                    {
+                        size = {};
+                        rawdata = {};
                     }
                 }
             }
