@@ -4242,6 +4242,8 @@ namespace netxs::os
                     log("xpty: id: ", id, " child process waiter thread joined");
                 }
             #endif
+            auto guard = std::lock_guard{ writemtx };
+            writebuf = {};
         }
        ~pty()
         {
