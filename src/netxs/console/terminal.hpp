@@ -6391,7 +6391,7 @@ namespace netxs::ui
                 ondata(error);
                 this->SUBMIT_T(tier::release, hids::events::keybd::any, onerun, gear)
                 {
-                    if (gear.cluster.size())
+                    if (gear.pressed && gear.cluster.size())
                     {
                         switch (gear.cluster.front())
                         {

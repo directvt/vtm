@@ -375,6 +375,7 @@ struct consrv
 
         void reset()
         {
+            auto lock = std::lock_guard{ locker };
             closed = faux;
             buffer.clear();
             ondata.flush();
