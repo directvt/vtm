@@ -4244,7 +4244,6 @@ namespace netxs::os
             #endif
             auto guard = std::lock_guard{ writemtx };
             writebuf = {};
-            termsize = {};
             termlink = {};
         }
        ~pty()
@@ -4366,6 +4365,7 @@ namespace netxs::os
                 auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
 
                 termlink.set(fdm, fdm);
+                termsize = {};
                 resize(winsz);
 
                 proc_pid = ::fork();

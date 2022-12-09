@@ -6383,7 +6383,7 @@ namespace netxs::ui
                     oneoff.reset();
                 };
             };
-            auto retry_proc = [&]
+            auto chose_proc = [&]
             {
                 auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
                     .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
@@ -6413,11 +6413,11 @@ namespace netxs::ui
             };
             switch (config.def_atexit)
             {
-                case commands::atexit::smart: code ? retry_proc()
+                case commands::atexit::smart: code ? chose_proc()
                                                    : close_proc(); break;
                 case commands::atexit::retry: code ? start_proc()
                                                    : close_proc(); break;
-                case commands::atexit::nothing:      retry_proc(); break;
+                case commands::atexit::nothing:      chose_proc(); break;
                 case commands::atexit::close:        close_proc(); break;
                 case commands::atexit::restart:      start_proc(); break;
             }
