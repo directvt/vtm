@@ -4244,6 +4244,7 @@ namespace netxs::os
             #endif
             auto guard = std::lock_guard{ writemtx };
             writebuf = {};
+            termsize = {};
         }
        ~pty()
         {
