@@ -4245,6 +4245,7 @@ namespace netxs::os
             auto guard = std::lock_guard{ writemtx };
             writebuf = {};
             termsize = {};
+            termlink = {};
         }
        ~pty()
         {
@@ -4544,7 +4545,7 @@ namespace netxs::os
 
                 #else
 
-                    winsize winsz;
+                    auto winsz = winsize{};
                     winsz.ws_col = newsize.x;
                     winsz.ws_row = newsize.y;
                     ok(::ioctl(termlink.get_w(), TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
