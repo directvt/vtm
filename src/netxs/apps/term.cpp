@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.7c"
+#define DESKTOPIO_VER "v0.9.7d"
 #define DESKTOPIO_MYNAME "Desktopio Terminal " DESKTOPIO_VER
 #define DESKTOPIO_MYPATH "vtm/term"
 #define DESKTOPIO_DEFAPP "Term"
