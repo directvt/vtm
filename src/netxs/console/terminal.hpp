@@ -6387,7 +6387,7 @@ namespace netxs::ui
             {
                 auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
                     .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
-                    .add("\r\nPress Esc to close or press Enter to restart the session.").add("\n\n");
+                    .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                 ondata(error);
                 this->SUBMIT_T(tier::release, hids::events::keybd::any, onerun, gear)
                 {
@@ -6404,7 +6404,7 @@ namespace netxs::ui
             auto start_proc = [&]
             {
                 auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                    .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\n\n");
+                    .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
                 ondata(error);
                 SUBMIT_GLOBAL(e2::timer::any, onerun, t)
                 {

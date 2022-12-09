@@ -278,7 +278,7 @@ R"==(
         </selection>
         <atexit = auto /> <!-- auto:    Stay open if exit code != 0. (default)
                                nothing: Stay open.
-                               close:   Always quit.
+                               close:   Always close.
                                restart: Restart session.
                                retry:   Restart session if exit code != 0. -->
         <hotkeys>    <!-- not implemented -->
