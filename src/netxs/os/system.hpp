@@ -4219,14 +4219,9 @@ namespace netxs::os
                 return !!termlink;
             #endif
         }
-
-       ~pty()
+        // pty: Cleaning in order to be able to restart.
+        void cleanup()
         {
-            log("xpty: dtor started");
-            if (connected())
-            {
-                wait_child();
-            }
             if (stdwrite.joinable())
             {
                 writesyn.notify_one();
@@ -4244,9 +4239,18 @@ namespace netxs::os
                 {
                     log("xpty: id: ", id, " child process waiter thread joining");
                     waitexit.join();
+                    log("xpty: id: ", id, " child process waiter thread joined");
                 }
-                log("xpty: id: ", id, " child process waiter thread joined");
             #endif
+        }
+       ~pty()
+        {
+            log("xpty: dtor started");
+            if (connected())
+            {
+                wait_child();
+            }
+            cleanup();
             log("xpty: dtor complete");
         }
 

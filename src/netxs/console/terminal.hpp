@@ -6023,6 +6023,7 @@ namespace netxs::ui
         text       cmdarg; // term: Startup command line arguments.
         text       curdir; // term: Current working directory.
         hook       oneoff; // term: One-shot token for start and shutdown events.
+        hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       active; // term: Terminal lifetime.
@@ -6354,13 +6355,19 @@ namespace netxs::ui
             log("term: exit code 0x", utf::to_hex(code));
             if (code)
             {
-                auto error = ansi::bgc(reddk).fgc(whitelt).add(msg).add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil();
+                auto error = ansi::bgc(reddk).fgc(whitelt).add(msg)
+                    .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
+                    .add("\r\nPress Esc to close or press Enter to restart the session.").add("\n\n");
                 ondata(error);
-                this->SUBMIT(tier::release, hids::events::keybd::any, gear)
+                this->SUBMIT_T(tier::release, hids::events::keybd::any, onerun, gear)
                 {
-                    if (gear.cluster.size() && gear.cluster.front() == ansi::C0_ESC)
+                    if (gear.cluster.size())
                     {
-                        onexit(0);
+                        switch (gear.cluster.front())
+                        {
+                            case ansi::C0_ESC: onexit(0); break;
+                            case ansi::C0_CR:  start();   break;
+                        }
                     }
                 };
             }
@@ -6461,10 +6468,6 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            log("       term: right click");
-            //gear.kb_focus_changed = faux;
-            //SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-
             auto& console = *target;
             if (console.selection_active())
             {
@@ -6497,6 +6500,7 @@ namespace netxs::ui
                     gear.offer_kb_focus(this->This());
                     gear.state(state);
 
+                    //todo respect bracketed paste mode
                     follow[axis::X] = true;
                     if (data.kind == clip::richtext)
                     {
@@ -6775,6 +6779,8 @@ namespace netxs::ui
         {
             static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions.
 
+            ptycon.cleanup();
+            onerun.reset();
             if (!ptycon && !oneoff)
             {
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)

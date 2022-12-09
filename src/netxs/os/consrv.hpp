@@ -373,6 +373,12 @@ struct consrv
                ondata{ true }
         { }
 
+        void reset()
+        {
+            closed = faux;
+            buffer.clear();
+            ondata.flush();
+        }
         auto count()
         {
             auto lock = std::lock_guard{ locker };
@@ -3198,6 +3204,8 @@ struct consrv
     void start()
     {
         reset();
+        events.reset();
+        signal.flush();
         window = std::thread{ [&]
         {
             auto wndname = text{ "vtmConsoleWindowClass" };
@@ -3265,7 +3273,11 @@ struct consrv
                             answer._pad_1 = upload.arglen + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/;
                         }
                         auto proc = apimap[upload.fxtype & 255];
-                        uiterm.update([&] { (this->*proc)(); });
+                        uiterm.update([&]
+                        {
+                            auto lock = std::lock_guard{ events.locker };
+                            (this->*proc)();
+                        });
                         break;
                     }
                     case ERROR_IO_PENDING:         log(prompt, "operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
