@@ -4000,7 +4000,7 @@ namespace netxs::os
                     .lpfnWndProc   = wndproc,
                     .lpszClassName = wndname.c_str(),
                 };
-                if (ok(::RegisterClassExA(&wnddata), "unexpected result from ::RegisterClassExA()"))
+                if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "unexpected result from ::RegisterClassExA()"))
                 {
                     auto hwnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                     auto next = MSG{};
@@ -4219,14 +4219,9 @@ namespace netxs::os
                 return !!termlink;
             #endif
         }
-
-       ~pty()
+        // pty: Cleaning in order to be able to restart.
+        void cleanup()
         {
-            log("xpty: dtor started");
-            if (connected())
-            {
-                wait_child();
-            }
             if (stdwrite.joinable())
             {
                 writesyn.notify_one();
@@ -4244,9 +4239,21 @@ namespace netxs::os
                 {
                     log("xpty: id: ", id, " child process waiter thread joining");
                     waitexit.join();
+                    log("xpty: id: ", id, " child process waiter thread joined");
                 }
-                log("xpty: id: ", id, " child process waiter thread joined");
             #endif
+            auto guard = std::lock_guard{ writemtx };
+            writebuf = {};
+            termlink = {};
+        }
+       ~pty()
+        {
+            log("xpty: dtor started");
+            if (connected())
+            {
+                wait_child();
+            }
+            cleanup();
             log("xpty: dtor complete");
         }
 
@@ -4358,6 +4365,7 @@ namespace netxs::os
                 auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
 
                 termlink.set(fdm, fdm);
+                termsize = {};
                 resize(winsz);
 
                 proc_pid = ::fork();
@@ -4537,7 +4545,7 @@ namespace netxs::os
 
                 #else
 
-                    winsize winsz;
+                    auto winsz = winsize{};
                     winsz.ws_col = newsize.x;
                     winsz.ws_row = newsize.y;
                     ok(::ioctl(termlink.get_w(), TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");

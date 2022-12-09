@@ -102,6 +102,17 @@ namespace netxs::ui
                     steady_I_bar       = 6, // steady I-bar
                 };
             };
+            struct atexit
+            {
+                enum codes : si32
+                {
+                    nothing, // Stay open.
+                    smart,   // Stay open if exit code != 0.
+                    close,   // Always quit.
+                    restart, // Restart session.
+                    retry,   // Restart session if exit code != 0.
+                };
+            };
         };
 
         // term: Terminal configuration.
@@ -118,6 +129,7 @@ namespace netxs::ui
             si32 def_tablen;
             si32 def_lucent;
             si32 def_margin;
+            si32 def_atexit;
             mime def_selmod;
             rgba def_fcolor;
             rgba def_bcolor;
@@ -140,6 +152,12 @@ namespace netxs::ui
                 static auto cursor_options = std::unordered_map<text, bool>
                     {{ "underline", faux },
                      { "block"    , true }};
+                static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
+                    {{ "auto",    commands::atexit::smart   },
+                     { "nothing", commands::atexit::nothing },
+                     { "close",   commands::atexit::close   },
+                     { "restart", commands::atexit::restart },
+                     { "retry",   commands::atexit::retry   }};
 
                 config.cd("/config/term/");
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
@@ -158,6 +176,7 @@ namespace netxs::ui
                 def_selclr =             config.take("color/selection/text", cell{}.bgc(bluelt).fgc(whitelt));
                 def_offclr =             config.take("color/selection/none", cell{}.bgc(blacklt).fgc(whitedk));
                 def_dupclr =             config.take("color/match",          cell{}.bgc(0xFF007F00).fgc(whitelt));
+                def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
 
                 std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
@@ -401,6 +420,7 @@ namespace netxs::ui
             // w_tracking: Set terminal window property.
             void set(text const& property, qiew txt)
             {
+                if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
                 static const auto jet_left = ansi::jet(bias::left);
                 owner.target->flush();
                 if (property == ansi::OSC_LABEL_TITLE)
@@ -6023,6 +6043,7 @@ namespace netxs::ui
         text       cmdarg; // term: Startup command line arguments.
         text       curdir; // term: Current working directory.
         hook       oneoff; // term: One-shot token for start and shutdown events.
+        hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       active; // term: Terminal lifetime.
@@ -6352,19 +6373,7 @@ namespace netxs::ui
         void onexit(si32 code, view msg = {})
         {
             log("term: exit code 0x", utf::to_hex(code));
-            if (code)
-            {
-                auto error = ansi::bgc(reddk).fgc(whitelt).add(msg).add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil();
-                ondata(error);
-                this->SUBMIT(tier::release, hids::events::keybd::any, gear)
-                {
-                    if (gear.cluster.size() && gear.cluster.front() == ansi::C0_ESC)
-                    {
-                        onexit(0);
-                    }
-                };
-            }
-            else
+            auto close_proc = [&]
             {
                 log("term: submit for destruction on next frame/tick");
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
@@ -6373,6 +6382,44 @@ namespace netxs::ui
                     this->base::riseup<tier::release>(e2::form::quit, backup);
                     oneoff.reset();
                 };
+            };
+            auto chose_proc = [&]
+            {
+                auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
+                    .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
+                    .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
+                ondata(error);
+                this->SUBMIT_T(tier::release, hids::events::keybd::any, onerun, gear)
+                {
+                    if (gear.pressed && gear.cluster.size())
+                    {
+                        switch (gear.cluster.front())
+                        {
+                            case ansi::C0_ESC: onexit(0); break;
+                            case ansi::C0_CR:  start();   break;
+                        }
+                    }
+                };
+            };
+            auto start_proc = [&]
+            {
+                auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
+                    .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
+                ondata(error);
+                SUBMIT_GLOBAL(e2::timer::any, onerun, t)
+                {
+                    start();
+                };
+            };
+            switch (config.def_atexit)
+            {
+                case commands::atexit::smart: code ? chose_proc()
+                                                   : close_proc(); break;
+                case commands::atexit::retry: code ? start_proc()
+                                                   : close_proc(); break;
+                case commands::atexit::nothing:      chose_proc(); break;
+                case commands::atexit::close:        close_proc(); break;
+                case commands::atexit::restart:      start_proc(); break;
             }
         }
         // term: Reset to defaults.
@@ -6461,10 +6508,6 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            log("       term: right click");
-            //gear.kb_focus_changed = faux;
-            //SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-
             auto& console = *target;
             if (console.selection_active())
             {
@@ -6497,6 +6540,7 @@ namespace netxs::ui
                     gear.offer_kb_focus(this->This());
                     gear.state(state);
 
+                    //todo respect bracketed paste mode
                     follow[axis::X] = true;
                     if (data.kind == clip::richtext)
                     {
@@ -6775,6 +6819,8 @@ namespace netxs::ui
         {
             static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions.
 
+            ptycon.cleanup();
+            onerun.reset();
             if (!ptycon && !oneoff)
             {
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)

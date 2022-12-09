@@ -675,6 +675,11 @@ Note: The following configuration sections are not implemented yet
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
         </selection>
+        <atexit = auto /> <!-- auto:    Stay open if exit code != 0. (default)
+                               nothing: Stay open.
+                               close:   Always close.
+                               restart: Restart session.
+                               retry:   Restart session if exit code != 0. -->
         <hotkeys>    <!-- not implemented -->
             <key*/>
             <key="Alt+RightArrow" action=findNext />

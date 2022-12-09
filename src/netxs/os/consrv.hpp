@@ -373,6 +373,13 @@ struct consrv
                ondata{ true }
         { }
 
+        void reset()
+        {
+            auto lock = std::lock_guard{ locker };
+            closed = faux;
+            buffer.clear();
+            ondata.flush();
+        }
         auto count()
         {
             auto lock = std::lock_guard{ locker };
@@ -3198,6 +3205,8 @@ struct consrv
     void start()
     {
         reset();
+        events.reset();
+        signal.flush();
         window = std::thread{ [&]
         {
             auto wndname = text{ "vtmConsoleWindowClass" };
@@ -3218,7 +3227,7 @@ struct consrv
                 .lpfnWndProc   = wndproc,
                 .lpszClassName = wndname.c_str(),
             };
-            if (ok(::RegisterClassExA(&wnddata), "unexpected result from ::RegisterClassExA()")
+            if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "unexpected result from ::RegisterClassExA()")
                && (winhnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
             {
                 auto next = MSG{};
@@ -3265,7 +3274,11 @@ struct consrv
                             answer._pad_1 = upload.arglen + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/;
                         }
                         auto proc = apimap[upload.fxtype & 255];
-                        uiterm.update([&] { (this->*proc)(); });
+                        uiterm.update([&]
+                        {
+                            auto lock = std::lock_guard{ events.locker };
+                            (this->*proc)();
+                        });
                         break;
                     }
                     case ERROR_IO_PENDING:         log(prompt, "operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
