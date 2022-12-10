@@ -106,7 +106,7 @@ namespace netxs::ui
             {
                 enum codes : si32
                 {
-                    nothing, // Stay open.
+                    ask,     // Stay open.
                     smart,   // Stay open if exit code != 0.
                     close,   // Always quit.
                     restart, // Restart session.
@@ -154,7 +154,7 @@ namespace netxs::ui
                      { "block"    , true }};
                 static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
                     {{ "auto",    commands::atexit::smart   },
-                     { "nothing", commands::atexit::nothing },
+                     { "ask",     commands::atexit::ask     },
                      { "close",   commands::atexit::close   },
                      { "restart", commands::atexit::restart },
                      { "retry",   commands::atexit::retry   }};
@@ -6417,7 +6417,7 @@ namespace netxs::ui
                                                    : close_proc(); break;
                 case commands::atexit::retry: code ? start_proc()
                                                    : close_proc(); break;
-                case commands::atexit::nothing:      chose_proc(); break;
+                case commands::atexit::ask:          chose_proc(); break;
                 case commands::atexit::close:        close_proc(); break;
                 case commands::atexit::restart:      start_proc(); break;
             }
