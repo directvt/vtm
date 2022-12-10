@@ -276,8 +276,8 @@ R"==(
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
         </selection>
-        <atexit = auto /> <!-- auto:    Stay open if exit code != 0. (default)
-                               nothing: Stay open.
+        <atexit = auto /> <!-- auto:    Stay open and ask if exit code != 0. (default)
+                               ask:     Stay open and ask.
                                close:   Always close.
                                restart: Restart session.
                                retry:   Restart session if exit code != 0. -->
