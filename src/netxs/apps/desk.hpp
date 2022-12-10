@@ -234,7 +234,7 @@ namespace netxs::app::desk
             return apps;
         };
 
-        auto build = [](text cwd, text v, xml::settings& config)
+        auto build = [](text cwd, text v, xml::settings& config, text patch)
         {
             auto lock = netxs::events::sync{}; // Protect access to the world.
 

@@ -554,7 +554,7 @@ Note: The following configuration sections are not implemented yet
             <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
             <selector = 48   />
-            <highlight  fgc=purewhite  bgc=亮蓝       />
+            <highlight  fgc=purewhite  bgc=bluelt     />
             <warning    fgc=whitelt    bgc=yellowdk   />
             <danger     fgc=whitelt    bgc=redlt      />
             <action     fgc=whitelt    bgc=greenlt    />
@@ -588,23 +588,6 @@ Note: The following configuration sections are not implemented yet
         <pureblack = 0xFF000000 />
         <purewhite = 0xFFffffff />
         <nocolor   = 0x00000000 />
-
-        <黑     = blackdk   /> <!-- Localized color reference literals. -->
-        <红     = reddk     />
-        <绿     = greendk   />
-        <黄     = yellowdk  />
-        <蓝     = bluedk    />
-        <品红   = magentadk />
-        <青     = cyandk    />
-        <白     = whitedk   />
-        <灰     = blacklt   />
-        <亮红   = redlt     />
-        <亮绿   = greenlt   />
-        <亮黄   = yellowlt  />
-        <亮蓝   = bluelt    />
-        <亮品红 = magentalt />
-        <亮青   = cyanlt    />
-        <亮白   = whitelt   />
     </set>
     <client>
         <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->

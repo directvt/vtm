@@ -130,8 +130,9 @@ int main(int argc, char* argv[])
                 if (auto window = ground->invite<gate>(client, session_id, config))
                 {
                     log("user: new gate for ", client);
-                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config);
-                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems;About;", config);
+                    auto patch = ""s;
+                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
+                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems;About;", config, patch);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }

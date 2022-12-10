@@ -172,14 +172,14 @@ R"==(
             <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
             <selector = 48   />
-            <highlight  fgc=purewhite  bgc=bluelt     />
-            <warning    fgc=whitelt    bgc=yellowdk   />
-            <danger     fgc=whitelt    bgc=redlt      />
-            <action     fgc=whitelt    bgc=greenlt    />
-            <label      fgc=blackdk    bgc=whitedk    />
-            <inactive   fgc=blacklt    bgc=nocolor    />
-            <menu_white fgc=whitelt    bgc=0x80404040 />
-            <menu_black fgc=blackdk    bgc=0x80404040 />
+            <highlight  fgc=purewhite bgc=bluelt      />
+            <warning    fgc=whitelt   bgc=yellowdk    />
+            <danger     fgc=whitelt   bgc=redlt       />
+            <action     fgc=whitelt   bgc=greenlt     />
+            <label      fgc=blackdk   bgc=whitedk     />
+            <inactive   fgc=blacklt   bgc=transparent />
+            <menu_white fgc=whitelt   bgc=0x80404040  />
+            <menu_black fgc=blackdk   bgc=0x80404040  />
             <fader duration=0ms fast=0ms />  <!-- Fader animation config. -->
         </defaults>
         <runapp>    <!-- Override defaults. -->
@@ -206,6 +206,7 @@ R"==(
         <pureblack = 0xFF000000 />
         <purewhite = 0xFFffffff />
         <nocolor   = 0x00000000 />
+        <transparent = nocolor  />
     </set>
     <client>
         <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
@@ -699,7 +700,7 @@ R"==(
             });
     };
 
-    using builder_t = std::function<sptr<base>(text, text, xml::settings&)>;
+    using builder_t = std::function<sptr<base>(text, text, xml::settings&, text)>;
 
     namespace get
     {
@@ -723,7 +724,7 @@ R"==(
         auto& builder(text app_typename)
         {
             static builder_t empty =
-            [&](text, text, xml::settings&) -> sptr<base>
+            [&](text, text, xml::settings&, text) -> sptr<base>
             {
                 auto window = ui::cake::ctor()
                     ->plugin<pro::focus>()
@@ -806,7 +807,7 @@ R"==(
             auto& conf_list = app::shared::get::configs();
             auto& config = conf_list[menuid];
             auto& creator = app::shared::create::builder(config.type);
-            auto object = creator(config.cwd, config.param, config.settings);
+            auto object = creator(config.cwd, config.param, config.settings, config.patch);
             if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
             if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
@@ -945,10 +946,11 @@ R"==(
         auto ground = base::create<host>(tunnel.first, config);
         auto runapp = [&]
         {
+            auto patch = ""s;
             auto aclass = utf::cutoff(app_name, ' ');
             utf::to_low(aclass);
             auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config); // ! - means simple (w/o plugins)
+            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
             auto window = ground->invite<gate>(vtmode, config);
             window->resize(size);
             window->launch(tunnel.first, applet);
@@ -981,7 +983,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text cwd, text v,     xml::settings& config)
+        auto build_Strobe        = [](text cwd, text v,     xml::settings& config, text patch)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
@@ -1006,7 +1008,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text cwd, text v,     xml::settings& config)
+        auto build_Settings      = [](text cwd, text v,     xml::settings& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -1028,7 +1030,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text cwd, text v,     xml::settings& config)
+        auto build_Empty         = [](text cwd, text v,     xml::settings& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -1050,7 +1052,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_Region        = [](text cwd, text v,     xml::settings& config)
+        auto build_Region        = [](text cwd, text v,     xml::settings& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -1126,7 +1128,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Truecolor     = [](text cwd, text v,     xml::settings& config)
+        auto build_Truecolor     = [](text cwd, text v,     xml::settings& config, text patch)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -1259,7 +1261,7 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_Headless      = [](text cwd, text param, xml::settings& config)
+        auto build_Headless      = [](text cwd, text param, xml::settings& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -1333,7 +1335,7 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Fone          = [](text cwd, text param, xml::settings& config)
+        auto build_Fone          = [](text cwd, text param, xml::settings& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
@@ -1403,9 +1405,9 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_DirectVT      = [](text cwd, text param, xml::settings& config)
+        auto build_DirectVT      = [](text cwd, text param, xml::settings& config, text patch)
         {
-            return ui::dtvt::ctor(cwd, param, config.utf8()) //todo pass subconfig
+            return ui::dtvt::ctor(cwd, param, patch)
                 ->plugin<pro::limit>(dot_11)
                 ->plugin<pro::focus>()
                 ->invoke([](auto& boss)
@@ -1416,7 +1418,7 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_ANSIVT        = [](text cwd, text param, xml::settings& config)
+        auto build_ANSIVT        = [](text cwd, text param, xml::settings& config, text patch)
         {
             if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
 
@@ -1426,9 +1428,9 @@ namespace netxs::app::shared
             args += " -r headless ";
             args += param;
 
-            return build_DirectVT(cwd, args, config);
+            return build_DirectVT(cwd, args, config, patch);
         };
-        auto build_SHELL         = [](text cwd, text param, xml::settings& config)
+        auto build_SHELL         = [](text cwd, text param, xml::settings& config, text patch)
         {
             auto args = os::current_module_file();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
@@ -1452,7 +1454,7 @@ namespace netxs::app::shared
                 args += param;
             }
 
-            return build_DirectVT(cwd, args, config);
+            return build_DirectVT(cwd, args, config, patch);
         };
 
         app::shared::initialize builder_Strobe       { "strobe"                 , build_Strobe     };

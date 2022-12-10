@@ -802,7 +802,7 @@ namespace netxs::app::tile
             }
             return place;
         };
-        auto build_inst = [](text cwd, view param, xml::settings& config) -> sptr<base>
+        auto build_inst = [](text cwd, view param, xml::settings& config, text patch) -> sptr<base>
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;

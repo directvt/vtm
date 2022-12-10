@@ -241,7 +241,7 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](text cwd, text arg, xml::settings& config)
+        auto build = [](text cwd, text arg, xml::settings& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;

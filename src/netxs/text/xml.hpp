@@ -399,7 +399,18 @@ namespace netxs::xml
                 }
                 return crop;
             }
-
+            auto snapshot()
+            {
+                auto crop = text{};
+                auto head = start_iter;
+                auto tail = std::next(start_iter->upto);
+                while (head != tail)
+                {
+                    auto& next = *head++;
+                    crop += *(next.part);
+                }
+                return crop;
+            }
             static auto create(suit& page, wptr parent_wptr = {})
             {
                 return std::make_shared<elem>(page, parent_wptr);
@@ -1181,6 +1192,16 @@ namespace netxs::xml
         {
             //auto run_config = xml::document{ run_config_utf8 };
             //log(run_config.show());
+            //auto path = text{};
+
+            //loop over object values
+            //  - object path
+            //  - object type single or list
+            // if list:
+            //       - whole replace or append to the end
+            // if item:
+            //       - check and update value
+            // 
         }
     };
 }

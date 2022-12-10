@@ -7496,14 +7496,14 @@ namespace netxs::ui
         {
             active = faux;
         }
-        dtvt(text cwd, text command_line, text config_view)
+        dtvt(text cwd, text cmd, text cfg)
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
               nodata{      },
               curdir{ cwd  },
-              cmdarg{ command_line },
-              xmlcfg{ config_view }
+              cmdarg{ cmd  },
+              xmlcfg{ cfg  }
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
