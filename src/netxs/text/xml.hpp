@@ -409,6 +409,11 @@ namespace netxs::xml
                     auto& next = *head++;
                     crop += *(next.part);
                 }
+                auto size = crop.size();
+                auto temp = view{ crop };
+                auto dent = text{ utf::trim_front(temp, spaces) };
+                crop = temp;
+                utf::change(crop, dent, "\n");
                 return crop;
             }
             static auto create(suit& page, wptr parent_wptr = {})
@@ -442,6 +447,7 @@ namespace netxs::xml
             wptr  parent_wptr;
             wptr  def_wptr;
             bool  is_template{};
+            bool  is_list_top{};
             iter  start_iter;
 
             auto get_value()
@@ -648,7 +654,7 @@ namespace netxs::xml
                 if (what == type::defaults)
                 {
                     diff(data, temp, type::defaults);
-                    data=temp;
+                    data = temp;
                     is_template = true;
                     auto& last_type = page.last_type();
                     if (last_type == type::top_token || last_type == type::token)
@@ -659,6 +665,7 @@ namespace netxs::xml
                     temp = data;
                     utf::trim_front(temp, spaces);
                     peek(temp, what, last);
+                    is_list_top = what == type::empty_tag;
                 }
 
                 if (what == type::equal)
@@ -1190,14 +1197,14 @@ namespace netxs::xml
         }
         auto merge(view run_config_utf8)
         {
-            //auto run_config = xml::document{ run_config_utf8 };
-            //log(run_config.show());
-            //auto path = text{};
+            auto run_config = xml::document{ run_config_utf8 };
+            log(run_config.show());
+            auto path = text{};
 
             //loop over object values
             //  - object path
             //  - object type single or list
-            // if list:
+            // if list: (is_list_top || childer.count() > 1)
             //       - whole replace or append to the end
             // if item:
             //       - check and update value
