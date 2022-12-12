@@ -377,7 +377,7 @@ namespace netxs::xml
                     {
                         temp = *head++;
                         if (auto iter = item->sub.find(temp);
-                                iter!= item->sub.end())
+                                 iter!= item->sub.end())
                         {
                             auto& i = iter->second;
                             crop.reserve(i.size());
@@ -1201,10 +1201,6 @@ namespace netxs::xml
         }
         auto merge(view run_config_utf8)
         {
-            auto run_config = xml::document{ run_config_utf8 };
-            log(run_config.show());
-            auto path = text{};
-
             //loop over object values
             //  - object path
             //  - object type single or list
@@ -1213,6 +1209,26 @@ namespace netxs::xml
             // if item:
             //       - check and update value
             // 
+            auto run_config = xml::document{ run_config_utf8 };
+            log(run_config.show());
+            auto proc = [](auto node_ptr, auto path, auto proc) -> void
+            {
+                auto& node = *node_ptr;
+                path += "/" + *(node.tag_ptr);
+                auto value = node.get_value();
+                value.empty() ? log(path)
+                              : log(path, " = ",  value);
+                auto& list = node.sub;
+                for (auto& [tag, subnodelist] : list)
+                {
+                    if (subnodelist.size())
+                    {
+                        proc(subnodelist.front(), path, proc);
+                    }
+                }
+            };
+            auto path = text{};
+            proc(run_config.root, path, proc);
         }
     };
 }
