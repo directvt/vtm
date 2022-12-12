@@ -409,11 +409,15 @@ namespace netxs::xml
                     auto& next = *head++;
                     crop += *(next.part);
                 }
-                auto size = crop.size();
-                auto temp = view{ crop };
-                auto dent = text{ utf::trim_front(temp, spaces) };
-                crop = temp;
-                utf::change(crop, dent, "\n");
+                if (crop.starts_with('\n')
+                 || crop.starts_with('\r'))
+                {
+                    auto size = crop.size();
+                    auto temp = view{ crop };
+                    auto dent = text{ utf::trim_front(temp, spaces) };
+                    crop = temp;
+                    utf::change(crop, dent, "\n");
+                }
                 return crop;
             }
             static auto create(suit& page, wptr parent_wptr = {})

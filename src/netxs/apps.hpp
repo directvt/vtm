@@ -1425,7 +1425,7 @@ namespace netxs::app::shared
             auto args = os::current_module_file();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
 
-            args += " -r headless ";
+            args += " -r term ";
             args += param;
 
             return build_DirectVT(cwd, args, config, patch);
@@ -1435,7 +1435,7 @@ namespace netxs::app::shared
             auto args = os::current_module_file();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
 
-            args += " -r headless ";
+            args += " -r term ";
             if (param.empty())
             {
                 #if defined(_WIN32)
