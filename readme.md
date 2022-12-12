@@ -424,6 +424,7 @@ Type              | Parameter        | Description
 
 The following configuration items have the same meaning
 ```
+<item …. param=‘mc’/>
 <item …. type=SHELL param=‘mc’/>
 <item …. type=ANSIVT param=‘bash -c mc’/>
 <item …. type=DirectVT param=‘$0 -r term bash -c mc’/>
