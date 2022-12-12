@@ -414,7 +414,7 @@ Type     | Format
 
 #### App type
 
-Type              | Parameter        |Description
+Type              | Parameter        | Description
 ------------------|------------------|-----------
 `DirectVT`        | `_command line_` | Run `_command line_` using DirectVT protocol. Usage example `type=DirectVT param="_command line_"`.
 `ANSIVT`          | `_command line_` | Run `_command line_` inside the built-in terminal. Usage example `type=ANSIVT param="_command line_"`. Same as `type=DirectVT param="$0 -r term _command line_"`.
