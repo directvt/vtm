@@ -1290,7 +1290,9 @@ namespace netxs::xml
                             }
                             else if (count) // It is a list.
                             {
-                                auto rewrite = subnodelist.end() != std::ranges::find_if(subnodelist, [](auto& a){ return a->is_list_top; });
+                                //todo Clang 11.0.1 don't get it.
+                                //auto rewrite = subnodelist.end() != std::ranges::find_if(subnodelist, [](auto& a){ return a->is_list_top; });
+                                auto rewrite = subnodelist.end() != std::find_if(subnodelist.begin(), subnodelist.end(), [](auto& a){ return a->is_list_top; });
                                 document->append_list(path, subnodelist, rewrite);
                             }
                             else log(" xml: unexpected tag without data: ", tag);
