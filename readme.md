@@ -458,10 +458,10 @@ Note: The following configuration sections are not implemented yet
                 <key="Ctrl+'t'" action=start />
                 <key="Ctrl+'z'" action=close />
             </hotkeys>
-            <config>   <!-- not implemented, only base config applied -->  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
+            <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
-                        <size=20000    />   <!-- Scrollback buffer length. -->
+                        <size=35000    />   <!-- Scrollback buffer length. -->
                         <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
                         <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
                         <wrap="on"     />   <!-- Lines wrapping mode. -->
@@ -505,7 +505,7 @@ Note: The following configuration sections are not implemented yet
                         <show=true/>
                     </cursor>
                     <menu>
-                        <autohide=on/>  <!--  If true, show menu only on hover. -->
+                        <autohide=on/>  <!--  If true/on, show menu only on hover. -->
                         <enabled="on"/>
                         <slim="true"/>
                     </menu>
@@ -562,14 +562,14 @@ Note: The following configuration sections are not implemented yet
             <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
             <selector = 48   />
-            <highlight  fgc=purewhite  bgc=bluelt     />
-            <warning    fgc=whitelt    bgc=yellowdk   />
-            <danger     fgc=whitelt    bgc=redlt      />
-            <action     fgc=whitelt    bgc=greenlt    />
-            <label      fgc=blackdk    bgc=whitedk    />
-            <inactive   fgc=blacklt    bgc=nocolor    />
-            <menu_white fgc=whitelt    bgc=0x80404040 />
-            <menu_black fgc=blackdk    bgc=0x80404040 />
+            <highlight  fgc=purewhite bgc=bluelt      />
+            <warning    fgc=whitelt   bgc=yellowdk    />
+            <danger     fgc=whitelt   bgc=redlt       />
+            <action     fgc=whitelt   bgc=greenlt     />
+            <label      fgc=blackdk   bgc=whitedk     />
+            <inactive   fgc=blacklt   bgc=transparent />
+            <menu_white fgc=whitelt   bgc=0x80404040  />
+            <menu_black fgc=blackdk   bgc=0x80404040  />
             <fader duration=0ms fast=0ms />  <!-- Fader animation config. -->
         </defaults>
         <runapp>    <!-- Override defaults. -->
@@ -596,6 +596,7 @@ Note: The following configuration sections are not implemented yet
         <pureblack = 0xFF000000 />
         <purewhite = 0xFFffffff />
         <nocolor   = 0x00000000 />
+        <transparent = nocolor  />
     </set>
     <client>
         <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->

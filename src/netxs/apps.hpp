@@ -59,7 +59,7 @@ R"==(
                 <key="Ctrl+'t'" action=start />
                 <key="Ctrl+'z'" action=close />
             </hotkeys>
-            <config>   <!-- not implemented, only base config applied -->  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
+            <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
                         <size=20000    />   <!-- Scrollback buffer length. -->
@@ -265,12 +265,12 @@ R"==(
         </fields>
         <tablen=8 />   <!-- Tab length. -->
         <cursor>
-            <style="underline"/> <!-- block | underline  -->
+            <style="underline"/> <!-- block | underline -->
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
         <menu>
-            <autohide=true/>  <!--  If true, show menu only on hover. -->
+            <autohide=true/>  <!--  If true/on, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
         </menu>
