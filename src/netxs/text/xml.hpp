@@ -465,6 +465,11 @@ namespace netxs::xml
                 }
                 return crop;
             }
+            auto set_value(text& value)
+            {
+                val_ptr_list.clear();
+                val_ptr_list.emplace_back(std::make_shared<text>(std::move(value)));
+            }
             template<class T>
             auto take(qiew attr, T fallback = {})
             {
@@ -986,12 +991,17 @@ namespace netxs::xml
         template<bool WithTemplate = faux>
         auto enumerate(view path_str)
         {
-            if (path_str == "/") return vect{ root };
+            auto tag = root && root->tag_ptr ? *(root->tag_ptr) : text{};
+            path_str = utf::trim(path_str, '/');
+            if (path_str.empty()
+             || path_str == tag)
+            {
+                return vect{ root };
+            }
             else
             {
-                path_str = utf::trim(path_str, '/');
                 auto tmp = utf::cutoff(path_str, '/');
-                if (root && root->tag_ptr && *(root->tag_ptr) == tmp)
+                if (tag == tmp)
                 {
                     return root->enumerate<WithTemplate>(path_str.substr(tmp.size()));
                 }
@@ -1205,20 +1215,13 @@ namespace netxs::xml
         }
         auto merge(view run_config_utf8)
         {
-            //loop over object values
-            //  - object path
-            //  - object type single or list
-            // if list: (is_list_top || childer.count() > 1)
-            //       - whole replace or append to the end
-            // if item:
-            //       - check and update value
-            // 
             auto run_config = xml::document{ run_config_utf8 };
             log(run_config.show());
-            auto proc = [this](auto node_ptr, auto path, auto proc) -> void
+            auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
                 auto& node = *node_ptr;
-                path += "/" + *(node.tag_ptr);
+                auto& tag = *(node.tag_ptr);
+                path += "/" + tag;
                 auto dest_list = take_list<true>(path);
                 auto is_dest_list = (dest_list.size() && dest_list.front()->is_template)
                                   || dest_list.size() > 1;
@@ -1234,31 +1237,44 @@ namespace netxs::xml
                     auto value = node.get_value();
                     value.empty() ? log(path, " = \"\"")
                                   : log(path, " = ",  value);
-                    //todo update value
-                    //...
-
-                    for (auto& [tag, subnodelist] : node.sub) // Proceed subelements.
+                    if (dest_list.size())
                     {
-                        auto count = subnodelist.size();
-                        if (count == 1 && subnodelist.front()->is_template == faux)
+                        auto& dest = dest_list.front();
+                        auto dst_value = dest->get_value();
+                        auto src_value = node.get_value();
+                        if (dst_value != src_value)
                         {
-                            proc(subnodelist.front(), path, proc);
+                            log("\t update ", tag, "=", src_value.empty() ? ""s : src_value);
+                            dest->set_value(src_value);
                         }
-                        else if (count) // It is a list.
+                        for (auto& [tag, subnodelist] : node.sub) // Proceed subelements.
                         {
-                            auto append = subnodelist.end() == std::ranges::find_if(subnodelist, [](auto& a){ return a->is_list_top; });
-                            if (append)
+                            auto count = subnodelist.size();
+                            if (count == 1 && subnodelist.front()->is_template == faux)
                             {
-                                log("\t append destination list");
-                                //todo append
+                                proc(subnodelist.front(), path, proc);
                             }
-                            else
+                            else if (count) // It is a list.
                             {
-                                log("\t rewrite destination list");
-                                //todo rewrite
+                                auto append = subnodelist.end() == std::ranges::find_if(subnodelist, [](auto& a){ return a->is_list_top; });
+                                if (append)
+                                {
+                                    log("\t append destination list");
+                                    //todo append
+                                }
+                                else
+                                {
+                                    log("\t rewrite destination list");
+                                    //todo rewrite
+                                }
                             }
+                            else log(" xml: unexpected tag without data: ", tag);
                         }
-                        else log(" xml: unexpected tag without data: ", tag);
+                    }
+                    else
+                    {
+                        log(" xml: unknown destination '", tag, "'");
+                        //todo rewrite
                     }
                 }
             };
