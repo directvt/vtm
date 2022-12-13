@@ -351,13 +351,14 @@ namespace netxs::xml
             { }
            ~elem()
             {
-                if (start_iter->boss.live)
-                {
-                    sub.clear();
-                    auto head = start_iter;
-                    auto tail = std::next(start_iter->upto);
-                    start_iter->boss.data.erase(head, tail);
-                }
+                //todo rewrite
+                //if (start_iter->boss.live)
+                //{
+                //    sub.clear();
+                //    auto head = start_iter;
+                //    auto tail = std::next(start_iter->upto);
+                //    start_iter->boss.data.erase(head, tail);
+                //}
             }
 
             template<bool WithTemplate = faux>
@@ -975,29 +976,9 @@ namespace netxs::xml
         suit page;
         sptr root;
 
-        template<class T>
-        auto get(T&& path)
-        {
-
-        }
-        template<class T>
-        auto set(T&& path)
-        {
-
-        }
         auto utf8()
         {
             return page.utf8();
-        }
-        auto append_list(view path, vect const& list, bool rewrite = faux)
-        {
-            log("\t ", rewrite ? "rewrite" : "append", " destination list");
-            if (rewrite)
-            {
-                // Delete branch
-            }
-            //...
-            //todo update hardcopy
         }
         template<bool WithTemplate = faux>
         auto enumerate(view path_str)
@@ -1018,6 +999,50 @@ namespace netxs::xml
                 }
             }
             return vect{};
+        }
+        auto append_list(view path, vect const& list, bool rewrite = faux)
+        {
+            //log("\t ", rewrite ? "rewrite" : "append", " destination list");
+            path = utf::trim(path, '/');
+            auto parent_path = utf::cutoff(path, '/');
+            auto branch_path = utf::remain(path, '/');
+            auto dest_host = enumerate(parent_path);
+            if (dest_host.size())
+            {
+                auto parent_ptr = dest_host.front();
+                auto& parent = *parent_ptr;
+                auto& dest = parent.sub;
+                auto iter = dest.find(qiew{ branch_path });
+                if (iter == dest.end())
+                {
+                    iter = dest.emplace(branch_path, vect{}).first;
+                }
+                auto dst_list = iter->second;
+                if (rewrite) dst_list.clear();
+
+                auto copy = [&](auto& dst_list, auto& list, auto& parent_ptr, auto copy) -> void
+                {
+                    for (auto& ptr : list)
+                    {
+                        auto& src = *ptr;
+                        auto& dst_ptr = dst_list.emplace_back(std::make_shared<elem>(parent.page, parent_ptr));
+                        auto& dst = *dst_ptr;
+                        dst.tag_ptr = src.tag_ptr;
+                        dst.val_ptr_list = src.val_ptr_list;
+                        dst.is_template = src.is_template;
+                        dst.is_list_top = src.is_list_top;
+                        //todo write. temporary solution
+                        dst.start_iter = dst.page.data.insert(parent.start_iter, { parent.page, type::unknown, "" });
+                        for (auto& [tag, list] : src.sub)
+                        {
+                            auto iter = dst.sub.emplace(tag, vect{}).first;
+                            auto& dst_list = iter->second;
+                            copy(dst_list, list, dst_ptr, copy);
+                        }
+                    }
+                };
+                copy(dst_list, list, parent_ptr, copy);
+            }
         }
         auto show()
         {
@@ -1227,7 +1252,7 @@ namespace netxs::xml
         auto merge(view run_config_utf8)
         {
             auto run_config = xml::document{ run_config_utf8 };
-            log(run_config.show());
+            //log(run_config.show());
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
                 auto& node = *node_ptr;
@@ -1238,13 +1263,13 @@ namespace netxs::xml
                                   || dest_list.size() > 1;
                 if (is_dest_list)
                 {
-                    log("\t dest ", path, " is a list");
+                    //log("\t dest ", path, " is a list");
                     document->append_list(path, { node_ptr });
                 }
                 else
                 {
                     auto value = node.get_value();
-                    log(path, " = ", value.empty() ? "\"\""s : value);
+                    //log(path, " = ", value.empty() ? "\"\""s : value);
                     if (dest_list.size())
                     {
                         auto& dest = dest_list.front();
@@ -1252,7 +1277,7 @@ namespace netxs::xml
                         auto src_value = node.get_value();
                         if (dst_value != src_value)
                         {
-                            log("\t update ", tag, "=", src_value.empty() ? ""s : src_value);
+                            //log("\t update ", tag, "=", src_value.empty() ? ""s : src_value);
                             dest->set_value(src_value);
                         }
                         for (auto& [tag, subnodelist] : node.sub) // Proceed subelements.
@@ -1272,7 +1297,7 @@ namespace netxs::xml
                     }
                     else
                     {
-                        log(" xml: unknown destination '", tag, "'");
+                        //log(" xml: unknown destination '", tag, "'");
                         document->append_list(path, { node_ptr });
                     }
                 }
