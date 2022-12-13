@@ -469,6 +469,7 @@ namespace netxs::xml
             {
                 val_ptr_list.clear();
                 val_ptr_list.emplace_back(std::make_shared<text>(std::move(value)));
+                //todo update hardcopy (start_iter)
             }
             template<class T>
             auto take(qiew attr, T fallback = {})
@@ -988,6 +989,16 @@ namespace netxs::xml
         {
             return page.utf8();
         }
+        auto append_list(view path, vect const& list, bool rewrite = faux)
+        {
+            log("\t ", rewrite ? "rewrite" : "append", " destination list");
+            if (rewrite)
+            {
+                // Delete branch
+            }
+            //...
+            //todo update hardcopy
+        }
         template<bool WithTemplate = faux>
         auto enumerate(view path_str)
         {
@@ -1228,15 +1239,12 @@ namespace netxs::xml
                 if (is_dest_list)
                 {
                     log("\t dest ", path, " is a list");
-                    //todo append this element to the dest list
-                    //...
-                    log("\t append destination list");
+                    document->append_list(path, { node_ptr });
                 }
                 else
                 {
                     auto value = node.get_value();
-                    value.empty() ? log(path, " = \"\"")
-                                  : log(path, " = ",  value);
+                    log(path, " = ", value.empty() ? "\"\""s : value);
                     if (dest_list.size())
                     {
                         auto& dest = dest_list.front();
@@ -1256,17 +1264,8 @@ namespace netxs::xml
                             }
                             else if (count) // It is a list.
                             {
-                                auto append = subnodelist.end() == std::ranges::find_if(subnodelist, [](auto& a){ return a->is_list_top; });
-                                if (append)
-                                {
-                                    log("\t append destination list");
-                                    //todo append
-                                }
-                                else
-                                {
-                                    log("\t rewrite destination list");
-                                    //todo rewrite
-                                }
+                                auto rewrite = subnodelist.end() != std::ranges::find_if(subnodelist, [](auto& a){ return a->is_list_top; });
+                                document->append_list(path, subnodelist, rewrite);
                             }
                             else log(" xml: unexpected tag without data: ", tag);
                         }
@@ -1274,7 +1273,7 @@ namespace netxs::xml
                     else
                     {
                         log(" xml: unknown destination '", tag, "'");
-                        //todo rewrite
+                        document->append_list(path, { node_ptr });
                     }
                 }
             };
