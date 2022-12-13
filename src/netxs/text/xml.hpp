@@ -1251,6 +1251,7 @@ namespace netxs::xml
         }
         auto merge(view run_config_utf8)
         {
+            if (run_config_utf8.empty()) return;
             auto run_config = xml::document{ run_config_utf8 };
             //log(run_config.show());
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
