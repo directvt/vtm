@@ -360,6 +360,7 @@ namespace netxs::xml
                 }
             }
 
+            template<bool WithTemplate = faux>
             auto enumerate(qiew path_str)
             {
                 using utf::text;
@@ -385,7 +386,8 @@ namespace netxs::xml
                             {
                                 for (auto& item : i)
                                 {
-                                    if (!item->is_template) crop.push_back(item);
+                                    if constexpr (WithTemplate)  crop.push_back(item);
+                                    else if (!item->is_template) crop.push_back(item);
                                 }
                             }
                             else if (i.size() && i.front())
@@ -981,6 +983,7 @@ namespace netxs::xml
         {
             return page.utf8();
         }
+        template<bool WithTemplate = faux>
         auto enumerate(view path_str)
         {
             if (path_str == "/") return vect{ root };
@@ -990,7 +993,7 @@ namespace netxs::xml
                 auto tmp = utf::cutoff(path_str, '/');
                 if (root && root->tag_ptr && *(root->tag_ptr) == tmp)
                 {
-                    return root->enumerate(path_str.substr(tmp.size()));
+                    return root->enumerate<WithTemplate>(path_str.substr(tmp.size()));
                 }
             }
             return vect{};
@@ -1189,10 +1192,11 @@ namespace netxs::xml
             crop.bgc(take(bgc_path, defval.bgc()));
             return crop;
         }
+        template<bool WithTemplate = faux>
         auto take_list(view path)
         {
-            auto list = document->enumerate(path);
-            if (list.empty()) list = fallback->enumerate(path);
+            auto list = document->enumerate<WithTemplate>(path);
+            if (list.empty()) list = fallback->enumerate<WithTemplate>(path);
             return list;
         }
         auto utf8()
@@ -1211,19 +1215,50 @@ namespace netxs::xml
             // 
             auto run_config = xml::document{ run_config_utf8 };
             log(run_config.show());
-            auto proc = [](auto node_ptr, auto path, auto proc) -> void
+            auto proc = [this](auto node_ptr, auto path, auto proc) -> void
             {
                 auto& node = *node_ptr;
                 path += "/" + *(node.tag_ptr);
-                auto value = node.get_value();
-                value.empty() ? log(path)
-                              : log(path, " = ",  value);
-                auto& list = node.sub;
-                for (auto& [tag, subnodelist] : list)
+                auto dest_list = take_list<true>(path);
+                auto is_dest_list = (dest_list.size() && dest_list.front()->is_template)
+                                  || dest_list.size() > 1;
+                if (is_dest_list)
                 {
-                    if (subnodelist.size())
+                    log("\t dest ", path, " is a list");
+                    //todo append this element to the dest list
+                    //...
+                    log("\t append destination list");
+                }
+                else
+                {
+                    auto value = node.get_value();
+                    value.empty() ? log(path, " = \"\"")
+                                  : log(path, " = ",  value);
+                    //todo update value
+                    //...
+
+                    for (auto& [tag, subnodelist] : node.sub) // Proceed subelements.
                     {
-                        proc(subnodelist.front(), path, proc);
+                        auto count = subnodelist.size();
+                        if (count == 1 && subnodelist.front()->is_template == faux)
+                        {
+                            proc(subnodelist.front(), path, proc);
+                        }
+                        else if (count) // It is a list.
+                        {
+                            auto append = subnodelist.end() == std::ranges::find_if(subnodelist, [](auto& a){ return a->is_list_top; });
+                            if (append)
+                            {
+                                log("\t append destination list");
+                                //todo append
+                            }
+                            else
+                            {
+                                log("\t rewrite destination list");
+                                //todo rewrite
+                            }
+                        }
+                        else log(" xml: unexpected tag without data: ", tag);
                     }
                 }
             };
