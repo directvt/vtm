@@ -1630,6 +1630,14 @@ namespace netxs::utf
         utf8.remove_prefix(std::distance(head, stop));
         return str;
     }
+    auto eat_tail(view& utf8, view delims)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto stop = find_char(head, tail, delims);
+        if (stop == tail) utf8 = view{};
+        else              utf8.remove_prefix(std::distance(head, stop));
+    }
     template<class TEXT_or_VIEW>
     auto is_plain(TEXT_or_VIEW&& utf8)
     {
