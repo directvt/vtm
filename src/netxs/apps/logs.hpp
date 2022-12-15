@@ -249,7 +249,7 @@ namespace netxs::app::logs
 
     namespace
     {
-        auto build = [](text cwd, text arg, xml::settings& config)
+        auto build = [](text cwd, text arg, xml::settings& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto menu_white = skin::color(tone::menu_white);

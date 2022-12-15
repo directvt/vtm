@@ -192,7 +192,7 @@ namespace netxs::app::shop
             return std::tuple{ appstore_head, appstore_body, desktopio_body };
         };
 
-        auto build = [](text cwd, text arg, xml::settings& config)
+        auto build = [](text cwd, text arg, xml::settings& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto c3 = highlight_color;

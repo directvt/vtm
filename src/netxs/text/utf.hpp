@@ -1075,11 +1075,11 @@ namespace netxs::utf
     }
 
     template<class TEXT_OR_VIEW, class T>
-    auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter)
+    auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter, bool lazy = true)
     {
         auto crop = std::remove_cvref_t<TEXT_OR_VIEW>{};
         auto what = view{ delimiter };
-        auto coor = utf8.find(what);
+        auto coor = lazy ? utf8.find(what) : utf8.rfind(what);
         if (coor != text::npos)
         {
             crop = utf8.substr(coor + what.size(), text::npos);
@@ -1087,10 +1087,10 @@ namespace netxs::utf
         return crop;
     }
     template<class TEXT_OR_VIEW>
-    auto remain(TEXT_OR_VIEW&& utf8, char delimiter = '.')
+    auto remain(TEXT_OR_VIEW&& utf8, char delimiter = '.', bool lazy = true)
     {
         auto what = view{ &delimiter, 1 };
-        return remain(std::forward<TEXT_OR_VIEW>(utf8), what);
+        return remain(std::forward<TEXT_OR_VIEW>(utf8), what, lazy);
     }
 
     // utf: Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right).
@@ -1629,6 +1629,14 @@ namespace netxs::utf
         auto str = text{ head, stop };
         utf8.remove_prefix(std::distance(head, stop));
         return str;
+    }
+    auto eat_tail(view& utf8, view delims)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto stop = find_char(head, tail, delims);
+        if (stop == tail) utf8 = view{};
+        else              utf8.remove_prefix(std::distance(head, stop));
     }
     template<class TEXT_or_VIEW>
     auto is_plain(TEXT_or_VIEW&& utf8)

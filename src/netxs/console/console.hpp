@@ -77,6 +77,7 @@ namespace netxs::console
         text      cwd{};
         text     type{};
         text    param{};
+        text    patch{};
         xml::settings settings;
     };
 
@@ -107,6 +108,7 @@ namespace netxs::console
     static constexpr auto attr_cwd      = "cwd";
     static constexpr auto attr_param    = "param";
     static constexpr auto attr_splitter = "splitter";
+    static constexpr auto attr_config   = "config";
 
     static constexpr auto path_item     = "/config/menu/item";
 }
@@ -1462,8 +1464,8 @@ namespace netxs::console
             auto _user   = peer->line(';');
             auto _mode   = peer->line(';');
             auto _runcfg = peer->line(';');
-            auto xmlconfig = utf::unbase64(_runcfg);
-            config.merge(xmlconfig);
+            auto utf8_xml = utf::unbase64(_runcfg);
+            config.fuse(utf8_xml);
 
             _user = "[" + _user + ":" + std::to_string(session_id) + "]";
             auto c_info = utf::divide(_ip, " ");
@@ -4074,8 +4076,8 @@ namespace netxs::console
                 {
                     if (!alive) return;
                     auto brush = boss.base::color();
-                    if (brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.fuse(brush); });
-                    else             parent_canvas.blur(width);
+                    if (brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF).fuse(brush); });
+                    else             parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF); });
                 };
             }
         };
@@ -4922,7 +4924,7 @@ namespace netxs::console
             };
 
             auto splitter_count = 0;
-            for (auto item_ptr : config.take_list(path_item))
+            for (auto item_ptr : config.list(path_item))
             {
                 auto& item = *item_ptr;
                 auto conf_rec = menuitem_t{};
@@ -4938,7 +4940,7 @@ namespace netxs::console
                     log("hall: attribute '", utf::debase(attr_id), "' is missing, skip item");
                     continue;
                 }
-                auto label = item.take(attr_label, ""s);
+                auto label        = item.take(attr_label, ""s);
                 conf_rec.label    = label.empty() ? conf_rec.id : label;
                 conf_rec.alias    = item.take(attr_alias, ""s);
                 auto& fallback = conf_rec.alias.empty() ? dflt_rec
@@ -4957,6 +4959,8 @@ namespace netxs::console
                 conf_rec.param    = item.take(attr_param,    fallback.param   );
                 conf_rec.type     = item.take(attr_type,     fallback.type    );
                 conf_rec.settings = config;
+                auto patches      = item.enumerate("config");
+                if (patches.size()) conf_rec.patch = patches.front()->snapshot();
 
                 utf::to_low(conf_rec.type);
                 utf::change(conf_rec.title,  "$0", current_module_file);

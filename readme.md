@@ -383,6 +383,18 @@ Top-level element `<config>` contains the following base objects
     - Not implemented: Single `<autorun>` block - a list of menu item to run at the environment startup.
   - Not implemented: Single `<hotkeys>` block - a global hotkeys/shortcuts configuration.
 
+#### Application Configuration
+
+The menu item of DirectVT type `type=DirectVT` can be additionally configured using `<config>` subelement. This is currently only supported by the built-in vtm terminal.
+
+The content of the `<config>` subelement is passed to the application upon startup. This config has the highest priority and is merged with the root of the configuration loaded by this application from a file.
+
+In general, when a DirectVT application starts up, the three configurations are subsequently merged. They are listed below in merged order
+
+- Hardcoded defaults
+- Configuration loaded from file
+- The configuration received at startup from the launching application (see the `<config>` subelement example)
+
 #### Taskbar menu item attributes
 
 Attribute  | Description                                       | Value type | Mandatory | Default value
@@ -401,6 +413,7 @@ Attribute  | Description                                       | Value type | Ma
 `cwd`      |  Current working directory                        | `string`   |           |
 `type`     |  App type                                         | `string`   |           | `SHELL`
 `param`    |  App constructor arguments                        | `string`   |           | empty
+`config`   |  Configuration block for DirectVT apps            | `xml-node` |           | empty
 
 #### Value literals
 
@@ -414,13 +427,21 @@ Type     | Format
 
 #### App type
 
-Type              | Parameter
-------------------|-----------------
-`DirectVT`        | `_command line_`
-`SHELL` (default) | `_command line_`
-`ANSIVT`          | `_command line_`
-`Group`           | [ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )]
-`Region`          | `param` attribute is not used, use attribute `title=_view_title_` to set region name
+Type              | Parameter        | Description
+------------------|------------------|-----------
+`DirectVT`        | `_command line_` | Run `_command line_` using DirectVT protocol. Usage example `type=DirectVT param="_command line_"`.
+`ANSIVT`          | `_command line_` | Run `_command line_` inside the built-in terminal. Usage example `type=ANSIVT param="_command line_"`. Same as `type=DirectVT param="$0 -r term _command line_"`.
+`SHELL` (default) | `_command line_` | Run `_command line_` on top of a system shell that runs inside the built-in terminal. Usage example `type=SHELL param="_command line_"`. Same as `type=DirectVT param="$0 -r term _shell_ -c _command line_"`.
+`Group`           | [ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `param`. Usage example `type=Group param="h1:1(Term, Term)"`.
+`Region`          | | The `param` attribute is not used, use attribute `title=_view_title_` to set region name.
+
+The following configuration items have the same meaning
+```
+<item …. param=‘mc’/>
+<item …. type=SHELL param=‘mc’/>
+<item …. type=ANSIVT param=‘bash -c mc’/>
+<item …. type=DirectVT param=‘$0 -r term bash -c mc’/>
+```
 
 ### Configuration Example
 
@@ -445,70 +466,25 @@ Note: The following configuration sections are not implemented yet
         </item>
         <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
-            <hotkeys>    <!-- not implemented -->
-                <key*/>
-                <key="Ctrl+'t'" action=start />
-                <key="Ctrl+'z'" action=close />
-            </hotkeys>
-            <config>   <!-- not implemented, only base config applied -->  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
+            <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
-                        <size=20000    />   <!-- Scrollback buffer length. -->
-                        <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
-                        <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
+                        <size=35000    />   <!-- Scrollback buffer length. -->
                         <wrap="on"     />   <!-- Lines wrapping mode. -->
                     </scrollback>
                     <color>
-                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
-                        <color1  = reddk      />
-                        <color2  = greendk    />
-                        <color3  = yellowdk   />
-                        <color4  = bluedk     />
-                        <color5  = magentadk  />
-                        <color6  = cyandk     />
-                        <color7  = whitedk    />
-                        <color8  = blacklt    />
-                        <color9  = redlt      />
-                        <color10 = greenlt    />
-                        <color11 = yellowlt   />
-                        <color12 = bluelt     />
-                        <color13 = magentalt  />
-                        <color14 = cyanlt     />
+                        <color4  = bluedk     /> <!-- See /config/set/* for the color name reference. -->
                         <color15 = whitelt    />
                         <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-                        <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
-                        <selection>
-                            <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                            <protected fx=selection bgc=bluelt fgc=whitelt />
-                            <ansi fx=xlight/>
-                            <rich fx=xlight/>
-                            <html fx=xlight/>
-                            <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
-                        </selection>
                     </color>
-                    <fields>
-                        <lucent=0xC0 /> <!-- Fields transparency level. -->
-                        <size=0 />      <!-- Left/right field size. -->
-                    </fields>
-                    <tablen=8 />        <!-- Tab length. -->
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
-                        <blink=400ms/>       <!-- blink period -->
-                        <show=true/>
                     </cursor>
                     <menu>
-                        <autohide=on/>  <!--  If true, show menu only on hover. -->
+                        <autohide=off/>  <!--  If true/on, show menu only on hover. -->
                         <enabled="on"/>
-                        <slim="true"/>
+                        <slim=off/>
                     </menu>
-                    <selection>
-                        <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
-                    </selection>
-                    <hotkeys>    <!-- not implemented -->
-                        <key*/>
-                        <key="Alt+RightArrow" action=findNext />
-                        <key="Alt+LeftArrow"  action=findPrev />
-                    </hotkeys>
                 </term>
             </config>
         </item>
@@ -554,14 +530,14 @@ Note: The following configuration sections are not implemented yet
             <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
             <selector = 48   />
-            <highlight  fgc=purewhite  bgc=亮蓝       />
-            <warning    fgc=whitelt    bgc=yellowdk   />
-            <danger     fgc=whitelt    bgc=redlt      />
-            <action     fgc=whitelt    bgc=greenlt    />
-            <label      fgc=blackdk    bgc=whitedk    />
-            <inactive   fgc=blacklt    bgc=nocolor    />
-            <menu_white fgc=whitelt    bgc=0x80404040 />
-            <menu_black fgc=blackdk    bgc=0x80404040 />
+            <highlight  fgc=purewhite bgc=bluelt      />
+            <warning    fgc=whitelt   bgc=yellowdk    />
+            <danger     fgc=whitelt   bgc=redlt       />
+            <action     fgc=whitelt   bgc=greenlt     />
+            <label      fgc=blackdk   bgc=whitedk     />
+            <inactive   fgc=blacklt   bgc=transparent />
+            <menu_white fgc=whitelt   bgc=0x80404040  />
+            <menu_black fgc=blackdk   bgc=0x80404040  />
             <fader duration=0ms fast=0ms />  <!-- Fader animation config. -->
         </defaults>
         <runapp>    <!-- Override defaults. -->
@@ -588,23 +564,7 @@ Note: The following configuration sections are not implemented yet
         <pureblack = 0xFF000000 />
         <purewhite = 0xFFffffff />
         <nocolor   = 0x00000000 />
-
-        <黑     = blackdk   /> <!-- Localized color reference literals. -->
-        <红     = reddk     />
-        <绿     = greendk   />
-        <黄     = yellowdk  />
-        <蓝     = bluedk    />
-        <品红   = magentadk />
-        <青     = cyandk    />
-        <白     = whitedk   />
-        <灰     = blacklt   />
-        <亮红   = redlt     />
-        <亮绿   = greenlt   />
-        <亮黄   = yellowlt  />
-        <亮蓝   = bluelt    />
-        <亮品红 = magentalt />
-        <亮青   = cyanlt    />
-        <亮白   = whitelt   />
+        <transparent = nocolor  />
     </set>
     <client>
         <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
@@ -628,6 +588,7 @@ Note: The following configuration sections are not implemented yet
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
+            <reset onkey="on" onoutput="off" />   <!-- Scrollback viewport reset triggers. -->
         </scrollback>
         <color>
             <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
@@ -663,12 +624,12 @@ Note: The following configuration sections are not implemented yet
         </fields>
         <tablen=8 />   <!-- Tab length. -->
         <cursor>
-            <style="underline"/> <!-- block | underline  -->
+            <style="underline"/> <!-- block | underline -->
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
         <menu>
-            <autohide=true/>  <!--  If true, show menu only on hover. -->
+            <autohide=true/>  <!--  If true/on, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
         </menu>
