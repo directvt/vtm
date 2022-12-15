@@ -123,6 +123,7 @@ namespace netxs::app::tile
                                 {
                                     auto deed = boss_ptr->bell::template protos<tier::release>(); //todo "template" keyword is required by FreeBSD clang 11.0.1
                                     data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc
+                                    gear.dismiss();
                                 }
                             };
                             boss.SUBMIT_T_BYVAL(tier::release, e2::form::state::mouse, boss.tracker, active)
@@ -264,6 +265,7 @@ namespace netxs::app::tile
                     ->active()
                     ->invoke([&](auto& boss)
                     {
+                        boss.keybd.active();
                         anycasting(boss);
                         mouse_subs(boss);
 
@@ -794,25 +796,13 @@ namespace netxs::app::tile
                 utf::trim_front(utf8, " ,");
                 if (utf8.size() && utf8.front() == ')') utf8.remove_prefix(1); // pop ')';
 
-                auto& conf_list = app::shared::get::configs();
-                auto iter = conf_list.find(app_id);
-                if (iter == conf_list.end())
-                {
-                    log("tile: application id='", app_id, "' not found");
-                    return place;
-                }
-                auto& config = iter->second;
-                auto& creator = app::shared::create::builder(config.type);
-                auto host = creator(config.cwd, config.param, config.settings);
-                auto inst = app_window(config.title, config.footer, host, app_id);
-                if (config.bgc)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
-                if (config.fgc)  inst->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
-                if (config.slimmenu) inst->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+                auto [object, config] = app::shared::create::go(app_id);
+                auto inst = app_window(config.title, config.footer, object, app_id);
                 place->attach(inst);
             }
             return place;
         };
-        auto build_inst = [](text cwd, view param, xml::settings& config) -> sptr<base>
+        auto build_inst = [](text cwd, view param, xml::settings& config, text patch) -> sptr<base>
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;

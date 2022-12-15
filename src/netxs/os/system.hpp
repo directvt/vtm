@@ -104,11 +104,11 @@ namespace netxs::os
     }
 
     namespace fs = std::filesystem;
-    using list = std::vector<text>;
-    using xipc = std::shared_ptr<ipc::iobase>;
     using namespace std::chrono_literals;
     using namespace std::literals;
     using namespace netxs::ui::atoms;
+    using list = std::vector<text>;
+    using xipc = std::shared_ptr<ipc::iobase>;
     using page = console::page;
     using para = console::para;
     using rich = console::rich;
@@ -129,6 +129,16 @@ namespace netxs::os
         static const auto PIPE_BUF     = si32{ 65536 };
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
+        static auto clipboard_sequence = std::numeric_limits<DWORD>::max();
+        static auto clipboard_mutex    = std::mutex();
+        static auto cf_text = CF_UNICODETEXT;
+        static auto cf_utf8 = CF_TEXT;
+        static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
+        static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
+        static auto cf_ansi = ::RegisterClipboardFormatA("ANSI/VT Format");
+        static auto cf_sec1 = ::RegisterClipboardFormatA("ExcludeClipboardContentFromMonitorProcessing");
+        static auto cf_sec2 = ::RegisterClipboardFormatA("CanIncludeInClipboardHistory");
+        static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
 
         //static constexpr auto security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -1748,25 +1758,43 @@ namespace netxs::os
         // Generate the following formats:
         //   clip::textonly | clip::disabled
         //        CF_UNICODETEXT: Raw UTF-16
+        //               cf_ansi: ANSI-text UTF-8 with mime mark
         //   clip::ansitext
         //               cf_rich: RTF-group UTF-8
         //        CF_UNICODETEXT: ANSI-text UTF-16
+        //               cf_ansi: ANSI-text UTF-8 with mime mark
         //   clip::richtext
         //               cf_rich: RTF-group UTF-8
         //        CF_UNICODETEXT: Plaintext UTF-16
+        //               cf_ansi: ANSI-text UTF-8 with mime mark
         //   clip::htmltext
+        //               cf_ansi: ANSI-text UTF-8 with mime mark
         //               cf_html: HTML-code UTF-8
         //        CF_UNICODETEXT: HTML-code UTF-16
+        //   clip::safetext (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
+        //    ExcludeClipboardContentFromMonitorProcessing: 1
+        //                    CanIncludeInClipboardHistory: 0
+        //                       CanUploadToCloudClipboard: 0
+        //                                  CF_UNICODETEXT: Raw UTF-16
+        //                                         cf_ansi: ANSI-text UTF-8 with mime mark
         //
+        //  cf_ansi format: payload=mime_type/size_x/size_y;utf8_data
+
         using ansi::clip;
 
         auto success = faux;
+        auto size = twod{ 80,25 };
+        {
+            auto i = 1;
+            utf::divide<feed::rev>(mime, '/', [&](auto frag)
+            {
+                if (auto v = utf::to_int(frag)) size[i] = v.value();
+                return i--;
+            });
+        }
+
         #if defined(_WIN32)
 
-            static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
-            static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
-            static auto cf_text = CF_UNICODETEXT;
-            static auto cf_utf8 = CF_TEXT;
             auto send = [&](auto cf_format, view data)
             {
                 auto _send = [&](auto const& data)
@@ -1785,47 +1813,61 @@ namespace netxs::os
                     }
                     else log("  os: ::GlobalAlloc returns unexpected result");
                 };
-                cf_format == cf_text ? _send(utf::to_utf(data))
-                                     : _send(data);
+                cf_format == os::cf_text ? _send(utf::to_utf(data))
+                                         : _send(data);
             };
 
+            auto lock = std::lock_guard{ os::clipboard_mutex };
             ok(::OpenClipboard(nullptr), "::OpenClipboard");
             ok(::EmptyClipboard(), "::EmptyClipboard");
-            if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
+            if (utf8.size())
             {
-                send(cf_text, utf8);
-            }
-            else
-            {
-                auto post = page{ utf8 };
-                auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
-                ::GetCurrentConsoleFontEx(STDOUT_FD, faux, &info);
-                auto font = utf::to_utf(info.FaceName);
-                if (mime.starts_with(ansi::mimerich))
+                if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
                 {
-                    auto rich = post.to_rich(font);
-                    auto utf8 = post.to_utf8();
-                    send(cf_rich, rich);
-                    send(cf_text, utf8);
-                }
-                else if (mime.starts_with(ansi::mimehtml))
-                {
-                    auto [html, code] = post.to_html(font);
-                    send(cf_html, html);
-                    send(cf_text, code);
-                }
-                else if (mime.starts_with(ansi::mimeansi))
-                {
-                    auto rich = post.to_rich(font);
-                    send(cf_rich, rich);
-                    send(cf_text, utf8);
+                    send(os::cf_text, utf8);
                 }
                 else
                 {
-                    send(cf_utf8, utf8);
+                    auto post = page{ utf8 };
+                    auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
+                    ::GetCurrentConsoleFontEx(STDOUT_FD, faux, &info);
+                    auto font = utf::to_utf(info.FaceName);
+                    if (mime.starts_with(ansi::mimerich))
+                    {
+                        auto rich = post.to_rich(font);
+                        auto utf8 = post.to_utf8();
+                        send(os::cf_rich, rich);
+                        send(os::cf_text, utf8);
+                    }
+                    else if (mime.starts_with(ansi::mimehtml))
+                    {
+                        auto [html, code] = post.to_html(font);
+                        send(os::cf_html, html);
+                        send(os::cf_text, code);
+                    }
+                    else if (mime.starts_with(ansi::mimeansi))
+                    {
+                        auto rich = post.to_rich(font);
+                        send(os::cf_rich, rich);
+                        send(os::cf_text, utf8);
+                    }
+                    else if (mime.starts_with(ansi::mimesafe))
+                    {
+                        send(os::cf_sec1, "1");
+                        send(os::cf_sec2, "0");
+                        send(os::cf_sec3, "0");
+                        send(os::cf_text, utf8);
+                    }
+                    else
+                    {
+                        send(os::cf_utf8, utf8);
+                    }
                 }
+                auto crop = ansi::add(mime, ";", utf8);
+                send(os::cf_ansi, crop);
             }
             ok(::CloseClipboard(), "::CloseClipboard");
+            os::clipboard_sequence = ::GetClipboardSequenceNumber(); // The sequence number is incremented while closing the clipboard.
 
         #elif defined(__APPLE__)
 
@@ -1862,21 +1904,21 @@ namespace netxs::os
             {
                 auto post = page{ utf8 };
                 auto rich = post.to_rich();
-                yield.clipbuf(clip::richtext, rich);
+                yield.clipbuf(size, rich, clip::richtext);
             }
             else if (mime.starts_with(ansi::mimehtml))
             {
                 auto post = page{ utf8 };
                 auto [html, code] = post.to_html();
-                yield.clipbuf(clip::htmltext, code);
+                yield.clipbuf(size, code, clip::htmltext);
             }
-            else if (mime.starts_with(ansi::mimeansi))
+            else if (mime.starts_with(ansi::mimeansi)) //todo GH#216
             {
-                yield.clipbuf(clip::ansitext, utf8);
+                yield.clipbuf(size, utf8, clip::ansitext);
             }
             else
             {
-                yield.clipbuf(clip::textonly, utf8);
+                yield.clipbuf(size, utf8, clip::textonly);
             }
             os::send<true>(STDOUT_FD, yield.data(), yield.size());
             success = true;
@@ -3335,7 +3377,7 @@ namespace netxs::os
                             auto bKeyDown = faux;
                             auto wRepeatCount = 1;
                             auto UnicodeChar = L'\x03'; // ansi::C0_ETX
-                            wired.keybd.send(*ipcio,
+                            wired.syskeybd.send(*ipcio,
                                 0,
                                 os::kbstate(kbmod, dwControlKeyState),
                                 dwControlKeyState,
@@ -3412,19 +3454,8 @@ namespace netxs::os
                 // or return 0 bytes read.
                 auto reply = std::vector<INPUT_RECORD>(1);
                 auto count = DWORD{};
+                auto stamp = ui32{};
                 fd_t waits[] = { STDIN_FD, signal };
-
-                auto xlate_bttns = [](auto bttns)
-                {
-                    auto b = ui32{};
-                    b |= bttns & FROM_LEFT_1ST_BUTTON_PRESSED ? (1 << input::sysmouse::left  ) : 0;
-                    b |= bttns & RIGHTMOST_BUTTON_PRESSED     ? (1 << input::sysmouse::right ) : 0;
-                    b |= bttns & FROM_LEFT_2ND_BUTTON_PRESSED ? (1 << input::sysmouse::middle) : 0;
-                    b |= bttns & FROM_LEFT_3RD_BUTTON_PRESSED ? (1 << input::sysmouse::wheel ) : 0;
-                    b |= bttns & FROM_LEFT_4TH_BUTTON_PRESSED ? (1 << input::sysmouse::win   ) : 0;
-                    return b;
-                };
-
                 auto& kbstate = _globals<void>::kbmod;
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
@@ -3458,7 +3489,7 @@ namespace netxs::os
                                 switch (reply.EventType)
                                 {
                                     case KEY_EVENT:
-                                        wired.keybd.send(ipcio,
+                                        wired.syskeybd.send(ipcio,
                                             0,
                                             os::kbstate(kbstate, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
                                             reply.Event.KeyEvent.dwControlKeyState,
@@ -3470,20 +3501,24 @@ namespace netxs::os
                                             reply.Event.KeyEvent.uChar.UnicodeChar);
                                         break;
                                     case MOUSE_EVENT:
-                                        wired.mouse.send(ipcio,
+                                        wired.sysmouse.send(ipcio,
                                             0,
+                                            input::hids::ok,
                                             os::kbstate(kbstate, reply.Event.MouseEvent.dwControlKeyState),
                                             reply.Event.MouseEvent.dwControlKeyState,
-                                            xlate_bttns(reply.Event.MouseEvent.dwButtonState),
-                                            reply.Event.MouseEvent.dwEventFlags,
+                                            reply.Event.MouseEvent.dwButtonState & 0b00011111,
+                                            reply.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK,
+                                            reply.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED,
+                                            reply.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED,
                                             static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
-                                            twod{ reply.Event.MouseEvent.dwMousePosition.X, reply.Event.MouseEvent.dwMousePosition.Y });
+                                            twod{ reply.Event.MouseEvent.dwMousePosition.X, reply.Event.MouseEvent.dwMousePosition.Y },
+                                            stamp++);
                                         break;
                                     case WINDOW_BUFFER_SIZE_EVENT:
                                         _globals<void>::resize_handler();
                                         break;
                                     case FOCUS_EVENT:
-                                        wired.focus.send(ipcio,
+                                        wired.sysfocus.send(ipcio,
                                             0,
                                             reply.Event.FocusEvent.bSetFocus,
                                             faux,
@@ -3502,17 +3537,10 @@ namespace netxs::os
                 auto legacy_mouse = !!(mode & os::legacy::mouse);
                 auto legacy_color = !!(mode & os::legacy::vga16);
                 auto micefd = INVALID_FD;
-                auto mcoor = twod{};
+                auto mcoord = twod{};
                 auto buffer = text(os::stdin_buf_size, '\0');
                 auto ttynum = si32{ 0 };
 
-                struct
-                {
-                    testy<twod> coord;
-                    testy<si32> shift = 0;
-                    testy<si32> bttns = 0;
-                    si32        flags = 0;
-                } state;
                 auto get_kb_state = []
                 {
                     auto state = si32{ 0 };
@@ -3537,16 +3565,13 @@ namespace netxs::os
                     log(" tty: compatibility mode");
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
                     auto mouse_device = "/dev/input/mice";
-                    auto mouse_fallback = "/dev/input/mice_vtm";
+                    auto mouse_fallback1 = "/dev/input/mice.vtm";
+                    auto mouse_fallback2 = "/dev/input/mice_vtm"; //todo deprecated
                     auto fd = ::open(mouse_device, O_RDWR);
-                    if (fd == -1)
-                    {
-                        fd = ::open(mouse_fallback, O_RDWR);
-                    }
-                    if (fd == -1)
-                    {
-                        log(" tty: error opening ", mouse_device, " and ", mouse_fallback, ", error ", errno, errno == 13 ? " - permission denied" : "");
-                    }
+                    if (fd == -1) fd = ::open(mouse_fallback1, O_RDWR);
+                    if (fd == -1) log(" tty: error opening ", mouse_device, " and ", mouse_fallback1, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    if (fd == -1) fd = ::open(mouse_fallback2, O_RDWR);
+                    if (fd == -1) log(" tty: error opening ", mouse_device, " and ", mouse_fallback2, ", error ", errno, errno == 13 ? " - permission denied" : "");
                     else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
                     {
                         char ack;
@@ -3573,13 +3598,9 @@ namespace netxs::os
                     }
                 }
 
-                struct sysgears
-                {
-                    input::sysmouse mouse = {};
-                    input::syskeybd keybd = {};
-                    input::sysfocus focus = {};
-                };
-                auto gears = std::unordered_map<id_t, sysgears>{};
+                auto m = input::sysmouse{};
+                auto k = input::syskeybd{};
+                auto f = input::sysfocus{};
                 auto close = faux;
                 auto total = text{};
                 auto digit = [](auto c) { return c >= '0' && c <= '9'; };
@@ -3643,44 +3664,20 @@ namespace netxs::os
                             if (pos == len) // the only one esc
                             {
                                 // Pass Esc.
-                                auto id = 0;
-                                auto& k = gears[id].keybd;
-                                k.id      = id;
+                                k.gear_id = 0;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, 1);
-                                //notify(e2::conio::keybd, k);
-                                wired.keybd.send(ipcio,
-                                    0,
-                                    k.ctlstat,
-                                    0, // winctrl
-                                    k.virtcod,
-                                    k.scancod,
-                                    k.pressed,
-                                    k.imitate,
-                                    k.cluster,
-                                    0); // winchar
+                                wired.syskeybd.send(ipcio, k);
                                 total.clear();
                                 break;
                             }
                             else if (strv.at(pos) == '\033') // two consecutive escapes
                             {
                                 // Pass Esc.
-                                auto id = 0;
-                                auto& k = gears[id].keybd;
-                                k.id      = id;
+                                k.gear_id = 0;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, 1);
-                                //notify(e2::conio::keybd, k);
-                                wired.keybd.send(ipcio,
-                                    0,
-                                    k.ctlstat,
-                                    0, // winctrl
-                                    k.virtcod,
-                                    k.scancod,
-                                    k.pressed,
-                                    k.imitate,
-                                    k.cluster,
-                                    0); // winchar
+                                wired.syskeybd.send(ipcio, k);
                                 total = strv.substr(1);
                                 break;
                             }
@@ -3690,30 +3687,16 @@ namespace netxs::os
                                 if (++pos == len) { total = strv; break; }//incomlpete
                                 if (strv.at(pos) == 'I')
                                 {
-                                    auto id = 0;
-                                    auto& f = gears[id].focus;
-                                    f.id      = id;
+                                    f.gear_id = 0;
                                     f.enabled = true;
-                                    //notify(e2::conio::focus, f);
-                                    wired.focus.send(ipcio,
-                                        0,
-                                        f.enabled,
-                                        f.combine_focus,
-                                        f.force_group_focus);
+                                    wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == 'O')
                                 {
-                                    auto id = 0;
-                                    auto& f = gears[id].focus;
-                                    f.id      = id;
+                                    f.gear_id = 0;
                                     f.enabled = faux;
-                                    //notify(e2::conio::focus, f);
-                                    wired.focus.send(ipcio,
-                                        0,
-                                        f.enabled,
-                                        f.combine_focus,
-                                        f.force_group_focus);
+                                    wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == '<') // \033[<0;x;yM/m
@@ -3755,75 +3738,36 @@ namespace netxs::os
                                                             auto x = clamp(pos_x.value() - 1);
                                                             auto y = clamp(pos_y.value() - 1);
                                                             auto ctl = ctrl.value();
-                                                            auto id = 0;
-                                                            auto& m = gears[id].mouse;
 
-                                                            // 00000 000
-                                                            //   ||| |||
-                                                            //   ||| |------ btn state
-                                                            //   |---------- ctl state
+                                                            m.gear_id = {};
+                                                            m.enabled = {};
+                                                            m.winctrl = {};
+                                                            m.doubled = {};
+                                                            m.wheeled = {};
+                                                            m.hzwheel = {};
+                                                            m.wheeldt = {};
                                                             m.ctlstat = {};
+                                                            // 000 000 00
+                                                            //   | ||| ||
+                                                            //   | ||| ------ button number
+                                                            //   | ---------- ctl state
                                                             if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
                                                             if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
                                                             if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
-                                                            ctl = ctl & ~0b00011100;
+                                                            ctl &= ~0b00011100;
 
-                                                            m.id      = id;
-                                                            m.shuffle = faux;
-                                                            m.wheeled = faux;
-                                                            m.wheeldt = 0;
-
-                                                            auto fire = true;
-
-                                                            if (ctl == 35 &&(m.buttons[input::sysmouse::left  ]
-                                                                          || m.buttons[input::sysmouse::middle]
-                                                                          || m.buttons[input::sysmouse::right ]
-                                                                          || m.buttons[input::sysmouse::win   ]))
+                                                            if (ctl == 35 && m.buttons) // Moving without buttons (case when second release not fired: apple's terminal.app)
                                                             {
-                                                                // Moving without buttons (case when second release not fired: apple's terminal.app)
-                                                                m.buttons[input::sysmouse::left  ] = faux;
-                                                                m.buttons[input::sysmouse::middle] = faux;
-                                                                m.buttons[input::sysmouse::right ] = faux;
-                                                                m.buttons[input::sysmouse::win   ] = faux;
-                                                                m.update_buttons();
-                                                                //notify(e2::conio::mouse, m);
-                                                                wired.mouse.send(ipcio,
-                                                                    0,
-                                                                    m.ctlstat,
-                                                                    0, // winctrl
-                                                                    m.get_sysbuttons(),
-                                                                    m.get_msflags(),
-                                                                    m.wheeldt,
-                                                                    m.coor);
+                                                                m.buttons = {};
+                                                                m.changed++;
+                                                                wired.sysmouse.send(ipcio, m);
                                                             }
-                                                            // Moving should be fired first
-                                                            if ((m.ismoved = m.coor({ x, y })))
-                                                            {
-                                                                m.update_buttons();
-                                                                //notify(e2::conio::mouse, m);
-                                                                wired.mouse.send(ipcio,
-                                                                    0,
-                                                                    m.ctlstat,
-                                                                    0, // winctrl
-                                                                    m.get_sysbuttons(),
-                                                                    m.get_msflags(),
-                                                                    m.wheeldt,
-                                                                    m.coor);
-                                                                m.ismoved = faux;
-                                                            }
+                                                            m.coordxy = { x, y };
                                                             switch (ctl)
                                                             {
-                                                                case 0: m.buttons[input::sysmouse::left  ] = ispressed; break;
-                                                                case 1: m.buttons[input::sysmouse::middle] = ispressed; break;
-                                                                case 2: m.buttons[input::sysmouse::right ] = ispressed; break;
-                                                                case 3: m.buttons[input::sysmouse::win   ] = ispressed; break;
-                                                                    //if (!ispressed) // WinSrv2019 vtmouse bug workaround
-                                                                    //{               //  - release any button always fires winbt release
-                                                                    //	m.button[sysmouse::left  ] = ispressed;
-                                                                    //	m.button[sysmouse::middle] = ispressed;
-                                                                    //	m.button[sysmouse::right ] = ispressed;
-                                                                    //}
-                                                                    //break;
+                                                                case 0: netxs::set_bit<input::hids::left  >(m.buttons, ispressed); break;
+                                                                case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
+                                                                case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
                                                                 case 64:
                                                                     m.wheeled = true;
                                                                     m.wheeldt = 1;
@@ -3832,25 +3776,9 @@ namespace netxs::os
                                                                     m.wheeled = true;
                                                                     m.wheeldt = -1;
                                                                     break;
-                                                                default:
-                                                                    fire = faux;
-                                                                    m.shuffle = !m.ismoved;
-                                                                    break;
                                                             }
-
-                                                            if (fire)
-                                                            {
-                                                                m.update_buttons();
-                                                                //notify(e2::conio::mouse, m);
-                                                                wired.mouse.send(ipcio,
-                                                                    0,
-                                                                    m.ctlstat,
-                                                                    0, // winctrl
-                                                                    m.get_sysbuttons(),
-                                                                    m.get_msflags(),
-                                                                    m.wheeldt,
-                                                                    m.coor);
-                                                            }
+                                                            m.changed++;
+                                                            wired.sysmouse.send(ipcio, m);
                                                         }
                                                     }
                                                 }
@@ -3894,22 +3822,10 @@ namespace netxs::os
 
                             if (i)
                             {
-                                auto id = 0;
-                                auto& k = gears[id].keybd;
-                                k.id      = id;
+                                k.gear_id = 0;
                                 k.pressed = true;
                                 k.cluster = strv.substr(0, i);
-                                //notify(e2::conio::keybd, k);
-                                wired.keybd.send(ipcio,
-                                    0,
-                                    k.ctlstat,
-                                    0, // winctrl
-                                    k.virtcod,
-                                    k.scancod,
-                                    k.pressed,
-                                    k.imitate,
-                                    k.cluster,
-                                    0); // winchar
+                                wired.syskeybd.send(ipcio, k);
                                 total = strv.substr(i);
                                 strv = total;
                             }
@@ -3920,13 +3836,17 @@ namespace netxs::os
                 auto h_proc = [&]
                 {
                     auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                    if (micefd != INVALID_FD
-                     && state.shift(get_kb_state()))
+                    if (micefd != INVALID_FD)
                     {
-                        wired.ctrls.send(ipcio,
-                            0,
-                            state.shift.last);
-                    }
+                        auto kb_state = get_kb_state();
+                        if (m.ctlstat != kb_state)
+                        {
+                            m.ctlstat = kb_state;
+                            wired.ctrls.send(ipcio,
+                                m.gear_id,
+                                m.ctlstat);
+                        }
+                     }
                     filter(data);
                 };
                 auto m_proc = [&]
@@ -3942,27 +3862,18 @@ namespace netxs::os
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
                             auto scale = twod{ 6,12 }; //todo magic numbers
-                            auto bttns = data[0] & 7;
-                            mcoor.x   += data[1];
-                            mcoor.y   -= data[2];
-                            auto wheel =-size == 4 ? data[3] : 0;
                             auto limit = _globals<void>::winsz.last * scale;
-                            if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
-                            state.flags = wheel ? 4 : 0;
-                            if (state.coord(mcoor / scale)
-                             || state.bttns(bttns)
-                             || state.shift(get_kb_state())
-                             || state.flags)
-                            {
-                                wired.mouse.send(ipcio,
-                                    0,
-                                    state.flags,
-                                    0, // winctrl
-                                    state.bttns.last,
-                                    state.flags,
-                                    wheel,
-                                    state.coord);
-                            }
+                            auto bttns = data[0] & 7;
+                            mcoord.x  += data[1];
+                            mcoord.y  -= data[2];
+                            if (bttns == 0) mcoord = std::clamp(mcoord, dot_00, limit);
+                            m.wheeldt = size == 4 ? -data[3] : 0;
+                            m.wheeled = m.wheeldt;
+                            m.coordxy = { mcoord / scale };
+                            m.buttons = bttns;
+                            m.ctlstat = get_kb_state();
+                            m.changed++;
+                            wired.sysmouse.send(ipcio, m);
                         }
                     #endif
                     }
@@ -3994,6 +3905,133 @@ namespace netxs::os
             log(" tty: id: ", std::this_thread::get_id(), " reading thread ended");
         }
 
+        void clipbd(si32 mode)
+        {
+            if (mode & legacy::direct) return;
+            log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread started");
+
+            #if defined(_WIN32)
+
+                auto wndname = text{ "vtmWindowClass" };
+                auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
+                {
+                    auto& ipcio =*_globals<void>::ipcio;
+                    auto& wired = _globals<void>::wired;
+                    auto gear_id = id_t{ 0 };
+                    switch (uMsg)
+                    {
+                        case WM_CREATE:
+                            ok(::AddClipboardFormatListener(hwnd), "unexpected result from ::AddClipboardFormatListener()");
+                        case WM_CLIPBOARDUPDATE:
+                        {
+                            auto lock = std::lock_guard{ os::clipboard_mutex };
+                            while (!::OpenClipboard(hwnd)) // Waiting clipboard access.
+                            {
+                                if (os::error() != ERROR_ACCESS_DENIED)
+                                {
+                                    auto error = "OpenClipboard() returns unexpected result, code "s + std::to_string(os::error());
+                                    wired.osclipdata.send(ipcio, gear_id, error, ansi::clip::textonly);
+                                    return (LRESULT) NULL;
+                                }
+                                std::this_thread::yield();
+                            }
+                            if (auto seqno = ::GetClipboardSequenceNumber();
+                                     seqno != os::clipboard_sequence)
+                            {
+                                os::clipboard_sequence = seqno;
+                                if (auto format = ::EnumClipboardFormats(0))
+                                {
+                                    auto hidden = ::GetClipboardData(cf_sec1);
+                                    if (auto hglb = ::GetClipboardData(cf_ansi)) // Our clipboard format.
+                                    {
+                                        if (auto lptr = ::GlobalLock(hglb))
+                                        {
+                                            auto size = ::GlobalSize(hglb);
+                                            auto data = view((char*)lptr, size - 1/*trailing null*/);
+                                            auto mime = ansi::clip::disabled;
+                                            wired.osclipdata.send(ipcio, gear_id, text{ data }, mime);
+                                            ::GlobalUnlock(hglb);
+                                        }
+                                        else
+                                        {
+                                            auto error = "GlobalLock() returns unexpected result, code "s + std::to_string(os::error());
+                                            wired.osclipdata.send(ipcio, gear_id, error, ansi::clip::textonly);
+                                        }
+                                    }
+                                    else do
+                                    {
+                                        if (format == os::cf_text)
+                                        {
+                                            auto mime = hidden ? ansi::clip::safetext : ansi::clip::textonly;
+                                            if (auto hglb = ::GetClipboardData(format))
+                                            if (auto lptr = ::GlobalLock(hglb))
+                                            {
+                                                auto size = ::GlobalSize(hglb);
+                                                wired.osclipdata.send(ipcio, gear_id, utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), mime);
+                                                ::GlobalUnlock(hglb);
+                                                break;
+                                            }
+                                            auto error = "GlobalLock() returns unexpected result, code "s + std::to_string(os::error());
+                                            wired.osclipdata.send(ipcio, gear_id, error, ansi::clip::textonly);
+                                        }
+                                        else
+                                        {
+                                            //todo proceed other formats (rich/html/...)
+                                        }
+                                    }
+                                    while (format = ::EnumClipboardFormats(format));
+                                }
+                                else wired.osclipdata.send(ipcio, gear_id, text{}, ansi::clip::textonly);
+                            }
+                            ok(::CloseClipboard(), "::CloseClipboard");
+                            break;
+                        }
+                        case WM_DESTROY:
+                            ok(::RemoveClipboardFormatListener(hwnd), "unexpected result from ::RemoveClipboardFormatListener()");
+                            ::PostQuitMessage(0);
+                            break;
+                        default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
+                    }
+                    return (LRESULT) NULL;
+                };
+                auto wnddata = WNDCLASSEXA
+                {
+                    .cbSize        = sizeof(WNDCLASSEX),
+                    .lpfnWndProc   = wndproc,
+                    .lpszClassName = wndname.c_str(),
+                };
+                if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "unexpected result from ::RegisterClassExA()"))
+                {
+                    auto hwnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    auto next = MSG{};
+                    while (next.message != WM_QUIT)
+                    {
+                        if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&signal, FALSE, INFINITE, QS_ALLINPUT);
+                                 yield == WAIT_OBJECT_0)
+                        {
+                            ::DestroyWindow(hwnd);
+                            break;
+                        }
+                        while (::PeekMessageA(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
+                        {
+                            ::DispatchMessageA(&next);
+                        }
+                    }
+                }
+
+            #elif defined(__APPLE__)
+
+                //todo macOS clipboard watcher
+
+            #else
+
+                //todo X11 and Wayland clipboard watcher
+
+            #endif
+
+            log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread ended");
+        }
+
         tty()
         { }
 
@@ -4007,7 +4045,7 @@ namespace netxs::os
         {
             static auto ocs52head = "\033]52;"sv;
 
-            if (buffer.size() || utf8.starts_with(ocs52head))
+            if (buffer.size() || utf8.starts_with(ocs52head)) //todo use binary protocol for output (dtvt)
             {
                 buffer += utf8;
                 utf8 = view{ buffer };
@@ -4066,7 +4104,7 @@ namespace netxs::os
                               | nt::console::outmode::vt
                               | nt::console::outmode::no_auto_cr
                               };
-                
+
                 ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
                 ok(::SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(sig_hndl), TRUE), "SetConsoleCtrlHandler failed");
 
@@ -4108,6 +4146,7 @@ namespace netxs::os
             os::vgafont_update(mode);
 
             auto input = std::thread{ [&]{ reader(mode); } };
+            auto clips = std::thread{ [&]{ clipbd(mode); } };
 
             while (output(ipcio.recv()))
             { }
@@ -4115,6 +4154,7 @@ namespace netxs::os
 
             ipcio.stop();
             signal.reset();
+            clips.join();
             input.join();
         }
     };
@@ -4179,14 +4219,9 @@ namespace netxs::os
                 return !!termlink;
             #endif
         }
-
-       ~pty()
+        // pty: Cleaning in order to be able to restart.
+        void cleanup()
         {
-            log("xpty: dtor started");
-            if (connected())
-            {
-                wait_child();
-            }
             if (stdwrite.joinable())
             {
                 writesyn.notify_one();
@@ -4204,9 +4239,21 @@ namespace netxs::os
                 {
                     log("xpty: id: ", id, " child process waiter thread joining");
                     waitexit.join();
+                    log("xpty: id: ", id, " child process waiter thread joined");
                 }
-                log("xpty: id: ", id, " child process waiter thread joined");
             #endif
+            auto guard = std::lock_guard{ writemtx };
+            writebuf = {};
+            termlink = {};
+        }
+       ~pty()
+        {
+            log("xpty: dtor started");
+            if (connected())
+            {
+                wait_child();
+            }
+            cleanup();
             log("xpty: dtor complete");
         }
 
@@ -4266,7 +4313,7 @@ namespace netxs::os
                                             nullptr,
                                             nullptr);
                 ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                            0,                              
+                                            0,
                                             ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
                                            &ref_hndl,
                                      sizeof(ref_hndl),
@@ -4318,6 +4365,7 @@ namespace netxs::os
                 auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
 
                 termlink.set(fdm, fdm);
+                termsize = {};
                 resize(winsz);
 
                 proc_pid = ::fork();
@@ -4497,7 +4545,7 @@ namespace netxs::os
 
                 #else
 
-                    winsize winsz;
+                    auto winsz = winsize{};
                     winsz.ws_col = newsize.x;
                     winsz.ws_row = newsize.y;
                     ok(::ioctl(termlink.get_w(), TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
@@ -4517,10 +4565,10 @@ namespace netxs::os
                 con_serv.events.keybd(gear, decckm);
             #endif
         }
-        void mouse(input::hids& gear, bool moved, bool wheeled, bool dblclick = faux)
+        void mouse(input::hids& gear, bool moved, twod const& coord)
         {
             #if defined(_WIN32)
-                con_serv.events.mouse(gear, moved, wheeled, dblclick);
+                con_serv.events.mouse(gear, moved, coord);
             #endif
         }
         void write(view data)
@@ -4842,39 +4890,15 @@ namespace netxs::os
                 }
                 log("dtvt: id: ", thread_id, " logging thread ended");
             }
-
-            template<class T, class P>
-            static void reading_loop(T& termlink, P&& receiver)
-            {
-                auto flow = text{};
-                while (termlink)
-                {
-                    auto shot = termlink.recv();
-                    if (shot && termlink)
-                    {
-                        flow += shot;
-                        if (auto crop = ansi::dtvt::binary::stream::purify(flow))
-                        {
-                            receiver(crop);
-                            flow.erase(0, crop.size()); // Delete processed data.
-                        }
-                    }
-                    else break;
-                }
-            }
             void read_socket_thread()
             {
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
 
-                reading_loop(termlink, receiver);
+                ansi::dtvt::binary::stream::reading_loop(termlink, receiver);
 
-                //todo test
-                //if (termlink)
-                {
-                    preclose(0); //todo send msg from the client app
-                    auto exit_code = wait_child();
-                    shutdown(exit_code);
-                }
+                preclose(0); //todo send msg from the client app
+                auto exit_code = wait_child();
+                shutdown(exit_code);
                 log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
             }
             void send_socket_thread()

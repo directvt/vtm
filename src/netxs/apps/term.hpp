@@ -166,6 +166,10 @@ namespace netxs::app::term
                             if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "HTML-code");
                             boss.color(0xFFffff00, x3.bgc());
                             break;
+                        case clip::safetext:
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Protected");
+                            boss.color(0xFFffff00, x3.bgc());
+                            break;
                     }
                     boss.deface();
                 };
@@ -237,7 +241,7 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](text cwd, text arg, xml::settings& config)
+        auto build = [](text cwd, text arg, xml::settings& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -246,10 +250,15 @@ namespace netxs::app::term
             auto arg_shadow = view{ arg };
             auto term_type = shared::app_class(arg_shadow);
             arg = arg_shadow;
-            if (term_type == shared::app_type::normal) window->plugin<pro::focus>()
-                                                             ->plugin<pro::track>()
-                                                             ->plugin<pro::acryl>()
-                                                             ->plugin<pro::cache>();
+            if (term_type == shared::app_type::normal)
+            {
+                window->plugin<pro::focus>()
+                      ->plugin<pro::track>()
+                      ->plugin<pro::acryl>()
+                      ->plugin<pro::cache>();
+            }
+            else window->plugin<pro::focus>(faux);
+
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB.fgc(), cB.bgc());
             auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));

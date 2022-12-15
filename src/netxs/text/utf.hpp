@@ -16,6 +16,7 @@
 #include <optional>
 #include <sstream>
 #include <span>
+#include <bitset>
 
 #define GRAPHEME_CLUSTER_LIMIT (31) // Limits the number of code points in a grapheme cluster to a number sufficient for any possible linguistic situation.
 #define CLUSTER_FIELD_SIZE     (5)
@@ -1074,11 +1075,11 @@ namespace netxs::utf
     }
 
     template<class TEXT_OR_VIEW, class T>
-    auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter)
+    auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter, bool lazy = true)
     {
         auto crop = std::remove_cvref_t<TEXT_OR_VIEW>{};
         auto what = view{ delimiter };
-        auto coor = utf8.find(what);
+        auto coor = lazy ? utf8.find(what) : utf8.rfind(what);
         if (coor != text::npos)
         {
             crop = utf8.substr(coor + what.size(), text::npos);
@@ -1086,10 +1087,10 @@ namespace netxs::utf
         return crop;
     }
     template<class TEXT_OR_VIEW>
-    auto remain(TEXT_OR_VIEW&& utf8, char delimiter = '.')
+    auto remain(TEXT_OR_VIEW&& utf8, char delimiter = '.', bool lazy = true)
     {
         auto what = view{ &delimiter, 1 };
-        return remain(std::forward<TEXT_OR_VIEW>(utf8), what);
+        return remain(std::forward<TEXT_OR_VIEW>(utf8), what, lazy);
     }
 
     // utf: Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right).
@@ -1155,6 +1156,11 @@ namespace netxs::utf
         else return std::to_string(number);
     }
 
+    template<class T, int L = std::numeric_limits<T>::digits>
+    auto to_bin(T n)
+    {
+        return std::bitset<L>(n).to_string();
+    }
     template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(V number, size_t width = sizeof(V) * 2, char filler = '0')
     {
@@ -1248,25 +1254,44 @@ namespace netxs::utf
         }
     }
 
-    template<class V1, class P>
+    template<feed Dir = feed::fwd, class V1, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
     auto divide(V1 const& utf8, char delimiter, P proc)
     {
-        auto cur = 0_sz;
-        auto pos = 0_sz;
-        while ((pos = utf8.find(delimiter, cur)) != V1::npos)
+        if constexpr (Dir == feed::fwd)
         {
-            proc(view{ utf8.data() + cur, pos - cur });
-            cur = pos + 1;
+            auto cur = 0_sz;
+            auto pos = 0_sz;
+            while ((pos = utf8.find(delimiter, cur)) != V1::npos)
+            {
+                auto frag = view{ utf8.data() + cur, pos - cur };
+                if constexpr (Plain) proc(frag);
+                else            if (!proc(frag)) return;
+                cur = pos + 1;
+            }
+            auto end = view{ utf8.data() + cur, utf8.size() - cur };
+            proc(end);
         }
-        auto end = view{ utf8.data() + cur, utf8.size() - cur };
-        proc(end);
+        else
+        {
+            auto cur = utf8.size();
+            auto pos = utf8.size();
+            while (cur && (pos = utf8.rfind(delimiter, cur - 1)) != V1::npos)
+            {
+                auto next = pos + 1;
+                auto frag = view{ utf8.data() + next, cur - next };
+                if constexpr (Plain) proc(frag);
+                else            if (!proc(frag)) return;
+                cur = pos;
+            }
+            auto end = view{ utf8.data(), cur };
+            proc(end);
+        }
     }
     template<class V1, class V2>
     auto divide(V1 const& utf8, V2 const& delimiter)
     {
         auto mark = qiew(delimiter);
         auto crop = std::vector<view>{};
-
         if (auto len = mark.size())
         {
             auto num = 0_sz;
@@ -1604,6 +1629,14 @@ namespace netxs::utf
         auto str = text{ head, stop };
         utf8.remove_prefix(std::distance(head, stop));
         return str;
+    }
+    auto eat_tail(view& utf8, view delims)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto stop = find_char(head, tail, delims);
+        if (stop == tail) utf8 = view{};
+        else              utf8.remove_prefix(std::distance(head, stop));
     }
     template<class TEXT_or_VIEW>
     auto is_plain(TEXT_or_VIEW&& utf8)

@@ -234,7 +234,7 @@ namespace netxs::app::desk
             return apps;
         };
 
-        auto build = [](text cwd, text v, xml::settings& config)
+        auto build = [](text cwd, text v, xml::settings& config, text patch)
         {
             auto lock = netxs::events::sync{}; // Protect access to the world.
 
@@ -353,10 +353,10 @@ namespace netxs::app::desk
                                         ->plugin<pro::cache>()
                                         ->invoke([&](auto& boss)
                                         {
-                                            boss.mouse.template draggable<sysmouse::left>(true);
+                                            boss.mouse.template draggable<hids::buttons::left>(true);
                                             auto boss_shadow = ptr::shadow(boss.This());
                                             auto size_config = std::make_shared<std::pair<si32, si32>>(uibar_max_size, uibar_min_size);
-                                            boss.SUBMIT_BYVAL(tier::release, e2::form::drag::pull::_<sysmouse::left>, gear)
+                                            boss.SUBMIT_BYVAL(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear)
                                             {
                                                 if (auto boss_ptr = boss_shadow.lock())
                                                 {

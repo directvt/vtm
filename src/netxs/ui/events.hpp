@@ -93,9 +93,8 @@ namespace netxs::events
         return level;
     }
     // events: Return event level mask by its ID. Find the log base 2**block.
-    static constexpr inline type level_mask(type event)
+    static constexpr inline type level_mask(type event, int level = 0)
     {
-        auto level = 0;
         while (event >>= block) { level += block; }
         return (1 << level) - 1;
         //constexpr auto c = __COUNTER__ + 1;
@@ -108,6 +107,11 @@ namespace netxs::events
         //if (!(event >>= block)) return (1 << (__COUNTER__ - c) * block) - 1;
         //if (!(event >>= block)) return (1 << (__COUNTER__ - c) * block) - 1;
         //return std::numeric_limits<type>::max();
+    }
+    // events: Return true if the event belongs to the branch.
+    static constexpr inline auto subevent(type event, type branch)
+    {
+        return (event & level_mask(branch, block)) == branch;
     }
     template<type event>             constexpr auto offset = level(event) * block;                                  // events: Item/msg bit shift.
     template<type event>             constexpr auto parent =          event & ((1 << (offset<event> - block)) - 1); // events: Event group ID.

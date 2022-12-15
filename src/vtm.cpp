@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.6h"
+#define DESKTOPIO_VER "v0.9.8"
 #define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_MYPATH "vtm"
@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
                 daemon = true;
                 break;
             case 'l':
-                log(app::shared::load::settings(cfpath, os::legacy::get_setup()).document->show());
+                log(app::shared::load::settings(cfpath, os::legacy::get_setup()));
                 return 0;
             case 'c':
                 cfpath = getopt.param();
@@ -130,8 +130,9 @@ int main(int argc, char* argv[])
                 if (auto window = ground->invite<gate>(client, session_id, config))
                 {
                     log("user: new gate for ", client);
-                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config);
-                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems; About; ", config);
+                    auto patch = ""s;
+                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
+                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems;About;", config, patch);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }

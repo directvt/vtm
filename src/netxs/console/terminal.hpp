@@ -102,6 +102,17 @@ namespace netxs::ui
                     steady_I_bar       = 6, // steady I-bar
                 };
             };
+            struct atexit
+            {
+                enum codes : si32
+                {
+                    ask,     // Stay open.
+                    smart,   // Stay open if exit code != 0.
+                    close,   // Always quit.
+                    restart, // Restart session.
+                    retry,   // Restart session if exit code != 0.
+                };
+            };
         };
 
         // term: Terminal configuration.
@@ -118,11 +129,14 @@ namespace netxs::ui
             si32 def_tablen;
             si32 def_lucent;
             si32 def_margin;
+            si32 def_atexit;
             mime def_selmod;
             rgba def_fcolor;
             rgba def_bcolor;
             bool def_cursor;
             bool def_cur_on;
+            bool resetonkey;
+            bool resetonout;
             time def_period;
             cell def_selclr;
             cell def_offclr;
@@ -135,16 +149,25 @@ namespace netxs::ui
                     {{ "text", clip::textonly },
                      { "ansi", clip::ansitext },
                      { "rich", clip::richtext },
-                     { "html", clip::htmltext }};
+                     { "html", clip::htmltext },
+                     { "protected", clip::safetext }};
                 static auto cursor_options = std::unordered_map<text, bool>
                     {{ "underline", faux },
                      { "block"    , true }};
+                static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
+                    {{ "auto",    commands::atexit::smart   },
+                     { "ask",     commands::atexit::ask     },
+                     { "close",   commands::atexit::close   },
+                     { "restart", commands::atexit::restart },
+                     { "retry",   commands::atexit::retry   }};
 
                 config.cd("/config/term/");
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
                 def_length = std::max(1, config.take("scrollback/size",      si32{ 20000 }));
                 def_growup = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
+                resetonkey =             config.take("scrollback/reset/onkey",     true);
+                resetonout =             config.take("scrollback/reset/onoutput",  faux);
                 def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
                 def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
                 def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
@@ -157,6 +180,7 @@ namespace netxs::ui
                 def_selclr =             config.take("color/selection/text", cell{}.bgc(bluelt).fgc(whitelt));
                 def_offclr =             config.take("color/selection/none", cell{}.bgc(blacklt).fgc(whitedk));
                 def_dupclr =             config.take("color/match",          cell{}.bgc(0xFF007F00).fgc(whitelt));
+                def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
 
                 std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
@@ -242,16 +266,31 @@ namespace netxs::ui
                 w32,
             };
 
+            term&       owner; // m_tracking: Terminal object reference.
+            testy<twod> coord; // m_tracking: Last coord of mouse cursor.
+            ansi::esc   queue; // m_tracking: Buffer.
+            subs        token; // m_tracking: Subscription token.
+            si32        proto; // m_tracking: .
+            si32        state; // m_tracking: .
+            si32        smode; // m_tracking: Selection mode state backup.
+            si32        bttns; // m_tracking: Last buttons state.
+            sysmouse    saved; // m_tracking: Last mouse state.
+
             m_tracking(term& owner)
-                : owner{ owner }
+                : owner{ owner                   },
+                  proto{ prot::x11               },
+                  state{ mode::none              },
+                  smode{ owner.config.def_selmod },
+                  bttns{ 0                       }
             { }
 
             operator bool () { return state != mode::none; }
 
             void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
             {
-                auto deed = owner.bell::protos<tier::release>();
-                if (deed == hids::events::mouse::button::down::right.id)
+                auto m = std::bitset<8>{ gear.m.buttons };
+                auto s = std::bitset<8>{ saved. buttons };
+                if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
                     auto gear_test = e2::form::state::keybd::find.param();
                     gear_test.first = gear.id;
@@ -267,8 +306,8 @@ namespace netxs::ui
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }
-                else if (deed == hids::events::mouse::button::down::left.id
-                      || deed == hids::events::mouse::button::down::middle.id)
+                else if ((m[hids::buttons::left  ] && !s[hids::buttons::left  ])
+                      || (m[hids::buttons::middle] && !s[hids::buttons::middle]))
                 {
                     auto gear_test = e2::form::state::keybd::find.param();
                     gear_test.first = gear.id;
@@ -288,63 +327,31 @@ namespace netxs::ui
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
-                    owner.SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
-                    {
-                        auto cause = owner.bell::protos<tier::release>();
-                        switch (cause)
-                        {
-                            case hids::events::mouse::button::drag:: start::leftright.id:
-                            case hids::events::mouse::button::drag::  pull::leftright.id:
-                            case hids::events::mouse::button::drag::cancel::leftright.id:
-                            case hids::events::mouse::button::drag::  stop::leftright.id:
-                            case hids::events::mouse::button::        down::leftright.id:
-                            case hids::events::mouse::button::          up::leftright.id:
-                                if (gear.captured(owner.id)) gear.setfree(true);
-                                owner.bell::router<tier::release>().skip();
-                                break;
-                            default: break;
-                        }
-                    };
-                    owner.SUBMIT_T(tier::release, hids::events::mouse::scroll::any, token, gear)
-                    {
-                        if (owner.selmod == clip::disabled)
-                        {
-                            gear.dismiss();
-                        }
-                    };
-                    owner.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, token, gear)
-                    {
-                        if (owner.selmod == clip::disabled)
-                        {
-                            gear.dismiss(); // To prevent kboffer from being sent at pro::keybd::active().
-                        }
-                    };
-                    owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
+                    owner.SUBMIT_T(tier::release, hids::events::device::mouse, token, gear)
                     {
                         check_focus(gear);
-                        if (owner.selmod != clip::disabled)
+                        if (owner.selmod == clip::disabled)
                         {
-                            owner.bell::router<tier::release>().skip();
-                            return;
+                            if (gear.captured(owner.id))
+                            {
+                                if (!gear.m.buttons) gear.setfree(true);
+                            }
+                            else if (gear.m.buttons) gear.capture(owner.id);
+                            auto& console = *owner.target;
+                            auto c = gear.m.coordxy;
+                            c.y -= console.get_basis();
+                            auto moved = coord((state & mode::over) ? c
+                                                                    : std::clamp(c, dot_00, console.panel - dot_11));
+                            if (saved.changed != gear.m.changed)
+                            {
+                                     if (proto == w32) owner.ptycon.mouse(gear, moved, coord);
+                                else if (proto == sgr) queue.   mouse_sgr(gear, saved, coord);
+                                else if (proto == x11) queue.   mouse_x11(gear, saved, coord);
+                                owner.answer(queue);
+                                saved = gear.m;
+                            }
+                            gear.dismiss();
                         }
-                        auto& console = *owner.target;
-                        auto c = gear.coord;
-                        c.y -= console.get_basis();
-                        moved = coord((state & mode::over) ? c
-                                                           : std::clamp(c, dot_00, console.panel - dot_11));
-                        auto cause = owner.bell::protos<tier::release>();
-                             if (proto == sgr) serialize<sgr>(gear, cause);
-                        else if (proto == x11) serialize<x11>(gear, cause);
-                        else                   serialize<w32>(gear, cause);
-                        owner.answer(queue);
-                    };
-                    owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
-                    {
-                        auto cause = hids::events::halt.id;
-                             if (proto == sgr) serialize<sgr>(gear, cause);
-                        else if (proto == x11) serialize<x11>(gear, cause);
-                        else                   serialize<w32>(gear, cause);
-                        owner.answer(queue);
                     };
                     smode = owner.selmod;
                 }
@@ -357,111 +364,6 @@ namespace netxs::ui
                 owner.selection_selmod(smode);
             }
             void setmode(prot p) { proto = p; }
-
-        private:
-            term&       owner; // m_tracking: Terminal object reference.
-            testy<twod> coord; // m_tracking: Last coord of mouse cursor.
-            ansi::esc   queue; // m_tracking: Buffer.
-            subs        token; // m_tracking: Subscription token.
-            bool        moved = faux; // m_tracking: .
-            si32        proto = prot::x11;
-            si32        state = mode::none;
-            si32        smode = owner.config.def_selmod; // m_tracking: Selection mode state backup.
-            si32        bttns = {}; // m_tracking: Last buttons state.
-
-            void capture(hids& gear)
-            {
-                gear.capture(owner.id);
-                gear.dismiss();
-            }
-            void release(hids& gear)
-            {
-                if (gear.captured(owner.id)) gear.setfree(faux);
-                gear.dismiss();
-            }
-            template<prot PROT>
-            void proceed(hids& gear, si32 meta, bool ispressed = faux, bool wheel = faux, ui32 dblclick = -1)
-            {
-                auto m = gear.meta();
-                if (m & hids::anyShift) meta |= 0x04;
-                if (m & hids::anyAlt  ) meta |= 0x08;
-                if (m & hids::anyCtrl ) meta |= 0x10;
-                if (dblclick != -1)
-                {
-                    if constexpr (PROT == prot::w32)
-                    {
-                        gear.buttons[dblclick].pressed = true;
-                        owner.ptycon.mouse(gear, moved, wheel, dblclick + 1);
-                        gear.buttons[dblclick].pressed = faux;
-                    }
-                }
-                else switch (PROT)
-                {
-                    case prot::x11: queue.mouse_x11(meta, coord);            break;
-                    case prot::sgr: queue.mouse_sgr(meta, coord, ispressed); break;
-                    case prot::w32: owner.ptycon.mouse(gear, moved, wheel);  break;
-                    default: break;
-                }
-                bttns = gear.get_buttons();
-            }
-            // m_tracking: Serialize mouse state.
-            template<prot PROT>
-            void serialize(hids& gear, id_t cause)
-            {
-                using m = hids::events::mouse;
-                using b = hids::events::mouse::button;
-
-                static constexpr auto left     = si32{ 0  };
-                static constexpr auto mddl     = si32{ 1  };
-                static constexpr auto rght     = si32{ 2  };
-                static constexpr auto btup     = si32{ 3  };
-                static constexpr auto idle     = si32{ 32 };
-                static constexpr auto wheel_up = si32{ 64 };
-                static constexpr auto wheel_dn = si32{ 65 };
-                static constexpr auto up_left = PROT == sgr ? left : btup;
-                static constexpr auto up_rght = PROT == sgr ? rght : btup;
-                static constexpr auto up_mddl = PROT == sgr ? mddl : btup;
-
-                auto ismove = moved && state & mode::move;
-                auto isdrag = moved && state & mode::drag;
-                switch (cause)
-                {
-                    // Move
-                    case b::drag::pull::left     .id: if (isdrag) proceed<PROT>(gear, idle + left, true); break;
-                    case b::drag::pull::middle   .id: if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
-                    case b::drag::pull::right    .id: if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
-                    case m::move                 .id: if (ismove) proceed<PROT>(gear, idle + btup, faux); break;
-                    // Press
-                    case b::down::left     .id: capture(gear); proceed<PROT>(gear, left, true); break;
-                    case b::down::middle   .id: capture(gear); proceed<PROT>(gear, mddl, true); break;
-                    case b::down::right    .id: capture(gear); proceed<PROT>(gear, rght, true); break;
-                    // Dbl click
-                    case b::dblclick::left  .id: proceed<PROT>(gear, left, true, faux, input::sysmouse::left  ); break;
-                    case b::dblclick::middle.id: proceed<PROT>(gear, mddl, true, faux, input::sysmouse::middle); break;
-                    case b::dblclick::right .id: proceed<PROT>(gear, rght, true, faux, input::sysmouse::right ); break;
-                    // Release
-                    case b::up::left     .id:   release(gear); proceed<PROT>(gear, up_left); break;
-                    case b::up::middle   .id:   release(gear); proceed<PROT>(gear, up_mddl); break;
-                    case b::up::right    .id:   release(gear); proceed<PROT>(gear, up_rght); break;
-                    // Wheel
-                    case m::scroll::up  .id: proceed<PROT>(gear, wheel_up, true, true); break;
-                    case m::scroll::down.id: proceed<PROT>(gear, wheel_dn, true, true); break;
-                    // Gone
-                    case hids::events::halt.id:
-                        release(gear);
-                        if (bttns) // Release pressed mouse buttons.
-                        {
-                            auto buttons = bttns;
-                            if (buttons & (1 << sysmouse::left  )) proceed<PROT>(gear, up_left);
-                            if (buttons & (1 << sysmouse::middle)) proceed<PROT>(gear, up_mddl);
-                            if (buttons & (1 << sysmouse::right )) proceed<PROT>(gear, up_rght);
-                            bttns = {};
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
         };
 
         // term: Keyboard focus tracking functionality.
@@ -522,6 +424,7 @@ namespace netxs::ui
             // w_tracking: Set terminal window property.
             void set(text const& property, qiew txt)
             {
+                if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
                 static const auto jet_left = ansi::jet(bias::left);
                 owner.target->flush();
                 if (property == ansi::OSC_LABEL_TITLE)
@@ -1959,6 +1862,7 @@ namespace netxs::ui
                     case clip::richtext: work(cell::shaders::xlight); break;
                     case clip::htmltext: work(cell::shaders::xlight); break;
                     case clip::textonly: work(cell::shaders::selection(owner.config.def_selclr)); break;
+                    case clip::safetext: work(cell::shaders::selection(owner.config.def_selclr)); break;
                     default:             work(cell::shaders::selection(owner.config.def_offclr)); break;
                 }
             }
@@ -2019,7 +1923,9 @@ namespace netxs::ui
                 square.normalize_itself();
                 if (selbox || grip_1.coor.y == grip_2.coor.y)
                 {
-                    selmod == clip::textonly ? buffer.s11n<faux>(canvas, square)
+                    selmod == clip::disabled ||
+                    selmod == clip::textonly ||
+                    selmod == clip::safetext ? buffer.s11n<faux>(canvas, square)
                                              : buffer.s11n<true>(canvas, square);
                 }
                 else
@@ -2028,7 +1934,9 @@ namespace netxs::ui
                     auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
                     auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
                     auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
-                    if (selmod == clip::textonly)
+                    if (selmod == clip::textonly
+                     || selmod == clip::safetext
+                     || selmod == clip::disabled)
                     {
                         buffer.s11n<faux, true, faux>(canvas, part_1);
                         buffer.s11n<faux, faux, faux>(canvas, part_2);
@@ -5484,11 +5392,6 @@ namespace netxs::ui
                 dnbox.move({ 0, y_end + 1     });
                 dest.plot(upbox, cell::shaders::full);
                 dest.plot(dnbox, cell::shaders::full);
-                //test
-                //auto temp = ansi::esc{};
-                //auto mark = cell{};
-                //temp.s11n<true, faux, true>(dest, mark);
-                //owner.forward_clipboard<faux>(temp);
             }
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(ansi::esc& yield, si32 selmod)
@@ -5525,7 +5428,9 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
-                    selmod == clip::textonly ? yield.s11n<faux, faux, true>(dest, mark)
+                    selmod == clip::disabled ||
+                    selmod == clip::textonly ||
+                    selmod == clip::safetext ? yield.s11n<faux, faux, true>(dest, mark)
                                              : yield.s11n<true, faux, true>(dest, mark);
                 }
                 else
@@ -5557,7 +5462,9 @@ namespace netxs::ui
                         }
                         if (yield.length()) yield.pop_back(); // Pop last eol.
                     };
-                    if (selmod == clip::textonly)
+                    if (selmod == clip::textonly
+                     || selmod == clip::safetext
+                     || selmod == clip::disabled)
                     {
                         build([&](auto& curln)
                         {
@@ -5593,7 +5500,8 @@ namespace netxs::ui
                 auto len = testy<si64>{};
                 auto selbox = selection_selbox();
                 if (!selection_active()) return std::move(yield);
-                if (selmod != clip::textonly) yield.nil();
+                if (selmod != clip::textonly
+                 && selmod != clip::safetext) yield.nil();
                 len = yield.size();
                 if (uptop.role != grip::idle)
                 {
@@ -6139,6 +6047,7 @@ namespace netxs::ui
         text       cmdarg; // term: Startup command line arguments.
         text       curdir; // term: Current working directory.
         hook       oneoff; // term: One-shot token for start and shutdown events.
+        hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       active; // term: Terminal lifetime.
@@ -6151,21 +6060,23 @@ namespace netxs::ui
         vtty       ptycon; // term: PTY device. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
-        template<bool Decode = true>
         void forward_clipboard(view data)
         {
-            // Take all foci.
             auto gates = e2::form::state::keybd::enlist.param();
-            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
-            // Signal them to set the clipboard data.
-            for (auto gate_id : gates)
+            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates); // Take all foci.
+            for (auto gate_id : gates) // Signal them to set the clipboard data.
             {
                 if (auto ptr = bell::getref(gate_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    //todo take MIME type from the OSC52 first arg
-                    if constexpr (Decode) gear_ptr->set_clip_data(target->panel, clip{ utf::unbase64(utf::remain(data, ';')), clip::ansitext });
-                    else                  gear_ptr->set_clip_data(target->panel, clip{ text{ data }, clip::ansitext });
+                    auto pos = data.find(';');
+                    if (pos != text::npos)
+                    {
+                        auto utf8 = text{};
+                        utf8 += data.substr(0, ++pos);
+                        utf8 += utf::unbase64(data.substr(pos));
+                        gear_ptr->set_clip_data(clip{ target->panel, utf8, clip::disabled });
+                    }
                 }
             }
         }
@@ -6424,6 +6335,7 @@ namespace netxs::ui
                 auto guard = netxs::events::try_sync{};
                 if (guard)
                 {
+                    if (config.resetonout) follow[axis::Y] = true;
                     if (follow[axis::Y])
                     {
                         proc();
@@ -6449,7 +6361,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (onlogs) SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
                 ansi::parse(data, target);
             });
         }
@@ -6458,7 +6370,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (onlogs) SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
                 ansi::parse(data, target);
             });
         }
@@ -6466,19 +6378,7 @@ namespace netxs::ui
         void onexit(si32 code, view msg = {})
         {
             log("term: exit code 0x", utf::to_hex(code));
-            if (code)
-            {
-                auto error = ansi::bgc(reddk).fgc(whitelt).add(msg).add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil();
-                ondata(error);
-                this->SUBMIT(tier::release, hids::events::keybd::any, gear)
-                {
-                    if (gear.cluster.size() && gear.cluster.front() == ansi::C0_ESC)
-                    {
-                        onexit(0);
-                    }
-                };
-            }
-            else
+            auto close_proc = [&]
             {
                 log("term: submit for destruction on next frame/tick");
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
@@ -6487,6 +6387,44 @@ namespace netxs::ui
                     this->base::riseup<tier::release>(e2::form::quit, backup);
                     oneoff.reset();
                 };
+            };
+            auto chose_proc = [&]
+            {
+                auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
+                    .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
+                    .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
+                ondata(error);
+                this->SUBMIT_T(tier::release, hids::events::keybd::any, onerun, gear)
+                {
+                    if (gear.pressed && gear.cluster.size())
+                    {
+                        switch (gear.cluster.front())
+                        {
+                            case ansi::C0_ESC: onexit(0); break;
+                            case ansi::C0_CR:  start();   break;
+                        }
+                    }
+                };
+            };
+            auto start_proc = [&]
+            {
+                auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
+                    .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
+                ondata(error);
+                SUBMIT_GLOBAL(e2::timer::any, onerun, t)
+                {
+                    start();
+                };
+            };
+            switch (config.def_atexit)
+            {
+                case commands::atexit::smart: code ? chose_proc()
+                                                   : close_proc(); break;
+                case commands::atexit::retry: code ? start_proc()
+                                                   : close_proc(); break;
+                case commands::atexit::ask:          chose_proc(); break;
+                case commands::atexit::close:        close_proc(); break;
+                case commands::atexit::restart:      start_proc(); break;
             }
         }
         // term: Reset to defaults.
@@ -6575,21 +6513,19 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            log("       term: right click");
-            //gear.kb_focus_changed = faux;
-            //SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-
             auto& console = *target;
             if (console.selection_active())
             {
                 auto data = console.selection_pickup(selmod);
                 if (data.size())
                 {
+                    auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
+                                                                   : static_cast<clip::mime>(selmod);
                     //todo unify (hids)
                     auto state = gear.state();
                     gear.combine_focus = true; // Preserve all selected panes.
                     gear.offer_kb_focus(this->This());
-                    gear.set_clip_data(target->panel, clip{ data, static_cast<clip::mime>(selmod) });
+                    gear.set_clip_data(clip{ target->panel, data, mimetype });
                     gear.state(state);
                 }
                 if (gear.meta(hids::anyCtrl) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
@@ -6609,6 +6545,7 @@ namespace netxs::ui
                     gear.offer_kb_focus(this->This());
                     gear.state(state);
 
+                    //todo respect bracketed paste mode
                     follow[axis::X] = true;
                     if (data.kind == clip::richtext)
                     {
@@ -6753,7 +6690,7 @@ namespace netxs::ui
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
-                if (gear.locks) // Forward mouse wheel events to all parents.
+                if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
                 {
                     auto& offset = this->base::coor();
                     gear.pass<tier::release>(this->parent(), offset);
@@ -6887,6 +6824,8 @@ namespace netxs::ui
         {
             static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions.
 
+            ptycon.cleanup();
+            onerun.reset();
             if (!ptycon && !oneoff)
             {
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)
@@ -6981,8 +6920,11 @@ namespace netxs::ui
             {
                 this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
 
-                follow[axis::X] = true;
-                follow[axis::Y] = true;
+                if (gear.pressed && gear.cluster.size() && config.resetonkey)
+                {
+                    follow[axis::X] = true;
+                    follow[axis::Y] = true;
+                }
 
                 #if defined(_WIN32)
 
@@ -7130,75 +7072,8 @@ namespace netxs::ui
         class events_t
             : public s11n
         {
-            dtvt&                          owner; // events_t: Terminal object reference.
-            subs                           token; // events_t: Subscription token.
-            std::unordered_map<id_t, twod> coord; // events_t: Last coord of mouse cursor.
-
-            void capture(hids& gear)
-            {
-                gear.capture(owner.id);
-                gear.dismiss();
-            }
-            void release(hids& gear)
-            {
-                if (gear.captured(owner.id)) gear.setfree(faux);
-                gear.dismiss();
-            }
-            void proceed(hids& gear, id_t cause)
-            {
-                using m = hids::events::mouse;
-                using b = hids::events::mouse::button;
-
-                bool moved; // It's valuable for the drag start in a multi user environment.
-                auto mapit = coord.find(gear.id);
-                if (mapit == coord.end())
-                {
-                    coord.try_emplace(gear.id, gear.coord);
-                    moved = true;
-                }
-                else moved = mapit->second(gear.coord);
-
-                auto active = faux;
-                switch (cause)
-                {
-                    // Move
-                    case b::drag::pull::leftright.id:
-                    case b::drag::pull::left     .id: active = moved; break;
-                    case b::drag::pull::middle   .id: active = moved; break;
-                    case b::drag::pull::right    .id: active = moved; break;
-                    case m::move                 .id: active = moved; break;
-                    // Press
-                    case b::down::leftright.id: capture(gear); break;
-                    case b::down::left     .id: capture(gear); active = true; break;
-                    case b::down::middle   .id: capture(gear); active = true; break;
-                    case b::down::right    .id: capture(gear); active = true; break;
-                    // Release
-                    case b::up::leftright.id:   release(gear); active = true; break; // Pass left+right to clear clipboard.
-                    case b::up::left     .id:   release(gear); active = true; break;
-                    case b::up::middle   .id:   release(gear); active = true; break;
-                    case b::up::right    .id:   release(gear); active = true; break;
-                    // Wheel
-                    case m::scroll::up  .id: active = true; break;
-                    case m::scroll::down.id: active = true; break;
-                    default:
-                        break;
-                }
-                if (active)
-                {
-                    auto coordxy = gear.coord;
-                    auto ctlstat = gear.meta();
-                    auto buttons = gear.get_buttons();
-                    if (buttons & (1 << sysmouse::leftright))
-                    {
-                        buttons |= (1 << sysmouse::left);
-                        buttons |= (1 << sysmouse::right);
-                    }
-                    auto wheeldt = gear.whldt;
-                    auto msflags =(gear.whldt ? (1 << 2) : 0)
-                                | (gear.hzwhl ? (1 << 3) : 0);
-                    s11n::mouse.send(owner, gear.id, ctlstat, gear.winctrl, buttons, msflags, wheeldt, coordxy);
-                }
-            }
+            dtvt& owner; // events_t: Terminal object reference.
+            subs  token; // events_t: Subscription token.
 
         public:
             void disable()
@@ -7246,6 +7121,19 @@ namespace netxs::ui
                 }
                 //todo full strike to redraw with new clusters
             }
+            void handle(s11n::xs::maximize            lock)
+            {
+                auto& m = lock.thing;
+                auto lock_ui = events::sync{};
+                if (auto ptr = bell::getref(m.gear_id))
+                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto parent_ptr = owner.base::parent())
+                {
+                    auto& gear = *gear_ptr;
+                    if (gear.captured(owner.id)) gear.setfree(true);
+                    parent_ptr->riseup<tier::release>(e2::form::maximize, gear);
+                }
+            };
             void handle(s11n::xs::mouse_event         lock)
             {
                 auto& m = lock.thing;
@@ -7255,17 +7143,15 @@ namespace netxs::ui
                 if (auto parent_ptr = owner.base::parent())
                 {
                     auto& gear = *gear_ptr;
-                    release(gear);
-                    gear.replay(m.cause, m.coord);
-                    parent_ptr->template raw_riseup<tier::release>(m.cause, gear);
-                    //todo unify
-                    auto basis = e2::coor::set.param();
-                    gear.owner.SIGNAL(tier::request, e2::coor::set, basis);
-                    basis += owner.coor();
-                    owner.global(basis);
-                    gear.coord -= basis; // Restore gate mouse position.
-                    if (gear) // Forward the event to the gate as if it was initiated there.
+                    if (gear.captured(owner.id)) gear.setfree(true);
+                    gear.replay(m.cause, m.coord + owner.base::coor(), m.delta, m.buttons);
+                    gear.pass<tier::release>(parent_ptr, owner.base::coor());
+                    if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                     {
+                        auto basis = e2::coor::set.param();
+                        gear.owner.SIGNAL(tier::request, e2::coor::set, basis);
+                        owner.global(basis);
+                        gear.coord -= basis; // Restore gate mouse position.
                         gear.owner.bell::template signal<tier::release>(m.cause, gear);
                     }
                 }
@@ -7284,7 +7170,7 @@ namespace netxs::ui
                 if (auto ptr = bell::getref(c.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    gear_ptr->set_clip_data(c.clip_prev_size, clip{ c.clipdata, static_cast<clip::mime>(c.mimetype) });
+                    gear_ptr->set_clip_data(clip{ c.clip_prev_size, c.clipdata, static_cast<clip::mime>(c.mimetype) });
                 }
             }
             void handle(s11n::xs::request_clipboard   lock)
@@ -7377,7 +7263,7 @@ namespace netxs::ui
 
             events_t(dtvt& owner)
                 : s11n{ *this, owner.id },
-                 owner{ owner }
+                 owner{ owner           }
             {
                 owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::header, token, utf8)
                 {
@@ -7387,26 +7273,35 @@ namespace netxs::ui
                 {
                     s11n::form_footer.send(owner, 0, utf8);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
+                owner.SUBMIT_T(tier::release, hids::events::device::mouse, token, gear)
                 {
-                    auto cause = owner.bell::protos<tier::release>();
-                    proceed(gear, cause);
-                    owner.bell::template expire<tier::release>();
+                    if (gear.captured(owner.id))
+                    {
+                        if (!gear.m.buttons) gear.setfree(true);
+                    }
+                    else if (gear.m.buttons) gear.capture(owner.id);
+                    gear.m.gear_id = gear.id;
+                    s11n::sysmouse.send(owner, gear.m);
+                    gear.dismiss();
                 };
                 owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                 {
-                    release(gear);
-                    s11n::mouse_stop.send(owner, gear.id);
+                    gear.setfree(true);
+                    gear.m.gear_id = gear.id;
+                    gear.m.enabled = hids::stat::die;
+                    s11n::sysmouse.send(owner, gear.m);
                 };
                 owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
                 {
-                    coord[gear.id] = dot_mx;
-                    s11n::mouse_halt.send(owner, gear.id);
+                    gear.m.gear_id = gear.id;
+                    gear.m.enabled = hids::stat::halt;
+                    s11n::sysmouse.send(owner, gear.m);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
                 {
-                    coord[gear.id] = dot_mx;
-                    s11n::mouse_halt.send(owner, gear.id);
+                    gear.m.gear_id = gear.id;
+                    gear.m.enabled = hids::stat::halt;
+                    s11n::sysmouse.send(owner, gear.m);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
                 {
@@ -7421,40 +7316,40 @@ namespace netxs::ui
                         }
                         log("dtvt: key strokes bin: ", d.str());
                     #endif
-                    s11n::keybd.send(owner, gear.id,
-                                            gear.ctlstate,
-                                            gear.winctrl,
-                                            gear.virtcod,
-                                            gear.scancod,
-                                            gear.pressed,
-                                            gear.imitate,
-                                            gear.cluster,
-                                            gear.winchar);
+                    s11n::syskeybd.send(owner, gear.id,
+                                               gear.ctlstate,
+                                               gear.winctrl,
+                                               gear.virtcod,
+                                               gear.scancod,
+                                               gear.pressed,
+                                               gear.imitate,
+                                               gear.cluster,
+                                               gear.winchar);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
                 {
                     auto focus_state = true;
-                    s11n::focus.send(owner, gear.id,
-                                            focus_state,
-                                            gear.combine_focus,
-                                            gear.force_group_focus);
+                    s11n::sysfocus.send(owner, gear.id,
+                                               focus_state,
+                                               gear.combine_focus,
+                                               gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
                 {
                     gear.remove_from_kb_focus(owner.This());
                     auto focus_state = faux;
-                    s11n::focus.send(owner, gear.id,
-                                            focus_state,
-                                            gear.combine_focus,
-                                            gear.force_group_focus);
+                    s11n::sysfocus.send(owner, gear.id,
+                                               focus_state,
+                                               gear.combine_focus,
+                                               gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, gear)
                 {
                     auto focus_state = faux;
-                    s11n::focus.send(owner, gear.id,
-                                            focus_state,
-                                            gear.combine_focus,
-                                            gear.force_group_focus);
+                    s11n::sysfocus.send(owner, gear.id,
+                                               focus_state,
+                                               gear.combine_focus,
+                                               gear.force_group_focus);
                 };
                 owner.SUBMIT_T(tier::general, e2::config::fps, token, frame_rate)
                 {
@@ -7510,7 +7405,7 @@ namespace netxs::ui
             {
                 active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
-                else      log("dtvt: exit code 0x", utf::to_hex(code));
+                else      log("dtvt: exit code 0");
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
                 {
                     auto backup = This();
@@ -7539,7 +7434,6 @@ namespace netxs::ui
                 }
                 auto lock = netxs::events::sync{};
                 this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
-                stream.disable();
             }
         }
         // dtvt: Logs callback handler.
@@ -7610,14 +7504,14 @@ namespace netxs::ui
         {
             active = faux;
         }
-        dtvt(text cwd, text command_line, text config_view)
+        dtvt(text cwd, text cmd, text cfg)
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
               nodata{      },
               curdir{ cwd  },
-              cmdarg{ command_line },
-              xmlcfg{ config_view }
+              cmdarg{ cmd  },
+              xmlcfg{ cfg  }
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
@@ -7636,7 +7530,14 @@ namespace netxs::ui
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 if (ptycon) ptycon.stop();
-                else        base::riseup<tier::release>(e2::form::quit, item);
+                else        this->base::riseup<tier::release>(e2::form::quit, item);
+            };
+            SUBMIT(tier::release, e2::coor::any, coor)
+            {
+                auto lock = stream.bitmap.freeze();
+                auto& canvas = lock.thing.image;
+                canvas.move(coor);
+                splash.move(coor);
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {

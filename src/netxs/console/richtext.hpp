@@ -1043,6 +1043,7 @@ namespace netxs::console
         }
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator.
         auto length() const { return lyric->size().x; } // para: Return printable length.
+        auto  empty() const { return !length();       } // para: Return true if empty.
         auto   step() const { return count;           } // para: The next caret step.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.

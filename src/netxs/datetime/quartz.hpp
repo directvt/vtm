@@ -176,7 +176,7 @@ namespace netxs::datetime
         period span; // tail: Period of time to be stored.
         period mint; // tail: The minimal period of time between the records stored.
 
-        tail(period const& span, period const& mint)
+        tail(period const& span = 75ms, period const& mint = 4ms) //todo unify the mint=1/fps
             : size{ 1    },
               iter{ 0    },
               span{ span },
@@ -213,10 +213,20 @@ namespace netxs::datetime
                 rec.item = item;
             }
         }
+        // tail: Update last time stamp.
+        void set()
+        {
+            set(hist[iter].item);
+        }
         // tail: Return last value.
         auto& get() const
         {
             return hist[iter].item;
+        }
+        // tail: Return last time stamp.
+        auto& stamp() const
+        {
+            return hist[iter].time;
         }
         // tail: Shrink tail size to 1 and free memory.
         void dry()

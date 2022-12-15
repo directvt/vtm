@@ -33,10 +33,18 @@ namespace netxs
 
     struct noop { template<class ...T> constexpr void operator()(T...) {}; };
 
+    enum class feed : unsigned char { none, rev, fwd, };
+
     template<class T>
     using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si16>::max(), si16,
                         std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si32>::max(), si32, si64>>;
 
+    // intmath: Set a single p-bit to v.
+    template<unsigned int p, class T>
+    void set_bit(T&& n, bool v)
+    {
+        n = (n & ~(1 << p)) | (v << p);
+    }
     // intmath: Swap two bits.
     template<unsigned int p1, unsigned int p2, class T>
     auto swap_bits(T n)

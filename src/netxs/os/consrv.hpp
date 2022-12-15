@@ -204,7 +204,7 @@ struct consrv
         cell backup; // clnt: Text attributes to restore on detach.
         bufs alters; // clnt: Additional scrollback buffers.
     };
-    
+
     using hndl = clnt::hndl;
 
     struct base
@@ -373,6 +373,13 @@ struct consrv
                ondata{ true }
         { }
 
+        void reset()
+        {
+            auto lock = std::lock_guard{ locker };
+            closed = faux;
+            buffer.clear();
+            ondata.flush();
+        }
         auto count()
         {
             auto lock = std::lock_guard{ locker };
@@ -487,24 +494,19 @@ struct consrv
                 signal.notify_one();
             }
         }
-        void mouse(input::hids& gear, bool moved, bool wheel, bool duple)
+        void mouse(input::hids& gear, bool moved, twod const& coord)
         {
-            auto state = os::ms_kbstate(gear.ctlstate);
-            auto bttns = ui32{};
-            if (gear.buttons[input::sysmouse::left  ].pressed) bttns |= FROM_LEFT_1ST_BUTTON_PRESSED;
-            if (gear.buttons[input::sysmouse::right ].pressed) bttns |= RIGHTMOST_BUTTON_PRESSED;
-            if (gear.buttons[input::sysmouse::middle].pressed) bttns |= FROM_LEFT_2ND_BUTTON_PRESSED;
-            if (gear.buttons[input::sysmouse::wheel ].pressed) bttns |= FROM_LEFT_3RD_BUTTON_PRESSED;
-            if (gear.buttons[input::sysmouse::win   ].pressed) bttns |= FROM_LEFT_4TH_BUTTON_PRESSED;
+            auto state = gear.m.winctrl;
+            auto bttns = gear.m.buttons & 0b00011111;
             auto flags = ui32{};
-            if (duple) flags |= DOUBLE_CLICK;
-            if (moved) flags |= MOUSE_MOVED;
-            if (wheel) // MOUSE_HWHEELED not used.
+            if (moved         ) flags |= MOUSE_MOVED;
+            if (gear.m.doubled) flags |= DOUBLE_CLICK;
+            if (gear.m.wheeldt)
             {
-                flags |= MOUSE_WHEELED;
-                bttns |= gear.whldt << 16;
+                     if (gear.m.wheeled) flags |= MOUSE_WHEELED;
+                else if (gear.m.hzwheel) flags |= MOUSE_HWHEELED;
+                bttns |= gear.m.wheeldt << 16;
             }
-
             auto lock = std::lock_guard{ locker };
             buffer.emplace_back(INPUT_RECORD
             {
@@ -515,8 +517,8 @@ struct consrv
                     {
                         .dwMousePosition =
                         {
-                            .X = (si16)std::min<si32>(gear.coord.x + server.uiterm.origin.x, std::numeric_limits<si16>::max()),
-                            .Y = (si16)std::min<si32>(gear.coord.y + server.uiterm.origin.y, std::numeric_limits<si16>::max()),
+                            .X = (si16)std::clamp<si32>(coord.x, 0, std::numeric_limits<si16>::max()),
+                            .Y = (si16)std::clamp<si32>(coord.y, 0, std::numeric_limits<si16>::max()),
                         },
                         .dwButtonState     = bttns,
                         .dwControlKeyState = state,
@@ -537,7 +539,7 @@ struct consrv
                 {
                     .WindowBufferSizeEvent =
                     {
-                        .dwSize = 
+                        .dwSize =
                         {
                             .X = (si16)std::min<si32>(winsize.x, std::numeric_limits<si16>::max()),
                             .Y = (si16)std::min<si32>(winsize.y, std::numeric_limits<si16>::max()),
@@ -666,7 +668,7 @@ struct consrv
                 }
 
                 auto shift = s & shift_pressed ? shift_pressed : 0;
-                auto alt   = s & alt___pressed ? alt___pressed : 0; 
+                auto alt   = s & alt___pressed ? alt___pressed : 0;
                 auto ctrl  = s & ctrl__pressed ? ctrl__pressed : 0;
                 if (shift || alt || ctrl)
                 {
@@ -880,7 +882,7 @@ struct consrv
                                     else
                                     {
                                         burn();
-                                        hist.save(line); 
+                                        hist.save(line);
                                         line.insert(cell{}.c0_to_txt(c), mode);
                                     }
                                 }
@@ -1018,7 +1020,7 @@ struct consrv
                     answer.buffer = &packet.input; // Restore after copy.
 
                     if (closed || cancel) return;
-                    
+
                     cooked.ustr.clear();
                     if (server.inpmod & nt::console::inmode::cooked)
                     {
@@ -2815,7 +2817,7 @@ struct consrv
         packet.reply.sizey = 20;
         packet.reply.pitch = 0;
         packet.reply.heavy = 0;
-        auto brand = L"Consolas"s + L'\0'; 
+        auto brand = L"Consolas"s + L'\0';
         std::copy(std::begin(brand), std::end(brand), std::begin(packet.reply.brand));
         log("\tinput.fullscreen ", packet.input.fullscreen ? "true" : "faux",
           "\n\treply.index ",      packet.reply.index,
@@ -2913,8 +2915,13 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.handle = reinterpret_cast<HWND>(-1); // - Fake window handle to tell powershell that everything is under console control.
-                                                          // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
+        packet.reply.handle = winhnd; // - Fake window handle to tell powershell that everything is under console control.
+                                      // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
+                                      // - "Far.exe" set their icon to all windows in the system if reply=-1.
+                                      // - msys uses the handle to determine what processes are running in the same session.
+                                      // - vim sets the icon of its hosting window.
+                                      // - The handle is used to show/hide GUI console window.
+                                      // - Used for SetConsoleTitle().
         log("\tfake window handle 0x", utf::to_hex(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
@@ -3179,6 +3186,9 @@ struct consrv
     view        prompt; // consrv: Log prompt.
     list        joined; // consrv: Attached processes list.
     std::thread server; // consrv: Main thread.
+    std::thread window; // consrv: Win32 window message loop.
+    HWND        winhnd; // consrv: Win32 window handle.
+    fire        signal; // consrv: Win32 window message loop unblocker.
     cdrw        answer; // consrv: Reply cue.
     task        upload; // consrv: Console driver request.
     text        buffer; // consrv: Temp buffer.
@@ -3195,6 +3205,57 @@ struct consrv
     void start()
     {
         reset();
+        events.reset();
+        signal.flush();
+        window = std::thread{ [&]
+        {
+            auto wndname = text{ "vtmConsoleWindowClass" };
+            auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
+            {
+                log(" pty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
+                switch (uMsg)
+                {
+                    case WM_CREATE: break;
+                    case WM_DESTROY: ::PostQuitMessage(0); break;
+                    default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
+                }
+                return (LRESULT) NULL;
+            };
+            auto wnddata = WNDCLASSEXA
+            {
+                .cbSize        = sizeof(WNDCLASSEX),
+                .lpfnWndProc   = wndproc,
+                .lpszClassName = wndname.c_str(),
+            };
+            if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "unexpected result from ::RegisterClassExA()")
+               && (winhnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
+            {
+                auto next = MSG{};
+                while (next.message != WM_QUIT)
+                {
+                    if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&signal, FALSE, INFINITE, QS_ALLINPUT);
+                             yield == WAIT_OBJECT_0)
+                    {
+                        ::DestroyWindow(winhnd);
+                        return;
+                    }
+                    while (::PeekMessageA(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
+                    {
+                        ::DispatchMessageA(&next);
+                    }
+                }
+            }
+            else
+            {
+                os::fail(prompt, "failed to create win32 window object");
+                winhnd = reinterpret_cast<HWND>(-1);
+                return;
+            }
+        }};
+        while (!winhnd) // Waiting for a win32 window to be created.
+        {
+            std::this_thread::yield();
+        }
         server = std::thread{ [&]
         {
             while (condrv != INVALID_FD)
@@ -3213,7 +3274,11 @@ struct consrv
                             answer._pad_1 = upload.arglen + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/;
                         }
                         auto proc = apimap[upload.fxtype & 255];
-                        uiterm.update([&] { (this->*proc)(); });
+                        uiterm.update([&]
+                        {
+                            auto lock = std::lock_guard{ events.locker };
+                            (this->*proc)();
+                        });
                         break;
                     }
                     case ERROR_IO_PENDING:         log(prompt, "operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
@@ -3231,10 +3296,9 @@ struct consrv
     void stop()
     {
         events.stop();
-        if (server.joinable())
-        {
-            server.join();
-        }
+        signal.reset();
+        if (window.joinable()) window.join();
+        if (server.joinable()) server.join();
         log(prompt, "stop()");
     }
     template<class T>
@@ -3274,6 +3338,7 @@ struct consrv
           events{ *this  },
           impcls{ faux   },
           answer{        },
+          winhnd{        },
           prompt{ " pty: consrv: " }
     {
         using _ = consrv;

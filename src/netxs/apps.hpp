@@ -37,12 +37,29 @@ namespace netxs::app::shared
                        Using an asterisk with the parameter name of the first element in the list without any other nested arguments
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
         <item splitter label="apps">
-            <notes> 
+            <notes>
                 " Default applications group                         \n"
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
         <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
+        <item id=Test label="Test" type=DirectVT title="Terminal Emulator" notes=" menu item for testing configuration options (e.g., window style) " param="$0 -r term">
+            <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
+                <term>
+                    <scrollback>
+                        <size=15000 />   <!-- Scrollback buffer length. -->
+                        <wrap="off" />   <!-- Lines wrapping mode. -->
+                    </scrollback>
+                    <menu>
+                        <autohide = off />  <!--  If true, show menu only on hover. -->
+                        <slim = false   />
+                    </menu>
+                    <selection>
+                        <mode = none /> <!-- text | ansi | rich | html | protected | none -->
+                    </selection>
+                </term>
+            </config>
+        </item>
 )=="
 #if defined(_WIN32)
 R"==(
@@ -59,58 +76,21 @@ R"==(
                 <key="Ctrl+'t'" action=start />
                 <key="Ctrl+'z'" action=close />
             </hotkeys>
-            <config>   <!-- not implemented, only base config applied -->  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
+            <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
-                        <size=20000    />   <!-- Scrollback buffer length. -->
-                        <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
-                        <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
+                        <size=40000    />   <!-- Scrollback buffer length. -->
                         <wrap="on"     />   <!-- Lines wrapping mode. -->
                     </scrollback>
-                    <color>
-                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
-                        <color1  = reddk      />
-                        <color2  = greendk    />
-                        <color3  = yellowdk   />
-                        <color4  = bluedk     />
-                        <color5  = magentadk  />
-                        <color6  = cyandk     />
-                        <color7  = whitedk    />
-                        <color8  = blacklt    />
-                        <color9  = redlt      />
-                        <color10 = greenlt    />
-                        <color11 = yellowlt   />
-                        <color12 = bluelt     />
-                        <color13 = magentalt  />
-                        <color14 = cyanlt     />
-                        <color15 = whitelt    />
-                        <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-                        <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
-                        <selection>
-                            <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                            <ansi fx=xlight/>
-                            <rich fx=xlight/>
-                            <html fx=xlight/>
-                            <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
-                        </selection>
-                    </color>
-                    <fields>
-                        <lucent=0xC0 /> <!-- Fields transparency level. -->
-                        <size=0 />      <!-- Left/right field size. -->
-                    </fields>
-                    <tablen=8 />        <!-- Tab length. -->
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
-                        <blink=400ms/>       <!-- blink period -->
-                        <show=true/>
                     </cursor>
                     <menu>
-                        <autohide=on/>  <!--  If true, show menu only on hover. -->
-                        <enabled="on"/>
-                        <slim="true"/>
+                        <autohide = on/>  <!--  If true, show menu only on hover. -->
+                        <slim = true/>
                     </menu>
                     <selection>
-                        <mode="text"/> <!-- text | ansi | rich | html | none -->
+                        <mode = text/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
                     <hotkeys>    <!-- not implemented -->
                         <key*/>
@@ -125,11 +105,6 @@ R"==(
 R"==(
         <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run PowerShell "/>
         <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
-   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                         notes=" run Far Manager in its own window "/> -->
-)=="
-#else
-R"==(
-   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    param="mc"               notes=" run Midnight Commander in its own window "/> -->
 )=="
 #endif
 R"==(
@@ -137,12 +112,6 @@ R"==(
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
         <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
-   <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
-   <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
-   <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
-   <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
-   <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
-   <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun>    <!-- not implemented -->
             <item*/>
             <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default. -->
@@ -171,14 +140,14 @@ R"==(
             <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
             <selector = 48   />
-            <highlight  fgc=purewhite  bgc=亮蓝       />
-            <warning    fgc=whitelt    bgc=yellowdk   />
-            <danger     fgc=whitelt    bgc=redlt      />
-            <action     fgc=whitelt    bgc=greenlt    />
-            <label      fgc=blackdk    bgc=whitedk    />
-            <inactive   fgc=blacklt    bgc=nocolor    />
-            <menu_white fgc=whitelt    bgc=0x80404040 />
-            <menu_black fgc=blackdk    bgc=0x80404040 />
+            <highlight  fgc=purewhite bgc=bluelt      />
+            <warning    fgc=whitelt   bgc=yellowdk    />
+            <danger     fgc=whitelt   bgc=redlt       />
+            <action     fgc=whitelt   bgc=greenlt     />
+            <label      fgc=blackdk   bgc=whitedk     />
+            <inactive   fgc=blacklt   bgc=transparent />
+            <menu_white fgc=whitelt   bgc=0x80404040  />
+            <menu_black fgc=blackdk   bgc=0x80404040  />
             <fader duration=0ms fast=0ms />  <!-- Fader animation config. -->
         </defaults>
         <runapp>    <!-- Override defaults. -->
@@ -205,31 +174,20 @@ R"==(
         <pureblack = 0xFF000000 />
         <purewhite = 0xFFffffff />
         <nocolor   = 0x00000000 />
-
-        <黑     = blackdk   /> <!-- Localized color reference literals. -->
-        <红     = reddk     />
-        <绿     = greendk   />
-        <黄     = yellowdk  />
-        <蓝     = bluedk    />
-        <品红   = magentadk />
-        <青     = cyandk    />
-        <白     = whitedk   />
-        <灰     = blacklt   />
-        <亮红   = redlt     />
-        <亮绿   = greenlt   />
-        <亮黄   = yellowlt  />
-        <亮蓝   = bluelt    />
-        <亮品红 = magentalt />
-        <亮青   = cyanlt    />
-        <亮白   = whitelt   />
+        <transparent = nocolor  />
     </set>
     <client>
         <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
         <clipboard>
-            <preview enabled=true size=80x25 />
+            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
+                <alpha=0xFF />  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
+                <timeout=3s />  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
+                <shadow=7   />  <!-- Preview shadow strength (0-10). -->
+            </preview>
         </clipboard>
         <viewport coor=0,0 />
-        <tooltip timeout=500ms enabled=true />
+        <mouse dblclick=500ms />
+        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite />
         <glowfx=true />                      <!-- Show glow effect around selected item. -->
         <debug overlay=faux toggle="🐞" />  <!-- Display console debug info. -->
         <regions enabled=faux />             <!-- Highlight UI objects boundaries. -->
@@ -240,6 +198,7 @@ R"==(
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
+            <reset onkey="on" onoutput="off" />   <!-- Scrollback viewport reset triggers. -->
         </scrollback>
         <color>
             <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
@@ -262,6 +221,7 @@ R"==(
             <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
             <selection>
                 <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                <protected fx=selection bgc=bluelt fgc=whitelt />
                 <ansi fx=xlight/>
                 <rich fx=xlight/>
                 <html fx=xlight/>
@@ -274,18 +234,23 @@ R"==(
         </fields>
         <tablen=8 />   <!-- Tab length. -->
         <cursor>
-            <style="underline"/> <!-- block | underline  -->
+            <style="underline"/> <!-- block | underline -->
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
         <menu>
-            <autohide=true/>  <!--  If true, show menu only on hover. -->
+            <autohide=true/>  <!--  If true/on, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
         </menu>
         <selection>
-            <mode="text"/> <!-- text | ansi | rich | html | none -->
+            <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
         </selection>
+        <atexit = auto /> <!-- auto:    Stay open and ask if exit code != 0. (default)
+                               ask:     Stay open and ask.
+                               close:   Always close.
+                               restart: Restart session.
+                               retry:   Restart session if exit code != 0. -->
         <hotkeys>    <!-- not implemented -->
             <key*/>
             <key="Alt+RightArrow" action=findNext />
@@ -704,7 +669,7 @@ R"==(
             });
     };
 
-    using builder_t = std::function<sptr<base>(text, text, xml::settings&)>;
+    using builder_t = std::function<sptr<base>(text, text, xml::settings&, text)>;
 
     namespace get
     {
@@ -728,11 +693,13 @@ R"==(
         auto& builder(text app_typename)
         {
             static builder_t empty =
-            [&](text, text, xml::settings&) -> sptr<base>
+            [&](text, text, xml::settings&, text) -> sptr<base>
             {
                 auto window = ui::cake::ctor()
+                    ->plugin<pro::focus>()
                     ->invoke([&](auto& boss)
                     {
+                        boss.keybd.accept(true);
                         closing_on_quit(boss);
                         closing_by_gesture(boss);
                         boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
@@ -809,7 +776,7 @@ R"==(
             auto& conf_list = app::shared::get::configs();
             auto& config = conf_list[menuid];
             auto& creator = app::shared::create::builder(config.type);
-            auto object = creator(config.cwd, config.param, config.settings);
+            auto object = creator(config.cwd, config.param, config.settings, config.patch);
             if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
             if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
@@ -863,7 +830,7 @@ R"==(
 
     namespace load
     {
-        auto settings(view cli_config, view run_config)
+        auto settings(view cli_config_path, view patch)
         {
             auto conf = xml::settings{ default_config };
             auto load = [&](view shadow)
@@ -899,14 +866,14 @@ R"==(
                         auto buff = text(size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        conf.document = std::make_shared<xml::document>(buff, config_path.string());
+                        conf.fuse(buff, config_path.string());
                         return true;
                     }
                 }
                 log("\tno configuration found, try another source");
                 return faux;
             };
-            if (!load(cli_config)
+            if (!load(cli_config_path)
              && !load(app::shared::env_config)
              && !load(app::shared::usr_config))
             {
@@ -915,7 +882,7 @@ R"==(
 
             os::set_env(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
 
-            conf.merge(run_config);
+            conf.fuse(patch);
             return conf;
         }
     }
@@ -948,10 +915,11 @@ R"==(
         auto ground = base::create<host>(tunnel.first, config);
         auto runapp = [&]
         {
+            auto patch = ""s;
             auto aclass = utf::cutoff(app_name, ' ');
             utf::to_low(aclass);
             auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config); // ! - means simple (w/o plugins)
+            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
             auto window = ground->invite<gate>(vtmode, config);
             window->resize(size);
             window->launch(tunnel.first, applet);
@@ -984,7 +952,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text cwd, text v,     xml::settings& config)
+        auto build_Strobe        = [](text cwd, text v,     xml::settings& config, text patch)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
@@ -1009,7 +977,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text cwd, text v,     xml::settings& config)
+        auto build_Settings      = [](text cwd, text v,     xml::settings& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -1031,7 +999,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text cwd, text v,     xml::settings& config)
+        auto build_Empty         = [](text cwd, text v,     xml::settings& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -1053,7 +1021,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_Region        = [](text cwd, text v,     xml::settings& config)
+        auto build_Region        = [](text cwd, text v,     xml::settings& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -1122,14 +1090,14 @@ namespace netxs::app::shared
 
                                 if (old_title.size()) // Copy old title to clipboard.
                                 {
-                                    gear.set_clip_data(dot_00, clip{ old_title, clip::ansitext });
+                                    gear.set_clip_data(clip{ dot_00, old_title, clip::ansitext });
                                 }
                             };
                         };
                     });
             return window;
         };
-        auto build_Truecolor     = [](text cwd, text v,     xml::settings& config)
+        auto build_Truecolor     = [](text cwd, text v,     xml::settings& config, text patch)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -1262,7 +1230,7 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_Headless      = [](text cwd, text param, xml::settings& config)
+        auto build_Headless      = [](text cwd, text param, xml::settings& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -1336,7 +1304,7 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Fone          = [](text cwd, text param, xml::settings& config)
+        auto build_Fone          = [](text cwd, text param, xml::settings& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
@@ -1389,6 +1357,7 @@ namespace netxs::app::shared
                             m.title = name; // Use the same title as the menu label.
                             m.param = args;
                             m.hidden = true;
+                            m.settings = config; //todo it is dangerous
                             menu_list[name];
 
                             auto current_default = e2::data::changed.param();
@@ -1405,14 +1374,11 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_DirectVT      = [](text cwd, text param, xml::settings& config)
+        auto build_DirectVT      = [](text cwd, text param, xml::settings& config, text patch)
         {
-            auto window = ui::cake::ctor()
+            return ui::dtvt::ctor(cwd, param, patch)
                 ->plugin<pro::limit>(dot_11)
-                ->plugin<pro::focus>();
-
-            //todo pass subconfig
-            auto direct = ui::dtvt::ctor(cwd, param, config.utf8())
+                ->plugin<pro::focus>()
                 ->invoke([](auto& boss)
                 {
                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
@@ -1420,27 +1386,25 @@ namespace netxs::app::shared
                         boss.start();
                     };
                 });
-            window->attach(direct);
-            return window;
         };
-        auto build_ANSIVT        = [](text cwd, text param, xml::settings& config)
+        auto build_ANSIVT        = [](text cwd, text param, xml::settings& config, text patch)
         {
             if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
 
             auto args = os::current_module_file();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
 
-            args += " -r headless ";
+            args += " -r term ";
             args += param;
 
-            return build_DirectVT(cwd, args, config);
+            return build_DirectVT(cwd, args, config, patch);
         };
-        auto build_SHELL         = [](text cwd, text param, xml::settings& config)
+        auto build_SHELL         = [](text cwd, text param, xml::settings& config, text patch)
         {
             auto args = os::current_module_file();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
 
-            args += " -r headless ";
+            args += " -r term ";
             if (param.empty())
             {
                 #if defined(_WIN32)
@@ -1459,7 +1423,7 @@ namespace netxs::app::shared
                 args += param;
             }
 
-            return build_DirectVT(cwd, args, config);
+            return build_DirectVT(cwd, args, config, patch);
         };
 
         app::shared::initialize builder_Strobe       { "strobe"                 , build_Strobe     };
