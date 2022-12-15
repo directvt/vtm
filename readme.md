@@ -383,6 +383,18 @@ Top-level element `<config>` contains the following base objects
     - Not implemented: Single `<autorun>` block - a list of menu item to run at the environment startup.
   - Not implemented: Single `<hotkeys>` block - a global hotkeys/shortcuts configuration.
 
+#### Application Configuration
+
+The menu item of DirectVT type `type=DirectVT` can be additionally configured using `<config>` subelement. This is currently only supported by the built-in vtm terminal.
+
+The content of the `<config>` subelement is passed to the application upon startup. This config has the highest priority and is merged with the root of the configuration loaded by this application from a file.
+
+In general, when a DirectVT application starts up, the three configurations are subsequently merged. They are listed below in merged order
+
+- Hardcoded defaults
+- Configuration loaded from file
+- The configuration received at startup from the launching application (see the `<config>` subelement example)
+
 #### Taskbar menu item attributes
 
 Attribute  | Description                                       | Value type | Mandatory | Default value
@@ -401,6 +413,7 @@ Attribute  | Description                                       | Value type | Ma
 `cwd`      |  Current working directory                        | `string`   |           |
 `type`     |  App type                                         | `string`   |           | `SHELL`
 `param`    |  App constructor arguments                        | `string`   |           | empty
+`config`   |  Configuration block for DirectVT apps            | `xml-node` |           | empty
 
 #### Value literals
 
@@ -453,70 +466,25 @@ Note: The following configuration sections are not implemented yet
         </item>
         <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
-            <hotkeys>    <!-- not implemented -->
-                <key*/>
-                <key="Ctrl+'t'" action=start />
-                <key="Ctrl+'z'" action=close />
-            </hotkeys>
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
                         <size=35000    />   <!-- Scrollback buffer length. -->
-                        <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
-                        <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
                         <wrap="on"     />   <!-- Lines wrapping mode. -->
                     </scrollback>
                     <color>
-                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
-                        <color1  = reddk      />
-                        <color2  = greendk    />
-                        <color3  = yellowdk   />
-                        <color4  = bluedk     />
-                        <color5  = magentadk  />
-                        <color6  = cyandk     />
-                        <color7  = whitedk    />
-                        <color8  = blacklt    />
-                        <color9  = redlt      />
-                        <color10 = greenlt    />
-                        <color11 = yellowlt   />
-                        <color12 = bluelt     />
-                        <color13 = magentalt  />
-                        <color14 = cyanlt     />
+                        <color4  = bluedk     /> <!-- See /config/set/* for the color name reference. -->
                         <color15 = whitelt    />
                         <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-                        <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
-                        <selection>
-                            <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                            <protected fx=selection bgc=bluelt fgc=whitelt />
-                            <ansi fx=xlight/>
-                            <rich fx=xlight/>
-                            <html fx=xlight/>
-                            <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
-                        </selection>
                     </color>
-                    <fields>
-                        <lucent=0xC0 /> <!-- Fields transparency level. -->
-                        <size=0 />      <!-- Left/right field size. -->
-                    </fields>
-                    <tablen=8 />        <!-- Tab length. -->
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
-                        <blink=400ms/>       <!-- blink period -->
-                        <show=true/>
                     </cursor>
                     <menu>
-                        <autohide=on/>  <!--  If true/on, show menu only on hover. -->
+                        <autohide=off/>  <!--  If true/on, show menu only on hover. -->
                         <enabled="on"/>
-                        <slim="true"/>
+                        <slim=off/>
                     </menu>
-                    <selection>
-                        <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
-                    </selection>
-                    <hotkeys>    <!-- not implemented -->
-                        <key*/>
-                        <key="Alt+RightArrow" action=findNext />
-                        <key="Alt+LeftArrow"  action=findPrev />
-                    </hotkeys>
                 </term>
             </config>
         </item>
@@ -620,6 +588,7 @@ Note: The following configuration sections are not implemented yet
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
+            <reset onkey="on" onoutput="off" />   <!-- Scrollback viewport reset triggers. -->
         </scrollback>
         <color>
             <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
@@ -655,12 +624,12 @@ Note: The following configuration sections are not implemented yet
         </fields>
         <tablen=8 />   <!-- Tab length. -->
         <cursor>
-            <style="underline"/> <!-- block | underline  -->
+            <style="underline"/> <!-- block | underline -->
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
         <menu>
-            <autohide=true/>  <!--  If true, show menu only on hover. -->
+            <autohide=true/>  <!--  If true/on, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
         </menu>
