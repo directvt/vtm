@@ -626,7 +626,7 @@ namespace netxs::xml
             if (page.fail) log(" xml: inconsistent xml data from ", page.file, "\n", page.show());
         }
         template<bool WithTemplate = faux>
-        auto enumerate(view path)
+        auto take(view path)
         {
             auto name = root && root->name ? root->name->utf8 : text{};
             path = utf::trim(path, '/');
@@ -645,17 +645,16 @@ namespace netxs::xml
             }
             return vect{};
         }
-        auto append_list(view path, vect const& list, bool rewrite = faux)
+        auto join(view path, vect const& list, bool rewrite = faux)
         {
             path = utf::trim(path, '/');
             auto parent_path = utf::cutoff(path, '/', faux);
             auto branch_path = utf::remain(path, '/', faux);
-            auto dest_host = enumerate(parent_path);
+            auto dest_host = take(parent_path);
             if (dest_host.size())
             {
-                auto parent_ptr = dest_host.front();
-                auto& parent = *parent_ptr;
-                auto& dest = parent.hive;
+                auto parent = dest_host.front();
+                auto& dest = parent->hive;
                 auto iter = dest.find(qiew{ branch_path });
                 if (iter == dest.end() || iter->second.empty())
                 {
@@ -1114,7 +1113,7 @@ namespace netxs::xml
             {
                 homepath = "/";
                 homepath += utf::trim(gotopath, '/');
-                homelist = document->enumerate(homepath);
+                homelist = document->take(homepath);
             }
             else
             {
@@ -1141,7 +1140,7 @@ namespace netxs::xml
             if (frompath.front() == '/')
             {
                 frompath = utf::trim(frompath, '/');
-                tempbuff = document->enumerate(frompath);
+                tempbuff = document->take(frompath);
             }
             else
             {
@@ -1150,7 +1149,7 @@ namespace netxs::xml
                 if (tempbuff.empty() && backpath.size())
                 {
                     frompath = backpath + "/" + frompath;
-                    tempbuff = document->enumerate(frompath);
+                    tempbuff = document->take(frompath);
                 }
                 else frompath = homepath + "/" + frompath;
             }
@@ -1186,7 +1185,7 @@ namespace netxs::xml
         template<bool WithTemplate = faux>
         auto list(view frompath)
         {
-            return document->enumerate<WithTemplate>(frompath);
+            return document->take<WithTemplate>(frompath);
         }
         auto utf8()
         {
@@ -1197,7 +1196,6 @@ namespace netxs::xml
             if (filepath.size()) document->page.file = filepath;
             if (utf8_xml.empty()) return;
             auto run_config = xml::document{ utf8_xml };
-            //log(run_config.page.show());
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
                 auto& node = *node_ptr;
@@ -1208,13 +1206,11 @@ namespace netxs::xml
                                   || dest_list.size() > 1;
                 if (is_dest_list)
                 {
-                    //log("\t dest ", path, " is a list");
-                    document->append_list(path, { node_ptr });
+                    document->join(path, { node_ptr });
                 }
                 else
                 {
                     auto value = node.value();
-                    //log(path, " = ", value.empty() ? "\"\""s : value);
                     if (dest_list.size())
                     {
                         auto& dest = dest_list.front();
@@ -1222,8 +1218,6 @@ namespace netxs::xml
                         auto src_value = node.value();
                         if (dst_value != src_value)
                         {
-                            //log("\t update ", name, " = ", src_value.empty() ? "\"\""s : src_value,
-                            //                         " (", dst_value.empty() ? "\"\""s : dst_value, ")");
                             dest->value(src_value);
                         }
                         for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
@@ -1238,7 +1232,7 @@ namespace netxs::xml
                                 //todo Clang 11.0.1 don't get it.
                                 //auto rewrite = sub_list.end() != std::ranges::find_if(sub_list, [](auto& a){ return a->base; });
                                 auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
-                                document->append_list(path + "/" + sub_name, sub_list, rewrite);
+                                document->join(path + "/" + sub_name, sub_list, rewrite);
                             }
                             else log(" xml: unexpected tag without data: ", sub_name);
                         }
@@ -1246,13 +1240,12 @@ namespace netxs::xml
                     else
                     {
                         log(" xml: unknown destination '", name, "'");
-                        document->append_list(path, { node_ptr });
+                        document->join(path, { node_ptr });
                     }
                 }
             };
             auto path = text{};
             proc(run_config.root, path, proc);
-            //log(document->page.show());
         }
         friend auto& operator << (std::ostream& s, settings const& p)
         {

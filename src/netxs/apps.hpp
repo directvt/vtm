@@ -43,6 +43,23 @@ namespace netxs::app::shared
             </notes>
         </item>
         <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
+        <item id=Test label="Test" type=DirectVT title="Terminal Emulator" notes=" menu item for testing configuration options (e.g., window style) " param="$0 -r term">
+            <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
+                <term>
+                    <scrollback>
+                        <size=15000 />   <!-- Scrollback buffer length. -->
+                        <wrap="off" />   <!-- Lines wrapping mode. -->
+                    </scrollback>
+                    <menu>
+                        <autohide = off />  <!--  If true, show menu only on hover. -->
+                        <slim = false   />
+                    </menu>
+                    <selection>
+                        <mode = none /> <!-- text | ansi | rich | html | protected | none -->
+                    </selection>
+                </term>
+            </config>
+        </item>
 )=="
 #if defined(_WIN32)
 R"==(
@@ -63,55 +80,17 @@ R"==(
                 <term>
                     <scrollback>
                         <size=40000    />   <!-- Scrollback buffer length. -->
-                        <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
-                        <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
                         <wrap="on"     />   <!-- Lines wrapping mode. -->
                     </scrollback>
-                    <color>
-                        <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
-                        <color1  = reddk      />
-                        <color2  = greendk    />
-                        <color3  = yellowdk   />
-                        <color4  = bluedk     />
-                        <color5  = magentadk  />
-                        <color6  = cyandk     />
-                        <color7  = whitedk    />
-                        <color8  = blacklt    />
-                        <color9  = redlt      />
-                        <color10 = greenlt    />
-                        <color11 = yellowlt   />
-                        <color12 = bluelt     />
-                        <color13 = magentalt  />
-                        <color14 = cyanlt     />
-                        <color15 = whitelt    />
-                        <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-                        <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
-                        <selection>
-                            <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                            <protected fx=selection bgc=bluelt fgc=whitelt />
-                            <ansi fx=xlight/>
-                            <rich fx=xlight/>
-                            <html fx=xlight/>
-                            <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
-                        </selection>
-                    </color>
-                    <fields>
-                        <lucent=0xC0 /> <!-- Fields transparency level. -->
-                        <size=0 />      <!-- Left/right field size. -->
-                    </fields>
-                    <tablen=8 />        <!-- Tab length. -->
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
-                        <blink=400ms/>       <!-- blink period -->
-                        <show=true/>
                     </cursor>
                     <menu>
-                        <autohide=on/>  <!--  If true, show menu only on hover. -->
-                        <enabled="on"/>
-                        <slim="true"/>
+                        <autohide = on/>  <!--  If true, show menu only on hover. -->
+                        <slim = true/>
                     </menu>
                     <selection>
-                        <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
+                        <mode = text/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
                     <hotkeys>    <!-- not implemented -->
                         <key*/>
@@ -126,11 +105,6 @@ R"==(
 R"==(
         <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run PowerShell "/>
         <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
-   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                         notes=" run Far Manager in its own window "/> -->
-)=="
-#else
-R"==(
-   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    param="mc"               notes=" run Midnight Commander in its own window "/> -->
 )=="
 #endif
 R"==(
@@ -138,12 +112,6 @@ R"==(
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
         <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
-   <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
-   <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
-   <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
-   <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
-   <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
-   <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun>    <!-- not implemented -->
             <item*/>
             <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default. -->
@@ -230,7 +198,7 @@ R"==(
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
-            <reset onkey = on onoutput = off />   <!-- Scrollback viewport reset triggers. -->
+            <reset onkey="on" onoutput="off" />   <!-- Scrollback viewport reset triggers. -->
         </scrollback>
         <color>
             <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
