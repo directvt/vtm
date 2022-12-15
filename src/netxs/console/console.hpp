@@ -1464,8 +1464,8 @@ namespace netxs::console
             auto _user   = peer->line(';');
             auto _mode   = peer->line(';');
             auto _runcfg = peer->line(';');
-            auto xmlconfig = utf::unbase64(_runcfg);
-            config.merge(xmlconfig);
+            auto utf8_xml = utf::unbase64(_runcfg);
+            config.fuse(utf8_xml);
 
             _user = "[" + _user + ":" + std::to_string(session_id) + "]";
             auto c_info = utf::divide(_ip, " ");
@@ -4924,7 +4924,7 @@ namespace netxs::console
             };
 
             auto splitter_count = 0;
-            for (auto item_ptr : config.take_list(path_item))
+            for (auto item_ptr : config.list(path_item))
             {
                 auto& item = *item_ptr;
                 auto conf_rec = menuitem_t{};

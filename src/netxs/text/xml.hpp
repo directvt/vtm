@@ -427,8 +427,9 @@ namespace netxs::xml
                 if (auto tail = from->upto.lock())
                 if (auto prev = from->prev.lock())
                 {
-                    auto lock = prev->next;
-                    prev->next = tail;
+                    auto next = tail->next;
+                              prev->next = next;
+                    if (next) next->prev = prev;
                 }
             }
 
@@ -477,23 +478,51 @@ namespace netxs::xml
                 auto crop = text{};
                 for (auto& v : body)
                 {
-                    crop += v->utf8;
+                    crop += xml::unescape(v->utf8);
                 }
                 return crop;
             }
             void value(text& value)
             {
-                if (body.size() > 1)
+                if (body.size())
                 {
                     auto head = body.begin() + 1;
                     auto tail = body.end();
                     while (head != tail)
                     {
-                        (*head++)->utf8 = "";
+                        (*head++)->utf8.clear();
                     }
+                    body.resize(1);
+                    auto value_placeholder = body.front();
+                    if (value_placeholder->kind == type::tag_value) // equal [spaces] quotes tag_value quotes
+                    if (auto quote_placeholder = value_placeholder->prev.lock())
+                    if (quote_placeholder->kind == type::quotes)
+                    if (auto equal_placeholder = quote_placeholder->prev.lock())
+                    {
+                        if (equal_placeholder->kind != type::equal) // Spaces after equal sign.
+                        {
+                            equal_placeholder = equal_placeholder->prev.lock();
+                        }
+                        if (equal_placeholder && equal_placeholder->kind == type::equal)
+                        {
+                            if (value.size())
+                            {
+                                equal_placeholder->utf8 = " = ";
+                                quote_placeholder->utf8 = "\"";
+                                if (value_placeholder->next) value_placeholder->next->utf8 = "\"";
+                            }
+                            else
+                            {
+                                equal_placeholder->utf8 = "";
+                                quote_placeholder->utf8 = "";
+                                if (value_placeholder->next) value_placeholder->next->utf8 = "";
+                            }
+                        }
+                        else log("equal sign not found");
+                    }
+                    value_placeholder->utf8 = xml::escape(value);
                 }
-                body.resize(1);
-                body.front()->utf8 = std::move(value);
+                else log(" xml: unexpected assignment to ", name->utf8);
             }
             template<class T>
             auto take(qiew attr, T fallback = {})
@@ -591,7 +620,7 @@ namespace netxs::xml
         document(document&&) = default;
         document(view data, text file = "")
             : page{ file },
-              root{ std::make_shared<elem>() }
+              root{ std::make_shared<elem>()}
         {
             read(data);
             if (page.fail) log(" xml: inconsistent xml data from ", page.file, "\n", page.show());
@@ -618,11 +647,9 @@ namespace netxs::xml
         }
         auto append_list(view path, vect const& list, bool rewrite = faux)
         {
-            return;
-            log("\t ", rewrite ? "rewrite" : "append", " destination list");
             path = utf::trim(path, '/');
-            auto parent_path = utf::cutoff(path, '/');
-            auto branch_path = utf::remain(path, '/');
+            auto parent_path = utf::cutoff(path, '/', faux);
+            auto branch_path = utf::remain(path, '/', faux);
             auto dest_host = enumerate(parent_path);
             if (dest_host.size())
             {
@@ -630,40 +657,35 @@ namespace netxs::xml
                 auto& parent = *parent_ptr;
                 auto& dest = parent.hive;
                 auto iter = dest.find(qiew{ branch_path });
-                if (iter == dest.end())
+                if (iter == dest.end() || iter->second.empty())
                 {
-                    iter = dest.emplace(branch_path, vect{}).first;
+                    log(" xml: destination path '/", path, "' is not a list");
+                    return;
                 }
-                auto dst_list = iter->second;
-                if (rewrite) dst_list.clear();
-                auto copy = [&](auto& dst_list, auto& list, auto& parent_ptr, auto copy) -> void
+                auto& dst_list = iter->second;
+                if (auto last_frag = dst_list.back()->from->upto.lock())
                 {
+                    auto insertion_point = last_frag->next;
+                    if (rewrite) dst_list.clear();
                     for (auto& ptr : list)
                     {
-                        auto& src = *ptr;
-                        auto& dst_ptr = dst_list.emplace_back(std::make_shared<elem>(parent_ptr));
-                        auto& dst = *dst_ptr;
-                        dst.body = src.body;
-                        dst.fake = src.fake;
-                        dst.base = src.base;
-
-                        //todo
-                        //src.from->prev = 
-                        //parent_ptr->from->upto;
-                        //src.from->upto
-                        //parent_ptr->;
-                        //src.name->;
-                        //dst.from = dst.page.data.insert(parent.from, { parent.page, type::unknown, "" });
-
-                        for (auto& [name, list] : src.hive)
+                        auto from = ptr->from;
+                        if (auto upto = ptr->from->upto.lock())
                         {
-                            auto iter = dst.hive.emplace(name, vect{}).first;
-                            auto& dst_list = iter->second;
-                            copy(dst_list, list, dst_ptr, copy);
+                            if (auto prev = insertion_point->prev.lock())
+                            {
+                                upto->next = insertion_point;
+                                insertion_point->prev = upto;
+                                prev->next = from;
+                                dst_list.push_back(ptr);
+                                continue;
+                            }
                         }
+                        log(" xml: corrupted list at item '", ptr->name->utf8, "'");
+                        break;
                     }
-                };
-                copy(dst_list, list, parent_ptr, copy);
+                }
+                else log(" xml: list insertion point not found");
             }
             else log(" xml: destination path not found ", parent_path);
         }
@@ -739,14 +761,16 @@ namespace netxs::xml
                 if (delim != '\'' && delim != '\"')
                 {
                     auto crop = utf::get_tail(data, rawtext_delims);
-                    item_ptr = page.append(kind, xml::unescape(crop));
+                               page.append(type::quotes);
+                    item_ptr = page.append(kind, crop);
+                               page.append(type::quotes);
                 }
                 else
                 {
                     auto delim_view = view(&delim, 1);
                     auto crop = utf::get_quote(data, delim_view);
                                page.append(type::quotes, delim_view);
-                    item_ptr = page.append(kind, xml::unescape(crop));
+                    item_ptr = page.append(kind, crop);
                                page.append(type::quotes, delim_view);
                 }
             }
@@ -825,6 +849,13 @@ namespace netxs::xml
                     item->body.push_back(body(data));
                 }
                 else fail(last, what);
+            }
+            else // Add placeholder for absent value.
+            {
+                                     page.append(type::equal);
+                                     page.append(type::quotes);
+                item->body.push_back(page.append(type::tag_value));
+                                     page.append(type::quotes);
             }
         }
         auto open(sptr& item)
@@ -1061,77 +1092,71 @@ namespace netxs::xml
 
     struct settings
     {
-        netxs::sptr<xml::document> fallback;
-        netxs::sptr<xml::document> document;
-        xml::document::vect        list;
-        xml::document::vect        temp;
-        text                       cwd;
-        text                       defaults;
+        netxs::sptr<xml::document> document; // settings: XML document.
+        xml::document::vect        tempbuff; // settings: Temp buffer.
+        xml::document::vect        homelist; // settings: Current directory item list.
+        text                       homepath; // settings: Current working directory.
+        text                       backpath; // settings: Fallback path.
 
         settings() = default;
-        settings(view default_config)
-            : fallback{ std::make_shared<xml::document>(default_config, "") },
-              document{ fallback }
+        settings(view utf8_xml)
+            : document{ std::make_shared<xml::document>(utf8_xml, "") }
         { }
-        settings(settings const& other)
-            : fallback{ other.fallback },
-              document{ other.document }
+        settings(settings const& s)
+            : document{ s.document }
         { }
 
-        auto cd(view path, view defpath = {})
+        auto cd(text gotopath, view fallback = {})
         {
-            defaults = utf::trim(defpath, '/');
-            if (path.empty()) return faux;
-            if (path.front() == '/')
+            backpath = utf::trim(fallback, '/');
+            if (gotopath.empty()) return faux;
+            if (gotopath.front() == '/')
             {
-                path = utf::trim(path, '/');
-                cwd = "/" + text{ path };
-                temp = document->enumerate(cwd);
-                if (temp.empty()) temp = fallback->enumerate(cwd);
+                homepath = "/";
+                homepath += utf::trim(gotopath, '/');
+                homelist = document->enumerate(homepath);
             }
             else
             {
-                path = utf::trim(path, '/');
-                cwd += "/" + text{ path };
-                if (temp.size())
+                auto relative = utf::trim(gotopath, '/');;
+                if (homelist.size())
                 {
-                    temp = temp.front()->enumerate(path);
-                    if (temp.empty()) temp = fallback->enumerate(cwd);
+                    homelist = homelist.front()->enumerate(relative);
                 }
+                homepath += "/";
+                homepath += relative;
             }
-            auto test = !!temp.size();
+            auto test = !!homelist.size();
             if (!test)
             {
-                log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + cwd);
+                log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + homepath);
             }
             return test;
         }
         template<class T = si32>
-        auto take(view path, T defval = {})
+        auto take(text frompath, T defval = {})
         {
-            if (path.empty()) return defval;
+            if (frompath.empty()) return defval;
             auto crop = text{};
-            auto dest = text{};
-            if (path.front() == '/')
+            if (frompath.front() == '/')
             {
-                dest = utf::trim(path, '/');
-                list = document->enumerate(dest);
+                frompath = utf::trim(frompath, '/');
+                tempbuff = document->enumerate(frompath);
             }
             else
             {
-                path = utf::trim(path, '/');
-                dest = cwd + "/" + text{ path };
-                if (temp.size()) list = temp.front()->enumerate(path);
-                if (list.empty() && defaults.size())
+                frompath = utf::trim(frompath, '/');
+                if (homelist.size()) tempbuff = homelist.front()->enumerate(frompath);
+                if (tempbuff.empty() && backpath.size())
                 {
-                    dest = defaults + "/" + text{ path };
-                    list = document->enumerate(dest);
+                    frompath = backpath + "/" + frompath;
+                    tempbuff = document->enumerate(frompath);
                 }
+                else frompath = homepath + "/" + frompath;
             }
-            if (list.empty()) list = fallback->enumerate(dest);
-            if (list.size() ) crop = list.back()->value();
-            else              log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + dest);
-            list.clear();
+            if (tempbuff.size()) crop = tempbuff.back()->value();
+            else                 log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + frompath);
+            tempbuff.clear();
             if (auto result = xml::take<T>(crop)) return result.value();
             else
             {
@@ -1140,57 +1165,56 @@ namespace netxs::xml
             }
         }
         template<class T>
-        auto take(view path, T defval, std::unordered_map<text, T> dict)
+        auto take(text frompath, T defval, std::unordered_map<text, T> dict)
         {
-            if (path.empty()) return defval;
-            auto crop = take(path, ""s);
+            if (frompath.empty()) return defval;
+            auto crop = take(frompath, ""s);
             auto iter = dict.find(crop);
             return iter == dict.end() ? defval
                                       : iter->second;
         }
-        auto take(view path, cell defval)
+        auto take(text frompath, cell defval)
         {
-            if (path.empty()) return defval;
-            auto fgc_path = text{ path } + '/' + "fgc";
-            auto bgc_path = text{ path } + '/' + "bgc";
+            if (frompath.empty()) return defval;
+            auto fgc_path = frompath + '/' + "fgc";
+            auto bgc_path = frompath + '/' + "bgc";
             auto crop = cell{};
             crop.fgc(take(fgc_path, defval.fgc()));
             crop.bgc(take(bgc_path, defval.bgc()));
             return crop;
         }
         template<bool WithTemplate = faux>
-        auto take_list(view path)
+        auto list(view frompath)
         {
-            auto list = document->enumerate<WithTemplate>(path);
-            if (list.empty()) list = fallback->enumerate<WithTemplate>(path);
-            return list;
+            return document->enumerate<WithTemplate>(frompath);
         }
         auto utf8()
         {
             return document->page.utf8();
         }
-        auto merge(view run_config_utf8)
+        auto fuse(view utf8_xml, view filepath = {})
         {
-            if (run_config_utf8.empty()) return;
-            auto run_config = xml::document{ run_config_utf8 };
-            log(run_config.page.show());
+            if (filepath.size()) document->page.file = filepath;
+            if (utf8_xml.empty()) return;
+            auto run_config = xml::document{ utf8_xml };
+            //log(run_config.page.show());
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
                 auto& node = *node_ptr;
                 auto& name = node.name->utf8;
                 path += "/" + name;
-                auto dest_list = take_list<true>(path);
+                auto dest_list = list<true>(path);
                 auto is_dest_list = (dest_list.size() && dest_list.front()->fake)
                                   || dest_list.size() > 1;
                 if (is_dest_list)
                 {
-                    log("\t dest ", path, " is a list");
+                    //log("\t dest ", path, " is a list");
                     document->append_list(path, { node_ptr });
                 }
                 else
                 {
                     auto value = node.value();
-                    log(path, " = ", value.empty() ? "\"\""s : value);
+                    //log(path, " = ", value.empty() ? "\"\""s : value);
                     if (dest_list.size())
                     {
                         auto& dest = dest_list.front();
@@ -1198,7 +1222,8 @@ namespace netxs::xml
                         auto src_value = node.value();
                         if (dst_value != src_value)
                         {
-                            log("\t update ", name, "=", src_value.empty() ? ""s : src_value);
+                            //log("\t update ", name, " = ", src_value.empty() ? "\"\""s : src_value,
+                            //                         " (", dst_value.empty() ? "\"\""s : dst_value, ")");
                             dest->value(src_value);
                         }
                         for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
@@ -1213,7 +1238,7 @@ namespace netxs::xml
                                 //todo Clang 11.0.1 don't get it.
                                 //auto rewrite = sub_list.end() != std::ranges::find_if(sub_list, [](auto& a){ return a->base; });
                                 auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
-                                document->append_list(path, sub_list, rewrite);
+                                document->append_list(path + "/" + sub_name, sub_list, rewrite);
                             }
                             else log(" xml: unexpected tag without data: ", sub_name);
                         }
@@ -1227,6 +1252,7 @@ namespace netxs::xml
             };
             auto path = text{};
             proc(run_config.root, path, proc);
+            //log(document->page.show());
         }
         friend auto& operator << (std::ostream& s, settings const& p)
         {

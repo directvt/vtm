@@ -62,7 +62,7 @@ R"==(
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
-                        <size=20000    />   <!-- Scrollback buffer length. -->
+                        <size=40000    />   <!-- Scrollback buffer length. -->
                         <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
                         <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
                         <wrap="on"     />   <!-- Lines wrapping mode. -->
@@ -861,7 +861,7 @@ R"==(
 
     namespace load
     {
-        auto settings(view cli_config, view run_config)
+        auto settings(view cli_config_path, view patch)
         {
             auto conf = xml::settings{ default_config };
             auto load = [&](view shadow)
@@ -897,14 +897,14 @@ R"==(
                         auto buff = text(size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        conf.document = std::make_shared<xml::document>(buff, config_path.string());
+                        conf.fuse(buff, config_path.string());
                         return true;
                     }
                 }
                 log("\tno configuration found, try another source");
                 return faux;
             };
-            if (!load(cli_config)
+            if (!load(cli_config_path)
              && !load(app::shared::env_config)
              && !load(app::shared::usr_config))
             {
@@ -913,7 +913,7 @@ R"==(
 
             os::set_env(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
 
-            conf.merge(run_config);
+            conf.fuse(patch);
             return conf;
         }
     }

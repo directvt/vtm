@@ -1075,11 +1075,11 @@ namespace netxs::utf
     }
 
     template<class TEXT_OR_VIEW, class T>
-    auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter)
+    auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter, bool lazy = true)
     {
         auto crop = std::remove_cvref_t<TEXT_OR_VIEW>{};
         auto what = view{ delimiter };
-        auto coor = utf8.find(what);
+        auto coor = lazy ? utf8.find(what) : utf8.rfind(what);
         if (coor != text::npos)
         {
             crop = utf8.substr(coor + what.size(), text::npos);
@@ -1087,10 +1087,10 @@ namespace netxs::utf
         return crop;
     }
     template<class TEXT_OR_VIEW>
-    auto remain(TEXT_OR_VIEW&& utf8, char delimiter = '.')
+    auto remain(TEXT_OR_VIEW&& utf8, char delimiter = '.', bool lazy = true)
     {
         auto what = view{ &delimiter, 1 };
-        return remain(std::forward<TEXT_OR_VIEW>(utf8), what);
+        return remain(std::forward<TEXT_OR_VIEW>(utf8), what, lazy);
     }
 
     // utf: Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right).
