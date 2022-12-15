@@ -135,6 +135,8 @@ namespace netxs::ui
             rgba def_bcolor;
             bool def_cursor;
             bool def_cur_on;
+            bool resetonkey;
+            bool resetonout;
             time def_period;
             cell def_selclr;
             cell def_offclr;
@@ -164,6 +166,8 @@ namespace netxs::ui
                 def_length = std::max(1, config.take("scrollback/size",      si32{ 20000 }));
                 def_growup = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
+                resetonkey =             config.take("scrollback/reset/onkey",     true);
+                resetonout =             config.take("scrollback/reset/onoutput",  faux);
                 def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
                 def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
                 def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
@@ -6331,6 +6335,7 @@ namespace netxs::ui
                 auto guard = netxs::events::try_sync{};
                 if (guard)
                 {
+                    if (config.resetonout) follow[axis::Y] = true;
                     if (follow[axis::Y])
                     {
                         proc();
@@ -6915,8 +6920,11 @@ namespace netxs::ui
             {
                 this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
 
-                follow[axis::X] = true;
-                follow[axis::Y] = true;
+                if (gear.pressed && gear.cluster.size() && config.resetonkey)
+                {
+                    follow[axis::X] = true;
+                    follow[axis::Y] = true;
+                }
 
                 #if defined(_WIN32)
 
