@@ -407,19 +407,29 @@ namespace netxs::xml
 
         struct elem
         {
+            enum form
+            {
+                node,
+                attr,
+                flat,
+            };
             frag from; // elem: First fragment in document.
             frag name; // elem: Tag name.
+            frag insA; // elem: Insertion point for inline subelements.
+            frag insB; // elem: Insertion point for nested subelements.
             list body; // elem: Value fragments.
             subs hive; // elem: Subelements.
             wptr prev; // elem: Prev element.
             wptr defs; // elem: Template.
             bool fake; // elem: Is it template.
             bool base; // elem: Merge overwrite priority.
+            form mode; // elem: Element storage form.
 
             elem(wptr prev = {})
                 : prev{ prev },
                   fake{ faux },
-                  base{ faux }
+                  base{ faux },
+                  mode{ node }
             { }
            ~elem()
             {
@@ -654,37 +664,29 @@ namespace netxs::xml
             if (dest_host.size())
             {
                 auto parent = dest_host.front();
-                auto& dest = parent->hive;
-                auto iter = dest.find(qiew{ branch_path });
-                if (iter == dest.end() || iter->second.empty())
+                auto& hive = parent->hive;
+                auto iter = hive.find(qiew{ branch_path });
+                if (iter == hive.end())
                 {
-                    log(" xml: destination path '/", path, "' is not a list");
-                    return;
+                    iter = hive.emplace(branch_path , vect{}).first;
                 }
-                auto& dst_list = iter->second;
-                if (auto last_frag = dst_list.back()->from->upto.lock())
+                auto& dest = iter->second;
+                if (rewrite) dest.clear();
+                for (auto& item : list)
                 {
-                    auto insertion_point = last_frag->next;
-                    if (rewrite) dst_list.clear();
-                    for (auto& ptr : list)
+                    auto mode = item->mode;
+                    if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
+                    if (auto upto = item->from->upto.lock())
+                    if (auto prev = gate->prev.lock())
                     {
-                        auto from = ptr->from;
-                        if (auto upto = ptr->from->upto.lock())
-                        {
-                            if (auto prev = insertion_point->prev.lock())
-                            {
-                                upto->next = insertion_point;
-                                insertion_point->prev = upto;
-                                prev->next = from;
-                                dst_list.push_back(ptr);
-                                continue;
-                            }
-                        }
-                        log(" xml: corrupted list at item '", ptr->name->utf8, "'");
-                        break;
+                        upto->next = gate;
+                        gate->prev = upto;
+                        prev->next = item->from;
+                        dest.push_back(item);
+                        continue;
                     }
+                    log(" xml: unexpected format for item '", parent_path, "/", item->name->utf8, "'");
                 }
-                else log(" xml: list insertion point not found");
             }
             else log(" xml: destination path not found ", parent_path);
         }
@@ -806,7 +808,9 @@ namespace netxs::xml
         auto trim(view& data)
         {
             auto temp = utf::trim_front(data, spaces);
-            if (temp.size()) page.append(type::whitespaces, std::move(temp));
+            auto crop = !temp.empty();
+            if (crop) page.append(type::whitespaces, std::move(temp));
+            return crop;
         }
         auto diff(view& data, view& temp, type kind = type::whitespaces)
         {
@@ -908,6 +912,7 @@ namespace netxs::xml
                         do // Proceed inlined subs.
                         {
                             auto next = std::make_shared<elem>(item);
+                            next->mode = elem::form::attr;
                             open(next);
                             pair(next, data, what, last, type::token);
                             seal(next);
@@ -919,10 +924,15 @@ namespace netxs::xml
                     }
                     if (what == type::empty_tag) // Proceed '/>'.
                     {
+                        item->mode = elem::form::flat;
+                        item->insA = last == type::whitespaces ? page.back
+                                                               : page.append(type::whitespaces);
                         page.append(type::empty_tag, skip(data, what));
                     }
                     else if (what == type::close_inline) // Proceed nested subs.
                     {
+                        item->insA = last == type::whitespaces ? page.back
+                                                               : page.append(type::whitespaces);
                         page.append(type::close_inline, skip(data, what));
                         do
                         {
@@ -997,13 +1007,16 @@ namespace netxs::xml
                             {
                                 auto skip_frag = skip(temp, what);
                                 auto trim_frag = utf::trim_front(temp, spaces);
+                                auto spaced = last == type::whitespaces;
                                 peek(temp, what, last);
                                 if (what == type::token)
                                 {
-                                    auto token = name(temp);
-                                    trim(data);
-                                    if (token == item->name->utf8)
+                                    auto object = name(temp);
+                                    auto spaced = trim(data);
+                                    if (object == item->name->utf8)
                                     {
+                                        item->insB = spaced ? page.back
+                                                            : page.append(type::whitespaces);
                                                               page.append(type::close_tag, skip_frag);
                                         if (trim_frag.size()) page.append(type::whitespaces, trim_frag);
                                                               page.append(type::end_token, item->name->utf8);
@@ -1019,13 +1032,13 @@ namespace netxs::xml
                                         what = type::unknown;
                                                               page.append(what, skip_frag);
                                         if (trim_frag.size()) page.append(what, trim_frag);
-                                                              page.append(what, token);
+                                                              page.append(what, object);
                                         data = temp;
                                         auto tail = data.find('>');
                                         if (tail != view::npos) data.remove_prefix(tail + 1);
                                         else                    data = {};
                                         diff(data, temp, what);
-                                        log(" xml: unexpected closing tag name '", token, "', expected: '", item->name->utf8, "' at ", page.file, ":", page.lines());
+                                        log(" xml: unexpected closing tag name '", object, "', expected: '", item->name->utf8, "' at ", page.file, ":", page.lines());
                                         continue; // Repeat until eof or success.
                                     }
                                 }
@@ -1239,7 +1252,6 @@ namespace netxs::xml
                     }
                     else
                     {
-                        log(" xml: unknown destination '", name, "'");
                         document->join(path, { node_ptr });
                     }
                 }
