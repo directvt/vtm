@@ -6920,8 +6920,10 @@ namespace netxs::ui
             {
                 this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
 
-                if (gear.pressed && gear.cluster.size() && config.resetonkey)
+                if (gear.pressed && config.resetonkey
+                && (gear.cluster.size() || !gear.kbmod()))
                 {
+                    unsync = true;
                     follow[axis::X] = true;
                     follow[axis::Y] = true;
                 }
