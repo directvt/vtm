@@ -1020,9 +1020,9 @@ namespace netxs::ui::atoms
         // cell: Mix cell colors.
         void mix(cell const& c)
         {
-        	uv.fg.mix_one(c.uv.fg);
-        	uv.bg.mix_one(c.uv.bg);
-        	if (c.wdt())
+            uv.fg.mix_one(c.uv.fg);
+            uv.bg.mix_one(c.uv.bg);
+            if (c.wdt())
             {
                 st = c.st;
                 gc = c.gc;
@@ -1031,16 +1031,23 @@ namespace netxs::ui::atoms
         // cell: Mix colors using alpha.
         void mix(cell const& c, byte alpha)
         {
-        	uv.fg.mix(c.uv.fg, alpha);
-        	uv.bg.mix(c.uv.bg, alpha);
+            uv.fg.mix(c.uv.fg, alpha);
+            uv.bg.mix(c.uv.bg, alpha);
             st = c.st;
-        	if (c.wdt()) gc = c.gc;
+            if (c.wdt()) gc = c.gc;
         }
         // cell: Mix colors using alpha.
         void mixfull(cell const& c, byte alpha)
         {
-            mix(c, alpha);
             if (c.id) id = c.id;
+            if (c.wdt())
+            {
+                st = c.st;
+                gc = c.gc;
+                uv.fg = uv.bg; // The character must be on top of the cell background. (see block graphics)
+            }
+            uv.fg.mix(c.uv.fg, alpha);
+            uv.bg.mix(c.uv.bg, alpha);
         }
         // cell: Merge the two cells and update ID with COOR.
         void fuse(cell const& c, id_t oid)//, twod const& pos)

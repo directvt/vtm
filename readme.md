@@ -413,7 +413,7 @@ Attribute  | Description                                       | Value type | Ma
 `cwd`      |  Current working directory                        | `string`   |           |
 `type`     |  App type                                         | `string`   |           | `SHELL`
 `param`    |  App constructor arguments                        | `string`   |           | empty
-`config`   |  Configuration block for DirectVT apps            | `xml-node` |           | empty
+`config`   |  Configuration patch for DirectVT apps            | `xml-node` |           | empty
 
 #### Value literals
 
@@ -421,7 +421,6 @@ Type     | Format
 ---------|-----------------
 `RGBA`   |  `#rrggbbaa` \| `0xaabbggrr` \| `rrr,ggg,bbb,aaa` \| 256-color index
 `boolean`|  `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off`
-`index`  |  0 .. N
 `string` |  _UTF-8 text string_
 `x;y`    |  _integer_ <any_delimeter> _integer_
 
@@ -464,7 +463,7 @@ Note: The following configuration sections are not implemented yet
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
@@ -502,7 +501,7 @@ Note: The following configuration sections are not implemented yet
    <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
    <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
    <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
-        <autorun>    <!-- not implemented -->
+        <autorun>    <!-- Taskbar menu width. -->
             <item*/>
             <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default. -->
             <item wincoor=0,0 />
