@@ -42,7 +42,7 @@ namespace netxs::app::shared
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no slimmenu=false type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
         <item id=Test label="Test" type=DirectVT title="Terminal Emulator" notes=" menu item for testing configuration options (e.g., window style) " param="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
@@ -114,13 +114,12 @@ R"==(
         <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
         <autorun>    <!-- not implemented -->
             <item*/>
-            <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default. -->
-            <item wincoor=0,0 />
-            <item wincoor=52%,0 />
-            <item wincoor=0,52% />
-            <item=mc wincoor=52%,52% />
+            <item*=Term winsize=80,25 /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default. -->
+            <item wincoor=5,3 />
+            <item wincoor=90,3 />
+            <item wincoor=5,30 winsize=160,25 focused />
         </autorun>
-        <width>    <!-- not implemented -->
+        <width>    <!-- Taskbar menu width. -->
             <folded=4/>
             <expanded=31/>
         </width>

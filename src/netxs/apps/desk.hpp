@@ -238,8 +238,8 @@ namespace netxs::app::desk
         {
             auto lock = netxs::events::sync{}; // Protect access to the world.
 
-            auto uibar_min_size = si32{ 4  };
-            auto uibar_max_size = si32{ 31 };
+            auto uibar_min_size = config.take("/config/menu/width/folded",   si32{ 4  });
+            auto uibar_max_size = config.take("/config/menu/width/expanded", si32{ 31 });
 
             auto window = ui::cake::ctor();
 

@@ -675,13 +675,18 @@ namespace netxs::xml
                 for (auto& item : list)
                 {
                     auto mode = item->mode;
+                    auto from = item->from;
                     if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
-                    if (auto upto = item->from->upto.lock())
                     if (auto prev = gate->prev.lock())
+                    if (auto upto = from->upto.lock())
+                    if (auto past = from->prev.lock())
                     {
+                        auto next = upto->next;
                         upto->next = gate;
                         gate->prev = upto;
-                        prev->next = item->from;
+                        prev->next = from;
+                        past->next = next;  // Release an element from the previous list.
+                        if (next) next->prev = past;
                         dest.push_back(item);
                         continue;
                     }
