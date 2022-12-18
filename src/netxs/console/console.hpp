@@ -102,6 +102,7 @@ namespace netxs::console
     static constexpr auto attr_fgc      = "fgc";
     static constexpr auto attr_winsize  = "winsize";
     static constexpr auto attr_wincoor  = "wincoor";
+    static constexpr auto attr_focused  = "focused";
     static constexpr auto attr_slimmenu = "slimmenu";
     static constexpr auto attr_hotkey   = "hotkey";
     static constexpr auto attr_type     = "type";
@@ -111,6 +112,7 @@ namespace netxs::console
     static constexpr auto attr_config   = "config";
 
     static constexpr auto path_item     = "/config/menu/item";
+    static constexpr auto path_autorun  = "/config/menu/autorun/item";
 }
 
 namespace netxs::events::userland
@@ -5056,8 +5058,24 @@ namespace netxs::console
                     prev = prev_ptr->object;
                 }
             };
-
-            //toto autorun from config
+            auto autos = config.list(path_autorun);
+            for (auto app_ptr : autos) // Autorun from config.
+            {
+                auto& app = *app_ptr;
+                if (!app.fake)
+                {
+                    auto id      = app.value();
+                    auto winsize = app.take(attr_wincoor, twod{ 0, 0 });
+                    auto wincoor = app.take(attr_wincoor, twod{ 80, 25 });
+                    auto focused = app.take(attr_focused, faux);
+                    if (id.empty())
+                    if (auto defs = app.defs.lock())
+                    {
+                        id = defs->value();
+                    }
+                    log(" id ", id, " wincoor ", wincoor, " winsize ", winsize);
+                }
+            }
         }
 
     public:
