@@ -380,7 +380,7 @@ Top-level element `<config>` contains the following base objects
   - Single `<menu>` block - taskbar menu configuration.
     - Single `<selected>` object - the value of this attribute specifies which menu item id will be selected by default at the environment startup.
     - Set of `<item>` objects - a list of menu item definitions.
-    - Not implemented: Single `<autorun>` block - a list of menu item to run at the environment startup.
+    - Single `<autorun>` block - a list of menu item to run at the environment startup.
   - Not implemented: Single `<hotkeys>` block - a global hotkeys/shortcuts configuration.
 
 #### Application Configuration
@@ -446,7 +446,6 @@ The following configuration items have the same meaning
 
 Note: The following configuration sections are not implemented yet
 - config/menu/item/hotkeys
-- config/menu/autorun
 - config/hotkeys
 
 `~/.config/vtm/settings.xml`
