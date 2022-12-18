@@ -5058,23 +5058,6 @@ namespace netxs::console
                     prev = prev_ptr->object;
                 }
             };
-            for (auto app_ptr : config.list(path_autorun)) // Autorun from config.
-            {
-                auto& app = *app_ptr;
-                if (!app.fake)
-                {
-                    auto id      = app.value();
-                    auto winsize = app.take(attr_wincoor, twod{ 0, 0 });
-                    auto wincoor = app.take(attr_wincoor, twod{ 80, 25 });
-                    auto focused = app.take(attr_focused, faux);
-                    if (id.empty())
-                    if (auto defs = app.defs.lock())
-                    {
-                        id = defs->value();
-                    }
-                    log(" id ", id, " wincoor ", wincoor, " winsize ", winsize);
-                }
-            }
         }
 
     public:
@@ -5083,6 +5066,29 @@ namespace netxs::console
             auto lock = events::sync{};
             regis.reset();
             items.reset();
+        }
+
+        void autorun(xml::settings& config)
+        {
+            auto what = e2::form::proceed::createat.param();
+            for (auto app_ptr : config.list(path_autorun))
+            {
+                auto& app = *app_ptr;
+                if (!app.fake)
+                {
+                    what.menuid =   app.take(attr_id, ""s);
+                    what.square = { app.take(attr_wincoor, dot_00),
+                                    app.take(attr_winsize, twod{ 80,25 }) };
+                    auto focused =  app.take(attr_focused, faux);
+                    what.forced = !!what.square.size;
+                    if (what.menuid.size())
+                    {
+                        SIGNAL(tier::release, e2::form::proceed::createat, what);
+                        if (focused) taken.push_back(what.object->id);
+                    }
+                    else log("hall: Unexpected empty app id in autorun configuration");
+                }
+            }
         }
         void redraw(face& canvas) override
         {

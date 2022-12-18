@@ -501,15 +501,14 @@ Note: The following configuration sections are not implemented yet
    <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
    <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
    <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
-        <autorun>    <!-- Taskbar menu width. -->
+        <autorun>  <!-- Autorun of specified menu items -->
             <item*/>
-            <item*=Term winsize=48%,48% /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default. -->
-            <item wincoor=0,0 />
-            <item wincoor=52%,0 />
-            <item wincoor=0,52% />
-            <item=mc wincoor=52%,52% />
+            <!--  <item* id=Term winsize=80,25 />               -->
+            <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
+            <!--  <item wincoor=92,31 />                        -->
+            <!--  <item wincoor=8,31 focused />                 -->
         </autorun>
-        <width>    <!-- not implemented -->
+        <width>    <!-- Taskbar menu width -->
             <folded=4/>
             <expanded=31/>
         </width>

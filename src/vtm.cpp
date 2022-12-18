@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
         config.cd("/config/appearance/defaults/");
         auto ground = base::create<hall>(server, config);
         auto thread = os::pool{};
-        app::shared::activate(ground);
+        app::shared::activate(ground, config);
 
         log("main: listening socket ", server,
                          "\n\tuser: ", userid,
