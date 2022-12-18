@@ -5009,7 +5009,7 @@ namespace netxs::console
                     {
                         taken.push_back(focused_item_ptr->id);
                     });
-                    SIGNAL(tier::general, e2::form::proceed::functor, proc);
+                    this->SIGNAL(tier::general, e2::form::proceed::functor, proc);
                 }
                 auto& inst = *item_ptr;
                 host::denote(items.remove(inst.id));
@@ -5058,8 +5058,7 @@ namespace netxs::console
                     prev = prev_ptr->object;
                 }
             };
-            auto autos = config.list(path_autorun);
-            for (auto app_ptr : autos) // Autorun from config.
+            for (auto app_ptr : config.list(path_autorun)) // Autorun from config.
             {
                 auto& app = *app_ptr;
                 if (!app.fake)
