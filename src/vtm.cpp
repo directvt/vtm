@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.8c"
+#define DESKTOPIO_VER "v0.9.8d"
 #define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_MYPATH "vtm"
@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
         config.cd("/config/appearance/defaults/");
         auto ground = base::create<hall>(server, config);
         auto thread = os::pool{};
-        app::shared::activate(ground);
+        app::shared::activate(ground, config);
 
         log("main: listening socket ", server,
                          "\n\tuser: ", userid,

@@ -112,12 +112,12 @@ R"==(
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
         <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
-        <autorun>    <!-- not implemented -->
-            <item*/>
-            <item*=Term winsize=80,25 /> <!-- item*=_item_id_ - assign the same _item_id_ to each item by default. -->
-            <item wincoor=5,3 />
-            <item wincoor=90,3 />
-            <item wincoor=5,30 winsize=160,25 focused />
+        <autorun>  <!-- Autorun of specified menu items -->
+            <item*/>  <!-- List declaration -->
+            <item* id=Term winsize=80,25     /> <!-- Set defaults for the list -->
+            <item focused wincoor=8,3        />
+            <!--  <item wincoor=92,30        /> -->
+            <!--  <item wincoor=8,30 focused /> -->
         </autorun>
         <width>    <!-- Taskbar menu width. -->
             <folded=4/>
@@ -810,7 +810,7 @@ R"==(
             what.object = window;
         };
     }
-    auto activate = [](auto world_ptr)
+    auto activate = [](auto world_ptr, xml::settings& config)
     {
         auto& world = *world_ptr;
         world.SUBMIT(tier::release, e2::form::proceed::createby, gear)
@@ -825,6 +825,7 @@ R"==(
         {
             create::from(world, what);
         };
+        world.autorun(config);
     };
 
     namespace load
