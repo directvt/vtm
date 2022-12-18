@@ -3698,7 +3698,8 @@ namespace netxs::console
             template<class T>
             input(T& boss)
                 : skill{ boss       },
-                  props{ boss.props }
+                  props{ boss.props },
+                  gears{{ id_t{}, bell::create<topgear>(props, true, boss, xmap, props.dblclick_timeout, props.tooltip_timeout, props.simple) }}
             {
                 xmap.link(boss.bell::id);
                 xmap.move(boss.base::coor());
@@ -4524,7 +4525,8 @@ namespace netxs::console
             };
             SUBMIT_T(tier::general, e2::shutdown, token, msg)
             {
-                //log("host: shutdown: ", msg); //todo Deadlock with intensive logging (inside the std::cout.operator<<()).
+                //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
+                log("host: shutdown: ", msg);
                 joint->shut();
             };
             synch.ignite(hertz);
@@ -4692,8 +4694,7 @@ namespace netxs::console
             {
                 return obj_id == id;
             }
-            // hall::node: Draw the anchor line func and return true
-            //             if the mold is outside the canvas area.
+            // hall::node: Draw a navigation string.
             void fasten(face& canvas)
             {
                 auto window = canvas.area();
@@ -4890,9 +4891,12 @@ namespace netxs::console
             }
         };
 
+        using idls = std::list<id_t>;
+
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
         depo regis; // hall: Actors registry.
+        idls taken; // hall: Focused objects for the last user.
 
     protected:
         hall(xipc server_pipe, xml::settings& config)
@@ -4997,6 +5001,14 @@ namespace netxs::console
             };
             SUBMIT(tier::preview, e2::form::proceed::detach, item_ptr)
             {
+                if (regis.usr.size() == 1) // Save all foci for the last user.
+                {
+                    auto proc = e2::form::proceed::functor.param([&](sptr<base> focused_item_ptr)
+                    {
+                        taken.push_back(focused_item_ptr->id);
+                    });
+                    SIGNAL(tier::general, e2::form::proceed::functor, proc);
+                }
                 auto& inst = *item_ptr;
                 host::denote(items.remove(inst.id));
                 host::denote(users.remove(inst.id));
@@ -5044,6 +5056,8 @@ namespace netxs::console
                     prev = prev_ptr->object;
                 }
             };
+
+            //toto autorun from config
         }
 
     public:
@@ -5080,6 +5094,23 @@ namespace netxs::console
             users.append(user);
             regis.usr.push_back(user);
             SIGNAL(tier::release, e2::bindings::list::users, regis.usr_ptr);
+            if (regis.usr.size() == 1) // Restore all foci for the first user.
+            {
+                for (auto& [id, gear_ptr] : user->input.gears)
+                {
+                    auto& gear = *gear_ptr;
+                    gear.force_group_focus = true;
+                    for (auto id : taken)
+                    {
+                        if (auto window_ptr = bell::getref(id))
+                        {
+                            window_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        }
+                    }
+                    gear.force_group_focus = faux;
+                }
+                taken.clear();
+            }
             return user;
         }
     };
