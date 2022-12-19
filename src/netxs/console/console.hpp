@@ -3623,7 +3623,7 @@ namespace netxs::console
                             {
                                 clip_preview.reset();
                                 clip_preview.full(full);
-                                clip_preview.output(block, cell::shaders::selection(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                                clip_preview.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
                                 clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
                             }
                             full.coor -= dot_21;
@@ -3653,8 +3653,8 @@ namespace netxs::console
                                 clip_preview.wipe();
                             }
                             clip_preview.mark(cell{});
-                            if (clip_rawdata.kind == clip::textonly) clip_preview.output(block, cell::shaders::selection(props.clip_preview_clrs));
-                            else                                     clip_preview.output(block, cell::shaders::xlucent(  props.clip_preview_alfa));
+                            if (clip_rawdata.kind == clip::textonly) clip_preview.output(block, cell::shaders::color(  props.clip_preview_clrs));
+                            else                                     clip_preview.output(block, cell::shaders::xlucent(props.clip_preview_alfa));
                         }
                     }
                     if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
@@ -5553,7 +5553,7 @@ namespace netxs::console
                         area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
                         canvas.full(area);
                         canvas.cup(dot_00);
-                        canvas.output(tooltip_page, cell::shaders::selection(props.tooltip_colors));
+                        canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
                         canvas.full(full);
                     }
                 }

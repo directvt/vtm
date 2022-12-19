@@ -118,7 +118,7 @@ namespace netxs::ui
                 enum shader : si32
                 {
                     xlight,
-                    selection,
+                    color,
                     invert,
                     reverse,
                 };
@@ -184,10 +184,10 @@ namespace netxs::ui
                      { "restart", commands::atexit::restart },
                      { "retry",   commands::atexit::retry   }};
                 static auto fx_options = std::unordered_map<text, commands::fx::shader>
-                    {{ "xlight",    commands::fx::xlight    },
-                     { "selection", commands::fx::selection },
-                     { "invert",    commands::fx::invert    },
-                     { "reverse",   commands::fx::reverse   }};
+                    {{ "xlight",  commands::fx::xlight  },
+                     { "coolor",  commands::fx::color   },
+                     { "invert",  commands::fx::invert  },
+                     { "reverse", commands::fx::reverse }};
 
                 config.cd("/config/term/");
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
@@ -215,13 +215,13 @@ namespace netxs::ui
                 def_none_c =             config.take("color/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
                 def_find_c =             config.take("color/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
 
-                def_safe_f =             config.take("color/selection/protected/fx", commands::fx::selection, fx_options);
-                def_ansi_f =             config.take("color/selection/ansi/fx",      commands::fx::xlight,    fx_options);
-                def_rich_f =             config.take("color/selection/rich/fx",      commands::fx::xlight,    fx_options);
-                def_html_f =             config.take("color/selection/html/fx",      commands::fx::xlight,    fx_options);
-                def_text_f =             config.take("color/selection/text/fx",      commands::fx::selection, fx_options);
-                def_none_f =             config.take("color/selection/none/fx",      commands::fx::selection, fx_options);
-                def_find_f =             config.take("color/match/fx",               commands::fx::selection, fx_options);
+                def_safe_f =             config.take("color/selection/protected/fx", commands::fx::color,  fx_options);
+                def_ansi_f =             config.take("color/selection/ansi/fx",      commands::fx::xlight, fx_options);
+                def_rich_f =             config.take("color/selection/rich/fx",      commands::fx::xlight, fx_options);
+                def_html_f =             config.take("color/selection/html/fx",      commands::fx::xlight, fx_options);
+                def_text_f =             config.take("color/selection/text/fx",      commands::fx::color,  fx_options);
+                def_none_f =             config.take("color/selection/none/fx",      commands::fx::color,  fx_options);
+                def_find_f =             config.take("color/match/fx",               commands::fx::color,  fx_options);
 
                 std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
@@ -1899,10 +1899,10 @@ namespace netxs::ui
             {
                 switch (fx)
                 {
-                    case commands::fx::selection: work(cell::shaders::selection(c)); break;
-                    case commands::fx::xlight:    work(cell::shaders::xlight);       break;
-                    case commands::fx::invert:    work(cell::shaders::invert);       break;
-                    case commands::fx::reverse:   work(cell::shaders::reverse);      break;
+                    case commands::fx::color:   work(cell::shaders::color(c)); break;
+                    case commands::fx::xlight:  work(cell::shaders::xlight);   break;
+                    case commands::fx::invert:  work(cell::shaders::invert);   break;
+                    case commands::fx::reverse: work(cell::shaders::reverse);  break;
                 }
             }
             // bufferbase: Shade selection.

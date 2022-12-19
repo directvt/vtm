@@ -1452,14 +1452,14 @@ namespace netxs::ui::atoms
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
                 template<class D>           inline void operator () (D& dst)         const { dst.bga(alpha); }
             };
-            struct selection_t
+            struct color_t
             {
                 clrs colors;
                 template<class T>
-                constexpr selection_t(T colors)
+                constexpr color_t(T colors)
                     : colors{ colors }
                 { }
-                constexpr selection_t(cell const& brush)
+                constexpr color_t(cell const& brush)
                     : colors{ brush.uv }
                 { }
                 template<class D>
@@ -1497,7 +1497,7 @@ namespace netxs::ui::atoms
 
         public:
             template<class T>
-            static constexpr auto   selection(T    brush) { return   selection_t{ brush }; }
+            static constexpr auto       color(T    brush) { return       color_t{ brush }; }
             static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
             static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
             static constexpr auto      fullid(id_t newid) { return      fullid_t{ newid }; }
