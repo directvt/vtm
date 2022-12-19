@@ -448,7 +448,20 @@ Note: The following configuration sections are not implemented yet
 - config/menu/item/hotkeys
 - config/hotkeys
 
-`~/.config/vtm/settings.xml`
+#### Minimal config (`~/.config/vtm/settings.xml`)
+
+```xml
+<config>
+    <menu>
+        <item*/>          <!-- Remove default records. -->
+        <item id=Term/>   <!-- title=id type=SHELL param=os_default_shell by default-->
+        <autorun item*/>  <!-- Zeroize default autoruns. -->
+    </menu>
+</config>
+```
+
+#### Typical config  (`~/.config/vtm/settings.xml`)
+
 ```xml
 <config>
     <menu>
@@ -605,14 +618,14 @@ Note: The following configuration sections are not implemented yet
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-            <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+            <match fx=color bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
-                <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx=selection bgc=bluelt fgc=whitelt />
+                <text fx=color bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                <protected fx=color bgc=bluelt fgc=whitelt />  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
                 <ansi fx=xlight/>
                 <rich fx=xlight/>
                 <html fx=xlight/>
-                <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
+                <none fx=color bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
             </selection>
         </color>
         <fields>
