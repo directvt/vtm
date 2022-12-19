@@ -119,7 +119,6 @@ namespace netxs::ui
                 {
                     xlight,
                     selection,
-                    contrast,
                     invert,
                     reverse,
                 };
@@ -150,9 +149,6 @@ namespace netxs::ui
             bool resetonout;
             time def_period;
             pals def_colors;
-            //cell def_txtclr;
-            //cell def_offclr;
-            //cell def_dupclr;
 
             cell def_safe_c;
             cell def_ansi_c;
