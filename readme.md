@@ -605,10 +605,10 @@ Note: The following configuration sections are not implemented yet
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-            <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+            <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | invert | reverse -->
             <selection>
                 <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx=selection bgc=bluelt fgc=whitelt />
+                <protected fx=selection bgc=bluelt fgc=whitelt />  <protected fx=selection bgc=bluelt fgc=whitelt />  <!-- Note: The bgc and fgc attributes only apply to the fx=selection shader. -->
                 <ansi fx=xlight/>
                 <rich fx=xlight/>
                 <html fx=xlight/>

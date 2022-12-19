@@ -217,13 +217,13 @@ R"==(
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-            <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+            <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | invert | reverse -->
             <selection>
                 <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx=selection bgc=bluelt fgc=whitelt />
-                <ansi fx=xlight/>
-                <rich fx=xlight/>
-                <html fx=xlight/>
+                <protected fx=selection bgc=bluelt fgc=whitelt />  <!-- Note: The bgc and fgc attributes only apply to the selection shader. -->
+                <ansi fx=xlight bgc=bluelt fgc=whitelt />
+                <rich fx=xlight bgc=bluelt fgc=whitelt />
+                <html fx=xlight bgc=bluelt fgc=whitelt />
                 <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
             </selection>
         </color>

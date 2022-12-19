@@ -1418,14 +1418,17 @@ namespace netxs::ui::atoms
             struct xlight_t
             {
                 template<class D> inline void operator () (D& dst) const { dst.xlight(); }
+                template<class D, class S> inline void operator () (D& dst, S& src) const { dst.fuse(src); operator()(dst); }
             };
             struct invert_t
             {
                 template<class D> inline void operator () (D& dst) const { dst.invert(); }
+                template<class D, class S> inline void operator () (D& dst, S& src) const { dst.fuse(src); operator()(dst); }
             };
             struct reverse_t
             {
                 template<class D> inline void operator () (D& dst) const { dst.reverse(); }
+                template<class D, class S> inline void operator () (D& dst, S& src) const { dst.fuse(src); operator()(dst); }
             };
             struct invbit_t
             {

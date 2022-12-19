@@ -113,6 +113,17 @@ namespace netxs::ui
                     retry,   // Restart session if exit code != 0.
                 };
             };
+            struct fx
+            {
+                enum shader : si32
+                {
+                    xlight,
+                    selection,
+                    contrast,
+                    invert,
+                    reverse,
+                };
+            };
         };
 
         // term: Terminal configuration.
@@ -138,10 +149,26 @@ namespace netxs::ui
             bool resetonkey;
             bool resetonout;
             time def_period;
-            cell def_selclr;
-            cell def_offclr;
-            cell def_dupclr;
             pals def_colors;
+            //cell def_txtclr;
+            //cell def_offclr;
+            //cell def_dupclr;
+
+            cell def_safe_c;
+            cell def_ansi_c;
+            cell def_rich_c;
+            cell def_html_c;
+            cell def_text_c;
+            cell def_none_c;
+            cell def_find_c;
+
+            si32 def_safe_f;
+            si32 def_ansi_f;
+            si32 def_rich_f;
+            si32 def_html_f;
+            si32 def_text_f;
+            si32 def_none_f;
+            si32 def_find_f;
 
             termconfig(xml::settings& config)
             {
@@ -160,6 +187,11 @@ namespace netxs::ui
                      { "close",   commands::atexit::close   },
                      { "restart", commands::atexit::restart },
                      { "retry",   commands::atexit::retry   }};
+                static auto fx_options = std::unordered_map<text, commands::fx::shader>
+                    {{ "xlight",    commands::fx::xlight    },
+                     { "selection", commands::fx::selection },
+                     { "invert",    commands::fx::invert    },
+                     { "reverse",   commands::fx::reverse   }};
 
                 config.cd("/config/term/");
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
@@ -175,12 +207,25 @@ namespace netxs::ui
                 def_cur_on =             config.take("cursor/show",          true);
                 def_cursor =             config.take("cursor/style",         true, cursor_options);
                 def_period =             config.take("cursor/blink",         time{ BLINK_PERIOD });
+                def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
-                def_selclr =             config.take("color/selection/text", cell{}.bgc(bluelt).fgc(whitelt));
-                def_offclr =             config.take("color/selection/none", cell{}.bgc(blacklt).fgc(whitedk));
-                def_dupclr =             config.take("color/match",          cell{}.bgc(0xFF007F00).fgc(whitelt));
-                def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
+
+                def_safe_c =             config.take("color/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_ansi_c =             config.take("color/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_rich_c =             config.take("color/selection/rich",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_html_c =             config.take("color/selection/html",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_text_c =             config.take("color/selection/text",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_none_c =             config.take("color/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
+                def_find_c =             config.take("color/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
+
+                def_safe_f =             config.take("color/selection/protected/fx", commands::fx::selection, fx_options);
+                def_ansi_f =             config.take("color/selection/ansi/fx",      commands::fx::xlight,    fx_options);
+                def_rich_f =             config.take("color/selection/rich/fx",      commands::fx::xlight,    fx_options);
+                def_html_f =             config.take("color/selection/html/fx",      commands::fx::xlight,    fx_options);
+                def_text_f =             config.take("color/selection/text/fx",      commands::fx::selection, fx_options);
+                def_none_f =             config.take("color/selection/none/fx",      commands::fx::selection, fx_options);
+                def_find_f =             config.take("color/match/fx",               commands::fx::selection, fx_options);
 
                 std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
@@ -1852,18 +1897,30 @@ namespace netxs::ui
                 }
                 return origin_x;
             };
+            // bufferbase: Select shader.
+            template<class P>
+            void _shade(si32 fx, cell const& c, P work)
+            {
+                switch (fx)
+                {
+                    case commands::fx::selection: work(cell::shaders::selection(c)); break;
+                    case commands::fx::xlight:    work(cell::shaders::xlight);       break;
+                    case commands::fx::invert:    work(cell::shaders::invert);       break;
+                    case commands::fx::reverse:   work(cell::shaders::reverse);      break;
+                }
+            }
             // bufferbase: Shade selection.
             template<class P>
             auto _shade_selection(si32 mode, P work)
             {
                 switch (mode)
                 {
-                    case clip::ansitext: work(cell::shaders::xlight); break;
-                    case clip::richtext: work(cell::shaders::xlight); break;
-                    case clip::htmltext: work(cell::shaders::xlight); break;
-                    case clip::textonly: work(cell::shaders::selection(owner.config.def_selclr)); break;
-                    case clip::safetext: work(cell::shaders::selection(owner.config.def_selclr)); break;
-                    default:             work(cell::shaders::selection(owner.config.def_offclr)); break;
+                    case clip::ansitext: _shade(owner.config.def_ansi_f, owner.config.def_ansi_c, work); break;
+                    case clip::richtext: _shade(owner.config.def_rich_f, owner.config.def_rich_c, work); break;
+                    case clip::htmltext: _shade(owner.config.def_html_f, owner.config.def_html_c, work); break;
+                    case clip::textonly: _shade(owner.config.def_text_f, owner.config.def_text_c, work); break;
+                    case clip::safetext: _shade(owner.config.def_safe_f, owner.config.def_safe_c, work); break;
+                    default:             _shade(owner.config.def_none_f, owner.config.def_none_c, work); break;
                 }
             }
             // bufferbase: Rasterize selection with grips.
@@ -2229,12 +2286,16 @@ namespace netxs::ui
                     {
                         dest.full(area);
                         auto offset = si32{};
-                        while (canvas.find(match, offset))
+                        auto work = [&](auto shader)
                         {
-                            auto c = canvas.toxy(offset);
-                            dest.output(match, c, cell::shaders::selection(owner.config.def_dupclr));
-                            offset += match.length();
-                        }
+                            while (canvas.find(match, offset))
+                            {
+                                auto c = canvas.toxy(offset);
+                                dest.output(match, c, shader);
+                                offset += match.length();
+                            }
+                        };
+                        _shade(owner.config.def_find_f, owner.config.def_find_c, work);
                         dest.full(full);
                     }
                 }
@@ -4378,12 +4439,16 @@ namespace netxs::ui
                     {
                         match.style.wrp(curln.style.wrp());
                         auto offset = si32{ 0 };
-                        while (curln.find(match, offset))
+                        auto work = [&](auto shader)
                         {
-                            auto c = coor + offset_to_screen(curln, offset);
-                            dest.output(match, c, cell::shaders::selection(owner.config.def_dupclr));
-                            offset += match.length();
-                        }
+                            while (curln.find(match, offset))
+                            {
+                                auto c = coor + offset_to_screen(curln, offset);
+                                dest.output(match, c, shader);
+                                offset += match.length();
+                            }
+                        };
+                        _shade(owner.config.def_find_f, owner.config.def_find_c, work);
                     }
 
                     if (length > 0) // Highlight the lines that are not shown in full.
@@ -4443,12 +4508,16 @@ namespace netxs::ui
                         {
                             dest.full(area);
                             auto offset = si32{};
-                            while (block.find(match, offset))
+                            auto work = [&](auto shader)
                             {
-                                auto c = block.toxy(offset);
-                                dest.output(match, c, cell::shaders::selection(owner.config.def_dupclr));
-                                offset += match.length();
-                            }
+                                while (block.find(match, offset))
+                                {
+                                    auto c = block.toxy(offset);
+                                    dest.output(match, c, shader);
+                                    offset += match.length();
+                                }
+                            };
+                            _shade(owner.config.def_find_f, owner.config.def_find_c, work);
                         }
                     };
                     draw(upbox);
