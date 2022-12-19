@@ -6578,6 +6578,10 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
+            auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
+            SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+            if (!gear_test.second) return; // Right clicks are only allowed on the focused terminal.
+
             auto& console = *target;
             if (console.selection_active())
             {

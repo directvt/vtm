@@ -454,7 +454,7 @@ Note: The following configuration sections are not implemented yet
 <config>
     <menu>
         <item*/>          <!-- Remove default records. -->
-        <item id=Term/>   <!-- title=id type=SHELL param=$SHELL by default-->
+        <item id=Term/>   <!-- title=id type=SHELL param=os_default_shell by default-->
         <autorun item*/>  <!-- Zeroize default autoruns. -->
     </menu>
 </config>
