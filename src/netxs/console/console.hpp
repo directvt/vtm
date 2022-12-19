@@ -4967,6 +4967,7 @@ namespace netxs::console
                 conf_rec.settings = config;
                 auto patches      = item.enumerate("config");
                 if (patches.size()) conf_rec.patch = patches.front()->snapshot();
+                if (conf_rec.title.empty()) conf_rec.title = conf_rec.id + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
 
                 utf::to_low(conf_rec.type);
                 utf::change(conf_rec.title,  "$0", current_module_file);

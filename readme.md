@@ -448,7 +448,20 @@ Note: The following configuration sections are not implemented yet
 - config/menu/item/hotkeys
 - config/hotkeys
 
-`~/.config/vtm/settings.xml`
+#### Minimal config (`~/.config/vtm/settings.xml`)
+
+```xml
+<config>
+    <menu>
+        <item*/>          <!-- Remove default records. -->
+        <item id=Term/>   <!-- title=id type=SHELL param=$SHELL by default-->
+        <autorun item*/>  <!-- Zeroize default autoruns. -->
+    </menu>
+</config>
+```
+
+#### Typical config  (`~/.config/vtm/settings.xml`)
+
 ```xml
 <config>
     <menu>
