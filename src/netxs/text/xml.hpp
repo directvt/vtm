@@ -367,17 +367,19 @@ namespace netxs::xml
                     }
                     //test
                     //yield.bgc((tint)(clr % 8));
-                    if (kind == type::tag_value)
-                    {
-                        auto temp = data;
-                        if (fgc) yield.fgc(fgc).add(xml::escape(temp)).nil();
-                        else     yield.add(xml::escape(temp));
-                    }
-                    else
-                    {
+
+                    //todo make it optional
+                    //if (kind == type::tag_value)
+                    //{
+                    //    auto temp = data;
+                    //    if (fgc) yield.fgc(fgc).add(xml::escape(temp)).nil();
+                    //    else     yield.add(xml::escape(temp));
+                    //}
+                    //else
+                    //{
                         if (fgc) yield.fgc(fgc).add(data).nil();
                         else     yield.add(data);
-                    }
+                    //}
                 }
     
                 auto count = 1;

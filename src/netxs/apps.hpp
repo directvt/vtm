@@ -241,6 +241,48 @@ R"==(
             <autohide=true/>  <!--  If true/on, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
+            <item*/>
+            <item label="Wrap" type=Toggle action=ToggleWrapMode default=on>
+                <notes>
+                    " Wrapping text lines on/off      \n"
+                    " - applied to selection if it is "
+                </notes>
+            </item>
+            <item notes=" Text selection mode " type=Selector action=SetSelectionMode default=1>
+                <label="Selection" value=0 />
+                <label="\e[38:2:0;255;0mPlaintext\e[m" value=1 />
+                <label="\e[38:2:255;255;0mANSI-text\e[m" value=2 />
+                <label value=3>
+                    "\e[38:2:109;231;237m""R"
+                    "\e[38:2:109;237;186m""T"
+                    "\e[38:2:60;255;60m"  "F"
+                    "\e[38:2:189;255;53m" "-"
+                    "\e[38:2:255;255;49m" "s"
+                    "\e[38:2:255;189;79m" "t"
+                    "\e[38:2:255;114;94m" "y"
+                    "\e[38:2:255;60;157m" "l"
+                    "\e[38:2:255;49;214m" "e" "\e[m"
+                </label>
+                <label="\e[38:2:0;255;255mHTML-code\e[m" value=4 />
+                <label="\e[38:2:0;255;255mProtected\e[m" value=5 />
+            </item>
+            <item label="<" type=Command action=FindPrev>
+                <notes>
+                    " Previuos match                    \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label=">" type=Command action=FindNext>
+                <notes>
+                    " Next match                        \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label="  " notes=" ...empty menu block for safety " type=Splitter/>
+            <item label="Clear" notes=" Clear TTY viewport "                  type=VtCommand param="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " type=VtCommand param="\e[!p"/>
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
