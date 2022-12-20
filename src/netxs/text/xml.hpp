@@ -240,6 +240,7 @@ namespace netxs::xml
             whitespaces,   // ' '     ex: \s\t\r\n...
             unknown,       //
             tag_value,     //
+            error,         // Inline error message.
         };
 
         struct literal;
@@ -270,7 +271,7 @@ namespace netxs::xml
             frag back; // suit: Linked list end.
 
             suit(suit&&) = default;
-            suit(text file = {})
+            suit(view file = {})
                 : data{ std::make_shared<literal>(type::na) },
                   fail{ faux },
                   file{ file },
@@ -363,23 +364,20 @@ namespace netxs::xml
                         case unknown:       fgc = redlt;        break;
                         case tag_value:     fgc = value_fg;
                                             bgc = value_bg;     break;
+                        case error:         fgc = whitelt;
+                                            bgc = reddk;
+                                            yield += ' ';       break;
                         default: break;
                     }
                     //test
                     //yield.bgc((tint)(clr % 8));
 
-                    //todo make it optional
-                    //if (kind == type::tag_value)
-                    //{
-                    //    auto temp = data;
-                    //    if (fgc) yield.fgc(fgc).add(xml::escape(temp)).nil();
-                    //    else     yield.add(xml::escape(temp));
-                    //}
-                    //else
-                    //{
-                        if (fgc) yield.fgc(fgc).add(data).nil();
-                        else     yield.add(data);
-                    //}
+                    if (data.size())                        
+                    {
+                             if (bgc) yield.fgc(fgc).bgc(bgc).add(data).nil();
+                        else if (fgc) yield.fgc(fgc)         .add(data).nil();
+                        else          yield                  .add(data);
+                    }
                 }
     
                 auto count = 1;
@@ -630,12 +628,12 @@ namespace netxs::xml
         sptr root;
 
         document(document&&) = default;
-        document(view data, text file = "")
+        document(view data, view file = {})
             : page{ file },
               root{ std::make_shared<elem>()}
         {
             read(data);
-            if (page.fail) log(" xml: inconsistent xml data from ", page.file, "\n", page.show());
+            if (page.fail) log(" xml: inconsistent xml data from ", file.empty() ? "memory"sv : file, ":\n", page.show(), "\n");
         }
         template<bool WithTemplate = faux>
         auto take(view path)
@@ -699,6 +697,12 @@ namespace netxs::xml
         }
 
     private:
+        auto fail(text hurt)
+        {
+            page.fail = true;
+            page.append(type::error, hurt);
+            log(" xml:", hurt, "at ", page.file, ":", page.lines());
+        }
         auto fail(type last, type what)
         {
             auto str = [&](type what)
@@ -721,8 +725,7 @@ namespace netxs::xml
                     default:                  return view{ "{unknown}" } ;
                 };
             };
-            log(" xml: unexpected '", str(what), "' after '", str(last), "' at ", page.file, ":", page.lines());
-            page.fail = true;
+            fail(ansi::add(" unexpected '", str(what), "' after '", str(last), "' "));
         }
         auto peek(view& data, type& what, type& last)
         {
@@ -823,7 +826,7 @@ namespace netxs::xml
         {
             auto delta = temp.size() - data.size();
                  if (delta > 0) page.append(kind, temp.substr(0, delta));
-            else if (delta < 0) log(" xml: unexpected data");
+            else if (delta < 0) fail(" unexpected data ");
         }
         auto pair(sptr& item, view& data, type& what, type& last, type kind)
         {
@@ -1045,7 +1048,7 @@ namespace netxs::xml
                                         if (tail != view::npos) data.remove_prefix(tail + 1);
                                         else                    data = {};
                                         diff(data, temp, what);
-                                        log(" xml: unexpected closing tag name '", object, "', expected: '", item->name->utf8, "' at ", page.file, ":", page.lines());
+                                        fail(ansi::add(" unexpected closing tag name '", object, "', expected: '", item->name->utf8, "' "));
                                         continue; // Repeat until eof or success.
                                     }
                                 }
@@ -1060,7 +1063,7 @@ namespace netxs::xml
                             else if (what == type::eof)
                             {
                                 trim(data);
-                                if (page.back->kind == type::eof) log(" xml: unexpected {EOF}");
+                                if (page.back->kind == type::eof) fail(" unexpected {EOF} ");
                             }
                         }
                         while (data.size());
@@ -1081,7 +1084,7 @@ namespace netxs::xml
                     head = head->prev.lock();
                 }
                 item->name = page.append(type::tag_value);
-                log(" xml: empty tag name at ", page.file, ":", page.lines());
+                fail(" empty tag name ");
             }
             if (fire) fail(last, what);
             if (what == type::eof) page.append(what);
@@ -1215,7 +1218,7 @@ namespace netxs::xml
         {
             if (filepath.size()) document->page.file = filepath;
             if (utf8_xml.empty()) return;
-            auto run_config = xml::document{ utf8_xml };
+            auto run_config = xml::document{ utf8_xml, filepath };
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
                 auto& node = *node_ptr;
