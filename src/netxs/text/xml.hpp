@@ -697,11 +697,11 @@ namespace netxs::xml
         }
 
     private:
-        auto fail(text hurt)
+        auto fail(text msg)
         {
             page.fail = true;
-            page.append(type::error, hurt);
-            log(" xml:", hurt, "at ", page.file, ":", page.lines());
+            page.append(type::error, msg);
+            log(" xml:", msg, "at ", page.file, ":", page.lines());
         }
         auto fail(type last, type what)
         {
