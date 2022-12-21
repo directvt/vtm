@@ -731,7 +731,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
           <menu>
             <item*/>  <!-- Zeroize previous item list. -->
             <item label="Wrap" type=Option action=SetWrapMode data="off"> <!-- item/label has index=0 by default. -->
-              <label="\e[38:2:0;255;0mWrap\e[m" index=1 data="on"/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
+              <label="\e[38:2:0:255:0mWrap\e[m" index=1 data="on"/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
               <notes>
                   " Wrapping text lines on/off      \n"
                   " - applied to selection if it is "

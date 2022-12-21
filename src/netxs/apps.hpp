@@ -242,31 +242,31 @@ R"==(
             <slim=1 />
             <item*/>  <!-- Zeroize previous item list. -->
             <item label="Wrap" type=Option action=SetWrapMode data="off"> <!-- item/label has index=0 by default. -->
-                <label="\e[38:2:0;255;0mWrap\e[m" index=1 data="on"/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
+                <label="\e[38:2:0:255:0mWrap\e[m" index=1 data="on"/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
                 <notes>
                     " Wrapping text lines on/off      \n"
                     " - applied to selection if it is "
                 </notes>
             </item>
             <item label="Selection" notes=" Text selection mode " type=Option action=SetSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
-                <label="\e[38:2:0;255;0mPlaintext\e[m" index=1 data="text"/>
-                <label="\e[38:2:255;255;0mANSI-text\e[m" index=2 data="ansi"/>
+                <label="\e[38:2:0:255:0mPlaintext\e[m" index=1 data="text"/>
+                <label="\e[38:2:255:255:0mANSI-text\e[m" index=2 data="ansi"/>
                 <label index=3 data="rich">
-                    "\e[38:2:109;231;237m""R"
-                    "\e[38:2:109;237;186m""T"
-                    "\e[38:2:60;255;60m"  "F"
-                    "\e[38:2:189;255;53m" "-"
-                    "\e[38:2:255;255;49m" "s"
-                    "\e[38:2:255;189;79m" "t"
-                    "\e[38:2:255;114;94m" "y"
-                    "\e[38:2:255;60;157m" "l"
-                    "\e[38:2:255;49;214m" "e" "\e[m"
+                    "\e[38:2:109:231:237m""R"
+                    "\e[38:2:109:237:186m""T"
+                    "\e[38:2:60:255:60m"  "F"
+                    "\e[38:2:189:255:53m" "-"
+                    "\e[38:2:255:255:49m" "s"
+                    "\e[38:2:255:189:79m" "t"
+                    "\e[38:2:255:114:94m" "y"
+                    "\e[38:2:255:60:157m" "l"
+                    "\e[38:2:255:49:214m" "e" "\e[m"
                 </label>
-                <label="\e[38:2:0;255;255mHTML-code\e[m" index=4 data="html"/>
-                <label="\e[38:2:0;255;255mProtected\e[m" index=5 data="protected"/>
+                <label="\e[38:2:0:255:255mHTML-code\e[m" index=4 data="html"/>
+                <label="\e[38:2:0:255:255mProtected\e[m" index=5 data="protected"/>
             </item>
             <item label="<" action=FindPrev>  <!-- type=Command is a default item's attribute. -->
-                <label="\e[38:2:0;255;0m<\e[m" index=1 />
+                <label="\e[38:2:0:255:0m<\e[m" index=1 />
                 <notes>
                     " Previous match                    \n"
                     " - using clipboard if no selection \n"
@@ -274,7 +274,7 @@ R"==(
                 </notes>
             </item>
             <item label=">" action=FindNext>
-                <label="\e[38:2:0;255;0m>\e[m" index=1 />
+                <label="\e[38:2:0:255:0m>\e[m" index=1 />
                 <notes>
                     " Next match                        \n"
                     " - using clipboard if no selection \n"
