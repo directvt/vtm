@@ -241,17 +241,17 @@ R"==(
             <enabled=1 />
             <slim=1 />
             <item*/>  <!-- Zeroize previous item list. -->
-            <item label="Wrap" type=Option action=WrapMode> <!-- item/label has value=0 by default. -->
-                <label="\e[38:2:0;255;0mWrap\e[m" value=1/>
+            <item label="Wrap" type=Option action=WrapMode> <!-- item/label has index=0 by default. -->
+                <label="\e[38:2:0;255;0mWrap\e[m" index=1/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
                 <notes>
                     " Wrapping text lines on/off      \n"
                     " - applied to selection if it is "
                 </notes>
             </item>
             <item label="Selection" notes=" Text selection mode " type=Option action=SelectionMode>
-                <label="\e[38:2:0;255;0mPlaintext\e[m" value=1 />
-                <label="\e[38:2:255;255;0mANSI-text\e[m" value=2 />
-                <label value=3>
+                <label="\e[38:2:0;255;0mPlaintext\e[m" index=1/>
+                <label="\e[38:2:255;255;0mANSI-text\e[m" index=2/>
+                <label index=3>
                     "\e[38:2:109;231;237m""R"
                     "\e[38:2:109;237;186m""T"
                     "\e[38:2:60;255;60m"  "F"
@@ -262,28 +262,29 @@ R"==(
                     "\e[38:2:255;60;157m" "l"
                     "\e[38:2:255;49;214m" "e" "\e[m"
                 </label>
-                <label="\e[38:2:0;255;255mHTML-code\e[m" value=4 />
-                <label="\e[38:2:0;255;255mProtected\e[m" value=5 />
+                <label="\e[38:2:0;255;255mHTML-code\e[m" index=4/>
+                <label="\e[38:2:0;255;255mProtected\e[m" index=5/>
             </item>
-            <item label="<" type=Command action=FindPrev>
-                <label="\e[38:2:0;255;0m<\e[m" value=1 />
+            <item label="<" action=FindPrev>  <!-- type=Command is a default item's attribute. -->
+                <label="\e[38:2:0;255;0m<\e[m" index=1 />
                 <notes>
                     " Previous match                    \n"
                     " - using clipboard if no selection \n"
                     " - page up if no clipboard data    "
                 </notes>
             </item>
-            <item label=">" type=Command action=FindNext>
-                <label="\e[38:2:0;255;0m>\e[m" value=1 />
+            <item label=">" action=FindNext>
+                <label="\e[38:2:0;255;0m>\e[m" index=1 />
                 <notes>
                     " Next match                        \n"
                     " - using clipboard if no selection \n"
                     " - page up if no clipboard data    "
                 </notes>
             </item>
-            <item label="  "    notes=" ...empty menu block for safety "      type=Splitter/>
-            <item label="Clear" notes=" Clear TTY viewport "                  type=Command action=VtOutput param="\e[2J"/>
-            <item label="Reset" notes=" Clear scrollback and SGR-attributes " type=Command action=VtOutput param="\e[!p"/>
+            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
+            <item label="Clear" notes=" Clear TTY viewport "                  action=VtOutput data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=VtOutput data="\e[!p"/>
+            <item label="Hello, World!" notes=" Simulating keypresses "       action=VtInput  data="Hello World!"/>
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
