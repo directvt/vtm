@@ -237,17 +237,19 @@ R"==(
             <show=true/>
         </cursor>
         <menu>
-            <autohide=true/>  <!--  If true/on, show menu only on hover. -->
-            <enabled="on"/>
-            <slim=true />
-            <item*/>
-            <item label="Wrap" type=Toggle action=ToggleWrapMode default=on>
+            <autohide=true />  <!--  If true, show menu only on hover. -->
+            <enabled=1 />
+            <slim=1 />
+            <item*/>  <!-- Zeroize previous item list. -->
+            <item type=Option action=SetWrapMode initial=1>
+                <label="Wrap" value=0/>
+                <label="\e[38:2:0;255;0mWrap\e[m" value=1/>
                 <notes>
                     " Wrapping text lines on/off      \n"
                     " - applied to selection if it is "
                 </notes>
             </item>
-            <item notes=" Text selection mode " type=Selector action=SetSelectionMode default=1>
+            <item notes=" Text selection mode " type=Option action=SetSelectionMode initial=1>
                 <label="Selection" value=0 />
                 <label="\e[38:2:0;255;0mPlaintext\e[m" value=1 />
                 <label="\e[38:2:255;255;0mANSI-text\e[m" value=2 />
@@ -279,9 +281,9 @@ R"==(
                     " - page up if no clipboard data    "
                 </notes>
             </item>
-            <item label="  " notes=" ...empty menu block for safety " type=Splitter/>
-            <item label="Clear" notes=" Clear TTY viewport "                  type=VtCommand param="\e[2J"/>
-            <item label="Reset" notes=" Clear scrollback and SGR-attributes " type=VtCommand param="\e[!p"/>
+            <item label="  "    notes=" ...empty menu block for safety "      type=Splitter/>
+            <item label="Clear" notes=" Clear TTY viewport "                  type=Command action=VtOutput param="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " type=Command action=VtOutput param="\e[!p"/>
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
