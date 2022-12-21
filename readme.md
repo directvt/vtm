@@ -779,7 +779,8 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        SetSelectionMode | Set terminal text selection mode. The `data=` attribute can has the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
        SetWrapMode      | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can has the following values `on`, `off`.
        FindNext         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-       FindPrev         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.       Print            | Direct output the `data=` value to the terminal scrollback.
+       FindPrev         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+       Print            | Direct output the `data=` value to the terminal scrollback.
        SendKey          | Simulating keypresses using the `data=` string.
 
  - `▀▄ Logs`
