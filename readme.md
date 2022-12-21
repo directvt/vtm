@@ -720,6 +720,68 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 
       Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets the background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
 
+      ## Custom Menu Configuration
+      
+      Terminal window menu can be composed from scratch by specifying a list of menu items in the `/config/term/menu/` configuration file section.
+
+      Example
+      ```xml
+      <config>
+        <term>
+          <menu>
+            <item*/>  <!-- Zeroize previous item list. -->
+            <item label="Wrap" type=Option action=SetWrapMode data="off"> <!-- item/label has index=0 by default. -->
+              <label="\e[38:2:0;255;0mWrap\e[m" index=1 data="on"/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
+              <notes>
+                  " Wrapping text lines on/off      \n"
+                  " - applied to selection if it is "
+              </notes>
+            </item>
+            <item label="Clear" notes=" Clear TTY viewport  " action=Print data="\e[2J"/>
+            <item label="Hello, World!" notes=" Simulating keypresses " action=SendKey data="Hello World!"/>
+          </menu>
+        </term>
+      </config>
+      ```
+
+      ## Attributes for the `/config/term/menu/item` object
+
+       Attribute  | Description
+      ------------|----------------
+       type       | Menu item type. `type=Command` is used by default.
+       label      | Menu item label list. One or more textual representations selected by the index returned by `action=`.
+       notes      | Tooltip.
+       action     | The function name which called on item activation. Inherited by the label attribute.
+       data       | Textual parameter for function call. Inherited by the label attribute.
+       hotkey     | Keyboard shortcut for this menu item. Inherited by the label attribute (not implemented).
+
+      ## Attributes for the `/config/term/menu/item/label` sub-object
+
+       Attribute  | Description
+      ------------|----------------
+       index      | The index which allows to select label display variation by using action's return value. Default is `index=0`.
+       notes      | Tooltip. Inherited from item if not specified.
+       action     | The function name which called on item activation. Inherited from item if not specified.
+       data       | Textual parameter for function call. Inherited from item if not specified.
+       hotkey     | Keyboard shortcut for this menu item. Inherited from item if not specified (not implemented).
+
+      ### Attribute `type=`
+
+      Value     | Description
+      ----------|------------
+       Option   | Cyclically selects the next label in the list and exec the function specified by the `action=` with `data=` as its parameter.
+       Command  | Exec the function specified by the `action=` with `data=` as its parameter.
+
+      ### Attribute `action=`
+
+       Value            | Description
+      ------------------|------------
+       SetSelectionMode | Set terminal text selection mode. The `data=` attribute can has the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
+       SetWrapMode      | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can has the following values `on`, `off`.
+       FindNext         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+       FindPrev         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.       Print            | Direct output the `data=` value to the terminal scrollback.
+       SendKey          | Simulating keypresses using the `data=` string.
+
  - `▀▄ Logs`
    - Debug output console.
 

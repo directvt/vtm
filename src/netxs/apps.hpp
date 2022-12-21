@@ -237,18 +237,18 @@ R"==(
             <show=true/>
         </cursor>
         <menu>
-            <autohide=true />  <!--  If true, show menu only on hover. -->
+            <autohide=true />  <!-- If true, show menu only on hover. -->
             <enabled=1 />
             <slim=1 />
             <item*/>  <!-- Zeroize previous item list. -->
-            <item label="Wrap" type=Option action=WrapMode data="off"> <!-- item/label has index=0 by default. -->
+            <item label="Wrap" type=Option action=SetWrapMode data="off"> <!-- item/label has index=0 by default. -->
                 <label="\e[38:2:0;255;0mWrap\e[m" index=1 data="on"/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
                 <notes>
                     " Wrapping text lines on/off      \n"
                     " - applied to selection if it is "
                 </notes>
             </item>
-            <item label="Selection" notes=" Text selection mode " type=Option action=SelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+            <item label="Selection" notes=" Text selection mode " type=Option action=SetSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
                 <label="\e[38:2:0;255;0mPlaintext\e[m" index=1 data="text"/>
                 <label="\e[38:2:255;255;0mANSI-text\e[m" index=2 data="ansi"/>
                 <label index=3 data="rich">
@@ -282,9 +282,9 @@ R"==(
                 </notes>
             </item>
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
-            <item label="Clear" notes=" Clear TTY viewport "                  action=VtOutput data="\e[2J"/>
-            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=VtOutput data="\e[!p"/>
-            <item label="Hello, World!" notes=" Simulating keypresses "       action=VtInput  data="Hello World!"/>
+            <item label="Clear" notes=" Clear TTY viewport "                  action=Print data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=Print data="\e[!p"/>
+            <item label="Hello, World!" notes=" Simulating keypresses "       action=SendKey data="Hello World!"/>
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
