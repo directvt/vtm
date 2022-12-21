@@ -241,16 +241,14 @@ R"==(
             <enabled=1 />
             <slim=1 />
             <item*/>  <!-- Zeroize previous item list. -->
-            <item type=Option action=WrapMode>
-                <label="Wrap" value=0/>
+            <item label="Wrap" type=Option action=WrapMode> <!-- item/label has value=0 by default. -->
                 <label="\e[38:2:0;255;0mWrap\e[m" value=1/>
                 <notes>
                     " Wrapping text lines on/off      \n"
                     " - applied to selection if it is "
                 </notes>
             </item>
-            <item notes=" Text selection mode " type=Option action=SelectionMode>
-                <label="Selection" value=0 />
+            <item label="Selection" notes=" Text selection mode " type=Option action=SelectionMode>
                 <label="\e[38:2:0;255;0mPlaintext\e[m" value=1 />
                 <label="\e[38:2:255;255;0mANSI-text\e[m" value=2 />
                 <label value=3>
@@ -268,13 +266,15 @@ R"==(
                 <label="\e[38:2:0;255;255mProtected\e[m" value=5 />
             </item>
             <item label="<" type=Command action=FindPrev>
+                <label="\e[38:2:0;255;0m<\e[m" value=1 />
                 <notes>
-                    " Previuos match                    \n"
+                    " Previous match                    \n"
                     " - using clipboard if no selection \n"
                     " - page up if no clipboard data    "
                 </notes>
             </item>
             <item label=">" type=Command action=FindNext>
+                <label="\e[38:2:0;255;0m>\e[m" value=1 />
                 <notes>
                     " Next match                        \n"
                     " - using clipboard if no selection \n"

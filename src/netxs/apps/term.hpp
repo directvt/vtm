@@ -174,7 +174,7 @@ namespace netxs::app::term
                     boss.deface();
                 };
             }},
-            { true, "<", " Previuos match                    \n"
+            { true, "<", " Previous match                    \n"
                          " - using clipboard if no selection \n"
                          " - page up if no clipboard data    ",
             [](ui::pads& boss)
