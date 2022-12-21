@@ -452,10 +452,10 @@ Note: The following configuration sections are not implemented yet
 
 ```xml
 <config>
-    <menu>
-        <item*/>          <!-- Remove default records. -->
+    <menu selected=Term>
+        <item*/>          <!-- Remove default item records. -->
         <item id=Term/>   <!-- title=id type=SHELL param=os_default_shell by default-->
-        <autorun item*/>  <!-- Zeroize default autoruns. -->
+        <autorun*/>       <!-- Zeroize default autoruns. -->
     </menu>
 </config>
 ```
@@ -464,8 +464,7 @@ Note: The following configuration sections are not implemented yet
 
 ```xml
 <config>
-    <menu>
-        <selected=Term /> <!-- Set selected using menu item id. -->
+    <menu selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested arguments
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->

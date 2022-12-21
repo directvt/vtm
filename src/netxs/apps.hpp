@@ -31,8 +31,7 @@ namespace netxs::app::shared
 {
     static constexpr auto default_config = R"==(
 <config>
-    <menu>
-        <selected=Term /> <!-- Set selected using menu item id. -->
+    <menu selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested arguments
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
