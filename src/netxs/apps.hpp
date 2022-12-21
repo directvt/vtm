@@ -241,7 +241,7 @@ R"==(
             <enabled=1 />
             <slim=1 />
             <item*/>  <!-- Zeroize previous item list. -->
-            <item type=Option action=SetWrapMode initial=1>
+            <item type=Option action=WrapMode>
                 <label="Wrap" value=0/>
                 <label="\e[38:2:0;255;0mWrap\e[m" value=1/>
                 <notes>
@@ -249,7 +249,7 @@ R"==(
                     " - applied to selection if it is "
                 </notes>
             </item>
-            <item notes=" Text selection mode " type=Option action=SetSelectionMode initial=1>
+            <item notes=" Text selection mode " type=Option action=SelectionMode>
                 <label="Selection" value=0 />
                 <label="\e[38:2:0;255;0mPlaintext\e[m" value=1 />
                 <label="\e[38:2:255;255;0mANSI-text\e[m" value=2 />
