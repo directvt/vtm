@@ -4965,7 +4965,7 @@ namespace netxs::console
                 conf_rec.param    = item.take(attr_param,    fallback.param   );
                 conf_rec.type     = item.take(attr_type,     fallback.type    );
                 conf_rec.settings = config;
-                auto patches      = item.enumerate("config");
+                auto patches      = item.list("config");
                 if (patches.size()) conf_rec.patch = patches.front()->snapshot();
                 if (conf_rec.title.empty()) conf_rec.title = conf_rec.id + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
 

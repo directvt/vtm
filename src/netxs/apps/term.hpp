@@ -237,7 +237,7 @@ namespace netxs::app::term
         };
         {
             config.cd("/config/term/", "/config/defapp/");
-            auto items = config.list("/config/term/menu/item");
+            auto items = config.list("menu/item");
             static constexpr auto attr_type   = "type";
             static constexpr auto attr_label  = "label";
             static constexpr auto attr_notes  = "notes";
@@ -245,19 +245,22 @@ namespace netxs::app::term
             static constexpr auto attr_data   = "data";
             static constexpr auto attr_hotkey = "hotkey";
             static constexpr auto attr_index  = "index";
+
+            static const auto type_Command  = "Command"s;
+            static const auto type_Splitter = "Splitter"s;
+            static const auto type_Option   = "Option"s;
+
             auto i = 0;
             for (auto item_ptr : items)
             {
                 auto& item = *item_ptr;
-                auto type   = item.take(attr_type,   "Command"s);
+                auto type   = item.take(attr_type,   type_Command);
                 auto notes  = item.take(attr_notes,  ""s);
                 auto action = item.take(attr_action, ""s);
                 auto data   = item.take(attr_data,   ""s);
                 auto hotkey = item.take(attr_hotkey, ""s);
-                log(" item ", i++, "\n\t type=", action.empty() ? "Splitter"s : type
-                                 , "\n\t notes=", notes
-                );
-                auto labels = item.enumerate(attr_label);
+                auto labels = item.list(attr_label);
+                log(" item_", i++, " type=", action.empty() ? type_Splitter : type);
                 for (auto label_ptr : labels)
                 {
                     auto& label = *label_ptr;
@@ -267,12 +270,12 @@ namespace netxs::app::term
                     auto l_action = label.take(attr_action, action);
                     auto l_data   = label.take(attr_data,   data);
                     auto l_hotkey = label.take(attr_hotkey, hotkey);
-                    log("\n\t label ", l_label
-                                     , "\n\t\t index=",  l_index
-                                     , "\n\t\t notes=",  l_notes
-                                     , "\n\t\t action=", l_action
-                                     , "\n\t\t data=", xml::escape(l_data)
-                                     , "\n\t\t hotkey=", l_hotkey
+                    log("\t label=", l_label
+                            , "\n\t\t index=",  l_index
+                            , "\n\t\t notes=",  l_notes
+                            , "\n\t\t action=", l_action
+                            , "\n\t\t data=",   xml::escape(l_data)
+                            , "\n\t\t hotkey=", l_hotkey
                     );
                 }
             }

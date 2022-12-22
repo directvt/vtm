@@ -401,7 +401,7 @@ namespace netxs::xml
         struct elem;
         using sptr = netxs::sptr<elem>;
         using wptr = netxs::wptr<elem>;
-        using list = std::vector<frag>;
+        using heap = std::vector<frag>;
         using vect = std::vector<sptr>;
         using subs = std::unordered_map<text, vect, qiew::hash, qiew::equal>;
 
@@ -417,7 +417,7 @@ namespace netxs::xml
             frag name; // elem: Tag name.
             frag insA; // elem: Insertion point for inline subelements.
             frag insB; // elem: Insertion point for nested subelements.
-            list body; // elem: Value fragments.
+            heap body; // elem: Value fragments.
             subs hive; // elem: Subelements.
             wptr prev; // elem: Prev element.
             wptr defs; // elem: Template.
@@ -444,7 +444,7 @@ namespace netxs::xml
             }
 
             template<bool WithTemplate = faux>
-            auto enumerate(qiew path_str)
+            auto list(qiew path_str)
             {
                 using utf::text;
                 path_str = utf::trim(path_str, '/');
@@ -650,7 +650,7 @@ namespace netxs::xml
                 auto temp = utf::cutoff(path, '/');
                 if (name == temp)
                 {
-                    return root->enumerate<WithTemplate>(path.substr(temp.size()));
+                    return root->list<WithTemplate>(path.substr(temp.size()));
                 }
             }
             return vect{};
@@ -1114,11 +1114,14 @@ namespace netxs::xml
 
     struct settings
     {
-        netxs::sptr<xml::document> document; // settings: XML document.
-        xml::document::vect        tempbuff; // settings: Temp buffer.
-        xml::document::vect        homelist; // settings: Current directory item list.
-        text                       homepath; // settings: Current working directory.
-        text                       backpath; // settings: Fallback path.
+        using vect = xml::document::vect;
+        using sptr = netxs::sptr<xml::document>;
+
+        sptr document; // settings: XML document.
+        vect tempbuff; // settings: Temp buffer.
+        vect homelist; // settings: Current directory item list.
+        text homepath; // settings: Current working directory.
+        text backpath; // settings: Fallback path.
 
         settings() = default;
         settings(view utf8_xml)
@@ -1143,7 +1146,7 @@ namespace netxs::xml
                 auto relative = utf::trim(gotopath, '/');;
                 if (homelist.size())
                 {
-                    homelist = homelist.front()->enumerate(relative);
+                    homelist = homelist.front()->list(relative);
                 }
                 homepath += "/";
                 homepath += relative;
@@ -1168,7 +1171,7 @@ namespace netxs::xml
             else
             {
                 frompath = utf::trim(frompath, '/');
-                if (homelist.size()) tempbuff = homelist.front()->enumerate(frompath);
+                if (homelist.size()) tempbuff = homelist.front()->list(frompath);
                 if (tempbuff.empty() && backpath.size())
                 {
                     frompath = backpath + "/" + frompath;
@@ -1208,7 +1211,10 @@ namespace netxs::xml
         template<bool WithTemplate = faux>
         auto list(view frompath)
         {
-            return document->take<WithTemplate>(frompath);
+            if (frompath.empty())        return homelist;
+            if (frompath.front() == '/') return document->take<WithTemplate>(frompath);
+            if (homelist.size())         return homelist.front()->list<WithTemplate>(frompath);
+            else                         return vect{};
         }
         auto utf8()
         {
