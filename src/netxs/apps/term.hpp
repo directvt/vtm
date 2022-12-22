@@ -235,7 +235,48 @@ namespace netxs::app::term
                 };
             }},
         };
-        config.cd("/config/term/", "/config/defapp/");
+        {
+            config.cd("/config/term/", "/config/defapp/");
+            auto items = config.list("/config/term/menu/item");
+            static constexpr auto attr_type   = "type";
+            static constexpr auto attr_label  = "label";
+            static constexpr auto attr_notes  = "notes";
+            static constexpr auto attr_action = "action";
+            static constexpr auto attr_data   = "data";
+            static constexpr auto attr_hotkey = "hotkey";
+            static constexpr auto attr_index  = "index";
+            auto i = 0;
+            for (auto item_ptr : items)
+            {
+                auto& item = *item_ptr;
+                auto type   = item.take(attr_type,   "Command"s);
+                auto notes  = item.take(attr_notes,  ""s);
+                auto action = item.take(attr_action, ""s);
+                auto data   = item.take(attr_data,   ""s);
+                auto hotkey = item.take(attr_hotkey, ""s);
+                log(" item ", i++, "\n\t type=", action.empty() ? "Splitter"s : type
+                                 , "\n\t notes=", notes
+                );
+                auto labels = item.enumerate(attr_label);
+                for (auto label_ptr : labels)
+                {
+                    auto& label = *label_ptr;
+                    auto l_label  = label.value();
+                    auto l_index  = label.take(attr_index,  0);
+                    auto l_notes  = label.take(attr_notes,  notes);
+                    auto l_action = label.take(attr_action, action);
+                    auto l_data   = label.take(attr_data,   data);
+                    auto l_hotkey = label.take(attr_hotkey, hotkey);
+                    log("\n\t label ", l_label
+                                     , "\n\t\t index=",  l_index
+                                     , "\n\t\t notes=",  l_notes
+                                     , "\n\t\t action=", l_action
+                                     , "\n\t\t data=", xml::escape(l_data)
+                                     , "\n\t\t hotkey=", l_hotkey
+                    );
+                }
+            }
+        }
         return app::shared::custom_menu(config, items);
     };
 

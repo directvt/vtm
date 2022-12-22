@@ -526,8 +526,8 @@ Note: The following configuration sections are not implemented yet
     </menu>
     <hotkeys>    <!-- not implemented -->
         <key*/>
-        <key="Ctrl+PgUp" action=prevWindow />
-        <key="Ctrl+PgDn" action=nextWindow />
+        <key="Ctrl+PgUp" action=PrevWindow />
+        <key="Ctrl+PgDn" action=NextWindow />
     </hotkeys>
     <appearance>
         <defaults>
@@ -652,8 +652,8 @@ Note: The following configuration sections are not implemented yet
                                retry:   Restart session if exit code != 0. -->
         <hotkeys>    <!-- not implemented -->
             <key*/>
-            <key="Alt+RightArrow" action=findNext />
-            <key="Alt+LeftArrow"  action=findPrev />
+            <key="Alt+RightArrow" action=FindNext />
+            <key="Alt+LeftArrow"  action=FindPrev />
         </hotkeys>
     </term>
     <defapp>
