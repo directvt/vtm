@@ -483,7 +483,7 @@ namespace netxs::xml
                 }
                 return crop;
             }
-            auto value()
+            auto value() -> text
             {
                 auto crop = text{};
                 for (auto& v : body)
@@ -549,6 +549,15 @@ namespace netxs::xml
                 }
                 if (auto defs_ptr = defs.lock()) return defs_ptr->take(attr, fallback);
                 else                             return fallback;
+            }
+            template<class T>
+            auto take(qiew attr, T defval, std::unordered_map<text, T> const& dict)
+            {
+                if (attr.empty()) return defval;
+                auto crop = take(attr, ""s);
+                auto iter = dict.find(crop);
+                return iter == dict.end() ? defval
+                                          : iter->second;
             }
             auto show(sz_t indent = 0) -> text
             {
@@ -1190,7 +1199,7 @@ namespace netxs::xml
             }
         }
         template<class T>
-        auto take(text frompath, T defval, std::unordered_map<text, T> dict)
+        auto take(text frompath, T defval, std::unordered_map<text, T> const& dict)
         {
             if (frompath.empty()) return defval;
             auto crop = take(frompath, ""s);

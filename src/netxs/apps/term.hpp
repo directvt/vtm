@@ -250,26 +250,93 @@ namespace netxs::app::term
             static const auto type_Splitter = "Splitter"s;
             static const auto type_Option   = "Option"s;
 
+            enum item_type
+            {
+                Splitter,
+                Command,
+                Option,
+            };
+            static auto type_options = std::unordered_map<text, item_type>
+               {{ "Splitter", item_type::Splitter },
+                { "Command",  item_type::Command  },
+                { "Option",   item_type::Option   }};
+
+            #define PROC_LIST \
+                X(Noop                   ) /* */ \
+                X(SetSelectionMode       ) /* */ \
+                X(SetWrapMode            ) /* */ \
+                X(FindNext               ) /* */ \
+                X(FindPrev               ) /* */ \
+                X(Print                  ) /* */ \
+                X(SendKey                ) /* */ \
+                X(QuitTerminal           ) /* */ \
+                X(RestartSession         ) /* */ \
+                X(MaximizeRestoreWindow  ) /* */ \
+                X(ScrollPageUp           ) /* */ \
+                X(ScrollPageDown         ) /* */ \
+                X(ScrollLineUp           ) /* */ \
+                X(ScrollLineDown         ) /* */ \
+                X(ScrollPageLeft         ) /* */ \
+                X(ScrollPageRight        ) /* */ \
+                X(ScrollColumnLeft       ) /* */ \
+                X(ScrollColumnRight      ) /* */ \
+                X(ScrollTop              ) /* */ \
+                X(ScrollEnd              ) /* */ \
+                X(WipeClipboard          ) /* */ \
+                X(CopyViewportToClipboard) /* */ \
+                X(StartLogging           ) /* */ \
+                X(PauseLogging           ) /* */ \
+                X(StopLogging            ) /* */ \
+                X(AbortLogging           ) /* */ \
+                X(RestartLogging         ) /* */ \
+                X(StartRecording         ) /* */ \
+                X(StopRecording          ) /* */ \
+                X(PauseRecording         ) /* */ \
+                X(AbortRecording         ) /* */ \
+                X(RestartRecording       ) /* */ \
+                X(VideoPlay              ) /* */ \
+                X(VideoPause             ) /* */ \
+                X(VideoStop              ) /* */ \
+                X(VideoStepForward       ) /* */ \
+                X(VideoStepBackward      ) /* */ \
+                X(VideoRewindHome        ) /* */ \
+                X(VideoRewindEnd         ) /* */
+            enum item_proc
+            {
+                #define X(_proc) _proc,
+                PROC_LIST
+                #undef X
+            };
+            static auto proc_options = std::unordered_map<text, item_proc>
+            {
+                #define X(_proc) { #_proc, item_proc::_proc },
+                PROC_LIST
+                #undef X
+            };
+            #undef PROC_LIST
+
             auto i = 0;
+            auto menu_items = app::shared::menu_list_type{};
             for (auto item_ptr : items)
             {
                 auto& item = *item_ptr;
-                auto type   = item.take(attr_type,   type_Command);
+                auto type   = item.take(attr_type,   item_type::Command, type_options);
+                auto action = item.take(attr_action, item_proc::Noop,    proc_options);
                 auto notes  = item.take(attr_notes,  ""s);
-                auto action = item.take(attr_action, ""s);
                 auto data   = item.take(attr_data,   ""s);
                 auto hotkey = item.take(attr_hotkey, ""s);
                 auto labels = item.list(attr_label);
-                log(" item_", i++, " type=", action.empty() ? type_Splitter : type);
+                log(" item_", i++, " type=", action == item_proc::Noop ? item_type::Splitter : type);
                 for (auto label_ptr : labels)
                 {
                     auto& label = *label_ptr;
                     auto l_label  = label.value();
                     auto l_index  = label.take(attr_index,  0);
                     auto l_notes  = label.take(attr_notes,  notes);
-                    auto l_action = label.take(attr_action, action);
+                    auto l_action = label.take(attr_action, item_proc::Noop, proc_options);
                     auto l_data   = label.take(attr_data,   data);
                     auto l_hotkey = label.take(attr_hotkey, hotkey);
+                    if (l_action == item_proc::Noop) l_action = action;
                     log("\t label=", l_label
                             , "\n\t\t index=",  l_index
                             , "\n\t\t notes=",  l_notes
@@ -278,7 +345,29 @@ namespace netxs::app::term
                             , "\n\t\t hotkey=", l_hotkey
                     );
                 }
+                switch (type)
+                {
+                    case item_type::Command:
+                    {
+                        auto element = app::shared::menu_item_type{ action != item_proc::Noop, labels.front()->value(), notes, [](ui::pads& placeholder){ } };
+                        menu_items.push_back(element);
+                        break;
+                    }
+                    case item_type::Option:
+                    {
+                        auto element = app::shared::menu_item_type{ action != item_proc::Noop, labels.front()->value(), notes, [](ui::pads& placeholder){ } };
+                        menu_items.push_back(element);
+                        break;
+                    }
+                    case item_type::Splitter:
+                    {
+                        auto element = app::shared::menu_item_type{ action != item_proc::Noop, labels.front()->value(), notes, [](ui::pads& placeholder){ } };
+                        menu_items.push_back(element);
+                        break;
+                    }
+                }
             }
+            ///return app::shared::custom_menu(config, menu_items);
         }
         return app::shared::custom_menu(config, items);
     };
