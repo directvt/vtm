@@ -317,57 +317,98 @@ namespace netxs::app::term
 
             auto i = 0;
             auto menu_items = app::shared::menu_list_type{};
+
+            struct label_t
+            {
+                text label;
+                si32 index{};
+                text notes;
+                item_proc action{};
+                text data;
+                text hotkey;
+            };
+            struct item_t
+            {
+                item_type type{};
+                si32 selected{};
+                std::vector<label_t> labels;
+            };
             for (auto item_ptr : items)
             {
                 auto& item = *item_ptr;
-                auto type   = item.take(attr_type,   item_type::Command, type_options);
-                auto action = item.take(attr_action, item_proc::Noop,    proc_options);
-                auto notes  = item.take(attr_notes,  ""s);
-                auto data   = item.take(attr_data,   ""s);
-                auto hotkey = item.take(attr_hotkey, ""s);
+                auto default_values = label_t{};
+                auto new_item = item_t{};
+                new_item.type         = item.take(attr_type,   item_type::Command, type_options);
+                default_values.action = item.take(attr_action, item_proc::Noop,    proc_options);
+                default_values.notes  = item.take(attr_notes,  ""s);
+                default_values.data   = item.take(attr_data,   ""s);
+                default_values.hotkey = item.take(attr_hotkey, ""s);
                 auto labels = item.list(attr_label);
-                log(" item_", i++, " type=", action == item_proc::Noop ? item_type::Splitter : type);
+                log(" item_", i++, " type=", default_values.action == item_proc::Noop ? item_type::Splitter : new_item.type);
                 for (auto label_ptr : labels)
                 {
                     auto& label = *label_ptr;
-                    auto l_label  = label.value();
-                    auto l_index  = label.take(attr_index,  0);
-                    auto l_notes  = label.take(attr_notes,  notes);
-                    auto l_action = label.take(attr_action, item_proc::Noop, proc_options);
-                    auto l_data   = label.take(attr_data,   data);
-                    auto l_hotkey = label.take(attr_hotkey, hotkey);
-                    if (l_action == item_proc::Noop) l_action = action;
-                    log("\t label=", l_label
-                            , "\n\t\t index=",  l_index
-                            , "\n\t\t notes=",  l_notes
-                            , "\n\t\t action=", l_action
-                            , "\n\t\t data=",   xml::escape(l_data)
-                            , "\n\t\t hotkey=", l_hotkey
+                    new_item.labels.push_back(
+                    {
+                        .label  = label.value(),
+                        .index  = label.take(attr_index,  0),
+                        .notes  = label.take(attr_notes,  default_values.notes),
+                        .action = label.take(attr_action, item_proc::Noop, proc_options),
+                        .data   = label.take(attr_data,   default_values.data),
+                        .hotkey = label.take(attr_hotkey, default_values.hotkey),
+                    });
+                    auto& l = new_item.labels.back();
+                    if (l.action == item_proc::Noop) l.action = default_values.action;
+                    log("\t label=", l.label
+                            , "\n\t\t index=",  l.index
+                            , "\n\t\t notes=",  l.notes
+                            , "\n\t\t action=", l.action
+                            , "\n\t\t data=",   xml::escape(l.data)
+                            , "\n\t\t hotkey=", l.hotkey
                     );
                 }
-                switch (type)
+                if (labels.empty())
+                {
+                    log("term: skip menu item without label");
+                    continue;
+                }
+                switch (new_item.type)
                 {
                     case item_type::Command:
                     {
-                        auto element = app::shared::menu_item_type{ action != item_proc::Noop, labels.front()->value(), notes, [](ui::pads& placeholder){ } };
-                        menu_items.push_back(element);
                         break;
                     }
                     case item_type::Option:
                     {
-                        auto element = app::shared::menu_item_type{ action != item_proc::Noop, labels.front()->value(), notes, [](ui::pads& placeholder){ } };
-                        menu_items.push_back(element);
                         break;
                     }
                     case item_type::Splitter:
                     {
-                        auto element = app::shared::menu_item_type{ action != item_proc::Noop, labels.front()->value(), notes, [](ui::pads& placeholder){ } };
-                        menu_items.push_back(element);
                         break;
                     }
                 }
+
+                auto element = app::shared::menu_item_type{ default_values.action != item_proc::Noop,
+                    labels.front()->value(), default_values.notes,
+                    [new_item](ui::pads& boss) mutable
+                    {
+                        auto shadow = ptr::shadow(boss.This());
+                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            if (auto boss_ptr = shadow.lock())
+                            {
+                                auto& boss = *boss_ptr;
+                                if (++new_item.selected == new_item.labels.size()) new_item.selected = 0;
+                                if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, new_item.labels[new_item.selected].label);
+                                //boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
+                                boss.deface();
+                                gear.dismiss(true);
+                            }
+                        };
+                    }};
+                menu_items.push_back(element);
             }
-            ///return app::shared::custom_menu(config, menu_items);
+            return app::shared::custom_menu(config, menu_items);
         }
         return app::shared::custom_menu(config, items);
     };
