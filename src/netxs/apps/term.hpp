@@ -18,6 +18,7 @@ namespace netxs::events::userland
             GROUP_XS( layout, si32 ),
             GROUP_XS( data  , si32 ),
             GROUP_XS( search, input::hids ),
+            GROUP_XS( action, si32 ),
 
             SUBSET_XS( layout )
             {
@@ -39,6 +40,100 @@ namespace netxs::events::userland
             {
                 EVENT_XS( bg, rgba ),
                 EVENT_XS( fg, rgba ),
+            };
+            //todo test
+            SUBSET_XS( action )
+            {
+                EVENT_XS( noop      , text ),
+                EVENT_XS( quit      , text ), // Quit terminal.
+                EVENT_XS( maximize  , text ), // Maximize/Restore window.
+                EVENT_XS( restart   , text ), // Restart session.
+                EVENT_XS( sendkey   , text ),
+                GROUP_XS( scrollback, text ),
+                GROUP_XS( clipboard , text ),
+                GROUP_XS( log       , text ),
+                GROUP_XS( video     , text ),
+
+                SUBSET_XS( scrollback )
+                {
+                    EVENT_XS( print    , text ),
+                    EVENT_XS( findnext , text ),
+                    EVENT_XS( findprev , text ),
+                    GROUP_XS( selection, text ),
+                    GROUP_XS( wrapping , text ),
+                    GROUP_XS( aligning , text ),
+                    GROUP_XS( viewport , text ),
+
+                    SUBSET_XS( selection )
+                    {
+                        EVENT_XS( mode, text ),
+                    };
+                    SUBSET_XS( wrapping )
+                    {
+                        EVENT_XS( mode, text ),
+                    };
+                    SUBSET_XS( aligning )
+                    {
+                        EVENT_XS( mode, text ),
+                    };
+                    SUBSET_XS( viewport )
+                    {
+                        EVENT_XS( top   , text ),
+                        EVENT_XS( bottom, text ),
+                        EVENT_XS( home  , text ), // To left
+                        EVENT_XS( end   , text ), // To right
+                        GROUP_XS( page  , text ),
+                        GROUP_XS( line  , text ),
+
+                        SUBSET_XS( page )
+                        {
+                            EVENT_XS( up   , text ),
+                            EVENT_XS( down , text ),
+                            EVENT_XS( left , text ),
+                            EVENT_XS( right, text ),
+                        };
+                        SUBSET_XS( line )
+                        {
+                            EVENT_XS( up   , text ),
+                            EVENT_XS( down , text ),
+                            EVENT_XS( left , text ),
+                            EVENT_XS( right, text ),
+                        };
+                    };
+                };
+                SUBSET_XS( clipboard )
+                {
+                    EVENT_XS( wipe        , text ),
+                    EVENT_XS( copyviewport, text ),
+                };
+                SUBSET_XS( log )
+                {
+                    EVENT_XS( start  , text ),
+                    EVENT_XS( stop   , text ),
+                    EVENT_XS( pause  , text ),
+                    EVENT_XS( abort  , text ),
+                    EVENT_XS( restart, text ),
+                };
+                SUBSET_XS( video )
+                {
+                    EVENT_XS( play    , text ),
+                    EVENT_XS( stop    , text ),
+                    EVENT_XS( pause   , text ),
+                    EVENT_XS( forward , text ),
+                    EVENT_XS( backward, text ),
+                    EVENT_XS( home    , text ),
+                    EVENT_XS( end     , text ),
+                    GROUP_XS( record  , text ),
+
+                    SUBSET_XS( record )
+                    {
+                        EVENT_XS( start  , text ),
+                        EVENT_XS( stop   , text ),
+                        EVENT_XS( pause  , text ),
+                        EVENT_XS( abort  , text ),
+                        EVENT_XS( restart, text ),
+                    };
+                };
             };
         };
     };
@@ -253,13 +348,15 @@ namespace netxs::app::term
             enum item_type
             {
                 Splitter,
+                Repeatable,
                 Command,
                 Option,
             };
             static auto type_options = std::unordered_map<text, item_type>
-               {{ "Splitter", item_type::Splitter },
-                { "Command",  item_type::Command  },
-                { "Option",   item_type::Option   }};
+               {{ "Splitter",   item_type::Splitter   },
+                { "Command",    item_type::Command    },
+                { "Repeatable", item_type::Repeatable },
+                { "Option",     item_type::Option     }};
 
             #define PROC_LIST \
                 X(Noop                   ) /* */ \
@@ -386,6 +483,10 @@ namespace netxs::app::term
                     {
                         break;
                     }
+                    case item_type::Repeatable:
+                    {
+                        break;
+                    }
                 }
 
                 auto element = app::shared::menu_item_type{ default_values.action != item_proc::Noop,
@@ -401,14 +502,23 @@ namespace netxs::app::term
                                 if (++new_item.selected == new_item.labels.size()) new_item.selected = 0;
                                 if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, new_item.labels[new_item.selected].label);
                                 //boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
+
+                                // Exec action with data
+                                // ...
+
                                 boss.deface();
                                 gear.dismiss(true);
                             }
                         };
+                        // Submit on status update.
+                        boss.SUBMIT(tier::anycast, app::term::events::selmod, selmod)
+                        {
+
+                        };
                     }};
-                menu_items.push_back(element);
+                //menu_items.push_back(element);
             }
-            return app::shared::custom_menu(config, menu_items);
+            //return app::shared::custom_menu(config, menu_items);
         }
         return app::shared::custom_menu(config, items);
     };
