@@ -31,8 +31,7 @@ namespace netxs::app::shared
 {
     static constexpr auto default_config = R"==(
 <config>
-    <menu>
-        <selected=Term /> <!-- Set selected using menu item id. -->
+    <menu selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested arguments
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
@@ -73,8 +72,7 @@ R"==(
 R"==(
             <hotkeys>    <!-- not implemented -->
                 <key*/>
-                <key="Ctrl+'t'" action=start />
-                <key="Ctrl+'z'" action=close />
+                <key="Ctrl+'t'" action=Start />
             </hotkeys>
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
@@ -94,8 +92,9 @@ R"==(
                     </selection>
                     <hotkeys>    <!-- not implemented -->
                         <key*/>
-                        <key="Alt+RightArrow" action=findNext />
-                        <key="Alt+LeftArrow"  action=findPrev />
+                        <key="Alt+RightArrow" action=FindNext />
+                        <key="Alt+LeftArrow"  action=FindPrev />
+                        <key="Ctrl+'z'"       action=QuitTerminal />
                     </hotkeys>
                 </term>
             </config>
@@ -126,8 +125,8 @@ R"==(
     </menu>
     <hotkeys>    <!-- not implemented -->
         <key*/>
-        <key="Ctrl+PgUp" action=prevWindow />
-        <key="Ctrl+PgDn" action=nextWindow />
+        <key="Ctrl+PgUp" action=PrevWindow />
+        <key="Ctrl+PgDn" action=NextWindow />
     </hotkeys>
     <appearance>
         <defaults>
@@ -238,9 +237,54 @@ R"==(
             <show=true/>
         </cursor>
         <menu>
-            <autohide=true/>  <!--  If true/on, show menu only on hover. -->
-            <enabled="on"/>
-            <slim=true />
+            <autohide=true />  <!-- If true, show menu only on hover. -->
+            <enabled=1 />
+            <slim=1 />
+            <item*/>  <!-- Zeroize previous item list. -->
+            <item label="Wrap" type=Option action=SetWrapMode data="off"> <!-- item/label has index=0 by default. -->
+                <label="\e[38:2:0:255:0mWrap\e[m" index=1 data="on"/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
+                <notes>
+                    " Wrapping text lines on/off      \n"
+                    " - applied to selection if it is "
+                </notes>
+            </item>
+            <item label="Selection" notes=" Text selection mode " type=Option action=SetSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+                <label="\e[38:2:0:255:0mPlaintext\e[m" index=1 data="text"/>
+                <label="\e[38:2:255:255:0mANSI-text\e[m" index=2 data="ansi"/>
+                <label index=3 data="rich">
+                    "\e[38:2:109:231:237m""R"
+                    "\e[38:2:109:237:186m""T"
+                    "\e[38:2:60:255:60m"  "F"
+                    "\e[38:2:189:255:53m" "-"
+                    "\e[38:2:255:255:49m" "s"
+                    "\e[38:2:255:189:79m" "t"
+                    "\e[38:2:255:114:94m" "y"
+                    "\e[38:2:255:60:157m" "l"
+                    "\e[38:2:255:49:214m" "e" "\e[m"
+                </label>
+                <label="\e[38:2:0:255:255mHTML-code\e[m" index=4 data="html"/>
+                <label="\e[38:2:0:255:255mProtected\e[m" index=5 data="protected"/>
+            </item>
+            <item label="<" action=FindPrev>  <!-- type=Command is a default item's attribute. -->
+                <label="\e[38:2:0:255:0m<\e[m" index=1 />
+                <notes>
+                    " Previous match                    \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label=">" action=FindNext>
+                <label="\e[38:2:0:255:0m>\e[m" index=1 />
+                <notes>
+                    " Next match                        \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
+            <item label="Clear" notes=" Clear TTY viewport "                  action=Print data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=Print data="\e[!p"/>
+            <item label="Hello, World!" notes=" Simulating keypresses "       action=SendKey data="Hello World!"/>
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
@@ -252,8 +296,8 @@ R"==(
                                retry:   Restart session if exit code != 0. -->
         <hotkeys>    <!-- not implemented -->
             <key*/>
-            <key="Alt+RightArrow" action=findNext />
-            <key="Alt+LeftArrow"  action=findPrev />
+            <key="Alt+RightArrow" action=FindNext />
+            <key="Alt+LeftArrow"  action=FindPrev />
         </hotkeys>
     </term>
     <defapp>

@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.8e"
+#define DESKTOPIO_VER "v0.9.8f"
 #define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_MYPATH "vtm"
@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
                 daemon = true;
                 break;
             case 'l':
-                log(app::shared::load::settings(cfpath, os::legacy::get_setup()));
+                log("Running configuration:\n", app::shared::load::settings(cfpath, os::legacy::get_setup()));
                 return 0;
             case 'c':
                 cfpath = getopt.param();

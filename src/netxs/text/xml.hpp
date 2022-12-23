@@ -240,6 +240,7 @@ namespace netxs::xml
             whitespaces,   // ' '     ex: \s\t\r\n...
             unknown,       //
             tag_value,     //
+            error,         // Inline error message.
         };
 
         struct literal;
@@ -270,7 +271,7 @@ namespace netxs::xml
             frag back; // suit: Linked list end.
 
             suit(suit&&) = default;
-            suit(text file = {})
+            suit(view file = {})
                 : data{ std::make_shared<literal>(type::na) },
                   fail{ faux },
                   file{ file },
@@ -363,20 +364,19 @@ namespace netxs::xml
                         case unknown:       fgc = redlt;        break;
                         case tag_value:     fgc = value_fg;
                                             bgc = value_bg;     break;
+                        case error:         fgc = whitelt;
+                                            bgc = reddk;
+                                            yield += ' ';       break;
                         default: break;
                     }
                     //test
                     //yield.bgc((tint)(clr % 8));
-                    if (kind == type::tag_value)
+
+                    if (data.size())                        
                     {
-                        auto temp = data;
-                        if (fgc) yield.fgc(fgc).add(xml::escape(temp)).nil();
-                        else     yield.add(xml::escape(temp));
-                    }
-                    else
-                    {
-                        if (fgc) yield.fgc(fgc).add(data).nil();
-                        else     yield.add(data);
+                             if (bgc) yield.fgc(fgc).bgc(bgc).add(data).nil();
+                        else if (fgc) yield.fgc(fgc)         .add(data).nil();
+                        else          yield                  .add(data);
                     }
                 }
     
@@ -401,7 +401,7 @@ namespace netxs::xml
         struct elem;
         using sptr = netxs::sptr<elem>;
         using wptr = netxs::wptr<elem>;
-        using list = std::vector<frag>;
+        using heap = std::vector<frag>;
         using vect = std::vector<sptr>;
         using subs = std::unordered_map<text, vect, qiew::hash, qiew::equal>;
 
@@ -417,7 +417,7 @@ namespace netxs::xml
             frag name; // elem: Tag name.
             frag insA; // elem: Insertion point for inline subelements.
             frag insB; // elem: Insertion point for nested subelements.
-            list body; // elem: Value fragments.
+            heap body; // elem: Value fragments.
             subs hive; // elem: Subelements.
             wptr prev; // elem: Prev element.
             wptr defs; // elem: Template.
@@ -444,7 +444,7 @@ namespace netxs::xml
             }
 
             template<bool WithTemplate = faux>
-            auto enumerate(qiew path_str)
+            auto list(qiew path_str)
             {
                 using utf::text;
                 path_str = utf::trim(path_str, '/');
@@ -483,7 +483,7 @@ namespace netxs::xml
                 }
                 return crop;
             }
-            auto value()
+            auto value() -> text
             {
                 auto crop = text{};
                 for (auto& v : body)
@@ -549,6 +549,15 @@ namespace netxs::xml
                 }
                 if (auto defs_ptr = defs.lock()) return defs_ptr->take(attr, fallback);
                 else                             return fallback;
+            }
+            template<class T>
+            auto take(qiew attr, T defval, std::unordered_map<text, T> const& dict)
+            {
+                if (attr.empty()) return defval;
+                auto crop = take(attr, ""s);
+                auto iter = dict.find(crop);
+                return iter == dict.end() ? defval
+                                          : iter->second;
             }
             auto show(sz_t indent = 0) -> text
             {
@@ -628,12 +637,12 @@ namespace netxs::xml
         sptr root;
 
         document(document&&) = default;
-        document(view data, text file = "")
+        document(view data, view file = {})
             : page{ file },
               root{ std::make_shared<elem>()}
         {
             read(data);
-            if (page.fail) log(" xml: inconsistent xml data from ", page.file, "\n", page.show());
+            if (page.fail) log(" xml: inconsistent xml data from ", file.empty() ? "memory"sv : file, ":\n", page.show(), "\n");
         }
         template<bool WithTemplate = faux>
         auto take(view path)
@@ -650,7 +659,7 @@ namespace netxs::xml
                 auto temp = utf::cutoff(path, '/');
                 if (name == temp)
                 {
-                    return root->enumerate<WithTemplate>(path.substr(temp.size()));
+                    return root->list<WithTemplate>(path.substr(temp.size()));
                 }
             }
             return vect{};
@@ -697,6 +706,12 @@ namespace netxs::xml
         }
 
     private:
+        auto fail(text msg)
+        {
+            page.fail = true;
+            page.append(type::error, msg);
+            log(" xml:", msg, "at ", page.file, ":", page.lines());
+        }
         auto fail(type last, type what)
         {
             auto str = [&](type what)
@@ -719,8 +734,7 @@ namespace netxs::xml
                     default:                  return view{ "{unknown}" } ;
                 };
             };
-            log(" xml: unexpected '", str(what), "' after '", str(last), "' at ", page.file, ":", page.lines());
-            page.fail = true;
+            fail(ansi::add(" unexpected '", str(what), "' after '", str(last), "' "));
         }
         auto peek(view& data, type& what, type& last)
         {
@@ -821,7 +835,7 @@ namespace netxs::xml
         {
             auto delta = temp.size() - data.size();
                  if (delta > 0) page.append(kind, temp.substr(0, delta));
-            else if (delta < 0) log(" xml: unexpected data");
+            else if (delta < 0) fail(" unexpected data ");
         }
         auto pair(sptr& item, view& data, type& what, type& last, type kind)
         {
@@ -1043,7 +1057,7 @@ namespace netxs::xml
                                         if (tail != view::npos) data.remove_prefix(tail + 1);
                                         else                    data = {};
                                         diff(data, temp, what);
-                                        log(" xml: unexpected closing tag name '", object, "', expected: '", item->name->utf8, "' at ", page.file, ":", page.lines());
+                                        fail(ansi::add(" unexpected closing tag name '", object, "', expected: '", item->name->utf8, "' "));
                                         continue; // Repeat until eof or success.
                                     }
                                 }
@@ -1058,7 +1072,7 @@ namespace netxs::xml
                             else if (what == type::eof)
                             {
                                 trim(data);
-                                if (page.back->kind == type::eof) log(" xml: unexpected {EOF}");
+                                if (page.back->kind == type::eof) fail(" unexpected {EOF} ");
                             }
                         }
                         while (data.size());
@@ -1079,7 +1093,7 @@ namespace netxs::xml
                     head = head->prev.lock();
                 }
                 item->name = page.append(type::tag_value);
-                log(" xml: empty tag name at ", page.file, ":", page.lines());
+                fail(" empty tag name ");
             }
             if (fire) fail(last, what);
             if (what == type::eof) page.append(what);
@@ -1109,11 +1123,14 @@ namespace netxs::xml
 
     struct settings
     {
-        netxs::sptr<xml::document> document; // settings: XML document.
-        xml::document::vect        tempbuff; // settings: Temp buffer.
-        xml::document::vect        homelist; // settings: Current directory item list.
-        text                       homepath; // settings: Current working directory.
-        text                       backpath; // settings: Fallback path.
+        using vect = xml::document::vect;
+        using sptr = netxs::sptr<xml::document>;
+
+        sptr document; // settings: XML document.
+        vect tempbuff; // settings: Temp buffer.
+        vect homelist; // settings: Current directory item list.
+        text homepath; // settings: Current working directory.
+        text backpath; // settings: Fallback path.
 
         settings() = default;
         settings(view utf8_xml)
@@ -1138,7 +1155,7 @@ namespace netxs::xml
                 auto relative = utf::trim(gotopath, '/');;
                 if (homelist.size())
                 {
-                    homelist = homelist.front()->enumerate(relative);
+                    homelist = homelist.front()->list(relative);
                 }
                 homepath += "/";
                 homepath += relative;
@@ -1163,7 +1180,7 @@ namespace netxs::xml
             else
             {
                 frompath = utf::trim(frompath, '/');
-                if (homelist.size()) tempbuff = homelist.front()->enumerate(frompath);
+                if (homelist.size()) tempbuff = homelist.front()->list(frompath);
                 if (tempbuff.empty() && backpath.size())
                 {
                     frompath = backpath + "/" + frompath;
@@ -1182,7 +1199,7 @@ namespace netxs::xml
             }
         }
         template<class T>
-        auto take(text frompath, T defval, std::unordered_map<text, T> dict)
+        auto take(text frompath, T defval, std::unordered_map<text, T> const& dict)
         {
             if (frompath.empty()) return defval;
             auto crop = take(frompath, ""s);
@@ -1203,7 +1220,10 @@ namespace netxs::xml
         template<bool WithTemplate = faux>
         auto list(view frompath)
         {
-            return document->take<WithTemplate>(frompath);
+            if (frompath.empty())        return homelist;
+            if (frompath.front() == '/') return document->take<WithTemplate>(frompath);
+            if (homelist.size())         return homelist.front()->list<WithTemplate>(frompath);
+            else                         return vect{};
         }
         auto utf8()
         {
@@ -1213,7 +1233,7 @@ namespace netxs::xml
         {
             if (filepath.size()) document->page.file = filepath;
             if (utf8_xml.empty()) return;
-            auto run_config = xml::document{ utf8_xml };
+            auto run_config = xml::document{ utf8_xml, filepath };
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
                 auto& node = *node_ptr;

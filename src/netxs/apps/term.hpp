@@ -18,6 +18,7 @@ namespace netxs::events::userland
             GROUP_XS( layout, si32 ),
             GROUP_XS( data  , si32 ),
             GROUP_XS( search, input::hids ),
+            GROUP_XS( action, si32 ),
 
             SUBSET_XS( layout )
             {
@@ -39,6 +40,100 @@ namespace netxs::events::userland
             {
                 EVENT_XS( bg, rgba ),
                 EVENT_XS( fg, rgba ),
+            };
+            //todo test
+            SUBSET_XS( action )
+            {
+                EVENT_XS( noop      , text ),
+                EVENT_XS( quit      , text ), // Quit terminal.
+                EVENT_XS( maximize  , text ), // Maximize/Restore window.
+                EVENT_XS( restart   , text ), // Restart session.
+                EVENT_XS( sendkey   , text ),
+                GROUP_XS( scrollback, text ),
+                GROUP_XS( clipboard , text ),
+                GROUP_XS( log       , text ),
+                GROUP_XS( video     , text ),
+
+                SUBSET_XS( scrollback )
+                {
+                    EVENT_XS( print    , text ),
+                    EVENT_XS( findnext , text ),
+                    EVENT_XS( findprev , text ),
+                    GROUP_XS( selection, text ),
+                    GROUP_XS( wrapping , text ),
+                    GROUP_XS( aligning , text ),
+                    GROUP_XS( viewport , text ),
+
+                    SUBSET_XS( selection )
+                    {
+                        EVENT_XS( mode, text ),
+                    };
+                    SUBSET_XS( wrapping )
+                    {
+                        EVENT_XS( mode, text ),
+                    };
+                    SUBSET_XS( aligning )
+                    {
+                        EVENT_XS( mode, text ),
+                    };
+                    SUBSET_XS( viewport )
+                    {
+                        EVENT_XS( top   , text ),
+                        EVENT_XS( bottom, text ),
+                        EVENT_XS( home  , text ), // To left
+                        EVENT_XS( end   , text ), // To right
+                        GROUP_XS( page  , text ),
+                        GROUP_XS( line  , text ),
+
+                        SUBSET_XS( page )
+                        {
+                            EVENT_XS( up   , text ),
+                            EVENT_XS( down , text ),
+                            EVENT_XS( left , text ),
+                            EVENT_XS( right, text ),
+                        };
+                        SUBSET_XS( line )
+                        {
+                            EVENT_XS( up   , text ),
+                            EVENT_XS( down , text ),
+                            EVENT_XS( left , text ),
+                            EVENT_XS( right, text ),
+                        };
+                    };
+                };
+                SUBSET_XS( clipboard )
+                {
+                    EVENT_XS( wipe        , text ),
+                    EVENT_XS( copyviewport, text ),
+                };
+                SUBSET_XS( log )
+                {
+                    EVENT_XS( start  , text ),
+                    EVENT_XS( stop   , text ),
+                    EVENT_XS( pause  , text ),
+                    EVENT_XS( abort  , text ),
+                    EVENT_XS( restart, text ),
+                };
+                SUBSET_XS( video )
+                {
+                    EVENT_XS( play    , text ),
+                    EVENT_XS( stop    , text ),
+                    EVENT_XS( pause   , text ),
+                    EVENT_XS( forward , text ),
+                    EVENT_XS( backward, text ),
+                    EVENT_XS( home    , text ),
+                    EVENT_XS( end     , text ),
+                    GROUP_XS( record  , text ),
+
+                    SUBSET_XS( record )
+                    {
+                        EVENT_XS( start  , text ),
+                        EVENT_XS( stop   , text ),
+                        EVENT_XS( pause  , text ),
+                        EVENT_XS( abort  , text ),
+                        EVENT_XS( restart, text ),
+                    };
+                };
             };
         };
     };
@@ -174,7 +269,7 @@ namespace netxs::app::term
                     boss.deface();
                 };
             }},
-            { true, "<", " Previuos match                    \n"
+            { true, "<", " Previous match                    \n"
                          " - using clipboard if no selection \n"
                          " - page up if no clipboard data    ",
             [](ui::pads& boss)
@@ -235,7 +330,196 @@ namespace netxs::app::term
                 };
             }},
         };
-        config.cd("/config/term/", "/config/defapp/");
+        {
+            config.cd("/config/term/", "/config/defapp/");
+            auto items = config.list("menu/item");
+            static constexpr auto attr_type   = "type";
+            static constexpr auto attr_label  = "label";
+            static constexpr auto attr_notes  = "notes";
+            static constexpr auto attr_action = "action";
+            static constexpr auto attr_data   = "data";
+            static constexpr auto attr_hotkey = "hotkey";
+            static constexpr auto attr_index  = "index";
+
+            static const auto type_Command  = "Command"s;
+            static const auto type_Splitter = "Splitter"s;
+            static const auto type_Option   = "Option"s;
+
+            enum item_type
+            {
+                Splitter,
+                Repeatable,
+                Command,
+                Option,
+            };
+            static auto type_options = std::unordered_map<text, item_type>
+               {{ "Splitter",   item_type::Splitter   },
+                { "Command",    item_type::Command    },
+                { "Repeatable", item_type::Repeatable },
+                { "Option",     item_type::Option     }};
+
+            #define PROC_LIST \
+                X(Noop                   ) /* */ \
+                X(SetSelectionMode       ) /* */ \
+                X(SetWrapMode            ) /* */ \
+                X(FindNext               ) /* */ \
+                X(FindPrev               ) /* */ \
+                X(Print                  ) /* */ \
+                X(SendKey                ) /* */ \
+                X(QuitTerminal           ) /* */ \
+                X(RestartSession         ) /* */ \
+                X(MaximizeRestoreWindow  ) /* */ \
+                X(ScrollPageUp           ) /* */ \
+                X(ScrollPageDown         ) /* */ \
+                X(ScrollLineUp           ) /* */ \
+                X(ScrollLineDown         ) /* */ \
+                X(ScrollPageLeft         ) /* */ \
+                X(ScrollPageRight        ) /* */ \
+                X(ScrollColumnLeft       ) /* */ \
+                X(ScrollColumnRight      ) /* */ \
+                X(ScrollTop              ) /* */ \
+                X(ScrollEnd              ) /* */ \
+                X(WipeClipboard          ) /* */ \
+                X(CopyViewportToClipboard) /* */ \
+                X(StartLogging           ) /* */ \
+                X(PauseLogging           ) /* */ \
+                X(StopLogging            ) /* */ \
+                X(AbortLogging           ) /* */ \
+                X(RestartLogging         ) /* */ \
+                X(StartRecording         ) /* */ \
+                X(StopRecording          ) /* */ \
+                X(PauseRecording         ) /* */ \
+                X(AbortRecording         ) /* */ \
+                X(RestartRecording       ) /* */ \
+                X(VideoPlay              ) /* */ \
+                X(VideoPause             ) /* */ \
+                X(VideoStop              ) /* */ \
+                X(VideoStepForward       ) /* */ \
+                X(VideoStepBackward      ) /* */ \
+                X(VideoRewindHome        ) /* */ \
+                X(VideoRewindEnd         ) /* */
+            enum item_proc
+            {
+                #define X(_proc) _proc,
+                PROC_LIST
+                #undef X
+            };
+            static auto proc_options = std::unordered_map<text, item_proc>
+            {
+                #define X(_proc) { #_proc, item_proc::_proc },
+                PROC_LIST
+                #undef X
+            };
+            #undef PROC_LIST
+
+            auto i = 0;
+            auto menu_items = app::shared::menu_list_type{};
+
+            struct label_t
+            {
+                text label;
+                si32 index{};
+                text notes;
+                item_proc action{};
+                text data;
+                text hotkey;
+            };
+            struct item_t
+            {
+                item_type type{};
+                si32 selected{};
+                std::vector<label_t> labels;
+            };
+            for (auto item_ptr : items)
+            {
+                auto& item = *item_ptr;
+                auto default_values = label_t{};
+                auto new_item = item_t{};
+                new_item.type         = item.take(attr_type,   item_type::Command, type_options);
+                default_values.action = item.take(attr_action, item_proc::Noop,    proc_options);
+                default_values.notes  = item.take(attr_notes,  ""s);
+                default_values.data   = item.take(attr_data,   ""s);
+                default_values.hotkey = item.take(attr_hotkey, ""s);
+                auto labels = item.list(attr_label);
+                log(" item_", i++, " type=", default_values.action == item_proc::Noop ? item_type::Splitter : new_item.type);
+                for (auto label_ptr : labels)
+                {
+                    auto& label = *label_ptr;
+                    new_item.labels.push_back(
+                    {
+                        .label  = label.value(),
+                        .index  = label.take(attr_index,  0),
+                        .notes  = label.take(attr_notes,  default_values.notes),
+                        .action = label.take(attr_action, item_proc::Noop, proc_options),
+                        .data   = label.take(attr_data,   default_values.data),
+                        .hotkey = label.take(attr_hotkey, default_values.hotkey),
+                    });
+                    auto& l = new_item.labels.back();
+                    if (l.action == item_proc::Noop) l.action = default_values.action;
+                    log("\t label=", l.label
+                            , "\n\t\t index=",  l.index
+                            , "\n\t\t notes=",  l.notes
+                            , "\n\t\t action=", l.action
+                            , "\n\t\t data=",   xml::escape(l.data)
+                            , "\n\t\t hotkey=", l.hotkey
+                    );
+                }
+                if (labels.empty())
+                {
+                    log("term: skip menu item without label");
+                    continue;
+                }
+                switch (new_item.type)
+                {
+                    case item_type::Command:
+                    {
+                        break;
+                    }
+                    case item_type::Option:
+                    {
+                        break;
+                    }
+                    case item_type::Splitter:
+                    {
+                        break;
+                    }
+                    case item_type::Repeatable:
+                    {
+                        break;
+                    }
+                }
+
+                auto element = app::shared::menu_item_type{ default_values.action != item_proc::Noop,
+                    labels.front()->value(), default_values.notes,
+                    [new_item](ui::pads& boss) mutable
+                    {
+                        auto shadow = ptr::shadow(boss.This());
+                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            if (auto boss_ptr = shadow.lock())
+                            {
+                                auto& boss = *boss_ptr;
+                                if (++new_item.selected == new_item.labels.size()) new_item.selected = 0;
+                                if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, new_item.labels[new_item.selected].label);
+                                //boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
+
+                                // Exec action with data
+                                // ...
+
+                                boss.deface();
+                                gear.dismiss(true);
+                            }
+                        };
+                        // Submit on status update.
+                        boss.SUBMIT(tier::anycast, app::term::events::selmod, selmod)
+                        {
+
+                        };
+                    }};
+                //menu_items.push_back(element);
+            }
+            //return app::shared::custom_menu(config, menu_items);
+        }
         return app::shared::custom_menu(config, items);
     };
 

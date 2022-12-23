@@ -1287,6 +1287,8 @@ struct consrv
         auto& packet = payload::cast(upload);
         answer.status = nt::status::not_supported;
         log("\tlangid not supported");
+        //packet.reply.langid = MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US);
+        //log("\treply.langid ", packet.reply.langid);
     }
     auto api_system_mouse_buttons_get_count  ()
     {
@@ -1716,6 +1718,20 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
+        auto handle_ptr = packet.target;
+        if (handle_ptr == nullptr)
+        {
+            log("\tabort: handle_ptr = invalid_value (0)");
+            answer.status = nt::status::invalid_handle;
+            return;
+        }
+        auto& handle = *handle_ptr;
+        if (handle.kind != hndl::type::events) // GH#305: Python attempts to get the input event number using the hndl::type::scroll handle to determine the handle type.
+        {
+            log("\tabort: invalid handle type ", handle.kind);
+            answer.status = nt::status::invalid_handle;
+            return;
+        }
         packet.reply.count = events.count();
         log("\treply.count ", packet.reply.count);
     }
@@ -3217,6 +3233,7 @@ struct consrv
                 {
                     case WM_CREATE: break;
                     case WM_DESTROY: ::PostQuitMessage(0); break;
+                    case WM_CLOSE: //todo revise (see taskkill /pid <processID>)
                     default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
                 }
                 return (LRESULT) NULL;
