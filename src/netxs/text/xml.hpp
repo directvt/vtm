@@ -394,6 +394,7 @@ namespace netxs::xml
                 };
                 yield = numerate() + yield;
                 utf::for_each(yield, "\n", [&]{ return "\n" + numerate(); });
+                yield.add('\n');
                 return yield;
             }
         };
@@ -1229,11 +1230,16 @@ namespace netxs::xml
         {
             return document->page.utf8();
         }
+        template<bool Print = faux>
         auto fuse(view utf8_xml, view filepath = {})
         {
             if (filepath.size()) document->page.file = filepath;
             if (utf8_xml.empty()) return;
             auto run_config = xml::document{ utf8_xml, filepath };
+            if constexpr (Print)
+            {
+                log("Configuration from ", filepath.empty() ? "memory"sv : filepath, "\n", run_config.page.show());
+            }
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
                 auto& node = *node_ptr;

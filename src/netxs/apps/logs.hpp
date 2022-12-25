@@ -272,6 +272,9 @@ namespace netxs::app::logs
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB.fgc(), cB.bgc());
                 config.cd("/config/logs/", "/config/defapp/");
+                using app::shared::new_menu_item_type;
+                using app::shared::new_menu_label_t;
+                using app::shared::new_menu_item_t;
                 auto [menu_block, cover, menu_data] = app::shared::custom_menu(config,
                     app::shared::menu_list_type{
                             //todo use it only in conjunction with the terminal
@@ -291,8 +294,8 @@ namespace netxs::app::logs
                             //        boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                             //    };
                             //}},
-                            { true, "Clear", " Clear scrollback ",
-                            [](ui::pads& boss)
+                            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ {.label = "Clear", .notes = " Clear scrollback " } }}),
+                            [](ui::pads& boss, auto& item)
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {

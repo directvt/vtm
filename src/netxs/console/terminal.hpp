@@ -83,6 +83,12 @@ namespace netxs::ui
                     wrapoff,
                     togglewrp,
                     togglesel,
+                    seltext,
+                    selansi,
+                    selhtml,
+                    selnone,
+                    selsafe,
+                    selrich,
                     reset,
                     clear,
                     look_fwd,
@@ -1064,7 +1070,7 @@ namespace netxs::ui
             {
                 // Do nothing by default.
             }
-            virtual void selection_setwrp()
+            virtual void selection_setwrp(wrap w = {})
             {
                 // Do nothing by default.
             }
@@ -5785,17 +5791,19 @@ namespace netxs::ui
                 resize_viewport(panel, true); // Recalc batch.basis.
             }
             // scroll_buf: Sel wrapping mode for selected lines.
-            void selection_setwrp() override
+            void selection_setwrp(wrap w = {}) override
             {
                 if (upmid.role == grip::idle) return;
                 auto i_top = std::clamp(batch.index_by_id(upmid.link), 0, batch.size);
-                auto wraps = batch[i_top].style.wrp() == wrap::on ? wrap::off : wrap::on;
+                auto wraps = w == wrap::none ? batch[i_top].style.wrp() == wrap::on ? wrap::off : wrap::on
+                                             : w;
                 upmid.coor.y = dnmid.coor.y = 0;
                 selection_foreach([&](auto& curln)
                 {
                     curln.style.wrp(wraps);
                     batch.recalc(curln);
                 });
+                if (w != wrap::none) style.wrp(w);
                 resize_viewport(panel, true); // Recalc batch.basis.
             }
             // scroll_buf: Update selection internals.
@@ -6851,8 +6859,16 @@ namespace netxs::ui
                     case commands::ui::left:      console.selection_setjet(bias::left  );         break;
                     case commands::ui::center:    console.selection_setjet(bias::center);         break;
                     case commands::ui::right:     console.selection_setjet(bias::right );         break;
+                    case commands::ui::wrapon:    console.selection_setwrp(wrap::on);             break;
+                    case commands::ui::wrapoff:   console.selection_setwrp(wrap::off);            break;
                     case commands::ui::togglewrp: console.selection_setwrp();                     break;
                     case commands::ui::togglesel: selection_selmod();                             break;
+                    case commands::ui::seltext:   selection_selmod(clip::textonly);               break;
+                    case commands::ui::selansi:   selection_selmod(clip::ansitext);               break;
+                    case commands::ui::selhtml:   selection_selmod(clip::htmltext);               break;
+                    case commands::ui::selrich:   selection_selmod(clip::richtext);               break;
+                    case commands::ui::selnone:   selection_selmod(clip::disabled);               break;
+                    case commands::ui::selsafe:   selection_selmod(clip::safetext);               break;
                     case commands::ui::reset:     decstr();                                       break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
                     case commands::ui::look_fwd:  console.selection_search(feed::fwd);            break;
@@ -6867,8 +6883,16 @@ namespace netxs::ui
                     case commands::ui::left:      console.style.jet(bias::left  );      break;
                     case commands::ui::center:    console.style.jet(bias::center);      break;
                     case commands::ui::right:     console.style.jet(bias::right );      break;
+                    case commands::ui::wrapon:    console.style.wrp(wrap::on);          break;
+                    case commands::ui::wrapoff:   console.style.wrp(wrap::off);         break;
                     case commands::ui::togglewrp: console.style.wrp(console.style.wrp() == wrap::on ? wrap::off : wrap::on); break;
                     case commands::ui::togglesel: selection_selmod();                   return; // Return without resetting the viewport.
+                    case commands::ui::seltext:   selection_selmod(clip::textonly);     break;
+                    case commands::ui::selansi:   selection_selmod(clip::ansitext);     break;
+                    case commands::ui::selhtml:   selection_selmod(clip::htmltext);     break;
+                    case commands::ui::selrich:   selection_selmod(clip::richtext);     break;
+                    case commands::ui::selnone:   selection_selmod(clip::disabled);     break;
+                    case commands::ui::selsafe:   selection_selmod(clip::safetext);     break;
                     case commands::ui::reset:     decstr();                             break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
                     case commands::ui::look_fwd:  console.selection_search(feed::fwd);  break;
