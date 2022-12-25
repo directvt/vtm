@@ -286,8 +286,6 @@ namespace netxs::app::term
         };
         #undef PROC_LIST
 
-        auto i = 0;
-
         for (auto item_ptr : items)
         {
             auto& item = *item_ptr;
@@ -300,7 +298,6 @@ namespace netxs::app::term
             default_values.data   = item.take(attr_data,   ""s);
             default_values.hotkey = item.take(attr_hotkey, ""s);
             new_item.active = action != item_proc::Noop;
-            log(" item_", i++, " type=", action == item_proc::Noop ? new_menu_item_type::Splitter : new_item.type, " action=", action);
             auto labels = item.list(attr_label);
             for (auto label_ptr : labels)
             {
@@ -314,12 +311,6 @@ namespace netxs::app::term
                     .hotkey = label.take(attr_hotkey, default_values.hotkey),
                 });
                 auto& l = new_item.labels.back();
-                log("\t label=", l.label
-                    , "\n\t\t index=",  l.index
-                    , "\n\t\t notes=",  l.notes
-                    , "\n\t\t data=",   xml::escape(l.data)
-                    , "\n\t\t hotkey=", l.hotkey
-                );
             }
             if (labels.empty())
             {
