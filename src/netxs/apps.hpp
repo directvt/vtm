@@ -241,14 +241,14 @@ R"==(
             <enabled=1 />
             <slim=1 />
             <item*/>  <!-- Zeroize previous item list. -->
-            <item label="Wrap" type=Option action=SetWrapMode data="off"> <!-- item/label has index=0 by default. -->
+            <item label="Wrap" type=Option action=TerminalWrapMode data="off"> <!-- item/label has index=0 by default. -->
                 <label="\e[38:2:0:255:0mWrap\e[m" index=1 data="on"/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
                 <notes>
                     " Wrapping text lines on/off      \n"
                     " - applied to selection if it is "
                 </notes>
             </item>
-            <item label="Selection" notes=" Text selection mode " type=Option action=SetSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
                 <label="\e[38:2:0:255:0mPlaintext\e[m" index=1 data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" index=2 data="ansi"/>
                 <label index=3 data="rich">
@@ -265,7 +265,7 @@ R"==(
                 <label="\e[38:2:0:255:255mHTML-code\e[m" index=4 data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" index=5 data="protected"/>
             </item>
-            <item label="<" action=FindPrev>  <!-- type=Command is a default item's attribute. -->
+            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m" index=1 />
                 <notes>
                     " Previous match                    \n"
@@ -273,7 +273,7 @@ R"==(
                     " - page up if no clipboard data    "
                 </notes>
             </item>
-            <item label=">" action=FindNext>
+            <item label=">" action=TerminalFindNext>
                 <label="\e[38:2:0:255:0m>\e[m" index=1 />
                 <notes>
                     " Next match                        \n"
@@ -282,9 +282,9 @@ R"==(
                 </notes>
             </item>
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
-            <item label="Clear" notes=" Clear TTY viewport "                  action=Print data="\e[2J"/>
-            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=Print data="\e[!p"/>
-            <item label="Hello, World!" notes=" Simulating keypresses "       action=SendKey data="Hello World!"/>
+            <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
@@ -335,7 +335,43 @@ R"==(
     static constexpr auto path_autorun  = "config/menu/autorun";
     static constexpr auto path_hotkeys  = "config/hotkeys";
 
-    using menu_item_type = std::tuple<bool, text, text, std::function<void(ui::pads&)>>;
+    enum new_menu_item_type
+    {
+        Splitter,
+        Command,
+        Option,
+    };
+    struct new_menu_label_t
+    {
+        text label;
+        si32 index{};
+        text notes;
+        text data;
+        text hotkey;
+    };
+    struct new_menu_item_t
+    {
+        new_menu_item_type type{};
+        bool active{};
+        si32 selected{};
+        std::vector<new_menu_label_t> labels;
+        auto& select(si32 v)
+        {
+            //todo optimize
+            for (auto i = 0; i < labels.size(); i++)
+            {
+                auto& cur_item = labels[i];
+                if (cur_item.index == v)
+                {
+                    selected = i;
+                    return cur_item;
+                }
+            }
+            return labels.front();
+        }
+    };
+
+    using menu_item_type = std::tuple<netxs::sptr<new_menu_item_t>, std::function<void(ui::pads&, new_menu_item_t&)>>;
     using menu_list_type = std::list<menu_item_type>;
 
     //static si32 max_count = 20;// 50;
@@ -491,16 +527,18 @@ R"==(
             auto fader = skin::timeout(tone::fader);
             for (auto& body : menu_items)
             {
-                auto& hover = std::get<0>(body);
-                auto& label = std::get<1>(body);
-                auto& notes = std::get<2>(body);
-                auto& setup = std::get<3>(body);
+                auto& item_ptr = std::get<0>(body);
+                auto& setup = std::get<1>(body);
+                auto& item = *item_ptr;
+                auto& hover = item.active;
+                auto& label = item.labels.front().label;
+                auto& notes = item.labels.front().notes;
                 if (hover)
                 {
                     scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
                              ->plugin<pro::fader>(x3, c3, fader)
                              ->plugin<pro::notes>(notes)
-                             ->invoke(setup)
+                             ->invoke([&](ui::pads& boss){ setup(boss, item); })
                              ->attach(ui::item::ctor(label, faux, true));
                 }
                 else
@@ -508,9 +546,16 @@ R"==(
                     scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
                              ->colors(0,0) //todo for mouse tracking
                              ->plugin<pro::notes>(notes)
-                             ->invoke(setup)
+                             ->invoke([&](ui::pads& boss){ setup(boss, item); })
                              ->attach(ui::item::ctor(label, faux, true));
                 }
+                scrl_list->invoke([&](auto& boss) // Store shared ptr to the menu item config.
+                {
+                    boss.SUBMIT_BYVAL(tier::release, e2::dtor, v)
+                    {
+                        item_ptr;
+                    };
+                });
             }
             menu_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
                      ->plugin<pro::fader>(x1, c1, fader)
@@ -630,11 +675,11 @@ R"==(
     {
         auto items = app::shared::menu_list_type
         {
-            { true, ansi::und(true).add("F").nil().add("ile"), " File menu item ", [&](auto& boss){ } },
-            { true, ansi::und(true).add("E").nil().add("dit"), " Edit menu item ", [&](auto& boss){ } },
-            { true, ansi::und(true).add("V").nil().add("iew"), " View menu item ", [&](auto& boss){ } },
-            { true, ansi::und(true).add("D").nil().add("ata"), " Data menu item ", [&](auto& boss){ } },
-            { true, ansi::und(true).add("H").nil().add("elp"), " Help menu item ", [&](auto& boss){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }), [&](auto& boss, auto& item){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }), [&](auto& boss, auto& item){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }), [&](auto& boss, auto& item){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }), [&](auto& boss, auto& item){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }), [&](auto& boss, auto& item){ } },
         };
         config.cd("/config/defapp/");
         auto [menu, cover, menu_data] = custom_menu(config, items);

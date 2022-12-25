@@ -41,100 +41,6 @@ namespace netxs::events::userland
                 EVENT_XS( bg, rgba ),
                 EVENT_XS( fg, rgba ),
             };
-            //todo test
-            SUBSET_XS( action )
-            {
-                EVENT_XS( noop      , text ),
-                EVENT_XS( quit      , text ), // Quit terminal.
-                EVENT_XS( maximize  , text ), // Maximize/Restore window.
-                EVENT_XS( restart   , text ), // Restart session.
-                EVENT_XS( sendkey   , text ),
-                GROUP_XS( scrollback, text ),
-                GROUP_XS( clipboard , text ),
-                GROUP_XS( log       , text ),
-                GROUP_XS( video     , text ),
-
-                SUBSET_XS( scrollback )
-                {
-                    EVENT_XS( print    , text ),
-                    EVENT_XS( findnext , text ),
-                    EVENT_XS( findprev , text ),
-                    GROUP_XS( selection, text ),
-                    GROUP_XS( wrapping , text ),
-                    GROUP_XS( aligning , text ),
-                    GROUP_XS( viewport , text ),
-
-                    SUBSET_XS( selection )
-                    {
-                        EVENT_XS( mode, text ),
-                    };
-                    SUBSET_XS( wrapping )
-                    {
-                        EVENT_XS( mode, text ),
-                    };
-                    SUBSET_XS( aligning )
-                    {
-                        EVENT_XS( mode, text ),
-                    };
-                    SUBSET_XS( viewport )
-                    {
-                        EVENT_XS( top   , text ),
-                        EVENT_XS( bottom, text ),
-                        EVENT_XS( home  , text ), // To left
-                        EVENT_XS( end   , text ), // To right
-                        GROUP_XS( page  , text ),
-                        GROUP_XS( line  , text ),
-
-                        SUBSET_XS( page )
-                        {
-                            EVENT_XS( up   , text ),
-                            EVENT_XS( down , text ),
-                            EVENT_XS( left , text ),
-                            EVENT_XS( right, text ),
-                        };
-                        SUBSET_XS( line )
-                        {
-                            EVENT_XS( up   , text ),
-                            EVENT_XS( down , text ),
-                            EVENT_XS( left , text ),
-                            EVENT_XS( right, text ),
-                        };
-                    };
-                };
-                SUBSET_XS( clipboard )
-                {
-                    EVENT_XS( wipe        , text ),
-                    EVENT_XS( copyviewport, text ),
-                };
-                SUBSET_XS( log )
-                {
-                    EVENT_XS( start  , text ),
-                    EVENT_XS( stop   , text ),
-                    EVENT_XS( pause  , text ),
-                    EVENT_XS( abort  , text ),
-                    EVENT_XS( restart, text ),
-                };
-                SUBSET_XS( video )
-                {
-                    EVENT_XS( play    , text ),
-                    EVENT_XS( stop    , text ),
-                    EVENT_XS( pause   , text ),
-                    EVENT_XS( forward , text ),
-                    EVENT_XS( backward, text ),
-                    EVENT_XS( home    , text ),
-                    EVENT_XS( end     , text ),
-                    GROUP_XS( record  , text ),
-
-                    SUBSET_XS( record )
-                    {
-                        EVENT_XS( start  , text ),
-                        EVENT_XS( stop   , text ),
-                        EVENT_XS( pause  , text ),
-                        EVENT_XS( abort  , text ),
-                        EVENT_XS( restart, text ),
-                    };
-                };
-            };
         };
     };
 }
@@ -150,377 +56,297 @@ namespace netxs::app::term
         auto c3 = highlight_color;
         auto x3 = cell{ c3 }.alpha(0x00);
 
-        auto items = app::shared::menu_list_type
+        config.cd("/config/term/", "/config/defapp/");
+        auto items = config.list("menu/item");
+        static constexpr auto attr_type   = "type";
+        static constexpr auto attr_label  = "label";
+        static constexpr auto attr_notes  = "notes";
+        static constexpr auto attr_action = "action";
+        static constexpr auto attr_data   = "data";
+        static constexpr auto attr_hotkey = "hotkey";
+        static constexpr auto attr_index  = "index";
+        static const auto type_Command  = "Command"s;
+        static const auto type_Splitter = "Splitter"s;
+        static const auto type_Option   = "Option"s;
+
+        auto menu_items = app::shared::menu_list_type{};
+
+        using app::shared::new_menu_item_type;
+        using app::shared::new_menu_label_t;
+        using app::shared::new_menu_item_t;
+
+        static auto type_options = std::unordered_map<text, new_menu_item_type>
+           {{ "Splitter",   new_menu_item_type::Splitter   },
+            { "Command",    new_menu_item_type::Command    },
+            { "Option",     new_menu_item_type::Option     }};
+
+        #define PROC_LIST \
+            X(Noop                      ) /* */ \
+            X(ClipboardWipe             ) /* */ \
+            X(TerminalQuit              ) /* */ \
+            X(TerminalMaximize          ) /* */ \
+            X(TerminalRestart           ) /* */ \
+            X(TerminalSendKey           ) /* */ \
+            X(TerminalPaste             ) /* */ \
+            X(TerminalSelectionMode     ) /* */ \
+            X(TerminalSelectionType     ) /* Linear/Boxed*/ \
+            X(TerminalSelectionClear    ) /* */ \
+            X(TerminalSelectionCopy     ) /* */ \
+            X(TerminalWrapMode          ) /* */ \
+            X(TerminalAlignMode         ) /* */ \
+            X(TerminalFindNext          ) /* */ \
+            X(TerminalFindPrev          ) /* */ \
+            X(TerminalOutput            ) /* */ \
+            X(TerminalViewportPageUp    ) /* */ \
+            X(TerminalViewportPageDown  ) /* */ \
+            X(TerminalViewportLineUp    ) /* */ \
+            X(TerminalViewportLineDown  ) /* */ \
+            X(TerminalViewportPageLeft  ) /* */ \
+            X(TerminalViewportPageRight ) /* */ \
+            X(TerminalViewportCharLeft  ) /* */ \
+            X(TerminalViewportCharRight ) /* */ \
+            X(TerminalViewportTop       ) /* */ \
+            X(TerminalViewportEnd       ) /* */ \
+            X(TerminalViewportCopy      ) /* */ \
+            X(TerminalLogStart          ) /* */ \
+            X(TerminalLogPause          ) /* */ \
+            X(TerminalLogStop           ) /* */ \
+            X(TerminalLogAbort          ) /* */ \
+            X(TerminalLogRestart        ) /* */ \
+            X(TerminalVideoRecStart     ) /* */ \
+            X(TerminalVideoRecStop      ) /* */ \
+            X(TerminalVideoRecPause     ) /* */ \
+            X(TerminalVideoRecAbort     ) /* */ \
+            X(TerminalVideoRecRestart   ) /* */ \
+            X(TerminalVideoPlay         ) /* */ \
+            X(TerminalVideoPause        ) /* */ \
+            X(TerminalVideoStop         ) /* */ \
+            X(TerminalVideoForward      ) /* */ \
+            X(TerminalVideoBackward     ) /* */ \
+            X(TerminalVideoHome         ) /* */ \
+            X(TerminalVideoEnd          ) /* */
+        enum item_proc
         {
-            //todo revise necessity
-            //{ true, "=─", " Align text lines on left side   \n"
-            //              " - applied to selection if it is ",
-            //[](ui::pads& boss)
-            //{
-            //    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-            //    {
-            //        boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::left);
-            //        gear.dismiss(true);
-            //    };
-            //    boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
-            //    {
-            //        //todo unify, get boss base colors, don't use x3
-            //        boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-            //    };
-            //}},
-            //{ true, "─=─", " Center text lines               \n"
-            //               " - applied to selection if it is ",
-            //[](ui::pads& boss)
-            //{
-            //    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-            //    {
-            //        boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::center);
-            //        gear.dismiss(true);
-            //    };
-            //    boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
-            //    {
-            //        //todo unify, get boss base colors, don't use x3
-            //        boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-            //    };
-            //}},
-            //{ true, "─=", " Align text lines on right side  \n"
-            //              " - applied to selection if it is ",
-            //[](ui::pads& boss)
-            //{
-            //    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-            //    {
-            //        boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::right);
-            //        gear.dismiss(true);
-            //    };
-            //    boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
-            //    {
-            //        //todo unify, get boss base colors, don't use x3
-            //        boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-            //    };
-            //}},
-            { true, "Wrap", " Wrapping text lines on/off      \n"
-                            " - applied to selection if it is ",
-            [](ui::pads& boss)
+            #define X(_proc) _proc,
+            PROC_LIST
+            #undef X
+        };
+        static const auto proc_options = std::unordered_map<text, item_proc>
+        {
+            #define X(_proc) { #_proc, item_proc::_proc },
+            PROC_LIST
+            #undef X
+        };
+
+        struct disp
+        {
+            static void TerminalWrapMode(ui::pads& boss, new_menu_item_t& new_item)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::togglewrp);
+                    auto& cur_item = new_item.labels[new_item.selected];
+                    auto v = xml::take<bool>(cur_item.data).value() ? ui::term::commands::ui::wrapon
+                                                                    : ui::term::commands::ui::wrapoff;
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, v);
                     gear.dismiss(true);
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::layout::wrapln, wrapln)
                 {
-                    auto highlight_color = skin::color(tone::highlight);
-                    auto c3 = highlight_color;
-                    auto x3 = cell{ c3 }.alpha(0x00);
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
-            { true, "Selection", " Text selection mode ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::togglesel);
-                    gear.dismiss(true);
-                };
-                boss.SUBMIT(tier::anycast, app::term::events::selmod, selmod)
-                {
-                    auto highlight_color = skin::color(tone::highlight);
-                    auto c3 = highlight_color;
-                    auto x3 = cell{ c3 }.alpha(0x00);
-                    //todo unify, get boss base colors, don't use x3, make it configurable
-                    switch (selmod)
+                    auto& cur_item = new_item.select(wrapln == wrap::on ? 1 : 0);
+                    if (boss.client)
                     {
-                        default:
-                        case clip::disabled:
-                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Selection");
-                            boss.color(x3.fgc(), x3.bgc());
-                            break;
-                        case clip::textonly:
-                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Plaintext");
-                            boss.color(0xFF00ff00, x3.bgc());
-                            break;
-                        case clip::ansitext:
-                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "ANSI-text");
-                            boss.color(0xFF00ffff, x3.bgc());
-                            break;
-                        case clip::richtext:
-                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, ansi::esc{}.
-                                fgc(0xFFede76d).add("R").
-                                fgc(0xFFbaed6d).add("T").
-                                fgc(0xFF3cff3c).add("F").
-                                fgc(0xFF35ffbd).add("-").
-                                fgc(0xFF31ffff).add("s").
-                                fgc(0xFF4fbdff).add("t").
-                                fgc(0xFF5e72ff).add("y").
-                                fgc(0xFF9d3cff).add("l").
-                                fgc(0xFFd631ff).add("e").nil());
-                            break;
-                        case clip::htmltext:
-                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "HTML-code");
-                            boss.color(0xFFffff00, x3.bgc());
-                            break;
-                        case clip::safetext:
-                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Protected");
-                            boss.color(0xFFffff00, x3.bgc());
-                            break;
+                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
+                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
+                        boss.deface();
                     }
-                    boss.deface();
                 };
-            }},
-            { true, "<", " Previous match                    \n"
-                         " - using clipboard if no selection \n"
-                         " - page up if no clipboard data    ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::search::reverse, gear);
-                    gear.dismiss(true);
-                };
-                boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
-                {
-                    auto highlight_color = skin::color(tone::highlight);
-                    auto c3 = highlight_color;
-                    auto x3 = cell{ c3 }.alpha(0x00);
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(mode & 2 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
-            { true, ">", " Next match                        \n"
-                         " - using clipboard if no selection \n"
-                         " - page down if no clipboard data  ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::search::forward, gear);
-                    gear.dismiss(true);
-                };
-                boss.SUBMIT(tier::anycast, app::term::events::search::status, mode)
-                {
-                    auto highlight_color = skin::color(tone::highlight);
-                    auto c3 = highlight_color;
-                    auto x3 = cell{ c3 }.alpha(0x00);
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(mode & 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
-            { faux, "  ", " ...empty menu block for safety ",
-            [](ui::pads& boss)
-            {
-            }},
-            { true, "Clear", " Clear TTY viewport ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
-                    gear.dismiss(true);
-                };
-            }},
-            { true, "Reset", " Clear scrollback and SGR-attributes ",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
-                    gear.dismiss(true);
-                };
-            }},
-        };
-        {
-            config.cd("/config/term/", "/config/defapp/");
-            auto items = config.list("menu/item");
-            static constexpr auto attr_type   = "type";
-            static constexpr auto attr_label  = "label";
-            static constexpr auto attr_notes  = "notes";
-            static constexpr auto attr_action = "action";
-            static constexpr auto attr_data   = "data";
-            static constexpr auto attr_hotkey = "hotkey";
-            static constexpr auto attr_index  = "index";
-
-            static const auto type_Command  = "Command"s;
-            static const auto type_Splitter = "Splitter"s;
-            static const auto type_Option   = "Option"s;
-
-            enum item_type
-            {
-                Splitter,
-                Repeatable,
-                Command,
-                Option,
-            };
-            static auto type_options = std::unordered_map<text, item_type>
-               {{ "Splitter",   item_type::Splitter   },
-                { "Command",    item_type::Command    },
-                { "Repeatable", item_type::Repeatable },
-                { "Option",     item_type::Option     }};
-
-            #define PROC_LIST \
-                X(Noop                   ) /* */ \
-                X(SetSelectionMode       ) /* */ \
-                X(SetWrapMode            ) /* */ \
-                X(FindNext               ) /* */ \
-                X(FindPrev               ) /* */ \
-                X(Print                  ) /* */ \
-                X(SendKey                ) /* */ \
-                X(QuitTerminal           ) /* */ \
-                X(RestartSession         ) /* */ \
-                X(MaximizeRestoreWindow  ) /* */ \
-                X(ScrollPageUp           ) /* */ \
-                X(ScrollPageDown         ) /* */ \
-                X(ScrollLineUp           ) /* */ \
-                X(ScrollLineDown         ) /* */ \
-                X(ScrollPageLeft         ) /* */ \
-                X(ScrollPageRight        ) /* */ \
-                X(ScrollColumnLeft       ) /* */ \
-                X(ScrollColumnRight      ) /* */ \
-                X(ScrollTop              ) /* */ \
-                X(ScrollEnd              ) /* */ \
-                X(WipeClipboard          ) /* */ \
-                X(CopyViewportToClipboard) /* */ \
-                X(StartLogging           ) /* */ \
-                X(PauseLogging           ) /* */ \
-                X(StopLogging            ) /* */ \
-                X(AbortLogging           ) /* */ \
-                X(RestartLogging         ) /* */ \
-                X(StartRecording         ) /* */ \
-                X(StopRecording          ) /* */ \
-                X(PauseRecording         ) /* */ \
-                X(AbortRecording         ) /* */ \
-                X(RestartRecording       ) /* */ \
-                X(VideoPlay              ) /* */ \
-                X(VideoPause             ) /* */ \
-                X(VideoStop              ) /* */ \
-                X(VideoStepForward       ) /* */ \
-                X(VideoStepBackward      ) /* */ \
-                X(VideoRewindHome        ) /* */ \
-                X(VideoRewindEnd         ) /* */
-            enum item_proc
-            {
-                #define X(_proc) _proc,
-                PROC_LIST
-                #undef X
-            };
-            static auto proc_options = std::unordered_map<text, item_proc>
-            {
-                #define X(_proc) { #_proc, item_proc::_proc },
-                PROC_LIST
-                #undef X
-            };
-            #undef PROC_LIST
-
-            auto i = 0;
-            auto menu_items = app::shared::menu_list_type{};
-
-            struct label_t
-            {
-                text label;
-                si32 index{};
-                text notes;
-                item_proc action{};
-                text data;
-                text hotkey;
-            };
-            struct item_t
-            {
-                item_type type{};
-                si32 selected{};
-                std::vector<label_t> labels;
-            };
-            for (auto item_ptr : items)
-            {
-                auto& item = *item_ptr;
-                auto default_values = label_t{};
-                auto new_item = item_t{};
-                new_item.type         = item.take(attr_type,   item_type::Command, type_options);
-                default_values.action = item.take(attr_action, item_proc::Noop,    proc_options);
-                default_values.notes  = item.take(attr_notes,  ""s);
-                default_values.data   = item.take(attr_data,   ""s);
-                default_values.hotkey = item.take(attr_hotkey, ""s);
-                auto labels = item.list(attr_label);
-                log(" item_", i++, " type=", default_values.action == item_proc::Noop ? item_type::Splitter : new_item.type);
-                for (auto label_ptr : labels)
-                {
-                    auto& label = *label_ptr;
-                    new_item.labels.push_back(
-                    {
-                        .label  = label.value(),
-                        .index  = label.take(attr_index,  0),
-                        .notes  = label.take(attr_notes,  default_values.notes),
-                        .action = label.take(attr_action, item_proc::Noop, proc_options),
-                        .data   = label.take(attr_data,   default_values.data),
-                        .hotkey = label.take(attr_hotkey, default_values.hotkey),
-                    });
-                    auto& l = new_item.labels.back();
-                    if (l.action == item_proc::Noop) l.action = default_values.action;
-                    log("\t label=", l.label
-                            , "\n\t\t index=",  l.index
-                            , "\n\t\t notes=",  l.notes
-                            , "\n\t\t action=", l.action
-                            , "\n\t\t data=",   xml::escape(l.data)
-                            , "\n\t\t hotkey=", l.hotkey
-                    );
-                }
-                if (labels.empty())
-                {
-                    log("term: skip menu item without label");
-                    continue;
-                }
-                switch (new_item.type)
-                {
-                    case item_type::Command:
-                    {
-                        break;
-                    }
-                    case item_type::Option:
-                    {
-                        break;
-                    }
-                    case item_type::Splitter:
-                    {
-                        break;
-                    }
-                    case item_type::Repeatable:
-                    {
-                        break;
-                    }
-                }
-
-                auto element = app::shared::menu_item_type{ default_values.action != item_proc::Noop,
-                    labels.front()->value(), default_values.notes,
-                    [new_item](ui::pads& boss) mutable
-                    {
-                        auto shadow = ptr::shadow(boss.This());
-                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
-                        {
-                            if (auto boss_ptr = shadow.lock())
-                            {
-                                auto& boss = *boss_ptr;
-                                if (++new_item.selected == new_item.labels.size()) new_item.selected = 0;
-                                if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, new_item.labels[new_item.selected].label);
-                                //boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
-
-                                // Exec action with data
-                                // ...
-
-                                boss.deface();
-                                gear.dismiss(true);
-                            }
-                        };
-                        // Submit on status update.
-                        boss.SUBMIT(tier::anycast, app::term::events::selmod, selmod)
-                        {
-
-                        };
-                    }};
-                //menu_items.push_back(element);
             }
-            //return app::shared::custom_menu(config, menu_items);
+            static void TerminalAlignMode(ui::pads& boss, new_menu_item_t& new_item)
+            {
+                //todo unify
+                static auto options = std::unordered_map<text, ui::term::commands::ui::commands>
+                   {{ "left",   ui::term::commands::ui::left   },
+                    { "right",  ui::term::commands::ui::right  },
+                    { "center", ui::term::commands::ui::center }};
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    auto& cur_item = new_item.labels[new_item.selected];
+                    auto iter = options.find(cur_item.data);
+                    auto v = iter == options.end() ? ui::term::commands::ui::left
+                                                   : iter->second;
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, v);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
+                {
+                    auto& cur_item = new_item.select(static_cast<si32>(align));
+                    if (boss.client)
+                    {
+                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
+                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
+                        boss.deface();
+                    }
+                };
+            }
+            static void TerminalSelectionMode(ui::pads& boss, new_menu_item_t& new_item)
+            {
+                //todo unify, see ui::term
+                static auto options = std::unordered_map<text, ui::term::commands::ui::commands>
+                   {{ "none",      ui::term::commands::ui::selnone },
+                    { "text",      ui::term::commands::ui::seltext },
+                    { "ansi",      ui::term::commands::ui::selansi },
+                    { "rich",      ui::term::commands::ui::selrich },
+                    { "html",      ui::term::commands::ui::selhtml },
+                    { "protected", ui::term::commands::ui::selsafe }};
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    auto& cur_item = new_item.labels[new_item.selected];
+                    auto iter = options.find(cur_item.data);
+                    auto v = iter == options.end() ? ui::term::commands::ui::selnone
+                                                   : iter->second;
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, v);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::selmod, mode)
+                {
+                    auto& cur_item = new_item.select(mode);
+                    if (boss.client)
+                    {
+                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
+                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
+                        boss.deface();
+                    }
+                };
+            }
+            static void TerminalFindPrev(ui::pads& boss, new_menu_item_t& new_item)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::look_rev);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::search::status, status)
+                {
+                    auto& cur_item = new_item.select((status & 2) ? 1 : 0);
+                    if (boss.client)
+                    {
+                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
+                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
+                        boss.deface();
+                    }
+                };
+            }
+            static void TerminalFindNext(ui::pads& boss, new_menu_item_t& new_item)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::look_fwd);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::search::status, status)
+                {
+                    auto& cur_item = new_item.select((status & 1) ? 1 : 0);
+                    if (boss.client)
+                    {
+                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
+                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
+                        boss.deface();
+                    }
+                };
+            }
+            static void TerminalOutput(ui::pads& boss, new_menu_item_t& new_item)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    auto shadow = view{ new_item.labels[new_item.selected].data };
+                    boss.SIGNAL(tier::anycast, app::term::events::data::in, shadow);
+                    gear.dismiss(true);
+                };
+            }
+            static void TerminalSendKey(ui::pads& boss, new_menu_item_t& new_item)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    auto shadow = view{ new_item.labels[new_item.selected].data };
+                    boss.SIGNAL(tier::anycast, app::term::events::data::out, shadow);
+                    gear.dismiss(true);
+                };
+            }
+        };
+        using submit_proc = std::function<void(ui::pads&, new_menu_item_t&)>;
+        static const auto proc_map = std::unordered_map<item_proc, submit_proc>
+        {
+            { item_proc::TerminalWrapMode,      &disp::TerminalWrapMode      },
+            { item_proc::TerminalAlignMode,     &disp::TerminalAlignMode     },
+            { item_proc::TerminalSelectionMode, &disp::TerminalSelectionMode },
+            { item_proc::TerminalFindPrev,      &disp::TerminalFindPrev      },
+            { item_proc::TerminalFindNext,      &disp::TerminalFindNext      },
+            { item_proc::TerminalOutput,        &disp::TerminalOutput        },
+            { item_proc::TerminalSendKey,       &disp::TerminalSendKey       },
+        };
+        #undef PROC_LIST
+
+        auto i = 0;
+
+        for (auto item_ptr : items)
+        {
+            auto& item = *item_ptr;
+            auto default_values = new_menu_label_t{};
+            auto new_item_ptr = std::make_shared<new_menu_item_t>();
+            auto& new_item = *new_item_ptr;
+            new_item.type         = item.take(attr_type,   new_menu_item_type::Command, type_options);
+            auto action           = item.take(attr_action, item_proc::Noop,    proc_options);
+            default_values.notes  = item.take(attr_notes,  ""s);
+            default_values.data   = item.take(attr_data,   ""s);
+            default_values.hotkey = item.take(attr_hotkey, ""s);
+            new_item.active = action != item_proc::Noop;
+            log(" item_", i++, " type=", action == item_proc::Noop ? new_menu_item_type::Splitter : new_item.type, " action=", action);
+            auto labels = item.list(attr_label);
+            for (auto label_ptr : labels)
+            {
+                auto& label = *label_ptr;
+                new_item.labels.push_back(
+                {
+                    .label  = label.value(),
+                    .index  = label.take(attr_index,  0),
+                    .notes  = label.take(attr_notes,  default_values.notes),
+                    .data   = label.take(attr_data,   default_values.data),
+                    .hotkey = label.take(attr_hotkey, default_values.hotkey),
+                });
+                auto& l = new_item.labels.back();
+                log("\t label=", l.label
+                    , "\n\t\t index=",  l.index
+                    , "\n\t\t notes=",  l.notes
+                    , "\n\t\t data=",   xml::escape(l.data)
+                    , "\n\t\t hotkey=", l.hotkey
+                );
+            }
+            if (labels.empty())
+            {
+                log("term: skip menu item without label");
+                continue;
+            }
+
+            auto element = app::shared::menu_item_type{ new_item_ptr,
+                [action](ui::pads& boss, new_menu_item_t& new_item)
+                {
+                    auto iter = proc_map.find(action);
+                    if (iter != proc_map.end())
+                    {
+                        if (new_item.type == new_menu_item_type::Option)
+                        {
+                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            {
+                                new_item.selected = (new_item.selected + 1) % new_item.labels.size();
+                            };
+                        }
+                        auto& submit_proc = iter->second;
+                        submit_proc(boss, new_item);
+                    }
+                }};
+            menu_items.push_back(element);
         }
-        return app::shared::custom_menu(config, items);
+        return app::shared::custom_menu(config, menu_items);
     };
 
     namespace

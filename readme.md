@@ -778,44 +778,46 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 
        Value                        | Description
       ------------------------------|------------
-       *SetSelectionMode             | Set terminal text selection mode. The `data=` attribute can has the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
-       *SetWrapMode                  | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can has the following values `on`, `off`.
-       *FindNext                     | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-       *FindPrev                     | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
-       *Print                        | Direct output the `data=` value to the terminal scrollback.
-       *SendKey                      | Simulating keypresses using the `data=` string.
-       *QuitTerminal                 | Kill all runnning console apps and quit the built-in terminal.
-       *RestartSession               | Kill all runnning console apps and restart current session.
-       *MaximizeRestoreWindow        | Maximize/Restore built-in terminal window.
-       *ScrollPageUp                 | Scroll one page up.
-       *ScrollPageDown               | Scroll one page down.
-       *ScrollLineUp by N            | Scroll N lines up.
-       *ScrollLineDown by N          | Scroll N lines down.
-       *ScrollPageLeft               | Scroll one page to the left.
-       *ScrollPageRight              | Scroll one page to the right.
-       *ScrollColumnLeft by N        | Scroll N cells to the left.
-       *ScrollColumnRight by N       | Scroll N cells to the right.
-       *ScrollTop                    | Scroll to the scrollback top.
-       *ScrollEnd                    | Scroll to the scrollback bottom (reset viewport position).
-       *WipeClipboard                | Clear clipboard.
-       *CopyViewportToClipboard      | Сopy viewport to clipboard.
-       *StartLogging                 | Start logging to file.
-       *PauseLogging                 | Pause logging.
-       *StopLogging                  | Stop logging.
-       *AbortLogging                 | Abort logging.
-       *RestartLogging               | Restart logging to file.
-       *StartRecording               | Start DirectVT(DTVT) video recording to file.
-       *StopRecording                | Stop DTVT-video recording.
-       *PauseRecording               | Pause DTVT-video recording.
-       *AbortRecording               | Abort DTVT-video recording.
-       *RestartRecording             | Restart DTVT-video recording to file.
-       *VideoPlay                    | Play DTVT-video from file.
-       *VideoPause                   | Pause DTVT-video.
-       *VideoStop                    | Stop DTVT-video.
-       *VideoStepForward             | Fast forward DTVT-video by N ms.
-       *VideoStepBackward            | Rewind DTVT-video by N ms.
-       *VideoRewindHome              | Rewind DTVT-video to the beginning.
-       *VideoRewindEnd               | Rewind DTVT-video to the end.
+       TerminalSelectionMode        | Set terminal text selection mode. The `data=` attribute can has the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
+       TerminalWrapMode             | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can has the following values `on`, `off`.
+       TerminalAlignMode            | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can has the following values `left`, `right`, `center`.
+       TerminalFindNext             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+       TerminalFindPrev             | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+       TerminalOutput               | Direct output the `data=` value to the terminal scrollback.
+       TerminalSendKey              | Simulating keypresses using the `data=` string.
+       *TerminalQuit                | Kill all runnning console apps and quit the built-in terminal.
+       *TerminalRestart             | Kill all runnning console apps and restart current session.
+       *TerminalMaximize            | Maximize/Restore built-in terminal window.
+       *TerminalViewportPageUp      | Scroll one page up.
+       *TerminalViewportPageDown    | Scroll one page down.
+       *TerminalViewportLineUp      | Scroll N lines up.
+       *TerminalViewportLineDown    | Scroll N lines down.
+       *TerminalViewportPageLeft    | Scroll one page to the left.
+       *TerminalViewportPageRight   | Scroll one page to the right.
+       *TerminalViewportColumnLeft  | Scroll N cells to the left.
+       *TerminalViewportColumnRight | Scroll N cells to the right.
+       *TerminalViewportTop         | Scroll to the scrollback top.
+       *TerminalViewportEnd         | Scroll to the scrollback bottom (reset viewport position).
+       *TerminalViewportCopy        | Сopy viewport to clipboard.
+       *ClipboardWipe               | Clear clipboard.
+       *TerminalSelectionCopy       | Сopy selection to clipboard.
+       *TerminalLogStart            | Start logging to file.
+       *TerminalLogPause            | Pause logging.
+       *TerminalLogStop             | Stop logging.
+       *TerminalLogAbort            | Abort logging.
+       *TerminalLogRestart          | Restart logging to file.
+       *TerminalVideoRecStart       | Start DirectVT(DTVT) video recording to file.
+       *TerminalVideoRecStop        | Stop DTVT-video recording.
+       *TerminalVideoRecPause       | Pause DTVT-video recording.
+       *TerminalVideoRecAbort       | Abort DTVT-video recording.
+       *TerminalVideoRecRestart     | Restart DTVT-video recording to file.
+       *TerminalVideoPlay           | Play DTVT-video from file.
+       *TerminalVideoPause          | Pause DTVT-video.
+       *TerminalVideoStop           | Stop DTVT-video.
+       *TerminalVideoForward        | Fast forward DTVT-video by N ms.
+       *TerminalVideoBackward       | Rewind DTVT-video by N ms.
+       *TerminalVideoHome           | Rewind DTVT-video to the beginning.
+       *TerminalVideoEnd            | Rewind DTVT-video to the end.
 
  - `▀▄ Logs`
    - Debug output console.
