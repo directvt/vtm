@@ -919,6 +919,7 @@ R"==(
 
     namespace load
     {
+        template<bool Print = faux>
         auto settings(view cli_config_path, view patch)
         {
             auto conf = xml::settings{ default_config };
@@ -955,7 +956,7 @@ R"==(
                         auto buff = text(size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        conf.fuse(buff, config_path.string());
+                        conf.fuse<Print>(buff, config_path.string());
                         return true;
                     }
                 }
@@ -971,7 +972,7 @@ R"==(
 
             os::set_env(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
 
-            conf.fuse(patch);
+            conf.fuse<Print>(patch);
             return conf;
         }
     }

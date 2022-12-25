@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
                 daemon = true;
                 break;
             case 'l':
-                log("Running configuration:\n", app::shared::load::settings(cfpath, os::legacy::get_setup()));
+                log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::legacy::get_setup()));
                 return 0;
             case 'c':
                 cfpath = getopt.param();
