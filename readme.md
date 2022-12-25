@@ -857,7 +857,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 
       ### Attribute `action=`
 
-      * - Not implemented.
+      `*` - Not implemented.
 
        Value                        | Description
       ------------------------------|------------
