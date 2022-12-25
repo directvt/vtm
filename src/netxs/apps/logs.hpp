@@ -294,7 +294,7 @@ namespace netxs::app::logs
                             //        boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                             //    };
                             //}},
-                            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ {.label = "Clear", .notes = " Clear scrollback " } }),
+                            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ {.label = "Clear", .notes = " Clear scrollback " } }}),
                             [](ui::pads& boss, auto& item)
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)

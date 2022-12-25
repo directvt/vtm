@@ -553,7 +553,7 @@ R"==(
                 {
                     boss.SUBMIT_BYVAL(tier::release, e2::dtor, v)
                     {
-                        item_ptr;
+                        item_ptr.reset();
                     };
                 });
             }
@@ -675,11 +675,11 @@ R"==(
     {
         auto items = app::shared::menu_list_type
         {
-            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }), [&](auto& boss, auto& item){ } },
-            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }), [&](auto& boss, auto& item){ } },
-            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }), [&](auto& boss, auto& item){ } },
-            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }), [&](auto& boss, auto& item){ } },
-            { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }), [&](auto& boss, auto& item){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }}), [&](auto& boss, auto& item){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }}), [&](auto& boss, auto& item){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }}), [&](auto& boss, auto& item){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }}), [&](auto& boss, auto& item){ } },
+            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }}), [&](auto& boss, auto& item){ } },
         };
         config.cd("/config/defapp/");
         auto [menu, cover, menu_data] = custom_menu(config, items);

@@ -844,7 +844,7 @@ namespace netxs::app::tile
                         // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
                         // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
                         // └────┘  └─┴──┘  └─┴──┘  └────┘  └─┴──┘  └─┴──┘  └────┘  // └─┘                       
-                        { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  ┐└  ", .notes = " Maximize/restore active pane " } }),
+                        { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  ┐└  ", .notes = " Maximize/restore active pane " } }}),
                         [](ui::pads& boss, auto& item)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -854,7 +854,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  +  ", .notes = " Create and run a new app in active panes " } }),
+                        { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  +  ", .notes = " Create and run a new app in active panes " } }}),
                         [](ui::pads& boss, auto& item)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -863,7 +863,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = " ::: ", .notes = " Select all panes " } }),
+                        { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = " ::: ", .notes = " Select all panes " } }}),
                         [](ui::pads& boss, auto& item)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -872,7 +872,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  │  ", .notes = " Split active panes horizontally " } }),
+                        { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  │  ", .notes = " Split active panes horizontally " } }}),
                         [](ui::pads& boss, auto& item)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -881,7 +881,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = " ── ", .notes = " Split active panes vertically " } }),
+                        { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = " ── ", .notes = " Split active panes vertically " } }}),
                         [](ui::pads& boss, auto& item)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -890,7 +890,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  ┌┘  ", .notes = " Change split orientation " } }),
+                        { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  ┌┘  ", .notes = " Change split orientation " } }}),
                         [](ui::pads& boss, auto& item)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -899,7 +899,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = " <-> ", .notes = " Swap two or more panes " } }),
+                        { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = " <-> ", .notes = " Swap two or more panes " } }}),
                         [](ui::pads& boss, auto& item)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -908,7 +908,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = " >|< ", .notes = " Equalize split ratio " } }),
+                        { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = " >|< ", .notes = " Equalize split ratio " } }}),
                         [](ui::pads& boss, auto& item)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -917,7 +917,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { std::make_shared<new_menu_item_t>(new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  ×  ", .notes = " Close active app or remove pane if there is no running app " } }),
+                        { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{ { .label = "  ×  ", .notes = " Close active app or remove pane if there is no running app " } }}),
                         [](ui::pads& boss, auto& item)
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
