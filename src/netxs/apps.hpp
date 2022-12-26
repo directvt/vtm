@@ -33,7 +33,7 @@ namespace netxs::app::shared
 <config>
     <menu selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
-                       Using an asterisk with the parameter name of the first element in the list without any other nested arguments
+                       Using an asterisk with the parameter name of the first element in the list without any other nested attributes
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
         <item splitter label="apps">
             <notes>
@@ -70,8 +70,7 @@ R"==(
 )=="
 #endif
 R"==(
-            <hotkeys>    <!-- not implemented -->
-                <key*/>
+            <hotkeys key*>    <!-- not implemented -->
                 <key="Ctrl+'t'" action=Start />
             </hotkeys>
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
@@ -90,8 +89,7 @@ R"==(
                     <selection>
                         <mode = text/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
-                    <hotkeys>    <!-- not implemented -->
-                        <key*/>
+                    <hotkeys key*>    <!-- not implemented -->
                         <key="Alt+RightArrow" action=FindNext />
                         <key="Alt+LeftArrow"  action=FindPrev />
                         <key="Ctrl+'z'"       action=QuitTerminal />
@@ -111,8 +109,7 @@ R"==(
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
         <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
-        <autorun>  <!-- Autorun of specified menu items -->
-            <item*/>  <!-- List declaration -->
+        <autorun item*>  <!-- Autorun of specified menu items -->
             <item* id=Term winsize=80,25     /> <!-- Set defaults for the list -->
             <item focused wincoor=8,3        />
             <!--  <item wincoor=92,30        /> -->
@@ -123,8 +120,7 @@ R"==(
             <expanded=31/>
         </width>
     </menu>
-    <hotkeys>    <!-- not implemented -->
-        <key*/>
+    <hotkeys key*>    <!-- not implemented -->
         <key="Ctrl+PgUp" action=PrevWindow />
         <key="Ctrl+PgDn" action=NextWindow />
     </hotkeys>
@@ -236,11 +232,10 @@ R"==(
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
-        <menu>
+        <menu item*>  <!-- Use asterisk to drop previous/existing item list. -->
             <autohide=true />  <!-- If true, show menu only on hover. -->
             <enabled=1 />
             <slim=1 />
-            <item*/>  <!-- Zeroize previous item list. -->
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
@@ -294,8 +289,7 @@ R"==(
                                close:   Always close.
                                restart: Restart session.
                                retry:   Restart session if exit code != 0. -->
-        <hotkeys>    <!-- not implemented -->
-            <key*/>
+        <hotkeys key*>    <!-- not implemented -->
             <key="Alt+RightArrow" action=FindNext />
             <key="Alt+LeftArrow"  action=FindPrev />
         </hotkeys>

@@ -935,6 +935,7 @@ namespace netxs::xml
                             next->mode = elem::form::attr;
                             open(next);
                             pair(next, data, what, last, type::token);
+                            if (last == type::defaults) next->base = true; // Inlined list resetter.
                             seal(next);
                             push(next);
                             trim(data);

@@ -452,10 +452,8 @@ Note: The following configuration sections are not implemented yet
 
 ```xml
 <config>
-    <menu selected=Term>
-        <item*/>          <!-- Remove default item records. -->
-        <item id=Term/>   <!-- title=id type=SHELL param=os_default_shell by default-->
-        <autorun*/>       <!-- Zeroize default autoruns. -->
+    <menu selected=Term item* autorun*>  <!-- Use asterisk to zeroize existing item and autorun records. -->
+        <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell by default -->
     </menu>
 </config>
 ```
@@ -512,8 +510,7 @@ Note: The following configuration sections are not implemented yet
    <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
    <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
    <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
-        <autorun>  <!-- Autorun of specified menu items -->
-            <item*/>
+        <autorun item*>  <!-- Autorun of specified menu items -->
             <!--  <item* id=Term winsize=80,25 />               -->
             <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
             <!--  <item wincoor=92,31 />                        -->
@@ -524,8 +521,7 @@ Note: The following configuration sections are not implemented yet
             <expanded=31/>
         </width>
     </menu>
-    <hotkeys>    <!-- not implemented -->
-        <key*/>
+    <hotkeys key*>    <!-- not implemented -->
         <key="Ctrl+PgUp" action=PrevWindow />
         <key="Ctrl+PgDn" action=NextWindow />
     </hotkeys>
@@ -637,11 +633,10 @@ Note: The following configuration sections are not implemented yet
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
-        <menu>
+        <menu item*>
             <autohide=true />  <!-- If true, show menu only on hover. -->
             <enabled=1 />
             <slim=1 />
-            <item*/>  <!-- Zeroize previous item list. -->
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
@@ -695,8 +690,7 @@ Note: The following configuration sections are not implemented yet
                                close:   Always close.
                                restart: Restart session.
                                retry:   Restart session if exit code != 0. -->
-        <hotkeys>    <!-- not implemented -->
-            <key*/>
+        <hotkeys key*>    <!-- not implemented -->
             <key="Alt+RightArrow" action=FindNext />
             <key="Alt+LeftArrow"  action=FindPrev />
         </hotkeys>
@@ -773,11 +767,10 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
       ```xml
       <config>
        <term>
-        <menu>
+        <menu item*>
             <autohide=true />  <!-- If true, show menu only on hover. -->
             <enabled=1 />
             <slim=1 />
-            <item*/>  <!-- Zeroize previous item list. -->
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
