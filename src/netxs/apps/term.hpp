@@ -154,22 +154,30 @@ namespace netxs::app::term
             #undef X
         };
 
+        static const auto _on_leftclick = [](ui::pads& boss, auto& new_item, auto proc)
+        {
+            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+            {
+                proc(boss, new_item, gear);
+                gear.dismiss(true);
+            };
+        };
+        static const auto _update_ui = [](ui::pads& boss, new_menu_item_t& new_item, si32 i)
+        {
+            auto& cur_item = new_item.select_label(i);
+            if (boss.client)
+            {
+                auto& item = *boss.client;
+                item.SIGNAL(tier::release, e2::data::text,              cur_item.label);
+                boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip, cur_item.notes);
+                boss.deface();
+            }
+        };
+
         struct disp
         {
             using preview = app::term::events::preview;
             using release = app::term::events::release;
-
-            static void _update_ui(ui::pads& boss, new_menu_item_t& new_item, si32 i)
-            {
-                auto& cur_item = new_item.select_label(i);
-                if (boss.client)
-                {
-                    auto& item = *boss.client;
-                    item.SIGNAL(tier::release, e2::data::text,              cur_item.label);
-                    boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip, cur_item.notes);
-                    boss.deface();
-                }
-            }
 
             static void TerminalWrapMode(ui::pads& boss, new_menu_item_t& new_item)
             {
@@ -179,11 +187,10 @@ namespace netxs::app::term
                                                          : wrap::off;
                 };
                 new_item.reindex(lookup);
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                _on_leftclick(boss, new_item, [](auto& boss, auto& new_item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, preview::wrapln, new_item.labels[new_item.selected].value);
-                    gear.dismiss(true);
-                };
+                });
                 boss.SUBMIT(tier::anycast, release::wrapln, wrapln)
                 {
                     _update_ui(boss, new_item, wrapln);
@@ -202,11 +209,10 @@ namespace netxs::app::term
                                                  : bias::left;
                 };
                 new_item.reindex(lookup);
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                _on_leftclick(boss, new_item, [](auto& boss, auto& new_item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, preview::align, new_item.labels[new_item.selected].value);
-                    gear.dismiss(true);
-                };
+                });
                 boss.SUBMIT(tier::anycast, release::align, align)
                 {
                     _update_ui(boss, new_item, align);
@@ -228,11 +234,10 @@ namespace netxs::app::term
                                                  : mime::disabled;
                 };
                 new_item.reindex(lookup);
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                _on_leftclick(boss, new_item, [](auto& boss, auto& new_item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, preview::selmod, new_item.labels[new_item.selected].value);
-                    gear.dismiss(true);
-                };
+                });
                 boss.SUBMIT(tier::anycast, release::selmod, mode)
                 {
                     _update_ui(boss, new_item, mode);
@@ -241,11 +246,10 @@ namespace netxs::app::term
             static void TerminalFindPrev(ui::pads& boss, new_menu_item_t& new_item)
             {
                 new_item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                _on_leftclick(boss, new_item, [](auto& boss, auto& new_item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::search::reverse, gear);
-                    gear.dismiss(true);
-                };
+                });
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, status)
                 {
                     _update_ui(boss, new_item, (status & 2) ? 1 : 0);
@@ -254,11 +258,10 @@ namespace netxs::app::term
             static void TerminalFindNext(ui::pads& boss, new_menu_item_t& new_item)
             {
                 new_item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                _on_leftclick(boss, new_item, [](auto& boss, auto& new_item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::search::forward, gear);
-                    gear.dismiss(true);
-                };
+                });
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, status)
                 {
                     _update_ui(boss, new_item, (status & 1) ? 1 : 0);
@@ -266,21 +269,163 @@ namespace netxs::app::term
             }
             static void TerminalOutput(ui::pads& boss, new_menu_item_t& new_item)
             {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                _on_leftclick(boss, new_item, [](auto& boss, auto& new_item, auto& gear)
                 {
                     auto shadow = view{ new_item.labels[new_item.selected].data };
                     boss.SIGNAL(tier::anycast, app::term::events::data::in, shadow);
-                    gear.dismiss(true);
-                };
+                });
             }
             static void TerminalSendKey(ui::pads& boss, new_menu_item_t& new_item)
             {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                _on_leftclick(boss, new_item, [](auto& boss, auto& new_item, auto& gear)
                 {
                     auto shadow = view{ new_item.labels[new_item.selected].data };
                     boss.SIGNAL(tier::anycast, app::term::events::data::out, shadow);
-                    gear.dismiss(true);
-                };
+                });
+            }
+            static void ClipboardWipe(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalQuit(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalMaximize(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalRestart(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalPaste(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalSelectionType(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalSelectionClear(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalSelectionCopy(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportPageUp(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportPageDown(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportLineUp(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportLineDown(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportPageLeft(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportPageRight(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportCharLeft(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportCharRight(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportTop(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportEnd(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalViewportCopy(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalLogStart(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalLogPause(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalLogStop(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalLogAbort(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalLogRestart(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoRecStart(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoRecStop(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoRecPause(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoRecAbort(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoRecRestart(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoPlay(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoPause(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoStop(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoForward(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoBackward(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoHome(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
+            }
+            static void TerminalVideoEnd(ui::pads& boss, new_menu_item_t& new_item)
+            {
+
             }
         };
         using submit_proc = std::function<void(ui::pads&, new_menu_item_t&)>;
@@ -302,8 +447,8 @@ namespace netxs::app::term
             auto default_values = new_menu_label_t{};
             auto new_item_ptr = std::make_shared<new_menu_item_t>();
             auto& new_item = *new_item_ptr;
+            auto action           = item.take(attr_action, item_proc::Noop,             proc_options);
             new_item.type         = item.take(attr_type,   new_menu_item_type::Command, type_options);
-            auto action           = item.take(attr_action, item_proc::Noop,    proc_options);
             default_values.notes  = item.take(attr_notes,  ""s);
             default_values.data   = item.take(attr_data,   ""s);
             default_values.hotkey = item.take(attr_hotkey, ""s);
