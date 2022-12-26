@@ -10,20 +10,41 @@ namespace netxs::events::userland
 {
     struct term
     {
+        using mime = ansi::clip::mime;
+
         EVENTPACK( term, netxs::events::userland::root::custom )
         {
-            EVENT_XS( cmd   , si32 ),
-            EVENT_XS( selmod, si32 ),
-            GROUP_XS( colors, rgba ),
-            GROUP_XS( layout, si32 ),
-            GROUP_XS( data  , si32 ),
-            GROUP_XS( search, input::hids ),
-            GROUP_XS( action, si32 ),
+            EVENT_XS( cmd    , si32 ),
+            GROUP_XS( preview, si32 ),
+            GROUP_XS( release, si32 ),
+            GROUP_XS( data   , si32 ),
+            GROUP_XS( search , input::hids ),
 
-            SUBSET_XS( layout )
+            SUBSET_XS( preview )
             {
-                EVENT_XS( align , bias ),
-                EVENT_XS( wrapln, wrap ),
+                EVENT_XS( selmod, si32 ),
+                EVENT_XS( align , si32 ),
+                EVENT_XS( wrapln, si32 ),
+                GROUP_XS( colors, rgba ),
+
+                SUBSET_XS( colors )
+                {
+                    EVENT_XS( bg, rgba ),
+                    EVENT_XS( fg, rgba ),
+                };
+            };
+            SUBSET_XS( release )
+            {
+                EVENT_XS( selmod, si32 ),
+                EVENT_XS( align , si32 ),
+                EVENT_XS( wrapln, si32 ),
+                GROUP_XS( colors, rgba ),
+
+                SUBSET_XS( colors )
+                {
+                    EVENT_XS( bg, rgba ),
+                    EVENT_XS( fg, rgba ),
+                };
             };
             SUBSET_XS( data )
             {
@@ -36,11 +57,6 @@ namespace netxs::events::userland
                 EVENT_XS( reverse, input::hids ),
                 EVENT_XS( status , si32        ),
             };
-            SUBSET_XS( colors )
-            {
-                EVENT_XS( bg, rgba ),
-                EVENT_XS( fg, rgba ),
-            };
         };
     };
 }
@@ -49,6 +65,7 @@ namespace netxs::events::userland
 namespace netxs::app::term
 {
     using events = netxs::events::userland::term;
+    using mime = clip::mime;
 
     const auto terminal_menu = [](xml::settings& config)
     {
@@ -64,7 +81,6 @@ namespace netxs::app::term
         static constexpr auto attr_action = "action";
         static constexpr auto attr_data   = "data";
         static constexpr auto attr_hotkey = "hotkey";
-        static constexpr auto attr_index  = "index";
         static const auto type_Command  = "Command"s;
         static const auto type_Splitter = "Splitter"s;
         static const auto type_Option   = "Option"s;
@@ -76,9 +92,9 @@ namespace netxs::app::term
         using app::shared::new_menu_item_t;
 
         static auto type_options = std::unordered_map<text, new_menu_item_type>
-           {{ "Splitter",   new_menu_item_type::Splitter   },
-            { "Command",    new_menu_item_type::Command    },
-            { "Option",     new_menu_item_type::Option     }};
+           {{ "Splitter", new_menu_item_type::Splitter },
+            { "Command",  new_menu_item_type::Command  },
+            { "Option",   new_menu_item_type::Option   }};
 
         #define PROC_LIST \
             X(Noop                      ) /* */ \
@@ -140,118 +156,112 @@ namespace netxs::app::term
 
         struct disp
         {
+            using preview = app::term::events::preview;
+            using release = app::term::events::release;
+
+            static void _update_ui(ui::pads& boss, new_menu_item_t& new_item, si32 i)
+            {
+                auto& cur_item = new_item.select_label(i);
+                if (boss.client)
+                {
+                    auto& item = *boss.client;
+                    item.SIGNAL(tier::release, e2::data::text,              cur_item.label);
+                    boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip, cur_item.notes);
+                    boss.deface();
+                }
+            }
+
             static void TerminalWrapMode(ui::pads& boss, new_menu_item_t& new_item)
             {
+                static auto lookup = [](auto& utf8)
+                {
+                    return xml::take<bool>(utf8).value() ? wrap::on
+                                                         : wrap::off;
+                };
+                new_item.reindex(lookup);
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    auto& cur_item = new_item.labels[new_item.selected];
-                    auto v = xml::take<bool>(cur_item.data).value() ? ui::term::commands::ui::wrapon
-                                                                    : ui::term::commands::ui::wrapoff;
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, v);
+                    boss.SIGNAL(tier::anycast, preview::wrapln, new_item.labels[new_item.selected].value);
                     gear.dismiss(true);
                 };
-                boss.SUBMIT(tier::anycast, app::term::events::layout::wrapln, wrapln)
+                boss.SUBMIT(tier::anycast, release::wrapln, wrapln)
                 {
-                    auto& cur_item = new_item.select(wrapln == wrap::on ? 1 : 0);
-                    if (boss.client)
-                    {
-                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
-                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
-                        boss.deface();
-                    }
+                    _update_ui(boss, new_item, wrapln);
                 };
             }
             static void TerminalAlignMode(ui::pads& boss, new_menu_item_t& new_item)
             {
-                //todo unify
-                static auto options = std::unordered_map<text, ui::term::commands::ui::commands>
-                   {{ "left",   ui::term::commands::ui::left   },
-                    { "right",  ui::term::commands::ui::right  },
-                    { "center", ui::term::commands::ui::center }};
+                static auto options = std::unordered_map<text, bias>
+                   {{ "left",   bias::left   },
+                    { "right",  bias::right  },
+                    { "center", bias::center }};
+                static auto lookup = [](auto& utf8)
+                {
+                    auto iter = options.find(utf8);
+                    return iter != options.end() ? iter->second
+                                                 : bias::left;
+                };
+                new_item.reindex(lookup);
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    auto& cur_item = new_item.labels[new_item.selected];
-                    auto iter = options.find(cur_item.data);
-                    auto v = iter == options.end() ? ui::term::commands::ui::left
-                                                   : iter->second;
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, v);
+                    boss.SIGNAL(tier::anycast, preview::align, new_item.labels[new_item.selected].value);
                     gear.dismiss(true);
                 };
-                boss.SUBMIT(tier::anycast, app::term::events::layout::align, align)
+                boss.SUBMIT(tier::anycast, release::align, align)
                 {
-                    auto& cur_item = new_item.select(static_cast<si32>(align));
-                    if (boss.client)
-                    {
-                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
-                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
-                        boss.deface();
-                    }
+                    _update_ui(boss, new_item, align);
                 };
             }
             static void TerminalSelectionMode(ui::pads& boss, new_menu_item_t& new_item)
             {
-                //todo unify, see ui::term
-                static auto options = std::unordered_map<text, ui::term::commands::ui::commands>
-                   {{ "none",      ui::term::commands::ui::selnone },
-                    { "text",      ui::term::commands::ui::seltext },
-                    { "ansi",      ui::term::commands::ui::selansi },
-                    { "rich",      ui::term::commands::ui::selrich },
-                    { "html",      ui::term::commands::ui::selhtml },
-                    { "protected", ui::term::commands::ui::selsafe }};
+                static auto options = std::unordered_map<text, mime>
+                   {{ "none",      mime::disabled },
+                    { "text",      mime::textonly },
+                    { "ansi",      mime::ansitext },
+                    { "rich",      mime::richtext },
+                    { "html",      mime::htmltext },
+                    { "protected", mime::safetext }};
+                static auto lookup = [](auto& utf8)
+                {
+                    auto iter = options.find(utf8);
+                    return iter != options.end() ? iter->second
+                                                 : mime::disabled;
+                };
+                new_item.reindex(lookup);
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    auto& cur_item = new_item.labels[new_item.selected];
-                    auto iter = options.find(cur_item.data);
-                    auto v = iter == options.end() ? ui::term::commands::ui::selnone
-                                                   : iter->second;
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, v);
+                    boss.SIGNAL(tier::anycast, preview::selmod, new_item.labels[new_item.selected].value);
                     gear.dismiss(true);
                 };
-                boss.SUBMIT(tier::anycast, app::term::events::selmod, mode)
+                boss.SUBMIT(tier::anycast, release::selmod, mode)
                 {
-                    auto& cur_item = new_item.select(mode);
-                    if (boss.client)
-                    {
-                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
-                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
-                        boss.deface();
-                    }
+                    _update_ui(boss, new_item, mode);
                 };
             }
             static void TerminalFindPrev(ui::pads& boss, new_menu_item_t& new_item)
             {
+                new_item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::look_rev);
+                    boss.SIGNAL(tier::anycast, app::term::events::search::reverse, gear);
                     gear.dismiss(true);
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, status)
                 {
-                    auto& cur_item = new_item.select((status & 2) ? 1 : 0);
-                    if (boss.client)
-                    {
-                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
-                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
-                        boss.deface();
-                    }
+                    _update_ui(boss, new_item, (status & 2) ? 1 : 0);
                 };
             }
             static void TerminalFindNext(ui::pads& boss, new_menu_item_t& new_item)
             {
+                new_item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::look_fwd);
+                    boss.SIGNAL(tier::anycast, app::term::events::search::forward, gear);
                     gear.dismiss(true);
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, status)
                 {
-                    auto& cur_item = new_item.select((status & 1) ? 1 : 0);
-                    if (boss.client)
-                    {
-                        boss.client->SIGNAL(tier::release, e2::data::text, cur_item.label);
-                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip,  cur_item.notes);
-                        boss.deface();
-                    }
+                    _update_ui(boss, new_item, (status & 1) ? 1 : 0);
                 };
             }
             static void TerminalOutput(ui::pads& boss, new_menu_item_t& new_item)
@@ -305,7 +315,6 @@ namespace netxs::app::term
                 new_item.labels.push_back(
                 {
                     .label  = label.value(),
-                    .index  = label.take(attr_index,  0),
                     .notes  = label.take(attr_notes,  default_values.notes),
                     .data   = label.take(attr_data,   default_values.data),
                     .hotkey = label.take(attr_hotkey, default_values.hotkey),
@@ -409,7 +418,7 @@ namespace netxs::app::term
                                                         ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
                                                         ->invoke([&](auto& boss)
                                                         {
-                                                            boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
+                                                            boss.SUBMIT(tier::anycast, app::term::events::release::colors::bg, bg)
                                                             {
                                                                 boss.color(boss.color().bgc(bg).txt(""));
                                                             };
@@ -421,17 +430,17 @@ namespace netxs::app::term
             cover->invoke([&](auto& boss)
             {
                 boss.colors(cell{ cB }.inv(true).txt("▀"sv).link(menu_id));
-                boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
+                boss.SUBMIT(tier::anycast, app::term::events::release::colors::bg, bg)
                 {
                     boss.color(boss.color().fgc(bg));
                 };
             });
 
-            inst->attach_property(ui::term::events::colors::bg,      app::term::events::colors::bg)
-                ->attach_property(ui::term::events::colors::fg,      app::term::events::colors::fg)
-                ->attach_property(ui::term::events::selmod,          app::term::events::selmod)
-                ->attach_property(ui::term::events::layout::wrapln,  app::term::events::layout::wrapln)
-                ->attach_property(ui::term::events::layout::align,   app::term::events::layout::align)
+            inst->attach_property(ui::term::events::colors::bg,      app::term::events::release::colors::bg)
+                ->attach_property(ui::term::events::colors::fg,      app::term::events::release::colors::fg)
+                ->attach_property(ui::term::events::selmod,          app::term::events::release::selmod)
+                ->attach_property(ui::term::events::layout::wrapln,  app::term::events::release::wrapln)
+                ->attach_property(ui::term::events::layout::align,   app::term::events::release::align)
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
                 ->invoke([](auto& boss)
                 {
@@ -448,19 +457,31 @@ namespace netxs::app::term
                         boss.data_out(data);
                     };
                     //todo add color picker to the menu
-                    boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
+                    boss.SUBMIT(tier::anycast, app::term::events::preview::colors::bg, bg)
                     {
                         boss.set_bg_color(bg);
                     };
-                    boss.SUBMIT(tier::anycast, app::term::events::colors::fg, fg)
+                    boss.SUBMIT(tier::anycast, app::term::events::preview::colors::fg, fg)
                     {
                         boss.set_fg_color(fg);
                     };
                     boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
                     {
                         auto deed = boss.bell::template protos<tier::anycast>();
-                             if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::bg, clr);
-                        else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::fg, clr);
+                             if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::bg, clr);
+                        else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::fg, clr);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::preview::selmod, selmod)
+                    {
+                        boss.set_selmod(selmod);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::preview::wrapln, wrapln)
+                    {
+                        boss.set_wrapln(wrapln);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::preview::align, align)
+                    {
+                        boss.set_align(align);
                     };
                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                     {
