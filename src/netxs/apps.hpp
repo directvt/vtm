@@ -241,17 +241,17 @@ R"==(
             <enabled=1 />
             <slim=1 />
             <item*/>  <!-- Zeroize previous item list. -->
-            <item label="Wrap" type=Option action=TerminalWrapMode data="off"> <!-- item/label has index=0 by default. -->
-                <label="\e[38:2:0:255:0mWrap\e[m" index=1 data="on"/> <!-- The label is selected by the action's return index. index=0 is a fallback index. -->
+            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
                     " Wrapping text lines on/off      \n"
                     " - applied to selection if it is "
                 </notes>
             </item>
             <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
-                <label="\e[38:2:0:255:0mPlaintext\e[m" index=1 data="text"/>
-                <label="\e[38:2:255:255:0mANSI-text\e[m" index=2 data="ansi"/>
-                <label index=3 data="rich">
+                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
+                <label data="rich">
                     "\e[38:2:109:231:237m""R"
                     "\e[38:2:109:237:186m""T"
                     "\e[38:2:60:255:60m"  "F"
@@ -262,11 +262,11 @@ R"==(
                     "\e[38:2:255:60:157m" "l"
                     "\e[38:2:255:49:214m" "e" "\e[m"
                 </label>
-                <label="\e[38:2:0:255:255mHTML-code\e[m" index=4 data="html"/>
-                <label="\e[38:2:0:255:255mProtected\e[m" index=5 data="protected"/>
+                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
+                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-                <label="\e[38:2:0:255:0m<\e[m" index=1 />
+                <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
                     " Previous match                    \n"
                     " - using clipboard if no selection \n"
@@ -274,7 +274,7 @@ R"==(
                 </notes>
             </item>
             <item label=">" action=TerminalFindNext>
-                <label="\e[38:2:0:255:0m>\e[m" index=1 />
+                <label="\e[38:2:0:255:0m>\e[m"/>
                 <notes>
                     " Next match                        \n"
                     " - using clipboard if no selection \n"
@@ -284,7 +284,7 @@ R"==(
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
-            <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
+            <!-- <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
@@ -344,30 +344,36 @@ R"==(
     struct new_menu_label_t
     {
         text label;
-        si32 index{};
         text notes;
         text data;
         text hotkey;
+        si32 value{};
     };
     struct new_menu_item_t
     {
+        using imap = std::unordered_map<si32, si32>;
+
         new_menu_item_type type{};
         bool active{};
         si32 selected{};
         std::vector<new_menu_label_t> labels;
-        auto& select(si32 v)
+        imap index;
+
+        auto& select_label(si32 i)
         {
-            //todo optimize
+            auto iter = index.find(i);
+            selected = iter == index.end() ? 0 : iter->second;
+            return labels.at(selected);
+        }
+        template<class P>
+        void reindex(P take)
+        {
             for (auto i = 0; i < labels.size(); i++)
             {
-                auto& cur_item = labels[i];
-                if (cur_item.index == v)
-                {
-                    selected = i;
-                    return cur_item;
-                }
+                auto& l = labels[i];
+                l.value = static_cast<si32>(take(l.data));
+                index[l.value] = i;
             }
-            return labels.front();
         }
     };
 
@@ -1364,19 +1370,31 @@ namespace netxs::app::shared
                                                 boss.data_out(data);
                                             };
                                             //todo add color picker to the menu
-                                            boss.SUBMIT(tier::anycast, app::term::events::colors::bg, bg)
+                                            boss.SUBMIT(tier::anycast, app::term::events::preview::colors::bg, bg)
                                             {
                                                 boss.set_bg_color(bg);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::colors::fg, fg)
+                                            boss.SUBMIT(tier::anycast, app::term::events::preview::colors::fg, fg)
                                             {
                                                 boss.set_fg_color(fg);
                                             };
                                             boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
                                             {
                                                 auto deed = boss.bell::template protos<tier::anycast>();
-                                                     if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::bg, clr);
-                                                else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::colors::fg, clr);
+                                                     if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::bg, clr);
+                                                else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::fg, clr);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::preview::selmod, selmod)
+                                            {
+                                                boss.set_selmod(selmod);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::preview::wrapln, wrapln)
+                                            {
+                                                boss.set_wrapln(wrapln);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::preview::align, align)
+                                            {
+                                                boss.set_align(align);
                                             };
                                             boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                                             {

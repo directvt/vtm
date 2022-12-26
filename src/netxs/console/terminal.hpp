@@ -19,8 +19,8 @@ namespace netxs::events::userland
 
             SUBSET_XS( layout )
             {
-                EVENT_XS( align , bias ),
-                EVENT_XS( wrapln, wrap ),
+                EVENT_XS( align , si32 ),
+                EVENT_XS( wrapln, si32 ),
             };
             SUBSET_XS( search )
             {
@@ -76,19 +76,9 @@ namespace netxs::ui
             {
                 enum commands : si32
                 {
-                    right,
-                    left,
                     center,
-                    wrapon,
-                    wrapoff,
                     togglewrp,
                     togglesel,
-                    seltext,
-                    selansi,
-                    selhtml,
-                    selnone,
-                    selsafe,
-                    selrich,
                     reset,
                     clear,
                     look_fwd,
@@ -1230,14 +1220,14 @@ namespace netxs::ui
             {
                 if (parser::style.wrp() != old_style.wrp())
                 {
-                    auto status = parser::style.wrp() == wrap::none ? owner.config.def_wrpmod
-                                                                    : parser::style.wrp();
+                    auto status = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
+                                                                    : (si32)parser::style.wrp();
                     owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
-                    auto status = parser::style.jet() == bias::none ? bias::left
-                                                                    : parser::style.jet();
+                    auto status = parser::style.jet() == bias::none ? (si32)bias::left
+                                                                    : (si32)parser::style.jet();
                     owner.SIGNAL(tier::release, ui::term::events::layout::align, status);
                 }
             }
@@ -6847,6 +6837,38 @@ namespace netxs::ui
             base::color(brush);
             target->brush.reset(brush);
         }
+        void set_wrapln(si32 wrapln)
+        {
+            if (target->selection_active())
+            {
+                target->selection_setwrp((wrap)wrapln);
+            }
+            else
+            {
+                target->style.wrp((wrap)wrapln);
+                follow[axis::Y] = true; // Reset viewport.
+            }
+            ondata(""); // Recalc trigger.
+        }
+        void set_align(si32 align)
+        {
+            if (target->selection_active())
+            {
+                target->selection_setjet((bias)align);
+            }
+            else
+            {
+                target->style.jet((bias)align);
+                follow[axis::Y] = true; // Reset viewport.
+            }
+            ondata(""); // Recalc trigger.
+        }
+        void set_selmod(si32 mode)
+        {
+            selection_selmod(mode);
+            if (faux == target->selection_active()) follow[axis::Y] = true; // Reset viewport.
+            ondata(""); // Recalc trigger.
+        }
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
@@ -6856,19 +6878,8 @@ namespace netxs::ui
             {
                 switch (cmd)
                 {
-                    case commands::ui::left:      console.selection_setjet(bias::left  );         break;
-                    case commands::ui::center:    console.selection_setjet(bias::center);         break;
-                    case commands::ui::right:     console.selection_setjet(bias::right );         break;
-                    case commands::ui::wrapon:    console.selection_setwrp(wrap::on);             break;
-                    case commands::ui::wrapoff:   console.selection_setwrp(wrap::off);            break;
                     case commands::ui::togglewrp: console.selection_setwrp();                     break;
                     case commands::ui::togglesel: selection_selmod();                             break;
-                    case commands::ui::seltext:   selection_selmod(clip::textonly);               break;
-                    case commands::ui::selansi:   selection_selmod(clip::ansitext);               break;
-                    case commands::ui::selhtml:   selection_selmod(clip::htmltext);               break;
-                    case commands::ui::selrich:   selection_selmod(clip::richtext);               break;
-                    case commands::ui::selnone:   selection_selmod(clip::disabled);               break;
-                    case commands::ui::selsafe:   selection_selmod(clip::safetext);               break;
                     case commands::ui::reset:     decstr();                                       break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
                     case commands::ui::look_fwd:  console.selection_search(feed::fwd);            break;
@@ -6880,19 +6891,8 @@ namespace netxs::ui
             {
                 switch (cmd)
                 {
-                    case commands::ui::left:      console.style.jet(bias::left  );      break;
-                    case commands::ui::center:    console.style.jet(bias::center);      break;
-                    case commands::ui::right:     console.style.jet(bias::right );      break;
-                    case commands::ui::wrapon:    console.style.wrp(wrap::on);          break;
-                    case commands::ui::wrapoff:   console.style.wrp(wrap::off);         break;
                     case commands::ui::togglewrp: console.style.wrp(console.style.wrp() == wrap::on ? wrap::off : wrap::on); break;
                     case commands::ui::togglesel: selection_selmod();                   return; // Return without resetting the viewport.
-                    case commands::ui::seltext:   selection_selmod(clip::textonly);     break;
-                    case commands::ui::selansi:   selection_selmod(clip::ansitext);     break;
-                    case commands::ui::selhtml:   selection_selmod(clip::htmltext);     break;
-                    case commands::ui::selrich:   selection_selmod(clip::richtext);     break;
-                    case commands::ui::selnone:   selection_selmod(clip::disabled);     break;
-                    case commands::ui::selsafe:   selection_selmod(clip::safetext);     break;
                     case commands::ui::reset:     decstr();                             break;
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
                     case commands::ui::look_fwd:  console.selection_search(feed::fwd);  break;
@@ -6974,8 +6974,8 @@ namespace netxs::ui
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
             publish_property(ui::term::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
             publish_property(ui::term::events::colors::fg,     [&](auto& v){ v = target->brush.fgc(); });
-            publish_property(ui::term::events::layout::wrapln, [&](auto& v){ v = target->style.wrp(); });
-            publish_property(ui::term::events::layout::align,  [&](auto& v){ v = target->style.jet(); });
+            publish_property(ui::term::events::layout::wrapln, [&](auto& v){ v = (si32)target->style.wrp(); });
+            publish_property(ui::term::events::layout::align,  [&](auto& v){ v = (si32)target->style.jet(); });
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 

@@ -832,7 +832,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        Attribute  | Description
       ------------|----------------
        type       | Menu item type. `type=Command` is used by default.
-       label      | Menu item label list. One or more textual representations selected by the index returned by `action=`.
+       label      | Menu item label list. One or more textual representations selected by `data=` value.
        notes      | Tooltip.
        action     | The function name which called on item activation. Inherited by the label attribute.
        data       | Textual parameter for function call. Inherited by the label attribute.
@@ -842,7 +842,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 
        Attribute  | Description
       ------------|----------------
-       index      | The index which allows to select label display variation by using action's return value. Default is `index=0`.
+       =value     | Label display variation.
        notes      | Tooltip. Inherited from item if not specified.
        action     | The function name which called on item activation. Inherited from item if not specified.
        data       | Textual parameter for function call. Inherited from item if not specified.
