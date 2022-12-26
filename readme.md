@@ -840,13 +840,13 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 
       ## Attributes for the `/config/term/menu/item/label` sub-object
 
-       Attribute  | Description
-      ------------|----------------
-       =value     | Label display variation.
-       notes      | Tooltip. Inherited from item if not specified.
-       action     | The function name which called on item activation. Inherited from item if not specified.
-       data       | Textual parameter for function call. Inherited from item if not specified.
-       hotkey     | Keyboard shortcut for this menu item. Inherited from item if not specified (not implemented).
+       Attribute        | Description
+      ------------------|----------------
+       _internal_value_ | Label display variation `label="_internal_value_"`.
+       notes            | Tooltip. Inherited from item if not specified.
+       action           | The function name which called on item activation. Inherited from item if not specified.
+       data             | Textual parameter for function call. Inherited from item if not specified.
+       hotkey           | Keyboard shortcut for this menu item. Inherited from item if not specified (not implemented).
 
       ### Attribute `type=`
 
