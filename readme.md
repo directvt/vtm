@@ -861,9 +861,9 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 
        Value                        | Description
       ------------------------------|------------
-       TerminalSelectionMode        | Set terminal text selection mode. The `data=` attribute can has the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
-       TerminalWrapMode             | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can has the following values `on`, `off`.
-       TerminalAlignMode            | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can has the following values `left`, `right`, `center`.
+       TerminalSelectionMode        | Set terminal text selection mode. The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
+       TerminalWrapMode             | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can have the following values `on`, `off`.
+       TerminalAlignMode            | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can have the following values `left`, `right`, `center`.
        TerminalFindNext             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
        TerminalFindPrev             | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
        TerminalOutput               | Direct output the `data=` value to the terminal scrollback.
