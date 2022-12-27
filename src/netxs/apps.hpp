@@ -41,7 +41,7 @@ namespace netxs::app::shared
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0/>
 )=="
 #if defined(_WIN32)
 R"==(
@@ -54,13 +54,13 @@ R"==(
 #endif
 R"==(
             <hotkeys key*>    <!-- not implemented -->
-                <key="Ctrl+'t'" action=Start />
+                <key="Ctrl+'t'" action=Start/>
             </hotkeys>
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
-                        <size=40000    />   <!-- Scrollback buffer length. -->
-                        <wrap="on"     />   <!-- Lines wrapping mode. -->
+                        <size=40000/>   <!-- Scrollback buffer length. -->
+                        <wrap="on"/>    <!-- Lines wrapping mode. -->
                     </scrollback>
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
@@ -73,9 +73,9 @@ R"==(
                         <mode = text/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
                     <hotkeys key*>    <!-- not implemented -->
-                        <key="Alt+RightArrow" action=FindNext />
-                        <key="Alt+LeftArrow"  action=FindPrev />
-                        <key="Ctrl+'z'"       action=QuitTerminal />
+                        <key="Alt+RightArrow" action=TerminalFindNext/>
+                        <key="Alt+LeftArrow"  action=TerminalFindPrev/>
+                        <key="Ctrl+'z'"       action=TerminalQuit/>
                     </hotkeys>
                 </term>
             </config>
@@ -90,13 +90,13 @@ R"==(
 R"==(
         <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
-        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
+        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15/>
         <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
         <autorun item*>  <!-- Autorun of specified menu items -->
-            <item* id=Term winsize=80,25     /> <!-- Set defaults for the list -->
-            <item focused wincoor=8,3        />
-            <!--  <item wincoor=92,30        /> -->
-            <!--  <item wincoor=8,30 focused /> -->
+            <item* id=Term winsize=80,25/> <!-- Set defaults for the list -->
+            <item focused wincoor=8,3/>
+            <!--  <item wincoor=92,30/> -->
+            <!--  <item wincoor=8,30 focused/> -->
         </autorun>
         <width>    <!-- Taskbar menu width. -->
             <folded=4/>
@@ -104,8 +104,8 @@ R"==(
         </width>
     </menu>
     <hotkeys key*>    <!-- not implemented -->
-        <key="Ctrl+PgUp" action=PrevWindow />
-        <key="Ctrl+PgDn" action=NextWindow />
+        <key="Ctrl+PgUp" action=PrevWindow/>
+        <key="Ctrl+PgDn" action=NextWindow/>
     </hotkeys>
     <appearance>
         <defaults>
@@ -125,10 +125,10 @@ R"==(
             <inactive   fgc=blacklt   bgc=transparent />
             <menu_white fgc=whitelt   bgc=0x80404040  />
             <menu_black fgc=blackdk   bgc=0x80404040  />
-            <fader duration=0ms fast=0ms />  <!-- Fader animation config. -->
+            <fader duration=0ms fast=0ms/>  <!-- Fader animation config. -->
         </defaults>
         <runapp>    <!-- Override defaults. -->
-            <brighter=0 />
+            <brighter=0/>
         </runapp>
     </appearance>
     <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
@@ -154,20 +154,20 @@ R"==(
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0xFF000000/>  <!-- Desktop background color. -->
         <clipboard>
             <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
-                <alpha=0xFF />  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
-                <timeout=3s />  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
-                <shadow=7   />  <!-- Preview shadow strength (0-10). -->
+                <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
+                <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
+                <shadow=7  />  <!-- Preview shadow strength (0-10). -->
             </preview>
         </clipboard>
-        <viewport coor=0,0 />
-        <mouse dblclick=500ms />
-        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite />
-        <glowfx=true />                      <!-- Show glow effect around selected item. -->
-        <debug overlay=faux toggle="🐞" />  <!-- Display console debug info. -->
-        <regions enabled=faux />             <!-- Highlight UI objects boundaries. -->
+        <viewport coor=0,0/>
+        <mouse dblclick=500ms/>
+        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite/>
+        <glowfx=true/>                      <!-- Show glow effect around selected item. -->
+        <debug overlay=faux toggle="🐞"/>  <!-- Display console debug info. -->
+        <regions enabled=faux/>             <!-- Highlight UI objects boundaries. -->
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
@@ -175,7 +175,7 @@ R"==(
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
-            <reset onkey="on" onoutput="off" />   <!-- Scrollback viewport reset triggers. -->
+            <reset onkey="on" onoutput="off"/>   <!-- Scrollback viewport reset triggers. -->
         </scrollback>
         <color>
             <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
@@ -195,30 +195,30 @@ R"==(
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-            <match fx=color bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
+            <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
-                <text fx=color bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx=color bgc=bluelt fgc=whitelt />  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
-                <ansi fx=xlight bgc=bluelt fgc=whitelt />
-                <rich fx=xlight bgc=bluelt fgc=whitelt />
-                <html fx=xlight bgc=bluelt fgc=whitelt />
-                <none fx=color bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
+                <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
+                <protected fx=color bgc=bluelt fgc=whitelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
+                <ansi fx=xlight bgc=bluelt fgc=whitelt/>
+                <rich fx=xlight bgc=bluelt fgc=whitelt/>
+                <html fx=xlight bgc=bluelt fgc=whitelt/>
+                <none fx=color bgc=blacklt fgc=whitedk/>  <!-- Inactive selection color. -->
             </selection>
         </color>
         <fields>
-            <lucent=0xC0 /> <!-- Fields transparency level. -->
-            <size=0      /> <!-- Left/right field size (for hz scrolling UX). -->
+            <lucent=0xC0/> <!-- Fields transparency level. -->
+            <size=0/>      <!-- Left/right field size (for hz scrolling UX). -->
         </fields>
-        <tablen=8 />   <!-- Tab length. -->
+        <tablen=8/>   <!-- Tab length. -->
         <cursor>
             <style="underline"/> <!-- block | underline -->
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
         <menu item*>  <!-- Use asterisk to drop previous/existing item list. -->
-            <autohide=true />  <!-- If true, show menu only on hover. -->
-            <enabled=1 />
-            <slim=1 />
+            <autohide=true/>  <!-- If true, show menu only on hover. -->
+            <enabled=1/>
+            <slim=1/>
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
@@ -267,28 +267,28 @@ R"==(
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
         </selection>
-        <atexit = auto /> <!-- auto:    Stay open and ask if exit code != 0. (default)
+        <atexit = auto/>  <!-- auto:    Stay open and ask if exit code != 0. (default)
                                ask:     Stay open and ask.
                                close:   Always close.
                                restart: Restart session.
                                retry:   Restart session if exit code != 0. -->
         <hotkeys key*>    <!-- not implemented -->
-            <key="Alt+RightArrow" action=FindNext />
-            <key="Alt+LeftArrow"  action=FindPrev />
+            <key="Alt+RightArrow" action=FindNext/>
+            <key="Alt+LeftArrow"  action=FindPrev/>
         </hotkeys>
     </term>
     <defapp>
         <menu>
-            <autohide=faux />  <!--  If true, show menu only on hover. -->
+            <autohide=faux/>
             <enabled="on"/>
-            <slim=faux />
+            <slim=true/>
         </menu>
     </defapp>
     <tile>
         <menu>
-            <autohide=true />  <!--  If true, show menu only on hover. -->
+            <autohide=true/>
             <enabled="on"/>
-            <slim=1 />
+            <slim=1/>
         </menu>
     </tile>
     <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->

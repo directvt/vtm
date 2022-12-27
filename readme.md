@@ -472,7 +472,7 @@ Note: The following configuration sections are not implemented yet
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
@@ -491,7 +491,7 @@ Note: The following configuration sections are not implemented yet
                     <menu>
                         <autohide=off/>  <!--  If true/on, show menu only on hover. -->
                         <enabled="on"/>
-                        <slim=off/>
+                        <slim=1/>
                     </menu>
                 </term>
             </config>
@@ -691,15 +691,15 @@ Note: The following configuration sections are not implemented yet
                                restart: Restart session.
                                retry:   Restart session if exit code != 0. -->
         <hotkeys key*>    <!-- not implemented -->
-            <key="Alt+RightArrow" action=FindNext />
-            <key="Alt+LeftArrow"  action=FindPrev />
+            <key="Alt+RightArrow" action=TerminalFindNext />
+            <key="Alt+LeftArrow"  action=TerminalFindPrev />
         </hotkeys>
     </term>
     <defapp>
         <menu>
             <autohide=faux />  <!--  If true, show menu only on hover. -->
             <enabled="on"/>
-            <slim=faux />
+            <slim=true />
         </menu>
     </defapp>
     <tile>
