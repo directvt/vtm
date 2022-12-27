@@ -6818,6 +6818,7 @@ namespace netxs::ui
             brush.link(base::id);
             base::color(brush);
             target->brush.reset(brush);
+            SIGNAL(tier::release, ui::term::events::colors::bg, bg);
         }
         void set_fg_color(rgba fg)
         {
@@ -6827,6 +6828,7 @@ namespace netxs::ui
             brush.link(base::id);
             base::color(brush);
             target->brush.reset(brush);
+            SIGNAL(tier::release, ui::term::events::colors::fg, fg);
         }
         void set_wrapln(si32 wrapln)
         {
