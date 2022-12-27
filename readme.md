@@ -452,10 +452,8 @@ Note: The following configuration sections are not implemented yet
 
 ```xml
 <config>
-    <menu selected=Term>
-        <item*/>          <!-- Remove default item records. -->
-        <item id=Term/>   <!-- title=id type=SHELL param=os_default_shell by default-->
-        <autorun*/>       <!-- Zeroize default autoruns. -->
+    <menu selected=Term item* autorun*>  <!-- Use asterisk to zeroize existing item and autorun records. -->
+        <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell by default -->
     </menu>
 </config>
 ```
@@ -474,7 +472,7 @@ Note: The following configuration sections are not implemented yet
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
@@ -493,7 +491,7 @@ Note: The following configuration sections are not implemented yet
                     <menu>
                         <autohide=off/>  <!--  If true/on, show menu only on hover. -->
                         <enabled="on"/>
-                        <slim=off/>
+                        <slim=1/>
                     </menu>
                 </term>
             </config>
@@ -512,8 +510,7 @@ Note: The following configuration sections are not implemented yet
    <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
    <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
    <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
-        <autorun>  <!-- Autorun of specified menu items -->
-            <item*/>
+        <autorun item*>  <!-- Autorun of specified menu items -->
             <!--  <item* id=Term winsize=80,25 />               -->
             <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
             <!--  <item wincoor=92,31 />                        -->
@@ -524,8 +521,7 @@ Note: The following configuration sections are not implemented yet
             <expanded=31/>
         </width>
     </menu>
-    <hotkeys>    <!-- not implemented -->
-        <key*/>
+    <hotkeys key*>    <!-- not implemented -->
         <key="Ctrl+PgUp" action=PrevWindow />
         <key="Ctrl+PgDn" action=NextWindow />
     </hotkeys>
@@ -637,11 +633,10 @@ Note: The following configuration sections are not implemented yet
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
-        <menu>
+        <menu item*>
             <autohide=true />  <!-- If true, show menu only on hover. -->
             <enabled=1 />
             <slim=1 />
-            <item*/>  <!-- Zeroize previous item list. -->
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
@@ -695,17 +690,16 @@ Note: The following configuration sections are not implemented yet
                                close:   Always close.
                                restart: Restart session.
                                retry:   Restart session if exit code != 0. -->
-        <hotkeys>    <!-- not implemented -->
-            <key*/>
-            <key="Alt+RightArrow" action=FindNext />
-            <key="Alt+LeftArrow"  action=FindPrev />
+        <hotkeys key*>    <!-- not implemented -->
+            <key="Alt+RightArrow" action=TerminalFindNext />
+            <key="Alt+LeftArrow"  action=TerminalFindPrev />
         </hotkeys>
     </term>
     <defapp>
         <menu>
             <autohide=faux />  <!--  If true, show menu only on hover. -->
             <enabled="on"/>
-            <slim=faux />
+            <slim=true />
         </menu>
     </defapp>
     <tile>
@@ -773,11 +767,10 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
       ```xml
       <config>
        <term>
-        <menu>
+        <menu item*>
             <autohide=true />  <!-- If true, show menu only on hover. -->
             <enabled=1 />
             <slim=1 />
-            <item*/>  <!-- Zeroize previous item list. -->
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
@@ -840,13 +833,13 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 
       ## Attributes for the `/config/term/menu/item/label` sub-object
 
-       Attribute  | Description
-      ------------|----------------
-       =value     | Label display variation.
-       notes      | Tooltip. Inherited from item if not specified.
-       action     | The function name which called on item activation. Inherited from item if not specified.
-       data       | Textual parameter for function call. Inherited from item if not specified.
-       hotkey     | Keyboard shortcut for this menu item. Inherited from item if not specified (not implemented).
+       Attribute        | Description
+      ------------------|----------------
+       _internal_value_ | Label display variation `label="_internal_value_"`.
+       notes            | Tooltip. Inherited from item if not specified.
+       action           | The function name which called on item activation. Inherited from item if not specified.
+       data             | Textual parameter for function call. Inherited from item if not specified.
+       hotkey           | Keyboard shortcut for this menu item. Inherited from item if not specified (not implemented).
 
       ### Attribute `type=`
 

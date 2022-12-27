@@ -164,15 +164,6 @@ namespace netxs::ui
 
             termconfig(xml::settings& config)
             {
-                static auto selmod_options = std::unordered_map<text, decltype(clip::textonly)>
-                    {{ "text", clip::textonly },
-                     { "ansi", clip::ansitext },
-                     { "rich", clip::richtext },
-                     { "html", clip::htmltext },
-                     { "protected", clip::safetext }};
-                static auto cursor_options = std::unordered_map<text, bool>
-                    {{ "underline", faux },
-                     { "block"    , true }};
                 static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
                     {{ "auto",    commands::atexit::smart   },
                      { "ask",     commands::atexit::ask     },
@@ -195,9 +186,9 @@ namespace netxs::ui
                 def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
                 def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
                 def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
-                def_selmod =             config.take("selection/mode",       clip::textonly, selmod_options);
+                def_selmod =             config.take("selection/mode",       clip::textonly, xml::options::selmod);
                 def_cur_on =             config.take("cursor/show",          true);
-                def_cursor =             config.take("cursor/style",         true, cursor_options);
+                def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
                 def_period =             config.take("cursor/blink",         time{ BLINK_PERIOD });
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
@@ -6827,6 +6818,7 @@ namespace netxs::ui
             brush.link(base::id);
             base::color(brush);
             target->brush.reset(brush);
+            SIGNAL(tier::release, ui::term::events::colors::bg, bg);
         }
         void set_fg_color(rgba fg)
         {
@@ -6836,6 +6828,7 @@ namespace netxs::ui
             brush.link(base::id);
             base::color(brush);
             target->brush.reset(brush);
+            SIGNAL(tier::release, ui::term::events::colors::fg, fg);
         }
         void set_wrapln(si32 wrapln)
         {
@@ -7189,8 +7182,9 @@ namespace netxs::ui
                     bitmap.newgc.clear();
                     list.thing.sendby(owner);
                 }
-                //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
-                owner.base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
+                lock.unlock();
+                auto lock_ui = events::sync{}; // Breaks host::edges without ui lock.
+                owner.base::deface();
             }
             void handle(s11n::xs::tooltips            lock)
             {
