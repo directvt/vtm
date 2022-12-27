@@ -373,11 +373,10 @@ R"==(
             list views{};
             imap index{};
 
-            auto& select(si32 i)
+            void select(si32 i)
             {
                 auto iter = index.find(i);
                 taken = iter == index.end() ? 0 : iter->second;
-                return views.at(taken);
             }
             template<class P>
             void reindex(P take)

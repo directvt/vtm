@@ -151,16 +151,21 @@ namespace netxs::app::term
                 gear.dismiss(true);
             };
         };
-        static const auto _update_ui = [](ui::pads& boss, menu::item& item, si32 i)
+        static const auto _update_ui = [](ui::pads& boss, menu::item& item)
         {
-            auto& active = item.select(i);
+            auto& look = item.views[item.taken];
             if (boss.client)
             {
                 auto& item = *boss.client;
-                item.SIGNAL(tier::release, e2::data::text,              active.label);
-                boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip, active.notes);
-                boss.deface();
+                item.SIGNAL(tier::release, e2::data::text,              look.label);
+                boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip, look.notes);
+                item.reflow();
             }
+        };
+        static const auto _update_to = [](ui::pads& boss, menu::item& item, si32 i)
+        {
+            item.select(i);
+            _update_ui(boss, item);
         };
 
         struct disp
@@ -178,7 +183,7 @@ namespace netxs::app::term
                 });
                 boss.SUBMIT(tier::anycast, release::wrapln, wrapln)
                 {
-                    _update_ui(boss, item, wrapln);
+                    _update_to(boss, item, wrapln);
                 };
             }
             static void TerminalAlignMode(ui::pads& boss, menu::item& item)
@@ -190,7 +195,7 @@ namespace netxs::app::term
                 });
                 boss.SUBMIT(tier::anycast, release::align, align)
                 {
-                    _update_ui(boss, item, align);
+                    _update_to(boss, item, align);
                 };
             }
             static void TerminalSelectionMode(ui::pads& boss, menu::item& item)
@@ -202,7 +207,7 @@ namespace netxs::app::term
                 });
                 boss.SUBMIT(tier::anycast, release::selmod, mode)
                 {
-                    _update_ui(boss, item, mode);
+                    _update_to(boss, item, mode);
                 };
             }
             static void TerminalFindPrev(ui::pads& boss, menu::item& item)
@@ -214,7 +219,7 @@ namespace netxs::app::term
                 });
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, status)
                 {
-                    _update_ui(boss, item, (status & 2) ? 1 : 0);
+                    _update_to(boss, item, (status & 2) ? 1 : 0);
                 };
             }
             static void TerminalFindNext(ui::pads& boss, menu::item& item)
@@ -226,7 +231,7 @@ namespace netxs::app::term
                 });
                 boss.SUBMIT(tier::anycast, app::term::events::search::status, status)
                 {
-                    _update_ui(boss, item, (status & 1) ? 1 : 0);
+                    _update_to(boss, item, (status & 1) ? 1 : 0);
                 };
             }
             static void TerminalOutput(ui::pads& boss, menu::item& item)
@@ -234,6 +239,7 @@ namespace netxs::app::term
                 _on_leftclick(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::data::in, view{ item.views[item.taken].param });
+                    if (item.brand == menu::item::Option) _update_ui(boss, item);
                 });
             }
             static void TerminalSendKey(ui::pads& boss, menu::item& item)
@@ -241,6 +247,7 @@ namespace netxs::app::term
                 _on_leftclick(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::data::out, view{ item.views[item.taken].param });
+                    if (item.brand == menu::item::Option) _update_ui(boss, item);
                 });
             }
             static void ClipboardWipe(ui::pads& boss, menu::item& item)

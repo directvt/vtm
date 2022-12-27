@@ -7180,8 +7180,9 @@ namespace netxs::ui
                     bitmap.newgc.clear();
                     list.thing.sendby(owner);
                 }
-                //netxs::events::enqueue(This(), [&](auto& boss) { this->base::deface(); });
-                owner.base::deface(); //todo revise, should we make a separate thread for deface? it is too expensive - creating std::function
+                lock.unlock();
+                auto lock_ui = events::sync{}; // Breaks host::edges without ui lock.
+                owner.base::deface();
             }
             void handle(s11n::xs::tooltips            lock)
             {

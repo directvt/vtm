@@ -2354,6 +2354,14 @@ namespace netxs::ansi
                     {
                         if (guard) synch.notify_all();
                     }
+                    void unlock()
+                    {
+                        if (guard)
+                        {
+                            synch.notify_all();
+                            guard.unlock();
+                        }
+                    }
                     template<class Period>
                     auto wait_for(Period&& maxoff)
                     {
