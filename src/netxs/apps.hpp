@@ -41,24 +41,7 @@ namespace netxs::app::shared
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
-        <item id=Test label="Test" type=DirectVT title="Terminal Emulator" notes=" menu item for testing configuration options (e.g., window style) " param="$0 -r term">
-            <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
-                <term>
-                    <scrollback>
-                        <size=15000 />   <!-- Scrollback buffer length. -->
-                        <wrap="off" />   <!-- Lines wrapping mode. -->
-                    </scrollback>
-                    <menu>
-                        <autohide = off />  <!--  If true, show menu only on hover. -->
-                        <slim = false   />
-                    </menu>
-                    <selection>
-                        <mode = none /> <!-- text | ansi | rich | html | protected | none -->
-                    </selection>
-                </term>
-            </config>
-        </item>
+        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
 )=="
 #if defined(_WIN32)
 R"==(
