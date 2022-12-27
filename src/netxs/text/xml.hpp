@@ -1296,6 +1296,27 @@ namespace netxs::xml
             return s << p.document->page.show();
         }
     };
+    namespace options
+    {
+        using mime = ansi::clip::mime;
+
+        static auto selmod = std::unordered_map<text, mime>
+           {{ "none",      mime::disabled },
+            { "text",      mime::textonly },
+            { "ansi",      mime::ansitext },
+            { "rich",      mime::richtext },
+            { "html",      mime::htmltext },
+            { "protected", mime::safetext }};
+
+        static auto cursor = std::unordered_map<text, bool>
+           {{ "underline", faux },
+            { "block"    , true }};
+
+        static auto align = std::unordered_map<text, bias>
+           {{ "left",   bias::left   },
+            { "right",  bias::right  },
+            { "center", bias::center }};
+    }
 }
 
 #endif // NETXS_XML_HPP

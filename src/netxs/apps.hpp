@@ -329,50 +329,274 @@ R"==(
     static constexpr auto path_autorun  = "config/menu/autorun";
     static constexpr auto path_hotkeys  = "config/hotkeys";
 
-    enum new_menu_item_type
+    namespace menu
     {
-        Splitter,
-        Command,
-        Option,
-    };
-    struct new_menu_label_t
-    {
-        text label;
-        text notes;
-        text data;
-        text hotkey;
-        si32 value{};
-    };
-    struct new_menu_item_t
-    {
-        using imap = std::unordered_map<si32, si32>;
-
-        new_menu_item_type type{};
-        bool active{};
-        si32 selected{};
-        std::vector<new_menu_label_t> labels;
-        imap index;
-
-        auto& select_label(si32 i)
+        namespace attr
         {
-            auto iter = index.find(i);
-            selected = iter == index.end() ? 0 : iter->second;
-            return labels.at(selected);
+            static constexpr auto brand = "type";
+            static constexpr auto label = "label";
+            static constexpr auto notes = "notes";
+            static constexpr auto route = "action";
+            static constexpr auto param = "data";
+            static constexpr auto onkey = "hotkey";
         }
-        template<class P>
-        void reindex(P take)
+        namespace type
         {
-            for (auto i = 0; i < labels.size(); i++)
+            static const auto Command  = "Command"s;
+            static const auto Splitter = "Splitter"s;
+            static const auto Option   = "Option"s;
+        }
+
+        struct item
+        {
+            enum type
             {
-                auto& l = labels[i];
-                l.value = static_cast<si32>(take(l.data));
-                index[l.value] = i;
-            }
-        }
-    };
+                Splitter,
+                Command,
+                Option,
+            };
+            struct look
+            {
+                text label{};
+                text notes{};
+                text param{};
+                text onkey{};
+                si32 value{};
+            };
 
-    using menu_item_type = std::tuple<netxs::sptr<new_menu_item_t>, std::function<void(ui::pads&, new_menu_item_t&)>>;
-    using menu_list_type = std::list<menu_item_type>;
+            using imap = std::unordered_map<si32, si32>;
+            using list = std::vector<look>;
+
+            type brand{};
+            bool alive{};
+            si32 taken{};
+            list views{};
+            imap index{};
+
+            auto& select(si32 i)
+            {
+                auto iter = index.find(i);
+                taken = iter == index.end() ? 0 : iter->second;
+                return views.at(taken);
+            }
+            template<class P>
+            void reindex(P take)
+            {
+                for (auto i = 0; i < views.size(); i++)
+                {
+                    auto& l = views[i];
+                    l.value = static_cast<si32>(take(l.param));
+                    index[l.value] = i;
+                }
+            }
+        };
+
+        using link = std::tuple<netxs::sptr<item>, std::function<void(ui::pads&, item&)>>;
+        using list = std::list<link>;
+
+        const auto create = [](xml::settings& config, list menu_items) // Menu bar (shrinkable on right-click).
+        {
+            auto highlight_color = skin::color(tone::highlight);
+            auto danger_color    = skin::color(tone::danger);
+            auto c3 = highlight_color;
+            auto x3 = cell{ c3 }.alpha(0x00);
+            auto c1 = danger_color;
+            auto x1 = cell{ c1 }.alpha(0x00);
+
+            auto slot1 = ui::veer::ctor();
+            auto autohide = config.take("menu/autohide", faux);
+            auto menushow = config.take("menu/enabled" , true);
+            auto menusize = config.take("menu/slim"    , faux);
+
+            auto menuarea = ui::fork::ctor()
+                            ->active();
+                auto inner_pads = dent{ 1,2,1,1 };
+                auto menulist = menuarea->attach(slot::_1, ui::fork::ctor());
+
+                    menulist->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
+                            ->plugin<pro::fader>(x3, c3, skin::timeout(tone::fader))
+                            ->plugin<pro::notes>(" Maximize/restore window ")
+                            ->invoke([&](ui::pads& boss)
+                            {
+                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                {
+                                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                                    gear.dismiss();
+                                };
+                            })
+                            ->attach(ui::item::ctor(" ≡", faux, true));
+
+                    auto scrlarea = menulist->attach(slot::_2, ui::cake::ctor());
+                    auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_ONLY, axes::X_ONLY));
+                    auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
+
+                    auto scroll_hint = ui::park::ctor();
+                    auto hints = scroll_hint->attach(snap::stretch, menusize ? snap::center : snap::tail, ui::grip_fx<axis::X>::ctor(scrlrail));
+
+                    auto scrl_grip = scrlarea->attach(scroll_hint);
+
+                auto fader = skin::timeout(tone::fader);
+                for (auto& body : menu_items)
+                {
+                    auto& item_ptr = std::get<0>(body);
+                    auto& setup = std::get<1>(body);
+                    auto& item = *item_ptr;
+                    auto& hover = item.alive;
+                    auto& label = item.views.front().label;
+                    auto& notes = item.views.front().notes;
+                    if (hover)
+                    {
+                        scrllist->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
+                                ->plugin<pro::fader>(x3, c3, fader)
+                                ->plugin<pro::notes>(notes)
+                                ->invoke([&](ui::pads& boss){ setup(boss, item); })
+                                ->attach(ui::item::ctor(label, faux, true));
+                    }
+                    else
+                    {
+                        scrllist->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
+                                ->colors(0,0) //todo for mouse tracking
+                                ->plugin<pro::notes>(notes)
+                                ->invoke([&](ui::pads& boss){ setup(boss, item); })
+                                ->attach(ui::item::ctor(label, faux, true));
+                    }
+                    scrllist->invoke([&](auto& boss) // Store shared ptr to the menu item config.
+                    {
+                        boss.SUBMIT_BYVAL(tier::release, e2::dtor, v)
+                        {
+                            item_ptr.reset();
+                        };
+                    });
+                }
+                menuarea->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
+                        ->plugin<pro::fader>(x1, c1, fader)
+                        ->plugin<pro::notes>(" Close window ")
+                        ->invoke([&](auto& boss)
+                        {
+                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            {
+                                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                                gear.dismiss();
+                            };
+                        })
+                        ->attach(ui::item::ctor("×"));
+
+            auto menu_block = ui::park::ctor()
+                ->plugin<pro::limit>(twod{ -1, menusize ? 1 : 3 }, twod{ -1, menusize ? 1 : 3 })
+                ->invoke([&](ui::park& boss)
+                {
+                    scroll_hint->visible(hints, faux);
+                    auto boss_shadow = ptr::shadow(boss.This());
+                    auto park_shadow = ptr::shadow(scroll_hint);
+                    auto grip_shadow = ptr::shadow(hints);
+                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
+                    {
+                        if (auto park_ptr = park_shadow.lock())
+                        if (auto grip_ptr = grip_shadow.lock())
+                        if (auto boss_ptr = boss_shadow.lock())
+                        {
+                            auto& boss = *boss_ptr;
+                            auto& limit = boss.plugins<pro::limit>();
+                            auto limits = limit.get();
+                            if (limits.min.y == 1)
+                            {
+                                park_ptr->config(grip_ptr, snap::stretch, snap::tail);
+                                limits.min.y = limits.max.y = 3;
+                            }
+                            else
+                            {
+                                park_ptr->config(grip_ptr, snap::stretch, snap::center);
+                                limits.min.y = limits.max.y = 1;
+                            }
+                            limit.set(limits);
+                            boss.reflow();
+                            gear.dismiss();
+                        }
+                    };
+                    boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::ui::slimmenu, slim)
+                    {
+                        auto size = slim ? 1 : 3;
+                        if (auto park_ptr = park_shadow.lock())
+                        if (auto grip_ptr = grip_shadow.lock())
+                        if (auto boss_ptr = boss_shadow.lock())
+                        {
+                            auto& boss = *boss_ptr;
+                            auto& limit = boss.plugins<pro::limit>();
+                            auto limits = limit.get();
+                            limits.min.y = limits.max.y = std::max(0, size);
+                            //todo too hacky
+                            if (limits.min.y == 3)
+                            {
+                                park_ptr->config(grip_ptr, snap::stretch, snap::tail);
+                            }
+                            else
+                            {
+                                park_ptr->config(grip_ptr, snap::stretch, snap::center);
+                            }
+                            limit.set(limits);
+                            boss.reflow();
+                        }
+                    };
+                    //todo revise
+                    if (menu_items.size()) // Show scrolling hint only if elements exist.
+                    {
+                        boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
+                        {
+                            if (auto park_ptr = park_shadow.lock())
+                            if (auto grip_ptr = grip_shadow.lock())
+                            if (auto boss_ptr = boss_shadow.lock())
+                            {
+                                park_ptr->visible(grip_ptr, active);
+                                boss_ptr->base::deface();
+                            }
+                        };
+                    }
+                });
+            menu_block->attach(snap::stretch, snap::center, menuarea);
+
+            auto menu = slot1->attach(menu_block);
+                    auto border = slot1->attach(ui::mock::ctor())
+                                       ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
+                         if (menushow == faux) autohide = faux;
+                    else if (autohide == faux) slot1->roll();
+                    slot1->invoke([&](auto& boss)
+                    {
+                        auto menu_shadow = ptr::shadow(menu_block);
+                        auto boss_shadow = ptr::shadow(boss.This());
+                        auto hide_shadow = ptr::shared(autohide);
+                        boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
+                        {
+                            if (*hide_shadow)
+                            if (auto menu_ptr = menu_shadow.lock())
+                            if (auto boss_ptr = boss_shadow.lock())
+                            {
+                                auto& boss = *boss_ptr;
+                                if (!!hits != (boss.back() == menu_ptr))
+                                {
+                                    boss.roll();
+                                    boss.reflow();
+                                }
+                            }
+                        };
+                    });
+
+            return std::tuple{ slot1, border, menu_block };
+        };
+        const auto demo = [](xml::settings& config)
+        {
+            auto items = list
+            {
+                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }}), [&](auto& boss, auto& item){ } },
+                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }}), [&](auto& boss, auto& item){ } },
+                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }}), [&](auto& boss, auto& item){ } },
+                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }}), [&](auto& boss, auto& item){ } },
+                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }}), [&](auto& boss, auto& item){ } },
+            };
+            config.cd("/config/defapp/");
+            auto [menu, cover, menu_data] = create(config, items);
+            return menu;
+        };
+    }
 
     //static si32 max_count = 20;// 50;
     static si32 max_vtm = 3;
@@ -480,210 +704,6 @@ R"==(
                 auto hz = scroll_head->attach(slot::_1, ui::grip<axis::X>::ctor(master));
                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
         return scroll_bars;
-    };
-
-    // Menu bar (shrinkable on right-click).
-    const auto custom_menu = [](xml::settings& config, app::shared::menu_list_type menu_items)
-    {
-        auto highlight_color = skin::color(tone::highlight);
-        auto danger_color    = skin::color(tone::danger);
-        auto c3 = highlight_color;
-        auto x3 = cell{ c3 }.alpha(0x00);
-        auto c1 = danger_color;
-        auto x1 = cell{ c1 }.alpha(0x00);
-
-        auto slot1 = ui::veer::ctor();
-        auto autohide = config.take("menu/autohide", faux);
-        auto menushow = config.take("menu/enabled" , true);
-        auto menusize = config.take("menu/slim"    , faux);
-
-        auto menu_area = ui::fork::ctor()
-                        ->active();
-            auto inner_pads = dent{ 1,2,1,1 };
-            auto menu_list = menu_area->attach(slot::_1, ui::fork::ctor());
-
-                menu_list->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
-                         ->plugin<pro::fader>(x3, c3, skin::timeout(tone::fader))
-                         ->plugin<pro::notes>(" Maximize/restore window ")
-                         ->invoke([&](ui::pads& boss)
-                         {
-                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                             {
-                                 boss.base::template riseup<tier::release>(e2::form::maximize, gear);
-                                 gear.dismiss();
-                             };
-                         })
-                         ->attach(ui::item::ctor(" ≡", faux, true));
-
-                auto scrl_area = menu_list->attach(slot::_2, ui::cake::ctor());
-                auto scrl_rail = scrl_area->attach(ui::rail::ctor(axes::X_ONLY, axes::X_ONLY));
-                auto scrl_list = scrl_rail->attach(ui::list::ctor(axis::X));
-
-                auto scroll_hint = ui::park::ctor();
-                auto hints = scroll_hint->attach(snap::stretch, menusize ? snap::center : snap::tail, ui::grip_fx<axis::X>::ctor(scrl_rail));
-
-                auto scrl_grip = scrl_area->attach(scroll_hint);
-
-            auto fader = skin::timeout(tone::fader);
-            for (auto& body : menu_items)
-            {
-                auto& item_ptr = std::get<0>(body);
-                auto& setup = std::get<1>(body);
-                auto& item = *item_ptr;
-                auto& hover = item.active;
-                auto& label = item.labels.front().label;
-                auto& notes = item.labels.front().notes;
-                if (hover)
-                {
-                    scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
-                             ->plugin<pro::fader>(x3, c3, fader)
-                             ->plugin<pro::notes>(notes)
-                             ->invoke([&](ui::pads& boss){ setup(boss, item); })
-                             ->attach(ui::item::ctor(label, faux, true));
-                }
-                else
-                {
-                    scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
-                             ->colors(0,0) //todo for mouse tracking
-                             ->plugin<pro::notes>(notes)
-                             ->invoke([&](ui::pads& boss){ setup(boss, item); })
-                             ->attach(ui::item::ctor(label, faux, true));
-                }
-                scrl_list->invoke([&](auto& boss) // Store shared ptr to the menu item config.
-                {
-                    boss.SUBMIT_BYVAL(tier::release, e2::dtor, v)
-                    {
-                        item_ptr.reset();
-                    };
-                });
-            }
-            menu_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
-                     ->plugin<pro::fader>(x1, c1, fader)
-                     ->plugin<pro::notes>(" Close window ")
-                     ->invoke([&](auto& boss)
-                     {
-                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                         {
-                             boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                             gear.dismiss();
-                         };
-                     })
-                     ->attach(ui::item::ctor("×"));
-
-        auto menu_block = ui::park::ctor()
-            ->plugin<pro::limit>(twod{ -1, menusize ? 1 : 3 }, twod{ -1, menusize ? 1 : 3 })
-            ->invoke([&](ui::park& boss)
-            {
-                scroll_hint->visible(hints, faux);
-                auto boss_shadow = ptr::shadow(boss.This());
-                auto park_shadow = ptr::shadow(scroll_hint);
-                auto grip_shadow = ptr::shadow(hints);
-                boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
-                {
-                    if (auto park_ptr = park_shadow.lock())
-                    if (auto grip_ptr = grip_shadow.lock())
-                    if (auto boss_ptr = boss_shadow.lock())
-                    {
-                        auto& boss = *boss_ptr;
-                        auto& limit = boss.plugins<pro::limit>();
-                        auto limits = limit.get();
-                        if (limits.min.y == 1)
-                        {
-                            park_ptr->config(grip_ptr, snap::stretch, snap::tail);
-                            limits.min.y = limits.max.y = 3;
-                        }
-                        else
-                        {
-                            park_ptr->config(grip_ptr, snap::stretch, snap::center);
-                            limits.min.y = limits.max.y = 1;
-                        }
-                        limit.set(limits);
-                        boss.reflow();
-                        gear.dismiss();
-                    }
-                };
-                boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::ui::slimmenu, slim)
-                {
-                    auto size = slim ? 1 : 3;
-                    if (auto park_ptr = park_shadow.lock())
-                    if (auto grip_ptr = grip_shadow.lock())
-                    if (auto boss_ptr = boss_shadow.lock())
-                    {
-                        auto& boss = *boss_ptr;
-                        auto& limit = boss.plugins<pro::limit>();
-                        auto limits = limit.get();
-                        limits.min.y = limits.max.y = std::max(0, size);
-                        //todo too hacky
-                        if (limits.min.y == 3)
-                        {
-                            park_ptr->config(grip_ptr, snap::stretch, snap::tail);
-                        }
-                        else
-                        {
-                            park_ptr->config(grip_ptr, snap::stretch, snap::center);
-                        }
-                        limit.set(limits);
-                        boss.reflow();
-                    }
-                };
-                //todo revise
-                if (menu_items.size()) // Show scrolling hint only if elements exist.
-                {
-                    boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
-                    {
-                        if (auto park_ptr = park_shadow.lock())
-                        if (auto grip_ptr = grip_shadow.lock())
-                        if (auto boss_ptr = boss_shadow.lock())
-                        {
-                            park_ptr->visible(grip_ptr, active);
-                            boss_ptr->base::deface();
-                        }
-                    };
-                }
-            });
-        menu_block->attach(snap::stretch, snap::center, menu_area);
-
-        auto menu = slot1->attach(menu_block);
-                auto border = slot1->attach(ui::mock::ctor())
-                                   ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
-                     if (menushow == faux) autohide = faux;
-                else if (autohide == faux) slot1->roll();
-                slot1->invoke([&](auto& boss)
-                {
-                    auto menu_shadow = ptr::shadow(menu_block);
-                    auto boss_shadow = ptr::shadow(boss.This());
-                    auto hide_shadow = ptr::shared(autohide);
-                    boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
-                    {
-                        if (*hide_shadow)
-                        if (auto menu_ptr = menu_shadow.lock())
-                        if (auto boss_ptr = boss_shadow.lock())
-                        {
-                            auto& boss = *boss_ptr;
-                            if (!!hits != (boss.back() == menu_ptr))
-                            {
-                                boss.roll();
-                                boss.reflow();
-                            }
-                        }
-                    };
-                });
-
-        return std::tuple{ slot1, border, menu_block };
-    };
-    const auto main_menu = [](xml::settings& config)
-    {
-        auto items = app::shared::menu_list_type
-        {
-            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }}), [&](auto& boss, auto& item){ } },
-            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }}), [&](auto& boss, auto& item){ } },
-            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }}), [&](auto& boss, auto& item){ } },
-            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }}), [&](auto& boss, auto& item){ } },
-            { std::make_shared<new_menu_item_t>(new_menu_item_t{ new_menu_item_type::Command, true, 0, std::vector<new_menu_label_t>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }}), [&](auto& boss, auto& item){ } },
-        };
-        config.cd("/config/defapp/");
-        auto [menu, cover, menu_data] = custom_menu(config, items);
-        return menu;
     };
     const auto base_window = [](auto header, auto footer, auto menu_item_id)
     {
@@ -1307,7 +1327,7 @@ namespace netxs::app::shared
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA01f0fc4);
                 config.cd("/config/defapp/");
-                auto [menu_block, cover, menu_data] = app::shared::custom_menu(config, {});
+                auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object->attach(slot::_1, menu_block);
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
@@ -1336,7 +1356,7 @@ namespace netxs::app::shared
                   ->plugin<pro::cache>();
             //auto object = window->attach(ui::fork::ctor(axis::Y))
             //                    ->colors(cB.fgc(), cB.bgc());
-            //    auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
+            //    auto menu = object->attach(slot::_1, app::shared::menu::create(faux, {}));
             //    auto layers = object->attach(slot::_2, ui::cake::ctor())
             //                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
             auto layers = window->attach(ui::cake::ctor())

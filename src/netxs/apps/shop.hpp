@@ -217,7 +217,7 @@ namespace netxs::app::shop
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
                     config.cd("/config/gems/", "/config/defapp/");
-                    auto [menu_block, cover, menu_data] = app::shared::custom_menu(config, {});
+                    auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                     menu_object->attach(slot::_1, menu_block);
                     menu_object->attach(slot::_2, ui::post::ctor())
                                ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
