@@ -67,6 +67,93 @@ namespace netxs::app::term
     using events = netxs::events::userland::term;
     using mime = clip::mime;
 
+    namespace
+    {
+        using namespace app::shared;
+        static auto _update(ui::pads& boss, menu::item& item)
+        {
+            auto& look = item.views[item.taken];
+            if (boss.client)
+            {
+                auto& item = *boss.client;
+                item.SIGNAL(tier::release, e2::data::text,              look.label);
+                boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip, look.notes);
+                item.reflow();
+            }
+        }
+        static auto _update_to(ui::pads& boss, menu::item& item, si32 i)
+        {
+            item.select(i);
+            _update(boss, item);
+        }
+        template<bool AutoUpdate = faux, class P>
+        static auto _submit(ui::pads& boss, menu::item& item, P proc)
+        {
+            if (item.brand == menu::item::Repeat)
+            {
+                auto& tick = boss.plugins<pro::timer>();
+                boss.SUBMIT(tier::release, hids::events::mouse::button::down::left, gear)
+                {
+                    if (item.views.size())
+                    {
+                        item.taken = (item.taken + 1) % item.views.size();
+                        _update(boss, item);
+                    }
+                    if (gear.capture(boss.id))
+                    {
+                        proc(boss, item, gear);
+                        tick.actify(0, REPEAT_DELAY, [&, proc](auto p)
+                        {
+                            proc(boss, item, gear);
+                            tick.actify(1, REPEAT_RATE, [&, proc](auto d)
+                            {
+                                proc(boss, item, gear);
+                                return true; // Repeat forever.
+                            });
+                            return faux; // One shot call (first).
+                        });
+                        gear.dismiss(true);
+                    }
+                };
+                boss.SUBMIT(tier::release, hids::events::mouse::button::up::left, gear)
+                {
+                    tick.pacify();
+                    gear.setfree();
+                    gear.dismiss(true);
+                    if (item.views.size() && item.taken)
+                    {
+                        item.taken = 0;
+                        _update(boss, item);
+                    }
+                };
+                boss.SUBMIT(tier::release, e2::form::state::mouse, active)
+                {
+                    if (!active && tick)
+                    {
+                        tick.pacify();
+                        if (item.views.size() && item.taken)
+                        {
+                            item.taken = 0;
+                            _update(boss, item);
+                        }
+                    }
+                };
+            }
+            else
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    proc(boss, item, gear);
+                    if constexpr (AutoUpdate)
+                    {
+                        if (item.brand == menu::item::Option) _update(boss, item);
+                    }
+                    gear.dismiss(true);
+                };
+            }
+        };
+    }
+
     const auto terminal_menu = [](xml::settings& config)
     {
         auto highlight_color = skin::color(tone::highlight);
@@ -144,83 +231,6 @@ namespace netxs::app::term
             PROC_LIST
             #undef X
         };
-        static const auto _update = [](ui::pads& boss, menu::item& item)
-        {
-            auto& look = item.views[item.taken];
-            if (boss.client)
-            {
-                auto& item = *boss.client;
-                item.SIGNAL(tier::release, e2::data::text,              look.label);
-                boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip, look.notes);
-                item.reflow();
-            }
-        };
-        static const auto _update_to = [](ui::pads& boss, menu::item& item, si32 i)
-        {
-            item.select(i);
-            _update(boss, item);
-        };
-        static const auto _submit = [](ui::pads& boss, auto& item, auto proc)
-        {
-            if (item.brand == menu::item::Repeat)
-            {
-                auto& tick = boss.plugins<pro::timer>();
-                boss.SUBMIT(tier::release, hids::events::mouse::button::down::left, gear)
-                {
-                    if (item.views.size())
-                    {
-                        item.taken = (item.taken + 1) % item.views.size();
-                        _update(boss, item);
-                    }
-                    if (gear.capture(boss.id))
-                    {
-                        proc(boss, item, gear);
-                        tick.actify(0, REPEAT_DELAY, [&, proc](auto p)
-                        {
-                            proc(boss, item, gear);
-                            tick.actify(1, REPEAT_RATE, [&, proc](auto d)
-                            {
-                                proc(boss, item, gear);
-                                return true; // Repeat forever.
-                            });
-                            return faux; // One shot call (first).
-                        });
-                        gear.dismiss(true);
-                    }
-                };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::up::left, gear)
-                {
-                    tick.pacify();
-                    gear.setfree();
-                    gear.dismiss(true);
-                    if (item.views.size() && item.taken)
-                    {
-                        item.taken = 0;
-                        _update(boss, item);
-                    }
-                };
-                boss.SUBMIT(tier::release, e2::form::state::mouse, active)
-                {
-                    if (!active && tick)
-                    {
-                        tick.pacify();
-                        if (item.views.size() && item.taken)
-                        {
-                            item.taken = 0;
-                            _update(boss, item);
-                        }
-                    }
-                };
-            }
-            else
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    proc(boss, item, gear);
-                    gear.dismiss(true);
-                };
-            }
-        };
 
         struct disp
         {
@@ -290,42 +300,37 @@ namespace netxs::app::term
             }
             static void TerminalOutput(ui::pads& boss, menu::item& item)
             {
-                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::data::in, view{ item.views[item.taken].param });
-                    if (item.brand == menu::item::Option) _update(boss, item);
                 });
             }
             static void TerminalSendKey(ui::pads& boss, menu::item& item)
             {
-                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::data::out, view{ item.views[item.taken].param });
-                    if (item.brand == menu::item::Option) _update(boss, item);
                 });
             }
             static void TerminalQuit(ui::pads& boss, menu::item& item)
             {
-                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                    if (item.brand == menu::item::Option) _update(boss, item);
                 });
             }
             static void TerminalMaximize(ui::pads& boss, menu::item& item)
             {
-                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.base::template riseup<tier::release>(e2::form::maximize, gear);
-                    if (item.brand == menu::item::Option) _update(boss, item);
                 });
             }
             static void TerminalRestart(ui::pads& boss, menu::item& item)
             {
-                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::commands::restart);
-                    if (item.brand == menu::item::Option) _update(boss, item);
                 });
             }
             static void TerminalPaste(ui::pads& boss, menu::item& item)
