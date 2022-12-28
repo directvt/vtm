@@ -80,6 +80,8 @@ namespace netxs::ui
                     togglewrp,
                     togglesel,
                     restart,
+                    undo,
+                    redo,
                     look_fwd,
                     look_rev,
                 };
@@ -6564,6 +6566,40 @@ namespace netxs::ui
             }
             return active;
         }
+        auto paste(hids& gear)
+        {
+            auto& console = *target;
+            auto data = gear.get_clip_data();
+            if (data.utf8.size())
+            {
+                //todo unify (hids)
+                auto state = gear.state();
+                gear.combine_focus = true; // Preserve all selected panes.
+                gear.offer_kb_focus(this->This());
+                gear.state(state);
+
+                //todo respect bracketed paste mode
+                follow[axis::X] = true;
+                if (data.kind == clip::richtext)
+                {
+                    auto post = page{ data.utf8 };
+                    auto rich = post.to_rich();
+                    data_out(rich);
+                }
+                else if (data.kind == clip::htmltext)
+                {
+                    auto post = page{ data.utf8 };
+                    auto [html, code] = post.to_html();
+                    data_out(code);
+                }
+                else
+                {
+                    data_out(data.utf8);
+                }
+                return true;
+            }
+            return faux;
+        }
         void selection_pickup(hids& gear)
         {
             auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
@@ -6591,37 +6627,9 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             }
-            else if (selection_passed()) // Paste from clipboard.
+            else if (selection_passed() && paste(gear)) // Paste from clipboard.
             {
-                auto data = gear.get_clip_data();
-                if (data.utf8.size())
-                {
-                    //todo unify (hids)
-                    auto state = gear.state();
-                    gear.combine_focus = true; // Preserve all selected panes.
-                    gear.offer_kb_focus(this->This());
-                    gear.state(state);
-
-                    //todo respect bracketed paste mode
-                    follow[axis::X] = true;
-                    if (data.kind == clip::richtext)
-                    {
-                        auto post = page{ data.utf8 };
-                        auto rich = post.to_rich();
-                        data_out(rich);
-                    }
-                    else if (data.kind == clip::htmltext)
-                    {
-                        auto post = page{ data.utf8 };
-                        auto [html, code] = post.to_html();
-                        data_out(code);
-                    }
-                    else
-                    {
-                        data_out(data.utf8);
-                    }
-                    gear.dismiss();
-                }
+                gear.dismiss();
             }
         }
         void selection_mclick(hids& gear)
@@ -6873,6 +6881,8 @@ namespace netxs::ui
                     case commands::ui::togglewrp: console.selection_setwrp(); break;
                     case commands::ui::togglesel: selection_selmod(); break;
                     case commands::ui::restart:   restart(); break;
+                    case commands::ui::undo:      ptycon.undo(true); break;
+                    case commands::ui::redo:      ptycon.undo(faux); break;
                     case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
                     case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;
@@ -6885,6 +6895,8 @@ namespace netxs::ui
                     case commands::ui::togglewrp: console.style.wrp(console.style.wrp() == wrap::on ? wrap::off : wrap::on); break;
                     case commands::ui::togglesel: selection_selmod(); return; // Return without resetting the viewport.
                     case commands::ui::restart:   restart(); break;
+                    case commands::ui::undo:      ptycon.undo(true); break;
+                    case commands::ui::redo:      ptycon.undo(faux); break;
                     case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
                     case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;

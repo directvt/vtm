@@ -48,8 +48,9 @@ namespace netxs::events::userland
             };
             SUBSET_XS( data )
             {
-                EVENT_XS( in , view ),
-                EVENT_XS( out, view ),
+                EVENT_XS( in   , view        ),
+                EVENT_XS( out  , view        ),
+                EVENT_XS( paste, input::hids ),
             };
             SUBSET_XS( search )
             {
@@ -333,17 +334,26 @@ namespace netxs::app::term
                     boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::commands::restart);
                 });
             }
-            static void TerminalPaste(ui::pads& boss, menu::item& item)
-            {
-
-            }
             static void TerminalUndo(ui::pads& boss, menu::item& item)
             {
-
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::commands::undo);
+                });
             }
             static void TerminalRedo(ui::pads& boss, menu::item& item)
             {
-
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::commands::redo);
+                });
+            }
+            static void TerminalPaste(ui::pads& boss, menu::item& item)
+            {
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::data::paste, gear);
+                });
             }
             static void TerminalSelectionType(ui::pads& boss, menu::item& item)
             {
@@ -669,6 +679,10 @@ namespace netxs::app::term
                     boss.SUBMIT(tier::anycast, app::term::events::search::reverse, gear)
                     {
                         boss.search(gear, feed::rev);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::data::paste, gear)
+                    {
+                        boss.paste(gear);
                     };
                 });
             return window;

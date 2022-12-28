@@ -763,6 +763,13 @@ struct consrv
                 signal.notify_one();
             }
         }
+        void undo(bool undoredo)
+        {
+            auto lock = std::lock_guard{ locker };
+            generate({}, {}, undoredo ? VK_UNDO : VK_AGAIN);
+            ondata.reset();
+            signal.notify_one();
+        }
         template<class L>
         auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, memo& hist)
         {

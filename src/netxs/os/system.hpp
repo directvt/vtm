@@ -4581,6 +4581,12 @@ namespace netxs::os
             writebuf += data;
             if (connected()) writesyn.notify_one();
         }
+        void undo(bool undoredo)
+        {
+            #if defined(_WIN32)
+                con_serv.events.undo(undoredo);
+            #endif
+        }
     };
 
     namespace direct

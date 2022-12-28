@@ -865,9 +865,11 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        TerminalFindPrev             | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
        TerminalOutput               | Direct output the `data=` value to the terminal scrollback.
        TerminalSendKey              | Simulating keypresses using the `data=` string.
-       *TerminalQuit                | Kill all runnning console apps and quit the built-in terminal.
-       *TerminalRestart             | Kill all runnning console apps and restart current session.
-       *TerminalMaximize            | Maximize/Restore built-in terminal window.
+       TerminalQuit                 | Kill all runnning console apps and quit the built-in terminal.
+       TerminalRestart              | Kill all runnning console apps and restart current session.
+       TerminalMaximize             | Maximize/Restore built-in terminal window.
+       TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+       TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
        *TerminalViewportPageUp      | Scroll one page up.
        *TerminalViewportPageDown    | Scroll one page down.
        *TerminalViewportLineUp      | Scroll N lines up.
