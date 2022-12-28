@@ -875,7 +875,6 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        *TerminalViewportTop         | Scroll to the scrollback top.
        *TerminalViewportEnd         | Scroll to the scrollback bottom (reset viewport position).
        *TerminalViewportCopy        | Сopy viewport to clipboard.
-       *ClipboardWipe               | Clear clipboard.
        *TerminalSelectionCopy       | Сopy selection to clipboard.
        *TerminalLogStart            | Start logging to file.
        *TerminalLogPause            | Pause logging.

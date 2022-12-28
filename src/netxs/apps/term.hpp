@@ -85,12 +85,13 @@ namespace netxs::app::term
 
         #define PROC_LIST \
             X(Noop                      ) /* */ \
-            X(ClipboardWipe             ) /* */ \
             X(TerminalQuit              ) /* */ \
             X(TerminalMaximize          ) /* */ \
             X(TerminalRestart           ) /* */ \
             X(TerminalSendKey           ) /* */ \
             X(TerminalPaste             ) /* */ \
+            X(TerminalUndo              ) /* Undo/Redo for cooked read under win32 */ \
+            X(TerminalRedo              ) /* */ \
             X(TerminalSelectionMode     ) /* */ \
             X(TerminalSelectionType     ) /* Linear/Boxed*/ \
             X(TerminalSelectionClear    ) /* */ \
@@ -250,10 +251,6 @@ namespace netxs::app::term
                     if (item.brand == menu::item::Option) _update_ui(boss, item);
                 });
             }
-            static void ClipboardWipe(ui::pads& boss, menu::item& item)
-            {
-
-            }
             static void TerminalQuit(ui::pads& boss, menu::item& item)
             {
 
@@ -267,6 +264,14 @@ namespace netxs::app::term
 
             }
             static void TerminalPaste(ui::pads& boss, menu::item& item)
+            {
+
+            }
+            static void TerminalUndo(ui::pads& boss, menu::item& item)
+            {
+
+            }
+            static void TerminalRedo(ui::pads& boss, menu::item& item)
             {
 
             }
