@@ -79,8 +79,7 @@ namespace netxs::ui
                     center,
                     togglewrp,
                     togglesel,
-                    reset,
-                    clear,
+                    restart,
                     look_fwd,
                     look_rev,
                 };
@@ -6871,12 +6870,11 @@ namespace netxs::ui
             {
                 switch (cmd)
                 {
-                    case commands::ui::togglewrp: console.selection_setwrp();                     break;
-                    case commands::ui::togglesel: selection_selmod();                             break;
-                    case commands::ui::reset:     decstr();                                       break;
-                    case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
-                    case commands::ui::look_fwd:  console.selection_search(feed::fwd);            break;
-                    case commands::ui::look_rev:  console.selection_search(feed::rev);            break;
+                    case commands::ui::togglewrp: console.selection_setwrp(); break;
+                    case commands::ui::togglesel: selection_selmod(); break;
+                    case commands::ui::restart:   restart(); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;
                 }
             }
@@ -6885,11 +6883,10 @@ namespace netxs::ui
                 switch (cmd)
                 {
                     case commands::ui::togglewrp: console.style.wrp(console.style.wrp() == wrap::on ? wrap::off : wrap::on); break;
-                    case commands::ui::togglesel: selection_selmod();                   return; // Return without resetting the viewport.
-                    case commands::ui::reset:     decstr();                             break;
-                    case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
-                    case commands::ui::look_fwd:  console.selection_search(feed::fwd);  break;
-                    case commands::ui::look_rev:  console.selection_search(feed::rev);  break;
+                    case commands::ui::togglesel: selection_selmod(); return; // Return without resetting the viewport.
+                    case commands::ui::restart:   restart(); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;
                 }
                 follow[axis::Y] = true; // Reset viewport.
@@ -6926,6 +6923,12 @@ namespace netxs::ui
                     }
                 };
             }
+        }
+        void restart()
+        {
+            ptycon.stop();
+            ondata("\n");
+            start();
         }
         // term: Resize terminal window.
         void window_resize(twod winsz)

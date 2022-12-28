@@ -190,14 +190,14 @@ namespace netxs::app::term
                 };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::up::left, gear)
                 {
+                    tick.pacify();
+                    gear.setfree();
+                    gear.dismiss(true);
                     if (item.views.size() && item.taken)
                     {
                         item.taken = 0;
                         _update(boss, item);
                     }
-                    gear.setfree();
-                    gear.dismiss(true);
-                    tick.pacify();
                 };
                 boss.SUBMIT(tier::release, e2::form::state::mouse, active)
                 {
@@ -306,15 +306,27 @@ namespace netxs::app::term
             }
             static void TerminalQuit(ui::pads& boss, menu::item& item)
             {
-
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                    if (item.brand == menu::item::Option) _update(boss, item);
+                });
             }
             static void TerminalMaximize(ui::pads& boss, menu::item& item)
             {
-
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                    if (item.brand == menu::item::Option) _update(boss, item);
+                });
             }
             static void TerminalRestart(ui::pads& boss, menu::item& item)
             {
-
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::commands::restart);
+                    if (item.brand == menu::item::Option) _update(boss, item);
+                });
             }
             static void TerminalPaste(ui::pads& boss, menu::item& item)
             {

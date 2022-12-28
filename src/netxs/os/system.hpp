@@ -4249,11 +4249,7 @@ namespace netxs::os
        ~pty()
         {
             log("xpty: dtor started");
-            if (connected())
-            {
-                wait_child();
-            }
-            cleanup();
+            stop();
             log("xpty: dtor complete");
         }
 
@@ -4434,6 +4430,14 @@ namespace netxs::os
             writesyn.notify_one(); // Flush temp buffer.
 
             log("xpty: new pty created with size ", winsz);
+        }
+        void stop()
+        {
+            if (connected())
+            {
+                wait_child();
+            }
+            cleanup();
         }
         si32 wait_child()
         {
