@@ -815,6 +815,9 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
             <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
+            <item label="Push Me" notes=" test " type=Repeat action=TerminalOutput data="pressed ">
+                <label="\e[37mPush Me\e[m"/>
+            </item>
         </menu>
        </term>
       </config>
@@ -847,6 +850,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
       ----------|------------
        Option   | Cyclically selects the next label in the list and exec the function specified by the `action=` with `data=` as its parameter.
        Command  | Exec the function specified by the `action=` with `data=` as its parameter.
+       Repeat   | Selects the next label and exec the function specified by the `action=` with `data=` as its parameter repeatedly from the time it is pressed until it is released.
 
       ### Attribute `action=`
 

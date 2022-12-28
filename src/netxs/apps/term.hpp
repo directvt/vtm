@@ -81,7 +81,8 @@ namespace netxs::app::term
         static auto brand_options = std::unordered_map<text, menu::item::type>
            {{ menu::type::Splitter, menu::item::Splitter },
             { menu::type::Command,  menu::item::Command  },
-            { menu::type::Option,   menu::item::Option   }};
+            { menu::type::Option,   menu::item::Option   },
+            { menu::type::Repeat,   menu::item::Repeat   }};
 
         #define PROC_LIST \
             X(Noop                      ) /* */ \
@@ -143,16 +144,7 @@ namespace netxs::app::term
             PROC_LIST
             #undef X
         };
-
-        static const auto _on_leftclick = [](ui::pads& boss, auto& item, auto proc)
-        {
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-            {
-                proc(boss, item, gear);
-                gear.dismiss(true);
-            };
-        };
-        static const auto _update_ui = [](ui::pads& boss, menu::item& item)
+        static const auto _update = [](ui::pads& boss, menu::item& item)
         {
             auto& look = item.views[item.taken];
             if (boss.client)
@@ -166,7 +158,68 @@ namespace netxs::app::term
         static const auto _update_to = [](ui::pads& boss, menu::item& item, si32 i)
         {
             item.select(i);
-            _update_ui(boss, item);
+            _update(boss, item);
+        };
+        static const auto _submit = [](ui::pads& boss, auto& item, auto proc)
+        {
+            if (item.brand == menu::item::Repeat)
+            {
+                auto& tick = boss.plugins<pro::timer>();
+                boss.SUBMIT(tier::release, hids::events::mouse::button::down::left, gear)
+                {
+                    if (item.views.size())
+                    {
+                        item.taken = (item.taken + 1) % item.views.size();
+                        _update(boss, item);
+                    }
+                    if (gear.capture(boss.id))
+                    {
+                        proc(boss, item, gear);
+                        tick.actify(0, REPEAT_DELAY, [&, proc](auto p)
+                        {
+                            proc(boss, item, gear);
+                            tick.actify(1, REPEAT_RATE, [&, proc](auto d)
+                            {
+                                proc(boss, item, gear);
+                                return true; // Repeat forever.
+                            });
+                            return faux; // One shot call (first).
+                        });
+                        gear.dismiss(true);
+                    }
+                };
+                boss.SUBMIT(tier::release, hids::events::mouse::button::up::left, gear)
+                {
+                    if (item.views.size() && item.taken)
+                    {
+                        item.taken = 0;
+                        _update(boss, item);
+                    }
+                    gear.setfree();
+                    gear.dismiss(true);
+                    tick.pacify();
+                };
+                boss.SUBMIT(tier::release, e2::form::state::mouse, active)
+                {
+                    if (!active && tick)
+                    {
+                        tick.pacify();
+                        if (item.views.size() && item.taken)
+                        {
+                            item.taken = 0;
+                            _update(boss, item);
+                        }
+                    }
+                };
+            }
+            else
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    proc(boss, item, gear);
+                    gear.dismiss(true);
+                };
+            }
         };
 
         struct disp
@@ -178,7 +231,7 @@ namespace netxs::app::term
             static void TerminalWrapMode(ui::pads& boss, menu::item& item)
             {
                 item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value() ? wrap::on : wrap::off; });
-                _on_leftclick(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, preview::wrapln, item.views[item.taken].value);
                 });
@@ -190,7 +243,7 @@ namespace netxs::app::term
             static void TerminalAlignMode(ui::pads& boss, menu::item& item)
             {
                 item.reindex([](auto& utf8){ return netxs::get_or(xml::options::align, utf8, bias::left); });
-                _on_leftclick(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, preview::align, item.views[item.taken].value);
                 });
@@ -202,7 +255,7 @@ namespace netxs::app::term
             static void TerminalSelectionMode(ui::pads& boss, menu::item& item)
             {
                 item.reindex([](auto& utf8){ return netxs::get_or(xml::options::selmod, utf8, mime::disabled); });
-                _on_leftclick(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, preview::selmod, item.views[item.taken].value);
                 });
@@ -214,7 +267,7 @@ namespace netxs::app::term
             static void TerminalFindPrev(ui::pads& boss, menu::item& item)
             {
                 item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                _on_leftclick(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::search::reverse, gear);
                 });
@@ -226,7 +279,7 @@ namespace netxs::app::term
             static void TerminalFindNext(ui::pads& boss, menu::item& item)
             {
                 item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                _on_leftclick(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::search::forward, gear);
                 });
@@ -237,18 +290,18 @@ namespace netxs::app::term
             }
             static void TerminalOutput(ui::pads& boss, menu::item& item)
             {
-                _on_leftclick(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::data::in, view{ item.views[item.taken].param });
-                    if (item.brand == menu::item::Option) _update_ui(boss, item);
+                    if (item.brand == menu::item::Option) _update(boss, item);
                 });
             }
             static void TerminalSendKey(ui::pads& boss, menu::item& item)
             {
-                _on_leftclick(boss, item, [](auto& boss, auto& item, auto& gear)
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::data::out, view{ item.views[item.taken].param });
-                    if (item.brand == menu::item::Option) _update_ui(boss, item);
+                    if (item.brand == menu::item::Option) _update(boss, item);
                 });
             }
             static void TerminalQuit(ui::pads& boss, menu::item& item)

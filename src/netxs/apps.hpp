@@ -328,6 +328,7 @@ R"==(
             static const auto Command  = "Command"s;
             static const auto Splitter = "Splitter"s;
             static const auto Option   = "Option"s;
+            static const auto Repeat   = "Repeat"s;
         }
 
         struct item
@@ -337,6 +338,7 @@ R"==(
                 Splitter,
                 Command,
                 Option,
+                Repeat,
             };
             struct look
             {
