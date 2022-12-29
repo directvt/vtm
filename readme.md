@@ -814,6 +814,33 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <item label="Restart" type=Command action=TerminalRestart/>
+            <item label="Top" action=TerminalViewportTop/>
+            <item label="End" action=TerminalViewportEnd/>
+
+            <item label="PgLeft"    type=Repeat action=TerminalViewportPageLeft/>
+            <item label="PgRight"   type=Repeat action=TerminalViewportPageRight/>
+            <item label="CharLeft"  type=Repeat action=TerminalViewportCharLeft/>
+            <item label="CharRight" type=Repeat action=TerminalViewportCharRight/>
+
+            <item label="PgUp"   type=Repeat action=TerminalViewportPageUp/>
+            <item label="PgDn"   type=Repeat action=TerminalViewportPageDown/>
+            <item label="LineUp" type=Repeat action=TerminalViewportLineUp/>
+            <item label="LineDn" type=Repeat action=TerminalViewportLineDown/>
+
+            <item label="PrnScr" action=TerminalViewportCopy/>
+            <item label="Deselect" action=TerminalSelectionClear/>
+            
+            <item label="Line" type=Option action=TerminalSelectionRect data="false">
+                <label="Rect" data="true"/>
+            </item>
+            <item label="Copy" type=Repeat action=TerminalSelectionCopy/>
+            <item label="Paste" type=Repeat action=TerminalPaste/>
+            <item label="Undo" type=Command action=TerminalUndo/>
+            <item label="Redo" type=Command action=TerminalRedo/>
+            <item label="Quit" type=Command action=TerminalQuit/>
+            <item label="Maximize" type=Command action=TerminalMaximize/>
+
             <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
             <item label="Push Me" notes=" test " type=Repeat action=TerminalOutput data="pressed ">
                 <label="\e[37mPush Me\e[m"/>
