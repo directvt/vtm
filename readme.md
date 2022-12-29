@@ -870,6 +870,11 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        TerminalMaximize             | Maximize/Restore built-in terminal window.
        TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
        TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+       TerminalPaste                | Paste from clipboard.
+       TerminalSelectionCopy        | Сopy selection to clipboard.
+       TerminalSelectionRect        | Set linear(false) or rectangular(true) selection form using boolean value.
+       TerminalSelectionClear       | Deselect a selection.
+       TerminalViewportCopy         | Сopy viewport to clipboard.
        *TerminalViewportPageUp      | Scroll one page up.
        *TerminalViewportPageDown    | Scroll one page down.
        *TerminalViewportLineUp      | Scroll N lines up.
@@ -880,8 +885,6 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        *TerminalViewportColumnRight | Scroll N cells to the right.
        *TerminalViewportTop         | Scroll to the scrollback top.
        *TerminalViewportEnd         | Scroll to the scrollback bottom (reset viewport position).
-       *TerminalViewportCopy        | Сopy viewport to clipboard.
-       *TerminalSelectionCopy       | Сopy selection to clipboard.
        *TerminalLogStart            | Start logging to file.
        *TerminalLogPause            | Pause logging.
        *TerminalLogStop             | Stop logging.

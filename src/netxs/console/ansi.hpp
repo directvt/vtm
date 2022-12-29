@@ -647,7 +647,7 @@ namespace netxs::ansi
                 netxs::onrect(canvas, region, allfx, eolfx);
                 if constexpr (FINALISE)
                 {
-                    block.pop_back(); // Pop last eol (lf).
+                    if (block.size()) block.pop_back(); // Pop last eol (lf).
                     if constexpr (USESGR) basevt::nil();
                 }
             }

@@ -22,11 +22,16 @@ namespace netxs::events::userland
 
             SUBSET_XS( preview )
             {
-                EVENT_XS( selmod, si32 ),
-                EVENT_XS( align , si32 ),
-                EVENT_XS( wrapln, si32 ),
-                GROUP_XS( colors, rgba ),
+                EVENT_XS( align    , si32 ),
+                EVENT_XS( wrapln   , si32 ),
+                GROUP_XS( selection, si32 ),
+                GROUP_XS( colors   , rgba ),
 
+                SUBSET_XS( selection )
+                {
+                    EVENT_XS( mode, si32 ),
+                    EVENT_XS( box , si32 ),
+                };
                 SUBSET_XS( colors )
                 {
                     EVENT_XS( bg, rgba ),
@@ -35,11 +40,16 @@ namespace netxs::events::userland
             };
             SUBSET_XS( release )
             {
-                EVENT_XS( selmod, si32 ),
-                EVENT_XS( align , si32 ),
-                EVENT_XS( wrapln, si32 ),
-                GROUP_XS( colors, rgba ),
+                EVENT_XS( align    , si32 ),
+                EVENT_XS( wrapln   , si32 ),
+                GROUP_XS( selection, si32 ),
+                GROUP_XS( colors   , rgba ),
 
+                SUBSET_XS( selection )
+                {
+                    EVENT_XS( mode, si32 ),
+                    EVENT_XS( box , si32 ),
+                };
                 SUBSET_XS( colors )
                 {
                     EVENT_XS( bg, rgba ),
@@ -48,9 +58,11 @@ namespace netxs::events::userland
             };
             SUBSET_XS( data )
             {
-                EVENT_XS( in   , view        ),
-                EVENT_XS( out  , view        ),
-                EVENT_XS( paste, input::hids ),
+                EVENT_XS( in     , view        ),
+                EVENT_XS( out    , view        ),
+                EVENT_XS( paste  , input::hids ),
+                EVENT_XS( copy   , input::hids ),
+                EVENT_XS( prnscrn, input::hids ),
             };
             SUBSET_XS( search )
             {
@@ -178,18 +190,18 @@ namespace netxs::app::term
             X(TerminalMaximize          ) /* */ \
             X(TerminalRestart           ) /* */ \
             X(TerminalSendKey           ) /* */ \
-            X(TerminalPaste             ) /* */ \
-            X(TerminalUndo              ) /* Undo/Redo for cooked read under win32 */ \
-            X(TerminalRedo              ) /* */ \
-            X(TerminalSelectionMode     ) /* */ \
-            X(TerminalSelectionType     ) /* Linear/Boxed*/ \
-            X(TerminalSelectionClear    ) /* */ \
-            X(TerminalSelectionCopy     ) /* */ \
             X(TerminalWrapMode          ) /* */ \
             X(TerminalAlignMode         ) /* */ \
+            X(TerminalOutput            ) /* */ \
             X(TerminalFindNext          ) /* */ \
             X(TerminalFindPrev          ) /* */ \
-            X(TerminalOutput            ) /* */ \
+            X(TerminalUndo              ) /* Undo/Redo for cooked read under win32 */ \
+            X(TerminalRedo              ) /* */ \
+            X(TerminalPaste             ) /* */ \
+            X(TerminalSelectionCopy     ) /* */ \
+            X(TerminalSelectionMode     ) /* */ \
+            X(TerminalSelectionRect     ) /* Linear/Rectangular */ \
+            X(TerminalSelectionClear    ) /* */ \
             X(TerminalViewportPageUp    ) /* */ \
             X(TerminalViewportPageDown  ) /* */ \
             X(TerminalViewportLineUp    ) /* */ \
@@ -261,18 +273,6 @@ namespace netxs::app::term
                 boss.SUBMIT(tier::anycast, release::align, align)
                 {
                     _update_to(boss, item, align);
-                };
-            }
-            static void TerminalSelectionMode(ui::pads& boss, menu::item& item)
-            {
-                item.reindex([](auto& utf8){ return netxs::get_or(xml::options::selmod, utf8, mime::disabled); });
-                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
-                {
-                    boss.SIGNAL(tier::anycast, preview::selmod, item.views[item.taken].value);
-                });
-                boss.SUBMIT(tier::anycast, release::selmod, mode)
-                {
-                    _update_to(boss, item, mode);
                 };
             }
             static void TerminalFindPrev(ui::pads& boss, menu::item& item)
@@ -355,17 +355,50 @@ namespace netxs::app::term
                     boss.SIGNAL(tier::anycast, app::term::events::data::paste, gear);
                 });
             }
-            static void TerminalSelectionType(ui::pads& boss, menu::item& item)
+            static void TerminalSelectionCopy(ui::pads& boss, menu::item& item)
             {
-
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::data::copy, gear);
+                });
+            }
+            static void TerminalSelectionMode(ui::pads& boss, menu::item& item)
+            {
+                item.reindex([](auto& utf8){ return netxs::get_or(xml::options::selmod, utf8, mime::disabled); });
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, preview::selection::mode, item.views[item.taken].value);
+                });
+                boss.SUBMIT(tier::anycast, release::selection::mode, mode)
+                {
+                    _update_to(boss, item, mode);
+                };
+            }
+            static void TerminalSelectionRect(ui::pads& boss, menu::item& item)
+            {
+                item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, preview::selection::box, item.views[item.taken].value);
+                });
+                boss.SUBMIT(tier::anycast, release::selection::box, selbox)
+                {
+                    _update_to(boss, item, selbox);
+                };
             }
             static void TerminalSelectionClear(ui::pads& boss, menu::item& item)
             {
-
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::commands::deselect);
+                });
             }
-            static void TerminalSelectionCopy(ui::pads& boss, menu::item& item)
+            static void TerminalViewportCopy(ui::pads& boss, menu::item& item)
             {
-
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::data::prnscrn, gear);
+                });
             }
             static void TerminalViewportPageUp(ui::pads& boss, menu::item& item)
             {
@@ -404,10 +437,6 @@ namespace netxs::app::term
 
             }
             static void TerminalViewportEnd(ui::pads& boss, menu::item& item)
-            {
-
-            }
-            static void TerminalViewportCopy(ui::pads& boss, menu::item& item)
             {
 
             }
@@ -623,7 +652,8 @@ namespace netxs::app::term
 
             inst->attach_property(ui::term::events::colors::bg,      app::term::events::release::colors::bg)
                 ->attach_property(ui::term::events::colors::fg,      app::term::events::release::colors::fg)
-                ->attach_property(ui::term::events::selmod,          app::term::events::release::selmod)
+                ->attach_property(ui::term::events::selmod,          app::term::events::release::selection::mode)
+                ->attach_property(ui::term::events::selalt,          app::term::events::release::selection::box)
                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::release::wrapln)
                 ->attach_property(ui::term::events::layout::align,   app::term::events::release::align)
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
@@ -656,9 +686,13 @@ namespace netxs::app::term
                              if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::bg, clr);
                         else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::fg, clr);
                     };
-                    boss.SUBMIT(tier::anycast, app::term::events::preview::selmod, selmod)
+                    boss.SUBMIT(tier::anycast, app::term::events::preview::selection::mode, selmod)
                     {
                         boss.set_selmod(selmod);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::preview::selection::box, selbox)
+                    {
+                        boss.set_selalt(selbox);
                     };
                     boss.SUBMIT(tier::anycast, app::term::events::preview::wrapln, wrapln)
                     {
@@ -683,6 +717,14 @@ namespace netxs::app::term
                     boss.SUBMIT(tier::anycast, app::term::events::data::paste, gear)
                     {
                         boss.paste(gear);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::data::copy, gear)
+                    {
+                        boss.copy(gear);
+                    };
+                    boss.SUBMIT(tier::anycast, app::term::events::data::prnscrn, gear)
+                    {
+                        boss.prnscrn(gear);
                     };
                 });
             return window;

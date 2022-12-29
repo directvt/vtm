@@ -266,6 +266,7 @@ R"==(
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
+            <rect=faux/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
         </selection>
         <atexit = auto/>  <!-- auto:    Stay open and ask if exit code != 0. (default)
                                ask:     Stay open and ask.
@@ -1382,9 +1383,13 @@ namespace netxs::app::shared
                                                      if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::bg, clr);
                                                 else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::fg, clr);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::preview::selmod, selmod)
+                                            boss.SUBMIT(tier::anycast, app::term::events::preview::selection::mode, selmod)
                                             {
                                                 boss.set_selmod(selmod);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::preview::selection::box, selalt)
+                                            {
+                                                boss.set_selalt(selalt);
                                             };
                                             boss.SUBMIT(tier::anycast, app::term::events::preview::wrapln, wrapln)
                                             {
@@ -1405,6 +1410,10 @@ namespace netxs::app::shared
                                             boss.SUBMIT(tier::anycast, app::term::events::search::reverse, gear)
                                             {
                                                 boss.search(gear, feed::rev);
+                                            };
+                                            boss.SUBMIT(tier::anycast, app::term::events::data::prnscrn, gear)
+                                            {
+                                                boss.prnscrn(gear);
                                             };
                                       });
                 layers->attach(app::shared::scroll_bars(scroll));
