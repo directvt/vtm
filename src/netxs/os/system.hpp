@@ -4249,11 +4249,7 @@ namespace netxs::os
        ~pty()
         {
             log("xpty: dtor started");
-            if (connected())
-            {
-                wait_child();
-            }
-            cleanup();
+            stop();
             log("xpty: dtor complete");
         }
 
@@ -4435,6 +4431,14 @@ namespace netxs::os
 
             log("xpty: new pty created with size ", winsz);
         }
+        void stop()
+        {
+            if (connected())
+            {
+                wait_child();
+            }
+            cleanup();
+        }
         si32 wait_child()
         {
             auto exit_code = si32{};
@@ -4576,6 +4580,12 @@ namespace netxs::os
             auto guard = std::lock_guard{ writemtx };
             writebuf += data;
             if (connected()) writesyn.notify_one();
+        }
+        void undo(bool undoredo)
+        {
+            #if defined(_WIN32)
+                con_serv.events.undo(undoredo);
+            #endif
         }
     };
 

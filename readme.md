@@ -46,8 +46,8 @@ Build-time dependencies
  - `cmake` (https://github.com/netxs-group/vtm/issues/172#issuecomment-1340519942)
  - C++20 compiler
  - Minimal requirements to compile
-   - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `3GB` of RAM
-   - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `8GB` of RAM
+   - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `4GB` of RAM
+   - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `9GB` of RAM
 
 ```bash
 git clone https://github.com/netxs-group/vtm.git && cd ./vtm
@@ -680,6 +680,10 @@ Note: The following configuration sections are not implemented yet
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <item label="Top" action=TerminalViewportTop/> <!-- See Term app description below for details (readme.md). -->
+            <item label="End" action=TerminalViewportEnd/>
+            <item label="PgUp" type=Repeat action=TerminalViewportPageUp/>
+            <item label="PgDn" type=Repeat action=TerminalViewportPageDown/>
             <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
         </menu>
         <selection>
@@ -814,7 +818,37 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <item label="Restart" type=Command action=TerminalRestart/>
+            <item label="Top" action=TerminalViewportTop/>
+            <item label="End" action=TerminalViewportEnd/>
+
+            <item label="PgLeft"    type=Repeat action=TerminalViewportPageLeft/>
+            <item label="PgRight"   type=Repeat action=TerminalViewportPageRight/>
+            <item label="CharLeft"  type=Repeat action=TerminalViewportCharLeft/>
+            <item label="CharRight" type=Repeat action=TerminalViewportCharRight/>
+
+            <item label="PgUp"   type=Repeat action=TerminalViewportPageUp/>
+            <item label="PgDn"   type=Repeat action=TerminalViewportPageDown/>
+            <item label="LineUp" type=Repeat action=TerminalViewportLineUp/>
+            <item label="LineDn" type=Repeat action=TerminalViewportLineDown/>
+
+            <item label="PrnScr" action=TerminalViewportCopy/>
+            <item label="Deselect" action=TerminalSelectionClear/>
+            
+            <item label="Line" type=Option action=TerminalSelectionRect data="false">
+                <label="Rect" data="true"/>
+            </item>
+            <item label="Copy" type=Repeat action=TerminalSelectionCopy/>
+            <item label="Paste" type=Repeat action=TerminalPaste/>
+            <item label="Undo" type=Command action=TerminalUndo/>
+            <item label="Redo" type=Command action=TerminalRedo/>
+            <item label="Quit" type=Command action=TerminalQuit/>
+            <item label="Maximize" type=Command action=TerminalMaximize/>
+
             <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
+            <item label="Push Me" notes=" test " type=Repeat action=TerminalOutput data="pressed ">
+                <label="\e[37mPush Me\e[m"/>
+            </item>
         </menu>
        </term>
       </config>
@@ -847,6 +881,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
       ----------|------------
        Option   | Cyclically selects the next label in the list and exec the function specified by the `action=` with `data=` as its parameter.
        Command  | Exec the function specified by the `action=` with `data=` as its parameter.
+       Repeat   | Selects the next label and exec the function specified by the `action=` with `data=` as its parameter repeatedly from the time it is pressed until it is released.
 
       ### Attribute `action=`
 
@@ -861,22 +896,26 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        TerminalFindPrev             | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
        TerminalOutput               | Direct output the `data=` value to the terminal scrollback.
        TerminalSendKey              | Simulating keypresses using the `data=` string.
-       *TerminalQuit                | Kill all runnning console apps and quit the built-in terminal.
-       *TerminalRestart             | Kill all runnning console apps and restart current session.
-       *TerminalMaximize            | Maximize/Restore built-in terminal window.
-       *TerminalViewportPageUp      | Scroll one page up.
-       *TerminalViewportPageDown    | Scroll one page down.
-       *TerminalViewportLineUp      | Scroll N lines up.
-       *TerminalViewportLineDown    | Scroll N lines down.
-       *TerminalViewportPageLeft    | Scroll one page to the left.
-       *TerminalViewportPageRight   | Scroll one page to the right.
-       *TerminalViewportColumnLeft  | Scroll N cells to the left.
-       *TerminalViewportColumnRight | Scroll N cells to the right.
-       *TerminalViewportTop         | Scroll to the scrollback top.
-       *TerminalViewportEnd         | Scroll to the scrollback bottom (reset viewport position).
-       *TerminalViewportCopy        | Сopy viewport to clipboard.
-       *ClipboardWipe               | Clear clipboard.
-       *TerminalSelectionCopy       | Сopy selection to clipboard.
+       TerminalQuit                 | Kill all runnning console apps and quit the built-in terminal.
+       TerminalRestart              | Kill all runnning console apps and restart current session.
+       TerminalMaximize             | Maximize/Restore built-in terminal window.
+       TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+       TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+       TerminalPaste                | Paste from clipboard.
+       TerminalSelectionCopy        | Сopy selection to clipboard.
+       TerminalSelectionRect        | Set linear(false) or rectangular(true) selection form using boolean value.
+       TerminalSelectionClear       | Deselect a selection.
+       TerminalViewportCopy         | Сopy viewport to clipboard.
+       TerminalViewportPageUp       | Scroll one page up.
+       TerminalViewportPageDown     | Scroll one page down.
+       TerminalViewportLineUp       | Scroll N lines up.
+       TerminalViewportLineDown     | Scroll N lines down.
+       TerminalViewportPageLeft     | Scroll one page to the left.
+       TerminalViewportPageRight    | Scroll one page to the right.
+       TerminalViewportColumnLeft   | Scroll N cells to the left.
+       TerminalViewportColumnRight  | Scroll N cells to the right.
+       TerminalViewportTop          | Scroll to the scrollback top.
+       TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport position).
        *TerminalLogStart            | Start logging to file.
        *TerminalLogPause            | Pause logging.
        *TerminalLogStop             | Stop logging.

@@ -8,6 +8,13 @@
     #define log(...)
 #endif
 
+#ifndef VK_AGAIN
+    #define VK_AGAIN 65481
+#endif
+#ifndef VK_UNDO
+    #define VK_UNDO 65483
+#endif
+
 struct consrv
 {
     struct cook
@@ -756,6 +763,13 @@ struct consrv
                 signal.notify_one();
             }
         }
+        void undo(bool undoredo)
+        {
+            auto lock = std::lock_guard{ locker };
+            generate({}, {}, undoredo ? VK_UNDO : VK_AGAIN);
+            ondata.reset();
+            signal.notify_one();
+        }
         template<class L>
         auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, memo& hist)
         {
@@ -834,6 +848,8 @@ struct consrv
                             case VK_RIGHT:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
                             case VK_F3:     burn(); hist.save(line); while (       line.step_fwd(faux,   hist.fallback())) { }     break;
                             case VK_F8:     burn();                  while (n-- && hist.find(line)) { };                           break;
+                            case VK_UNDO:   while (n--) hist.swap(line, faux); break;
+                            case VK_AGAIN:  while (n--) hist.swap(line, true); break;
                             case VK_PRIOR:  burn(); hist.pgup(line);                                                               break;
                             case VK_NEXT:   burn(); hist.pgdn(line);                                                               break;
                             case VK_F5:
@@ -867,8 +883,6 @@ struct consrv
                                     };
                                          if (stops & 1 << c)                { cook(c, 0); hist.save(line);                                }
                                     else if (c == '\r' || c == '\n')        { cook(c, 1); hist.done(line);                                }
-                                    else if (c == 'Z' - '@')                {             hist.swap(line, faux);                          }
-                                    else if (c == 'Y' - '@')                {             hist.swap(line, true);                          }
                                     else if (c == 'I' - '@' && v == VK_TAB) { burn();     hist.save(line); line.insert("        ", mode); }
                                     else if (c == 'C' - '@')
                                     {

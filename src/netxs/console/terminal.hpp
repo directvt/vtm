@@ -13,6 +13,7 @@ namespace netxs::events::userland
         EVENTPACK( uiterm, netxs::events::userland::root::custom )
         {
             EVENT_XS( selmod, si32 ),
+            EVENT_XS( selalt, si32 ),
             GROUP_XS( colors, rgba ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( search, input::hids ),
@@ -79,8 +80,10 @@ namespace netxs::ui
                     center,
                     togglewrp,
                     togglesel,
-                    reset,
-                    clear,
+                    restart,
+                    undo,
+                    redo,
+                    deselect,
                     look_fwd,
                     look_rev,
                 };
@@ -136,9 +139,10 @@ namespace netxs::ui
             si32 def_lucent;
             si32 def_margin;
             si32 def_atexit;
-            mime def_selmod;
             rgba def_fcolor;
             rgba def_bcolor;
+            mime def_selmod;
+            bool def_selalt;
             bool def_cursor;
             bool def_cur_on;
             bool resetonkey;
@@ -187,6 +191,7 @@ namespace netxs::ui
                 def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
                 def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
                 def_selmod =             config.take("selection/mode",       clip::textonly, xml::options::selmod);
+                def_selalt =             config.take("selection/rect",       faux);
                 def_cur_on =             config.take("cursor/show",          true);
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
                 def_period =             config.take("cursor/blink",         time{ BLINK_PERIOD });
@@ -6110,6 +6115,7 @@ namespace netxs::ui
         bool       onlogs; // term: Avoid logs if no subscriptions.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
+        bool       selalt; // term: Selection form (rectangular/linear).
         si32       selmod; // term: Selection mode (ansi::clip::mime).
         vtty       ptycon; // term: PTY device. Should be destroyed first.
 
@@ -6534,13 +6540,25 @@ namespace netxs::ui
                 ondata("");             // Recalc trigger.
             }
         }
+        // term: Set selection form.
+        void selection_selalt(bool boxed)
+        {
+            selalt = boxed;
+            SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
+            SIGNAL(tier::release, ui::term::events::selalt, selalt);
+            if (mtrack && selmod == clip::disabled)
+            {
+                follow[axis::Y] = true; // Reset viewport.
+                ondata("");             // Recalc trigger.
+            }
+        }
         // term: Set the next selection mode.
         void selection_selmod()
         {
             auto newmod = (selmod + 1) % clip::count;
             selection_selmod(newmod);
         }
-        auto selection_cancel(hids& gear)
+        auto selection_cancel()
         {
             auto active = target->selection_cancel();
             if (active)
@@ -6565,64 +6583,93 @@ namespace netxs::ui
             }
             return active;
         }
+        auto paste(hids& gear)
+        {
+            auto& console = *target;
+            auto data = gear.get_clip_data();
+            if (data.utf8.size())
+            {
+                //todo unify (hids)
+                auto state = gear.state();
+                gear.combine_focus = true; // Preserve all selected panes.
+                gear.offer_kb_focus(this->This());
+                gear.state(state);
+
+                //todo respect bracketed paste mode
+                follow[axis::X] = true;
+                if (data.kind == clip::richtext)
+                {
+                    auto post = page{ data.utf8 };
+                    auto rich = post.to_rich();
+                    data_out(rich);
+                }
+                else if (data.kind == clip::htmltext)
+                {
+                    auto post = page{ data.utf8 };
+                    auto [html, code] = post.to_html();
+                    data_out(code);
+                }
+                else
+                {
+                    data_out(data.utf8);
+                }
+                return true;
+            }
+            return faux;
+        }
+        auto _copy(hids& gear, text const& data)
+        {
+            auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
+                                                           : static_cast<clip::mime>(selmod);
+            //todo unify (hids)
+            auto state = gear.state();
+            gear.combine_focus = true; // Preserve all selected panes.
+            gear.offer_kb_focus(this->This());
+            gear.set_clip_data(clip{ target->panel, data, mimetype });
+            gear.state(state);
+        }
+        auto copy(hids& gear)
+        {
+            auto data = target->selection_pickup(selmod);
+            if (data.size())
+            {
+                _copy(gear, data);
+            }
+            if (gear.meta(hids::anyCtrl) || selection_cancel()) // Keep selection if Ctrl is pressed.
+            {
+                base::expire<tier::release>();
+                return true;
+            }
+            return faux;
+        }
+        auto prnscrn(hids& gear)
+        {
+            auto selbox = true;
+            auto square = target->panel;
+            auto seltop = dot_00;
+            auto selend = square - dot_11;
+            auto buffer = ansi::esc{};
+            auto canvas = e2::render::any.param();
+            canvas.size(square);
+            canvas.full({ origin, square });
+            SIGNAL(tier::release, e2::render::any, canvas);
+            target->bufferbase::selection_pickup(buffer, canvas, seltop, selend, selmod, selbox);
+            if (buffer.size()) buffer.eol();
+            _copy(gear, buffer);
+        }
+        auto selection_active()
+        {
+            return target->selection_active();
+        }
         void selection_pickup(hids& gear)
         {
             auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
             SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
             if (!gear_test.second) return; // Right clicks are only allowed on the focused terminal.
-
-            auto& console = *target;
-            if (console.selection_active())
+            if ((selection_active() && copy(gear))
+             || (selection_passed() && paste(gear)))
             {
-                auto data = console.selection_pickup(selmod);
-                if (data.size())
-                {
-                    auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
-                                                                   : static_cast<clip::mime>(selmod);
-                    //todo unify (hids)
-                    auto state = gear.state();
-                    gear.combine_focus = true; // Preserve all selected panes.
-                    gear.offer_kb_focus(this->This());
-                    gear.set_clip_data(clip{ target->panel, data, mimetype });
-                    gear.state(state);
-                }
-                if (gear.meta(hids::anyCtrl) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
-                {
-                    base::expire<tier::release>();
-                    gear.dismiss();
-                }
-            }
-            else if (selection_passed()) // Paste from clipboard.
-            {
-                auto data = gear.get_clip_data();
-                if (data.utf8.size())
-                {
-                    //todo unify (hids)
-                    auto state = gear.state();
-                    gear.combine_focus = true; // Preserve all selected panes.
-                    gear.offer_kb_focus(this->This());
-                    gear.state(state);
-
-                    //todo respect bracketed paste mode
-                    follow[axis::X] = true;
-                    if (data.kind == clip::richtext)
-                    {
-                        auto post = page{ data.utf8 };
-                        auto rich = post.to_rich();
-                        data_out(rich);
-                    }
-                    else if (data.kind == clip::htmltext)
-                    {
-                        auto post = page{ data.utf8 };
-                        auto [html, code] = post.to_html();
-                        data_out(code);
-                    }
-                    else
-                    {
-                        data_out(data.utf8);
-                    }
-                    gear.dismiss();
-                }
+                gear.dismiss();
             }
         }
         void selection_mclick(hids& gear)
@@ -6656,7 +6703,7 @@ namespace netxs::ui
                 gear.dismiss();
                 base::expire<tier::release>();
             }
-            else selection_cancel(gear);
+            else selection_cancel();
         }
         void selection_dblclk(hids& gear)
         {
@@ -6675,7 +6722,7 @@ namespace netxs::ui
         void selection_create(hids& gear)
         {
             auto& console = *target;
-            auto boxed = gear.meta(hids::anyAlt);
+            auto boxed = selalt ^ !!gear.meta(hids::anyAlt);
             auto go_on = gear.meta(hids::anyCtrl);
             console.selection_follow(gear.coord, go_on);
             if (go_on) console.selection_extend(gear.coord, boxed);
@@ -6703,7 +6750,7 @@ namespace netxs::ui
         {
             // Check bounds and scroll if needed.
             auto& console = *target;
-            auto boxed = gear.meta(hids::anyAlt);
+            auto boxed = selalt ^ !!gear.meta(hids::anyAlt);
             auto coord = gear.coord;
             auto vport = rect{ -origin, console.panel };
             auto delta = dot_00;
@@ -6758,7 +6805,7 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::form::drag::start                ::left,  gear) { if (selection_passed()) selection_create(gear); };
             SUBMIT(tier::release, e2::form::drag::pull                 ::left,  gear) { if (selection_passed()) selection_extend(gear); };
             SUBMIT(tier::release, e2::form::drag::stop                 ::left,  gear) {                         selection_finish(gear); };
-            SUBMIT(tier::release, e2::form::drag::cancel               ::left,  gear) {                         selection_cancel(gear); };
+            SUBMIT(tier::release, e2::form::drag::cancel               ::left,  gear) {                         selection_cancel();     };
             SUBMIT(tier::release, hids::events::mouse::button::click   ::right, gear) {                         selection_pickup(gear); };
             SUBMIT(tier::release, hids::events::mouse::button::click   ::left,  gear) {                         selection_lclick(gear); };
             SUBMIT(tier::release, hids::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
@@ -6798,7 +6845,6 @@ namespace netxs::ui
                 selection_moveto(delta);
             }
         }
-
         void search(hids& gear, feed dir)
         {
             selection_search(gear, dir);
@@ -6862,6 +6908,12 @@ namespace netxs::ui
             if (faux == target->selection_active()) follow[axis::Y] = true; // Reset viewport.
             ondata(""); // Recalc trigger.
         }
+        void set_selalt(bool boxed)
+        {
+            selection_selalt(boxed);
+            if (faux == target->selection_active()) follow[axis::Y] = true; // Reset viewport.
+            ondata(""); // Recalc trigger.
+        }
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
@@ -6871,12 +6923,14 @@ namespace netxs::ui
             {
                 switch (cmd)
                 {
-                    case commands::ui::togglewrp: console.selection_setwrp();                     break;
-                    case commands::ui::togglesel: selection_selmod();                             break;
-                    case commands::ui::reset:     decstr();                                       break;
-                    case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
-                    case commands::ui::look_fwd:  console.selection_search(feed::fwd);            break;
-                    case commands::ui::look_rev:  console.selection_search(feed::rev);            break;
+                    case commands::ui::togglewrp: console.selection_setwrp(); break;
+                    case commands::ui::togglesel: selection_selmod(); break;
+                    case commands::ui::restart:   restart(); break;
+                    case commands::ui::undo:      ptycon.undo(true); break;
+                    case commands::ui::redo:      ptycon.undo(faux); break;
+                    case commands::ui::deselect:  selection_cancel(); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;
                 }
             }
@@ -6885,11 +6939,13 @@ namespace netxs::ui
                 switch (cmd)
                 {
                     case commands::ui::togglewrp: console.style.wrp(console.style.wrp() == wrap::on ? wrap::off : wrap::on); break;
-                    case commands::ui::togglesel: selection_selmod();                   return; // Return without resetting the viewport.
-                    case commands::ui::reset:     decstr();                             break;
-                    case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
-                    case commands::ui::look_fwd:  console.selection_search(feed::fwd);  break;
-                    case commands::ui::look_rev:  console.selection_search(feed::rev);  break;
+                    case commands::ui::togglesel: selection_selmod(); return; // Return without resetting the viewport.
+                    case commands::ui::restart:   restart(); break;
+                    case commands::ui::undo:      ptycon.undo(true); break;
+                    case commands::ui::redo:      ptycon.undo(faux); break;
+                    case commands::ui::deselect:  selection_cancel(); break;
+                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
+                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                     default: break;
                 }
                 follow[axis::Y] = true; // Reset viewport.
@@ -6927,6 +6983,12 @@ namespace netxs::ui
                 };
             }
         }
+        void restart()
+        {
+            ptycon.stop();
+            ondata("\n");
+            start();
+        }
         // term: Resize terminal window.
         void window_resize(twod winsz)
         {
@@ -6959,12 +7021,14 @@ namespace netxs::ui
               invert{  faux },
               curdir{ cwd   },
               cmdarg{ cmd   },
-              selmod{ config.def_selmod }
+              selmod{ config.def_selmod },
+              selalt{ config.def_selalt }
         {
             linux_console = os::local_mode();
             form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
+            publish_property(ui::term::events::selalt,         [&](auto& v){ v = selalt; });
             publish_property(ui::term::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
             publish_property(ui::term::events::colors::fg,     [&](auto& v){ v = target->brush.fgc(); });
             publish_property(ui::term::events::layout::wrapln, [&](auto& v){ v = (si32)target->style.wrp(); });
