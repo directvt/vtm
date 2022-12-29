@@ -680,6 +680,10 @@ Note: The following configuration sections are not implemented yet
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <item label="Top" action=TerminalViewportTop/> <!-- See Term app description below for details (readme.md). -->
+            <item label="End" action=TerminalViewportEnd/>
+            <item label="PgUp" type=Repeat action=TerminalViewportPageUp/>
+            <item label="PgDn" type=Repeat action=TerminalViewportPageDown/>
             <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
         </menu>
         <selection>
