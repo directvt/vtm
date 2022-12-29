@@ -1380,6 +1380,10 @@ namespace netxs::ui
                     {
                         case upon::scroll::bycoor::x.id: move<X>(scinfo.window.coor.x - info.window.coor.x); break;
                         case upon::scroll::bycoor::y.id: move<Y>(scinfo.window.coor.y - info.window.coor.y); break;
+                        case upon::scroll::to_top::x.id: move<X>(dot_mx.x); break;
+                        case upon::scroll::to_top::y.id: move<Y>(dot_mx.y); break;
+                        case upon::scroll::to_end::x.id: move<X>(-dot_mx.x); break;
+                        case upon::scroll::to_end::y.id: move<Y>(-dot_mx.y); break;
                         case upon::scroll::bystep::x.id: move<X>(info.vector); break;
                         case upon::scroll::bystep::y.id: move<Y>(info.vector); break;
                         case upon::scroll::bypage::x.id: move<X>(info.vector * scinfo.window.size.x); break;

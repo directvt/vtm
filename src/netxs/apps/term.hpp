@@ -402,43 +402,95 @@ namespace netxs::app::term
             }
             static void TerminalViewportPageUp(ui::pads& boss, menu::item& item)
             {
-
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::bypage::y.param();
+                    info.vector = 1;
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::y, info);
+                });
             }
             static void TerminalViewportPageDown(ui::pads& boss, menu::item& item)
             {
-
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::bypage::y.param();
+                    info.vector = -1;
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::y, info);
+                });
             }
             static void TerminalViewportLineUp(ui::pads& boss, menu::item& item)
             {
-
+                item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::bystep::y.param();
+                    info.vector = std::abs(item.views[item.taken].value);
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::y, info);
+                });
             }
             static void TerminalViewportLineDown(ui::pads& boss, menu::item& item)
             {
-
-            }
-            static void TerminalViewportPageLeft(ui::pads& boss, menu::item& item)
-            {
-
-            }
-            static void TerminalViewportPageRight(ui::pads& boss, menu::item& item)
-            {
-
-            }
-            static void TerminalViewportCharLeft(ui::pads& boss, menu::item& item)
-            {
-
-            }
-            static void TerminalViewportCharRight(ui::pads& boss, menu::item& item)
-            {
-
+                item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::bystep::y.param();
+                    info.vector = -std::abs(item.views[item.taken].value);
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::y, info);
+                });
             }
             static void TerminalViewportTop(ui::pads& boss, menu::item& item)
             {
-
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::to_top::y.param();
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::to_top::y, info);
+                });
             }
             static void TerminalViewportEnd(ui::pads& boss, menu::item& item)
             {
-
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::to_end::y.param();
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::to_end::y, info);
+                });
+            }
+            static void TerminalViewportPageLeft(ui::pads& boss, menu::item& item)
+            {
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::bypage::x.param();
+                    info.vector = 1;
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::x, info);
+                });
+            }
+            static void TerminalViewportPageRight(ui::pads& boss, menu::item& item)
+            {
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::bypage::x.param();
+                    info.vector = -1;
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::x, info);
+                });
+            }
+            static void TerminalViewportCharLeft(ui::pads& boss, menu::item& item)
+            {
+                item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::bystep::x.param();
+                    info.vector = std::abs(item.views[item.taken].value);
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::x, info);
+                });
+            }
+            static void TerminalViewportCharRight(ui::pads& boss, menu::item& item)
+            {
+                item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    auto info = e2::form::upon::scroll::bystep::x.param();
+                    info.vector = -std::abs(item.views[item.taken].value);
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::x, info);
+                });
             }
             static void TerminalLogStart(ui::pads& boss, menu::item& item)
             {
@@ -725,6 +777,14 @@ namespace netxs::app::term
                     boss.SUBMIT(tier::anycast, app::term::events::data::prnscrn, gear)
                     {
                         boss.prnscrn(gear);
+                    };
+                    boss.SUBMIT(tier::anycast, e2::form::upon::scroll::any, i)
+                    {
+                        auto info = e2::form::upon::scroll::bypage::y.param();
+                        auto deed = boss.bell::protos<tier::anycast>();
+                        boss.base::template raw_riseup<tier::request>(e2::form::upon::scroll::any.id, info);
+                        info.vector = i.vector;
+                        boss.base::template raw_riseup<tier::preview>(deed, info);
                     };
                 });
             return window;

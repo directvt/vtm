@@ -6845,7 +6845,6 @@ namespace netxs::ui
                 selection_moveto(delta);
             }
         }
-
         void search(hids& gear, feed dir)
         {
             selection_search(gear, dir);
