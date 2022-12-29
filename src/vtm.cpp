@@ -33,6 +33,7 @@ int main(int argc, char* argv[])
     auto cfpath = text{};
     auto daemon = faux;
     auto getopt = os::args{ argc, argv };
+    auto custom_pipe = text{};
     while (getopt)
     {
         switch (getopt.next())
@@ -54,6 +55,10 @@ int main(int argc, char* argv[])
                 cfpath = getopt.param();
                 if (cfpath.size()) break;
                 else os::fail("config file path not specified");
+            case 'p':
+                custom_pipe = getopt.param();
+                if (custom_pipe.size()) break;
+                else os::fail("custom pipe not specified");
             default:
                 banner();
                 log("Usage:\n\n ", os::current_module_file(), " [ -c <config_file> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
@@ -64,6 +69,7 @@ int main(int argc, char* argv[])
                         + "\t-d\tRun server in background.\n"s
                         + "\t-s\tRun server in interactive mode.\n"s
                         + "\t-r <..>\tRun standalone application.\n"s
+                        + "\t-p <..>\tSet the pipe to connect to.\n"s
                         + "\n"s
                         + "\tConfiguration file location precedence (descending priority):\n\n"s
                         + "\t\t1. Command line options; e.g., vtm -c path/to/settings.xml\n"s
@@ -100,7 +106,7 @@ int main(int argc, char* argv[])
         auto userid = os::user();
         auto usernm = os::get_env("USER");
         auto hostip = os::get_env("SSH_CLIENT");
-        auto prefix = utf::concat(DESKTOPIO_PREFIX, userid);
+        auto prefix = custom_pipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : custom_pipe;
         auto server = os::ipc::open<os::server>(prefix);
         if (!server)
         {
@@ -151,7 +157,7 @@ int main(int argc, char* argv[])
             auto userid = os::user();
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
-            auto prefix = utf::concat(DESKTOPIO_PREFIX, userid);
+            auto prefix = custom_pipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : custom_pipe;
             auto client = os::ipc::open<os::client>(prefix, 10s, [&]
                         {
                             log("main: new desktopio environment for user ", userid);
