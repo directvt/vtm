@@ -875,16 +875,16 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        TerminalSelectionRect        | Set linear(false) or rectangular(true) selection form using boolean value.
        TerminalSelectionClear       | Deselect a selection.
        TerminalViewportCopy         | Сopy viewport to clipboard.
-       *TerminalViewportPageUp      | Scroll one page up.
-       *TerminalViewportPageDown    | Scroll one page down.
-       *TerminalViewportLineUp      | Scroll N lines up.
-       *TerminalViewportLineDown    | Scroll N lines down.
-       *TerminalViewportPageLeft    | Scroll one page to the left.
-       *TerminalViewportPageRight   | Scroll one page to the right.
-       *TerminalViewportColumnLeft  | Scroll N cells to the left.
-       *TerminalViewportColumnRight | Scroll N cells to the right.
-       *TerminalViewportTop         | Scroll to the scrollback top.
-       *TerminalViewportEnd         | Scroll to the scrollback bottom (reset viewport position).
+       TerminalViewportPageUp       | Scroll one page up.
+       TerminalViewportPageDown     | Scroll one page down.
+       TerminalViewportLineUp       | Scroll N lines up.
+       TerminalViewportLineDown     | Scroll N lines down.
+       TerminalViewportPageLeft     | Scroll one page to the left.
+       TerminalViewportPageRight    | Scroll one page to the right.
+       TerminalViewportColumnLeft   | Scroll N cells to the left.
+       TerminalViewportColumnRight  | Scroll N cells to the right.
+       TerminalViewportTop          | Scroll to the scrollback top.
+       TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport position).
        *TerminalLogStart            | Start logging to file.
        *TerminalLogPause            | Pause logging.
        *TerminalLogStop             | Stop logging.
