@@ -2605,7 +2605,7 @@ namespace netxs::ui::atoms
         auto tile(core& image, P fuse) // core: Tile with a specified bitmap.
         {
             auto step = image.size();
-            auto init = region.coor - region.coor % step;
+            auto init = region.coor - region.coor % step - region.coor.less(dot_00, step, dot_00);
             auto coor = init;
             auto stop = region.coor + region.size;
             while (coor.y < stop.y)
