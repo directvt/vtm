@@ -947,7 +947,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
      - `LeftClick` -- Set exclusive focus
      - `Ctrl+LeftClick`/`RightClick` -- Set/Unset group focus
      - `double LeftClick` -- Maxixmize/restore
-   - Configurable via settings (See configuration eexample above).
+   - Configurable via settings (See configuration example above).
 
 </p></details>
 
