@@ -1445,10 +1445,7 @@ namespace netxs::console
             clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
         }
 
-        conf()            = default;
-        conf(conf const&) = default;
-        conf(conf&&)      = default;
-        conf& operator = (conf const&) = default;
+        conf() = default;
         conf(si32 mode, xml::settings& config)
             : session_id{ 0 },
               legacy_mode{ mode }
