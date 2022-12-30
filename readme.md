@@ -226,12 +226,13 @@ vtm
 
 # Command line Options `vtm(.exe)`
 
- `vtm [ -c <config_file> ] [ -l | -d | -s | -r [<app> [<args...>]] ]`
+ `vtm [ -c <config_file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]`
 
 Option         | Description
 ---------------|-------------------------------------------------------
 No arguments   | Run client (auto start server)
 ` -c <file> `  | Use specified configuration file
+` -p <pipe> `  | Set the pipe to connect to
 ` -l `         | Show configuration and exit
 ` -d `         | Run server in background
 ` -s `         | Run server in interactive mode
