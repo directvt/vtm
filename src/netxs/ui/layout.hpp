@@ -2601,6 +2601,25 @@ namespace netxs::ui::atoms
             auto upto = p2.x + p2.y * region.size.x + 1;
             return line(from, upto);
         }
+        template<class P>
+        auto tile(core& image, P fuse) // core: Tile with a specified bitmap.
+        {
+            auto step = image.size();
+            auto init = region.coor - region.coor % step - region.coor.less(dot_00, step, dot_00);
+            auto coor = init;
+            auto stop = region.coor + region.size;
+            while (coor.y < stop.y)
+            {
+                while (coor.x < stop.x)
+                {
+                    image.move(coor);
+                    fill(image, fuse);
+                    coor.x += step.x;
+                }
+                coor.x = init.x;
+                coor.y += step.y;
+            }
+        }
         void operator += (core const& src) // core: Append specified canvas.
         {
             //todo inbody::RTL

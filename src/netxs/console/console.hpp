@@ -1410,6 +1410,7 @@ namespace netxs::console
         twod clip_preview_size;
         si32 clip_preview_glow;
         cell background_color;
+        face background_image;
         si32 legacy_mode;
         si32 session_id;
         time dblclick_timeout; // conf: Double click timeout.
@@ -1444,10 +1445,7 @@ namespace netxs::console
             clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
         }
 
-        conf()            = default;
-        conf(conf const&) = default;
-        conf(conf&&)      = default;
-        conf& operator = (conf const&) = default;
+        conf() = default;
         conf(si32 mode, xml::settings& config)
             : session_id{ 0 },
               legacy_mode{ mode }
@@ -1482,6 +1480,13 @@ namespace netxs::console
             read(config);
             background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
                                       .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
+            auto utf8_tile = config.take("background/tile", ""s);
+            if (utf8_tile.size())
+            {
+                auto block = page{ utf8_tile };
+                background_image.size(block.limits());
+                background_image.output(block);
+            }
             glow_fx           = config.take("glowfx", true);
             simple            = faux;
             is_standalone_app = faux;
@@ -4707,7 +4712,7 @@ namespace netxs::console
                 header.usable = window.overlap(region);
                 auto active = header.active || header.highlighted;
                 auto& grade = skin::grade(active ? header.color.active
-                                                    : header.color.passive);
+                                                 : header.color.passive);
                 auto pset = [&](twod const& p, uint8_t k)
                 {
                     //canvas[p].fuse(grade[k], obj_id, p - offset);
@@ -5642,6 +5647,11 @@ namespace netxs::console
                         canvas.wipe(world.bell::id);
                         if (!props.is_standalone_app)
                         {
+                            if (props.background_image.size())
+                            {
+                                //todo cache background
+                                canvas.tile(props.background_image, cell::shaders::fuse);
+                            }
                             if (background) // Render active wallpaper.
                             {
                                 canvas.render(background);
