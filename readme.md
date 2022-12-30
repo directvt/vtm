@@ -572,7 +572,15 @@ Note: The following configuration sections are not implemented yet
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0xFF000000>  <!-- Desktop background color. -->
+            <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
+            <!-- Example of background with some gradients -->
+            <!-- <tile>
+                "\e[48;2;83;161;238m \e[48;2;78;179;241m \e[48;2;70;195;244m \e[48;2;60;207;246m \e[48;2;55;212;247m\e[38;2;0;0;0m \e[48;2;55;212;247m\e[38;2;0;0;0m \e[48;2;60;207;246m \e[48;2;70;195;244m \e[48;2;78;179;241m \e[48;2;83;161;238m \n"
+                "\e[48;2;82;171;239m \e[48;2;72;191;243m \e[48;2;55;212;247m \e[48;2;31;233;251m \e[m\e[48;2;0;255;255m\e[38;2;0;0;0m \e[m\e[48;2;0;255;255m\e[38;2;0;0;0m \e[48;2;31;233;251m \e[48;2;55;212;247m \e[48;2;72;191;243m \e[48;2;82;171;239m \n"
+                "\e[48;2;83;161;238m \e[48;2;78;179;241m \e[48;2;70;195;244m \e[48;2;60;207;246m \e[48;2;55;212;247m\e[38;2;0;0;0m \e[48;2;55;212;247m\e[38;2;0;0;0m \e[48;2;60;207;246m \e[48;2;70;195;244m \e[48;2;78;179;241m \e[48;2;83;161;238m \e[m"
+            </tile> -->
+        </background>
         <clipboard>
             <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0xFF />  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
