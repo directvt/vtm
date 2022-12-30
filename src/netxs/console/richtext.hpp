@@ -1656,6 +1656,20 @@ namespace netxs::console
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.
         auto  size()    const { return static_cast<si32>(batch.size()); }
+        // page: Estimated page size calculation (use fake printing for accurate calc).
+        auto  limits() const
+        {
+            auto size = twod{};
+            auto head = batch.begin();
+            auto tail = batch.end();
+            while (head != tail)
+            {
+                auto s = (**head++).size();
+                size.x = std::max(size.x, s.x);
+                size.y += s.y;
+            }
+            return size;
+        }
 
         struct rtf_dest_t
         {

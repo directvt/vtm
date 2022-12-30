@@ -154,7 +154,9 @@ R"==(
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF000000/>  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0xFF000000>  <!-- Desktop background color. -->
+            <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
+        </background>
         <clipboard>
             <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->

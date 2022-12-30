@@ -61,16 +61,19 @@ namespace netxs
         constexpr void     operator -=  (duplet const& p)       { x -= p.x; y -= p.y;               }
         constexpr void     operator *=  (duplet const& p)       { x *= p.x; y *= p.y;               }
         constexpr void     operator /=  (duplet const& p)       { x /= p.x; y /= p.y;               }
+        constexpr void     operator %=  (duplet const& p)       { x %= p.x; y %= p.y;               }
         constexpr void     operator -=  (T i)                   { x -=   i; y -=   i;               }
         constexpr void     operator +=  (T i)                   { x +=   i; y +=   i;               }
         constexpr void     operator *=  (T i)                   { x *=   i; y *=   i;               }
         constexpr void     operator /=  (T i)                   { x /=   i; y /=   i;               }
+        constexpr void     operator %=  (T i)                   { x %=   i; y %=   i;               }
         constexpr bool     operator <   (T i) const             { return x < i && y < i;            }
         constexpr bool     operator >   (T i) const             { return x > i && y > i;            }
         constexpr duplet   operator +   (duplet const& p) const { return { x + p.x, y + p.y };      }
         constexpr duplet   operator -   (duplet const& p) const { return { x - p.x, y - p.y };      }
         constexpr duplet   operator *   (duplet const& p) const { return { x * p.x, y * p.y };      }
         constexpr duplet   operator /   (duplet const& p) const { return { x / p.x, y / p.y };      }
+        constexpr duplet   operator %   (duplet const& p) const { return { x % p.x, y % p.y };      }
         constexpr duplet   operator -   ()                const { return {      -x,-y       };      }
         constexpr duplet   operator &   (T i)             const { return {   x & i, y & i   };      }
         constexpr duplet   operator ~   ()                const { return {       y, x       };      }
