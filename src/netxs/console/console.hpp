@@ -1994,13 +1994,8 @@ namespace netxs::console
                     {
                         boss.SUBMIT_T(tier::release, e2::form::maximize, maxs, gear)
                         {
-                            auto area = boss.base::area();
-                            auto home = rect{ -dot_21, area.size + dot_21 * 2};
-                            if (home.hittest(gear.coord)) // Including resizer grips.
-                            {
-                                if (seized(gear.owner.id)) unbind();
-                                else                       follow(gear.owner.id, dot_00);
-                            }
+                            if (seized(gear.owner.id)) unbind();
+                            else                       follow(gear.owner.id, dot_00);
                         };
                     }
                     else maxs.reset();
