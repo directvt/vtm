@@ -45,6 +45,7 @@ namespace netxs::app::desk
                     ->invoke([&](auto& boss)
                     {
                         auto data_src_shadow = ptr::shadow(data_src);
+                        auto boss_ptr_shadow = ptr::shadow(boss.This());
                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                         {
                             if (auto data_src = data_src_shadow.lock())
@@ -61,11 +62,14 @@ namespace netxs::app::desk
                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
                         {
                             if (auto data_src = data_src_shadow.lock())
+                            if (auto boss_ptr = boss_ptr_shadow.lock())
                             {
                                 auto& inst = *data_src;
+                                auto& boss = *boss_ptr;
                                 inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                                auto& area = gear.area();
-                                auto center = area.coor + (area.size / 2);
+                                auto viewport = e2::form::prop::viewport.param();
+                                boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                                auto center = gear.area().coor + viewport.coor + (viewport.size / 2);
                                 inst.SIGNAL(tier::preview, e2::form::layout::appear, center); // Pull window.
                                 gear.pass_kb_focus(inst);
                                 gear.dismiss();
