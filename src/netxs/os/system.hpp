@@ -2577,10 +2577,14 @@ namespace netxs::os
             virtual ~iobase()
             { }
             operator bool () { return active; }
-            virtual bool  send(view data)   = 0;
+            virtual flux& show(flux&) const = 0;
+            virtual bool  send(view)        = 0;
             virtual qiew  recv()            = 0;
             virtual bool  recv(char&)       = 0;
-            virtual flux& show(flux&) const = 0;
+            virtual qiew  recv(char*, size_t) 
+            {
+                return qiew{};
+            }
             virtual void  stop()
             {
                 active = faux;
@@ -2685,8 +2689,7 @@ namespace netxs::os
             {
                 return handle.get_w();
             }
-            template<class SIZE_T>
-            auto recv(char* buff, SIZE_T size)
+            qiew recv(char* buff, size_t size) override
             {
                 return os::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
             }
@@ -2743,8 +2746,7 @@ namespace netxs::os
             {
                 return handle.get_w();
             }
-            template<class SIZE_T>
-            auto recv(char* buff, SIZE_T size)
+            qiew recv(char* buff, size_t size) override
             {
                 return os::recv(handle.get_r(), buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
             }
@@ -2762,8 +2764,7 @@ namespace netxs::os
                 auto size = buff.size();
                 return os::send<true>(handle.get_w(), data, size);
             }
-            template<class SIZE_T>
-            qiew rlog(char* buff, SIZE_T size)
+            qiew rlog(char* buff, size_t size)
             {
                 return os::recv(handle.get_l(), buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
             }
@@ -2962,8 +2963,7 @@ namespace netxs::os
 
                 #endif
             }
-            template<class SIZE_T>
-            auto recv(char* buff, SIZE_T size)
+            qiew recv(char* buff, size_t size) override
             {
                 return os::recv(handle, buff, size);
             }
@@ -2980,6 +2980,10 @@ namespace netxs::os
                 auto data = buff.data();
                 auto size = buff.size();
                 return os::send<faux>(handle.get_w(), data, size);
+            }
+            void abort()
+            {
+                handle.shutdown();
             }
             void shut() override
             {
@@ -3259,11 +3263,15 @@ namespace netxs::os
             sock_ptr->init();
             return sock_ptr;
         }
+        auto local()
+        {
+            return std::make_shared<ipc::direct>(STDIN_FD, STDOUT_FD, STDERR_FD);
+        }
         auto local(si32 vtmode) -> std::pair<sptr<ipc::iobase>, sptr<ipc::iobase>>
         {
             if (vtmode & os::legacy::direct)
             {
-                auto server = std::make_shared<ipc::direct>(STDIN_FD, STDOUT_FD, STDERR_FD);
+                auto server = local();
                 auto client = server;
                 return std::make_pair( server, client );
             }
@@ -4137,6 +4145,25 @@ namespace netxs::os
             _globals<void>::resize_handler();
 
             return _globals<void>::winsz;
+        }
+        template<class Link>
+        static void direct(Link internal)
+        {
+            auto tunnel = os::ipc::local();
+            auto& ipcio = *tunnel;
+            auto& world = *internal;
+            auto& wired = _globals<void>::wired;
+            auto& winsz = _globals<void>::winsz;
+            winsz = os::legacy::get_winsz();
+            wired.winsz.send(world, 0, winsz);
+            auto input = std::thread{ [&]
+            {
+                while (ipcio && ipcio.send(world.recv())) { }
+                ipcio.shut();
+            }};
+            while (world && world.send(ipcio.recv())) { }
+            world.abort();
+            input.join();
         }
         void splice(si32 mode)
         {

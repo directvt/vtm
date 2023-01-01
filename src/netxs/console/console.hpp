@@ -1459,23 +1459,21 @@ namespace netxs::console
         conf(xipc peer, si32 session_id, xml::settings& config)
             : session_id{ session_id }
         {
-            auto _ip     = peer->line(';');
-            auto _name   = peer->line(';');
-            auto _user   = peer->line(';');
-            auto _mode   = peer->line(';');
-            auto _runcfg = peer->line(';');
-            auto utf8_xml = utf::unbase64(_runcfg);
-            config.fuse(utf8_xml);
-
-            _user = "[" + _user + ":" + std::to_string(session_id) + "]";
-            auto c_info = utf::divide(_ip, " ");
+            auto init = ansi::dtvt::binary::startdata_t{};
+            if (!init.load([&](auto... args){ return peer->recv(args...); }))
+            {
+                log("conf: init data corrupted");
+            }
+            config.fuse(init.conf);
+            init.user = "[" + init.user + ":" + std::to_string(session_id) + "]";
+            auto c_info = utf::divide(init.ip, " ");
             ip                = c_info.size() > 0 ? c_info[0] : text{};
             port              = c_info.size() > 1 ? c_info[1] : text{};
-            legacy_mode       = utf::to_int(_mode, os::legacy::clean);
-            os_user_id        = _user;
-            fullname          = _name;
-            name              = _user;
-            title             = _user;
+            legacy_mode       = init.mode;
+            os_user_id        = init.user;
+            fullname          = init.name;
+            name              = init.user;
+            title             = init.user;
             selected          = config.take("/config/menu/selected", ""s);
             read(config);
             background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
@@ -5628,9 +5626,9 @@ namespace netxs::console
                 base::moveby(props.coor);
 
                 auto& canal = *termio;
-                link conio{ canal, This() }; // gate: Terminal IO.
-                diff paint{ canal, vtmode }; // gate: Rendering loop.
-                subs token;                  // gate: Subscription tokens.
+                auto  conio = link{ canal, This() }; // gate: Terminal IO.
+                auto  paint = diff{ canal, vtmode }; // gate: Rendering loop.
+                auto  token = subs{};                // gate: Subscription tokens.
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -5914,35 +5912,38 @@ namespace netxs::console
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                         conio.off_focus.send(conio, ext_gear_id);
                     };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
+                    if (props.is_standalone_app)
                     {
-                        using button = hids::events::mouse::button;
-                        auto forward = faux;
-                        auto cause = gear.mouse::cause;//this->bell::protos<tier::release>();
-                        if (events::subevent(cause, button::click     ::any.id)
-                         || events::subevent(cause, button::dblclick  ::any.id)
-                         || events::subevent(cause, button::tplclick  ::any.id)
-                         || events::subevent(cause, button::drag::pull::any.id))
+                        SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
                         {
-                            forward = true;
-                        }
-                        else if (events::subevent(cause, button::drag::start::any.id))
-                        {
-                            gear.capture(bell::id); // To avoid unhandled mouse pull processing.
-                            forward = true;
-                        }
-                        else if (events::subevent(cause, button::drag::cancel::any.id)
-                              || events::subevent(cause, button::drag::stop  ::any.id))
-                        {
-                            gear.setfree();
-                        }
-                        if (forward)
-                        {
-                            auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                            conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
-                            gear.dismiss();
-                        }
-                    };
+                            using button = hids::events::mouse::button;
+                            auto forward = faux;
+                            auto cause = gear.mouse::cause;//this->bell::protos<tier::release>();
+                            if (events::subevent(cause, button::click     ::any.id)
+                             || events::subevent(cause, button::dblclick  ::any.id)
+                             || events::subevent(cause, button::tplclick  ::any.id)
+                             || events::subevent(cause, button::drag::pull::any.id))
+                            {
+                                forward = true;
+                            }
+                            else if (events::subevent(cause, button::drag::start::any.id))
+                            {
+                                gear.capture(bell::id); // To avoid unhandled mouse pull processing.
+                                forward = true;
+                            }
+                            else if (events::subevent(cause, button::drag::cancel::any.id)
+                                  || events::subevent(cause, button::drag::stop  ::any.id))
+                            {
+                                gear.setfree();
+                            }
+                            if (forward)
+                            {
+                                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                                conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                                gear.dismiss();
+                            }
+                        };
+                    }
                 }
                 else
                 {

@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
     auto cfpath = text{};
     auto daemon = faux;
     auto getopt = os::args{ argc, argv };
-    auto custom_pipe = text{};
+    auto vtpipe = text{};
     while (getopt)
     {
         switch (getopt.next())
@@ -56,8 +56,8 @@ int main(int argc, char* argv[])
                 if (cfpath.size()) break;
                 else os::fail("config file path not specified");
             case 'p':
-                custom_pipe = getopt.param();
-                if (custom_pipe.size()) break;
+                vtpipe = getopt.param();
+                if (vtpipe.size()) break;
                 else os::fail("custom pipe not specified");
             default:
                 banner();
@@ -89,7 +89,11 @@ int main(int argc, char* argv[])
 
     if (daemon)
     {
-        if (!os::daemonize(os::current_module_file(), cfpath.empty() ? "-s"s : "-c " + cfpath + " -s"s))
+        auto args = text{};
+        if (vtpipe.size()) args += " -p " + vtpipe;
+        if (cfpath.size()) args += " -c " + cfpath;
+        args += " -s";
+        if (!os::daemonize(os::current_module_file(), args)) //todo pass config os::legacy::get_setup()
         {
             banner();
             os::fail("failed to daemonize");
@@ -106,7 +110,7 @@ int main(int argc, char* argv[])
         auto userid = os::user();
         auto usernm = os::get_env("USER");
         auto hostip = os::get_env("SSH_CLIENT");
-        auto prefix = custom_pipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : custom_pipe;
+        auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
         auto server = os::ipc::open<os::server>(prefix);
         if (!server)
         {
@@ -157,30 +161,35 @@ int main(int argc, char* argv[])
             auto userid = os::user();
             auto usernm = os::get_env("USER");
             auto hostip = os::get_env("SSH_CLIENT");
-            auto prefix = custom_pipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : custom_pipe;
+            auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
             auto client = os::ipc::open<os::client>(prefix, 10s, [&]
                         {
                             log("main: new desktopio environment for user ", userid);
                             auto binary = os::current_module_file();
-                            return os::exec(binary, "-d");
+                            auto args = text{};
+                            if (vtpipe.size()) args += " -p " + vtpipe;
+                            if (cfpath.size()) args += " -c " + cfpath;
+                            args += " -d";
+                            return os::exec(binary, args); //todo pass config
                         });
             if (!client)
             {
                 os::fail("no desktopio server connection");
                 return 1;
             }
+            auto init = ansi::dtvt::binary::startdata_t{};
+            init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
+            init.send([&](auto& data){ client->send(data); });
 
-            auto runcfg = utf::base64(config.utf8());
-            client->send(utf::concat(hostip, ";",
-                                     usernm, ";",
-                                     userid, ";",
-                                     vtmode, ";",
-                                     runcfg, ";"));
-            auto cons = os::tty::proxy(client);
-            auto size = cons.ignite(vtmode);
-            if (size.last)
+            if (direct) os::tty::direct(client);
+            else
             {
-                os::ipc::splice(cons, vtmode);
+                auto cons = os::tty::proxy(client);
+                auto size = cons.ignite(vtmode);
+                if (size.last)
+                {
+                    os::ipc::splice(cons, vtmode);
+                }
             }
         }
         else if (whoami == type::runapp)

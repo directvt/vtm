@@ -618,7 +618,6 @@ namespace netxs::events
                 proc(*object_ptr);
             }
         });
-
     }
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;

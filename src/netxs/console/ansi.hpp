@@ -2298,6 +2298,57 @@ namespace netxs::ansi
                         stream::reset();
                     }
                 }
+                template<bool Discard_empty = faux, class P>
+                void send(P output)
+                {
+                    if (stream::commit(Discard_empty))
+                    {
+                        output(block);
+                        stream::reset();
+                    }
+                }
+                template<class T, class P>
+                static auto read_block(T& object, P input)
+                {
+                    auto buff = text(sizeof(sz_t), 0);
+                    auto shot = input(buff.data(), buff.size());
+                    if (shot.size() != buff.size())
+                    {
+                        log("dtvt: stream corrupted");
+                        return faux;
+                    }
+                    auto rest = size_t{};
+                    rest = *reinterpret_cast<sz_t const*>(buff.data());
+                    if (rest < sizeof(sz_t))
+                    {
+                        log("dtvt: stream corrupted, frame size: ", rest);
+                        return faux;
+                    }
+                    rest -= shot.size();
+                    buff.resize(rest);
+                    auto head = buff.data();
+                    while (rest)
+                    {
+                        shot = input(head, rest);
+                        if (!shot)
+                        {
+                            log("dtvt: stream corrupted");
+                            return faux;
+                        }
+                        rest -= shot.size();
+                        head += shot.size();
+                    }
+                    auto data = view{ buff };
+                    auto kind = *reinterpret_cast<type const*>(data.data());
+                    if (kind != object.kind)
+                    {
+                        log("dtvt: object type mismatch");
+                        return faux;
+                    }
+                    data.remove_prefix(sizeof(type));
+                    object.get(data);
+                    return true;
+                }
                 // stream: .
                 template<type Kind, class ...Args>
                 void set(Args&&... args)
@@ -2514,6 +2565,11 @@ namespace netxs::ansi
                         std::tie(SEQ_NAME(WRAP(struct_members)) _tmp) =               \
                             stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(_data); \
                     }                                                                 \
+                    template<class P>                                                 \
+                    auto load(P recv)                                                 \
+                    {                                                                 \
+                        return stream::read_block(*this, recv);                       \
+                    }                                                                 \
                     void wipe()                                                       \
                     {                                                                 \
                         SEQ_WIPE(WRAP(struct_members))                                \
@@ -2549,9 +2605,7 @@ namespace netxs::ansi
                 };                                                                    \
                 using struct_name = wrapper<CAT(struct_name, _t)>;
 
-            using imap = netxs::imap<text, text>;
             //todo unify
-            static auto& operator << (std::ostream& s, imap const& o) { return s << "{...}"; }
             static auto& operator << (std::ostream& s, wchr const& o) { return s << "0x" << utf::to_hex(o); }
 
             // Output stream.
@@ -2568,7 +2622,6 @@ namespace netxs::ansi
             STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
             STRUCT(warping,           (id_t, window_id) (dent, warpdata))
             STRUCT(vt_command,        (text, command))
-            STRUCT(configuration,     (imap, confug))
             STRUCT_LITE(expose)
             STRUCT_LITE(request_debug)
 
@@ -2597,6 +2650,7 @@ namespace netxs::ansi
             STRUCT(bgc,               (rgba, color))
             STRUCT(fgc,               (rgba, color))
             STRUCT(slimmenu,          (bool, menusize))
+            STRUCT(startdata,         (text, ip) (text, name) (text, user) (si32, mode) (text, conf))
             STRUCT(debugdata,         (text, data))
             STRUCT(debuglogs,         (text, data))
             STRUCT(debugtext,         (text, data))
@@ -2858,7 +2912,6 @@ namespace netxs::ansi
                 X(warping          ) /* Warp resize.                                  */\
                 X(expose           ) /* Bring the form to the front.                  */\
                 X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
-                X(configuration    ) /* Initial application configuration.            */\
                 X(frames           ) /* Received frames.                              */\
                 X(tooltip_element  ) /* Tooltip text.                                 */\
                 X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
@@ -2879,6 +2932,7 @@ namespace netxs::ansi
                 X(bgc              ) /* Set background color.                         */\
                 X(fgc              ) /* Set foreground color.                         */\
                 X(slimmenu         ) /* Set window menu size.                         */\
+                X(startdata        ) /* Startup data.                                 */\
                 X(debugdata        ) /* Debug data.                                   */\
                 X(debuglogs        ) /* Debug logs.                                   */\
                 X(debugtext        ) /* Debug forwarding.                             */

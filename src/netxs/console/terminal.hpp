@@ -7549,6 +7549,7 @@ namespace netxs::ui
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
         {
+            auto backup = This(); // To avoid calling the destructor during deserialization (it causes deadlock when using events::sync{} inside the sync()).
             stream.s11n::sync(data);
         }
         // dtvt: Shutdown callback handler.
