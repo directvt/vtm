@@ -1194,11 +1194,8 @@ namespace netxs::xml
             else                 log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + frompath);
             tempbuff.clear();
             if (auto result = xml::take<T>(crop)) return result.value();
-            else
-            {
-                if (crop.size()) return take("/config/set/" + crop, defval);
-                else             return defval;
-            }
+            else if (crop.size()) return take("/config/set/" + crop, defval);
+            else                  return defval;
         }
         template<class T>
         auto take(text frompath, T defval, std::unordered_map<text, T> const& dict)
