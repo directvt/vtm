@@ -1,9 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APPS_HPP
-#define NETXS_APPS_HPP
-
+#pragma once
 
 #define APPS_DEL_TIMEOUT 1s
 
@@ -1009,9 +1007,9 @@ R"==(
         if (!size.last) return faux;
 
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
-        auto ground = base::create<host>(tunnel.first, config);
         auto runapp = [&]
         {
+            auto ground = base::create<host>(tunnel.first, config);
             auto patch = ""s;
             auto aclass = utf::cutoff(app_name, ' ');
             utf::to_low(aclass);
@@ -1555,5 +1553,3 @@ namespace netxs::app::shared
         app::shared::initialize builder_SHELL        { menuitem_t::type_SHELL   , build_SHELL      };
     }
 }
-
-#endif // NETXS_APPS_HPP

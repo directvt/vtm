@@ -3,8 +3,7 @@
 
 //deprecated stuff
 
-#ifndef NETXS_TEXT_TABLE_HPP
-#define NETXS_TEXT_TABLE_HPP
+#pragma once
 
 #include <sstream>
 #include <vector>
@@ -100,5 +99,3 @@ namespace netxs
         }
     }
 }
-
-#endif // NETXS_TEXT_TABLE_HPP

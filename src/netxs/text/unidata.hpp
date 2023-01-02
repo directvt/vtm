@@ -106,8 +106,7 @@
  *
  **/
 
-#ifndef NETXS_UNIDATA_HPP
-#define NETXS_UNIDATA_HPP
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -846,5 +845,3 @@ namespace netxs::unidata
             : base::ucspec[offset[blocks[cp >> 8] + (cp & 0xFF)]];
     }
 }
-
-#endif // NETXS_UNIDATA_HPP

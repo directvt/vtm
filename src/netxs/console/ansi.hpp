@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_ANSI_HPP
-#define NETXS_ANSI_HPP
+#pragma once
 
 #include "../ui/layout.hpp"
 #include "../abstract/tree.hpp"
@@ -2623,7 +2622,7 @@ namespace netxs::ansi
             STRUCT(warping,           (id_t, window_id) (dent, warpdata))
             STRUCT(vt_command,        (text, command))
             STRUCT_LITE(expose)
-            STRUCT_LITE(request_debug)
+            //STRUCT_LITE(request_debug)
 
             // Input stream.
             STRUCT(sysfocus,          (id_t, gear_id) (bool, enabled) (bool, combine_focus) (bool, force_group_focus))
@@ -2651,9 +2650,9 @@ namespace netxs::ansi
             STRUCT(fgc,               (rgba, color))
             STRUCT(slimmenu,          (bool, menusize))
             STRUCT(startdata,         (text, ip) (text, name) (text, user) (si32, mode) (text, conf))
-            STRUCT(debugdata,         (text, data))
             STRUCT(debuglogs,         (text, data))
-            STRUCT(debugtext,         (text, data))
+            //STRUCT(debugdata,         (text, data))
+            //STRUCT(debugtext,         (text, data))
 
             #undef STRUCT
             #undef STRUCT_LITE
@@ -2915,7 +2914,6 @@ namespace netxs::ansi
                 X(frames           ) /* Received frames.                              */\
                 X(tooltip_element  ) /* Tooltip text.                                 */\
                 X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
-                X(request_debug    ) /* Request debug output redirection to stdin.    */\
                 /* Input stream                                                       */\
                 X(sysfocus         ) /* System focus state.                           */\
                 X(syskeybd         ) /* System keybd device.                          */\
@@ -2933,9 +2931,10 @@ namespace netxs::ansi
                 X(fgc              ) /* Set foreground color.                         */\
                 X(slimmenu         ) /* Set window menu size.                         */\
                 X(startdata        ) /* Startup data.                                 */\
-                X(debugdata        ) /* Debug data.                                   */\
-                X(debuglogs        ) /* Debug logs.                                   */\
-                X(debugtext        ) /* Debug forwarding.                             */
+                X(debuglogs        ) /* Debug logs.                                   */
+                //X(debugdata        ) /* Debug data.                                   */
+                //X(debugtext        ) /* Debug forwarding.                             */
+                //X(request_debug    ) /* Request debug output redirection to stdin.    */
 
                 struct xs
                 {
@@ -3230,5 +3229,3 @@ namespace netxs::ansi
         }
     }
 }
-
-#endif // NETXS_ANSI_HPP

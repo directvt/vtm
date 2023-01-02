@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_SYSTEM_HPP
-#define NETXS_SYSTEM_HPP
+#pragma once
 
 #if (defined(__unix__) || defined(__APPLE__)) && !defined(__linux__)
     #define __BSD__
@@ -604,8 +603,8 @@ namespace netxs::os
             }
             else
             {
-                os::close(r);
                 os::close(w);
+                os::close(r);
             }
         }
         void shutdown() // Reset writing end of the pipe to interrupt reading call.
@@ -619,6 +618,10 @@ namespace netxs::os
             {
                 os::close(w);
             }
+        }
+        void shutsend() // Reset writing end of the pipe to interrupt reading call.
+        {
+            os::close(w);
         }
         friend auto& operator << (std::ostream& s, file const& handle)
         {
@@ -645,75 +648,6 @@ namespace netxs::os
               w{ w }
         { }
        ~file()
-        {
-            close();
-        }
-    };
-
-    class dstd
-    {
-        fd_t r; // file: Read descriptor.
-        fd_t w; // file: Send descriptor.
-        fd_t l; // file: Logs descriptor.
-
-    public:
-        auto& get_r()       { return r; }
-        auto& get_w()       { return w; }
-        auto& get_l()       { return l; }
-        auto& get_r() const { return r; }
-        auto& get_w() const { return w; }
-        auto& get_l() const { return l; }
-        void  set_r(fd_t f) { r = f;    }
-        void  set_w(fd_t f) { w = f;    }
-        void  set_l(fd_t f) { l = f;    }
-        operator bool ()    { return r != INVALID_FD
-                                  && w != INVALID_FD
-                                  && l != INVALID_FD; }
-        void close()
-        {
-            os::close(r);
-            os::close(w);
-            os::close(l);
-        }
-        void shutdown() // Reset writing end of the pipe to interrupt reading call.
-        {
-            os::close(w);
-            os::close(l);
-        }
-        void shutsend() // Reset writing end of the pipe to interrupt reading call.
-        {
-            os::close(w);
-        }
-        friend auto& operator << (std::ostream& s, dstd const& handle)
-        {
-            return s << handle.r << "," << handle.w << "," << handle.l;
-        }
-        auto& operator = (dstd&& f)
-        {
-            r = f.r;
-            w = f.w;
-            l = f.l;
-            f.r = INVALID_FD;
-            f.w = INVALID_FD;
-            f.l = INVALID_FD;
-            return *this;
-        }
-        dstd(dstd const&) = delete;
-        dstd(dstd&& f)
-            : r{ f.r },
-              w{ f.w },
-              l{ f.l }
-        {
-            f.r = INVALID_FD;
-            f.w = INVALID_FD;
-            f.l = INVALID_FD;
-        }
-        dstd(fd_t r = INVALID_FD, fd_t w = INVALID_FD, fd_t l = INVALID_FD)
-            : r{ r },
-              w{ w },
-              l{ l }
-        { }
-       ~dstd()
         {
             close();
         }
@@ -1482,9 +1416,17 @@ namespace netxs::os
             auto p_id = ::fork();
             if (p_id == 0) // Child branch.
             {
-                char* argv[] = { binary.data(), params.data(), nullptr };
+                auto args = os::split_cmdline(params);
+                auto argv = std::vector<char*>{};
+                argv.push_back(binary.data());
+                for (auto& c : args)
+                {
+                    argv.push_back(c.data());
+                }
+                argv.push_back(nullptr);
+
                 os::fdcleanup();
-                ::execvp(argv[0], argv);
+                ::execvp(argv[0], argv.data());
                 std::cerr << "exec: error " << errno << "\n" << std::flush;
                 os::exit(errno);
             }
@@ -1515,7 +1457,11 @@ namespace netxs::os
     }
     void stdlog(view data)
     {
-        std::cerr << data;
+        static auto logs = ansi::dtvt::binary::debuglogs_t{};
+        //todo view -> text
+        logs.set(text{ data });
+        logs.send([&](auto& block){ os::send(STDOUT_FD, block.data(), block.size()); });
+        //std::cerr << data;
         //os::send<true>(STDERR_FD, data.data(), data.size());
     }
     void syslog(view data)
@@ -2593,17 +2539,6 @@ namespace netxs::os
             {
                 active = faux;
             }
-            // ipc::iobase: Read until the delimeter appears.
-            auto line(char delim)
-            {
-                char c;
-                auto crop = text{};
-                while (recv(c) && c != delim)
-                {
-                    crop.push_back(c);
-                }
-                return crop;
-            }
             friend auto& operator << (flux& s, ipc::iobase const& sock)
             {
                 return sock.show(s << "{ xipc: ") << " }";
@@ -2725,20 +2660,20 @@ namespace netxs::os
         class direct
             : public iobase
         {
-            dstd handle; // ipc::direct: Stdio file descriptor.
+            file handle; // ipc::direct: Stdio file descriptor.
 
         public:
             direct() = default;
-            direct(fd_t r, fd_t w, fd_t l)
-                : handle{ r, w, l }
+            direct(fd_t r, fd_t w)
+                : handle{ r, w }
             {
                 active = true;
                 buffer.resize(PIPE_BUF);
             }
 
-            void set(fd_t r, fd_t w, fd_t l)
+            void set(fd_t r, fd_t w)
             {
-                handle = { r, w, l };
+                handle = { r, w };
                 active = true;
                 buffer.resize(PIPE_BUF);
             }
@@ -2763,10 +2698,6 @@ namespace netxs::os
                 auto data = buff.data();
                 auto size = buff.size();
                 return os::send<true>(handle.get_w(), data, size);
-            }
-            qiew rlog(char* buff, size_t size)
-            {
-                return os::recv(handle.get_l(), buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
             }
             void shut() override // Only for server side.
             {
@@ -3265,7 +3196,7 @@ namespace netxs::os
         }
         auto local()
         {
-            return std::make_shared<ipc::direct>(STDIN_FD, STDOUT_FD, STDERR_FD);
+            return std::make_shared<ipc::direct>(STDIN_FD, STDOUT_FD);
         }
         auto local(si32 vtmode) -> std::pair<sptr<ipc::iobase>, sptr<ipc::iobase>>
         {
@@ -4630,7 +4561,6 @@ namespace netxs::os
             ipc::direct               termlink{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
-            std::thread               stderror{};
             std::function<void(view)> receiver{};
             std::function<void(view)> loggerfx{};
             std::function<void(si32)> shutdown{};
@@ -4658,23 +4588,16 @@ namespace netxs::os
                     log("dtvt: id: ", stdinput.get_id(), " reading thread joining");
                     stdinput.join();
                 }
-                if (stderror.joinable())
-                {
-                    log("dtvt: id: ", stderror.get_id(), " logging thread joining");
-                    stderror.join();
-                }
                 log("dtvt: dtor complete");
             }
 
             operator bool () { return termlink; }
 
             auto start(text cwd, text cmdline, twod winsz, text config, std::function<void(view)> input_hndl,
-                                                                        std::function<void(view)> logs_hndl,
                                                                         std::function<void(si32)> preclose_hndl,
                                                                         std::function<void(si32)> shutdown_hndl)
             {
                 receiver = input_hndl;
-                loggerfx = logs_hndl;
                 preclose = preclose_hndl;
                 shutdown = shutdown_hndl;
                 utf::change(cmdline, "\\\"", "'");
@@ -4684,15 +4607,13 @@ namespace netxs::os
 
                     auto s_pipe_r = INVALID_FD;
                     auto s_pipe_w = INVALID_FD;
-                    auto s_pipe_l = INVALID_FD;
                     auto m_pipe_r = INVALID_FD;
                     auto m_pipe_w = INVALID_FD;
-                    auto m_pipe_l = INVALID_FD;
                     auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
                     auto procsinf = PROCESS_INFORMATION{};
                     auto attrbuff = std::vector<uint8_t>{};
                     auto attrsize = SIZE_T{ 0 };
-                    auto stdhndls = std::array<HANDLE, 3>{};
+                    auto stdhndls = std::array<HANDLE, 2>{};
 
                     auto tunnel = [&]
                     {
@@ -4701,22 +4622,19 @@ namespace netxs::os
                         sa.lpSecurityDescriptor = NULL;
                         sa.bInheritHandle = TRUE;
                         if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
-                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0)
-                         && ::CreatePipe(&m_pipe_l, &s_pipe_l, &sa, 0))
+                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
                         {
                             os::legacy::send_dmd(m_pipe_w, winsz, config);
 
                             startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                             startinf.StartupInfo.hStdInput  = s_pipe_r;
                             startinf.StartupInfo.hStdOutput = s_pipe_w;
-                            startinf.StartupInfo.hStdError  = s_pipe_l;
                             return true;
                         }
                         else
                         {
                             os::close(m_pipe_w);
                             os::close(m_pipe_r);
-                            os::close(m_pipe_l);
                             return faux;
                         }
                     };
@@ -4724,7 +4642,6 @@ namespace netxs::os
                     {
                         stdhndls[0] = s_pipe_r;
                         stdhndls[1] = s_pipe_w;
-                        stdhndls[2] = s_pipe_l;
                         ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
                         attrbuff.resize(attrsize);
                         startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
@@ -4765,25 +4682,22 @@ namespace netxs::os
                         os::close( procsinf.hThread );
                         prochndl = procsinf.hProcess;
                         proc_pid = procsinf.dwProcessId;
-                        termlink.set(m_pipe_r, m_pipe_w, m_pipe_l);
+                        termlink.set(m_pipe_r, m_pipe_w);
                         log("dtvt: pty created: ", winsz);
                     }
                     else log("dtvt: child process creation error ", ::GetLastError());
 
                     os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
                     os::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
-                    os::close(s_pipe_l); //
 
                 #else
 
                     fd_t to_server[2] = { INVALID_FD, INVALID_FD };
                     fd_t to_client[2] = { INVALID_FD, INVALID_FD };
-                    fd_t to_srvlog[2] = { INVALID_FD, INVALID_FD };
                     ok(::pipe(to_server), "dtvt: server ipc unexpected result");
                     ok(::pipe(to_client), "dtvt: client ipc unexpected result");
-                    ok(::pipe(to_srvlog), "dtvt: srvlog ipc unexpected result");
 
-                    termlink.set(to_server[0], to_client[1], to_srvlog[0]);
+                    termlink.set(to_server[0], to_client[1]);
                     os::legacy::send_dmd(to_client[1], winsz, config);
 
                     proc_pid = ::fork();
@@ -4791,7 +4705,6 @@ namespace netxs::os
                     {
                         os::close(to_client[1]); // os::fdcleanup();
                         os::close(to_server[0]);
-                        os::close(to_srvlog[0]);
 
                         ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                         ::signal(SIGQUIT, SIG_DFL); //
@@ -4802,15 +4715,14 @@ namespace netxs::os
 
                         ::dup2(to_client[0], STDIN_FD ); // Assign stdio lines atomically
                         ::dup2(to_server[1], STDOUT_FD); // = close(new); fcntl(old, F_DUPFD, new).
-                        ::dup2(to_srvlog[1], STDERR_FD); // Used for the logs output
                         os::fdcleanup();
 
                         if (cwd.size())
                         {
                             auto err = std::error_code{};
                             fs::current_path(cwd, err);
-                            if (err) std::cerr << "dtvt: failed to change current working directory to '" + cwd + "', error code: " + std::to_string(err.value()) << std::flush;
-                            else     std::cerr << "dtvt: change current working directory to '" + cwd + "'" << std::flush;
+                            if (err) log("dtvt: failed to change current working directory to '", cwd, "', error code: ", err.value());
+                            else     log("dtvt: change current working directory to '", cwd, "'");
                         }
 
                         auto args = os::split_cmdline(cmdline);
@@ -4824,8 +4736,7 @@ namespace netxs::os
                         ::execvp(argv.front(), argv.data());
 
                         auto errcode = errno;
-                        std::cerr << text{ "dtvt: exec error, errno=" } + std::to_string(errcode) << std::flush;
-                        ::close(STDERR_FD);
+                        log("dtvt: exec error, errno=", errcode);
                         ::close(STDOUT_FD);
                         ::close(STDIN_FD );
                         os::exit(errcode);
@@ -4834,7 +4745,6 @@ namespace netxs::os
                     // Parent branch.
                     os::close(to_client[0]);
                     os::close(to_server[1]);
-                    os::close(to_srvlog[1]);
 
                 #endif
 
@@ -4846,7 +4756,6 @@ namespace netxs::os
 
                 stdinput = std::thread([&] { read_socket_thread(); });
                 stdwrite = std::thread([&] { send_socket_thread(); });
-                stderror = std::thread([&] { logs_socket_thread(); });
 
                 writesyn.notify_one(); // Flush temp buffer.
 
@@ -4911,22 +4820,6 @@ namespace netxs::os
                 log("dtvt: child waiting complete");
                 return exit_code;
             }
-            void logs_socket_thread()
-            {
-                auto thread_id = stderror.get_id();
-                log("dtvt: id: ", thread_id, " logging thread for process:", proc_pid, " started");
-                auto buff = std::vector<char>(PIPE_BUF);
-                while (termlink)
-                {
-                    auto shot = termlink.rlog(buff.data(), buff.size());
-                    if (shot && termlink)
-                    {
-                        loggerfx(shot);
-                    }
-                    else break;
-                }
-                log("dtvt: id: ", thread_id, " logging thread ended");
-            }
             void read_socket_thread()
             {
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
@@ -4969,5 +4862,3 @@ namespace netxs::os
         };
     }
 }
-
-#endif // NETXS_SYSTEM_HPP

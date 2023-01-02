@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_CONSOLE_HPP
-#define NETXS_CONSOLE_HPP
+#pragma once
 
 #include "../abstract/iterator.hpp"
 #include "../os/system.hpp"
@@ -5246,6 +5245,7 @@ namespace netxs::console
         void handle(s11n::xs::syskeybd    lock)
         {
             auto& keybd = lock.thing;
+            log("keybd ", keybd.cluster);
             notify(e2::conio::keybd, keybd);
         }
         void handle(s11n::xs::plain       lock)
@@ -5313,21 +5313,21 @@ namespace netxs::console
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
         }
-        void handle(s11n::xs::debugdata   lock) // For Logs only.
-        {
-            auto& item = lock.thing;
-            notify<tier::anycast>(e2::debug::output, item.data);
-        }
-        void handle(s11n::xs::debuglogs   lock) // For Logs only.
-        {
-            auto& item = lock.thing;
-            notify<tier::anycast>(e2::debug::logs, item.data);
-        }
-        void handle(s11n::xs::debugtext   lock)
-        {
-            auto& item = lock.thing;
-            log(item.data);
-        }
+        //void handle(s11n::xs::debugdata   lock) // For Logs only.
+        //{
+        //    auto& item = lock.thing;
+        //    notify<tier::anycast>(e2::debug::output, item.data);
+        //}
+        //void handle(s11n::xs::debuglogs   lock) // For Logs only.
+        //{
+        //    auto& item = lock.thing;
+        //    notify<tier::anycast>(e2::debug::logs, item.data);
+        //}
+        //void handle(s11n::xs::debugtext   lock)
+        //{
+        //    auto& item = lock.thing;
+        //    log(item.data);
+        //}
         void handle(s11n::xs::form_header lock)
         {
             auto& item = lock.thing;
@@ -5872,10 +5872,14 @@ namespace netxs::console
 
                 if (direct) // Forward unhandled events outside.
                 {
-                    SUBMIT_T(tier::anycast, e2::debug::request, token, count)
-                    {
-                        if (count > 0) conio.request_debug.send(conio);
-                    };
+                    //SUBMIT_T(tier::anycast, e2::debug::request, token, count)
+                    //{
+                    //    if (count > 0) conio.request_debug.send(conio);
+                    //};
+                    //SUBMIT_T(tier::general, e2::debug::logs, token, utf8)
+                    //{
+                    //    log(utf8);
+                    //};
                     SUBMIT_T(tier::release, e2::config::fps, token, fps)
                     {
                         if (fps > 0) SIGNAL_GLOBAL(e2::config::fps, fps);
@@ -6133,5 +6137,3 @@ namespace netxs::console
         }
     };
 }
-
-#endif // NETXS_CONSOLE_HPP

@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_TERMINAL_HPP
-#define NETXS_TERMINAL_HPP
+#pragma once
 
 #include "../ui/controls.hpp"
 
@@ -7406,11 +7405,20 @@ namespace netxs::ui
                     SIGNAL_GLOBAL(e2::config::fps, fps);
                 });
             }
-            void handle(s11n::xs::request_debug       lock)
+            //void handle(s11n::xs::request_debug       lock)
+            //{
+            //    netxs::events::enqueue(owner.This(), [&](auto& boss)
+            //    {
+            //        owner.request_debug();
+            //    });
+            //}
+            void handle(s11n::xs::debuglogs           lock)
             {
-                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                auto utf8 = view{ lock.thing.data };
+                if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
+                utf::divide(utf8, '\n', [&](auto line)
                 {
-                    owner.request_debug();
+                    log(owner.prompt, line);
                 });
             }
 
@@ -7591,27 +7599,18 @@ namespace netxs::ui
             }
         }
         // dtvt: Logs callback handler.
-        void onlogs(view utf8)
-        {
-            if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
-            utf::divide(utf8, '\n', [&](auto line)
-            {
-                log(prompt, line);
-            });
-        }
-        // dtvt: Logs callback handler.
         void request_debug()
         {
-            SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
-            {
-                //todo text -> view
-                stream.debuglogs.send(ptycon, text{shadow});
-            };
-            SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
-            {
-                //todo text -> view
-                stream.debugdata.send(ptycon, text{shadow});
-            };
+            //SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
+            //{
+            //    //todo text -> view
+            //    stream.debuglogs.send(ptycon, text{shadow});
+            //};
+            //SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
+            //{
+            //    //todo text -> view
+            //    stream.debugdata.send(ptycon, text{shadow});
+            //};
         }
 
     public:
@@ -7639,7 +7638,6 @@ namespace netxs::ui
                         stream.s11n::form_footer.send(*this, 0, footer);
                         termsz(base::size());
                         auto procid = ptycon.start(curdir, cmdarg, termsz, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                                   [&](auto log_message) { onlogs(log_message); },
                                                                                    [&](auto exit_reason) { atexit(exit_reason); },
                                                                                    [&](auto exit_reason) { onexit(exit_reason); } );
                         unique = timer;
@@ -7754,5 +7752,3 @@ namespace netxs::ui
         }
     };
 }
-
-#endif // NETXS_TERMINAL_HPP

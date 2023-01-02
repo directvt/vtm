@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_DESK_HPP
-#define NETXS_APP_DESK_HPP
+#pragma once
 
 namespace netxs::events::userland
 {
@@ -521,5 +520,3 @@ namespace netxs::app::desk
 
     app::shared::initialize builder{ "desk", build };
 }
-
-#endif // NETXS_APP_DESK_HPP

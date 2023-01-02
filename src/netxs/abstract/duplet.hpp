@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_DUPLET_HPP
-#define NETXS_DUPLET_HPP
+#pragma once
 
 #include "../text/utf.hpp"
 #include "../abstract/fifo.hpp"
@@ -163,7 +162,7 @@ namespace netxs
     static twod divround(si32 n       , twod const& p) { return { divround(n  , p.x), divround(n  , p.y) }; }
     static twod divround(twod const& n, twod const& p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
     static twod divupper(twod const& n, twod const& p) { return { divupper(n.x, p.x), divupper(n.y, p.y) }; }
-} // namespace netxs
+}
 
 namespace std
 {
@@ -172,6 +171,4 @@ namespace std
     template<class T = netxs::si32> static netxs::duplet<T> round(netxs::duplet<T> const& p) { return { std::round(p.x), std::round(p.y) }; }
     template<class T = netxs::si32> static netxs::duplet<T> abs  (netxs::duplet<T> const& p) { return { std::  abs(p.x), std::  abs(p.y) }; }
     template<class T = netxs::si32> static netxs::duplet<T> clamp(netxs::duplet<T> const& p, netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
-} // namespace std
-
-#endif // NETXS_DUPLET_HPP
+}

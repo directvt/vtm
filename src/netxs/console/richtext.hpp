@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_RICHTEXT_HPP
-#define NETXS_RICHTEXT_HPP
+#pragma once
 
 #include "ansi.hpp"
 #include "../text/logger.hpp"
@@ -2043,5 +2042,3 @@ namespace netxs::console
         prop passive = prop::shadower;
     };
 }
-
-#endif // NETXS_RICHTEXT_HPP

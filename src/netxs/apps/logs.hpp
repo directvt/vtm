@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_LOGS_HPP
-#define NETXS_APP_LOGS_HPP
+#pragma once
 
 #include "../abstract/queue.hpp"
 
@@ -314,5 +313,3 @@ namespace netxs::app::logs
 
     app::shared::initialize builder{ "logs", build };
 }
-
-#endif // NETXS_APP_LOGS_HPP

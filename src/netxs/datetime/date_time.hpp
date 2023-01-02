@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_DATE_TIME_HPP
-#define NETXS_DATE_TIME_HPP
+#pragma once
 
 #include "../text/utf.hpp"
 
@@ -163,5 +162,3 @@ namespace netxs::datetime
         return now_ms();
     }
 }
-
-#endif // NETXS_DATE_TIME_HPP

@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_FIFO_HPP
-#define NETXS_FIFO_HPP
+#pragma once
 
 #include <limits>
 
@@ -148,5 +147,3 @@ namespace netxs::generics
         }
     };
 }
-
-#endif // NETXS_FIFO_HPP

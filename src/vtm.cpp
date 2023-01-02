@@ -36,7 +36,9 @@ int main(int argc, char* argv[])
     auto vtpipe = text{};
     while (getopt)
     {
-        switch (getopt.next())
+        auto key = getopt.next();
+        log("key ", (int)key);
+        switch (key)
         {
             case 'r':
                 whoami = type::runapp;
@@ -89,11 +91,11 @@ int main(int argc, char* argv[])
 
     if (daemon)
     {
-        auto args = text{};
-        if (vtpipe.size()) args += " -p " + vtpipe;
-        if (cfpath.size()) args += " -c " + cfpath;
-        args += " -s";
-        if (!os::daemonize(os::current_module_file(), args)) //todo pass config os::legacy::get_setup()
+        auto cmdarg = text{};
+        if (vtpipe.size()) cmdarg += "-p " + vtpipe + " ";
+        if (cfpath.size()) cmdarg += "-c " + cfpath + " ";
+        cmdarg += "-s";
+        if (!os::daemonize(os::current_module_file(), cmdarg)) //todo pass config os::legacy::get_setup()
         {
             banner();
             os::fail("failed to daemonize");
@@ -152,71 +154,68 @@ int main(int argc, char* argv[])
         SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
         ground->shutdown();
     }
-    else
+    else if (whoami == type::client)
     {
-        if (whoami == type::client)
+        auto direct = !!(vtmode & os::legacy::direct);
+        if (!direct) os::start_log(DESKTOPIO_MYPATH);
+        auto userid = os::user();
+        auto usernm = os::get_env("USER");
+        auto hostip = os::get_env("SSH_CLIENT");
+        auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
+        auto client = os::ipc::open<os::client>(prefix, 10s, [&]
+                    {
+                        log("main: new desktopio environment for user ", userid);
+                        auto binary = os::current_module_file();
+                        auto cmdarg = text{};
+                        if (vtpipe.size()) cmdarg += "-p " + vtpipe + " ";
+                        if (cfpath.size()) cmdarg += "-c " + cfpath + " ";
+                        cmdarg += "-d";
+                        return os::exec(binary, cmdarg); //todo pass config
+                    });
+        if (!client)
         {
-            auto direct = !!(vtmode & os::legacy::direct);
-            if (!direct) os::start_log(DESKTOPIO_MYPATH);
-            auto userid = os::user();
-            auto usernm = os::get_env("USER");
-            auto hostip = os::get_env("SSH_CLIENT");
-            auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
-            auto client = os::ipc::open<os::client>(prefix, 10s, [&]
-                        {
-                            log("main: new desktopio environment for user ", userid);
-                            auto binary = os::current_module_file();
-                            auto args = text{};
-                            if (vtpipe.size()) args += " -p " + vtpipe;
-                            if (cfpath.size()) args += " -c " + cfpath;
-                            args += " -d";
-                            return os::exec(binary, args); //todo pass config
-                        });
-            if (!client)
-            {
-                os::fail("no desktopio server connection");
-                return 1;
-            }
-            auto init = ansi::dtvt::binary::startdata_t{};
-            init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
-            init.send([&](auto& data){ client->send(data); });
+            os::fail("no desktopio server connection");
+            return 1;
+        }
+        auto init = ansi::dtvt::binary::startdata_t{};
+        init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
+        init.send([&](auto& data){ client->send(data); });
 
-            if (direct) os::tty::direct(client);
-            else
+        if (direct) os::tty::direct(client);
+        else
+        {
+            auto cons = os::tty::proxy(client);
+            auto size = cons.ignite(vtmode);
+            if (size.last)
             {
-                auto cons = os::tty::proxy(client);
-                auto size = cons.ignite(vtmode);
-                if (size.last)
-                {
-                    os::ipc::splice(cons, vtmode);
-                }
+                os::ipc::splice(cons, vtmode);
             }
         }
-        else if (whoami == type::runapp)
+    }
+    else if (whoami == type::runapp)
+    {
+        auto shadow = params;
+        utf::to_low(shadow);
+             if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
+        else if (shadow.starts_with("calc"))       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
+        else if (shadow.starts_with("gems"))       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
+        else if (shadow.starts_with("test"))       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
+        else if (shadow.starts_with("logs"))       log("Desktopio Log Console "        DESKTOPIO_VER);
+        else if (shadow.starts_with("term"))       log("Desktopio Terminal "           DESKTOPIO_VER);
+        else if (shadow.starts_with("truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
+        else if (shadow.starts_with("headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);
+        else if (shadow.starts_with("settings"))   log("Desktopio Settings "           DESKTOPIO_VER);
+        else
         {
-            auto shadow = params;
-            utf::to_low(shadow);
-                 if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
-            else if (shadow.starts_with("calc"))       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
-            else if (shadow.starts_with("gems"))       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
-            else if (shadow.starts_with("test"))       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
-            else if (shadow.starts_with("logs"))       log("Desktopio Log Console "        DESKTOPIO_VER);
-            else if (shadow.starts_with("term"))       log("Desktopio Terminal "           DESKTOPIO_VER);
-            else if (shadow.starts_with("truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
-            else if (shadow.starts_with("headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);
-            else if (shadow.starts_with("settings"))   log("Desktopio Settings "           DESKTOPIO_VER);
-            else
-            {
-                params = DESKTOPIO_DEFAPP + " "s + params;
-                log(DESKTOPIO_APPINF);
-            }
+            params = DESKTOPIO_DEFAPP + " "s + params;
+            log(DESKTOPIO_APPINF);
+        }
 
-            auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
-            if (!success)
-            {
-                os::fail("console initialization error");
-                return 1;
-            }
+        auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
+        if (!success)
+        {
+            os::fail("console initialization error");
+            return 1;
         }
     }
 }

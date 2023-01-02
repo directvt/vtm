@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_XML_HPP
-#define NETXS_XML_HPP
+#pragma once
 
 #include "../ui/layout.hpp"
 #include "../datetime/quartz.hpp"
@@ -1194,11 +1193,8 @@ namespace netxs::xml
             else                 log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + frompath);
             tempbuff.clear();
             if (auto result = xml::take<T>(crop)) return result.value();
-            else
-            {
-                if (crop.size()) return take("/config/set/" + crop, defval);
-                else             return defval;
-            }
+            if (crop.size())                      return take("/config/set/" + crop, defval);
+            else                                  return defval;
         }
         template<class T>
         auto take(text frompath, T defval, std::unordered_map<text, T> const& dict)
@@ -1318,5 +1314,3 @@ namespace netxs::xml
             { "center", bias::center }};
     }
 }
-
-#endif // NETXS_XML_HPP

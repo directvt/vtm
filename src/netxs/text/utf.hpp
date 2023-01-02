@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_UTF_HPP
-#define NETXS_UTF_HPP
+#pragma once
 
 #include "unidata.hpp"
 #include "../math/intmath.hpp"
@@ -1676,5 +1675,3 @@ namespace netxs::utf
         }
     }
 }
-
-#endif // NETXS_UTF_HPP

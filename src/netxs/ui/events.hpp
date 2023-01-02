@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_EVENTS_HPP
-#define NETXS_EVENTS_HPP
+#pragma once
 
 #include "../abstract/ptr.hpp"
 #include "../abstract/hash.hpp"
@@ -622,5 +621,3 @@ namespace netxs::events
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;
 }
-
-#endif // NETXS_EVENTS_HPP
