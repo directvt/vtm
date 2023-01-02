@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_RANDOM_HPP
-#define NETXS_RANDOM_HPP
+#pragma once
 
 #include <random>
 
@@ -44,5 +43,3 @@ namespace netxs
         { }
     };
 }
-
-#endif // NETXS_RANDOM_HPP

@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_TEXT_HPP
-#define NETXS_APP_TEXT_HPP
+#pragma once
 
 namespace netxs::events::userland
 {
@@ -232,5 +231,3 @@ utility like ctags is used to locate the definitions.
 
     app::shared::initialize builder{ "text", build };
 }
-
-#endif // NETXS_APP_TEXT_HPP

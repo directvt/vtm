@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_PTR_HPP
-#define NETXS_PTR_HPP
+#pragma once
 
 #include <memory>
 #include <mutex>
@@ -119,5 +118,3 @@ namespace netxs
     template<class C, class T>
     using change_value_type = typename change_value_type_helper<C>::template new_type<T>;
 }
-
-#endif // NETXS_PTR_HPP

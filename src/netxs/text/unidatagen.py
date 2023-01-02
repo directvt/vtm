@@ -330,8 +330,7 @@ HEADER_BASE = r'''
  *
  **/
 
-#ifndef NETXS_{MODULE}_HPP
-#define NETXS_{MODULE}_HPP
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -459,8 +458,6 @@ namespace netxs::{module}
             : base::ucspec[offset[blocks[cp >> 8] + (cp & 0xFF)]];
     }}
 }}
-
-#endif // NETXS_{MODULE}_HPP
 '''.strip()
 
 def writeln(text):

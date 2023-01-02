@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_HASH_HPP
-#define NETXS_HASH_HPP
+#pragma once
 
 #include <type_traits>
 #include <optional>
@@ -148,4 +147,3 @@ namespace netxs
         }
     };
 }
-#endif // NETXS_HASH_HPP

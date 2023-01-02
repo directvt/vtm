@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_TILE_HPP
-#define NETXS_APP_TILE_HPP
+#pragma once
 
 // Tiling limits.
 #define INHERITANCE_LIMIT 30
@@ -1063,5 +1062,3 @@ namespace netxs::app::tile
 
     app::shared::initialize builder{ menuitem_t::type_Group, build_inst };
 }
-
-#endif // NETXS_APP_TILE_HPP

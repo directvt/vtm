@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_INPUT_HPP
-#define NETXS_INPUT_HPP
+#pragma once
 
 #include "richtext.hpp"
 #include "../ui/events.hpp"
@@ -1259,5 +1258,3 @@ namespace netxs::input
         }
     };
 }
-
-#endif // NETXS_INPUT_HPP

@@ -29,8 +29,7 @@
 //      ...code...
 // }
 
-#ifndef NETXS_LOGGER_HPP
-#define NETXS_LOGGER_HPP
+#pragma once
 
 #include <sstream>
 #include <vector>
@@ -255,5 +254,3 @@ namespace
         netxs::logger::feed(std::forward<Args>(args)...);
     }
 }
-
-#endif // NETXS_LOGGER_HPP

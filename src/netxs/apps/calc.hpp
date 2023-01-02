@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_CALC_HPP
-#define NETXS_APP_CALC_HPP
+#pragma once
 
 namespace netxs::events::userland
 {
@@ -418,5 +417,3 @@ namespace netxs::app::calc
 
     app::shared::initialize builder{ "calc", build };
 }
-
-#endif // NETXS_APP_CALC_HPP

@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_CONSRV_HPP
-#define NETXS_CONSRV_HPP
+#pragma once
 
 #if not defined(_DEBUG)
     #define log(...)
@@ -3439,5 +3438,3 @@ struct consrv
 #if not defined(_DEBUG)
     #undef log
 #endif
-
-#endif // NETXS_CONSRV_HPP

@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_SHOP_HPP
-#define NETXS_APP_SHOP_HPP
+#pragma once
 
 namespace netxs::events::userland
 {
@@ -242,5 +241,3 @@ namespace netxs::app::shop
 
     app::shared::initialize builder{ "gems", build };
 }
-
-#endif // NETXS_APP_SHOP_HPP

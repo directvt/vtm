@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_QUEUE_HPP
-#define NETXS_QUEUE_HPP
+#pragma once
 
 #include <mutex>
 #include <condition_variable>
@@ -146,5 +145,3 @@ namespace netxs
         }
     };
 }
-
-#endif // NETXS_QUEUE_HPP

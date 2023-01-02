@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_ITERATOR_HPP
-#define NETXS_ITERATOR_HPP
+#pragma once
 
 #include <memory>
 
@@ -122,5 +121,3 @@ namespace netxs
         }
     };
 }
-
-#endif // NETXS_ITERATOR_HPP

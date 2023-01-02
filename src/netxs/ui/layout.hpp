@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_LAYOUT_HPP
-#define NETXS_LAYOUT_HPP
+#pragma once
 
 #include "../abstract/duplet.hpp"
 #include "../abstract/hash.hpp"
@@ -2640,4 +2639,3 @@ namespace netxs::ui::atoms
         }
     };
 }
-#endif // NETXS_LAYOUT_HPP
