@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_XML_HPP
-#define NETXS_XML_HPP
+#pragma once
 
 #include "../ui/layout.hpp"
 #include "../datetime/quartz.hpp"
@@ -1315,5 +1314,3 @@ namespace netxs::xml
             { "center", bias::center }};
     }
 }
-
-#endif // NETXS_XML_HPP

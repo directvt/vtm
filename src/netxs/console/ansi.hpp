@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_ANSI_HPP
-#define NETXS_ANSI_HPP
+#pragma once
 
 #include "../ui/layout.hpp"
 #include "../abstract/tree.hpp"
@@ -3176,5 +3175,3 @@ namespace netxs::ansi
         }
     }
 }
-
-#endif // NETXS_ANSI_HPP

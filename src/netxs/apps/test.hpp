@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_TEST_HPP
-#define NETXS_APP_TEST_HPP
+#pragma once
 
 namespace netxs::events::userland
 {
@@ -481,5 +480,3 @@ namespace netxs::app::test
 
     app::shared::initialize builder{ "test", build };
 }
-
-#endif // NETXS_APP_TEST_HPP

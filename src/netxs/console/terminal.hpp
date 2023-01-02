@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_TERMINAL_HPP
-#define NETXS_TERMINAL_HPP
+#pragma once
 
 #include "../ui/controls.hpp"
 
@@ -7753,5 +7752,3 @@ namespace netxs::ui
         }
     };
 }
-
-#endif // NETXS_TERMINAL_HPP

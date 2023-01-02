@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_RING_HPP
-#define NETXS_RING_HPP
+#pragma once
 
 #include "../math/intmath.hpp"
 
@@ -334,5 +333,3 @@ namespace netxs::generics
         }
     };
 }
-
-#endif // NETXS_RING_HPP

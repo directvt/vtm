@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_TERM_HPP
-#define NETXS_APP_TERM_HPP
+#pragma once
 
 #include "../console/terminal.hpp"
 
@@ -793,5 +792,3 @@ namespace netxs::app::term
 
     app::shared::initialize builder{ "term", build };
 }
-
-#endif // NETXS_APP_TERM_HPP

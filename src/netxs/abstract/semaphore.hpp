@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_SEMAPHORE_HPP
-#define NETXS_SEMAPHORE_HPP
+#pragma once
 
 #include <mutex>
 #include <condition_variable>
@@ -38,5 +37,3 @@ namespace utils
         }
     };
 };
-
-#endif // NETXS_SEMAPHORE_HPP

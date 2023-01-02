@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_SYSTEM_HPP
-#define NETXS_SYSTEM_HPP
+#pragma once
 
 #if (defined(__unix__) || defined(__APPLE__)) && !defined(__linux__)
     #define __BSD__
@@ -4942,5 +4941,3 @@ namespace netxs::os
         };
     }
 }
-
-#endif // NETXS_SYSTEM_HPP

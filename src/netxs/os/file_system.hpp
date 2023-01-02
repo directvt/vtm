@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_FILE_SYSTEM_HPP
-#define NETXS_FILE_SYSTEM_HPP
+#pragma once
 
 #include "../text/utf.hpp"
 
@@ -89,5 +88,3 @@ namespace netxs::os
         return utf::to_utf(std::filesystem::temp_directory_path(ec).wstring());
     }
 }
-
-#endif // NETXS_FILE_SYSTEM_HPP

@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_TREE_HPP
-#define NETXS_TREE_HPP
+#pragma once
 
 #include <vector>
 
@@ -148,5 +147,3 @@ namespace netxs::generics
         }
     };
 }
-
-#endif // NETXS_TREE_HPP

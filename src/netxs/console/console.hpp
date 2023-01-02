@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_CONSOLE_HPP
-#define NETXS_CONSOLE_HPP
+#pragma once
 
 #include "../abstract/iterator.hpp"
 #include "../os/system.hpp"
@@ -6132,5 +6131,3 @@ namespace netxs::console
         }
     };
 }
-
-#endif // NETXS_CONSOLE_HPP

@@ -1,9 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APPS_HPP
-#define NETXS_APPS_HPP
-
+#pragma once
 
 #define APPS_DEL_TIMEOUT 1s
 
@@ -1555,5 +1553,3 @@ namespace netxs::app::shared
         app::shared::initialize builder_SHELL        { menuitem_t::type_SHELL   , build_SHELL      };
     }
 }
-
-#endif // NETXS_APPS_HPP
