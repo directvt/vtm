@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "../abstract/iterator.hpp"
 #include "../os/system.hpp"
 #include "../text/xml.hpp"
 
