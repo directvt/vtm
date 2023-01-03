@@ -2600,14 +2600,14 @@ namespace netxs::os
             }
         };
 
-        class ptycon
+        class stdpty
             : public iobase
         {
-            file handle; // ipc::ptycon: Stdio file descriptor.
+            file handle; // ipc::stdpty: Stdio file descriptor.
 
         public:
-            ptycon() = default;
-            ptycon(fd_t r, fd_t w)
+            stdpty() = default;
+            stdpty(fd_t r, fd_t w)
                 : handle{ r, w }
             {
                 active = true;
@@ -2650,64 +2650,6 @@ namespace netxs::os
             void stop() override
             {
                 shut();
-            }
-            flux& show(flux& s) const override
-            {
-                return s << handle;
-            }
-        };
-
-        class direct
-            : public iobase
-        {
-            file handle; // ipc::direct: Stdio file descriptor.
-
-        public:
-            direct() = default;
-            direct(fd_t r, fd_t w)
-                : handle{ r, w }
-            {
-                active = true;
-                buffer.resize(PIPE_BUF);
-            }
-
-            void set(fd_t r, fd_t w)
-            {
-                handle = { r, w };
-                active = true;
-                buffer.resize(PIPE_BUF);
-            }
-            auto& get_w()
-            {
-                return handle.get_w();
-            }
-            qiew recv(char* buff, size_t size) override
-            {
-                return os::recv(handle.get_r(), buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
-            }
-            qiew recv() override // It's not thread safe!
-            {
-                return recv(buffer.data(), buffer.size());
-            }
-            bool recv(char& c) override
-            {
-                return recv(&c, sizeof(c));
-            }
-            bool send(view buff) override
-            {
-                auto data = buff.data();
-                auto size = buff.size();
-                return os::send<true>(handle.get_w(), data, size);
-            }
-            void shut() override // Only for server side.
-            {
-                active = faux;
-                handle.shutsend(); // Close only writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
-            }
-            void stop() override
-            {
-                active = faux;
-                handle.shutdown(); // Close all writing handles (output + logs) to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
             }
             flux& show(flux& s) const override
             {
@@ -3196,7 +3138,7 @@ namespace netxs::os
         }
         auto local()
         {
-            return std::make_shared<ipc::direct>(STDIN_FD, STDOUT_FD);
+            return std::make_shared<ipc::stdpty>(STDIN_FD, STDOUT_FD);
         }
         auto local(si32 vtmode) -> std::pair<sptr<ipc::iobase>, sptr<ipc::iobase>>
         {
@@ -4144,7 +4086,7 @@ namespace netxs::os
         #endif
 
         Term&                     terminal;
-        ipc::ptycon               termlink;
+        ipc::stdpty               termlink;
         testy<twod>               termsize;
         std::thread               stdinput;
         std::thread               stdwrite;
@@ -4558,7 +4500,7 @@ namespace netxs::os
                 pid_t proc_pid = 0;
             #endif
 
-            ipc::direct               termlink{};
+            ipc::stdpty               termlink{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
             std::function<void(view)> receiver{};
