@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-?", "-h", "--help"))
         {
-            errmsg = ansi::nil().add("Show usage message.");
+            errmsg = ansi::nil().add("show usage message");
             break;
         }
         else if (getopt.match("--"))
@@ -96,7 +96,7 @@ int main(int argc, char* argv[])
         auto myname = os::current_module_file<true>();
         log("\nUsage:\n\n " + myname + " [ -c <file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
             + "\n"s
-                + "\tNo arguments        Run client, auto start server if is not started.\n"s
+                + "\tNo arguments        Run client, auto start server if it is not running.\n"s
                 + "\t-c | --config <..>  Use specified configuration file.\n"s
                 + "\t-p | --pipe   <..>  Set the pipe to connect to.\n"s
                 + "\t-l | --listconfig   Show configuration and exit.\n"s
