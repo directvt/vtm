@@ -200,19 +200,6 @@ namespace netxs::os
         }
 
     public:
-        // args: Split command line option on tokens.
-        static auto split(view line)
-        {
-            auto args = list{};
-            line = utf::trim(line);
-            while (line.size())
-            {
-                auto item = utf::get_token(line);
-                if (item.size()) args.emplace_back(item);
-            }
-            return args;
-        }
-
         args(int argc, char** argv)
         {
             auto head = argv + 1;
@@ -223,7 +210,19 @@ namespace netxs::os
             }
             reset();
         }
-
+        // args: Split command line options into tokens.
+        template<class T = list>
+        static auto split(view line)
+        {
+            auto args = T{};
+            line = utf::trim(line);
+            while (line.size())
+            {
+                auto item = utf::get_token(line);
+                if (item.size()) args.emplace_back(item);
+            }
+            return args;
+        }
         // args: Reset arg iterator to begin.
         void reset()
         {
