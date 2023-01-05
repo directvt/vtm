@@ -93,19 +93,20 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         os::fail(errmsg);
-        log("Usage:\n\n ", os::current_module_file(), " [ -c <file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
+        auto myname = os::current_module_file<true>();
+        log("\nUsage:\n\n " + myname + " [ -c <file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
             + "\n"s
-            + " No arguments\tRun client, auto start server if is not started.\n"s
-                + "\t-c | --config <..>\tUse specified configuration file.\n"s
-                + "\t-p | --pipe   <..>\tSet the pipe to connect to.\n"s
-                + "\t-l | --listconfig \tShow configuration and exit.\n"s
-                + "\t-d | --daemon     \tRun server in background.\n"s
-                + "\t-s | --server     \tRun server in interactive mode.\n"s
-                + "\t-r | --runapp <..>\tRun standalone application.\n"s
-                + "\t-? | -h | --help  \tShow usage message.\n"s
+                + "\tNo arguments        Run client, auto start server if is not started.\n"s
+                + "\t-c | --config <..>  Use specified configuration file.\n"s
+                + "\t-p | --pipe   <..>  Set the pipe to connect to.\n"s
+                + "\t-l | --listconfig   Show configuration and exit.\n"s
+                + "\t-d | --daemon       Run server in background.\n"s
+                + "\t-s | --server       Run server in interactive mode.\n"s
+                + "\t-r | --runapp <..>  Run standalone application.\n"s
+                + "\t-? | -h | --help    Show usage message.\n"s
                 + "\n"s
                 + "\tConfiguration file location precedence (descending priority):\n\n"s
-                + "\t\t1. Command line options; e.g., vtm -c path/to/settings.xml\n"s
+                + "\t\t1. Command line options; e.g., " + myname + " -c path/to/settings.xml\n"s
                 + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
                 + "\t\t3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
                 + "\t\t4. Default configuration\n"s

@@ -1274,6 +1274,7 @@ namespace netxs::os
     {
         //todo implement
     }
+    template<bool NameOnly = faux>
     auto current_module_file()
     {
         auto result = text{};
@@ -1358,6 +1359,15 @@ namespace netxs::os
         {
             os::fail("can't get current module file path, fallback to '", DESKTOPIO_MYPATH, "`");
             result = DESKTOPIO_MYPATH;
+        }
+        if constexpr (NameOnly)
+        {
+            auto code = std::error_code{};
+            auto file = fs::directory_entry(result, code);
+            if (!code)
+            {
+                result = file.path().filename().string();
+            }
         }
         auto c = result.front();
         if (c != '\"' && c != '\'' && result.find(' ') != text::npos)
