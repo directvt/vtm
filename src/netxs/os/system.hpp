@@ -607,8 +607,8 @@ namespace netxs::os
             }
             else
             {
-                os::close(w);
                 os::close(r);
+                os::close(w);
             }
         }
         void shutdown() // Reset writing end of the pipe to interrupt reading call.
@@ -2632,7 +2632,8 @@ namespace netxs::os
             }
             void stop() override
             {
-                shut();
+                active = faux;
+                handle.close(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
             }
             flux& show(flux& s) const override
             {
@@ -3099,7 +3100,7 @@ namespace netxs::os
 
             return std::make_shared<ipc::socket>(r, w, path);
         }
-        auto local()
+        auto local() // Client's ipc::stdpty.
         {
             return std::make_shared<ipc::stdpty>(STDIN_FD, STDOUT_FD);
         }
@@ -4047,6 +4048,7 @@ namespace netxs::os
         #if defined(_WIN32)
 
             #include "consrv.hpp"
+            //todo con_serv is a termlink
             consrv con_serv{ terminal, srv_hndl };
 
         #endif
@@ -4640,7 +4642,7 @@ namespace netxs::os
             }
             auto wait_child()
             {
-                auto guard = std::lock_guard{ writemtx };
+                //auto guard = std::lock_guard{ writemtx };
                 auto exit_code = si32{};
                 log("dtvt: wait child process, tty=", termlink);
                 if (termlink)
@@ -4698,6 +4700,8 @@ namespace netxs::os
 
                 ansi::dtvt::binary::stream::reading_loop(termlink, receiver);
 
+                termlink.stop(); // Full stop.
+                writesyn.notify_one();
                 preclose(0); //todo send msg from the client app
                 shutdown(wait_child());
                 log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
@@ -4711,17 +4715,12 @@ namespace netxs::os
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
-
                     if (termlink.send(cache)) cache.clear();
-                    else
-                    {
-                        guard.lock();
-                        break;
-                    }
-
+                    else                      break;
                     guard.lock();
                 }
-                guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
+                //todo block dtvt-logs after termlink stops
+                //guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
                 log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");
             }
             void output(view data)
