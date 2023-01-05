@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
         }
         else
         {
-            errmsg = utf::concat("unknow command line parameter '", getopt.next(), "'");
+            errmsg = utf::concat("unknown command line parameter '", getopt.next(), "'");
             break;
         }
     }
