@@ -212,7 +212,7 @@ namespace netxs::os
         }
         // args: Split command line options into tokens.
         template<class T = list>
-        static auto split(view line)
+        static T split(view line)
         {
             auto args = T{};
             line = utf::trim(line);
@@ -262,9 +262,8 @@ namespace netxs::os
         }
     };
 
-    class nothing
+    struct nothing
     {
-    public:
         template<class T>
         operator T () { return T{}; }
     };
@@ -591,18 +590,11 @@ namespace netxs::os
 
     #endif
 
-    class file
+    struct file
     {
         fd_t r; // file: Read descriptor.
         fd_t w; // file: Send descriptor.
 
-    public:
-        auto& get_r()       { return r; }
-        auto& get_w()       { return w; }
-        auto& get_r() const { return r; }
-        auto& get_w() const { return w; }
-        void  set_r(fd_t f) { r = f;    }
-        void  set_w(fd_t f) { w = f;    }
         operator bool ()    { return r != INVALID_FD
                                   && w != INVALID_FD; }
         void close()
@@ -646,6 +638,7 @@ namespace netxs::os
             f.w = INVALID_FD;
             return *this;
         }
+
         file(file const&) = delete;
         file(file&& f)
             : r{ f.r },
@@ -796,12 +789,12 @@ namespace netxs::os
     template<class ...Args>
     auto recv(file& handle, Args&&... args)
     {
-        return recv(handle.get_r(), std::forward<Args>(args)...);
+        return recv(handle.r, std::forward<Args>(args)...);
     }
     template<class ...Args>
     auto send(file& handle, Args&&... args)
     {
-        return send(handle.get_w(), std::forward<Args>(args)...);
+        return send(handle.w, std::forward<Args>(args)...);
     }
 
     namespace
@@ -1042,23 +1035,46 @@ namespace netxs::os
         log(args...);
         os::exit(code);
     }
-    auto get_env(view variable)
+
+    namespace env
     {
-        auto var = text{ variable };
-        auto val = std::getenv(var.c_str());
-        return val ? text{ val }
-                   : text{};
+        // os::env: Get envvar value.
+        auto get(view variable)
+        {
+            auto var = text{ variable };
+            auto val = std::getenv(var.c_str());
+            return val ? text{ val }
+                       : text{};
+        }
+        // os::env: Set envvar value.
+        auto set(view variable, view value)
+        {
+            auto var = text{ variable };
+            auto val = text{ value    };
+            #if defined(_WIN32)
+                ok(::SetEnvironmentVariableA(var.c_str(), val.c_str()), "::SetEnvironmentVariableA unexpected result");
+            #else
+                ok(::setenv(var.c_str(), val.c_str(), 1), "::setenv unexpected result");
+            #endif
+        }
+        // os::env: Get list of envvars using wildcard.
+        auto list(text&& var)
+        {
+            auto crop = std::vector<text>{};
+            auto list = environ;
+            while (*list)
+            {
+                auto v = view{ *list++ };
+                if (v.starts_with(var))
+                {
+                    crop.emplace_back(v);
+                }
+            }
+            std::sort(crop.begin(), crop.end());
+            return crop;
+        }
     }
-    auto set_env(view variable, view value)
-    {
-        auto var = text{ variable };
-        auto val = text{ value    };
-        #if defined(_WIN32)
-            ok(::SetEnvironmentVariableA(var.c_str(), val.c_str()), "::SetEnvironmentVariableA unexpected result");
-        #else
-            ok(::setenv(var.c_str(), val.c_str(), 1), "::setenv unexpected result");
-        #endif
-    }
+
     text get_shell()
     {
         #if defined(_WIN32)
@@ -1067,7 +1083,7 @@ namespace netxs::os
 
         #else
 
-            auto shell = os::get_env("SHELL");
+            auto shell = os::env::get("SHELL");
             if (shell.empty()
              || shell.ends_with("vtm"))
             {
@@ -1081,26 +1097,10 @@ namespace netxs::os
     auto homepath()
     {
         #if defined(_WIN32)
-            return fs::path{ os::get_env("HOMEDRIVE") } / fs::path{ os::get_env("HOMEPATH") };
+            return fs::path{ os::env::get("HOMEDRIVE") } / fs::path{ os::env::get("HOMEPATH") };
         #else
-            return fs::path{ os::get_env("HOME") };
+            return fs::path{ os::env::get("HOME") };
         #endif
-    }
-    //system: Get list of envvars using wildcard.
-    auto get_envars(text&& var)
-    {
-        auto crop = std::vector<text>{};
-        auto list = environ;
-        while (*list)
-        {
-            auto v = view{ *list++ };
-            if (v.starts_with(var))
-            {
-                crop.emplace_back(v);
-            }
-        }
-        std::sort(crop.begin(), crop.end());
-        return crop;
     }
     auto local_mode()
     {
@@ -1142,7 +1142,7 @@ namespace netxs::os
                 }
 
             #endif
-            if (auto term = os::get_env("TERM"); term.size())
+            if (auto term = os::env::get("TERM"); term.size())
             {
                 log("  os: terminal type \"", term, "\"");
 
@@ -1184,7 +1184,7 @@ namespace netxs::os
                     }
                 }
 
-                if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
+                if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
                 {
                     log("  os: macOS Apple_Terminal detected");
                     if (!(mode & legacy::vga16)) mode |= legacy::vga256;
@@ -2509,15 +2509,13 @@ namespace netxs::os
 
     namespace ipc
     {
-        class iobase
+        struct iobase
         {
-        protected:
             using flux = std::ostream;
 
             bool active{};
             text buffer{}; // ipc::iobase: Receive buffer.
 
-        public:
             virtual ~iobase()
             { }
             operator bool () { return active; }
@@ -2552,13 +2550,12 @@ namespace netxs::os
         };
 
         template<role ROLE>
-        class memory
+        struct memory
             : public iobase
         {
             sptr<fifo> server;
             sptr<fifo> client;
 
-        public:
             memory(sptr<fifo> srv_queue, sptr<fifo> clt_queue)
                 : server{ srv_queue },
                   client{ clt_queue }
@@ -2598,12 +2595,11 @@ namespace netxs::os
             }
         };
 
-        class stdpty
+        struct stdpty
             : public iobase
         {
             file handle; // ipc::stdpty: Stdio file descriptor.
 
-        public:
             stdpty() = default;
             stdpty(fd_t r, fd_t w)
                 : handle{ r, w }
@@ -2617,10 +2613,6 @@ namespace netxs::os
                 handle = { r, w };
                 active = true;
                 buffer.resize(PIPE_BUF);
-            }
-            auto& get_w()
-            {
-                return handle.get_w();
             }
             qiew recv(char* buff, size_t size) override
             {
@@ -2638,7 +2630,7 @@ namespace netxs::os
             {
                 auto data = buff.data();
                 auto size = buff.size();
-                return os::send<true>(handle.get_w(), data, size);
+                return os::send<true>(handle.w, data, size);
             }
             void shut() override
             {
@@ -2655,18 +2647,25 @@ namespace netxs::os
             }
         };
 
-        class socket
+        struct socket
             : public iobase
         {
             file handle; // ipc:socket: Socket file descriptor.
             text scpath; // ipc:socket: Socket path (in order to unlink).
             fire signal; // ipc:socket: Interruptor.
 
-        public:
-            socket(file descriptor = {})
-                : handle{ std::move(descriptor) }
+            socket(file& fd)
+                : handle{ std::move(fd) }
             {
-                if (handle) init();
+                active = true;
+                buffer.resize(PIPE_BUF);
+            }
+            socket(fd_t r, fd_t w, text path)
+                : handle{ r, w }
+            {
+                active = true;
+                buffer.resize(PIPE_BUF);
+                scpath = path;
             }
            ~socket()
             {
@@ -2680,23 +2679,6 @@ namespace netxs::os
                 #endif
             }
 
-            void set_path(text path)
-            {
-                scpath = path;
-            }
-            void init(si32 buff_size = PIPE_BUF)
-            {
-                active = true;
-                buffer.resize(buff_size);
-            }
-            auto& get_r()
-            {
-                return handle.get_r();
-            }
-            auto& get_w()
-            {
-                return handle.get_w();
-            }
             template<class T>
             auto cred(T id) const // Check peer cred.
             {
@@ -2714,7 +2696,7 @@ namespace netxs::os
                         auto size = unsigned{ sizeof(cred) };
                     #endif
 
-                    if (!ok(::getsockopt(handle.get_r(), SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt(SOL_SOCKET) failed"))
+                    if (!ok(::getsockopt(handle.r, SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt(SOL_SOCKET) failed"))
                     {
                         return faux;
                     }
@@ -2735,7 +2717,7 @@ namespace netxs::os
                     auto euid = uid_t{};
                     auto egid = gid_t{};
 
-                    if (!ok(::getpeereid(handle.get_r(), &euid, &egid), "getpeereid failed"))
+                    if (!ok(::getpeereid(handle.r, &euid, &egid), "getpeereid failed"))
                     {
                         return faux;
                     }
@@ -2792,14 +2774,14 @@ namespace netxs::os
                         return next_waiting_point;
                     };
 
-                    auto r = next_link(handle.get_r(), to_server, PIPE_ACCESS_INBOUND);
+                    auto r = next_link(handle.r, to_server, PIPE_ACCESS_INBOUND);
                     if (r == INVALID_FD)
                     {
                         return active ? os::fail("::CreateNamedPipe unexpected (read)")
                                       : nothing{};
                     }
 
-                    auto w = next_link(handle.get_w(), to_client, PIPE_ACCESS_OUTBOUND);
+                    auto w = next_link(handle.w, to_client, PIPE_ACCESS_OUTBOUND);
                     if (w == INVALID_FD)
                     {
                         ::CloseHandle(r);
@@ -2807,7 +2789,7 @@ namespace netxs::os
                                       : nothing{};
                     }
 
-                    auto connector = std::make_shared<ipc::socket>(std::move(handle));
+                    auto connector = std::make_shared<ipc::socket>(handle);
                     handle = { r, w };
 
                     return connector;
@@ -2817,9 +2799,9 @@ namespace netxs::os
                     auto result = std::shared_ptr<ipc::socket>{};
                     auto h_proc = [&]
                     {
-                        auto h = ::accept(handle.get_r(), 0, 0);
+                        auto h = ::accept(handle.r, 0, 0);
                         auto s = file{ h, h };
-                        if (s) result = std::make_shared<ipc::socket>(std::move(s));
+                        if (s) result = std::make_shared<ipc::socket>(s);
                     };
                     auto f_proc = [&]
                     {
@@ -2827,8 +2809,8 @@ namespace netxs::os
                         signal.flush();
                     };
 
-                    os::select(handle.get_r(), h_proc,
-                               signal        , f_proc);
+                    os::select(handle.r, h_proc,
+                               signal  , f_proc);
 
                     return result;
 
@@ -2850,7 +2832,7 @@ namespace netxs::os
             {
                 auto data = buff.data();
                 auto size = buff.size();
-                return os::send<faux>(handle.get_w(), data, size);
+                return os::send<faux>(handle.w, data, size);
             }
             void abort()
             {
@@ -2865,8 +2847,8 @@ namespace netxs::os
                     auto to_client = WR_PIPE_PATH + scpath;
                     auto to_server = RD_PIPE_PATH + scpath;
                     // This may fail, but this is ok - it means the client is already disconnected.
-                    if (handle.get_w() != INVALID_FD) ::DeleteFileA(to_client.c_str());
-                    if (handle.get_r() != INVALID_FD) ::DeleteFileA(to_server.c_str());
+                    if (handle.w != INVALID_FD) ::DeleteFileA(to_client.c_str());
+                    if (handle.r != INVALID_FD) ::DeleteFileA(to_server.c_str());
                     handle.close();
 
                 #else
@@ -2882,8 +2864,8 @@ namespace netxs::os
 
                     // Disconnection order does matter.
                     // This may fail, but this is ok - it means the client is already disconnected.
-                    if (handle.get_w() != INVALID_FD) ::DisconnectNamedPipe(handle.get_w());
-                    if (handle.get_r() != INVALID_FD) ::DisconnectNamedPipe(handle.get_r());
+                    if (handle.w != INVALID_FD) ::DisconnectNamedPipe(handle.w);
+                    if (handle.r != INVALID_FD) ::DisconnectNamedPipe(handle.r);
 
                 #else
 
@@ -2896,8 +2878,8 @@ namespace netxs::os
                     //            — it just changes its usability.
                     //To free a socket descriptor, you need to use close()."
 
-                    log("xipc: shutdown: handle descriptor: ", handle.get_r());
-                    if (!ok(::shutdown(handle.get_r(), SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
+                    log("xipc: shutdown: handle descriptor: ", handle.r);
+                    if (!ok(::shutdown(handle.r, SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
                     {
                         switch (errno)
                         {
@@ -2922,9 +2904,8 @@ namespace netxs::os
         auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
             -> std::shared_ptr<ipc::socket>
         {
-            auto sock_ptr = std::make_shared<ipc::socket>();
-            auto& r_sock = sock_ptr->get_r();
-            auto& w_sock = sock_ptr->get_w();
+            auto r = INVALID_FD;
+            auto w = INVALID_FD;
 
             auto try_start = [&](auto play) -> bool
             {
@@ -2955,7 +2936,6 @@ namespace netxs::os
                 //security_descriptor pipe_acl(security_descriptor_string);
                 //log("pipe: DACL=", pipe_acl.security_string);
 
-                sock_ptr->set_path(path);
                 auto to_server = RD_PIPE_PATH + path;
                 auto to_client = WR_PIPE_PATH + path;
 
@@ -2980,21 +2960,18 @@ namespace netxs::os
                                                   NULL);                    // DACL
                     };
 
-                    auto r = pipe(to_server, PIPE_ACCESS_INBOUND);
+                    r = pipe(to_server, PIPE_ACCESS_INBOUND);
                     if (r == INVALID_FD)
                     {
                         return os::fail("::CreateNamedPipe unexpected (read)");
                     }
 
-                    auto w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
+                    w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
                     if (w == INVALID_FD)
                     {
                         ::CloseHandle(r);
                         return os::fail("::CreateNamedPipe unexpected (write)");
                     }
-
-                    r_sock = r;
-                    w_sock = w;
 
                     DWORD inpmode = 0;
                     ok(::GetConsoleMode(STDIN_FD , &inpmode), "::GetConsoleMode(STDIN_FD) unexpected");
@@ -3024,21 +3001,18 @@ namespace netxs::os
                     };
                     auto play = [&]
                     {
-                        auto w = pipe(to_server, GENERIC_WRITE);
+                        w = pipe(to_server, GENERIC_WRITE);
                         if (w == INVALID_FD)
                         {
                             return faux;
                         }
 
-                        auto r = pipe(to_client, GENERIC_READ);
+                        r = pipe(to_client, GENERIC_READ);
                         if (r == INVALID_FD)
                         {
                             ::CloseHandle(w);
                             return faux;
                         }
-
-                        r_sock = r;
-                        w_sock = w;
                         return true;
                     };
                     if (!try_start(play))
@@ -3074,11 +3048,11 @@ namespace netxs::os
                     return os::fail("socket path too long");
                 }
 
-                if ((w_sock = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
+                if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
                 {
                     return os::fail("open unix domain socket error");
                 }
-                r_sock = w_sock;
+                r = w;
 
                 addr.sun_family = AF_UNIX;
                 auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
@@ -3086,7 +3060,7 @@ namespace netxs::os
 
                 auto play = [&]
                 {
-                    return -1 != ::connect(r_sock, (struct sockaddr*)&addr, sock_addr_len);
+                    return -1 != ::connect(r, (struct sockaddr*)&addr, sock_addr_len);
                 };
 
                 if constexpr (ROLE == role::server)
@@ -3096,7 +3070,7 @@ namespace netxs::os
                         {
                             if (play())
                             {
-                                os::close(r_sock);
+                                os::close(r);
                                 return os::fail("server already running");
                             }
                             else
@@ -3107,22 +3081,21 @@ namespace netxs::os
                         }
                     #endif
 
-                    sock_ptr->set_path(path); // For unlink on exit (file system socket).
-
-                    if (::bind(r_sock, (struct sockaddr*)&addr, sock_addr_len) == -1)
+                    if (::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
                     {
-                        os::close(r_sock);
+                        os::close(r);
                         return os::fail("error unix socket bind for ", path);
                     }
 
-                    if (::listen(r_sock, 5) == -1)
+                    if (::listen(r, 5) == -1)
                     {
-                        os::close(r_sock);
+                        os::close(r);
                         return os::fail("error listen socket for ", path);
                     }
                 }
                 else if constexpr (ROLE == role::client)
                 {
+                    path.clear(); // No need to unlink a file system socket on client disconnect.
                     if (!try_start(play))
                     {
                         return os::fail("connection error");
@@ -3131,8 +3104,7 @@ namespace netxs::os
 
             #endif
 
-            sock_ptr->init();
-            return sock_ptr;
+            return std::make_shared<ipc::socket>(r, w, path);
         }
         auto local()
         {
@@ -3783,7 +3755,6 @@ namespace netxs::os
 
             log(" tty: id: ", std::this_thread::get_id(), " reading thread ended");
         }
-
         void clipbd(si32 mode)
         {
             if (mode & legacy::direct) return;
@@ -4296,7 +4267,7 @@ namespace netxs::os
                     os::fdcleanup();
 
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
-                    if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
+                    if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
                     {
                         ::setenv("TERM_PROGRAM", "vtm", 1);
                     }
@@ -4443,7 +4414,7 @@ namespace netxs::os
                     auto winsz = winsize{};
                     winsz.ws_col = newsize.x;
                     winsz.ws_row = newsize.y;
-                    ok(::ioctl(termlink.get_w(), TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
+                    ok(::ioctl(termlink.handle.w, TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
 
                 #endif
             }

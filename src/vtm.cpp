@@ -152,8 +152,8 @@ int main(int argc, char* argv[])
     else
     {
         auto userid = os::user();
-        auto usernm = os::get_env("USER");
-        auto hostip = os::get_env("SSH_CLIENT");
+        auto usernm = os::env::get("USER");
+        auto hostip = os::env::get("SSH_CLIENT");
         auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
         auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
 

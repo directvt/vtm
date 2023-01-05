@@ -936,7 +936,7 @@ R"==(
                 if (path.starts_with("$"))
                 {
                     auto temp = path.substr(1);
-                    path = os::get_env(temp);
+                    path = os::env::get(temp);
                     if (path.empty()) return faux;
                     log('\t', temp, " = ", path);
                 }
@@ -975,7 +975,7 @@ R"==(
                 log("apps: fallback to hardcoded configuration");
             }
 
-            os::set_env(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
+            os::env::set(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
 
             conf.fuse<Print>(patch);
             return conf;
