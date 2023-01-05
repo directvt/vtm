@@ -20,7 +20,9 @@ enum class type
 {
     client,
     server,
+    daemon,
     runapp,
+    config,
 };
 
 int main(int argc, char* argv[])
@@ -31,169 +33,97 @@ int main(int argc, char* argv[])
     auto whoami = type::client;
     auto params = text{};
     auto cfpath = text{};
-    auto daemon = faux;
-    auto getopt = os::args{ argc, argv };
+    auto errmsg = text{};
     auto vtpipe = text{};
+    auto getopt = os::args{ argc, argv };
     while (getopt)
     {
-        auto key = getopt.next();
-        log("key ", (int)key);
-        switch (key)
+        if (getopt.match("-r", "--runapp"))
         {
-            case 'r':
-                whoami = type::runapp;
-                params = getopt ? getopt.tail() : text{ DESKTOPIO_DEFAPP };
-                break;
-            case 's':
-                whoami = type::server;
-                break;
-            case 'd':
-                daemon = true;
-                break;
-            case 'l':
-                log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::legacy::get_setup()));
-                return 0;
-            case 'c':
-                cfpath = getopt.param();
-                if (cfpath.size()) break;
-                else os::fail("config file path not specified");
-            case 'p':
-                vtpipe = getopt.param();
-                if (vtpipe.size()) break;
-                else os::fail("custom pipe not specified");
-            default:
-                banner();
-                log("Usage:\n\n ", os::current_module_file(), " [ -c <config_file> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
-                    + "\n"s
-                    + " No arguments\tRun client, auto start server if is not started.\n"s
-                        + "\t-c <..>\tUse specified configuration file.\n"s
-                        + "\t-l\tShow configuration and exit.\n"s
-                        + "\t-d\tRun server in background.\n"s
-                        + "\t-s\tRun server in interactive mode.\n"s
-                        + "\t-r <..>\tRun standalone application.\n"s
-                        + "\t-p <..>\tSet the pipe to connect to.\n"s
-                        + "\n"s
-                        + "\tConfiguration file location precedence (descending priority):\n\n"s
-                        + "\t\t1. Command line options; e.g., vtm -c path/to/settings.xml\n"s
-                        + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
-                        + "\t\t3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
-                        + "\t\t4. Default configuration\n"s
-                        + "\n"s
-                        + "\tList of registered applications:\n\n"s
-                        + "\t\tTerm\tTerminal emulator (default)\n"s
-                        + "\t\tText\t(Demo) Text editor\n"s
-                        + "\t\tCalc\t(Demo) Spreadsheet calculator\n"s
-                        + "\t\tGems\t(Demo) Desktopio application manager\n"s
-                        );
-                return 0;
+            whoami = type::runapp;
+            params = getopt ? getopt.rest() : text{ DESKTOPIO_DEFAPP };
         }
-    }
-
-    if (daemon)
-    {
-        auto cmdarg = text{};
-        if (vtpipe.size()) cmdarg += "-p " + vtpipe + " ";
-        if (cfpath.size()) cmdarg += "-c " + cfpath + " ";
-        cmdarg += "-s";
-        if (!os::daemonize(os::current_module_file(), cmdarg)) //todo pass config os::legacy::get_setup()
+        else if (getopt.match("-s", "--server"))
         {
-            banner();
-            os::fail("failed to daemonize");
-            return 1;
+            whoami = type::server;
         }
-        else whoami = type::server;
+        else if (getopt.match("-d", "--daemon"))
+        {
+            whoami = type::daemon;
+        }
+        else if (getopt.match("-l", "--showconfig"))
+        {
+            whoami = type::config;
+        }
+        else if (getopt.match("-c", "--config"))
+        {
+            cfpath = getopt.next();
+            if (cfpath.empty())
+            {
+                errmsg = "config file path not specified";
+                break;
+            }
+        }
+        else if (getopt.match("-p", "--pipe"))
+        {
+            vtpipe = getopt.next();
+            if (vtpipe.empty())
+            {
+                errmsg = "custom pipe not specified";
+                break;
+            }
+        }
+        else if (getopt.match("-?", "-h", "--help"))
+        {
+            errmsg = ansi::nil().add("Show usage message.");
+            break;
+        }
+        else if (getopt.match("--"))
+        {
+            break;
+        }
+        else
+        {
+            errmsg = utf::concat("unknow command line parameter '", getopt.next(), "'");
+            break;
+        }
     }
 
     banner();
-    auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
-
-    if (whoami == type::server)
+    if (errmsg.size())
     {
-        auto userid = os::user();
-        auto usernm = os::get_env("USER");
-        auto hostip = os::get_env("SSH_CLIENT");
-        auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
-        auto server = os::ipc::open<os::server>(prefix);
-        if (!server)
-        {
-            os::fail("can't start desktopio server");
-            return 1;
-        }
-        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
-        config.cd("/config/appearance/defaults/");
-        auto ground = base::create<hall>(server, config);
-        auto thread = os::pool{};
-        app::shared::activate(ground, config);
-
-        log("main: listening socket ", server,
-                         "\n\tuser: ", userid,
-                         "\n\tpipe: ", prefix);
-
-        while (auto client = server->meet())
-        {
-            if (!client->cred(userid))
-            {
-                os::fail("foreign users are not allowed to the session");
-                continue;
-            }
-
-            thread.run([&, client](auto session_id)
-            {
-                if (auto window = ground->invite<gate>(client, session_id, config))
-                {
-                    log("user: new gate for ", client);
-                    auto patch = ""s;
-                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
-                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems;About;", config, patch);
-                    window->launch(client, deskmenu, bkground);
-                    log("user: ", client, " logged out");
-                }
-            });
-        }
-
-        SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
-        ground->shutdown();
+        os::fail(errmsg);
+        log("Usage:\n\n ", os::current_module_file(), " [ -c <file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
+            + "\n"s
+            + " No arguments\tRun client, auto start server if is not started.\n"s
+                + "\t-c | --config <..>\tUse specified configuration file.\n"s
+                + "\t-p | --pipe   <..>\tSet the pipe to connect to.\n"s
+                + "\t-l | --listconfig \tShow configuration and exit.\n"s
+                + "\t-d | --daemon     \tRun server in background.\n"s
+                + "\t-s | --server     \tRun server in interactive mode.\n"s
+                + "\t-r | --runapp <..>\tRun standalone application.\n"s
+                + "\t-? | -h | --help  \tShow usage message.\n"s
+                + "\n"s
+                + "\tConfiguration file location precedence (descending priority):\n\n"s
+                + "\t\t1. Command line options; e.g., vtm -c path/to/settings.xml\n"s
+                + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
+                + "\t\t3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
+                + "\t\t4. Default configuration\n"s
+                + "\n"s
+                + "\tList of registered applications:\n\n"s
+                + "\t\tTerm\tTerminal emulator (default)\n"s
+                + "\t\tText\t(Demo) Text editor\n"s
+                + "\t\tCalc\t(Demo) Spreadsheet calculator\n"s
+                + "\t\tGems\t(Demo) Desktopio application manager\n"s
+                );
     }
-    else if (whoami == type::client)
+    else if (whoami == type::config)
     {
-        auto direct = !!(vtmode & os::legacy::direct);
-        if (!direct) os::start_log(DESKTOPIO_MYPATH);
-        auto userid = os::user();
-        auto usernm = os::get_env("USER");
-        auto hostip = os::get_env("SSH_CLIENT");
-        auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
-        auto client = os::ipc::open<os::client>(prefix, 10s, [&]
-                    {
-                        log("main: new desktopio environment for user ", userid);
-                        auto binary = os::current_module_file();
-                        auto cmdarg = text{};
-                        if (vtpipe.size()) cmdarg += "-p " + vtpipe + " ";
-                        if (cfpath.size()) cmdarg += "-c " + cfpath + " ";
-                        cmdarg += "-d";
-                        return os::exec(binary, cmdarg); //todo pass config
-                    });
-        if (!client)
-        {
-            os::fail("no desktopio server connection");
-            return 1;
-        }
-        auto init = ansi::dtvt::binary::startdata_t{};
-        init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
-        init.send([&](auto& data){ client->send(data); });
-
-        if (direct) os::tty::direct(client);
-        else
-        {
-            auto cons = os::tty::proxy(client);
-            auto size = cons.ignite(vtmode);
-            if (size.last)
-            {
-                os::ipc::splice(cons, vtmode);
-            }
-        }
+        log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::legacy::get_setup()));
     }
     else if (whoami == type::runapp)
     {
+        auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
         auto shadow = params;
         utf::to_low(shadow);
              if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
@@ -216,6 +146,102 @@ int main(int argc, char* argv[])
         {
             os::fail("console initialization error");
             return 1;
+        }
+    }
+    else
+    {
+        auto userid = os::user();
+        auto usernm = os::get_env("USER");
+        auto hostip = os::get_env("SSH_CLIENT");
+        auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
+        auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
+
+        if (whoami == type::client)
+        {
+            auto direct = !!(vtmode & os::legacy::direct);
+            if (!direct) os::start_log(DESKTOPIO_MYPATH);
+            auto client = os::ipc::open<os::client>(prefix, 10s, [&]
+                        {
+                            log("main: new desktopio environment for user ", userid);
+                            auto cmdarg = utf::concat(os::current_module_file(), " ",
+                                                      vtpipe.size() ? "-p " + vtpipe + " " : ""s,
+                                                      cfpath.size() ? "-c " + cfpath + " " : ""s, "-d");
+                            //todo use fork for POSIX
+                            return os::exec(cmdarg); //todo win32 pass config
+                        });
+            if (!client)
+            {
+                os::fail("no desktopio server connection");
+                return 1;
+            }
+            auto init = ansi::dtvt::binary::startdata_t{};
+            init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
+            init.send([&](auto& data){ client->send(data); });
+
+            if (direct) os::tty::direct(client);
+            else
+            {
+                auto cons = os::tty::proxy(client);
+                auto size = cons.ignite(vtmode);
+                if (size.last)
+                {
+                    os::ipc::splice(cons, vtmode);
+                }
+            }
+        }
+        else // type::server/daemon 
+        {
+            //todo win32: load parent config
+            if (whoami == type::daemon)
+            {
+                auto cmdarg = utf::concat("-p ", prefix, " -s");
+                if (!os::daemonize(cmdarg)) //todo win32: pass config
+                {
+                    os::fail("failed to daemonize");
+                    return 1;
+                }
+            }
+            
+            auto server = os::ipc::open<os::server>(prefix);
+            if (!server)
+            {
+                os::fail("can't start desktopio server");
+                return 1;
+            }
+            auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
+            config.cd("/config/appearance/defaults/");
+            auto ground = base::create<hall>(server, config);
+            auto thread = os::pool{};
+            app::shared::activate(ground, config);
+
+            log("main: listening socket ", server,
+                             "\n\tuser: ", userid,
+                             "\n\tpipe: ", prefix);
+
+            while (auto client = server->meet())
+            {
+                if (!client->cred(userid))
+                {
+                    os::fail("foreign users are not allowed to the session");
+                    continue;
+                }
+
+                thread.run([&, client](auto session_id)
+                {
+                    if (auto window = ground->invite<gate>(client, session_id, config))
+                    {
+                        log("user: new gate for ", client);
+                        auto patch = ""s;
+                        auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
+                        auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems;About;", config, patch);
+                        window->launch(client, deskmenu, bkground);
+                        log("user: ", client, " logged out");
+                    }
+                });
+            }
+
+            SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
+            ground->shutdown();
         }
     }
 }

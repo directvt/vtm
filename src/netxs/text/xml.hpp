@@ -768,7 +768,7 @@ namespace netxs::xml
         }
         auto name(view& data)
         {
-            auto item = utf::get_tail(data, token_delims);
+            auto item = text{ utf::get_tail(data, token_delims) };
             utf::to_low(item);
             return item;
         }

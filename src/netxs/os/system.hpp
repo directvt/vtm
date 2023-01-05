@@ -183,70 +183,83 @@ namespace netxs::os
 
     class args
     {
-        int    argc;
-        char** argv;
-        int    iter;
+        using list = std::list<text>;
+        using it_t = list::iterator;
+
+        list data{};
+        it_t iter{};
+
+        // args: Recursive argument matching.
+        template<class I>
+        auto test(I&& item) { return faux; }
+        // args: Recursive argument matching.
+        template<class I, class T, class ...Args>
+        auto test(I&& item, T&& sample, Args&&... args)
+        {
+            return item == sample || test(item, std::forward<Args>(args)...);
+        }
 
     public:
-        args(int argc, char** argv)
-            : argc{ argc }, argv{ argv }, iter{ 1 }
-        { }
+        // args: Split command line option on tokens.
+        static auto split(view line)
+        {
+            auto args = list{};
+            line = utf::trim(line);
+            while (line.size())
+            {
+                auto item = utf::get_token(line);
+                if (item.size()) args.emplace_back(item);
+            }
+            return args;
+        }
 
-        // args: Returns true if not end.
-        operator bool () const { return iter < argc; }
-        // args: Return the next argument starting with '-' or '/' (skip others).
+        args(int argc, char** argv)
+        {
+            auto head = argv + 1;
+            auto tail = argv + argc;
+            while (head != tail)
+            {
+                log('[', *head, ']');
+                data.splice(data.end(), split(*head++));
+            }
+            reset();
+        }
+
+        // args: Reset arg iterator to begin.
+        void reset()
+        {
+            iter = data.begin();
+        }
+        // args: Return true if not the end.
+        operator bool () const { return iter != data.end(); }
+        // args: Test the current argument and step forward if met.
+        template<class ...Args>
+        auto match(Args&&... args)
+        {
+            auto result = iter != data.end() && test(*iter, std::forward<Args>(args)...);
+            if (result) ++iter;
+            return result;
+        }
+        // args: Return current argument and step forward.
+        template<class ...Args>
         auto next()
         {
-            if (iter < argc)
-            {
-                if (*(argv[iter]) == '-' || *(argv[iter]) == '/')
-                {
-                    return *(argv[iter++] + 1);
-                }
-                ++iter;
-            }
-            return '\0';
-        }
-        // args: Return parameter.
-        auto param()
-        {
-            auto crop = text{};
-            if (iter < argc)
-            {
-                auto arg = view{ argv[iter++] };
-                if (arg.find(' ') == view::npos)
-                {
-                    crop += arg;
-                }
-                else
-                {
-                    crop.push_back('\"');
-                    crop += arg;
-                    crop.push_back('\"');
-                }
-            }
-            return crop;
+            return iter != data.end() ? view{ *iter++ }
+                                      : view{};
         }
         // args: Return the rest of the command line arguments.
-        auto tail()
+        auto rest()
         {
             auto crop = text{};
-            while (iter < argc)
+            if (iter != data.end())
             {
-                auto arg = view{ argv[iter++] };
-                if (arg.find(' ') == view::npos)
+                crop += *iter++;
+                while (iter != data.end())
                 {
-                    crop += arg;
+                    crop.push_back(' ');
+                    crop += *iter++;
                 }
-                else
-                {
-                    crop.push_back('\"');
-                    crop += arg;
-                    crop.push_back('\"');
-                }
-                crop.push_back(' ');
             }
-            if (!crop.empty()) crop.pop_back(); // Pop last space.
             return crop;
         }
     };
@@ -1347,95 +1360,75 @@ namespace netxs::os
             os::fail("can't get current module file path, fallback to '", DESKTOPIO_MYPATH, "`");
             result = DESKTOPIO_MYPATH;
         }
+        auto c = result.front();
+        if (c != '\"' && c != '\'' && result.find(' ') != text::npos)
+        {
+            result = '\"' + result + '\"';
+        }
         return result;
     }
-    auto split_cmdline(view cmdline)
+    auto execvp(text cmdline)
     {
-        auto args = std::vector<text>{};
-        auto mark = '\0';
-        auto temp = text{};
-        temp.reserve(cmdline.length());
-
-        auto push = [&]
-        {
-            args.push_back(temp);
-            temp.clear();
-        };
-
-        for (auto c : cmdline)
-        {
-            if (mark)
-            {
-                if (c != mark)
-                {
-                    temp.push_back(c);
-                }
-                else
-                {
-                    mark = '\0';
-                    push();
-                }
-            }
-            else
-            {
-                if (c == ' ')
-                {
-                    if (temp.length()) push();
-                }
-                else
-                {
-                    if (c == '\'' || c == '"') mark = c;
-                    else                       temp.push_back(c);
-                }
-            }
-        }
-        if (temp.length()) push();
-
-        return args;
-    }
-    template<bool Quiet = faux>
-    auto exec(text binary, text params = {}, int window_state = 0)
-    {
-        if constexpr (!Quiet) log("exec: '", binary, params.empty() ? "'"s : " " + params + "'");
         #if defined(_WIN32)
+        #else
 
-            auto ShExecInfo = ::SHELLEXECUTEINFO{};
-            ShExecInfo.cbSize = sizeof(::SHELLEXECUTEINFO);
+            if (auto args = os::args::split(cmdline); args.size())
+            {
+                auto& binary = args.front();
+                if (binary.size() > 2) // Remove quotes,
+                {
+                    auto c = binary.front();
+                    if (binary.back() == c && (c == '\"' || c == '\''))
+                    {
+                        binary = binary.substr(1, binary.size() - 2);
+                    }
+                }
+                auto argv = std::vector<char*>{};
+                for (auto& c : args)
+                {
+                    argv.push_back(c.data());
+                }
+                argv.push_back(nullptr);
+                ::execvp(argv.front(), argv.data());
+            }
+
+        #endif
+    }
+    template<bool Logs = true>
+    auto exec(text cmdline)
+    {
+        if constexpr (Logs) log("exec: '" + cmdline + "'");
+        #if defined(_WIN32)
+            
+            auto shadow = view{ cmdline };
+            auto binary = utf::to_utf(utf::get_token(shadow));
+            auto params = utf::to_utf(shadow);
+            auto ShExecInfo = ::SHELLEXECUTEINFOW{};
+            ShExecInfo.cbSize = sizeof(::SHELLEXECUTEINFOW);
             ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
             ShExecInfo.hwnd = NULL;
             ShExecInfo.lpVerb = NULL;
             ShExecInfo.lpFile = binary.c_str();
             ShExecInfo.lpParameters = params.c_str();
             ShExecInfo.lpDirectory = NULL;
-            ShExecInfo.nShow = window_state;
+            ShExecInfo.nShow = 0;
             ShExecInfo.hInstApp = NULL;
-            if (::ShellExecuteEx(&ShExecInfo)) return true;
+            if (::ShellExecuteExW(&ShExecInfo)) return true;
 
         #else
 
             auto p_id = ::fork();
             if (p_id == 0) // Child branch.
             {
-                auto args = os::split_cmdline(params);
-                auto argv = std::vector<char*>{};
-                argv.push_back(binary.data());
-                for (auto& c : args)
-                {
-                    argv.push_back(c.data());
-                }
-                argv.push_back(nullptr);
-
-                os::fdcleanup();
-                ::execvp(argv[0], argv.data());
-                std::cerr << "exec: error " << errno << "\n" << std::flush;
-                os::exit(errno);
+                os::execvp(cmdline);
+                auto errcode = errno;
+                if constexpr (Logs) os::fail("exec: failed to spawn '", cmdline, "'");
+                os::exit(errcode);
             }
-
-            if (p_id > 0) // Parent branch.
+            else if (p_id > 0) // Parent branch.
             {
                 auto stat = int{};
                 ::waitpid(p_id, &stat, 0); // Wait for the child to avoid zombies.
-
                 if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
                 {
                     return true; // Child forked and exited successfully.
@@ -1443,7 +1436,7 @@ namespace netxs::os
             }
 
         #endif
-        log("exec: failed to spawn '", binary, "' with args '", params, "', error ", os::error());
+        if constexpr (Logs) os::fail("exec: failed to spawn '", cmdline, "'");
         return faux;
     }
     void start_log(text srv_name)
@@ -1477,11 +1470,12 @@ namespace netxs::os
         }
         else std::cout << data << std::flush;
     }
-    auto daemonize(text srv_name, text params)
+    auto daemonize(text params)
     {
         #if defined(_WIN32)
 
-            if (os::exec<true>(srv_name, params))
+            auto srv_name = os::current_module_file();
+            if (os::exec<true>(srv_name + " " + params))
             {
                 os::exit(0); // Child forked successfully.
             }
@@ -1493,28 +1487,24 @@ namespace netxs::os
             {
                 os::exit(1, "daemon: fork error");
             }
-
-            if (pid == 0)
-            { // CHILD
+            else if (pid == 0) // Child process.
+            {
                 ::setsid(); // Make this process the session leader of a new session.
-
                 pid = ::fork();
                 if (pid < 0)
                 {
                     os::exit(1, "daemon: fork error");
                 }
-
-                if (pid == 0)
-                { // GRANDCHILD
+                else if (pid == 0) // GrandChild process.
+                {
                     ::umask(0);
+                    auto srv_name = os::current_module_file();
                     os::start_log(srv_name);
-
-                    ::close(STDIN_FD);  // A daemon cannot use the terminal,
+                    ::close(STDIN_FD);  // A daemon cannot use terminal,
                     ::close(STDOUT_FD); // so close standard file descriptors
                     ::close(STDERR_FD); // for security reasons.
                     return true;
                 }
-
                 os::exit(0); // SUCCESS (This child is reaped below with waitpid()).
             }
 
@@ -4297,26 +4287,18 @@ namespace netxs::os
                     ::dup2(fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
                     os::fdcleanup();
 
-                    auto args = os::split_cmdline(cmdline);
-                    auto argv = std::vector<char*>{};
-                    for (auto& c : args)
-                    {
-                        argv.push_back(c.data());
-                    }
-                    argv.push_back(nullptr);
-
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                     if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
                     {
                         ::setenv("TERM_PROGRAM", "vtm", 1);
                     }
-                    ::execvp(argv.front(), argv.data());
 
+                    os::execvp(cmdline);
                     auto errcode = errno;
                     std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
                                                                    " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
                                                                    " cmd: "s + cmdline + " "s).nil() << std::flush;
-                    os::exit(ENOENT);
+                    os::exit(errcode);
                 }
 
                 // Parent branch.
@@ -4341,6 +4323,7 @@ namespace netxs::os
         }
         si32 wait_child()
         {
+            auto guard = std::lock_guard{ writemtx };
             auto exit_code = si32{};
             log("xpty: wait child process, tty=", termlink);
             termlink.stop();
@@ -4504,7 +4487,6 @@ namespace netxs::os
             std::thread               stdinput{};
             std::thread               stdwrite{};
             std::function<void(view)> receiver{};
-            std::function<void(view)> loggerfx{};
             std::function<void(si32)> shutdown{};
             std::function<void(si32)> preclose{};
             text                      writebuf{};
@@ -4663,22 +4645,15 @@ namespace netxs::os
                         {
                             auto err = std::error_code{};
                             fs::current_path(cwd, err);
-                            if (err) log("dtvt: failed to change current working directory to '", cwd, "', error code: ", err.value());
-                            else     log("dtvt: change current working directory to '", cwd, "'");
+                            //todo use dtvt to log
+                            //if (err) os::fail("dtvt: failed to change current working directory to '", cwd, "', error code: ", err.value());
+                            //else     log("dtvt: change current working directory to '", cwd, "'");
                         }
 
-                        auto args = os::split_cmdline(cmdline);
-                        auto argv = std::vector<char*>{};
-                        for (auto& c : args)
-                        {
-                            argv.push_back(c.data());
-                        }
-                        argv.push_back(nullptr);
-
-                        ::execvp(argv.front(), argv.data());
-
+                        os::execvp(cmdline);
                         auto errcode = errno;
-                        log("dtvt: exec error, errno=", errcode);
+                        //todo use dtvt to log
+                        //os::fail("dtvt: exec error");
                         ::close(STDOUT_FD);
                         ::close(STDIN_FD );
                         os::exit(errcode);
@@ -4711,6 +4686,7 @@ namespace netxs::os
             }
             si32 wait_child()
             {
+                auto guard = std::lock_guard{ writemtx };
                 auto exit_code = si32{};
                 log("dtvt: wait child process, tty=", termlink);
                 if (termlink)

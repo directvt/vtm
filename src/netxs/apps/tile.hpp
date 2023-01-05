@@ -789,7 +789,7 @@ namespace netxs::app::tile
             else  // Add application.
             {
                 utf::trim_front(utf8, " ");
-                auto app_id = utf::get_tail(utf8, " ,)");
+                auto app_id = text{ utf::get_tail(utf8, " ,)") };
                 if (app_id.empty()) return place;
 
                 utf::trim_front(utf8, " ,");

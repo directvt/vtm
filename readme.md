@@ -226,17 +226,18 @@ vtm
 
 # Command line Options `vtm(.exe)`
 
- `vtm [ -c <config_file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]`
+ `vtm [ -c <file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]`
 
-Option         | Description
----------------|-------------------------------------------------------
-No arguments   | Run client (auto start server)
-` -c <file> `  | Use specified configuration file
-` -p <pipe> `  | Set the pipe to connect to
-` -l `         | Show configuration and exit
-` -d `         | Run server in background
-` -s `         | Run server in interactive mode
-` -r [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
+Option                    | Description
+--------------------------|-------------------------------------------------------
+No arguments              | Run client (auto start server)
+` -c | --config <file> `  | Use specified configuration file
+` -p | --pipe <pipe> `    | Set the pipe to connect to
+` -l | --listconfig `     | Show configuration and exit
+` -d | --daemon `         | Run server in background
+` -s | --server `         | Run server in interactive mode
+` -r | --runapp [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
+` -? | -h | --help `      | Show usage message.
 
 Configuration file location precedence (descending priority):<br>
 1. Command line options `vtm -c path/to/settings.xml`<br>
