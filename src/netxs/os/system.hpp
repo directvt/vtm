@@ -607,8 +607,8 @@ namespace netxs::os
             }
             else
             {
-                os::close(r);
                 os::close(w);
+                os::close(r);
             }
         }
         void shutdown() // Reset writing end of the pipe to interrupt reading call.
@@ -2632,8 +2632,7 @@ namespace netxs::os
             }
             void stop() override
             {
-                active = faux;
-                handle.close(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
+                shut();
             }
             flux& show(flux& s) const override
             {
@@ -4700,8 +4699,6 @@ namespace netxs::os
 
                 ansi::dtvt::binary::stream::reading_loop(termlink, receiver);
 
-                termlink.stop(); // Full stop.
-                writesyn.notify_one();
                 preclose(0); //todo send msg from the client app
                 shutdown(wait_child());
                 log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
