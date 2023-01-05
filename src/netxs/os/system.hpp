@@ -99,7 +99,7 @@ namespace netxs::os
 {
     namespace ipc
     {
-        class iobase;
+        struct iobase;
     }
 
     namespace fs = std::filesystem;
@@ -119,6 +119,7 @@ namespace netxs::os
 
     #if defined(_WIN32)
 
+        using pid_t = DWORD;
         using fd_t = HANDLE;
         using conmode = DWORD[2];
         static const auto INVALID_FD   = fd_t{ INVALID_HANDLE_VALUE              };
@@ -1577,7 +1578,7 @@ namespace netxs::os
         auto result = faux;
         #if defined(_WIN32)
 
-            auto mutex = ::CreateMutex(0, 0, mutex_name.c_str());
+            auto mutex = ::CreateMutexA(0, 0, mutex_name.c_str());
             result = ::GetLastError() == ERROR_ALREADY_EXISTS;
             ::CloseHandle(mutex);
 
@@ -2333,13 +2334,12 @@ namespace netxs::os
 
     #endif  // Windows specific
 
-    class fire
+    struct fire
     {
         #if defined(_WIN32)
 
             fd_t h; // fire: Descriptor for IO interrupt.
 
-        public:
             operator auto () { return h; }
             fire(bool i = 1) { ok(h = ::CreateEvent(NULL, i, FALSE, NULL), "CreateEvent error"); }
            ~fire()           { os::close(h); }
@@ -2351,7 +2351,6 @@ namespace netxs::os
             fd_t h[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
             char x = 1;
 
-        public:
             operator auto () { return h[0]; }
             fire()           { ok(::pipe(h), "pipe[2] creation failed"); }
            ~fire()           { for (auto& f : h) os::close(f); }
@@ -2608,12 +2607,6 @@ namespace netxs::os
                 buffer.resize(PIPE_BUF);
             }
 
-            void set(fd_t r, fd_t w)
-            {
-                handle = { r, w };
-                active = true;
-                buffer.resize(PIPE_BUF);
-            }
             qiew recv(char* buff, size_t size) override
             {
                 return os::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
@@ -4037,50 +4030,45 @@ namespace netxs::os
     template<class Term>
     class pty // Note: STA.
     {
+        Term&                   terminal;
+        ipc::stdpty             termlink;
+        std::thread             stdinput;
+        std::thread             stdwrite;
+        std::thread             waitexit;
+        testy<twod>             termsize;
+        pid_t                   proc_pid;
+        fd_t                    prochndl;
+        fd_t                    srv_hndl;
+        fd_t                    ref_hndl;
+        text                    writebuf;
+        std::mutex              writemtx;
+        std::condition_variable writesyn;
+
         #if defined(_WIN32)
 
             #include "consrv.hpp"
-
-            consrv      con_serv;
-            DWORD       proc_pid{ 0          };
-            HANDLE      prochndl{ INVALID_FD };
-            HANDLE      srv_hndl{ INVALID_FD };
-            HANDLE      ref_hndl{ INVALID_FD };
-            std::thread waitexit;
-
-        #else
-
-            pid_t proc_pid = 0;
+            consrv con_serv{ terminal, srv_hndl };
 
         #endif
-
-        Term&                     terminal;
-        ipc::stdpty               termlink;
-        testy<twod>               termsize;
-        std::thread               stdinput;
-        std::thread               stdwrite;
-        text                      writebuf;
-        std::mutex                writemtx;
-        std::condition_variable   writesyn;
 
     public:
+        pty(Term& uiterminal)
+            : terminal{ uiterminal },
+              prochndl{ INVALID_FD },
+              srv_hndl{ INVALID_FD },
+              ref_hndl{ INVALID_FD },
+              proc_pid{            }
+        { }
+       ~pty()
+        {
+            log("xpty: dtor started");
+            stop();
+            log("xpty: dtor complete");
+        }
 
-        #if defined(_WIN32)
+        operator bool () { return connected(); }
 
-            pty(Term& terminal)
-                : terminal{ terminal },
-                  con_serv{ terminal, srv_hndl }
-            { }
-
-        #else
-
-            pty(Term& terminal)
-                : terminal{ terminal }
-            { }
-
-        #endif
-
-        auto connected()
+        bool connected()
         {
             #if defined(_WIN32)
                 return srv_hndl != INVALID_FD;
@@ -4102,28 +4090,71 @@ namespace netxs::os
                 log("xpty: id: ", stdinput.get_id(), " reading thread joining");
                 stdinput.join();
             }
-            #if defined(_WIN32)
+            if (waitexit.joinable())
+            {
                 auto id = waitexit.get_id();
-                if (waitexit.joinable())
-                {
-                    log("xpty: id: ", id, " child process waiter thread joining");
-                    waitexit.join();
-                    log("xpty: id: ", id, " child process waiter thread joined");
-                }
-            #endif
+                log("xpty: id: ", id, " child process waiter thread joining");
+                waitexit.join();
+                log("xpty: id: ", id, " child process waiter thread joined");
+            }
             auto guard = std::lock_guard{ writemtx };
-            writebuf = {};
             termlink = {};
+            writebuf = {};
         }
-       ~pty()
+        auto wait_child()
         {
-            log("xpty: dtor started");
-            stop();
-            log("xpty: dtor complete");
+            auto guard = std::lock_guard{ writemtx };
+            auto exit_code = si32{};
+            log("xpty: wait child process ", proc_pid);
+
+            if (proc_pid != 0)
+            {
+            #if defined(_WIN32)
+
+                os::close( srv_hndl );
+                os::close( ref_hndl );
+                con_serv.stop();
+                auto code = DWORD{ 0 };
+                if (!::GetExitCodeProcess(prochndl, &code))
+                {
+                    log("xpty: GetExitCodeProcess() return code: ", ::GetLastError());
+                }
+                else if (code == STILL_ACTIVE)
+                {
+                    log("xpty: child process still running");
+                    auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
+                    if (!result || !::GetExitCodeProcess(prochndl, &code))
+                    {
+                        ::TerminateProcess(prochndl, 0);
+                        code = 0;
+                    }
+                }
+                else log("xpty: child process exit code 0x", utf::to_hex(code), " (", code, ")");
+                exit_code = code;
+                os::close(prochndl);
+
+            #else
+
+                termlink.stop();
+                auto status = int{};
+                ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
+                ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                if (WIFEXITED(status))
+                {
+                    exit_code = WEXITSTATUS(status);
+                    log("xpty: child process exit code ", exit_code);
+                }
+                else
+                {
+                    exit_code = 0;
+                    log("xpty: warning: child process exit code not detected");
+                }
+
+            #endif
+            }
+            log("xpty: child waiting complete");
+            return exit_code;
         }
-
-        operator bool () { return connected(); }
-
         void start(twod winsz)
         {
             auto cwd     = terminal.curdir;
@@ -4229,7 +4260,7 @@ namespace netxs::os
                 auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
                 auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
 
-                termlink.set(fdm, fdm);
+                termlink = { fdm, fdm };
                 termsize = {};
                 resize(winsz);
 
@@ -4300,82 +4331,32 @@ namespace netxs::os
             }
             cleanup();
         }
-        si32 wait_child()
-        {
-            auto guard = std::lock_guard{ writemtx };
-            auto exit_code = si32{};
-            log("xpty: wait child process, tty=", termlink);
-            termlink.stop();
-
-            if (proc_pid != 0)
-            {
-            #if defined(_WIN32)
-
-                os::close( srv_hndl );
-                os::close( ref_hndl );
-                con_serv.stop();
-                auto code = DWORD{ 0 };
-                if (!::GetExitCodeProcess(prochndl, &code))
-                {
-                    log("xpty: GetExitCodeProcess() return code: ", ::GetLastError());
-                }
-                else if (code == STILL_ACTIVE)
-                {
-                    log("xpty: child process still running");
-                    auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
-                    if (!result || !::GetExitCodeProcess(prochndl, &code))
-                    {
-                        ::TerminateProcess(prochndl, 0);
-                        code = 0;
-                    }
-                }
-                else log("xpty: child process exit code 0x", utf::to_hex(code), " (", code, ")");
-                exit_code = code;
-                os::close(prochndl);
-
-            #else
-
-                auto status = int{};
-                ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
-                ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
-                if (WIFEXITED(status))
-                {
-                    exit_code = WEXITSTATUS(status);
-                    log("xpty: child process exit code ", exit_code);
-                }
-                else
-                {
-                    exit_code = 0;
-                    log("xpty: warning: child process exit code not detected");
-                }
-
-            #endif
-            }
-            log("xpty: child waiting complete");
-            return exit_code;
-        }
         void read_socket_thread()
         {
-            log("xpty: id: ", stdinput.get_id(), " reading thread started");
-            auto flow = text{};
-            while (termlink)
-            {
-                auto shot = termlink.recv();
-                if (shot && termlink)
+            #if not defined(_WIN32)
+
+                log("xpty: id: ", stdinput.get_id(), " reading thread started");
+                auto flow = text{};
+                while (termlink)
                 {
-                    flow += shot;
-                    auto crop = ansi::purify(flow);
-                    terminal.ondata(crop);
-                    flow.erase(0, crop.size()); // Delete processed data.
+                    auto shot = termlink.recv();
+                    if (shot && termlink)
+                    {
+                        flow += shot;
+                        auto crop = ansi::purify(flow);
+                        terminal.ondata(crop);
+                        flow.erase(0, crop.size()); // Delete processed data.
+                    }
+                    else break;
                 }
-                else break;
-            }
-            if (termlink)
-            {
-                auto exit_code = wait_child();
-                terminal.onexit(exit_code);
-            }
-            log("xpty: id: ", stdinput.get_id(), " reading thread ended");
+                if (termlink)
+                {
+                    auto exit_code = wait_child();
+                    terminal.onexit(exit_code);
+                }
+                log("xpty: id: ", stdinput.get_id(), " reading thread ended");
+
+            #endif
         }
         void send_socket_thread()
         {
@@ -4455,13 +4436,8 @@ namespace netxs::os
     {
         class pty
         {
-            #if defined(_WIN32)
-                HANDLE prochndl{ INVALID_FD };
-                DWORD  proc_pid{ 0          };
-            #else
-                pid_t proc_pid = 0;
-            #endif
-
+            fd_t                      prochndl{ INVALID_FD };
+            pid_t                     proc_pid{};
             ipc::stdpty               termlink{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
@@ -4585,7 +4561,7 @@ namespace netxs::os
                         os::close( procsinf.hThread );
                         prochndl = procsinf.hProcess;
                         proc_pid = procsinf.dwProcessId;
-                        termlink.set(m_pipe_r, m_pipe_w);
+                        termlink = { m_pipe_r, m_pipe_w };
                         log("dtvt: pty created: ", winsz);
                     }
                     else log("dtvt: child process creation error ", ::GetLastError());
@@ -4600,7 +4576,7 @@ namespace netxs::os
                     ok(::pipe(to_server), "dtvt: server ipc unexpected result");
                     ok(::pipe(to_client), "dtvt: client ipc unexpected result");
 
-                    termlink.set(to_server[0], to_client[1]);
+                    termlink = { to_server[0], to_client[1] };
                     os::legacy::send_dmd(to_client[1], winsz, config);
 
                     proc_pid = ::fork();
@@ -4657,13 +4633,12 @@ namespace netxs::os
 
                 return proc_pid;
             }
-
             void stop()
             {
                 termlink.shut();
                 writesyn.notify_one();
             }
-            si32 wait_child()
+            auto wait_child()
             {
                 auto guard = std::lock_guard{ writemtx };
                 auto exit_code = si32{};
@@ -4724,8 +4699,7 @@ namespace netxs::os
                 ansi::dtvt::binary::stream::reading_loop(termlink, receiver);
 
                 preclose(0); //todo send msg from the client app
-                auto exit_code = wait_child();
-                shutdown(exit_code);
+                shutdown(wait_child());
                 log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
             }
             void send_socket_thread()
