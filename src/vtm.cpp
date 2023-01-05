@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
         {
             whoami = type::daemon;
         }
-        else if (getopt.match("-l", "--showconfig"))
+        else if (getopt.match("-l", "--listconfig"))
         {
             whoami = type::config;
         }
