@@ -219,7 +219,6 @@ namespace netxs::os
             auto tail = argv + argc;
             while (head != tail)
             {
-                log('[', *head, ']');
                 data.splice(data.end(), split(*head++));
             }
             reset();
