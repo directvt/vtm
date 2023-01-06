@@ -661,9 +661,10 @@ namespace netxs::os
     class fifo
     {
         bool                    alive;
-        text                    store;
+        view                    store;
         std::mutex              mutex;
-        std::condition_variable synch;
+        std::condition_variable wsync;
+        std::condition_variable rsync;
 
     public:
         fifo()
@@ -672,40 +673,30 @@ namespace netxs::os
 
         bool send(view data)
         {
-            auto guard = std::lock_guard{ mutex };
-            store += data;
-            synch.notify_one();
-            return true;
+            auto guard = std::unique_lock{ mutex };
+            store = data;
+            wsync.notify_one();
+            rsync.wait(guard, [&]{ return store.empty() || !alive; });
+            return alive;
         }
         bool read(text& data)
         {
             auto guard = std::unique_lock{ mutex };
-            if (store.size()
-             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
+            wsync.wait(guard, [&]{ return store.size() || !alive; });
+            if (alive)
             {
-                std::swap(data, store);
-                store.clear();
-                return true;
+                data = store;
+                store = {};
+                rsync.notify_one();
             }
-            return faux;
-        }
-        bool read(char& c)
-        {
-            auto guard = std::unique_lock{ mutex };
-            if (store.size()
-             || ((void)synch.wait(guard, [&]{ return store.size() || !alive; }), alive))
-            {
-                c = store.front();
-                store = store.substr(1);
-                return true;
-            }
-            return faux;
+            return alive;
         }
         void stop()
         {
             auto guard = std::lock_guard{ mutex };
             alive = faux;
-            synch.notify_one();
+            wsync.notify_one();
+            rsync.notify_one();
         }
     };
 
@@ -2521,7 +2512,6 @@ namespace netxs::os
             virtual flux& show(flux&) const = 0;
             virtual bool  send(view)        = 0;
             virtual qiew  recv()            = 0;
-            virtual bool  recv(char&)       = 0;
             virtual qiew  recv(char*, size_t) 
             {
                 return qiew{};
@@ -2568,11 +2558,6 @@ namespace netxs::os
                 else                                client->read(buffer);
                 return { buffer };
             }
-            bool recv(char& c) override
-            {
-                if constexpr (ROLE == role::server) return server->read(c);
-                else                                return client->read(c);
-            }
             bool send(view data) override
             {
                 if constexpr (ROLE == role::server) return client->send(data);
@@ -2614,10 +2599,6 @@ namespace netxs::os
             qiew recv() override // It's not thread safe!
             {
                 return recv(buffer.data(), buffer.size());
-            }
-            bool recv(char& c) override
-            {
-                return recv(&c, sizeof(c));
             }
             bool send(view buff) override
             {
@@ -2816,10 +2797,6 @@ namespace netxs::os
             qiew recv() override // It's not thread safe!
             {
                 return recv(buffer.data(), buffer.size());
-            }
-            bool recv(char& c) override
-            {
-                return recv(&c, sizeof(c));
             }
             bool send(view buff) override
             {
