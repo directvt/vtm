@@ -1003,13 +1003,12 @@ R"==(
 
         auto tunnel = os::ipc::local(vtmode);
         auto cons = os::tty::proxy(tunnel.second);
+        auto size = cons.ignite(vtmode);
+        if (!size.last) return faux;
 
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
         auto runapp = [&]
         {
-            auto size = cons.ignite(vtmode);
-            if (!size.last) return faux;
-
             auto ground = base::create<host>(tunnel.first, config);
             auto patch = ""s;
             auto aclass = utf::cutoff(app_name, ' ');
@@ -1022,18 +1021,16 @@ R"==(
             window.reset();
             applet.reset();
             ground->shutdown();
-            return true;
         };
 
-        if (direct) return runapp();
+        if (direct) runapp();
         else
         {
             auto thread = std::thread{ [&]{ os::ipc::splice(cons, vtmode); }};
-            auto result = runapp();
+            runapp();
             thread.join();
-            return result;
         }
-        //return true;
+        return true;
     }
 }
 
