@@ -3100,8 +3100,8 @@ namespace netxs::os
 
     class tty
     {
-        fire signal;
-        text buffer;
+        fire alarm;
+        text cache;
 
         static auto& globals()
         {
@@ -3148,14 +3148,19 @@ namespace netxs::os
                 g.wired.winsz.send(*g.ipcio, 0, g.winsz.last);
             }
         }
+        static void default_mode()
+        {
+            auto& state = globals().state;
+            #if defined(_WIN32)
+                ok(::SetConsoleMode(STDOUT_FD, state[0]), "SetConsoleMode failed (revert_o)");
+                ok(::SetConsoleMode(STDIN_FD , state[1]), "SetConsoleMode failed (revert_i)");
+            #else
+                ::tcsetattr(STDIN_FD, TCSANOW, &state);
+            #endif
+        }
 
         #if defined(_WIN32)
 
-            static void default_mode()
-            {
-                ok(::SetConsoleMode(STDOUT_FD, globals().state[0]), "SetConsoleMode failed (revert_o)");
-                ok(::SetConsoleMode(STDIN_FD , globals().state[1]), "SetConsoleMode failed (revert_i)");
-            }
             static BOOL signal_handler(DWORD signal)
             {
                 auto& g = globals();
@@ -3204,10 +3209,6 @@ namespace netxs::os
 
         #else
 
-            static void default_mode()
-            {
-                ::tcsetattr(STDIN_FD, TCSANOW, &globals().state);
-            }
             static void shutdown_handler(int signal)
             {
                 globals().ipcio->stop();
@@ -3242,8 +3243,8 @@ namespace netxs::os
         {
             log(" tty: id: ", std::this_thread::get_id(), " reading thread started");
             auto& g = globals();
-            auto& ipcio =*globals().ipcio;
-            auto& wired = globals().wired;
+            auto& ipcio =*g.ipcio;
+            auto& wired = g.wired;
 
             #if defined(_WIN32)
 
@@ -3253,7 +3254,7 @@ namespace netxs::os
                 auto reply = std::vector<INPUT_RECORD>(1);
                 auto count = DWORD{};
                 auto stamp = ui32{};
-                fd_t waits[] = { STDIN_FD, signal };
+                fd_t waits[] = { STDIN_FD, alarm };
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
                     if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
@@ -3677,7 +3678,7 @@ namespace netxs::os
                 };
                 auto f_proc = [&]
                 {
-                    signal.flush();
+                    alarm.flush();
                 };
 
                 while (ipcio)
@@ -3686,12 +3687,12 @@ namespace netxs::os
                     {
                         os::select(STDIN_FD, h_proc,
                                    micefd,   m_proc,
-                                   signal,   f_proc);
+                                   alarm,    f_proc);
                     }
                     else
                     {
                         os::select(STDIN_FD, h_proc,
-                                   signal,   f_proc);
+                                   alarm,    f_proc);
                     }
                 }
 
@@ -3711,8 +3712,9 @@ namespace netxs::os
                 auto wndname = text{ "vtmWindowClass" };
                 auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
                 {
-                    auto& ipcio =*globals().ipcio;
-                    auto& wired = globals().wired;
+                    auto& g = globals();
+                    auto& ipcio =*g.ipcio;
+                    auto& wired = g.wired;
                     auto gear_id = id_t{ 0 };
                     switch (uMsg)
                     {
@@ -3802,7 +3804,7 @@ namespace netxs::os
                     auto next = MSG{};
                     while (next.message != WM_QUIT)
                     {
-                        if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&signal, FALSE, INFINITE, QS_ALLINPUT);
+                        if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&alarm, FALSE, INFINITE, QS_ALLINPUT);
                                  yield == WAIT_OBJECT_0)
                         {
                             ::DestroyWindow(hwnd);
@@ -3841,10 +3843,10 @@ namespace netxs::os
         {
             static auto ocs52head = "\033]52;"sv;
 
-            if (buffer.size() || utf8.starts_with(ocs52head)) //todo use binary protocol for output (dtvt)
+            if (cache.size() || utf8.starts_with(ocs52head)) //todo use binary protocol for output (dtvt)
             {
-                buffer += utf8;
-                utf8 = view{ buffer };
+                cache += utf8;
+                utf8 = view{ cache };
                 auto data = utf8.substr(ocs52head.size());
                 if (auto p = data.find(';');
                          p!= view::npos)
@@ -3861,7 +3863,7 @@ namespace netxs::os
                         }
                         auto result = utf8.size() ? os::send<true>(STDOUT_FD, utf8.data(), utf8.size())
                                                   : true;
-                        buffer.clear();
+                        cache.clear();
                         return result;
                     }
                 }
@@ -3966,7 +3968,7 @@ namespace netxs::os
             os::rst_palette(mode);
 
             ipcio.stop();
-            signal.reset();
+            alarm.reset();
             clips.join();
             input.join();
         }
