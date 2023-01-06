@@ -658,54 +658,6 @@ namespace netxs::os
         }
     };
 
-    class fifo
-    {
-        using lock = std::mutex;
-        using sync = std::condition_variable;
-
-        bool alive;
-        view store;
-        lock mutex;
-        sync wsync;
-        sync rsync;
-
-    public:
-        fifo()
-            : alive{ true }
-        { }
-
-        auto send(view block)
-        {
-            auto guard = std::unique_lock{ mutex };
-            if (alive)
-            {
-                store = block;
-                wsync.notify_one();
-                rsync.wait(guard, [&]{ return store.empty() || !alive; });
-            }
-            return alive;
-        }
-        auto read(text& yield)
-        {
-            auto guard = std::unique_lock{ mutex };
-            wsync.wait(guard, [&]{ return store.size() || !alive; });
-            if (alive)
-            {
-                yield = store;
-                store = {};
-                rsync.notify_one();
-            }
-            return alive;
-        }
-        void stop()
-        {
-            auto guard = std::lock_guard{ mutex };
-            alive = faux;
-            wsync.notify_one();
-            rsync.notify_one();
-        }
-    };
-
     template<class SIZE_T>
     auto recv(fd_t fd, char* buff, SIZE_T size)
     {
@@ -2505,16 +2457,71 @@ namespace netxs::os
 
     namespace ipc
     {
+        class fifo
+        {
+            using lock = std::mutex;
+            using sync = std::condition_variable;
+
+            bool alive;
+            view store;
+            lock mutex;
+            sync wsync;
+            sync rsync;
+
+        public:
+            fifo()
+                : alive{ true }
+            { }
+
+            auto send(view block)
+            {
+                auto guard = std::unique_lock{ mutex };
+                if (alive)
+                {
+                    store = block;
+                    wsync.notify_one();
+                    rsync.wait(guard, [&]{ return store.empty() || !alive; });
+                }
+                return alive;
+            }
+            auto read(text& yield)
+            {
+                auto guard = std::unique_lock{ mutex };
+                wsync.wait(guard, [&]{ return store.size() || !alive; });
+                if (alive)
+                {
+                    yield = store;
+                    store = {};
+                    rsync.notify_one();
+                    return qiew{ yield };
+                }
+                return qiew{};
+            }
+            void stop()
+            {
+                auto guard = std::lock_guard{ mutex };
+                alive = faux;
+                wsync.notify_one();
+                rsync.notify_one();
+            }
+        };
+
         struct iobase
         {
             using flux = std::ostream;
 
-            bool active{};
-            text buffer{}; // ipc::iobase: Receive buffer.
+            bool active; // ipc::iobase: Is connected.
+            text buffer; // ipc::iobase: Receive buffer.
 
+            iobase()
+                : active{ true },
+                  buffer(PIPE_BUF*100, 0)
+            { }
             virtual ~iobase()
             { }
+
             operator bool () { return active; }
+
             virtual flux& show(flux&) const = 0;
             virtual bool  send(view)        = 0;
             virtual qiew  recv()            = 0;
@@ -2522,13 +2529,13 @@ namespace netxs::os
             {
                 return qiew{};
             }
-            virtual void  stop()
-            {
-                active = faux;
-            }
             virtual void  shut()
             {
                 active = faux;
+            }
+            virtual void  stop()
+            {
+                shut();
             }
             friend auto& operator << (flux& s, ipc::iobase const& sock)
             {
@@ -2553,14 +2560,11 @@ namespace netxs::os
             memory(sptr<fifo> srv_queue, sptr<fifo> clt_queue)
                 : server{ srv_queue },
                   client{ clt_queue }
-            {
-                active = true;
-            }
+            { }
+
             qiew recv() override
             {
-                buffer.clear();
-                server->read(buffer);
-                return { buffer };
+                return server->read(iobase::buffer);
             }
             bool send(view data) override
             {
@@ -2572,13 +2576,9 @@ namespace netxs::os
             }
             void shut() override
             {
-                active = faux;
+                iobase::shut();
                 server->stop();
                 client->stop();
-            }
-            void stop() override
-            {
-                shut();
             }
         };
 
@@ -2590,10 +2590,7 @@ namespace netxs::os
             stdpty() = default;
             stdpty(fd_t r, fd_t w)
                 : handle{ r, w }
-            {
-                active = true;
-                buffer.resize(PIPE_BUF);
-            }
+            { }
 
             qiew recv(char* buff, size_t size) override
             {
@@ -2611,12 +2608,8 @@ namespace netxs::os
             }
             void shut() override
             {
-                active = faux;
+                iobase::shut();
                 handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
-            }
-            void stop() override
-            {
-                shut();
             }
             flux& show(flux& s) const override
             {
@@ -2633,17 +2626,11 @@ namespace netxs::os
 
             socket(file& fd)
                 : handle{ std::move(fd) }
-            {
-                active = true;
-                buffer.resize(PIPE_BUF);
-            }
+            { }
             socket(fd_t r, fd_t w, text path)
-                : handle{ r, w }
-            {
-                active = true;
-                buffer.resize(PIPE_BUF);
-                scpath = path;
-            }
+                : handle{ r, w },
+                  scpath{ path }
+            { }
            ~socket()
             {
                 #if defined(__BSD__)
@@ -2813,7 +2800,7 @@ namespace netxs::os
             }
             void shut() override
             {
-                active = faux;
+                iobase::shut();
                 #if defined(_WIN32)
 
                     // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
@@ -2832,7 +2819,7 @@ namespace netxs::os
             }
             void stop() override
             {
-                active = faux;
+                iobase::shut();
                 #if defined(_WIN32)
 
                     // Disconnection order does matter.
