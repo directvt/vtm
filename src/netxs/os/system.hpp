@@ -2544,7 +2544,6 @@ namespace netxs::os
             }
         };
 
-        template<role ROLE>
         struct memory
             : public iobase
         {
@@ -2560,14 +2559,12 @@ namespace netxs::os
             qiew recv() override
             {
                 buffer.clear();
-                if constexpr (ROLE == role::server) server->read(buffer);
-                else                                client->read(buffer);
+                server->read(buffer);
                 return { buffer };
             }
             bool send(view data) override
             {
-                if constexpr (ROLE == role::server) return client->send(data);
-                else                                return server->send(data);
+                return client->send(data);
             }
             flux& show(flux& s) const override
             {
@@ -3098,9 +3095,9 @@ namespace netxs::os
             {
                 auto squeue = std::make_shared<fifo>();
                 auto cqueue = std::make_shared<fifo>();
-                auto server = std::make_shared<ipc::memory<os::server>>(squeue, cqueue);
-                auto client = std::make_shared<ipc::memory<os::client>>(squeue, cqueue);
-                return std::make_pair( server, client );
+                auto server = std::make_shared<ipc::memory>(squeue, cqueue);
+                auto client = std::make_shared<ipc::memory>(cqueue, squeue);
+                return std::make_pair(server, client);
             }
         }
         template<class G>
