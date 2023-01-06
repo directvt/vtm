@@ -2465,7 +2465,7 @@ namespace netxs::os
             using sync = std::condition_variable;
 
             bool alive;
-            view store;
+            text store;
             lock mutex;
             sync wsync;
             sync rsync;
@@ -2478,11 +2478,11 @@ namespace netxs::os
             auto send(view block)
             {
                 auto guard = std::unique_lock{ mutex };
+                if (store.size() && alive) rsync.wait(guard, [&]{ return store.empty() || !alive; });
                 if (alive)
                 {
                     store = block;
                     wsync.notify_one();
-                    rsync.wait(guard, [&]{ return store.empty() || !alive; });
                 }
                 return alive;
             }
@@ -2492,8 +2492,8 @@ namespace netxs::os
                 wsync.wait(guard, [&]{ return store.size() || !alive; });
                 if (alive)
                 {
-                    yield = store;
-                    store = {};
+                    std::swap(store, yield);
+                    store.clear();
                     rsync.notify_one();
                     return qiew{ yield };
                 }
