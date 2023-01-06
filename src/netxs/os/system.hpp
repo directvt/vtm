@@ -99,7 +99,7 @@ namespace netxs::os
 {
     namespace ipc
     {
-        struct iobase;
+        struct stdios;
     }
 
     namespace fs = std::filesystem;
@@ -107,7 +107,7 @@ namespace netxs::os
     using namespace std::literals;
     using namespace netxs::ui::atoms;
     using list = std::vector<text>;
-    using xipc = std::shared_ptr<ipc::iobase>;
+    using xipc = std::shared_ptr<ipc::stdios>;
     using page = console::page;
     using para = console::para;
     using rich = console::rich;
@@ -2508,38 +2508,65 @@ namespace netxs::os
             }
         };
 
-        struct iobase
+        struct stdios
         {
             using flux = std::ostream;
 
-            bool active; // ipc::iobase: Is connected.
-            text buffer; // ipc::iobase: Receive buffer.
+            bool active; // ipc::stdios: Is connected.
+            file handle; // ipc::stdios: IO descriptor.
+            text buffer; // ipc::stdios: Receive buffer.
 
-            iobase()
-                : active{ true },
+            stdios()
+                : active{ faux },
                   buffer(PIPE_BUF*100, 0)
             { }
-            virtual ~iobase()
+            stdios(file&& fd)
+                : active{ true },
+                  handle{ std::move(fd) },
+                  buffer(PIPE_BUF*100, 0)
+            { }
+            stdios(fd_t r, fd_t w)
+                : active{ true },
+                  handle{ r, w },
+                  buffer(PIPE_BUF*100, 0)
+            { }
+            virtual ~stdios()
             { }
 
+            void operator = (stdios&& p)
+            {
+                active = true;
+                handle = std::move(p.handle);
+                buffer = std::move(p.buffer);
+            }
             operator bool () { return active; }
 
-            virtual flux& show(flux&) const = 0;
-            virtual bool  send(view)        = 0;
-            virtual qiew  recv()            = 0;
-            virtual qiew  recv(char*, size_t) 
+            virtual bool send(view buff)
             {
-                return qiew{};
+                return os::send(handle.w, buff.data(), buff.size());
             }
-            virtual void  shut()
+            virtual qiew recv(char* buff, size_t size)
+            {
+                return os::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
+            }
+            virtual qiew recv() // It's not thread safe!
+            {
+                return recv(buffer.data(), buffer.size());
+            }
+            virtual void shut()
             {
                 active = faux;
+                handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
             }
-            virtual void  stop()
+            virtual void stop()
             {
                 shut();
             }
-            friend auto& operator << (flux& s, ipc::iobase const& sock)
+            virtual flux& show(flux& s) const
+            {
+                return s << handle;
+            }
+            friend auto& operator << (flux& s, ipc::stdios const& sock)
             {
                 return sock.show(s << "{ xipc: ") << " }";
             }
@@ -2554,7 +2581,7 @@ namespace netxs::os
         };
 
         struct memory
-            : public iobase
+            : public stdios
         {
             sptr<fifo> server;
             sptr<fifo> client;
@@ -2562,7 +2589,9 @@ namespace netxs::os
             memory(sptr<fifo> srv_queue, sptr<fifo> clt_queue)
                 : server{ srv_queue },
                   client{ clt_queue }
-            { }
+            {
+                active = true;
+            }
 
             qiew recv() override
             {
@@ -2578,62 +2607,23 @@ namespace netxs::os
             }
             void shut() override
             {
-                iobase::shut();
+                stdios::shut();
                 server->stop();
                 client->stop();
             }
         };
 
-        struct stdpty
-            : public iobase
-        {
-            file handle; // ipc::stdpty: Stdio file descriptor.
-
-            stdpty()
-            {
-                active = faux;
-            }
-            stdpty(fd_t r, fd_t w)
-                : handle{ r, w }
-            { }
-
-            qiew recv(char* buff, size_t size) override
-            {
-                return os::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
-            }
-            qiew recv() override // It's not thread safe!
-            {
-                return recv(buffer.data(), buffer.size());
-            }
-            bool send(view buff) override
-            {
-                auto data = buff.data();
-                auto size = buff.size();
-                return os::send<true>(handle.w, data, size);
-            }
-            void shut() override
-            {
-                iobase::shut();
-                handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
-            }
-            flux& show(flux& s) const override
-            {
-                return s << handle;
-            }
-        };
-
         struct socket
-            : public iobase
+            : public stdios
         {
-            file handle; // ipc:socket: Socket file descriptor.
             text scpath; // ipc:socket: Socket path (in order to unlink).
             fire signal; // ipc:socket: Interruptor.
 
             socket(file& fd)
-                : handle{ std::move(fd) }
+                : stdios{ std::move(fd) }
             { }
             socket(fd_t r, fd_t w, text path)
-                : handle{ r, w },
+                : stdios{ r, w },
                   scpath{ path }
             { }
            ~socket()
@@ -2785,19 +2775,9 @@ namespace netxs::os
 
                 #endif
             }
-            qiew recv(char* buff, size_t size) override
-            {
-                return os::recv(handle, buff, size);
-            }
-            qiew recv() override // It's not thread safe!
-            {
-                return recv(buffer.data(), buffer.size());
-            }
             bool send(view buff) override
             {
-                auto data = buff.data();
-                auto size = buff.size();
-                return os::send<faux>(handle.w, data, size);
+                return os::send<faux>(handle.w, buff.data(), buff.size());
             }
             void abort()
             {
@@ -2805,7 +2785,7 @@ namespace netxs::os
             }
             void shut() override
             {
-                iobase::shut();
+                stdios::shut();
                 #if defined(_WIN32)
 
                     // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
@@ -2824,7 +2804,7 @@ namespace netxs::os
             }
             void stop() override
             {
-                iobase::shut();
+                stdios::shut();
                 #if defined(_WIN32)
 
                     // Disconnection order does matter.
@@ -2858,10 +2838,6 @@ namespace netxs::os
                     }
 
                 #endif
-            }
-            flux& show(flux& s) const override
-            {
-                return s << handle;
             }
         };
 
@@ -3071,11 +3047,11 @@ namespace netxs::os
 
             return std::make_shared<ipc::socket>(r, w, path);
         }
-        auto local() // Client's ipc::stdpty.
+        auto local() // Client's ipc::stdios.
         {
-            return std::make_shared<ipc::stdpty>(STDIN_FD, STDOUT_FD);
+            return std::make_shared<ipc::stdios>(STDIN_FD, STDOUT_FD);
         }
-        auto local(si32 vtmode) -> std::pair<sptr<ipc::iobase>, sptr<ipc::iobase>>
+        auto local(si32 vtmode) -> std::pair<sptr<ipc::stdios>, sptr<ipc::stdios>>
         {
             if (vtmode & os::legacy::direct)
             {
@@ -4003,7 +3979,7 @@ namespace netxs::os
     class pty // Note: STA.
     {
         Term&                   terminal;
-        ipc::stdpty             termlink;
+        ipc::stdios             termlink;
         std::thread             stdinput;
         std::thread             stdwrite;
         std::thread             waitexit;
@@ -4411,7 +4387,7 @@ namespace netxs::os
         {
             fd_t                      prochndl{ INVALID_FD };
             pid_t                     proc_pid{};
-            ipc::stdpty               termlink{};
+            ipc::stdios               termlink{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
             std::function<void(view)> receiver{};
