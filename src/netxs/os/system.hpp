@@ -674,12 +674,12 @@ namespace netxs::os
             : alive{ true }
         { }
 
-        auto send(view data)
+        auto send(view block)
         {
             auto guard = std::unique_lock{ mutex };
             if (alive)
             {
-                store = data;
+                store = block;
                 wsync.notify_one();
                 rsync.wait(guard, [&]{ return store.empty() || !alive; });
             }
