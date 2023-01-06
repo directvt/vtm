@@ -716,14 +716,16 @@ namespace netxs::os
             {
                 if (count > 0)
                 {
-                    log("send: partial writing: socket=", fd,
-                        " total=", size, ", written=", count);
+                    //todo stackoverflow in dtvt mode
+                    //log("send: partial writing: socket=", fd,
+                    //    " total=", size, ", written=", count);
                     buff += count;
                     size -= count;
                 }
                 else
                 {
-                    log("send: aborted write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                    //todo stackoverflow in dtvt mode
+                    //log("send: aborted write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
                     return faux;
                 }
             }
@@ -2495,7 +2497,7 @@ namespace netxs::os
                     rsync.notify_one();
                     return qiew{ yield };
                 }
-                return qiew{};
+                else return qiew{};
             }
             void stop()
             {
@@ -2564,7 +2566,7 @@ namespace netxs::os
 
             qiew recv() override
             {
-                return server->read(iobase::buffer);
+                return server->read(buffer);
             }
             bool send(view data) override
             {
@@ -2587,7 +2589,10 @@ namespace netxs::os
         {
             file handle; // ipc::stdpty: Stdio file descriptor.
 
-            stdpty() = default;
+            stdpty()
+            {
+                active = faux;
+            }
             stdpty(fd_t r, fd_t w)
                 : handle{ r, w }
             { }
