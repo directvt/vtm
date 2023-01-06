@@ -817,7 +817,7 @@ namespace netxs::ansi
                            coor.y + 1, pressed ? 'M' : 'm');
         }
         template<class T, class S>
-        auto& mouse_x11(T const& gear, S const& cached, twod const& coor) // esc: Mouse tracking report (X11).
+        auto& mouse_x11(T const& gear, S const& cached, twod const& coor, bool utf8) // esc: Mouse tracking report (X11).
         {
             using hids = T;
             static constexpr auto left     = si32{ 0  };
@@ -855,9 +855,22 @@ namespace netxs::ansi
                 ctrl |= idle;
             }
             else ctrl |= idle + btup;
-            return add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 255-32) + 32),
-                                 static_cast<char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
-                                 static_cast<char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
+
+            if (utf8)
+            {
+                add("\033[M");
+                utf::to_utf_from_code(std::clamp(ctrl,       0, std::numeric_limits<si16>::max() - 32) + 32, *this);
+                utf::to_utf_from_code(std::clamp(coor.x + 1, 1, std::numeric_limits<si16>::max() - 32) + 32, *this);
+                utf::to_utf_from_code(std::clamp(coor.y + 1, 1, std::numeric_limits<si16>::max() - 32) + 32, *this);
+            }
+            else
+            {
+                add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 127-32) + 32),
+                              static_cast<char>(std::clamp(coor.x + 1, 1, 127-32) + 32),
+                              static_cast<char>(std::clamp(coor.y + 1, 1, 127-32) + 32));
+            }
+
+            return *this;
         }
         auto& w32keybd(si32 Vk, si32 Sc, si32 Uc, si32 Kd, si32 Cs, si32 Rc) // esc: win32-input-mode sequence (keyboard).
         {

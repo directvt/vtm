@@ -286,6 +286,7 @@ namespace netxs::ui
                 drag = 1 << 1,
                 move = 1 << 2,
                 over = 1 << 3,
+                utf8 = 1 << 4,
                 buttons_press = bttn,
                 buttons_drags = bttn | drag,
                 all_movements = bttn | drag | move,
@@ -376,9 +377,17 @@ namespace netxs::ui
                                                                     : std::clamp(c, dot_00, console.panel - dot_11));
                             if (saved.changed != gear.m.changed)
                             {
-                                     if (proto == w32) owner.ptycon.mouse(gear, moved, coord);
-                                else if (proto == sgr) queue.   mouse_sgr(gear, saved, coord);
-                                else if (proto == x11) queue.   mouse_x11(gear, saved, coord);
+                                if (proto == w32) owner.ptycon.mouse(gear, moved, coord);
+                                else
+                                {
+                                    if (state & mode::move
+                                    || (state & mode::drag && gear.m.buttons && moved)
+                                    || (state & mode::bttn && (gear.m.buttons != saved.buttons || gear.m.wheeled)))
+                                    {
+                                             if (proto == sgr) queue.mouse_sgr(gear, saved, coord);
+                                        else if (proto == x11) queue.mouse_x11(gear, saved, coord, state & mode::utf8);
+                                    }
+                                }
                                 owner.answer(queue);
                                 saved = gear.m;
                             }
@@ -6198,8 +6207,8 @@ namespace netxs::ui
                 case 1004: // Enable focus tracking.
                     ftrack.set(true);
                     break;
-                case 1005: // Enable UTF-8 mouse reporting protocol.
-                    log("decset: CSI ? 1005 h  UTF-8 mouse reporting protocol is not supported");
+                case 1005: // Enable UTF8 mousee position encoding.
+                    mtrack.enable(m_tracking::utf8);
                     break;
                 case 1006: // Enable SGR mouse reporting protocol.
                     mtrack.setmode(m_tracking::sgr);
@@ -6306,7 +6315,7 @@ namespace netxs::ui
                     ftrack.set(faux);
                     break;
                 case 1005: // Disable UTF-8 mouse reporting protocol.
-                    log("decset: CSI ? 1005 l  UTF-8 mouse reporting protocol is not supported");
+                    mtrack.disable(m_tracking::utf8);
                     break;
                 case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
                     mtrack.setmode(m_tracking::x11);
