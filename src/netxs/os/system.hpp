@@ -3107,11 +3107,11 @@ namespace netxs::os
         {
             struct
             {
-                xipc                     ipcio; // globals::set: .
-                conmode                  state; // globals::set: .
-                testy<twod>              winsz; // globals::set: .
-                ansi::dtvt::binary::s11n wired; // globals::set: Serialization buffers.
-                si32                     kbmod; // globals::set: Keyboard modifiers state.
+                xipc                     ipcio; // globals: STDIN/OUT.
+                conmode                  state; // globals: Saved console mode to restore at exit.
+                testy<twod>              winsz; // globals: Current console window size.
+                ansi::dtvt::binary::s11n wired; // globals: Serialization buffers.
+                si32                     kbmod; // globals: Keyboard modifiers state.
             }
             static vars;
             return vars;
