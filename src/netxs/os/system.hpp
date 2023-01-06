@@ -685,13 +685,13 @@ namespace netxs::os
             }
             return alive;
         }
-        auto read(text& data)
+        auto read(text& yield)
         {
             auto guard = std::unique_lock{ mutex };
             wsync.wait(guard, [&]{ return store.size() || !alive; });
             if (alive)
             {
-                data = store;
+                yield = store;
                 store = {};
                 rsync.notify_one();
             }
