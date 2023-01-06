@@ -3103,141 +3103,147 @@ namespace netxs::os
         fire signal;
         text buffer;
 
-        template<class V>
-        struct _globals
+        static auto& globals()
         {
-            static xipc                     ipcio; // _globals: .
-            static conmode                  state; // _globals: .
-            static testy<twod>              winsz; // _globals: .
-            static ansi::dtvt::binary::s11n wired; // _globals: Serialization buffers.
-            static si32                     kbmod; // _globals: Keyboard modifiers state.
-
-            static void resize_handler()
+            struct
             {
-                static constexpr auto winsz_fallback = twod{ 132, 60 };
-
-                #if defined(_WIN32)
-
-                    auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
-                    if (ok(::GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo), "GetConsoleScreenBufferInfo failed"))
-                    {
-                        winsz({ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
-                                cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 });
-                    }
-                #else
-
-                    auto size = winsize{};
-                    if (ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size), "ioctl(STDOUT_FD, TIOCGWINSZ) failed"))
-                    {
-                        winsz({ size.ws_col, size.ws_row });
-                    }
-                #endif
-                    else
-                    {
-                        log("xtty: fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
-                        winsz(winsz_fallback);
-                    }
-
-                if (winsz.test)
-                {
-                    wired.winsz.send(*ipcio, 0, winsz.last);
-                }
+                xipc                     ipcio; // globals::set: .
+                conmode                  state; // globals::set: .
+                testy<twod>              winsz; // globals::set: .
+                ansi::dtvt::binary::s11n wired; // globals::set: Serialization buffers.
+                si32                     kbmod; // globals::set: Keyboard modifiers state.
             }
+            static vars;
+            return vars;
+        }
+        static void resize_handler()
+        {
+            static constexpr auto winsz_fallback = twod{ 132, 60 };
+            auto& g = globals();
 
             #if defined(_WIN32)
 
-                static void default_mode()
+                auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
+                if (ok(::GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo), "GetConsoleScreenBufferInfo failed"))
                 {
-                    ok(::SetConsoleMode(STDOUT_FD, state[0]), "SetConsoleMode failed (revert_o)");
-                    ok(::SetConsoleMode(STDIN_FD , state[1]), "SetConsoleMode failed (revert_i)");
+                    g.winsz({ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
+                              cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 });
                 }
-                static BOOL signal_handler(DWORD signal)
-                {
-                    switch (signal)
-                    {
-                        case CTRL_C_EVENT:
-                        {
-                            /* placed to the input buffer - ENABLE_PROCESSED_INPUT is disabled */
-                            /* never happen */
-                            break;
-                        }
-                        case CTRL_BREAK_EVENT:
-                        {
-                            auto dwControlKeyState = kbmod;
-                            auto wVirtualKeyCode  = ansi::ctrl_break;
-                            auto wVirtualScanCode = ansi::ctrl_break;
-                            auto bKeyDown = faux;
-                            auto wRepeatCount = 1;
-                            auto UnicodeChar = L'\x03'; // ansi::C0_ETX
-                            wired.syskeybd.send(*ipcio,
-                                0,
-                                os::kbstate(kbmod, dwControlKeyState),
-                                dwControlKeyState,
-                                wVirtualKeyCode,
-                                wVirtualScanCode,
-                                bKeyDown,
-                                wRepeatCount,
-                                UnicodeChar ? utf::to_utf(UnicodeChar) : text{},
-                                UnicodeChar);
-                            break;
-                        }
-                        case CTRL_CLOSE_EVENT:
-                            /* do nothing */
-                            break;
-                        case CTRL_LOGOFF_EVENT:
-                            /* todo signal global */
-                            break;
-                        case CTRL_SHUTDOWN_EVENT:
-                            /* todo signal global */
-                            break;
-                        default:
-                            break;
-                    }
-                    return TRUE;
-                }
-
             #else
 
-                static void default_mode()
+                auto size = winsize{};
+                if (ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size), "ioctl(STDOUT_FD, TIOCGWINSZ) failed"))
                 {
-                    ::tcsetattr(STDIN_FD, TCSANOW, &state);
+                    g.winsz({ size.ws_col, size.ws_row });
                 }
-                static void shutdown_handler(int signal)
+            #endif
+                else
                 {
-                    ipcio->stop();
-                    log(" tty: sock->xipc::shut called");
-                    ::signal(signal, SIG_DFL);
-                    ::raise(signal);
-                }
-                static void signal_handler(int signal)
-                {
-                    switch (signal)
-                    {
-                        case SIGWINCH:
-                            resize_handler();
-                            return;
-                        case SIGHUP:
-                            log(" tty: SIGHUP");
-                            shutdown_handler(signal);
-                            break;
-                        case SIGTERM:
-                            log(" tty: SIGTERM");
-                            shutdown_handler(signal);
-                            break;
-                        default:
-                            break;
-                    }
-                    log(" tty: signal_handler, signal=", signal);
+                    log("xtty: fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
+                    g.winsz(winsz_fallback);
                 }
 
-            #endif
-        };
+            if (g.winsz.test)
+            {
+                g.wired.winsz.send(*g.ipcio, 0, g.winsz.last);
+            }
+        }
+
+        #if defined(_WIN32)
+
+            static void default_mode()
+            {
+                ok(::SetConsoleMode(STDOUT_FD, globals().state[0]), "SetConsoleMode failed (revert_o)");
+                ok(::SetConsoleMode(STDIN_FD , globals().state[1]), "SetConsoleMode failed (revert_i)");
+            }
+            static BOOL signal_handler(DWORD signal)
+            {
+                auto& g = globals();
+                switch (signal)
+                {
+                    case CTRL_C_EVENT:
+                    {
+                        /* placed to the input buffer - ENABLE_PROCESSED_INPUT is disabled */
+                        /* never happen */
+                        break;
+                    }
+                    case CTRL_BREAK_EVENT:
+                    {
+                        auto dwControlKeyState = g.kbmod;
+                        auto wVirtualKeyCode  = ansi::ctrl_break;
+                        auto wVirtualScanCode = ansi::ctrl_break;
+                        auto bKeyDown = faux;
+                        auto wRepeatCount = 1;
+                        auto UnicodeChar = L'\x03'; // ansi::C0_ETX
+                        g.wired.syskeybd.send(*g.ipcio,
+                            0,
+                            os::kbstate(g.kbmod, dwControlKeyState),
+                            dwControlKeyState,
+                            wVirtualKeyCode,
+                            wVirtualScanCode,
+                            bKeyDown,
+                            wRepeatCount,
+                            UnicodeChar ? utf::to_utf(UnicodeChar) : text{},
+                            UnicodeChar);
+                        break;
+                    }
+                    case CTRL_CLOSE_EVENT:
+                        /* do nothing */
+                        break;
+                    case CTRL_LOGOFF_EVENT:
+                        /* todo signal global */
+                        break;
+                    case CTRL_SHUTDOWN_EVENT:
+                        /* todo signal global */
+                        break;
+                    default:
+                        break;
+                }
+                return TRUE;
+            }
+
+        #else
+
+            static void default_mode()
+            {
+                ::tcsetattr(STDIN_FD, TCSANOW, &globals().state);
+            }
+            static void shutdown_handler(int signal)
+            {
+                globals().ipcio->stop();
+                log(" tty: sock->xipc::shut called");
+                ::signal(signal, SIG_DFL);
+                ::raise(signal);
+            }
+            static void signal_handler(int signal)
+            {
+                switch (signal)
+                {
+                    case SIGWINCH:
+                        resize_handler();
+                        return;
+                    case SIGHUP:
+                        log(" tty: SIGHUP");
+                        shutdown_handler(signal);
+                        break;
+                    case SIGTERM:
+                        log(" tty: SIGTERM");
+                        shutdown_handler(signal);
+                        break;
+                    default:
+                        break;
+                }
+                log(" tty: signal_handler, signal=", signal);
+            }
+
+        #endif
 
         void reader(si32 mode)
         {
             log(" tty: id: ", std::this_thread::get_id(), " reading thread started");
-            auto& ipcio =*_globals<void>::ipcio;
-            auto& wired = _globals<void>::wired;
+            auto& g = globals();
+            auto& ipcio =*globals().ipcio;
+            auto& wired = globals().wired;
 
             #if defined(_WIN32)
 
@@ -3248,7 +3254,6 @@ namespace netxs::os
                 auto count = DWORD{};
                 auto stamp = ui32{};
                 fd_t waits[] = { STDIN_FD, signal };
-                auto& kbstate = _globals<void>::kbmod;
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
                     if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
@@ -3283,7 +3288,7 @@ namespace netxs::os
                                     case KEY_EVENT:
                                         wired.syskeybd.send(ipcio,
                                             0,
-                                            os::kbstate(kbstate, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
+                                            os::kbstate(g.kbmod, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
                                             reply.Event.KeyEvent.dwControlKeyState,
                                             reply.Event.KeyEvent.wVirtualKeyCode,
                                             reply.Event.KeyEvent.wVirtualScanCode,
@@ -3296,7 +3301,7 @@ namespace netxs::os
                                         wired.sysmouse.send(ipcio,
                                             0,
                                             input::hids::ok,
-                                            os::kbstate(kbstate, reply.Event.MouseEvent.dwControlKeyState),
+                                            os::kbstate(g.kbmod, reply.Event.MouseEvent.dwControlKeyState),
                                             reply.Event.MouseEvent.dwControlKeyState,
                                             reply.Event.MouseEvent.dwButtonState & 0b00011111,
                                             reply.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK,
@@ -3307,7 +3312,7 @@ namespace netxs::os
                                             stamp++);
                                         break;
                                     case WINDOW_BUFFER_SIZE_EVENT:
-                                        _globals<void>::resize_handler();
+                                        resize_handler();
                                         break;
                                     case FOCUS_EVENT:
                                         wired.sysfocus.send(ipcio,
@@ -3649,12 +3654,12 @@ namespace netxs::os
                      || size == 3 /* PS/2 compatibility mode */)
                     {
                     #if defined(__linux__)
-                        vt_stat vt_state;
+                        auto vt_state = vt_stat{};
                         ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state), "ioctl(VT_GETSTATE) failed");
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
                             auto scale = twod{ 6,12 }; //todo magic numbers
-                            auto limit = _globals<void>::winsz.last * scale;
+                            auto limit = g.winsz.last * scale;
                             auto bttns = data[0] & 7;
                             mcoord.x  += data[1];
                             mcoord.y  -= data[2];
@@ -3706,8 +3711,8 @@ namespace netxs::os
                 auto wndname = text{ "vtmWindowClass" };
                 auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
                 {
-                    auto& ipcio =*_globals<void>::ipcio;
-                    auto& wired = _globals<void>::wired;
+                    auto& ipcio =*globals().ipcio;
+                    auto& wired = globals().wired;
                     auto gear_id = id_t{ 0 };
                     switch (uMsg)
                     {
@@ -3829,7 +3834,7 @@ namespace netxs::os
     public:
         static auto proxy(xipc pipe_link)
         {
-            _globals<void>::ipcio = pipe_link;
+            globals().ipcio = pipe_link;
             return tty{};
         }
         bool output(view utf8)
@@ -3868,17 +3873,17 @@ namespace netxs::os
         {
             if (vtmode & os::legacy::direct)
             {
-                auto& winsz = _globals<void>::winsz;
+                auto& winsz = globals().winsz;
                 winsz = os::legacy::get_winsz();
                 return winsz;
             }
 
-            auto& sig_hndl = _globals<void>::signal_handler;
+            auto& sig_hndl = signal_handler;
 
             #if defined(_WIN32)
 
-                auto& omode = _globals<void>::state[0];
-                auto& imode = _globals<void>::state[1];
+                auto& omode = globals().state[0];
+                auto& imode = globals().state[1];
 
                 ok(::GetConsoleMode(STDOUT_FD, &omode), "GetConsoleMode(STDOUT_FD) failed");
                 ok(::GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode(STDIN_FD) failed");
@@ -3901,7 +3906,8 @@ namespace netxs::os
 
             #else
 
-                auto& state = _globals<void>::state;
+                auto& state = globals().state;
+                auto& ipcio = globals().ipcio;
                 if (ok(::tcgetattr(STDIN_FD, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
                 {
                     auto raw_mode = state;
@@ -3910,10 +3916,7 @@ namespace netxs::os
                 }
                 else
                 {
-                    if (_globals<void>::ipcio)
-                    {
-                        _globals<void>::ipcio->stop();
-                    }
+                    if (ipcio) ipcio->stop();
                     os::fail("warning: check you are using the proper tty device, try `ssh -tt ...` option");
                 }
 
@@ -3924,10 +3927,10 @@ namespace netxs::os
 
             #endif
 
-            ::atexit(_globals<void>::default_mode);
-            _globals<void>::resize_handler();
+            ::atexit(default_mode);
+            resize_handler();
 
-            return _globals<void>::winsz;
+            return globals().winsz;
         }
         template<class Link>
         static void direct(Link internal)
@@ -3935,8 +3938,8 @@ namespace netxs::os
             auto tunnel = os::ipc::local();
             auto& ipcio = *tunnel;
             auto& world = *internal;
-            auto& wired = _globals<void>::wired;
-            auto& winsz = _globals<void>::winsz;
+            auto& wired = globals().wired;
+            auto& winsz = globals().winsz;
             winsz = os::legacy::get_winsz();
             wired.winsz.send(world, 0, winsz);
             auto input = std::thread{ [&]
@@ -3950,7 +3953,7 @@ namespace netxs::os
         }
         void splice(si32 mode)
         {
-            auto& ipcio = *_globals<void>::ipcio;
+            auto& ipcio = *globals().ipcio;
 
             os::set_palette(mode);
             os::vgafont_update(mode);
@@ -3968,12 +3971,6 @@ namespace netxs::os
             input.join();
         }
     };
-
-    template<class V> xipc                     tty::_globals<V>::ipcio{};
-    template<class V> conmode                  tty::_globals<V>::state{};
-    template<class V> testy<twod>              tty::_globals<V>::winsz{};
-    template<class V> ansi::dtvt::binary::s11n tty::_globals<V>::wired{};
-    template<class V> si32                     tty::_globals<V>::kbmod{};
 
     template<class Term>
     class pty // Note: STA.
