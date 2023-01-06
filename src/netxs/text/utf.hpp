@@ -1705,12 +1705,20 @@ namespace netxs::utf
         std::transform(head, tail, head, [](unsigned char c) { return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c; });
         return utf8;
     }
+    auto to_low(text&& utf8)
+    {
+        return to_low(utf8);
+    }
     auto& to_up(text& utf8, size_t size = text::npos)
     {
         auto head = utf8.begin();
         auto tail = head + std::min(utf8.size(), size);
         std::transform(head, tail, head, [](unsigned char c) { return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c; });
         return utf8;
+    }
+    auto to_up(text&& utf8)
+    {
+        return to_up(utf8);
     }
     template<class W, class P>
     void for_each(text& utf8, W const& what, P proc)

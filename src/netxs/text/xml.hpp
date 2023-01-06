@@ -83,8 +83,7 @@ namespace netxs::xml
     template<>
     auto take<bool>(view utf8) -> std::optional<bool>
     {
-        auto value = text{ utf8 };
-        utf::to_low(value);
+        auto value = utf::to_low(text{ utf8 });
         return value.empty() || value.starts_with("1")  // 1 - true
                              || value.starts_with("on") // on
                              || value.starts_with("y")  // yes
@@ -135,8 +134,7 @@ namespace netxs::xml
             else                           return 0;
         };
 
-        auto value = text{ utf8 };
-        utf::to_low(value);
+        auto value = utf::to_low(text{ utf8 });
         auto result = rgba{};
         auto shadow = view{ value };
         utf::trim_front(shadow, " ({[\"\'");

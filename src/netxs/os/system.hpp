@@ -3047,17 +3047,22 @@ namespace netxs::os
 
             return std::make_shared<ipc::socket>(r, w, path);
         }
-        auto local() // Client's ipc::stdios.
+        auto iopipe() // Client's ipc::stdios.
         {
             return std::make_shared<ipc::stdios>(STDIN_FD, STDOUT_FD);
         }
-        auto local(si32 vtmode) -> std::pair<sptr<ipc::stdios>, sptr<ipc::stdios>>
+        auto iopipe(si32 vtmode)
         {
+            struct pipe
+            {
+                sptr<ipc::stdios> internal;
+                sptr<ipc::stdios> external;
+            };
             if (vtmode & os::legacy::direct)
             {
-                auto server = local();
+                auto server = iopipe();
                 auto client = server;
-                return std::make_pair( server, client );
+                return pipe( server, client );
             }
             else
             {
@@ -3065,30 +3070,8 @@ namespace netxs::os
                 auto cqueue = std::make_shared<fifo>();
                 auto server = std::make_shared<ipc::memory>(squeue, cqueue);
                 auto client = std::make_shared<ipc::memory>(cqueue, squeue);
-                return std::make_pair(server, client);
+                return pipe{ server, client };
             }
-        }
-        template<class G>
-        auto splice(G& gate, si32 vtmode)
-        {
-            gate.output(ansi::esc{}.save_title()
-                                   .altbuf(true)
-                                   #if not defined(_WIN32) // Use win32 console api only.
-                                    .vmouse(true)
-                                   #endif
-                                   .cursor(faux)
-                                   .bpmode(true)
-                                   .setutf(true));
-            gate.splice(vtmode);
-            gate.output(ansi::esc{}.scrn_reset()
-                                   #if not defined(_WIN32) // Use win32 console api only.
-                                    .vmouse(faux)
-                                   #endif
-                                   .cursor(true)
-                                   .altbuf(faux)
-                                   .bpmode(faux)
-                                   .load_title());
-            std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
         auto logger(si32 vtmode)
         {
@@ -3098,11 +3081,8 @@ namespace netxs::os
         }
     }
 
-    class tty
+    namespace tty
     {
-        fire alarm;
-        text cache;
-
         static auto& globals()
         {
             struct
@@ -3112,6 +3092,7 @@ namespace netxs::os
                 testy<twod>              winsz; // globals: Current console window size.
                 ansi::dtvt::binary::s11n wired; // globals: Serialization buffers.
                 si32                     kbmod; // globals: Keyboard modifiers state.
+                fire                     alarm; // globals: IO interrupter.
             }
             static vars;
             return vars;
@@ -3239,12 +3220,32 @@ namespace netxs::os
 
         #endif
 
-        void reader(si32 mode)
+        template<class Link>
+        static void direct(Link internal)
+        {
+            auto tunnel = os::ipc::iopipe();
+            auto& ipcio = *tunnel;
+            auto& world = *internal;
+            auto& wired = globals().wired;
+            auto& winsz = globals().winsz;
+            winsz = os::legacy::get_winsz();
+            wired.winsz.send(world, 0, winsz);
+            auto input = std::thread{ [&]
+            {
+                while (ipcio && ipcio.send(world.recv())) { }
+                ipcio.shut();
+            }};
+            while (world && world.send(ipcio.recv())) { }
+            world.abort();
+            input.join();
+        }
+        static void reader(si32 mode)
         {
             log(" tty: id: ", std::this_thread::get_id(), " reading thread started");
             auto& g = globals();
             auto& ipcio =*g.ipcio;
             auto& wired = g.wired;
+            auto& alarm = g.alarm;
 
             #if defined(_WIN32)
 
@@ -3702,7 +3703,7 @@ namespace netxs::os
 
             log(" tty: id: ", std::this_thread::get_id(), " reading thread ended");
         }
-        void clipbd(si32 mode)
+        static void clipbd(si32 mode)
         {
             if (mode & legacy::direct) return;
             log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread started");
@@ -3800,6 +3801,7 @@ namespace netxs::os
                 };
                 if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "unexpected result from ::RegisterClassExA()"))
                 {
+                    auto& alarm = globals().alarm;
                     auto hwnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                     auto next = MSG{};
                     while (next.message != WM_QUIT)
@@ -3829,17 +3831,7 @@ namespace netxs::os
 
             log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread ended");
         }
-
-        tty()
-        { }
-
-    public:
-        static auto proxy(xipc pipe_link)
-        {
-            globals().ipcio = pipe_link;
-            return tty{};
-        }
-        bool output(view utf8)
+        static bool output(view utf8, text& cache)
         {
             static auto ocs52head = "\033]52;"sv;
 
@@ -3871,9 +3863,11 @@ namespace netxs::os
             }
             return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
-        auto ignite(si32 vtmode)
+        static auto ignite(si32 mode, xipc pipe)
         {
-            if (vtmode & os::legacy::direct)
+            globals().ipcio = pipe;
+
+            if (mode & os::legacy::direct)
             {
                 auto& winsz = globals().winsz;
                 winsz = os::legacy::get_winsz();
@@ -3934,43 +3928,46 @@ namespace netxs::os
 
             return globals().winsz;
         }
-        template<class Link>
-        static void direct(Link internal)
+        static auto splice(si32 mode)
         {
-            auto tunnel = os::ipc::local();
-            auto& ipcio = *tunnel;
-            auto& world = *internal;
-            auto& wired = globals().wired;
-            auto& winsz = globals().winsz;
-            winsz = os::legacy::get_winsz();
-            wired.winsz.send(world, 0, winsz);
-            auto input = std::thread{ [&]
-            {
-                while (ipcio && ipcio.send(world.recv())) { }
-                ipcio.shut();
-            }};
-            while (world && world.send(ipcio.recv())) { }
-            world.abort();
-            input.join();
-        }
-        void splice(si32 mode)
-        {
-            auto& ipcio = *globals().ipcio;
-
+            auto cache = text{};
+            auto& ipcio =*globals().ipcio;
+            auto& alarm = globals().alarm;
+            auto vtinit = ansi::esc{}.save_title()
+                                     .altbuf(true)
+                                     #if not defined(_WIN32) // Use win32 console api only.
+                                     .vmouse(true)
+                                     #endif
+                                     .cursor(faux)
+                                     .bpmode(true)
+                                     .setutf(true);
+            auto vtstop = ansi::esc{}.scrn_reset()
+                                     #if not defined(_WIN32) // Use win32 console api only.
+                                     .vmouse(faux)
+                                     #endif
+                                     .cursor(true)
+                                     .altbuf(faux)
+                                     .bpmode(faux)
+                                     .load_title();
+            output(vtinit, cache);
+            //todo use output()
             os::set_palette(mode);
             os::vgafont_update(mode);
 
             auto input = std::thread{ [&]{ reader(mode); } };
             auto clips = std::thread{ [&]{ clipbd(mode); } };
-
-            while (output(ipcio.recv()))
+            while (output(ipcio.recv(), cache))
             { }
-            os::rst_palette(mode);
 
+            //todo use output()
+            os::rst_palette(mode);
             ipcio.stop();
             alarm.reset();
             clips.join();
             input.join();
+
+            output(vtstop, cache);
+            std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
     };
 

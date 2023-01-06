@@ -1001,23 +1001,21 @@ R"==(
         utf::to_low(shadow);
         if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
 
-        auto tunnel = os::ipc::local(vtmode);
-        auto cons = os::tty::proxy(tunnel.second);
-        auto size = cons.ignite(vtmode);
+        auto link = os::ipc::iopipe(vtmode);
+        auto size = os::tty::ignite(vtmode, link.external);
         if (!size.last) return faux;
 
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
         auto runapp = [&]
         {
-            auto ground = base::create<host>(tunnel.first, config);
+            auto ground = base::create<host>(link.internal, config);
             auto patch = ""s;
-            auto aclass = utf::cutoff(app_name, ' ');
-            utf::to_low(aclass);
+            auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
             auto window = ground->invite<gate>(vtmode, config);
             window->resize(size);
-            window->launch(tunnel.first, applet);
+            window->launch(link.internal, applet);
             window.reset();
             applet.reset();
             ground->shutdown();
@@ -1026,7 +1024,7 @@ R"==(
         if (direct) runapp();
         else
         {
-            auto thread = std::thread{ [&]{ os::ipc::splice(cons, vtmode); }};
+            auto thread = std::thread{ [&]{ os::tty::splice(vtmode); }};
             runapp();
             thread.join();
         }

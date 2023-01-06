@@ -182,11 +182,10 @@ int main(int argc, char* argv[])
             if (direct) os::tty::direct(client);
             else
             {
-                auto cons = os::tty::proxy(client);
-                auto size = cons.ignite(vtmode);
+                auto size = os::tty::ignite(vtmode, client);
                 if (size.last)
                 {
-                    os::ipc::splice(cons, vtmode);
+                    os::tty::splice(vtmode);
                 }
             }
         }
