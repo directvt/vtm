@@ -660,26 +660,32 @@ namespace netxs::os
 
     class fifo
     {
-        bool                    alive;
-        view                    store;
-        std::mutex              mutex;
-        std::condition_variable wsync;
-        std::condition_variable rsync;
+        using lock = std::mutex;
+        using sync = std::condition_variable;
+
+        bool alive;
+        view store;
+        lock mutex;
+        sync wsync;
+        sync rsync;
 
     public:
         fifo()
             : alive{ true }
         { }
 
-        bool send(view data)
+        auto send(view data)
         {
             auto guard = std::unique_lock{ mutex };
-            store = data;
-            wsync.notify_one();
-            rsync.wait(guard, [&]{ return store.empty() || !alive; });
+            if (alive)
+            {
+                store = data;
+                wsync.notify_one();
+                rsync.wait(guard, [&]{ return store.empty() || !alive; });
+            }
             return alive;
         }
-        bool read(text& data)
+        auto read(text& data)
         {
             auto guard = std::unique_lock{ mutex };
             wsync.wait(guard, [&]{ return store.size() || !alive; });
