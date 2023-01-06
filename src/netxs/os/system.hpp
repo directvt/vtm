@@ -119,6 +119,8 @@ namespace netxs::os
 
     #if defined(_WIN32)
 
+        using sigA = BOOL;
+        using sigB = DWORD;
         using pid_t = DWORD;
         using fd_t = HANDLE;
         using conmode = DWORD[2];
@@ -163,6 +165,8 @@ namespace netxs::os
 
     #else
 
+        using sigA = void;
+        using sigB = int;
         using fd_t = int;
         using conmode = ::termios;
         static constexpr auto INVALID_FD = fd_t{ -1            };
@@ -3097,7 +3101,8 @@ namespace netxs::os
             static vars;
             return vars;
         }
-        static void resize_handler()
+
+        static void resize()
         {
             static constexpr auto winsz_fallback = twod{ 132, 60 };
             auto& g = globals();
@@ -3129,7 +3134,7 @@ namespace netxs::os
                 g.wired.winsz.send(*g.ipcio, 0, g.winsz.last);
             }
         }
-        static void default_mode()
+        static void repair()
         {
             auto& state = globals().state;
             #if defined(_WIN32)
@@ -3139,13 +3144,12 @@ namespace netxs::os
                 ::tcsetattr(STDIN_FD, TCSANOW, &state);
             #endif
         }
+        static sigA signal(sigB what)
+        {
+            #if defined(_WIN32)
 
-        #if defined(_WIN32)
-
-            static BOOL signal_handler(DWORD signal)
-            {
                 auto& g = globals();
-                switch (signal)
+                switch (what)
                 {
                     case CTRL_C_EVENT:
                     {
@@ -3186,45 +3190,30 @@ namespace netxs::os
                         break;
                 }
                 return TRUE;
-            }
 
-        #else
+            #else
 
-            static void shutdown_handler(int signal)
-            {
-                globals().ipcio->stop();
-                log(" tty: sock->xipc::shut called");
-                ::signal(signal, SIG_DFL);
-                ::raise(signal);
-            }
-            static void signal_handler(int signal)
-            {
-                switch (signal)
+                auto shutdown = [](auto what)
                 {
-                    case SIGWINCH:
-                        resize_handler();
-                        return;
-                    case SIGHUP:
-                        log(" tty: SIGHUP");
-                        shutdown_handler(signal);
-                        break;
-                    case SIGTERM:
-                        log(" tty: SIGTERM");
-                        shutdown_handler(signal);
-                        break;
-                    default:
-                        break;
+                    globals().ipcio->stop();
+                    ::signal(what, SIG_DFL);
+                    ::raise(what);
+                };
+                switch (what)
+                {
+                    case SIGWINCH: resize(); return;
+                    case SIGHUP:   log(" tty: SIGHUP");  shutdown(what); break;
+                    case SIGTERM:  log(" tty: SIGTERM"); shutdown(what); break;
+                    default:       log(" tty: signal ", what); break;
                 }
-                log(" tty: signal_handler, signal=", signal);
-            }
 
-        #endif
-
+            #endif
+        }
         template<class Link>
         static void direct(Link internal)
         {
-            auto tunnel = os::ipc::iopipe();
-            auto& ipcio = *tunnel;
+            auto external = os::ipc::iopipe();
+            auto& ipcio = *external;
             auto& world = *internal;
             auto& wired = globals().wired;
             auto& winsz = globals().winsz;
@@ -3236,7 +3225,8 @@ namespace netxs::os
                 ipcio.shut();
             }};
             while (world && world.send(ipcio.recv())) { }
-            world.abort();
+            //world.abort();
+            world.stop();
             input.join();
         }
         static void reader(si32 mode)
@@ -3314,7 +3304,7 @@ namespace netxs::os
                                             stamp++);
                                         break;
                                     case WINDOW_BUFFER_SIZE_EVENT:
-                                        resize_handler();
+                                        resize();
                                         break;
                                     case FOCUS_EVENT:
                                         wired.sysfocus.send(ipcio,
@@ -3874,7 +3864,7 @@ namespace netxs::os
                 return winsz;
             }
 
-            auto& sig_hndl = signal_handler;
+            auto& sig_hndl = signal;
 
             #if defined(_WIN32)
 
@@ -3923,8 +3913,8 @@ namespace netxs::os
 
             #endif
 
-            ::atexit(default_mode);
-            resize_handler();
+            ::atexit(repair);
+            resize();
 
             return globals().winsz;
         }
