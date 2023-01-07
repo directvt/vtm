@@ -2316,60 +2316,6 @@ namespace netxs::os
         void bell() { reset(); }
     };
 
-    auto set_palette(si32 legacy)
-    {
-        auto yield = ansi::esc{};
-        bool legacy_mouse = legacy & os::legacy::mouse;
-        bool legacy_color = legacy & os::legacy::vga16;
-        if (legacy_color)
-        {
-            auto set_pal = [&](auto p)
-            {
-                (yield.*p)(0,  rgba::color16[tint16::blackdk  ]);
-                (yield.*p)(1,  rgba::color16[tint16::blacklt  ]);
-                (yield.*p)(2,  rgba::color16[tint16::graydk   ]);
-                (yield.*p)(3,  rgba::color16[tint16::graylt   ]);
-                (yield.*p)(4,  rgba::color16[tint16::whitedk  ]);
-                (yield.*p)(5,  rgba::color16[tint16::whitelt  ]);
-                (yield.*p)(6,  rgba::color16[tint16::redlt    ]);
-                (yield.*p)(7,  rgba::color16[tint16::bluelt   ]);
-                (yield.*p)(8,  rgba::color16[tint16::greenlt  ]);
-                (yield.*p)(9,  rgba::color16[tint16::yellowlt ]);
-                (yield.*p)(10, rgba::color16[tint16::magentalt]);
-                (yield.*p)(11, rgba::color16[tint16::reddk    ]);
-                (yield.*p)(12, rgba::color16[tint16::bluedk   ]);
-                (yield.*p)(13, rgba::color16[tint16::greendk  ]);
-                (yield.*p)(14, rgba::color16[tint16::yellowdk ]);
-                (yield.*p)(15, rgba::color16[tint16::cyanlt   ]);
-            };
-            yield.save_palette();
-            //if (legacy_mouse) set_pal(&ansi::esc::old_palette);
-            //else              set_pal(&ansi::esc::osc_palette);
-            set_pal(&ansi::esc::old_palette);
-            set_pal(&ansi::esc::osc_palette);
-
-            os::send(STDOUT_FD, yield.data(), yield.size());
-            yield.clear();
-        }
-    }
-    auto rst_palette(si32 legacy)
-    {
-        auto yield = ansi::esc{};
-        bool legacy_mouse = legacy & os::legacy::mouse;
-        bool legacy_color = legacy & os::legacy::vga16;
-        if (legacy_color)
-        {
-            //if (legacy_mouse) yield.old_palette_reset();
-            //else              yield.osc_palette_reset();
-            yield.old_palette_reset();
-            yield.osc_palette_reset();
-            yield.load_palette();
-            os::send(STDOUT_FD, yield.data(), yield.size());
-            yield.clear();
-            log(" tty: palette restored");
-        }
-    }
-
     class pool
     {
         struct item
@@ -3049,32 +2995,6 @@ namespace netxs::os
 
             return std::make_shared<ipc::socket>(r, w, path);
         }
-        auto iopipe() // Client's ipc::stdios.
-        {
-            return std::make_shared<ipc::stdios>(STDIN_FD, STDOUT_FD);
-        }
-        auto iopipe(si32 vtmode)
-        {
-            struct pipe
-            {
-                sptr<ipc::stdios> internal;
-                sptr<ipc::stdios> external;
-            };
-            if (vtmode & os::legacy::direct)
-            {
-                auto server = iopipe();
-                auto client = server;
-                return pipe( server, client );
-            }
-            else
-            {
-                auto squeue = std::make_shared<fifo>();
-                auto cqueue = std::make_shared<fifo>();
-                auto server = std::make_shared<ipc::memory>(squeue, cqueue);
-                auto client = std::make_shared<ipc::memory>(cqueue, squeue);
-                return pipe{ server, client };
-            }
-        }
         auto logger(si32 vtmode)
         {
             auto direct = !!(vtmode & os::legacy::direct);
@@ -3085,7 +3005,7 @@ namespace netxs::os
 
     namespace tty
     {
-        static auto& globals()
+        auto& globals()
         {
             struct
             {
@@ -3099,7 +3019,6 @@ namespace netxs::os
             static vars;
             return vars;
         }
-
         void resize()
         {
             static constexpr auto winsz_fallback = twod{ 132, 60 };
@@ -3209,12 +3128,36 @@ namespace netxs::os
 
             #endif
         }
-        template<class Link>
-        void direct(Link internal)
+        auto iopipe() // Client's ipc::stdios.
         {
-            auto external = os::ipc::iopipe();
-            auto& extio = *external;
-            auto& ipcio = *internal;
+            return std::make_shared<ipc::stdios>(STDIN_FD, STDOUT_FD);
+        }
+        auto iopipe(si32 mode)
+        {
+            struct pipe
+            {
+                sptr<ipc::stdios> internal;
+                sptr<ipc::stdios> external;
+            };
+            if (mode & os::legacy::direct)
+            {
+                auto server = iopipe();
+                auto client = server;
+                return pipe( server, client );
+            }
+            else
+            {
+                auto squeue = std::make_shared<ipc::fifo>();
+                auto cqueue = std::make_shared<ipc::fifo>();
+                auto server = std::make_shared<ipc::memory>(squeue, cqueue);
+                auto client = std::make_shared<ipc::memory>(cqueue, squeue);
+                return pipe{ server, client };
+            }
+        }
+        void direct(xipc link)
+        {
+            auto& extio = *iopipe();
+            auto& ipcio = *link;
             auto& wired = globals().wired;
             auto& winsz = globals().winsz;
             winsz = os::legacy::get_winsz();
@@ -3820,7 +3763,7 @@ namespace netxs::os
 
             log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread ended");
         }
-        bool output(view utf8, text& cache)
+        auto output(view utf8, text& cache)
         {
             static auto ocs52head = "\033]52;"sv;
 
@@ -3922,24 +3865,14 @@ namespace netxs::os
             auto cache = text{};
             auto& ipcio =*globals().ipcio;
             auto& alarm = globals().alarm;
-            auto vtinit = ansi::esc{}.save_title()
-                                     .altbuf(true)
-                                     #if not defined(_WIN32) // Use win32 console api only.
-                                     .vmouse(true)
-                                     #endif
-                                     .cursor(faux)
-                                     .bpmode(true)
-                                     .setutf(true);
-            auto vtstop = ansi::esc{}.scrn_reset()
-                                     #if not defined(_WIN32) // Use win32 console api only.
-                                     .vmouse(faux)
-                                     #endif
-                                     .cursor(true)
-                                     .altbuf(faux)
-                                     .bpmode(faux)
-                                     .load_title();
-            output(vtinit, cache);
-            os::set_palette(mode);
+            auto vga16 = mode & os::legacy::vga16;
+            auto vtinit = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).setutf(true).set_palette(vga16);
+            auto vtstop = ansi::scrn_reset().altbuf(faux).cursor(true).bpmode(faux).load_title().rst_palette(vga16);
+            #if not defined(_WIN32) // Use Win32 Console API for mouse tracking on Windows.
+            vtinit.vmouse(true);
+            vtstop.vmouse(faux);
+            #endif
+            output(vtinit, cache); // It is used os::send<true> -- incompatible with ipc::socket.
             os::vgafont_update(mode);
 
             auto input = std::thread{ [&]{ reader(mode); } };
@@ -3947,7 +3880,6 @@ namespace netxs::os
             while (output(ipcio.recv(), cache))
             { }
 
-            os::rst_palette(mode);
             ipcio.shut();
             alarm.bell();
             clips.join();
