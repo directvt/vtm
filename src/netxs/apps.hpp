@@ -1025,10 +1025,10 @@ R"==(
         else
         {
             auto xcross = os::ipc::xcross::create();
-            auto other = xcross->flip();
+            auto uplink = xcross->flip();
             auto windsz = os::tty::ignite(xcross);
             auto thread = std::thread{ [&]{ os::tty::splice(vtmode); }};
-            runapp(other, windsz);
+            runapp(uplink, windsz);
             thread.join();
         }
         return true;
