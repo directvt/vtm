@@ -2787,214 +2787,212 @@ namespace netxs::os
 
                 #endif
             }
-        };
-
-        template<role ROLE, class P = noop>
-        auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
-            -> std::shared_ptr<ipc::socket>
-        {
-            auto r = INVALID_FD;
-            auto w = INVALID_FD;
-
-            auto try_start = [&](auto play) -> bool
+            template<role ROLE, class P = noop>
+            static auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
+                -> std::shared_ptr<ipc::socket>
             {
-                auto done = play();
-                if (!done)
+                auto r = INVALID_FD;
+                auto w = INVALID_FD;
+                auto try_start = [&](auto play) -> bool
                 {
-                    if constexpr (ROLE == role::client)
+                    auto done = play();
+                    if (!done)
                     {
-                        if (!retry_proc())
+                        if constexpr (ROLE == role::client)
                         {
-                            return os::fail("failed to start server");
-                        }
-                    }
-
-                    auto stop = datetime::tempus::now() + retry_timeout;
-                    do
-                    {
-                        std::this_thread::sleep_for(100ms);
-                        done = play();
-                    }
-                    while (!done && stop > datetime::tempus::now());
-                }
-                return done;
-            };
-
-            #if defined(_WIN32)
-
-                //security_descriptor pipe_acl(security_descriptor_string);
-                //log("pipe: DACL=", pipe_acl.security_string);
-
-                auto to_server = RD_PIPE_PATH + path;
-                auto to_client = WR_PIPE_PATH + path;
-
-                if constexpr (ROLE == role::server)
-                {
-                    if (os::check_pipe(to_server))
-                    {
-                        return os::fail("server already running");
-                    }
-
-                    auto pipe = [](auto const& path, auto type)
-                    {
-                        return ::CreateNamedPipe( path.c_str(),             // pipe path
-                                                  type,                     // read/write access
-                                                  PIPE_TYPE_BYTE |          // message type pipe
-                                                  PIPE_READMODE_BYTE |      // message-read mode
-                                                  PIPE_WAIT,                // blocking mode
-                                                  PIPE_UNLIMITED_INSTANCES, // max instances
-                                                  PIPE_BUF,                 // output buffer size
-                                                  PIPE_BUF,                 // input buffer size
-                                                  0,                        // client time-out
-                                                  NULL);                    // DACL
-                    };
-
-                    r = pipe(to_server, PIPE_ACCESS_INBOUND);
-                    if (r == INVALID_FD)
-                    {
-                        return os::fail("::CreateNamedPipe unexpected (read)");
-                    }
-
-                    w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
-                    if (w == INVALID_FD)
-                    {
-                        ::CloseHandle(r);
-                        return os::fail("::CreateNamedPipe unexpected (write)");
-                    }
-
-                    DWORD inpmode = 0;
-                    ok(::GetConsoleMode(STDIN_FD , &inpmode), "::GetConsoleMode(STDIN_FD) unexpected");
-                    inpmode |= 0
-                            | nt::console::inmode::quickedit
-                            ;
-                    ok(::SetConsoleMode(STDIN_FD, inpmode), "::SetConsoleMode(STDIN_FD) unexpected");
-
-                    DWORD outmode = 0
-                                | nt::console::outmode::preprocess
-                                | nt::console::outmode::vt
-                                | nt::console::outmode::no_auto_cr
-                                ;
-                    ok(::SetConsoleMode(STDOUT_FD, outmode), "::SetConsoleMode(STDOUT_FD) unexpected");
-                }
-                else if constexpr (ROLE == role::client)
-                {
-                    auto pipe = [](auto const& path, auto type)
-                    {
-                        return ::CreateFile( path.c_str(),  // pipe path
-                                             type,
-                                             0,             // no sharing
-                                             NULL,          // default security attributes
-                                             OPEN_EXISTING, // opens existing pipe
-                                             0,             // default attributes
-                                             NULL);         // no template file
-                    };
-                    auto play = [&]
-                    {
-                        w = pipe(to_server, GENERIC_WRITE);
-                        if (w == INVALID_FD)
-                        {
-                            return faux;
+                            if (!retry_proc())
+                            {
+                                return os::fail("failed to start server");
+                            }
                         }
 
-                        r = pipe(to_client, GENERIC_READ);
-                        if (r == INVALID_FD)
+                        auto stop = datetime::tempus::now() + retry_timeout;
+                        do
                         {
-                            ::CloseHandle(w);
-                            return faux;
+                            std::this_thread::sleep_for(100ms);
+                            done = play();
                         }
-                        return true;
-                    };
-                    if (!try_start(play))
-                    {
-                        return os::fail("connection error");
+                        while (!done && stop > datetime::tempus::now());
                     }
-                }
-
-            #else
-
-                ok(::signal(SIGPIPE, SIG_IGN), "failed to set SIG_IGN");
-
-                auto addr = sockaddr_un{};
-                auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
-
-                #if defined(__BSD__)
-                    //todo unify "/.config/vtm"
-                    auto home = os::homepath() / ".config/vtm";
-                    if (!fs::exists(home))
-                    {
-                        log("path: create home directory '", home.string(), "'");
-                        auto ec = std::error_code{};
-                        fs::create_directory(home, ec);
-                        if (ec) log("path: directory '", home.string(), "' creation error ", ec.value());
-                    }
-                    path = (home / path).string() + ".sock";
-                    sun_path--; // File system unix domain socket.
-                    log("open: file system socket ", path);
-                #endif
-
-                if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
-                {
-                    return os::fail("socket path too long");
-                }
-
-                if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
-                {
-                    return os::fail("open unix domain socket error");
-                }
-                r = w;
-
-                addr.sun_family = AF_UNIX;
-                auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
-                std::copy(path.begin(), path.end(), sun_path);
-
-                auto play = [&]
-                {
-                    return -1 != ::connect(r, (struct sockaddr*)&addr, sock_addr_len);
+                    return done;
                 };
 
-                if constexpr (ROLE == role::server)
-                {
-                    #if defined(__BSD__)
-                        if (fs::exists(path))
+                #if defined(_WIN32)
+
+                    //security_descriptor pipe_acl(security_descriptor_string);
+                    //log("pipe: DACL=", pipe_acl.security_string);
+
+                    auto to_server = RD_PIPE_PATH + path;
+                    auto to_client = WR_PIPE_PATH + path;
+
+                    if constexpr (ROLE == role::server)
+                    {
+                        if (os::check_pipe(to_server))
                         {
-                            if (play())
-                            {
-                                os::close(r);
-                                return os::fail("server already running");
-                            }
-                            else
-                            {
-                                log("path: remove file system socket file ", path);
-                                ::unlink(path.c_str()); // Cleanup file system socket.
-                            }
+                            return os::fail("server already running");
                         }
+
+                        auto pipe = [](auto const& path, auto type)
+                        {
+                            return ::CreateNamedPipe(path.c_str(),             // pipe path
+                                                     type,                     // read/write access
+                                                     PIPE_TYPE_BYTE |          // message type pipe
+                                                     PIPE_READMODE_BYTE |      // message-read mode
+                                                     PIPE_WAIT,                // blocking mode
+                                                     PIPE_UNLIMITED_INSTANCES, // max instances
+                                                     PIPE_BUF,                 // output buffer size
+                                                     PIPE_BUF,                 // input buffer size
+                                                     0,                        // client time-out
+                                                     NULL);                    // DACL
+                        };
+
+                        r = pipe(to_server, PIPE_ACCESS_INBOUND);
+                        if (r == INVALID_FD)
+                        {
+                            return os::fail("::CreateNamedPipe unexpected (read)");
+                        }
+
+                        w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
+                        if (w == INVALID_FD)
+                        {
+                            ::CloseHandle(r);
+                            return os::fail("::CreateNamedPipe unexpected (write)");
+                        }
+
+                        DWORD inpmode = 0;
+                        ok(::GetConsoleMode(STDIN_FD , &inpmode), "::GetConsoleMode(STDIN_FD) unexpected");
+                        inpmode |= 0
+                                | nt::console::inmode::quickedit
+                                ;
+                        ok(::SetConsoleMode(STDIN_FD, inpmode), "::SetConsoleMode(STDIN_FD) unexpected");
+
+                        DWORD outmode = 0
+                                    | nt::console::outmode::preprocess
+                                    | nt::console::outmode::vt
+                                    | nt::console::outmode::no_auto_cr
+                                    ;
+                        ok(::SetConsoleMode(STDOUT_FD, outmode), "::SetConsoleMode(STDOUT_FD) unexpected");
+                    }
+                    else if constexpr (ROLE == role::client)
+                    {
+                        auto pipe = [](auto const& path, auto type)
+                        {
+                            return ::CreateFile(path.c_str(),  // pipe path
+                                                type,
+                                                0,             // no sharing
+                                                NULL,          // default security attributes
+                                                OPEN_EXISTING, // opens existing pipe
+                                                0,             // default attributes
+                                                NULL);         // no template file
+                        };
+                        auto play = [&]
+                        {
+                            w = pipe(to_server, GENERIC_WRITE);
+                            if (w == INVALID_FD)
+                            {
+                                return faux;
+                            }
+
+                            r = pipe(to_client, GENERIC_READ);
+                            if (r == INVALID_FD)
+                            {
+                                ::CloseHandle(w);
+                                return faux;
+                            }
+                            return true;
+                        };
+                        if (!try_start(play))
+                        {
+                            return os::fail("connection error");
+                        }
+                    }
+
+                #else
+
+                    ok(::signal(SIGPIPE, SIG_IGN), "failed to set SIG_IGN");
+
+                    auto addr = sockaddr_un{};
+                    auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
+
+                    #if defined(__BSD__)
+                        //todo unify "/.config/vtm"
+                        auto home = os::homepath() / ".config/vtm";
+                        if (!fs::exists(home))
+                        {
+                            log("path: create home directory '", home.string(), "'");
+                            auto ec = std::error_code{};
+                            fs::create_directory(home, ec);
+                            if (ec) log("path: directory '", home.string(), "' creation error ", ec.value());
+                        }
+                        path = (home / path).string() + ".sock";
+                        sun_path--; // File system unix domain socket.
+                        log("open: file system socket ", path);
                     #endif
 
-                    if (::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
+                    if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
                     {
-                        os::close(r);
-                        return os::fail("error unix socket bind for ", path);
+                        return os::fail("socket path too long");
                     }
 
-                    if (::listen(r, 5) == -1)
+                    if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
                     {
-                        os::close(r);
-                        return os::fail("error listen socket for ", path);
+                        return os::fail("open unix domain socket error");
                     }
-                }
-                else if constexpr (ROLE == role::client)
-                {
-                    path.clear(); // No need to unlink a file system socket on client disconnect.
-                    if (!try_start(play))
+                    r = w;
+
+                    addr.sun_family = AF_UNIX;
+                    auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
+                    std::copy(path.begin(), path.end(), sun_path);
+
+                    auto play = [&]
                     {
-                        return os::fail("connection error");
+                        return -1 != ::connect(r, (struct sockaddr*)&addr, sock_addr_len);
+                    };
+
+                    if constexpr (ROLE == role::server)
+                    {
+                        #if defined(__BSD__)
+                            if (fs::exists(path))
+                            {
+                                if (play())
+                                {
+                                    os::close(r);
+                                    return os::fail("server already running");
+                                }
+                                else
+                                {
+                                    log("path: remove file system socket file ", path);
+                                    ::unlink(path.c_str()); // Cleanup file system socket.
+                                }
+                            }
+                        #endif
+
+                        if (::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
+                        {
+                            os::close(r);
+                            return os::fail("error unix socket bind for ", path);
+                        }
+
+                        if (::listen(r, 5) == -1)
+                        {
+                            os::close(r);
+                            return os::fail("error listen socket for ", path);
+                        }
                     }
-                }
+                    else if constexpr (ROLE == role::client)
+                    {
+                        path.clear(); // No need to unlink a file system socket on client disconnect.
+                        if (!try_start(play))
+                        {
+                            return os::fail("connection error");
+                        }
+                    }
 
-            #endif
+                #endif
 
-            return std::make_shared<ipc::socket>(r, w, path);
-        }
+                return std::make_shared<ipc::socket>(r, w, path);
+            }
+        };
     }
 
     namespace tty

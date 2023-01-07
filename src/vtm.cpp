@@ -161,13 +161,13 @@ int main(int argc, char* argv[])
         {
             auto direct = !!(vtmode & os::legacy::direct);
             if (!direct) os::start_log(DESKTOPIO_MYPATH);
-            auto client = os::ipc::open<os::client>(prefix, 10s, [&]
+            auto client = os::ipc::socket::open<os::client>(prefix, 10s, [&]
                         {
                             log("main: new desktopio environment for user ", userid);
                             auto cmdarg = utf::concat(os::current_module_file(), " ",
                                                       vtpipe.size() ? "-p " + vtpipe + " " : ""s,
                                                       cfpath.size() ? "-c " + cfpath + " " : ""s, "-d");
-                            //todo use fork for POSIX
+                            //todo use fork on POSIX
                             return os::exec(cmdarg); //todo win32 pass config
                         });
             if (!client)
@@ -202,7 +202,7 @@ int main(int argc, char* argv[])
                 }
             }
             
-            auto server = os::ipc::open<os::server>(prefix);
+            auto server = os::ipc::socket::open<os::server>(prefix);
             if (!server)
             {
                 os::fail("can't start desktopio server");
