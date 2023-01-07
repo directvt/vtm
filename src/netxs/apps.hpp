@@ -1000,32 +1000,34 @@ R"==(
         auto shadow = app_name;
         utf::to_low(shadow);
         if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
-
-        auto link = os::tty::iopair(vtmode);
-        auto size = os::tty::ignite(vtmode, link.external);
-        if (!size.last) return faux;
-
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
-        auto runapp = [&]
+        auto runapp = [&](auto uplink, auto windsz)
         {
-            auto ground = base::create<host>(link.internal, config);
             auto patch = ""s;
+            auto ground = base::create<host>(uplink, config);
             auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            auto window = ground->invite<gate>(vtmode, config);
-            window->resize(size);
-            window->launch(link.internal, applet);
+            auto window = ground->template invite<gate>(vtmode, config);
+            window->resize(windsz);
+            window->launch(uplink, applet);
             window.reset();
             applet.reset();
             ground->shutdown();
         };
 
-        if (direct) runapp();
+        if (direct)
+        {
+            auto stdcon = os::tty::stdcon();
+            auto windsz = os::legacy::get_winsz();
+            runapp(stdcon, windsz);
+        }
         else
         {
+            auto xcross = os::tty::xcross();
+            auto windsz = os::tty::ignite(xcross.external);
             auto thread = std::thread{ [&]{ os::tty::splice(vtmode); }};
-            runapp();
+            runapp(xcross.internal, windsz);
             thread.join();
         }
         return true;

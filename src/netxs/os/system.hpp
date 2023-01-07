@@ -742,6 +742,11 @@ namespace netxs::os
     {
         return os::send<IS_TTY, SIZE_T>(fd, (char const*)buff, size);
     }
+    template<bool IS_TTY = true>
+    auto send(fd_t fd, view buff)
+    {
+        return os::send<IS_TTY>(fd, buff.data(), buff.size());
+    }
     template<class ...Args>
     auto recv(file& handle, Args&&... args)
     {
@@ -3137,33 +3142,24 @@ namespace netxs::os
             return direct ? netxs::logger([](auto data) { os::stdlog(data); })
                           : netxs::logger([](auto data) { os::syslog(data); });
         }
-        auto iopair()
+        auto stdcon()
         {
             return std::make_shared<ipc::stdios>(STDIN_FD, STDOUT_FD);
         }
-        auto iopair(si32 mode)
+        auto xcross()
         {
             struct pipe
             {
                 sptr<ipc::stdios> internal;
                 sptr<ipc::stdios> external;
             };
-            if (mode & os::legacy::direct)
-            {
-                auto server = iopair();
-                auto client = server;
-                return pipe( server, client );
-            }
-            else
-            {
-                auto server = std::make_shared<ipc::memory>();
-                auto client = std::make_shared<ipc::memory>(server);
-                return pipe{ server, client };
-            }
+            auto server = std::make_shared<ipc::memory>();
+            auto client = std::make_shared<ipc::memory>(server);
+            return pipe{ server, client };
         }
-        void direct(xipc link)
+        void direct(xipc cout, xipc link)
         {
-            auto cout = iopair();
+            //auto cout = stdcon();
             auto& extio = *cout;
             auto& ipcio = *link;
             auto& wired = globals().wired;
@@ -3775,7 +3771,7 @@ namespace netxs::os
         {
             static auto ocs52head = "\033]52;"sv;
 
-            if (cache.size() || utf8.starts_with(ocs52head)) //todo use binary protocol for output (dtvt)
+            if (cache.size() || utf8.starts_with(ocs52head))
             {
                 cache += utf8;
                 utf8 = view{ cache };
@@ -3793,7 +3789,7 @@ namespace netxs::os
                         {
                             utf8 = data.substr(p + 1/* C0_BEL */);
                         }
-                        auto result = utf8.size() ? os::send<true>(STDOUT_FD, utf8.data(), utf8.size())
+                        auto result = utf8.size() ? os::send(STDOUT_FD, utf8)
                                                   : true;
                         cache.clear();
                         return result;
@@ -3801,19 +3797,11 @@ namespace netxs::os
                 }
                 return true;
             }
-            return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
+            return os::send(STDOUT_FD, utf8);
         }
-        auto ignite(si32 mode, xipc pipe)
+        auto ignite(xipc pipe)
         {
             globals().ipcio = pipe;
-
-            if (mode & os::legacy::direct)
-            {
-                auto& winsz = globals().winsz;
-                winsz = os::legacy::get_winsz();
-                return winsz;
-            }
-
             auto& sig_hndl = signal;
 
             #if defined(_WIN32)
@@ -3852,7 +3840,6 @@ namespace netxs::os
                 }
                 else
                 {
-                    if (ipcio) ipcio->stop();
                     os::fail("warning: check you are using the proper tty device, try `ssh -tt ...` option");
                 }
 
@@ -3880,20 +3867,23 @@ namespace netxs::os
             vtinit.vmouse(true);
             vtstop.vmouse(faux);
             #endif
-            output(vtinit, cache); // It is used os::send<true> -- incompatible with ipc::socket.
+
+            os::send(STDIN_FD, vtinit);
             os::vgafont_update(mode);
 
             auto input = std::thread{ [&]{ reader(mode); } };
             auto clips = std::thread{ [&]{ clipbd(mode); } };
-            while (output(ipcio.recv(), cache))
-            { }
+            while (auto crop = ipcio.recv())
+            {
+                output(crop, cache);
+            }
 
             ipcio.shut();
             alarm.bell();
             clips.join();
             input.join();
 
-            output(vtstop, cache);
+            os::send(STDIN_FD, cache + vtstop);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
     };
