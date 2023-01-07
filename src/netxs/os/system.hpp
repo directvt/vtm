@@ -2648,8 +2648,9 @@ namespace netxs::os
 
                 return true;
             }
-            auto meet() -> std::shared_ptr<ipc::socket>
+            auto meet()
             {
+                auto client = sptr<ipc::socket>{};
                 #if defined(_WIN32)
 
                     auto to_server = RD_PIPE_PATH + scpath;
@@ -2664,23 +2665,23 @@ namespace netxs::os
                         if (active && connected) // Recreate the waiting point for the next client.
                         {
                             next_waiting_point =
-                                ::CreateNamedPipe( path.c_str(),             // pipe path
-                                                   type,                     // read/write access
-                                                   PIPE_TYPE_BYTE |          // message type pipe
-                                                   PIPE_READMODE_BYTE |      // message-read mode
-                                                   PIPE_WAIT,                // blocking mode
-                                                   PIPE_UNLIMITED_INSTANCES, // max. instances
-                                                   PIPE_BUF,                 // output buffer size
-                                                   PIPE_BUF,                 // input buffer size
-                                                   0,                        // client time-out
-                                                   NULL);                    // DACL (pipe_acl)
+                                ::CreateNamedPipe(path.c_str(),             // pipe path
+                                                  type,                     // read/write access
+                                                  PIPE_TYPE_BYTE |          // message type pipe
+                                                  PIPE_READMODE_BYTE |      // message-read mode
+                                                  PIPE_WAIT,                // blocking mode
+                                                  PIPE_UNLIMITED_INSTANCES, // max. instances
+                                                  PIPE_BUF,                 // output buffer size
+                                                  PIPE_BUF,                 // input buffer size
+                                                  0,                        // client time-out
+                                                  NULL);                    // DACL (pipe_acl)
                             // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);
                             //       The ACLs in the default security descriptor for a named pipe grant full control to the
-                            //       LocalSystem account, administrators, and the creator owner.They also grant read access to
-                            //       members of the Everyone groupand the anonymous account.
+                            //       LocalSystem account, administrators, and the creator owner. They also grant read access to
+                            //       members of the Everyone group and the anonymous account.
                             //       Without write access, the desktop will be inaccessible to non-owners.
                         }
-                        else if (active) os::fail("not active");
+                        else if (active) os::fail("meet: not active");
 
                         return next_waiting_point;
                     };
@@ -2688,44 +2689,41 @@ namespace netxs::os
                     auto r = next_link(handle.r, to_server, PIPE_ACCESS_INBOUND);
                     if (r == INVALID_FD)
                     {
-                        return active ? os::fail("::CreateNamedPipe unexpected (read)")
-                                      : nothing{};
+                        if (active) os::fail("meet: ::CreateNamedPipe unexpected (read)");
                     }
-
-                    auto w = next_link(handle.w, to_client, PIPE_ACCESS_OUTBOUND);
-                    if (w == INVALID_FD)
+                    else
                     {
-                        ::CloseHandle(r);
-                        return active ? os::fail("::CreateNamedPipe unexpected (write)")
-                                      : nothing{};
+                        auto w = next_link(handle.w, to_client, PIPE_ACCESS_OUTBOUND);
+                        if (w == INVALID_FD)
+                        {
+                            ::CloseHandle(r);
+                            if (active) os::fail("meet: ::CreateNamedPipe unexpected (write)");
+                        }
+                        else
+                        {
+                            client = std::make_shared<ipc::socket>(handle);
+                            handle = { r, w };
+                        }
                     }
-
-                    auto connector = std::make_shared<ipc::socket>(handle);
-                    handle = { r, w };
-
-                    return connector;
 
                 #else
 
-                    auto result = std::shared_ptr<ipc::socket>{};
                     auto h_proc = [&]
                     {
                         auto h = ::accept(handle.r, 0, 0);
                         auto s = file{ h, h };
-                        if (s) result = std::make_shared<ipc::socket>(s);
+                        if (s) client = std::make_shared<ipc::socket>(s);
                     };
                     auto f_proc = [&]
                     {
-                        log("xipc: signal fired");
+                        log("meet: signal fired");
                         signal.flush();
                     };
-
                     os::select(handle.r, h_proc,
                                signal  , f_proc);
 
-                    return result;
-
                 #endif
+                return client;
             }
             bool send(view buff) override
             {
@@ -2789,10 +2787,10 @@ namespace netxs::os
             }
             template<role ROLE, class P = noop>
             static auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
-                -> std::shared_ptr<ipc::socket>
             {
                 auto r = INVALID_FD;
                 auto w = INVALID_FD;
+                auto socket = sptr<ipc::socket>{};
                 auto try_start = [&](auto play) -> bool
                 {
                     auto done = play();
@@ -2829,7 +2827,8 @@ namespace netxs::os
                     {
                         if (os::check_pipe(to_server))
                         {
-                            return os::fail("server already running");
+                            os::fail("server already running");
+                            return socket;
                         }
 
                         auto pipe = [](auto const& path, auto type)
@@ -2849,29 +2848,33 @@ namespace netxs::os
                         r = pipe(to_server, PIPE_ACCESS_INBOUND);
                         if (r == INVALID_FD)
                         {
-                            return os::fail("::CreateNamedPipe unexpected (read)");
+                            os::fail("::CreateNamedPipe unexpected (read)");
                         }
-
-                        w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
-                        if (w == INVALID_FD)
+                        else
                         {
-                            ::CloseHandle(r);
-                            return os::fail("::CreateNamedPipe unexpected (write)");
+                            w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
+                            if (w == INVALID_FD)
+                            {
+                                os::fail("::CreateNamedPipe unexpected (write)");
+                                os::close(r);
+                            }
+                            else
+                            {
+                                DWORD inpmode = 0;
+                                ok(::GetConsoleMode(STDIN_FD , &inpmode), "::GetConsoleMode(STDIN_FD) unexpected");
+                                inpmode |= 0
+                                        | nt::console::inmode::quickedit
+                                        ;
+                                ok(::SetConsoleMode(STDIN_FD, inpmode), "::SetConsoleMode(STDIN_FD) unexpected");
+
+                                DWORD outmode = 0
+                                            | nt::console::outmode::preprocess
+                                            | nt::console::outmode::vt
+                                            | nt::console::outmode::no_auto_cr
+                                            ;
+                                ok(::SetConsoleMode(STDOUT_FD, outmode), "::SetConsoleMode(STDOUT_FD) unexpected");
+                            }
                         }
-
-                        DWORD inpmode = 0;
-                        ok(::GetConsoleMode(STDIN_FD , &inpmode), "::GetConsoleMode(STDIN_FD) unexpected");
-                        inpmode |= 0
-                                | nt::console::inmode::quickedit
-                                ;
-                        ok(::SetConsoleMode(STDIN_FD, inpmode), "::SetConsoleMode(STDIN_FD) unexpected");
-
-                        DWORD outmode = 0
-                                    | nt::console::outmode::preprocess
-                                    | nt::console::outmode::vt
-                                    | nt::console::outmode::no_auto_cr
-                                    ;
-                        ok(::SetConsoleMode(STDOUT_FD, outmode), "::SetConsoleMode(STDOUT_FD) unexpected");
                     }
                     else if constexpr (ROLE == role::client)
                     {
@@ -2896,14 +2899,14 @@ namespace netxs::os
                             r = pipe(to_client, GENERIC_READ);
                             if (r == INVALID_FD)
                             {
-                                ::CloseHandle(w);
+                                os::close(w);
                                 return faux;
                             }
                             return true;
                         };
                         if (!try_start(play))
                         {
-                            return os::fail("connection error");
+                            os::fail("connection error");
                         }
                     }
 
@@ -2931,66 +2934,70 @@ namespace netxs::os
 
                     if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
                     {
-                        return os::fail("socket path too long");
+                        os::fail("socket path too long");
                     }
-
-                    if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
+                    else if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
                     {
-                        return os::fail("open unix domain socket error");
+                        os::fail("open unix domain socket error");
                     }
-                    r = w;
-
-                    addr.sun_family = AF_UNIX;
-                    auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
-                    std::copy(path.begin(), path.end(), sun_path);
-
-                    auto play = [&]
+                    else
                     {
-                        return -1 != ::connect(r, (struct sockaddr*)&addr, sock_addr_len);
-                    };
+                        r = w;
+                        addr.sun_family = AF_UNIX;
+                        auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
+                        std::copy(path.begin(), path.end(), sun_path);
 
-                    if constexpr (ROLE == role::server)
-                    {
-                        #if defined(__BSD__)
-                            if (fs::exists(path))
+                        auto play = [&]
+                        {
+                            return -1 != ::connect(r, (struct sockaddr*)&addr, sock_addr_len);
+                        };
+
+                        if constexpr (ROLE == role::server)
+                        {
+                            #if defined(__BSD__)
+                                if (fs::exists(path))
+                                {
+                                    if (play())
+                                    {
+                                        os::fail("server already running");
+                                        os::close(r);
+                                    }
+                                    else
+                                    {
+                                        log("path: remove file system socket file ", path);
+                                        ::unlink(path.c_str()); // Cleanup file system socket.
+                                    }
+                                }
+                            #endif
+
+                            if (r != INVALID_FD && ::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
                             {
-                                if (play())
-                                {
-                                    os::close(r);
-                                    return os::fail("server already running");
-                                }
-                                else
-                                {
-                                    log("path: remove file system socket file ", path);
-                                    ::unlink(path.c_str()); // Cleanup file system socket.
-                                }
+                                os::fail("error unix socket bind for ", path);
+                                os::close(r);
                             }
-                        #endif
-
-                        if (::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
-                        {
-                            os::close(r);
-                            return os::fail("error unix socket bind for ", path);
+                            else if (::listen(r, 5) == -1)
+                            {
+                                os::fail("error listen socket for ", path);
+                                os::close(r);
+                            }
                         }
-
-                        if (::listen(r, 5) == -1)
+                        else if constexpr (ROLE == role::client)
                         {
-                            os::close(r);
-                            return os::fail("error listen socket for ", path);
-                        }
-                    }
-                    else if constexpr (ROLE == role::client)
-                    {
-                        path.clear(); // No need to unlink a file system socket on client disconnect.
-                        if (!try_start(play))
-                        {
-                            return os::fail("connection error");
+                            path.clear(); // No need to unlink a file system socket on client disconnect.
+                            if (!try_start(play))
+                            {
+                                os::fail("connection error");
+                                os::close(r);
+                            }
                         }
                     }
 
                 #endif
-
-                return std::make_shared<ipc::socket>(r, w, path);
+                if (r != INVALID_FD && w != INVALID_FD)
+                {
+                    socket = std::make_shared<ipc::socket>(r, w, path);
+                }
+                return socket;
             }
         };
     }
@@ -3055,7 +3062,7 @@ namespace netxs::os
                 ::tcsetattr(STDIN_FD, TCSANOW, &state);
             #endif
         }
-        sigA signal(sigB what)
+        auto signal(sigB what)
         {
             #if defined(_WIN32)
 
