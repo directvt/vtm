@@ -2539,9 +2539,10 @@ namespace netxs::os
 
             void operator = (stdios&& p)
             {
-                active = true;
                 handle = std::move(p.handle);
                 buffer = std::move(p.buffer);
+                active = p.active;
+                p.active = faux;
             }
             operator bool () { return active; }
 
@@ -3106,33 +3107,35 @@ namespace netxs::os
         {
             static constexpr auto winsz_fallback = twod{ 132, 60 };
             auto& g = globals();
+            auto& ipcio =*g.ipcio;
+            auto& winsz = g.winsz;
+            auto& wired = g.wired;
 
             #if defined(_WIN32)
 
                 auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
                 if (ok(::GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo), "GetConsoleScreenBufferInfo failed"))
                 {
-                    g.winsz({ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
-                              cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 });
+                    winsz({ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
+                            cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 });
                 }
+
             #else
 
                 auto size = winsize{};
                 if (ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size), "ioctl(STDOUT_FD, TIOCGWINSZ) failed"))
                 {
-                    g.winsz({ size.ws_col, size.ws_row });
-                }
-            #endif
-                else
-                {
-                    log("xtty: fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
-                    g.winsz(winsz_fallback);
+                    winsz({ size.ws_col, size.ws_row });
                 }
 
-            if (g.winsz.test)
+            #endif
+
+            if (winsz == dot_00)
             {
-                g.wired.winsz.send(*g.ipcio, 0, g.winsz.last);
+                log("xtty: fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
+                winsz(winsz_fallback);
             }
+            wired.winsz.send(ipcio, 0, winsz.last);
         }
         static void repair()
         {
