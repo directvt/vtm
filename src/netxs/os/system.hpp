@@ -2552,11 +2552,9 @@ namespace netxs::os
             }
             static auto create()
             {
-                return std::make_shared<ipc::xcross>();
-            }
-            auto flip() // Swap queues for xlink.
-            {
-                return std::make_shared<ipc::xcross>(client, server);
+                auto a = std::make_shared<ipc::xcross>();
+                auto b = std::make_shared<ipc::xcross>(a->client, a->server); // Swap queues for xlink.
+                return std::pair{ a, b };
             }
             qiew recv() override
             {
