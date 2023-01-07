@@ -1018,16 +1018,17 @@ R"==(
 
         if (direct)
         {
-            auto stdcon = os::tty::stdcon();
+            auto stdcon = os::ipc::stdio();
             auto windsz = os::legacy::get_winsz();
             runapp(stdcon, windsz);
         }
         else
         {
-            auto xcross = os::tty::xcross();
-            auto windsz = os::tty::ignite(xcross.external);
+            auto xcross = os::ipc::xcross::create();
+            auto other = xcross->flip();
+            auto windsz = os::tty::ignite(xcross);
             auto thread = std::thread{ [&]{ os::tty::splice(vtmode); }};
-            runapp(xcross.internal, windsz);
+            runapp(other, windsz);
             thread.join();
         }
         return true;

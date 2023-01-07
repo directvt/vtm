@@ -5140,7 +5140,7 @@ namespace netxs::console
         : public s11n
     {
         using sptr = netxs::sptr<bell>;
-        using ipc  = os::ipc::stdios;
+        using ipc  = os::ipc::stdcon;
 
     public:
         struct relay_t
@@ -5346,7 +5346,7 @@ namespace netxs::console
         using lock = std::mutex;
         using cond = std::condition_variable_any;
         using span = period;
-        using ipc  = os::ipc::stdios;
+        using ipc  = os::ipc::stdcon;
 
         struct stat
         {

@@ -99,7 +99,7 @@ namespace netxs::os
 {
     namespace ipc
     {
-        struct stdios;
+        struct stdcon;
     }
 
     namespace fs = std::filesystem;
@@ -107,7 +107,7 @@ namespace netxs::os
     using namespace std::literals;
     using namespace netxs::ui::atoms;
     using list = std::vector<text>;
-    using xipc = std::shared_ptr<ipc::stdios>;
+    using xipc = std::shared_ptr<ipc::stdcon>;
     using page = console::page;
     using para = console::para;
     using rich = console::rich;
@@ -2415,32 +2415,32 @@ namespace netxs::os
 
     namespace ipc
     {
-        struct stdios
+        struct stdcon
         {
             using flux = std::ostream;
 
-            bool active; // ipc::stdios: Is connected.
-            file handle; // ipc::stdios: IO descriptor.
-            text buffer; // ipc::stdios: Receive buffer.
+            bool active; // ipc::stdcon: Is connected.
+            file handle; // ipc::stdcon: IO descriptor.
+            text buffer; // ipc::stdcon: Receive buffer.
 
-            stdios()
+            stdcon()
                 : active{ faux },
                   buffer(PIPE_BUF*100, 0)
             { }
-            stdios(file&& fd)
+            stdcon(file&& fd)
                 : active{ true },
                   handle{ std::move(fd) },
                   buffer(PIPE_BUF*100, 0)
             { }
-            stdios(fd_t r, fd_t w)
+            stdcon(fd_t r, fd_t w)
                 : active{ true },
                   handle{ r, w },
                   buffer(PIPE_BUF*100, 0)
             { }
-            virtual ~stdios()
+            virtual ~stdcon()
             { }
 
-            void operator = (stdios&& p)
+            void operator = (stdcon&& p)
             {
                 handle = std::move(p.handle);
                 buffer = std::move(p.buffer);
@@ -2474,7 +2474,7 @@ namespace netxs::os
             {
                 return s << handle;
             }
-            friend auto& operator << (flux& s, ipc::stdios const& sock)
+            friend auto& operator << (flux& s, ipc::stdcon const& sock)
             {
                 return sock.show(s << "{ xipc: ") << " }";
             }
@@ -2488,8 +2488,8 @@ namespace netxs::os
             }
         };
 
-        struct memory
-            : public stdios
+        struct xcross
+            : public stdcon
         {
             class fifo
             {
@@ -2543,17 +2543,21 @@ namespace netxs::os
             sptr<fifo> server;
             sptr<fifo> client;
 
-            memory(sptr<memory> m)
-                : memory{ m->client, m->server } // Swap queues for client.
-            { }
-            memory(sptr<fifo> s_queue = std::make_shared<fifo>(),
+            xcross(sptr<fifo> s_queue = std::make_shared<fifo>(),
                    sptr<fifo> c_queue = std::make_shared<fifo>())
                 : server{ s_queue },
                   client{ c_queue }
             {
                 active = true;
             }
-
+            static auto create()
+            {
+                return std::make_shared<ipc::xcross>();
+            }
+            auto flip() // Swap queues for xlink.
+            {
+                return std::make_shared<ipc::xcross>(client, server);
+            }
             qiew recv() override
             {
                 return server->read(buffer);
@@ -2568,23 +2572,23 @@ namespace netxs::os
             }
             void shut() override
             {
-                stdios::shut();
+                stdcon::shut();
                 server->stop();
                 client->stop();
             }
         };
 
         struct socket
-            : public stdios
+            : public stdcon
         {
             text scpath; // ipc:socket: Socket path (in order to unlink).
             fire signal; // ipc:socket: Interruptor.
 
             socket(file& fd)
-                : stdios{ std::move(fd) }
+                : stdcon{ std::move(fd) }
             { }
             socket(fd_t r, fd_t w, text path)
-                : stdios{ r, w },
+                : stdcon{ r, w },
                   scpath{ path }
             { }
            ~socket()
@@ -2740,7 +2744,7 @@ namespace netxs::os
             }
             void stop() override
             {
-                stdios::shut();
+                stdcon::shut();
                 #if defined(_WIN32)
 
                     // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
@@ -2759,7 +2763,7 @@ namespace netxs::os
             }
             void shut() override
             {
-                stdios::shut();
+                stdcon::shut();
                 #if defined(_WIN32)
 
                     // Disconnection order does matter.
@@ -3009,6 +3013,11 @@ namespace netxs::os
                 return socket;
             }
         };
+
+        auto stdio()
+        {
+            return std::make_shared<ipc::stdcon>(STDIN_FD, STDOUT_FD);
+        }
     }
 
     namespace tty
@@ -3141,21 +3150,6 @@ namespace netxs::os
             auto direct = !!(mode & os::legacy::direct);
             return direct ? netxs::logger([](auto data) { os::stdlog(data); })
                           : netxs::logger([](auto data) { os::syslog(data); });
-        }
-        auto stdcon()
-        {
-            return std::make_shared<ipc::stdios>(STDIN_FD, STDOUT_FD);
-        }
-        auto xcross()
-        {
-            struct pipe
-            {
-                sptr<ipc::stdios> internal;
-                sptr<ipc::stdios> external;
-            };
-            auto server = std::make_shared<ipc::memory>();
-            auto client = std::make_shared<ipc::memory>(server);
-            return pipe{ server, client };
         }
         void direct(xipc cout, xipc link)
         {
@@ -3868,7 +3862,7 @@ namespace netxs::os
             vtstop.vmouse(faux);
             #endif
 
-            os::send(STDIN_FD, vtinit);
+            os::send(STDOUT_FD, vtinit);
             os::vgafont_update(mode);
 
             auto input = std::thread{ [&]{ reader(mode); } };
@@ -3883,16 +3877,16 @@ namespace netxs::os
             clips.join();
             input.join();
 
-            os::send(STDIN_FD, cache + vtstop);
+            os::send(STDOUT_FD, cache + vtstop);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
     };
 
     template<class Term>
-    class pty // Note: STA.
+    class vtty // Note: STA.
     {
         Term&                   terminal;
-        ipc::stdios             termlink;
+        ipc::stdcon             termlink;
         std::thread             stdinput;
         std::thread             stdwrite;
         std::thread             waitexit;
@@ -3914,18 +3908,18 @@ namespace netxs::os
         #endif
 
     public:
-        pty(Term& uiterminal)
+        vtty(Term& uiterminal)
             : terminal{ uiterminal },
               prochndl{ INVALID_FD },
               srv_hndl{ INVALID_FD },
               ref_hndl{ INVALID_FD },
               proc_pid{            }
         { }
-       ~pty()
+       ~vtty()
         {
-            log("xpty: dtor started");
+            log("vtty: dtor started");
             stop();
-            log("xpty: dtor complete");
+            log("vtty: dtor complete");
         }
 
         operator bool () { return connected(); }
@@ -3938,26 +3932,26 @@ namespace netxs::os
                 return !!termlink;
             #endif
         }
-        // pty: Cleaning in order to be able to restart.
+        // vtty: Cleaning in order to be able to restart.
         void cleanup()
         {
             if (stdwrite.joinable())
             {
                 writesyn.notify_one();
-                log("xpty: id: ", stdwrite.get_id(), " writing thread joining");
+                log("vtty: id: ", stdwrite.get_id(), " writing thread joining");
                 stdwrite.join();
             }
             if (stdinput.joinable())
             {
-                log("xpty: id: ", stdinput.get_id(), " reading thread joining");
+                log("vtty: id: ", stdinput.get_id(), " reading thread joining");
                 stdinput.join();
             }
             if (waitexit.joinable())
             {
                 auto id = waitexit.get_id();
-                log("xpty: id: ", id, " child process waiter thread joining");
+                log("vtty: id: ", id, " child process waiter thread joining");
                 waitexit.join();
-                log("xpty: id: ", id, " child process waiter thread joined");
+                log("vtty: id: ", id, " child process waiter thread joined");
             }
             auto guard = std::lock_guard{ writemtx };
             termlink = {};
@@ -3967,7 +3961,7 @@ namespace netxs::os
         {
             auto guard = std::lock_guard{ writemtx };
             auto exit_code = si32{};
-            log("xpty: wait child process ", proc_pid);
+            log("vtty: wait child process ", proc_pid);
 
             if (proc_pid != 0)
             {
@@ -3979,11 +3973,11 @@ namespace netxs::os
                 auto code = DWORD{ 0 };
                 if (!::GetExitCodeProcess(prochndl, &code))
                 {
-                    log("xpty: GetExitCodeProcess() return code: ", ::GetLastError());
+                    log("vtty: GetExitCodeProcess() return code: ", ::GetLastError());
                 }
                 else if (code == STILL_ACTIVE)
                 {
-                    log("xpty: child process still running");
+                    log("vtty: child process still running");
                     auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
                     if (!result || !::GetExitCodeProcess(prochndl, &code))
                     {
@@ -3991,7 +3985,7 @@ namespace netxs::os
                         code = 0;
                     }
                 }
-                else log("xpty: child process exit code 0x", utf::to_hex(code), " (", code, ")");
+                else log("vtty: child process exit code 0x", utf::to_hex(code), " (", code, ")");
                 exit_code = code;
                 os::close(prochndl);
 
@@ -4004,17 +3998,17 @@ namespace netxs::os
                 if (WIFEXITED(status))
                 {
                     exit_code = WEXITSTATUS(status);
-                    log("xpty: child process exit code ", exit_code);
+                    log("vtty: child process exit code ", exit_code);
                 }
                 else
                 {
                     exit_code = 0;
-                    log("xpty: warning: child process exit code not detected");
+                    log("vtty: warning: child process exit code not detected");
                 }
 
             #endif
             }
-            log("xpty: child waiting complete");
+            log("vtty: child waiting complete");
             return exit_code;
         }
         void start(twod winsz)
@@ -4022,7 +4016,7 @@ namespace netxs::os
             auto cwd     = terminal.curdir;
             auto cmdline = terminal.cmdarg;
             utf::change(cmdline, "\\\"", "\"");
-            log("xpty: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
+            log("vtty: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
                                                                                              : "'" + cwd + "'");
             #if defined(_WIN32)
 
@@ -4038,7 +4032,7 @@ namespace netxs::os
                 if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, con_serv.events.ondata))
                 {
                     auto errcode = os::error();
-                    log("xpty: console server creation error ", errcode);
+                    log("vtty: console server creation error ", errcode);
                     terminal.onexit(errcode, "Console server creation error");
                     return;
                 }
@@ -4091,7 +4085,7 @@ namespace netxs::os
                 if (ret == 0)
                 {
                     auto errcode = os::error();
-                    log("xpty: child process creation error ", errcode);
+                    log("vtty: child process creation error ", errcode);
                     os::close( srv_hndl );
                     os::close( ref_hndl );
                     con_serv.stop();
@@ -4106,13 +4100,13 @@ namespace netxs::os
                 proc_pid = procsinf.dwProcessId;
                 waitexit = std::thread([&]
                 {
-                    os::select(prochndl, []{ log("xpty: child process terminated"); });
+                    os::select(prochndl, []{ log("vtty: child process terminated"); });
                     if (srv_hndl != INVALID_FD)
                     {
                         auto exit_code = wait_child();
                         terminal.onexit(exit_code);
                     }
-                    log("xpty: child process waiter ended");
+                    log("vtty: child process waiter ended");
                 });
 
             #else
@@ -4150,8 +4144,8 @@ namespace netxs::os
                     {
                         auto err = std::error_code{};
                         fs::current_path(cwd, err);
-                        if (err) std::cerr << "xpty: failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
-                        else     std::cerr << "xpty: change current working directory to '" << cwd << "'" << "\n" << std::flush;
+                        if (err) std::cerr << "vtty: failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
+                        else     std::cerr << "vtty: change current working directory to '" << cwd << "'" << "\n" << std::flush;
                     }
 
                     ::dup2(fds, STDIN_FD ); // Assign stdio lines atomically
@@ -4183,7 +4177,7 @@ namespace netxs::os
             stdwrite = std::thread([&] { send_socket_thread(); });
             writesyn.notify_one(); // Flush temp buffer.
 
-            log("xpty: new pty created with size ", winsz);
+            log("vtty: new vtty created with size ", winsz);
         }
         void stop()
         {
@@ -4197,7 +4191,7 @@ namespace netxs::os
         {
             #if not defined(_WIN32)
 
-                log("xpty: id: ", stdinput.get_id(), " reading thread started");
+                log("vtty: id: ", stdinput.get_id(), " reading thread started");
                 auto flow = text{};
                 while (termlink)
                 {
@@ -4216,13 +4210,13 @@ namespace netxs::os
                     auto exit_code = wait_child();
                     terminal.onexit(exit_code);
                 }
-                log("xpty: id: ", stdinput.get_id(), " reading thread ended");
+                log("vtty: id: ", stdinput.get_id(), " reading thread ended");
 
             #endif
         }
         void send_socket_thread()
         {
-            log("xpty: id: ", stdwrite.get_id(), " writing thread started");
+            log("vtty: id: ", stdwrite.get_id(), " writing thread started");
             auto guard = std::unique_lock{ writemtx };
             auto cache = text{};
             while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !connected(); }), connected())
@@ -4242,7 +4236,7 @@ namespace netxs::os
                 #endif
                 guard.lock();
             }
-            log("xpty: id: ", stdwrite.get_id(), " writing thread ended");
+            log("vtty: id: ", stdwrite.get_id(), " writing thread ended");
         }
         void resize(twod const& newsize)
         {
@@ -4296,11 +4290,11 @@ namespace netxs::os
 
     namespace direct
     {
-        class pty
+        class vtty
         {
             fd_t                      prochndl{ INVALID_FD };
             pid_t                     proc_pid{};
-            ipc::stdios               termlink{};
+            ipc::stdcon               termlink{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
             std::function<void(view)> receiver{};
@@ -4311,7 +4305,7 @@ namespace netxs::os
             std::condition_variable   writesyn{};
 
         public:
-           ~pty()
+           ~vtty()
             {
                 log("dtvt: dtor started");
                 if (termlink)
@@ -4424,7 +4418,7 @@ namespace netxs::os
                         prochndl = procsinf.hProcess;
                         proc_pid = procsinf.dwProcessId;
                         termlink = { m_pipe_r, m_pipe_w };
-                        log("dtvt: pty created: ", winsz);
+                        log("dtvt: vtty created: ", winsz);
                     }
                     else log("dtvt: child process creation error ", ::GetLastError());
 

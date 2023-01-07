@@ -3241,7 +3241,7 @@ struct consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
-                log(" pty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
+                log("vtty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
@@ -3369,7 +3369,7 @@ struct consrv
           impcls{ faux   },
           answer{        },
           winhnd{        },
-          prompt{ " pty: consrv: " }
+          prompt{ "vtty: consrv: " }
     {
         using _ = consrv;
         apimap.resize(0xFF, &_::api_unsupported);

@@ -181,7 +181,7 @@ int main(int argc, char* argv[])
 
             if (direct)
             {
-                auto stdcon = os::tty::stdcon();
+                auto stdcon = os::ipc::stdio();
                 os::tty::direct(stdcon, client);
             }
             else

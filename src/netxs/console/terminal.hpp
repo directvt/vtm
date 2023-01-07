@@ -6096,7 +6096,7 @@ namespace netxs::ui
         };
 
         using buffer_ptr = bufferbase*;
-        using vtty = os::pty<term>;
+        using vtty = os::vtty<term>;
 
         termconfig config; // term: Terminal settings.
         pro::timer worker; // term: Linear animation controller.
@@ -7548,20 +7548,22 @@ namespace netxs::ui
             }
         };
 
-        events_t        stream; // dtvt: .
-        text            curdir; // dtvt: Current working directory.
-        text            cmdarg; // dtvt: Startup command line arguments.
-        text            xmlcfg; // dtvt: Startup config.
-        bool            active; // dtvt: Terminal lifetime.
-        si32            nodata; // dtvt: Show splash "No signal".
-        face            splash; // dtvt: "No signal" splash.
-        hook            oneoff; // dtvt: One-shot token for start and shutdown events.
-        period          maxoff; // dtvt: Max delay before showing "No signal".
-        subs            debugs; // dtvt: Tokens for debug output subcriptions.
-        byte            opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
-        ansi::esc       prompt; // dtvt: PTY logger prompt.
-        testy<twod>     termsz; // dtvt: PTY device window size.
-        os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
+        using vtty = os::direct::vtty;
+
+        events_t    stream; // dtvt: .
+        text        curdir; // dtvt: Current working directory.
+        text        cmdarg; // dtvt: Startup command line arguments.
+        text        xmlcfg; // dtvt: Startup config.
+        bool        active; // dtvt: Terminal lifetime.
+        si32        nodata; // dtvt: Show splash "No signal".
+        face        splash; // dtvt: "No signal" splash.
+        hook        oneoff; // dtvt: One-shot token for start and shutdown events.
+        period      maxoff; // dtvt: Max delay before showing "No signal".
+        subs        debugs; // dtvt: Tokens for debug output subcriptions.
+        byte        opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
+        ansi::esc   prompt; // dtvt: PTY logger prompt.
+        testy<twod> termsz; // dtvt: PTY device window size.
+        vtty        ptycon; // dtvt: PTY device. Should be destroyed first.
 
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
