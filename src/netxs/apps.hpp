@@ -1001,7 +1001,7 @@ R"==(
         utf::to_low(shadow);
         if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
 
-        auto link = os::tty::iopipe(vtmode);
+        auto link = os::tty::iopair(vtmode);
         auto size = os::tty::ignite(vtmode, link.external);
         if (!size.last) return faux;
 

@@ -2410,55 +2410,6 @@ namespace netxs::os
 
     namespace ipc
     {
-        class fifo
-        {
-            using lock = std::mutex;
-            using sync = std::condition_variable;
-
-            bool alive;
-            text store;
-            lock mutex;
-            sync wsync;
-            sync rsync;
-
-        public:
-            fifo()
-                : alive{ true }
-            { }
-
-            auto send(view block)
-            {
-                auto guard = std::unique_lock{ mutex };
-                if (store.size() && alive) rsync.wait(guard, [&]{ return store.empty() || !alive; });
-                if (alive)
-                {
-                    store = block;
-                    wsync.notify_one();
-                }
-                return alive;
-            }
-            auto read(text& yield)
-            {
-                auto guard = std::unique_lock{ mutex };
-                wsync.wait(guard, [&]{ return store.size() || !alive; });
-                if (alive)
-                {
-                    std::swap(store, yield);
-                    store.clear();
-                    rsync.notify_one();
-                    return qiew{ yield };
-                }
-                else return qiew{};
-            }
-            void stop()
-            {
-                auto guard = std::lock_guard{ mutex };
-                alive = faux;
-                wsync.notify_one();
-                rsync.notify_one();
-            }
-        };
-
         struct stdios
         {
             using flux = std::ostream;
@@ -2535,12 +2486,65 @@ namespace netxs::os
         struct memory
             : public stdios
         {
+            class fifo
+            {
+                using lock = std::mutex;
+                using sync = std::condition_variable;
+
+                bool alive;
+                text store;
+                lock mutex;
+                sync wsync;
+                sync rsync;
+
+            public:
+                fifo()
+                    : alive{ true }
+                { }
+
+                auto send(view block)
+                {
+                    auto guard = std::unique_lock{ mutex };
+                    if (store.size() && alive) rsync.wait(guard, [&]{ return store.empty() || !alive; });
+                    if (alive)
+                    {
+                        store = block;
+                        wsync.notify_one();
+                    }
+                    return alive;
+                }
+                auto read(text& yield)
+                {
+                    auto guard = std::unique_lock{ mutex };
+                    wsync.wait(guard, [&]{ return store.size() || !alive; });
+                    if (alive)
+                    {
+                        std::swap(store, yield);
+                        store.clear();
+                        rsync.notify_one();
+                        return qiew{ yield };
+                    }
+                    else return qiew{};
+                }
+                void stop()
+                {
+                    auto guard = std::lock_guard{ mutex };
+                    alive = faux;
+                    wsync.notify_one();
+                    rsync.notify_one();
+                }
+            };
+
             sptr<fifo> server;
             sptr<fifo> client;
 
-            memory(sptr<fifo> srv_queue, sptr<fifo> clt_queue)
-                : server{ srv_queue },
-                  client{ clt_queue }
+            memory(sptr<memory> m)
+                : memory{ m->client, m->server } // Swap queues for client.
+            { }
+            memory(sptr<fifo> s_queue = std::make_shared<fifo>(),
+                   sptr<fifo> c_queue = std::make_shared<fifo>())
+                : server{ s_queue },
+                  client{ c_queue }
             {
                 active = true;
             }
@@ -3133,11 +3137,11 @@ namespace netxs::os
             return direct ? netxs::logger([](auto data) { os::stdlog(data); })
                           : netxs::logger([](auto data) { os::syslog(data); });
         }
-        auto iopipe() // Client's ipc::stdios.
+        auto iopair()
         {
             return std::make_shared<ipc::stdios>(STDIN_FD, STDOUT_FD);
         }
-        auto iopipe(si32 mode)
+        auto iopair(si32 mode)
         {
             struct pipe
             {
@@ -3146,22 +3150,20 @@ namespace netxs::os
             };
             if (mode & os::legacy::direct)
             {
-                auto server = iopipe();
+                auto server = iopair();
                 auto client = server;
                 return pipe( server, client );
             }
             else
             {
-                auto squeue = std::make_shared<ipc::fifo>();
-                auto cqueue = std::make_shared<ipc::fifo>();
-                auto server = std::make_shared<ipc::memory>(squeue, cqueue);
-                auto client = std::make_shared<ipc::memory>(cqueue, squeue);
+                auto server = std::make_shared<ipc::memory>();
+                auto client = std::make_shared<ipc::memory>(server);
                 return pipe{ server, client };
             }
         }
         void direct(xipc link)
         {
-            auto cout = iopipe();
+            auto cout = iopair();
             auto& extio = *cout;
             auto& ipcio = *link;
             auto& wired = globals().wired;
