@@ -3151,13 +3151,8 @@ namespace netxs::os
         }
         void direct(xipc cout, xipc link)
         {
-            //auto cout = stdcon();
             auto& extio = *cout;
             auto& ipcio = *link;
-            auto& wired = globals().wired;
-            auto& winsz = globals().winsz;
-            winsz = os::legacy::get_winsz();
-            wired.winsz.send(ipcio, 0, winsz);
             auto input = std::thread{ [&]
             {
                 while (extio && extio.send(ipcio.recv())) { }
@@ -3791,7 +3786,7 @@ namespace netxs::os
             }
             return os::send(STDOUT_FD, utf8);
         }
-        auto ignite(xipc pipe)
+        void ignite(si32 mode, xipc pipe)
         {
             globals().ipcio = pipe;
             auto& sig_hndl = signal;
@@ -3842,17 +3837,17 @@ namespace netxs::os
 
             #endif
 
+            os::vgafont_update(mode);
             ::atexit(repair);
             resize();
-
-            return globals().winsz;
         }
-        auto splice(si32 mode)
+        auto splice(si32 mode, xipc pipe)
         {
-            auto cache = text{};
-            auto& ipcio =*globals().ipcio;
+            ignite(mode, pipe);
+            auto& ipcio = *pipe;
             auto& alarm = globals().alarm;
-            auto vga16 = mode & os::legacy::vga16;
+            auto  cache = text{};
+            auto  vga16 = mode & os::legacy::vga16;
             auto vtinit = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).setutf(true).set_palette(vga16);
             auto vtstop = ansi::scrn_reset().altbuf(faux).cursor(true).bpmode(faux).load_title().rst_palette(vga16);
             #if not defined(_WIN32) // Use Win32 Console API for mouse tracking on Windows.
@@ -3861,7 +3856,6 @@ namespace netxs::os
             #endif
 
             os::send(STDOUT_FD, vtinit);
-            os::vgafont_update(mode);
 
             auto input = std::thread{ [&]{ reader(mode); } };
             auto clips = std::thread{ [&]{ clipbd(mode); } };

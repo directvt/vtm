@@ -7540,10 +7540,7 @@ namespace netxs::ui
                 };
                 owner.SUBMIT_T(tier::release, e2::size::any, token, new_size)
                 {
-                    if (owner.pty_resize(new_size))
-                    {
-                        s11n::winsz.send(owner, 0, new_size);
-                    }
+                    owner.pty_resize(new_size);
                 };
             }
         };
@@ -7654,6 +7651,7 @@ namespace netxs::ui
                         auto procid = ptycon.start(curdir, cmdarg, termsz, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
                                                                                    [&](auto exit_reason) { atexit(exit_reason); },
                                                                                    [&](auto exit_reason) { onexit(exit_reason); } );
+                        pty_resize<true>(termsz);
                         unique = timer;
                         oneoff.reset();
                         prompt.add("    ", procid, ": ");
@@ -7661,9 +7659,13 @@ namespace netxs::ui
                 };
             }
         }
-        bool pty_resize(twod const& new_size)
+        template<bool Forced = faux>
+        void pty_resize(twod const& new_size)
         {
-            return ptycon && termsz(new_size);
+            if (ptycon && (Forced || termsz(new_size)))
+            {
+                stream.s11n::winsz.send(*this, 0, new_size);
+            }
         }
 
        ~dtvt()
