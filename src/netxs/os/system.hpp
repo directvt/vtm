@@ -2995,12 +2995,6 @@ namespace netxs::os
 
             return std::make_shared<ipc::socket>(r, w, path);
         }
-        auto logger(si32 vtmode)
-        {
-            auto direct = !!(vtmode & os::legacy::direct);
-            return direct ? netxs::logger([](auto data) { os::stdlog(data); })
-                          : netxs::logger([](auto data) { os::syslog(data); });
-        }
     }
 
     namespace tty
@@ -3127,6 +3121,12 @@ namespace netxs::os
                 }
 
             #endif
+        }
+        auto logger(si32 mode)
+        {
+            auto direct = !!(mode & os::legacy::direct);
+            return direct ? netxs::logger([](auto data) { os::stdlog(data); })
+                          : netxs::logger([](auto data) { os::syslog(data); });
         }
         auto iopipe() // Client's ipc::stdios.
         {

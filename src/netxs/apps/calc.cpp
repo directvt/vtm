@@ -14,7 +14,7 @@ using namespace netxs::console;
 int main(int argc, char* argv[])
 {
     auto vtmode = os::vt_mode();
-    auto syslog = os::ipc::logger(vtmode);
+    auto syslog = os::tty::logger(vtmode);
     auto banner = [&]{ log(DESKTOPIO_MYNAME); };
     auto getopt = os::args{ argc, argv };
     auto params = DESKTOPIO_DEFAPP + " "s + getopt.tail();
