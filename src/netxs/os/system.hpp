@@ -2313,6 +2313,7 @@ namespace netxs::os
             void flush()     { os::recv(h[0], &x, sizeof(x)); }
 
         #endif
+        void bell() { reset(); }
     };
 
     auto set_palette(si32 legacy)
@@ -2784,11 +2785,7 @@ namespace netxs::os
             {
                 return os::send<faux>(handle.w, buff.data(), buff.size());
             }
-            void abort()
-            {
-                handle.shutdown();
-            }
-            void shut() override
+            void shut() override // rename to stop
             {
                 stdios::shut();
                 #if defined(_WIN32)
@@ -2807,7 +2804,7 @@ namespace netxs::os
 
                 #endif
             }
-            void stop() override
+            void stop() override // rename to shut
             {
                 stdios::shut();
                 #if defined(_WIN32)
@@ -3103,7 +3100,7 @@ namespace netxs::os
             return vars;
         }
 
-        static void resize()
+        void resize()
         {
             static constexpr auto winsz_fallback = twod{ 132, 60 };
             auto& g = globals();
@@ -3137,7 +3134,7 @@ namespace netxs::os
             }
             wired.winsz.send(ipcio, 0, winsz.last);
         }
-        static void repair()
+        void repair()
         {
             auto& state = globals().state;
             #if defined(_WIN32)
@@ -3147,7 +3144,7 @@ namespace netxs::os
                 ::tcsetattr(STDIN_FD, TCSANOW, &state);
             #endif
         }
-        static sigA signal(sigB what)
+        sigA signal(sigB what)
         {
             #if defined(_WIN32)
 
@@ -3213,26 +3210,25 @@ namespace netxs::os
             #endif
         }
         template<class Link>
-        static void direct(Link internal)
+        void direct(Link internal)
         {
             auto external = os::ipc::iopipe();
-            auto& ipcio = *external;
-            auto& world = *internal;
+            auto& extio = *external;
+            auto& ipcio = *internal;
             auto& wired = globals().wired;
             auto& winsz = globals().winsz;
             winsz = os::legacy::get_winsz();
-            wired.winsz.send(world, 0, winsz);
+            wired.winsz.send(ipcio, 0, winsz);
             auto input = std::thread{ [&]
             {
-                while (ipcio && ipcio.send(world.recv())) { }
-                ipcio.shut();
+                while (extio && extio.send(ipcio.recv())) { }
+                extio.shut();
             }};
-            while (world && world.send(ipcio.recv())) { }
-            //world.abort();
-            world.stop();
+            while (ipcio && ipcio.send(extio.recv())) { }
+            ipcio.stop(); //shut
             input.join();
         }
-        static void reader(si32 mode)
+        void reader(si32 mode)
         {
             log(" tty: id: ", std::this_thread::get_id(), " reading thread started");
             auto& g = globals();
@@ -3696,7 +3692,7 @@ namespace netxs::os
 
             log(" tty: id: ", std::this_thread::get_id(), " reading thread ended");
         }
-        static void clipbd(si32 mode)
+        void clipbd(si32 mode)
         {
             if (mode & legacy::direct) return;
             log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread started");
@@ -3824,7 +3820,7 @@ namespace netxs::os
 
             log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread ended");
         }
-        static bool output(view utf8, text& cache)
+        bool output(view utf8, text& cache)
         {
             static auto ocs52head = "\033]52;"sv;
 
@@ -3856,7 +3852,7 @@ namespace netxs::os
             }
             return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
-        static auto ignite(si32 mode, xipc pipe)
+        auto ignite(si32 mode, xipc pipe)
         {
             globals().ipcio = pipe;
 
@@ -3921,7 +3917,7 @@ namespace netxs::os
 
             return globals().winsz;
         }
-        static auto splice(si32 mode)
+        auto splice(si32 mode)
         {
             auto cache = text{};
             auto& ipcio =*globals().ipcio;
@@ -3943,7 +3939,6 @@ namespace netxs::os
                                      .bpmode(faux)
                                      .load_title();
             output(vtinit, cache);
-            //todo use output()
             os::set_palette(mode);
             os::vgafont_update(mode);
 
@@ -3952,10 +3947,9 @@ namespace netxs::os
             while (output(ipcio.recv(), cache))
             { }
 
-            //todo use output()
             os::rst_palette(mode);
-            ipcio.stop();
-            alarm.reset();
+            ipcio.stop(); //shut
+            alarm.bell();
             clips.join();
             input.join();
 
