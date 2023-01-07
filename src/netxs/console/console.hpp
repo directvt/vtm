@@ -4525,7 +4525,7 @@ namespace netxs::console
             {
                 //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
                 log("host: shutdown: ", msg);
-                joint->shut();
+                joint->stop();
             };
             synch.ignite(hertz);
             log("host: started at ", hertz, "fps");

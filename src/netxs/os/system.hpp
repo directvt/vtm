@@ -2785,7 +2785,7 @@ namespace netxs::os
             {
                 return os::send<faux>(handle.w, buff.data(), buff.size());
             }
-            void shut() override // rename to stop
+            void stop() override
             {
                 stdios::shut();
                 #if defined(_WIN32)
@@ -2804,7 +2804,7 @@ namespace netxs::os
 
                 #endif
             }
-            void stop() override // rename to shut
+            void shut() override
             {
                 stdios::shut();
                 #if defined(_WIN32)
@@ -3225,7 +3225,7 @@ namespace netxs::os
                 extio.shut();
             }};
             while (ipcio && ipcio.send(extio.recv())) { }
-            ipcio.stop(); //shut
+            ipcio.shut();
             input.join();
         }
         void reader(si32 mode)
@@ -3948,7 +3948,7 @@ namespace netxs::os
             { }
 
             os::rst_palette(mode);
-            ipcio.stop(); //shut
+            ipcio.shut();
             alarm.bell();
             clips.join();
             input.join();
