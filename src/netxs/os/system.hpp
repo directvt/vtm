@@ -3154,7 +3154,8 @@ namespace netxs::os
         }
         void direct(xipc link)
         {
-            auto& extio = *iopipe();
+            auto cout = iopipe();
+            auto& extio = *cout;
             auto& ipcio = *link;
             auto& wired = globals().wired;
             auto& winsz = globals().winsz;
