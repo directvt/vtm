@@ -1763,6 +1763,10 @@ namespace netxs::os
                 auto crop = ansi::add(mime, ";", utf8);
                 send(os::cf_ansi, crop);
             }
+            else
+            {
+                success = true;
+            }
             ok(::CloseClipboard(), "::CloseClipboard");
             os::clipboard_sequence = ::GetClipboardSequenceNumber(); // The sequence number is incremented while closing the clipboard.
 
@@ -3142,8 +3146,9 @@ namespace netxs::os
             return direct ? netxs::logger([](auto data) { os::stdlog(data); })
                           : netxs::logger([](auto data) { os::syslog(data); });
         }
-        void direct(xipc cout, xipc link)
+        void direct(xipc link)
         {
+            auto cout = os::ipc::stdio();
             auto& extio = *cout;
             auto& ipcio = *link;
             auto input = std::thread{ [&]
@@ -3747,39 +3752,7 @@ namespace netxs::os
 
             log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread ended");
         }
-        auto output(view utf8, text& cache)
-        {
-            static auto ocs52head = "\033]52;"sv;
-
-            if (cache.size() || utf8.starts_with(ocs52head))
-            {
-                cache += utf8;
-                utf8 = view{ cache };
-                auto data = utf8.substr(ocs52head.size());
-                if (auto p = data.find(';');
-                         p!= view::npos)
-                {
-                    auto mime = data.substr(0, p);
-                    data.remove_prefix(p + 1/* ; */);
-                    if (auto p = data.find(ansi::C0_BEL);
-                             p!= view::npos)
-                    {
-                        auto base = data.substr(0, p);
-                        if (os::set_clipboard(mime, utf::unbase64(base)))
-                        {
-                            utf8 = data.substr(p + 1/* C0_BEL */);
-                        }
-                        auto result = utf8.size() ? os::send(STDOUT_FD, utf8)
-                                                  : true;
-                        cache.clear();
-                        return result;
-                    }
-                }
-                return true;
-            }
-            return os::send(STDOUT_FD, utf8);
-        }
-        void ignite(si32 mode, xipc pipe)
+        void ignite(xipc pipe, si32 mode)
         {
             globals().ipcio = pipe;
             auto& sig_hndl = signal;
@@ -3834,27 +3807,76 @@ namespace netxs::os
             ::atexit(repair);
             resize();
         }
-        auto splice(si32 mode, xipc pipe)
+        auto splice(xipc pipe, si32 mode)
         {
-            ignite(mode, pipe);
+            static auto ocs52head = "\033]52;"sv;
+            ignite(pipe, mode);
             auto& ipcio = *pipe;
             auto& alarm = globals().alarm;
             auto  cache = text{};
+            auto  brand = text{};
+            auto  stamp = datetime::tempus::now();
             auto  vga16 = mode & os::legacy::vga16;
-            auto vtinit = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).setutf(true).set_palette(vga16);
-            auto vtstop = ansi::scrn_reset().altbuf(faux).cursor(true).bpmode(faux).load_title().rst_palette(vga16);
+            auto  vtrun = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).setutf(true).set_palette(vga16);
+            auto  vtend = ansi::scrn_reset().altbuf(faux).cursor(true).bpmode(faux).load_title().rst_palette(vga16);
             #if not defined(_WIN32) // Use Win32 Console API for mouse tracking on Windows.
-            vtinit.vmouse(true);
-            vtstop.vmouse(faux);
+            vtrun.vmouse(true);
+            vtend.vmouse(faux);
             #endif
 
-            os::send(STDOUT_FD, vtinit);
+            auto proxy = [&](auto& yield) // Redirect clipboard data.
+            {
+                if (cache.size() || yield.starts_with(ocs52head))
+                {
+                    auto now = datetime::tempus::now();
+                    if (now - stamp > 3s) // Drop outdated cache.
+                    {
+                        cache.clear();
+                        brand.clear();
+                    }
+                    auto start = cache.size();
+                    cache += yield;
+                    yield = cache;
+                    stamp = now;
+                    if (brand.empty())
+                    {
+                        yield.remove_prefix(ocs52head.size());
+                        if (auto p = yield.find(';'); p != view::npos)
+                        {
+                            brand = yield.substr(0, p++/*;*/);
+                            yield.remove_prefix(p);
+                            start = ocs52head.size() + p;
+                        }
+                        else return faux;
+                    }
+                    else yield.remove_prefix(start);
+
+                    if (auto p = yield.find(ansi::C0_BEL); p != view::npos)
+                    {
+                        auto temp = view{ cache };
+                        auto skip = ocs52head.size() + brand.size() + 1/*;*/;
+                        auto data = temp.substr(skip, p + start - skip);
+                        if (os::set_clipboard(brand, utf::unbase64(data)))
+                        {
+                            yield.remove_prefix(p + 1/* C0_BEL */);
+                        }
+                        else yield = temp; // Forward all out;
+                        cache.clear();
+                        brand.clear();
+                        if (yield.empty()) return faux;
+                    }
+                    else return faux;
+                }
+                return true;
+            };
+
+            os::send(STDOUT_FD, vtrun);
 
             auto input = std::thread{ [&]{ reader(mode); } };
             auto clips = std::thread{ [&]{ clipbd(mode); } };
-            while (auto crop = ipcio.recv())
+            while (auto yield = ipcio.recv())
             {
-                output(crop, cache);
+                if (proxy(yield) && !os::send(STDOUT_FD, yield)) break;
             }
 
             ipcio.shut();
@@ -3862,7 +3884,7 @@ namespace netxs::os
             clips.join();
             input.join();
 
-            os::send(STDOUT_FD, cache + vtstop);
+            os::send(STDOUT_FD, cache + vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
     };

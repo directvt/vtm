@@ -179,8 +179,8 @@ int main(int argc, char* argv[])
             init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
             init.send([&](auto& data){ client->send(data); });
 
-            if (direct) os::tty::direct(os::ipc::stdio(), client);
-            else        os::tty::splice(vtmode, client);
+            if (direct) os::tty::direct(client);
+            else        os::tty::splice(client, vtmode);
         }
         else // type::server/daemon 
         {
