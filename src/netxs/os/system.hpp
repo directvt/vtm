@@ -3884,7 +3884,7 @@ namespace netxs::os
             clips.join();
             input.join();
 
-            os::send(STDOUT_FD, cache + vtend);
+            os::send(STDOUT_FD, vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
     };
