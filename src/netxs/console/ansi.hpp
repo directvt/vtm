@@ -2045,10 +2045,8 @@ namespace netxs::ansi
             {
                 struct mask
                 {
-                    using twod = le_t<netxs::twod>;
                     using sz_t = le_t<size_t>;
                     char mark_FF;
-                    twod winsize;
                     sz_t cfgsize;
                     char mark_FE;
                 };
@@ -2059,20 +2057,18 @@ namespace netxs::ansi
 
                 marker()
                 { }
-                marker(twod const& winsize, size_t cfgsize)
+                marker(size_t cfgsize)
                 {
                     pack.mark_FF = initial;
-                    pack.winsize.set(winsize);
                     pack.cfgsize.set(cfgsize);
                     pack.mark_FE = initial - 1;
                 }
 
-                auto get_sz(twod& winsize, size_t& cfgsize)
+                auto get_sz(size_t& cfgsize)
                 {
                     if (pack.mark_FF == initial
                      && pack.mark_FE == initial - 1)
                     {
-                        winsize = pack.winsize.get();
                         cfgsize = pack.cfgsize.get();
                         return true;
                     }

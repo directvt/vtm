@@ -7647,11 +7647,10 @@ namespace netxs::ui
                         this->riseup<tier::request>(e2::form::prop::ui::footer, footer);
                         stream.s11n::form_header.send(*this, 0, header);
                         stream.s11n::form_footer.send(*this, 0, footer);
-                        termsz(base::size());
-                        auto procid = ptycon.start(curdir, cmdarg, termsz, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                                   [&](auto exit_reason) { atexit(exit_reason); },
-                                                                                   [&](auto exit_reason) { onexit(exit_reason); } );
-                        pty_resize<true>(termsz);
+                        auto procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                           [&](auto exit_reason) { atexit(exit_reason); },
+                                                                           [&](auto exit_reason) { onexit(exit_reason); } );
+                        pty_resize<true>(base::size());
                         unique = timer;
                         oneoff.reset();
                         prompt.add("    ", procid, ": ");

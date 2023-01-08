@@ -862,11 +862,6 @@ namespace netxs::os
         static constexpr auto vga16  = 1 << 1;
         static constexpr auto vga256 = 1 << 2;
         static constexpr auto direct = 1 << 3;
-        static auto& get_winsz()
-        {
-            static auto winsz = twod{};
-            return winsz;
-        }
         static auto& get_state()
         {
             static auto state = faux;
@@ -902,15 +897,14 @@ namespace netxs::os
             else result = "fresh";
             return result;
         }
-        static void send_dmd(fd_t m_pipe_w, twod const& winsz, view config)
+        static void send_dmd(fd_t m_pipe_w, view config)
         {
-            auto buffer = ansi::dtvt::binary::marker{ winsz, config.size() };
+            auto buffer = ansi::dtvt::binary::marker{ config.size() };
             os::send<true>(m_pipe_w, buffer.data, buffer.size);
         }
         static auto peek_dmd(fd_t stdin_fd)
         {
             auto& ready = get_ready();
-            auto& winsz = get_winsz();
             auto& state = get_state();
             auto& start = get_start();
             auto& setup = get_setup();
@@ -931,8 +925,7 @@ namespace netxs::os
                 {
                     if (length)
                     {
-                        state = buffer.size == length
-                             && buffer.get_sz(winsz, cfsize);
+                        state = buffer.size == length && buffer.get_sz(cfsize);
                         if (state)
                         {
                             os::recv(stdin_fd, buffer.data, buffer.size);
@@ -949,8 +942,7 @@ namespace netxs::os
                     auto length = header.length();
                     if (length)
                     {
-                        state = buffer.size == length
-                             && buffer.get_sz(winsz, cfsize);
+                        state = buffer.size == length && buffer.get_sz(cfsize);
                         if (!state)
                         {
                             start = header; //todo use it when the reading thread starts
@@ -4321,9 +4313,9 @@ namespace netxs::os
 
             operator bool () { return termlink; }
 
-            auto start(text cwd, text cmdline, twod winsz, text config, std::function<void(view)> input_hndl,
-                                                                        std::function<void(si32)> preclose_hndl,
-                                                                        std::function<void(si32)> shutdown_hndl)
+            auto start(text cwd, text cmdline, text config, std::function<void(view)> input_hndl,
+                                                            std::function<void(si32)> preclose_hndl,
+                                                            std::function<void(si32)> shutdown_hndl)
             {
                 receiver = input_hndl;
                 preclose = preclose_hndl;
@@ -4352,7 +4344,7 @@ namespace netxs::os
                         if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
                          && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
                         {
-                            os::legacy::send_dmd(m_pipe_w, winsz, config);
+                            os::legacy::send_dmd(m_pipe_w, config);
 
                             startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                             startinf.StartupInfo.hStdInput  = s_pipe_r;
@@ -4411,7 +4403,6 @@ namespace netxs::os
                         prochndl = procsinf.hProcess;
                         proc_pid = procsinf.dwProcessId;
                         termlink = { m_pipe_r, m_pipe_w };
-                        log("dtvt: vtty created: ", winsz);
                     }
                     else log("dtvt: child process creation error ", ::GetLastError());
 
@@ -4426,7 +4417,7 @@ namespace netxs::os
                     ok(::pipe(to_client), "dtvt: client ipc unexpected result");
 
                     termlink = { to_server[0], to_client[1] };
-                    os::legacy::send_dmd(to_client[1], winsz, config);
+                    os::legacy::send_dmd(to_client[1], config);
 
                     proc_pid = ::fork();
                     if (proc_pid == 0) // Child branch.
@@ -4478,6 +4469,7 @@ namespace netxs::os
                 stdinput = std::thread([&] { read_socket_thread(); });
                 stdwrite = std::thread([&] { send_socket_thread(); });
 
+                if (termlink) log("dtvt: vtty created: proc_pid ", proc_pid);
                 writesyn.notify_one(); // Flush temp buffer.
 
                 return proc_pid;
