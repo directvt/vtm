@@ -60,7 +60,7 @@
     #include <netdb.h>      //
 
     #include <stdio.h>
-    #include <unistd.h>     // ::read(), PIPE_BUF
+    #include <unistd.h>     // ::read()
     #include <sys/un.h>
     #include <stdlib.h>
 
@@ -114,33 +114,21 @@ namespace netxs::os
 
     enum role { client, server };
 
-    static constexpr auto stdin_buf_size = si32{ 1024 };
     static auto is_daemon = faux;
+    static constexpr auto pipebuf = si32{ 65536 };
 
     #if defined(_WIN32)
 
-        using sigA = BOOL;
-        using sigB = DWORD;
-        using pid_t = DWORD;
+        using sigt = DWORD;
+        using pidt = DWORD;
         using fd_t = HANDLE;
         using conmode = DWORD[2];
         static const auto INVALID_FD   = fd_t{ INVALID_HANDLE_VALUE              };
         static const auto STDIN_FD     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
         static const auto STDOUT_FD    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
         static const auto STDERR_FD    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
-        static const auto PIPE_BUF     = si32{ 65536 };
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
-        static auto clipboard_sequence = std::numeric_limits<DWORD>::max();
-        static auto clipboard_mutex    = std::mutex();
-        static auto cf_text = CF_UNICODETEXT;
-        static auto cf_utf8 = CF_TEXT;
-        static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
-        static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
-        static auto cf_ansi = ::RegisterClipboardFormatA("ANSI/VT Format");
-        static auto cf_sec1 = ::RegisterClipboardFormatA("ExcludeClipboardContentFromMonitorProcessing");
-        static auto cf_sec2 = ::RegisterClipboardFormatA("CanIncludeInClipboardHistory");
-        static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
 
         //static constexpr auto security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -165,8 +153,8 @@ namespace netxs::os
 
     #else
 
-        using sigA = void;
-        using sigB = int;
+        using sigt = int;
+        using pidt = pid_t;
         using fd_t = int;
         using conmode = ::termios;
         static constexpr auto INVALID_FD = fd_t{ -1            };
@@ -1026,35 +1014,241 @@ namespace netxs::os
             std::sort(crop.begin(), crop.end());
             return crop;
         }
+        // os::env: Get user home path.
+        auto homepath()
+        {
+            #if defined(_WIN32)
+                return fs::path{ os::env::get("HOMEDRIVE") } / fs::path{ os::env::get("HOMEPATH") };
+            #else
+                return fs::path{ os::env::get("HOME") };
+            #endif
+        }
+        // os::env: Get user shell.
+        auto shell()
+        {
+            #if defined(_WIN32)
+
+                return "cmd"s;
+
+            #else
+
+                auto shell = os::env::get("SHELL");
+                if (shell.empty()
+                 || shell.ends_with("vtm"))
+                {
+                    shell = "bash"; //todo request it from user if empty; or make it configurable
+                    log("  os: using '", shell, "' as a fallback login shell");
+                }
+                return shell;
+
+            #endif
+        }
     }
 
-    text get_shell()
+    namespace clipboard
     {
         #if defined(_WIN32)
+            static auto sequence = std::numeric_limits<DWORD>::max();
+            static auto mutex   = std::mutex();
+            static auto cf_text = CF_UNICODETEXT;
+            static auto cf_utf8 = CF_TEXT;
+            static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
+            static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
+            static auto cf_ansi = ::RegisterClipboardFormatA("ANSI/VT Format");
+            static auto cf_sec1 = ::RegisterClipboardFormatA("ExcludeClipboardContentFromMonitorProcessing");
+            static auto cf_sec2 = ::RegisterClipboardFormatA("CanIncludeInClipboardHistory");
+            static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
+        #endif
 
-            return "cmd";
+        auto set(view mime, view utf8)
+        {
+            // Generate the following formats:
+            //   clip::textonly | clip::disabled
+            //        CF_UNICODETEXT: Raw UTF-16
+            //               cf_ansi: ANSI-text UTF-8 with mime mark
+            //   clip::ansitext
+            //               cf_rich: RTF-group UTF-8
+            //        CF_UNICODETEXT: ANSI-text UTF-16
+            //               cf_ansi: ANSI-text UTF-8 with mime mark
+            //   clip::richtext
+            //               cf_rich: RTF-group UTF-8
+            //        CF_UNICODETEXT: Plaintext UTF-16
+            //               cf_ansi: ANSI-text UTF-8 with mime mark
+            //   clip::htmltext
+            //               cf_ansi: ANSI-text UTF-8 with mime mark
+            //               cf_html: HTML-code UTF-8
+            //        CF_UNICODETEXT: HTML-code UTF-16
+            //   clip::safetext (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
+            //    ExcludeClipboardContentFromMonitorProcessing: 1
+            //                    CanIncludeInClipboardHistory: 0
+            //                       CanUploadToCloudClipboard: 0
+            //                                  CF_UNICODETEXT: Raw UTF-16
+            //                                         cf_ansi: ANSI-text UTF-8 with mime mark
+            //
+            //  cf_ansi format: payload=mime_type/size_x/size_y;utf8_data
 
-        #else
+            using ansi::clip;
 
-            auto shell = os::env::get("SHELL");
-            if (shell.empty()
-             || shell.ends_with("vtm"))
+            auto success = faux;
+            auto size = twod{ 80,25 };
             {
-                shell = "bash"; //todo request it from user if empty; or make it configurable
-                log("  os: using '", shell, "' as a fallback login shell");
+                auto i = 1;
+                utf::divide<feed::rev>(mime, '/', [&](auto frag)
+                {
+                    if (auto v = utf::to_int(frag)) size[i] = v.value();
+                    return i--;
+                });
             }
-            return shell;
 
-        #endif
+            #if defined(_WIN32)
+
+                auto send = [&](auto cf_format, view data)
+                {
+                    auto _send = [&](auto const& data)
+                    {
+                        auto size = (data.size() + 1/*null terminator*/) * sizeof(*(data.data()));
+                        if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
+                        {
+                            if (auto dest = ::GlobalLock(gmem))
+                            {
+                                std::memcpy(dest, data.data(), size);
+                                ::GlobalUnlock(gmem);
+                                ok(::SetClipboardData(cf_format, gmem) && (success = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(cf_format));
+                            }
+                            else log("  os: ::GlobalLock returns unexpected result");
+                            ::GlobalFree(gmem);
+                        }
+                        else log("  os: ::GlobalAlloc returns unexpected result");
+                    };
+                    cf_format == cf_text ? _send(utf::to_utf(data))
+                                         : _send(data);
+                };
+
+                auto lock = std::lock_guard{ os::clipboard::mutex };
+                ok(::OpenClipboard(nullptr), "::OpenClipboard");
+                ok(::EmptyClipboard(), "::EmptyClipboard");
+                if (utf8.size())
+                {
+                    if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
+                    {
+                        send(cf_text, utf8);
+                    }
+                    else
+                    {
+                        auto post = page{ utf8 };
+                        auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
+                        ::GetCurrentConsoleFontEx(STDOUT_FD, faux, &info);
+                        auto font = utf::to_utf(info.FaceName);
+                        if (mime.starts_with(ansi::mimerich))
+                        {
+                            auto rich = post.to_rich(font);
+                            auto utf8 = post.to_utf8();
+                            send(cf_rich, rich);
+                            send(cf_text, utf8);
+                        }
+                        else if (mime.starts_with(ansi::mimehtml))
+                        {
+                            auto [html, code] = post.to_html(font);
+                            send(cf_html, html);
+                            send(cf_text, code);
+                        }
+                        else if (mime.starts_with(ansi::mimeansi))
+                        {
+                            auto rich = post.to_rich(font);
+                            send(cf_rich, rich);
+                            send(cf_text, utf8);
+                        }
+                        else if (mime.starts_with(ansi::mimesafe))
+                        {
+                            send(cf_sec1, "1");
+                            send(cf_sec2, "0");
+                            send(cf_sec3, "0");
+                            send(cf_text, utf8);
+                        }
+                        else
+                        {
+                            send(cf_utf8, utf8);
+                        }
+                    }
+                    auto crop = ansi::add(mime, ";", utf8);
+                    send(cf_ansi, crop);
+                }
+                else
+                {
+                    success = true;
+                }
+                ok(::CloseClipboard(), "::CloseClipboard");
+                os::clipboard::sequence = ::GetClipboardSequenceNumber(); // The sequence number is incremented while closing the clipboard.
+
+            #elif defined(__APPLE__)
+
+                auto send = [&](auto& data)
+                {
+                    if (auto fd = ::popen("/usr/bin/pbcopy", "w"))
+                    {
+                        ::fwrite(data.data(), data.size(), 1, fd);
+                        ::pclose(fd);
+                        success = true;
+                    }
+                };
+                if (mime.starts_with(ansi::mimerich))
+                {
+                    auto post = page{ utf8 };
+                    auto rich = post.to_rich();
+                    send(rich);
+                }
+                else if (mime.starts_with(ansi::mimehtml))
+                {
+                    auto post = page{ utf8 };
+                    auto [html, code] = post.to_html();
+                    send(code);
+                }
+                else
+                {
+                    send(utf8);
+                }
+
+            #else
+
+                auto yield = ansi::esc{};
+                if (mime.starts_with(ansi::mimerich))
+                {
+                    auto post = page{ utf8 };
+                    auto rich = post.to_rich();
+                    yield.clipbuf(size, rich, clip::richtext);
+                }
+                else if (mime.starts_with(ansi::mimehtml))
+                {
+                    auto post = page{ utf8 };
+                    auto [html, code] = post.to_html();
+                    yield.clipbuf(size, code, clip::htmltext);
+                }
+                else if (mime.starts_with(ansi::mimeansi)) //todo GH#216
+                {
+                    yield.clipbuf(size, utf8, clip::ansitext);
+                }
+                else
+                {
+                    yield.clipbuf(size, utf8, clip::textonly);
+                }
+                os::send<true>(STDOUT_FD, yield.data(), yield.size());
+                success = true;
+
+                #if defined(__ANDROID__)
+
+                    //todo implement
+
+                #else
+
+                    //todo implement X11 clipboard server
+
+                #endif
+
+            #endif
+            return success;
+        }
     }
-    auto homepath()
-    {
-        #if defined(_WIN32)
-            return fs::path{ os::env::get("HOMEDRIVE") } / fs::path{ os::env::get("HOMEPATH") };
-        #else
-            return fs::path{ os::env::get("HOME") };
-        #endif
-    }
+
     auto local_mode()
     {
         auto conmode = -1;
@@ -1650,193 +1844,6 @@ namespace netxs::os
 
         #endif
     }
-    auto set_clipboard(view mime, view utf8)
-    {
-        // Generate the following formats:
-        //   clip::textonly | clip::disabled
-        //        CF_UNICODETEXT: Raw UTF-16
-        //               cf_ansi: ANSI-text UTF-8 with mime mark
-        //   clip::ansitext
-        //               cf_rich: RTF-group UTF-8
-        //        CF_UNICODETEXT: ANSI-text UTF-16
-        //               cf_ansi: ANSI-text UTF-8 with mime mark
-        //   clip::richtext
-        //               cf_rich: RTF-group UTF-8
-        //        CF_UNICODETEXT: Plaintext UTF-16
-        //               cf_ansi: ANSI-text UTF-8 with mime mark
-        //   clip::htmltext
-        //               cf_ansi: ANSI-text UTF-8 with mime mark
-        //               cf_html: HTML-code UTF-8
-        //        CF_UNICODETEXT: HTML-code UTF-16
-        //   clip::safetext (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
-        //    ExcludeClipboardContentFromMonitorProcessing: 1
-        //                    CanIncludeInClipboardHistory: 0
-        //                       CanUploadToCloudClipboard: 0
-        //                                  CF_UNICODETEXT: Raw UTF-16
-        //                                         cf_ansi: ANSI-text UTF-8 with mime mark
-        //
-        //  cf_ansi format: payload=mime_type/size_x/size_y;utf8_data
-
-        using ansi::clip;
-
-        auto success = faux;
-        auto size = twod{ 80,25 };
-        {
-            auto i = 1;
-            utf::divide<feed::rev>(mime, '/', [&](auto frag)
-            {
-                if (auto v = utf::to_int(frag)) size[i] = v.value();
-                return i--;
-            });
-        }
-
-        #if defined(_WIN32)
-
-            auto send = [&](auto cf_format, view data)
-            {
-                auto _send = [&](auto const& data)
-                {
-                    auto size = (data.size() + 1/*null terminator*/) * sizeof(*(data.data()));
-                    if (auto gmem = ::GlobalAlloc(GMEM_MOVEABLE, size))
-                    {
-                        if (auto dest = ::GlobalLock(gmem))
-                        {
-                            std::memcpy(dest, data.data(), size);
-                            ::GlobalUnlock(gmem);
-                            ok(::SetClipboardData(cf_format, gmem) && (success = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(cf_format));
-                        }
-                        else log("  os: ::GlobalLock returns unexpected result");
-                        ::GlobalFree(gmem);
-                    }
-                    else log("  os: ::GlobalAlloc returns unexpected result");
-                };
-                cf_format == os::cf_text ? _send(utf::to_utf(data))
-                                         : _send(data);
-            };
-
-            auto lock = std::lock_guard{ os::clipboard_mutex };
-            ok(::OpenClipboard(nullptr), "::OpenClipboard");
-            ok(::EmptyClipboard(), "::EmptyClipboard");
-            if (utf8.size())
-            {
-                if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
-                {
-                    send(os::cf_text, utf8);
-                }
-                else
-                {
-                    auto post = page{ utf8 };
-                    auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
-                    ::GetCurrentConsoleFontEx(STDOUT_FD, faux, &info);
-                    auto font = utf::to_utf(info.FaceName);
-                    if (mime.starts_with(ansi::mimerich))
-                    {
-                        auto rich = post.to_rich(font);
-                        auto utf8 = post.to_utf8();
-                        send(os::cf_rich, rich);
-                        send(os::cf_text, utf8);
-                    }
-                    else if (mime.starts_with(ansi::mimehtml))
-                    {
-                        auto [html, code] = post.to_html(font);
-                        send(os::cf_html, html);
-                        send(os::cf_text, code);
-                    }
-                    else if (mime.starts_with(ansi::mimeansi))
-                    {
-                        auto rich = post.to_rich(font);
-                        send(os::cf_rich, rich);
-                        send(os::cf_text, utf8);
-                    }
-                    else if (mime.starts_with(ansi::mimesafe))
-                    {
-                        send(os::cf_sec1, "1");
-                        send(os::cf_sec2, "0");
-                        send(os::cf_sec3, "0");
-                        send(os::cf_text, utf8);
-                    }
-                    else
-                    {
-                        send(os::cf_utf8, utf8);
-                    }
-                }
-                auto crop = ansi::add(mime, ";", utf8);
-                send(os::cf_ansi, crop);
-            }
-            else
-            {
-                success = true;
-            }
-            ok(::CloseClipboard(), "::CloseClipboard");
-            os::clipboard_sequence = ::GetClipboardSequenceNumber(); // The sequence number is incremented while closing the clipboard.
-
-        #elif defined(__APPLE__)
-
-            auto send = [&](auto& data)
-            {
-                if (auto fd = ::popen("/usr/bin/pbcopy", "w"))
-                {
-                    ::fwrite(data.data(), data.size(), 1, fd);
-                    ::pclose(fd);
-                    success = true;
-                }
-            };
-            if (mime.starts_with(ansi::mimerich))
-            {
-                auto post = page{ utf8 };
-                auto rich = post.to_rich();
-                send(rich);
-            }
-            else if (mime.starts_with(ansi::mimehtml))
-            {
-                auto post = page{ utf8 };
-                auto [html, code] = post.to_html();
-                send(code);
-            }
-            else
-            {
-                send(utf8);
-            }
-
-        #else
-
-            auto yield = ansi::esc{};
-            if (mime.starts_with(ansi::mimerich))
-            {
-                auto post = page{ utf8 };
-                auto rich = post.to_rich();
-                yield.clipbuf(size, rich, clip::richtext);
-            }
-            else if (mime.starts_with(ansi::mimehtml))
-            {
-                auto post = page{ utf8 };
-                auto [html, code] = post.to_html();
-                yield.clipbuf(size, code, clip::htmltext);
-            }
-            else if (mime.starts_with(ansi::mimeansi)) //todo GH#216
-            {
-                yield.clipbuf(size, utf8, clip::ansitext);
-            }
-            else
-            {
-                yield.clipbuf(size, utf8, clip::textonly);
-            }
-            os::send<true>(STDOUT_FD, yield.data(), yield.size());
-            success = true;
-
-            #if defined(__ANDROID__)
-
-                //todo implement
-
-            #else
-
-                //todo implement X11 clipboard server
-
-            #endif
-
-        #endif
-        return success;
-    }
 
     #if defined(_WIN32)
 
@@ -2408,17 +2415,17 @@ namespace netxs::os
 
             stdcon()
                 : active{ faux },
-                  buffer(PIPE_BUF*100, 0)
+                  buffer(os::pipebuf, 0)
             { }
             stdcon(file&& fd)
                 : active{ true },
                   handle{ std::move(fd) },
-                  buffer(PIPE_BUF*100, 0)
+                  buffer(os::pipebuf, 0)
             { }
             stdcon(fd_t r, fd_t w)
                 : active{ true },
                   handle{ r, w },
-                  buffer(PIPE_BUF*100, 0)
+                  buffer(os::pipebuf, 0)
             { }
             virtual ~stdcon()
             { }
@@ -2660,8 +2667,8 @@ namespace netxs::os
                                                   PIPE_READMODE_BYTE |      // message-read mode
                                                   PIPE_WAIT,                // blocking mode
                                                   PIPE_UNLIMITED_INSTANCES, // max. instances
-                                                  PIPE_BUF,                 // output buffer size
-                                                  PIPE_BUF,                 // input buffer size
+                                                  os::pipebuf,              // output buffer size
+                                                  os::pipebuf,              // input buffer size
                                                   0,                        // client time-out
                                                   NULL);                    // DACL (pipe_acl)
                             // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);
@@ -2828,8 +2835,8 @@ namespace netxs::os
                                                      PIPE_READMODE_BYTE |      // message-read mode
                                                      PIPE_WAIT,                // blocking mode
                                                      PIPE_UNLIMITED_INSTANCES, // max instances
-                                                     PIPE_BUF,                 // output buffer size
-                                                     PIPE_BUF,                 // input buffer size
+                                                     os::pipebuf,              // output buffer size
+                                                     os::pipebuf,              // input buffer size
                                                      0,                        // client time-out
                                                      NULL);                    // DACL
                         };
@@ -2908,7 +2915,7 @@ namespace netxs::os
 
                     #if defined(__BSD__)
                         //todo unify "/.config/vtm"
-                        auto home = os::homepath() / ".config/vtm";
+                        auto home = os::env::homepath() / ".config/vtm";
                         if (!fs::exists(home))
                         {
                             log("path: create home directory '", home.string(), "'");
@@ -3062,7 +3069,7 @@ namespace netxs::os
                 ::tcsetattr(STDIN_FD, TCSANOW, &state);
             #endif
         }
-        auto signal(sigB what)
+        auto signal(sigt what)
         {
             #if defined(_WIN32)
 
@@ -3245,7 +3252,7 @@ namespace netxs::os
                 auto legacy_color = !!(mode & os::legacy::vga16);
                 auto micefd = INVALID_FD;
                 auto mcoord = twod{};
-                auto buffer = text(os::stdin_buf_size, '\0');
+                auto buffer = text(os::pipebuf, '\0');
                 auto ttynum = si32{ 0 };
 
                 auto get_kb_state = []
@@ -3613,6 +3620,8 @@ namespace netxs::os
         }
         void clipbd(si32 mode)
         {
+            using namespace os::clipboard;
+
             if (mode & legacy::direct) return;
             log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread started");
 
@@ -3631,7 +3640,7 @@ namespace netxs::os
                             ok(::AddClipboardFormatListener(hwnd), "unexpected result from ::AddClipboardFormatListener()");
                         case WM_CLIPBOARDUPDATE:
                         {
-                            auto lock = std::lock_guard{ os::clipboard_mutex };
+                            auto lock = std::lock_guard{ os::clipboard::mutex };
                             while (!::OpenClipboard(hwnd)) // Waiting clipboard access.
                             {
                                 if (os::error() != ERROR_ACCESS_DENIED)
@@ -3643,9 +3652,9 @@ namespace netxs::os
                                 std::this_thread::yield();
                             }
                             if (auto seqno = ::GetClipboardSequenceNumber();
-                                     seqno != os::clipboard_sequence)
+                                     seqno != os::clipboard::sequence)
                             {
-                                os::clipboard_sequence = seqno;
+                                os::clipboard::sequence = seqno;
                                 if (auto format = ::EnumClipboardFormats(0))
                                 {
                                     auto hidden = ::GetClipboardData(cf_sec1);
@@ -3667,7 +3676,7 @@ namespace netxs::os
                                     }
                                     else do
                                     {
-                                        if (format == os::cf_text)
+                                        if (format == cf_text)
                                         {
                                             auto mime = hidden ? ansi::clip::safetext : ansi::clip::textonly;
                                             if (auto hglb = ::GetClipboardData(format))
@@ -3843,7 +3852,7 @@ namespace netxs::os
                         auto temp = view{ cache };
                         auto skip = ocs52head.size() + brand.size() + 1/*;*/;
                         auto data = temp.substr(skip, p + start - skip);
-                        if (os::set_clipboard(brand, utf::unbase64(data)))
+                        if (os::clipboard::set(brand, utf::unbase64(data)))
                         {
                             yield.remove_prefix(p + 1/* C0_BEL */);
                         }
@@ -3885,7 +3894,7 @@ namespace netxs::os
         std::thread             stdwrite;
         std::thread             waitexit;
         testy<twod>             termsize;
-        pid_t                   proc_pid;
+        pidt                    proc_pid;
         fd_t                    prochndl;
         fd_t                    srv_hndl;
         fd_t                    ref_hndl;
@@ -4287,7 +4296,7 @@ namespace netxs::os
         class vtty
         {
             fd_t                      prochndl{ INVALID_FD };
-            pid_t                     proc_pid{};
+            pidt                      proc_pid{};
             ipc::stdcon               termlink{};
             std::thread               stdinput{};
             std::thread               stdwrite{};

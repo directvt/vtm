@@ -940,7 +940,7 @@ R"==(
                     if (path.empty()) return faux;
                     log('\t', temp, " = ", path);
                 }
-                auto config_path = path.starts_with("~/") ? os::homepath() / path.substr(2)
+                auto config_path = path.starts_with("~/") ? os::env::homepath() / path.substr(2)
                                                           : fs::path{ path };
                 auto ec = std::error_code{};
                 auto config_file = fs::directory_entry(config_path, ec);
@@ -1346,7 +1346,7 @@ namespace netxs::app::shared
                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
-                    auto data = param.empty() ? os::get_shell() + " -i"
+                    auto data = param.empty() ? os::env::shell() + " -i"
                                               : param;
                     auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
                                       ->colors(whitelt, blackdk) //todo apply settings
@@ -1522,7 +1522,7 @@ namespace netxs::app::shared
                 #if defined(_WIN32)
                     args += "cmd";
                 #else
-                    args += os::get_shell();
+                    args += os::env::shell();
                 #endif
             }
             else
@@ -1530,7 +1530,7 @@ namespace netxs::app::shared
                 #if defined(_WIN32)
                     args += "cmd /c ";
                 #else
-                    args += os::get_shell() + " -c ";
+                    args += os::env::shell() + " -c ";
                 #endif
                 args += param;
             }

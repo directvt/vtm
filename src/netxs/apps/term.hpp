@@ -674,7 +674,7 @@ namespace netxs::app::term
                                     };
                                   });
 
-                            auto shell = os::get_shell() + " -i";
+                            auto shell = os::env::shell() + " -i";
                             auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config));
 
                             auto scroll_bars = layers->attach(ui::fork::ctor());
