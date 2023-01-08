@@ -13,19 +13,20 @@ using namespace netxs::console;
 
 int main(int argc, char* argv[])
 {
-    auto vtmode = os::vt_mode();
+    auto vtmode = os::tty::vtmode();
     auto syslog = os::tty::logger(vtmode);
     auto banner = [&]{ log(DESKTOPIO_MYNAME); };
     auto getopt = os::args{ argc, argv };
     auto params = DESKTOPIO_DEFAPP + " "s + getopt.tail();
     auto cfpath = text{};
     auto getopt = os::args{ argc, argv };
+    //todo update getopt
     while (getopt)
     {
         switch (getopt.next())
         {
             case 'l':
-                log(app::shared::load::settings(cfpath, os::legacy::get_setup()).document->show());
+                log(app::shared::load::settings(cfpath, os::dtvt::config()).document->show());
                 return 0;
             case 'c':
                 cfpath = getopt.param();
@@ -49,7 +50,7 @@ int main(int argc, char* argv[])
     }
 
     banner();
-    auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
+    auto config = app::shared::load::settings(cfpath, os::dtvt::config());
     auto result = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
 
     if (result) return 0;

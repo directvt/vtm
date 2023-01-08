@@ -842,34 +842,13 @@ namespace netxs::os
         #endif
     }
 
-    class legacy
+    struct legacy
     {
-    public:
         static constexpr auto clean  = 0;
         static constexpr auto mouse  = 1 << 0;
         static constexpr auto vga16  = 1 << 1;
         static constexpr auto vga256 = 1 << 2;
         static constexpr auto direct = 1 << 3;
-        static auto& get_state()
-        {
-            static auto state = faux;
-            return state;
-        }
-        static auto& get_start()
-        {
-            static auto start = text{};
-            return start;
-        }
-        static auto& get_setup()
-        {
-            static auto setup = text{};
-            return setup;
-        }
-        static auto& get_ready()
-        {
-            static auto ready = faux;
-            return ready;
-        }
         template<class T>
         static auto str(T mode)
         {
@@ -885,17 +864,131 @@ namespace netxs::os
             else result = "fresh";
             return result;
         }
-        static void send_dmd(fd_t m_pipe_w, view config)
+        static auto console()
+        {
+            auto conmode = -1;
+            #if defined(__linux__)
+
+                if (-1 != ::ioctl(STDOUT_FD, KDGETMODE, &conmode))
+                {
+                    switch (conmode)
+                    {
+                        case KD_TEXT:     break;
+                        case KD_GRAPHICS: break;
+                        default:          break;
+                    }
+                }
+
+            #endif
+            return conmode != -1;
+        }
+        static auto vgafont(si32 mode)
+        {
+            #if defined(__linux__)
+
+                if (mode & legacy::mouse)
+                {
+                    auto chars = std::vector<unsigned char>(512 * 32 * 4);
+                    auto fdata = console_font_op{ .op        = KD_FONT_OP_GET,
+                                                  .flags     = 0,
+                                                  .width     = 32,
+                                                  .height    = 32,
+                                                  .charcount = 512,
+                                                  .data      = chars.data() };
+                    if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "first KDFONTOP + KD_FONT_OP_GET failed")) return;
+
+                    auto slice_bytes = (fdata.width + 7) / 8;
+                    auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
+                    auto tophalf_idx = 10;
+                    auto lowhalf_idx = 254;
+                    auto tophalf_ptr = fdata.data + block_bytes * tophalf_idx;
+                    auto lowhalf_ptr = fdata.data + block_bytes * lowhalf_idx;
+                    for (auto row = 0; row < fdata.height; row++)
+                    {
+                        auto is_top = row < fdata.height / 2;
+                       *tophalf_ptr = is_top ? 0xFF : 0x00;
+                       *lowhalf_ptr = is_top ? 0x00 : 0xFF;
+                        tophalf_ptr+= slice_bytes;
+                        lowhalf_ptr+= slice_bytes;
+                    }
+                    fdata.op = KD_FONT_OP_SET;
+                    if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "second KDFONTOP + KD_FONT_OP_SET failed")) return;
+
+                    auto max_sz = std::numeric_limits<unsigned short>::max();
+                    auto spairs = std::vector<unipair>(max_sz);
+                    auto dpairs = std::vector<unipair>(max_sz);
+                    auto srcmap = unimapdesc{ max_sz, spairs.data() };
+                    auto dstmap = unimapdesc{ max_sz, dpairs.data() };
+                    auto dstptr = dstmap.entries;
+                    auto srcptr = srcmap.entries;
+                    if (!ok(::ioctl(STDOUT_FD, GIO_UNIMAP, &srcmap), "ioctl(STDOUT_FD, GIO_UNIMAP) failed")) return;
+                    auto srcend = srcmap.entries + srcmap.entry_ct;
+                    while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
+                    {
+                        auto& smap = *srcptr++;
+                        if (smap.fontpos != 10
+                         && smap.fontpos != 211
+                         && smap.fontpos != 254
+                         && smap.unicode != 0x2580
+                         && smap.unicode != 0x2584) *dstptr++ = smap;
+                    }
+                    dstmap.entry_ct = dstptr - dstmap.entries;
+                    unipair new_recs[] = { { 0x2580,  10 },
+                                           { 0x2219, 211 },
+                                           { 0x2022, 211 },
+                                           { 0x25CF, 211 },
+                                           { 0x25A0, 254 },
+                                           { 0x25AE, 254 },
+                                           { 0x2584, 254 } };
+                    if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
+                    {
+                        for (auto& p : new_recs) *dstptr++ = p;
+                        dstmap.entry_ct += std::size(new_recs);
+                        if (!ok(::ioctl(STDOUT_FD, PIO_UNIMAP, &dstmap), "ioctl(STDOUT_FD, PIO_UNIMAP) failed")) return;
+                    }
+                    else log("  os: vgafont loading failed - UNIMAP is full");
+                }
+
+            #endif
+        }
+    };
+
+    namespace dtvt
+    {
+        namespace
+        {
+            auto& _state()
+            {
+                static auto state = faux;
+                return state;
+            }
+            auto& _start()
+            {
+                static auto start = text{};
+                return start;
+            }
+            auto& _ready()
+            {
+                static auto ready = faux;
+                return ready;
+            }
+        }
+        auto& config()
+        {
+            static auto setup = text{};
+            return setup;
+        }
+        void send(fd_t m_pipe_w, view config)
         {
             auto buffer = ansi::dtvt::binary::marker{ config.size() };
             os::send<true>(m_pipe_w, buffer.data, buffer.size);
         }
-        static auto peek_dmd(fd_t stdin_fd)
+        auto peek(fd_t stdin_fd)
         {
-            auto& ready = get_ready();
-            auto& state = get_state();
-            auto& start = get_start();
-            auto& setup = get_setup();
+            auto& ready = _ready();
+            auto& state = _state();
+            auto& start = _start();
+            auto& setup = config();
             auto cfsize = size_t{};
             if (ready) return state;
             ready = true;
@@ -1249,177 +1342,6 @@ namespace netxs::os
         }
     }
 
-    auto local_mode()
-    {
-        auto conmode = -1;
-        #if defined(__linux__)
-
-            if (-1 != ::ioctl(STDOUT_FD, KDGETMODE, &conmode))
-            {
-                switch (conmode)
-                {
-                    case KD_TEXT:     break;
-                    case KD_GRAPHICS: break;
-                    default:          break;
-                }
-            }
-
-        #endif
-        return conmode != -1;
-    }
-    auto vt_mode()
-    {
-        auto mode = si32{ legacy::clean };
-        if (os::legacy::peek_dmd(STDIN_FD))
-        {
-            log("  os: DirectVT detected");
-            mode |= legacy::direct;
-        }
-        else
-        {
-            #if defined(_WIN32) // Set vt-mode and UTF-8 codepage unconditionally.
-
-                auto outmode = DWORD{};
-                if(::GetConsoleMode(STDOUT_FD, &outmode))
-                {
-                    outmode |= nt::console::outmode::vt;
-                    ::SetConsoleMode(STDOUT_FD, outmode);
-                    ::SetConsoleOutputCP(65001);
-                    ::SetConsoleCP(65001);
-                }
-
-            #endif
-            if (auto term = os::env::get("TERM"); term.size())
-            {
-                log("  os: terminal type \"", term, "\"");
-
-                auto vga16colors = { // https://github.com//termstandard/colors
-                    "ansi",
-                    "linux",
-                    "xterm-color",
-                    "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
-                    "fbcon",
-                };
-                auto vga256colors = {
-                    "rxvt-unicode-256color",
-                };
-
-                if (term.ends_with("16color") || term.ends_with("16colour"))
-                {
-                    mode |= legacy::vga16;
-                }
-                else
-                {
-                    for (auto& type : vga16colors)
-                    {
-                        if (term == type)
-                        {
-                            mode |= legacy::vga16;
-                            break;
-                        }
-                    }
-                    if (!mode)
-                    {
-                        for (auto& type : vga256colors)
-                        {
-                            if (term == type)
-                            {
-                                mode |= legacy::vga256;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
-                {
-                    log("  os: macOS Apple_Terminal detected");
-                    if (!(mode & legacy::vga16)) mode |= legacy::vga256;
-                }
-
-                if (os::local_mode()) mode |= legacy::mouse;
-
-                log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
-                                        : mode & legacy::vga256 ? "256-color"
-                                                                : "true-color");
-                log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
-            }
-        }
-        return mode;
-    }
-    auto vgafont_update(si32 mode)
-    {
-        #if defined(__linux__)
-
-            if (mode & legacy::mouse)
-            {
-                auto chars = std::vector<unsigned char>(512 * 32 * 4);
-                auto fdata = console_font_op{ .op        = KD_FONT_OP_GET,
-                                              .flags     = 0,
-                                              .width     = 32,
-                                              .height    = 32,
-                                              .charcount = 512,
-                                              .data      = chars.data() };
-                if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "first KDFONTOP + KD_FONT_OP_GET failed")) return;
-
-                auto slice_bytes = (fdata.width + 7) / 8;
-                auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
-                auto tophalf_idx = 10;
-                auto lowhalf_idx = 254;
-                auto tophalf_ptr = fdata.data + block_bytes * tophalf_idx;
-                auto lowhalf_ptr = fdata.data + block_bytes * lowhalf_idx;
-                for (auto row = 0; row < fdata.height; row++)
-                {
-                    auto is_top = row < fdata.height / 2;
-                   *tophalf_ptr = is_top ? 0xFF : 0x00;
-                   *lowhalf_ptr = is_top ? 0x00 : 0xFF;
-                    tophalf_ptr+= slice_bytes;
-                    lowhalf_ptr+= slice_bytes;
-                }
-                fdata.op = KD_FONT_OP_SET;
-                if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "second KDFONTOP + KD_FONT_OP_SET failed")) return;
-
-                auto max_sz = std::numeric_limits<unsigned short>::max();
-                auto spairs = std::vector<unipair>(max_sz);
-                auto dpairs = std::vector<unipair>(max_sz);
-                auto srcmap = unimapdesc{ max_sz, spairs.data() };
-                auto dstmap = unimapdesc{ max_sz, dpairs.data() };
-                auto dstptr = dstmap.entries;
-                auto srcptr = srcmap.entries;
-                if (!ok(::ioctl(STDOUT_FD, GIO_UNIMAP, &srcmap), "ioctl(STDOUT_FD, GIO_UNIMAP) failed")) return;
-                auto srcend = srcmap.entries + srcmap.entry_ct;
-                while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
-                {
-                    auto& smap = *srcptr++;
-                    if (smap.fontpos != 10
-                     && smap.fontpos != 211
-                     && smap.fontpos != 254
-                     && smap.unicode != 0x2580
-                     && smap.unicode != 0x2584) *dstptr++ = smap;
-                }
-                dstmap.entry_ct = dstptr - dstmap.entries;
-                unipair new_recs[] = { { 0x2580,  10 },
-                                       { 0x2219, 211 },
-                                       { 0x2022, 211 },
-                                       { 0x25CF, 211 },
-                                       { 0x25A0, 254 },
-                                       { 0x25AE, 254 },
-                                       { 0x2584, 254 } };
-                if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
-                {
-                    for (auto& p : new_recs) *dstptr++ = p;
-                    dstmap.entry_ct += std::size(new_recs);
-                    if (!ok(::ioctl(STDOUT_FD, PIO_UNIMAP, &dstmap), "ioctl(STDOUT_FD, PIO_UNIMAP) failed")) return;
-                }
-                else log("  os: vgafont_update failed - UNIMAP is full");
-            }
-
-        #endif
-    }
-    auto vtgafont_revert()
-    {
-        //todo implement
-    }
     template<bool NameOnly = faux>
     auto current_module_file()
     {
@@ -1594,6 +1516,7 @@ namespace netxs::os
         if constexpr (Logs) os::fail("exec: failed to spawn '", cmdline, "'");
         return faux;
     }
+
     void start_log(text srv_name)
     {
         is_daemon = true;
@@ -1625,6 +1548,7 @@ namespace netxs::os
         }
         else std::cout << data << std::flush;
     }
+
     auto daemonize(text params)
     {
         #if defined(_WIN32)
@@ -1674,6 +1598,7 @@ namespace netxs::os
         #endif
         return faux;
     }
+
     auto host_name()
     {
         auto hostname = text{};
@@ -3025,6 +2950,86 @@ namespace netxs::os
             static vars;
             return vars;
         }
+        auto vtmode()
+        {
+            auto mode = si32{ legacy::clean };
+            if (os::dtvt::peek(STDIN_FD))
+            {
+                log("  os: DirectVT detected");
+                mode |= legacy::direct;
+            }
+            else
+            {
+                #if defined(_WIN32) // Set vt-mode and UTF-8 codepage unconditionally.
+
+                    auto outmode = DWORD{};
+                    if(::GetConsoleMode(STDOUT_FD, &outmode))
+                    {
+                        outmode |= nt::console::outmode::vt;
+                        ::SetConsoleMode(STDOUT_FD, outmode);
+                        ::SetConsoleOutputCP(65001);
+                        ::SetConsoleCP(65001);
+                    }
+
+                #endif
+                if (auto term = os::env::get("TERM"); term.size())
+                {
+                    log("  os: terminal type \"", term, "\"");
+
+                    auto vga16colors = { // https://github.com//termstandard/colors
+                        "ansi",
+                        "linux",
+                        "xterm-color",
+                        "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
+                        "fbcon",
+                    };
+                    auto vga256colors = {
+                        "rxvt-unicode-256color",
+                    };
+
+                    if (term.ends_with("16color") || term.ends_with("16colour"))
+                    {
+                        mode |= legacy::vga16;
+                    }
+                    else
+                    {
+                        for (auto& type : vga16colors)
+                        {
+                            if (term == type)
+                            {
+                                mode |= legacy::vga16;
+                                break;
+                            }
+                        }
+                        if (!mode)
+                        {
+                            for (auto& type : vga256colors)
+                            {
+                                if (term == type)
+                                {
+                                    mode |= legacy::vga256;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
+                    {
+                        log("  os: macOS Apple_Terminal detected");
+                        if (!(mode & legacy::vga16)) mode |= legacy::vga256;
+                    }
+
+                    if (os::legacy::console()) mode |= legacy::mouse;
+
+                    log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
+                                            : mode & legacy::vga256 ? "256-color"
+                                                                    : "true-color");
+                    log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
+                }
+            }
+            return mode;
+        }
         void resize()
         {
             static constexpr auto winsz_fallback = twod{ 132, 60 };
@@ -3799,7 +3804,7 @@ namespace netxs::os
 
             #endif
 
-            os::vgafont_update(mode);
+            os::legacy::vgafont(mode);
             ::atexit(repair);
             resize();
         }
@@ -4362,7 +4367,7 @@ namespace netxs::os
                         if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
                          && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
                         {
-                            os::legacy::send_dmd(m_pipe_w, config);
+                            os::dtvt::send(m_pipe_w, config);
 
                             startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                             startinf.StartupInfo.hStdInput  = s_pipe_r;
@@ -4435,7 +4440,7 @@ namespace netxs::os
                     ok(::pipe(to_client), "dtvt: client ipc unexpected result");
 
                     termlink = { to_server[0], to_client[1] };
-                    os::legacy::send_dmd(to_client[1], config);
+                    os::dtvt::send(to_client[1], config);
 
                     proc_pid = ::fork();
                     if (proc_pid == 0) // Child branch.

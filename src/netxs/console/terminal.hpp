@@ -7032,7 +7032,7 @@ namespace netxs::ui
               selmod{ config.def_selmod },
               selalt{ config.def_selalt }
         {
-            linux_console = os::local_mode();
+            linux_console = os::legacy::console();
             form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });

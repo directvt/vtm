@@ -27,7 +27,7 @@ enum class type
 
 int main(int argc, char* argv[])
 {
-    auto vtmode = os::vt_mode();
+    auto vtmode = os::tty::vtmode();
     auto syslog = os::tty::logger(vtmode);
     auto banner = [&]{ log(DESKTOPIO_MYNAME); };
     auto whoami = type::client;
@@ -120,11 +120,11 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::config)
     {
-        log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::legacy::get_setup()));
+        log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::dtvt::config()));
     }
     else if (whoami == type::runapp)
     {
-        auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
+        auto config = app::shared::load::settings(cfpath, os::dtvt::config());
         auto shadow = params;
         utf::to_low(shadow);
              if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
@@ -154,7 +154,7 @@ int main(int argc, char* argv[])
         auto userid = os::user();
         auto usernm = os::env::get("USER");
         auto hostip = os::env::get("SSH_CLIENT");
-        auto config = app::shared::load::settings(cfpath, os::legacy::get_setup());
+        auto config = app::shared::load::settings(cfpath, os::dtvt::config());
         auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
 
         if (whoami == type::client)
