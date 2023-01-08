@@ -2159,19 +2159,6 @@ namespace netxs::os
 
         return result;
     }
-    auto cmdline()
-    {
-        auto result = list{};
-        auto argc = int{ 0 };
-        auto params = std::shared_ptr<void>(::CommandLineToArgvW(GetCommandLineW(), &argc), ::LocalFree);
-        auto argv = (LPWSTR*)params.get();
-        for (auto i = 0; i < argc; i++)
-        {
-            result.push_back(utf::to_utf(argv[i]));
-        }
-
-        return result;
-    }
     static auto delete_registry_tree(text&& path) // static required by ::SHDeleteKey
     {
         auto hKey = HKEY{};
