@@ -1022,7 +1022,7 @@ R"==(
         }
         else
         {
-            auto [client, server] = os::ipc::xcross::create();
+            auto [client, server] = os::ipc::xlink();
             auto thread = std::thread{ [&]{ os::tty::splice(vtmode, client); }};
             runapp(server);
             thread.join();

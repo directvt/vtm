@@ -2488,7 +2488,7 @@ namespace netxs::os
             }
         };
 
-        struct xcross
+        struct memory
             : public stdcon
         {
             class fifo
@@ -2543,19 +2543,14 @@ namespace netxs::os
             sptr<fifo> server;
             sptr<fifo> client;
 
-            xcross(sptr<fifo> s_queue = std::make_shared<fifo>(),
+            memory(sptr<fifo> s_queue = std::make_shared<fifo>(),
                    sptr<fifo> c_queue = std::make_shared<fifo>())
                 : server{ s_queue },
                   client{ c_queue }
             {
                 active = true;
             }
-            static auto create()
-            {
-                auto a = std::make_shared<ipc::xcross>();
-                auto b = std::make_shared<ipc::xcross>(a->client, a->server); // Swap queues for xlink.
-                return std::pair{ a, b };
-            }
+
             qiew recv() override
             {
                 return server->read(buffer);
@@ -3015,6 +3010,12 @@ namespace netxs::os
         auto stdio()
         {
             return std::make_shared<ipc::stdcon>(STDIN_FD, STDOUT_FD);
+        }
+        auto xlink()
+        {
+            auto a = std::make_shared<ipc::memory>();
+            auto b = std::make_shared<ipc::memory>(a->client, a->server); // Swap queues for xlink.
+            return std::pair{ a, b };
         }
     }
 
