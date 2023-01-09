@@ -1320,7 +1320,7 @@ namespace netxs::os
                 {
                     yield.clipbuf(size, utf8, clip::textonly);
                 }
-                os::send<true>(STDOUT_FD, yield.data(), yield.size());
+                os::send<true>(STDOUT_FD, yield);
                 success = true;
 
                 #if defined(__ANDROID__)
@@ -2360,7 +2360,7 @@ namespace netxs::os
 
             virtual bool send(view buff)
             {
-                return os::send(handle.w, buff.data(), buff.size());
+                return os::send(handle.w, buff);
             }
             virtual qiew recv(char* buff, size_t size)
             {
@@ -2642,7 +2642,7 @@ namespace netxs::os
             }
             bool send(view buff) override
             {
-                return os::send<faux>(handle.w, buff.data(), buff.size());
+                return os::send<faux>(handle.w, buff);
             }
             void stop() override
             {
