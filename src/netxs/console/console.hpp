@@ -5736,12 +5736,6 @@ namespace netxs::console
                 {
                     legacy |= pointer ? os::legacy::mouse : 0;
                 };
-                SUBMIT_T(tier::release, e2::conio::error, token, errcode)
-                {
-                    auto msg = text{ "\n\rgate: Term error: " } + std::to_string(errcode) + "\r\n";
-                    log("gate: error byemsg: ", msg);
-                    canal.stop();
-                };
                 SUBMIT_T(tier::release, e2::conio::clipdata, token, clipdata)
                 {
                     if (!direct)
@@ -5751,20 +5745,26 @@ namespace netxs::console
                         base::deface();
                     }
                 };
+                SUBMIT_T(tier::release, e2::conio::error, token, errcode)
+                {
+                    auto msg = ansi::bgc(reddk).fgc(whitelt).add("\n\rgate: Term error: ", errcode, "\r\n");
+                    log("gate: error byemsg: ", msg);
+                    canal.shut();
+                };
                 SUBMIT_T(tier::release, e2::conio::quit, token, msg)
                 {
                     log("gate: quit byemsg: ", msg);
-                    canal.stop();
+                    canal.shut();
                 };
                 SUBMIT_T(tier::general, e2::conio::quit, token, msg)
                 {
                     log("gate: global shutdown byemsg: ", msg);
-                    canal.stop();
+                    canal.shut();
                 };
                 SUBMIT_T(tier::release, e2::form::quit, token, initiator)
                 {
                     auto msg = ansi::add("gate: quit message from: ", initiator->id);
-                    canal.stop();
+                    canal.shut();
                     this->SIGNAL(tier::general, e2::shutdown, msg);
                 };
                 SUBMIT_T(tier::release, e2::form::prop::ui::footer, token, newfooter)

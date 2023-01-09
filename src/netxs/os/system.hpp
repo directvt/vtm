@@ -599,7 +599,7 @@ namespace netxs::os
             }
             else
             {
-                os::close(w);
+                os::close(w); // Wriite end should be closed first.
                 os::close(r);
             }
         }
@@ -607,8 +607,7 @@ namespace netxs::os
         {
             if (w == r)
             {
-                os::close(w);
-                r = w;
+                // Use ::shutdown() for full duplex sockets.
             }
             else
             {
@@ -2652,16 +2651,14 @@ namespace netxs::os
             }
             void stop() override
             {
-                stdcon::shut();
+                log("xipc: server shuts down: ", handle);
+                active = faux;
                 #if defined(_WIN32)
 
-                    // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
                     auto to_client = WR_PIPE_PATH + scpath;
                     auto to_server = RD_PIPE_PATH + scpath;
-                    // This may fail, but this is ok - it means the client is already disconnected.
-                    if (handle.w != INVALID_FD) ::DeleteFileA(to_client.c_str());
-                    if (handle.r != INVALID_FD) ::DeleteFileA(to_server.c_str());
-                    handle.close();
+                    if (handle.w != INVALID_FD) ::DeleteFileA(to_client.c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
+                    if (handle.r != INVALID_FD) ::DeleteFileA(to_server.c_str()); // This may fail, but this is ok - it means the client is already disconnected.
 
                 #else
 
@@ -2671,38 +2668,23 @@ namespace netxs::os
             }
             void shut() override
             {
-                stdcon::shut();
+                log("xipc: client disconnects: ", handle);
+                active = faux;
                 #if defined(_WIN32)
 
-                    // Disconnection order does matter.
-                    // This may fail, but this is ok - it means the client is already disconnected.
-                    if (handle.w != INVALID_FD) ::DisconnectNamedPipe(handle.w);
-                    if (handle.r != INVALID_FD) ::DisconnectNamedPipe(handle.r);
+                    if (handle.w != INVALID_FD) ::DisconnectNamedPipe(handle.w); // Disconnection order does matter.
+                    if (handle.r != INVALID_FD) ::DisconnectNamedPipe(handle.r); // This may fail, but this is ok - it means the client is already disconnected.
 
                 #else
 
-                    //an important conceptual reason to want
-                    //to use shutdown:
-                    //             to signal EOF to the peer
-                    //             and still be able to receive
-                    //             pending data the peer sent.
-                    //"shutdown() doesn't actually close the file descriptor
-                    //            — it just changes its usability.
-                    //To free a socket descriptor, you need to use close()."
-
-                    log("xipc: shutdown: handle descriptor: ", handle.r);
-                    if (!ok(::shutdown(handle.r, SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
-                    {
-                        switch (errno)
-                        {
-                            case EBADF:    os::fail("EBADF: The socket argument is not a valid file descriptor.");                             break;
-                            case EINVAL:   os::fail("EINVAL: The how argument is invalid.");                                                   break;
-                            case ENOTCONN: os::fail("ENOTCONN: The socket is not connected.");                                                 break;
-                            case ENOTSOCK: os::fail("ENOTSOCK: The socket argument does not refer to a socket.");                              break;
-                            case ENOBUFS:  os::fail("ENOBUFS: Insufficient resources were available in the system to perform the operation."); break;
-                            default:       os::fail("unknown reason");                                                                         break;
-                        }
-                    }
+                    ok(::shutdown(handle.w, SHUT_RDWR), "descriptor shutdown error"); // Further sends and receives are disallowed.
+                    // An important conceptual reason to want to use shutdown:
+                    //    To signal EOF to the peer and still be able
+                    //    to receive pending data the peer sent.
+                    //    "shutdown() doesn't actually close the file descriptor
+                    //     — it just changes its usability.
+                    // To free a socket descriptor, you need to use os::close().
+                    // Note: .r == .w, it is a full duplex socket handle on POSIX.
 
                 #endif
             }
