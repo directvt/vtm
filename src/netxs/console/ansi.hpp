@@ -2700,7 +2700,7 @@ namespace netxs::ansi
             STRUCT(fgc,               (rgba, color))
             STRUCT(slimmenu,          (bool, menusize))
             STRUCT(startdata,         (text, ip) (text, name) (text, user) (si32, mode) (text, conf))
-            STRUCT(debuglogs,         (ui32, id) (text, data))
+            STRUCT(debuglogs,         (si64, id) (text, data))
             //STRUCT(debugdata,         (text, data))
             //STRUCT(debugtext,         (text, data))
 

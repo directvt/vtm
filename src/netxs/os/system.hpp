@@ -127,9 +127,9 @@ namespace netxs::os
         static const auto STDIN_FD     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
         static const auto STDOUT_FD    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
         static const auto STDERR_FD    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
+        static const auto process_id   = si64{ ::GetCurrentProcessId()           };
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
-        static const auto process_id   = ui32{ ::GetCurrentProcessId() };
 
         //static constexpr auto security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -162,7 +162,7 @@ namespace netxs::os
         static const auto STDIN_FD   = fd_t{ STDIN_FILENO  };
         static const auto STDOUT_FD  = fd_t{ STDOUT_FILENO };
         static const auto STDERR_FD  = fd_t{ STDERR_FILENO };
-        static const auto process_id = ui32{ ::getpid()    };
+        static const auto process_id = si64{ ::getpid()    };
 
         void fdcleanup() // Close all file descriptors except the standard ones.
         {
