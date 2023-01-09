@@ -164,77 +164,85 @@ int main(int argc, char* argv[])
             auto client = os::ipc::socket::open<os::client>(prefix, 10s, [&]
                         {
                             log("main: new desktopio environment for user ", userid);
-                            auto cmdarg = utf::concat(os::current_module_file(), " ",
-                                                      vtpipe.size() ? "-p " + vtpipe + " " : ""s,
-                                                      cfpath.size() ? "-c " + cfpath + " " : ""s, "-d");
-                            //todo use fork on POSIX
-                            return os::exec<true, true>(cmdarg); //todo win32 pass config
+                            auto result = faux;
+                            #if defined(_WIN32)
+                                //todo win32 pass config
+                                auto cmdarg = utf::concat(os::current_module_file(), " ",
+                                                        vtpipe.size() ? "-p " + vtpipe + " " : ""s,
+                                                        cfpath.size() ? "-c " + cfpath + " " : ""s, "-d");
+                                result = os::exec<true, true>(cmdarg);
+                            #else
+                                if (os::fork(result)) whoami = type::server;
+                            #endif
+                            return result;
                         });
-            if (!client)
+            if (client)
+            {
+                auto init = ansi::dtvt::binary::startdata_t{};
+                init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
+                init.send([&](auto& data){ client->send(data); });
+
+                if (direct) os::tty::direct(client);
+                else        os::tty::splice(client, vtmode);
+                return 0;
+            }
+            else if (whoami != type::server)
             {
                 os::fail("no desktopio server connection");
                 return 1;
             }
-            auto init = ansi::dtvt::binary::startdata_t{};
-            init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
-            init.send([&](auto& data){ client->send(data); });
-
-            if (direct) os::tty::direct(client);
-            else        os::tty::splice(client, vtmode);
         }
-        else // type::server/daemon 
+
+        //todo win32: load parent config
+        if (whoami == type::daemon)
         {
-            //todo win32: load parent config
-            if (whoami == type::daemon)
+            auto cmdarg = utf::concat("-p ", prefix, " -s");
+            if (!os::daemonize(cmdarg)) //todo win32: pass config
             {
-                auto cmdarg = utf::concat("-p ", prefix, " -s");
-                if (!os::daemonize(cmdarg)) //todo win32: pass config
-                {
-                    os::fail("failed to daemonize");
-                    return 1;
-                }
-            }
-            
-            auto server = os::ipc::socket::open<os::server>(prefix);
-            if (!server)
-            {
-                os::fail("can't start desktopio server");
+                os::fail("failed to daemonize");
                 return 1;
             }
-            auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
-            config.cd("/config/appearance/defaults/");
-            auto ground = base::create<hall>(server, config);
-            auto thread = os::pool{};
-            app::shared::activate(ground, config);
+        }
+        
+        auto server = os::ipc::socket::open<os::server>(prefix);
+        if (!server)
+        {
+            os::fail("can't start desktopio server");
+            return 1;
+        }
+        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
+        config.cd("/config/appearance/defaults/");
+        auto ground = base::create<hall>(server, config);
+        auto thread = os::pool{};
+        app::shared::activate(ground, config);
 
-            log("main: listening socket ", server,
-              "\n      user: ", userid,
-              "\n      pipe: ", prefix);
+        log("main: listening socket ", server,
+          "\n      user: ", userid,
+          "\n      pipe: ", prefix);
 
-            while (auto client = server->meet())
+        while (auto client = server->meet())
+        {
+            if (!client->cred(userid))
             {
-                if (!client->cred(userid))
-                {
-                    os::fail("foreign users are not allowed to the session");
-                    continue;
-                }
-
-                thread.run([&, client](auto session_id)
-                {
-                    if (auto window = ground->invite<gate>(client, session_id, config))
-                    {
-                        log("user: new gate for ", client);
-                        auto patch = ""s;
-                        auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
-                        auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems;About;", config, patch);
-                        window->launch(client, deskmenu, bkground);
-                        log("user: ", client, " logged out");
-                    }
-                });
+                os::fail("foreign users are not allowed to the session");
+                continue;
             }
 
-            SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
-            ground->shutdown();
+            thread.run([&, client](auto session_id)
+            {
+                if (auto window = ground->invite<gate>(client, session_id, config))
+                {
+                    log("user: new gate for ", client);
+                    auto patch = ""s;
+                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
+                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems;About;", config, patch);
+                    window->launch(client, deskmenu, bkground);
+                    log("user: ", client, " logged out");
+                }
+            });
         }
+
+        SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
+        ground->shutdown();
     }
 }

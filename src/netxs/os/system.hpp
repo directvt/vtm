@@ -1498,9 +1498,9 @@ namespace netxs::os
                 if constexpr (Daemon)
                 {
                     ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
-                    ::close(STDIN_FD);  // A daemon cannot use terminal,
-                    ::close(STDOUT_FD); // so close standard file descriptors
-                    ::close(STDERR_FD); // for security reasons.
+                    ::close(STDIN_FD);
+                    ::close(STDOUT_FD);
+                    ::close(STDERR_FD);
                 }
                 os::execvp(cmdline);
                 auto errcode = errno;
@@ -1552,6 +1552,41 @@ namespace netxs::os
         else std::cout << data << std::flush;
     }
 
+    auto fork(bool& result)
+    {
+        #if not defined(_WIN32)
+
+            auto p_id = ::fork();
+            if (p_id == 0) // Child process.
+            {
+                ::setsid(); // Make this process the session leader of a new session.
+                p_id = ::fork(); // Second fork to avoid zombies.
+                if (p_id == 0) // GrandChild process.
+                {
+                    ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
+                    ::close(STDIN_FD);
+                    ::close(STDOUT_FD);
+                    ::close(STDERR_FD);
+                    return true;
+                }
+                else if (p_id > 0) os::exit(0);
+            }
+            else if (p_id > 0) // Parent branch. Reap the child, leaving the grandchild to be inherited by init.
+            {
+                auto stat = int{};
+                ::waitpid(p_id, &stat, 0);
+                if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+                {
+                    log("fork: process forked successfully");
+                    result = true;
+                    return faux; // Child forked and exited successfully.
+                }
+            }
+
+        #endif
+        os::fail("fork: can't fork process");
+        return faux;
+    }
     auto daemonize(text params)
     {
         #if defined(_WIN32)
@@ -1564,39 +1599,33 @@ namespace netxs::os
 
         #else
 
-            auto pid = ::fork();
-            if (pid < 0)
-            {
-                os::exit(1, "daemon: fork error");
-            }
-            else if (pid == 0) // Child process.
+            auto p_id = ::fork();
+            if (p_id == 0) // Child process.
             {
                 ::setsid(); // Make this process the session leader of a new session.
-                pid = ::fork();
-                if (pid < 0)
-                {
-                    os::exit(1, "daemon: fork error");
-                }
-                else if (pid == 0) // GrandChild process.
+                p_id = ::fork();
+                if (p_id == 0) // GrandChild process.
                 {
                     ::umask(0);
                     auto srv_name = os::current_module_file();
                     os::start_log(srv_name);
-                    ::close(STDIN_FD);  // A daemon cannot use terminal,
-                    ::close(STDOUT_FD); // so close standard file descriptors
-                    ::close(STDERR_FD); // for security reasons.
+                    ::close(STDIN_FD);
+                    ::close(STDOUT_FD);
+                    ::close(STDERR_FD);
                     return true;
                 }
-                os::exit(0); // SUCCESS (This child is reaped below with waitpid()).
+                else if (p_id > 0) os::exit(0);
             }
-
-            // Reap the child, leaving the grandchild to be inherited by init.
-            auto stat = int{};
-            ::waitpid(pid, &stat, 0);
-            if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+            else if (p_id > 0) // Parent branch. Reap the child, leaving the grandchild to be inherited by init.
             {
-                os::exit(0); // Child forked and exited successfully.
+                auto stat = int{};
+                ::waitpid(p_id, &stat, 0);
+                if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+                {
+                    os::exit(0); // Child forked and exited successfully.
+                }
             }
+            os::exit(1, "fork: can't fork process");
 
         #endif
         return faux;
