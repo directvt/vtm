@@ -2674,22 +2674,23 @@ namespace netxs::os
             }
             void stop() override
             {
-                log("xipc: server shuts down: ", handle);
+                if (!active) return;
                 active = faux;
+                log("xipc: server shuts down: ", handle);
                 #if defined(_WIN32)
                     auto to_client = WR_PIPE_PATH + scpath;
                     auto to_server = RD_PIPE_PATH + scpath;
                     if (handle.w != INVALID_FD) ::DeleteFileA(to_client.c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
                     if (handle.r != INVALID_FD) ::DeleteFileA(to_server.c_str()); // This may fail, but this is ok - it means the client is already disconnected.
-                    handle.close(); // To avoid call ::DeleteFileA() twice.
                 #else
                     signal.reset();
                 #endif
             }
             void shut() override
             {
-                log("xipc: client disconnects: ", handle);
+                if (!active) return;
                 active = faux;
+                log("xipc: client disconnects: ", handle);
                 #if defined(_WIN32)
                     ::DisconnectNamedPipe(handle.w);
                     handle.shutdown(); // To trigger the read end to close.

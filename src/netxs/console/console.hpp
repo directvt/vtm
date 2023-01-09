@@ -5971,7 +5971,7 @@ namespace netxs::console
             ansi::dtvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
 
             lock.lock();
-                log("link: signaling to close the read channel ", canal);
+                log("link: signaling to close read channel ", canal);
                 SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
                 token.clear();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
