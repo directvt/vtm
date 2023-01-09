@@ -129,6 +129,7 @@ namespace netxs::os
         static const auto STDERR_FD    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
+        static const auto process_id   = ui32{ ::GetCurrentProcessId() };
 
         //static constexpr auto security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -157,10 +158,11 @@ namespace netxs::os
         using pidt = pid_t;
         using fd_t = int;
         using conmode = ::termios;
-        static constexpr auto INVALID_FD = fd_t{ -1            };
-        static constexpr auto STDIN_FD   = fd_t{ STDIN_FILENO  };
-        static constexpr auto STDOUT_FD  = fd_t{ STDOUT_FILENO };
-        static constexpr auto STDERR_FD  = fd_t{ STDERR_FILENO };
+        static const auto INVALID_FD = fd_t{ -1            };
+        static const auto STDIN_FD   = fd_t{ STDIN_FILENO  };
+        static const auto STDOUT_FD  = fd_t{ STDOUT_FILENO };
+        static const auto STDERR_FD  = fd_t{ STDERR_FILENO };
+        static const auto process_id = ui32{ ::getpid()    };
 
         void fdcleanup() // Close all file descriptors except the standard ones.
         {
@@ -1526,7 +1528,7 @@ namespace netxs::os
     {
         static auto logs = ansi::dtvt::binary::debuglogs_t{};
         //todo view -> text
-        logs.set(text{ data });
+        logs.set(os::process_id, text{ data });
         logs.send([&](auto& block){ os::send(STDOUT_FD, block); });
     }
     void syslog(view data)
@@ -1652,16 +1654,6 @@ namespace netxs::os
             //todo linux implementation
             result = true;
 
-        #endif
-        return result;
-    }
-    auto process_id()
-    {
-        auto result = ui32{};
-        #if defined(_WIN32)
-            result = ::GetCurrentProcessId();
-        #else
-            result = ::getpid();
         #endif
         return result;
     }
@@ -2649,16 +2641,13 @@ namespace netxs::os
                 log("xipc: server shuts down: ", handle);
                 active = faux;
                 #if defined(_WIN32)
-
                     auto to_client = WR_PIPE_PATH + scpath;
                     auto to_server = RD_PIPE_PATH + scpath;
                     if (handle.w != INVALID_FD) ::DeleteFileA(to_client.c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
                     if (handle.r != INVALID_FD) ::DeleteFileA(to_server.c_str()); // This may fail, but this is ok - it means the client is already disconnected.
-
+                    handle.close(); // To avoid call ::DeleteFileA() twice.
                 #else
-
                     signal.reset();
-
                 #endif
             }
             void shut() override
@@ -2666,12 +2655,9 @@ namespace netxs::os
                 log("xipc: client disconnects: ", handle);
                 active = faux;
                 #if defined(_WIN32)
-
-                    if (handle.w != INVALID_FD) ::DisconnectNamedPipe(handle.w); // Disconnection order does matter.
-                    if (handle.r != INVALID_FD) ::DisconnectNamedPipe(handle.r); // This may fail, but this is ok - it means the client is already disconnected.
-
+                    ::DisconnectNamedPipe(handle.w);
+                    handle.shutdown(); // To trigger the read end to close.
                 #else
-
                     ok(::shutdown(handle.w, SHUT_RDWR), "descriptor shutdown error"); // Further sends and receives are disallowed.
                     // An important conceptual reason to want to use shutdown:
                     //    To signal EOF to the peer and still be able
@@ -2680,7 +2666,6 @@ namespace netxs::os
                     //     — it just changes its usability.
                     // To free a socket descriptor, you need to use os::close().
                     // Note: .r == .w, it is a full duplex socket handle on POSIX.
-
                 #endif
             }
             template<role ROLE, class P = noop>

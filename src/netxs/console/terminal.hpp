@@ -7423,12 +7423,15 @@ namespace netxs::ui
             //}
             void handle(s11n::xs::debuglogs           lock)
             {
-                auto utf8 = view{ lock.thing.data };
-                if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
-                utf::divide(utf8, '\n', [&](auto line)
+                if (lock.thing.id != os::process_id) // To avoid overflow on recursive dtvt connections.
                 {
-                    log(owner.prompt, line);
-                });
+                    auto utf8 = view{ lock.thing.data };
+                    if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
+                    utf::divide(utf8, '\n', [&](auto line)
+                    {
+                        log(owner.prompt, line);
+                    });
+                }
             }
 
             events_t(dtvt& owner)

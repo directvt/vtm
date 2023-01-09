@@ -5632,7 +5632,7 @@ namespace netxs::console
                 {
                     if (direct && !props.is_standalone_app)
                     {
-                        conio.debuglogs.send(canal, text{ data });
+                        conio.debuglogs.send(canal, os::process_id, text{ data });
                     }
                 });
 
