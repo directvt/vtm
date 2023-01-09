@@ -168,7 +168,7 @@ int main(int argc, char* argv[])
                                                       vtpipe.size() ? "-p " + vtpipe + " " : ""s,
                                                       cfpath.size() ? "-c " + cfpath + " " : ""s, "-d");
                             //todo use fork on POSIX
-                            return os::exec(cmdarg); //todo win32 pass config
+                            return os::exec<true, true>(cmdarg); //todo win32 pass config
                         });
             if (!client)
             {

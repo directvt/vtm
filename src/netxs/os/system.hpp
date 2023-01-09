@@ -1469,7 +1469,7 @@ namespace netxs::os
 
         #endif
     }
-    template<bool Logs = true>
+    template<bool Logs = true, bool Daemon = faux>
     auto exec(text cmdline)
     {
         if constexpr (Logs) log("exec: '" + cmdline + "'");
@@ -1495,6 +1495,13 @@ namespace netxs::os
             auto p_id = ::fork();
             if (p_id == 0) // Child branch.
             {
+                if constexpr (Daemon)
+                {
+                    ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
+                    ::close(STDIN_FD);  // A daemon cannot use terminal,
+                    ::close(STDOUT_FD); // so close standard file descriptors
+                    ::close(STDERR_FD); // for security reasons.
+                }
                 os::execvp(cmdline);
                 auto errcode = errno;
                 if constexpr (Logs) os::fail("exec: failed to spawn '", cmdline, "'");
@@ -1550,7 +1557,7 @@ namespace netxs::os
         #if defined(_WIN32)
 
             auto srv_name = os::current_module_file();
-            if (os::exec<true>(srv_name + " " + params))
+            if (os::exec<true, true>(srv_name + " " + params))
             {
                 os::exit(0); // Child forked successfully.
             }
@@ -2674,19 +2681,15 @@ namespace netxs::os
                 auto r = INVALID_FD;
                 auto w = INVALID_FD;
                 auto socket = sptr<ipc::socket>{};
-                auto try_start = [&](auto play) -> bool
+                auto try_start = [&](auto play, auto retry_proc)
                 {
                     auto done = play();
                     if (!done)
                     {
-                        if constexpr (ROLE == role::client)
+                        if (!retry_proc())
                         {
-                            if (!retry_proc())
-                            {
-                                return os::fail("failed to start server");
-                            }
+                            return !!os::fail("failed to start server");
                         }
-
                         auto stop = datetime::tempus::now() + retry_timeout;
                         do
                         {
@@ -2787,7 +2790,7 @@ namespace netxs::os
                             }
                             return true;
                         };
-                        if (!try_start(play))
+                        if (!try_start(play, retry_proc))
                         {
                             os::fail("connection error");
                         }
@@ -2867,7 +2870,7 @@ namespace netxs::os
                         else if constexpr (ROLE == role::client)
                         {
                             path.clear(); // No need to unlink a file system socket on client disconnect.
-                            if (!try_start(play))
+                            if (!try_start(play, retry_proc))
                             {
                                 os::fail("connection error");
                                 os::close(r);
