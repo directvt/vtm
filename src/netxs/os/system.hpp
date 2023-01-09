@@ -614,13 +614,10 @@ namespace netxs::os
                 os::close(w);
             }
         }
-        void shutsend() // Reset writing end of the pipe to interrupt reading call.
-        {
-            os::close(w);
-        }
         friend auto& operator << (std::ostream& s, file const& handle)
         {
-            return s << handle.r << "," << handle.w;
+            if (handle.w != handle.r) s << handle.r << ",";
+            return s << handle.w;
         }
         auto& operator = (file&& f)
         {
@@ -2527,7 +2524,7 @@ namespace netxs::os
                         auto size = unsigned{ sizeof(cred) };
                     #endif
 
-                    if (!ok(::getsockopt(handle.r, SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt(SOL_SOCKET) failed"))
+                    if (!ok(::getsockopt(handle.r, SOL_SOCKET, SO_PEERCRED, &cred, &size), "::getsockopt(SOL_SOCKET) failed"))
                     {
                         return faux;
                     }
@@ -2539,16 +2536,16 @@ namespace netxs::os
                     }
 
                     log("sock: creds from SO_PEERCRED:",
-                            "\n\t  pid: ", cred.pid,
-                            "\n\t euid: ", cred.uid,
-                            "\n\t egid: ", cred.gid);
+                      "\n      pid : ", cred.pid,
+                      "\n      euid: ", cred.uid,
+                      "\n      egid: ", cred.gid);
 
                 #elif defined(__BSD__)
 
                     auto euid = uid_t{};
                     auto egid = gid_t{};
 
-                    if (!ok(::getpeereid(handle.r, &euid, &egid), "getpeereid failed"))
+                    if (!ok(::getpeereid(handle.r, &euid, &egid), "::getpeereid() failed"))
                     {
                         return faux;
                     }
@@ -2559,10 +2556,10 @@ namespace netxs::os
                         return faux;
                     }
 
-                    log("sock: creds from getpeereid:",
-                            "\n\t  pid: ", id,
-                            "\n\t euid: ", euid,
-                            "\n\t egid: ", egid);
+                    log("sock: creds from ::getpeereid():",
+                      "\n      pid : ", id,
+                      "\n      euid: ", euid,
+                      "\n      egid: ", egid);
 
                 #endif
 
@@ -3007,7 +3004,7 @@ namespace netxs::os
                     log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
                                             : mode & legacy::vga256 ? "256-color"
                                                                     : "true-color");
-                    log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
+                    log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "vt-style");
                 }
             }
             return mode;

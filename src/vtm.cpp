@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 #define DESKTOPIO_VER "v0.9.8l"
-#define DESKTOPIO_MYNAME "vtm " DESKTOPIO_VER
+#define DESKTOPIO_MYNAME " vtm: " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_MYPATH "vtm"
 #define DESKTOPIO_DEFAPP "Term"
@@ -208,8 +208,8 @@ int main(int argc, char* argv[])
             app::shared::activate(ground, config);
 
             log("main: listening socket ", server,
-                             "\n\tuser: ", userid,
-                             "\n\tpipe: ", prefix);
+              "\n      user: ", userid,
+              "\n      pipe: ", prefix);
 
             while (auto client = server->meet())
             {

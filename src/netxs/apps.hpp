@@ -928,6 +928,7 @@ R"==(
         auto settings(view cli_config_path, view patch)
         {
             auto conf = xml::settings{ default_config };
+            auto pads = "      ";
             auto load = [&](view shadow)
             {
                 if (shadow.empty()) return faux;
@@ -938,7 +939,7 @@ R"==(
                     auto temp = path.substr(1);
                     path = os::env::get(temp);
                     if (path.empty()) return faux;
-                    log('\t', temp, " = ", path);
+                    log(pads, temp, " = ", path);
                 }
                 auto config_path = path.starts_with("~/") ? os::env::homepath() / path.substr(2)
                                                           : fs::path{ path };
@@ -951,12 +952,12 @@ R"==(
                     auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
                     if (file.seekg(0, std::ios::end).fail())
                     {
-                        log("\tfailed\n\tunable to get configuration file size, skip it: ", config_path_str);
+                        log(pads, "failed\n\tunable to get configuration file size, skip it: ", config_path_str);
                         return faux;
                     }
                     else
                     {
-                        log("\treading configuration: ", config_path_str);
+                        log(pads, "reading configuration: ", config_path_str);
                         auto size = file.tellg();
                         auto buff = text(size, '\0');
                         file.seekg(0, std::ios::beg);
@@ -965,14 +966,14 @@ R"==(
                         return true;
                     }
                 }
-                log("\tno configuration found, try another source");
+                log(pads, "no configuration found, try another source");
                 return faux;
             };
             if (!load(cli_config_path)
              && !load(app::shared::env_config)
              && !load(app::shared::usr_config))
             {
-                log("apps: fallback to hardcoded configuration");
+                log(pads, "fallback to hardcoded configuration");
             }
 
             os::env::set(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
