@@ -16,47 +16,74 @@ int main(int argc, char* argv[])
     auto vtmode = os::tty::vtmode();
     auto syslog = os::tty::logger(vtmode);
     auto banner = [&]{ log(DESKTOPIO_MYNAME); };
-    auto getopt = os::args{ argc, argv };
-    auto params = DESKTOPIO_DEFAPP + " "s + getopt.tail();
+    auto cfonly = faux;
     auto cfpath = text{};
+    auto errmsg = text{};
     auto getopt = os::args{ argc, argv };
-    //todo update getopt
+    auto params = DESKTOPIO_DEFAPP + " "s + getopt.rest();
+    getopt.reset();
     while (getopt)
     {
-        switch (getopt.next())
+        if (getopt.match("-l", "--listconfig"))
         {
-            case 'l':
-                log(app::shared::load::settings(cfpath, os::dtvt::config()).document->show());
-                return 0;
-            case 'c':
-                cfpath = getopt.param();
-                if (cfpath.size()) break;
-                else os::fail("config file path not specified");
-            default:
-                banner();
-                log("Usage:\n\n ", os::current_module_file(), " [ -c <config_file> ] [ -l ]\n"s
-                    + "\n"s
-                        + "\t-c\tUse specified configuration file.\n"s
-                        + "\t-l\tShow configuration and exit.\n"s
-                        + "\n"s
-                        + "\tConfiguration file location precedence (descending priority):\n\n"s
-                        + "\t\t1. Command line options; e.g., vtm -c path/to/settings.xml\n"s
-                        + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
-                        + "\t\t3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
-                        + "\t\t4. Default configuration\n"s
-                        );
-                return 0;
+            cfonly = true;
+        }
+        else if (getopt.match("-c", "--config"))
+        {
+            cfpath = getopt.next();
+            if (cfpath.empty())
+            {
+                errmsg = "config file path not specified";
+                break;
+            }
+        }
+        else if (getopt.match("-?", "-h", "--help"))
+        {
+            errmsg = ansi::nil().add("show usage message");
+            break;
+        }
+        else if (getopt.match("--"))
+        {
+            break;
+        }
+        else
+        {
+            errmsg = utf::concat("unknown command line parameter '", getopt.next(), "'");
+            break;
         }
     }
 
     banner();
-    auto config = app::shared::load::settings(cfpath, os::dtvt::config());
-    auto result = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
-
-    if (result) return 0;
+    if (errmsg.size())
+    {
+        os::fail(errmsg);
+        auto myname = os::current_module_file<true>();
+        log("\nUsage:\n\n " + myname + " [ -c <file> ] [ -l ]\n"s
+            + "\n"s
+                + "\t-c | --config <..>  Use specified configuration file.\n"s
+                + "\t-l | --listconfig   Show configuration and exit.\n"s
+                + "\n"s
+                + "\tConfiguration file location precedence (descending priority):\n\n"s
+                + "\t\t1. Command line options; e.g., " + myname + " -c path/to/settings.xml\n"s
+                + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
+                + "\t\t3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
+                + "\t\t4. Default configuration\n"s
+                );
+    }
+    else if (cfonly)
+    {
+        log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::dtvt::config()));
+    }
     else
     {
-        log("main: app initialization error");
-        return 1;
+        auto config = app::shared::load::settings(cfpath, os::dtvt::config());
+        auto result = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
+
+        if (result) return 0;
+        else
+        {
+            log("main: app initialization error");
+            return 1;
+        }
     }
 }

@@ -51,6 +51,15 @@ int main(int argc, char* argv[])
         {
             whoami = type::daemon;
         }
+        else if (getopt.match("-p", "--pipe"))
+        {
+            vtpipe = getopt.next();
+            if (vtpipe.empty())
+            {
+                errmsg = "custom pipe not specified";
+                break;
+            }
+        }
         else if (getopt.match("-l", "--listconfig"))
         {
             whoami = type::config;
@@ -61,15 +70,6 @@ int main(int argc, char* argv[])
             if (cfpath.empty())
             {
                 errmsg = "config file path not specified";
-                break;
-            }
-        }
-        else if (getopt.match("-p", "--pipe"))
-        {
-            vtpipe = getopt.next();
-            if (vtpipe.empty())
-            {
-                errmsg = "custom pipe not specified";
                 break;
             }
         }
