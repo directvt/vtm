@@ -1527,9 +1527,7 @@ namespace netxs::os
         static auto logs = ansi::dtvt::binary::debuglogs_t{};
         //todo view -> text
         logs.set(text{ data });
-        logs.send([&](auto& block){ os::send(STDOUT_FD, block.data(), block.size()); });
-        //std::cerr << data;
-        //os::send<true>(STDERR_FD, data.data(), data.size());
+        logs.send([&](auto& block){ os::send(STDOUT_FD, block); });
     }
     void syslog(view data)
     {

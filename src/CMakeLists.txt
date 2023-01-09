@@ -1,8 +1,8 @@
 cmake_minimum_required (VERSION 3.8)
 
 project ("vtm")
-project ("term")
-project ("calc")
+# project ("term")
+# project ("calc")
 
 set (CMAKE_CXX_STANDARD 20)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,8 +23,8 @@ elseif (NOT CMAKE_SYSTEM_NAME MATCHES "Android")
 endif ()
 
 add_executable (vtm "vtm.cpp")
-add_executable (term "netxs/apps/term.cpp")
-add_executable (calc "netxs/apps/calc.cpp")
+# add_executable (term "netxs/apps/term.cpp")
+# add_executable (calc "netxs/apps/calc.cpp")
 
 if (NOT WIN32)
     install (TARGETS vtm  DESTINATION bin)

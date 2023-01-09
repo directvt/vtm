@@ -5628,6 +5628,13 @@ namespace netxs::console
                 auto  conio = link{ canal, This() }; // gate: Terminal IO.
                 auto  paint = diff{ canal, vtmode }; // gate: Rendering loop.
                 auto  token = subs{};                // gate: Subscription tokens.
+                auto logger = netxs::logger([&](auto data)
+                {
+                    if (direct && !props.is_standalone_app)
+                    {
+                        conio.debuglogs.send(canal, text{ data });
+                    }
+                });
 
                 auto rebuild_scene = [&](bool damaged)
                 {
