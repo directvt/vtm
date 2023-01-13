@@ -1622,7 +1622,10 @@ namespace netxs::utf
             utf8 = view{};
             return utf8;
         }
-        auto crop = view{ coor, stop };
+        //todo Clang 11.0.1 doesn't get it
+        //auto crop = view{ coor, stop };
+        auto crop = view{ &(*coor), (size_t)(stop - coor) };
+
         utf8.remove_prefix(crop.size() + 2);
         if (!skip.empty()) trim_front(utf8, skip);
         return crop;
@@ -1643,7 +1646,9 @@ namespace netxs::utf
             utf8 = view{};
             return utf8;
         }
-        auto crop = view{ head, stop + 1 };
+        //todo Clang 11.0.1 doesn't get it
+        //auto crop = view{ head, stop + 1 };
+        auto crop = view{ &(*head), (size_t)(stop + 1 - head) };
         utf8.remove_prefix(crop.size());
         return crop;
     }
@@ -1667,7 +1672,9 @@ namespace netxs::utf
                 return crop;
             }
         }
-        auto str = view{ head, stop };
+        //todo Clang 11.0.1 doesn't get it
+        //auto str = view{ head, stop };
+        auto str = view{ &(*head), (size_t)(stop - head) };
         utf8.remove_prefix(std::distance(head, stop));
         return str;
     }
