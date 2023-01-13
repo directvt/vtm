@@ -159,25 +159,17 @@ int main(int argc, char* argv[])
 
         if (whoami == type::client)
         {
-            auto direct = !!(vtmode & os::legacy::direct);
-            if (!direct) os::start_log(DESKTOPIO_MYPATH);
             auto client = os::ipc::socket::open<os::client>(prefix, 10s, [&]
-                        {
-                            log("main: new desktopio environment for user ", userid);
-                            auto result = faux;
-                            #if defined(_WIN32)
-                                //todo win32 pass config
-                                auto cmdarg = utf::concat(os::current_module_file(), " ",
-                                                        vtpipe.size() ? "-p " + vtpipe + " " : ""s,
-                                                        cfpath.size() ? "-c " + cfpath + " " : ""s, "-d");
-                                result = os::exec<true, true>(cmdarg);
-                            #else
-                                if (os::fork(result)) whoami = type::server;
-                            #endif
-                            return result;
-                        });
+            {
+                log("main: new desktopio environment for ", userid);
+                auto success = faux;
+                if (os::fork(success, prefix, config.utf8())) whoami = type::server;
+                return success;
+            });
             if (client)
             {
+                auto direct = !!(vtmode & os::legacy::direct);
+                if (!direct) os::start_log(DESKTOPIO_MYPATH);
                 auto init = ansi::dtvt::binary::startdata_t{};
                 init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
                 init.send([&](auto& data){ client->send(data); });
@@ -193,14 +185,17 @@ int main(int argc, char* argv[])
             }
         }
 
-        //todo win32: load parent config
         if (whoami == type::daemon)
         {
-            auto cmdarg = utf::concat("-p ", prefix, " -s");
-            if (!os::daemonize(cmdarg)) //todo win32: pass config
+            auto success = faux;
+            if (os::fork(success, prefix, config.utf8()))
             {
-                os::fail("failed to daemonize");
-                return 1;
+                whoami = type::server;
+            }
+            else 
+            {
+                if (!success) os::fail("failed to daemonize");
+                return !success;
             }
         }
         

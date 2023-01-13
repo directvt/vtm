@@ -932,6 +932,21 @@ R"==(
             auto load = [&](view shadow)
             {
                 if (shadow.empty()) return faux;
+                if (shadow.starts_with(":"))
+                {
+                    shadow.remove_prefix(1);
+                    auto utf8 = os::get_shared_data(shadow);
+                    if (utf8.size())
+                    {
+                        conf.fuse<Print>(utf8);
+                        return true;
+                    }
+                    else
+                    {
+                        log("apps: failed to get configuration from :", shadow);
+                        return faux;
+                    }
+                }
                 auto path = text{ shadow };
                 log("apps: loading configuration from ", path, "...");
                 if (path.starts_with("$"))

@@ -1552,9 +1552,42 @@ namespace netxs::os
         else std::cout << data << std::flush;
     }
 
-    auto fork(bool& result)
+    auto fork(bool& result, view prefix, text config)
     {
-        #if not defined(_WIN32)
+        result = faux;
+        #if defined(_WIN32)
+
+            auto proinf = PROCESS_INFORMATION{};
+            auto srtinf = STARTUPINFOA{ sizeof(STARTUPINFOA) };
+            auto source = view{ config.data(), config.size() + 1/*trailing null*/ };
+            auto handle = ::CreateFileMappingA(os::INVALID_FD, nullptr, PAGE_READWRITE, 0, source.size(), nullptr);
+            ok(handle, "::CreateFileMappingA() returns unexpected result");
+            auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);
+            ok(buffer, "::MapViewOfFile() returns unexpected result");
+            std::copy(std::begin(source), std::end(source), (char*)buffer);
+            ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile() returns unexpected result");
+            ok(::SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT), "::SetHandleInformation() returns unexpected result");
+            auto cmdarg = utf::concat(os::current_module_file(), " -p ", prefix, " -c :", handle, " -s");
+            result = ::CreateProcessA(nullptr,            // lpApplicationName
+                                      cmdarg.data(),      // lpCommandLine
+                                      nullptr,            // lpProcessAttributes
+                                      nullptr,            // lpThreadAttributes
+                                      TRUE,               // bInheritHandles
+                                      DETACHED_PROCESS,   // dwCreationFlags
+                                      nullptr,            // lpEnvironment
+                                      nullptr,            // lpCurrentDirectory
+                                      &srtinf,            // lpStartupInfo
+                                      &proinf);           // lpProcessInformation
+            os::close(handle);
+            if (result)
+            {
+                os::close(proinf.hProcess);
+                os::close(proinf.hThread);
+                log("  os: process forked successfully");
+                return faux; // Success. The fork concept is not supported on Windows.
+            }
+
+        #else
 
             auto p_id = ::fork();
             if (p_id == 0) // Child process.
@@ -1577,14 +1610,14 @@ namespace netxs::os
                 ::waitpid(p_id, &stat, 0);
                 if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
                 {
-                    log("fork: process forked successfully");
+                    log("  os: process forked successfully");
                     result = true;
                     return faux; // Child forked and exited successfully.
                 }
             }
 
         #endif
-        os::fail("fork: can't fork process");
+        os::fail("  os: can't fork process");
         return faux;
     }
     auto daemonize(text params)
@@ -1631,6 +1664,25 @@ namespace netxs::os
         return faux;
     }
 
+    auto get_shared_data(view shadow)
+    {
+        auto utf8 = text{};
+        #if defined(_WIN32)
+
+            if (auto reference = utf::to_int<intptr_t, 0x10>(shadow))
+            {
+                auto handle = (HANDLE)reference.value();
+                if (auto data = ::MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0))
+                {
+                    utf8 = (char*)data;
+                    ::UnmapViewOfFile(data);
+                }
+                os::close(handle);
+            }
+
+        #endif
+        return utf8;
+    }
     auto host_name()
     {
         auto hostname = text{};
