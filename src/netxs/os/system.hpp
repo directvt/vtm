@@ -1560,10 +1560,8 @@ namespace netxs::os
             auto proinf = PROCESS_INFORMATION{};
             auto srtinf = STARTUPINFOA{ sizeof(STARTUPINFOA) };
             auto source = view{ config.data(), config.size() + 1/*trailing null*/ };
-            auto handle = ::CreateFileMappingA(os::INVALID_FD, nullptr, PAGE_READWRITE, 0, source.size(), nullptr);
-            ok(handle, "::CreateFileMappingA() returns unexpected result");
-            auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);
-            ok(buffer, "::MapViewOfFile() returns unexpected result");
+            auto handle = ::CreateFileMappingA(os::INVALID_FD, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), nullptr); ok(handle, "::CreateFileMappingA() returns unexpected result");
+            auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                ok(buffer, "::MapViewOfFile() returns unexpected result");
             std::copy(std::begin(source), std::end(source), (char*)buffer);
             ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile() returns unexpected result");
             ok(::SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT), "::SetHandleInformation() returns unexpected result");
@@ -1620,50 +1618,6 @@ namespace netxs::os
         os::fail("  os: can't fork process");
         return faux;
     }
-    auto daemonize(text params)
-    {
-        #if defined(_WIN32)
-
-            auto srv_name = os::current_module_file();
-            if (os::exec<true, true>(srv_name + " " + params))
-            {
-                os::exit(0); // Child forked successfully.
-            }
-
-        #else
-
-            auto p_id = ::fork();
-            if (p_id == 0) // Child process.
-            {
-                ::setsid(); // Make this process the session leader of a new session.
-                p_id = ::fork();
-                if (p_id == 0) // GrandChild process.
-                {
-                    ::umask(0);
-                    auto srv_name = os::current_module_file();
-                    os::start_log(srv_name);
-                    ::close(STDIN_FD);
-                    ::close(STDOUT_FD);
-                    ::close(STDERR_FD);
-                    return true;
-                }
-                else if (p_id > 0) os::exit(0);
-            }
-            else if (p_id > 0) // Parent branch. Reap the child, leaving the grandchild to be inherited by init.
-            {
-                auto stat = int{};
-                ::waitpid(p_id, &stat, 0);
-                if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
-                {
-                    os::exit(0); // Child forked and exited successfully.
-                }
-            }
-            os::exit(1, "fork: can't fork process");
-
-        #endif
-        return faux;
-    }
-
     auto get_shared_data(view shadow)
     {
         auto utf8 = text{};
@@ -1683,6 +1637,7 @@ namespace netxs::os
         #endif
         return utf8;
     }
+
     auto host_name()
     {
         auto hostname = text{};
