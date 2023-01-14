@@ -7414,6 +7414,7 @@ namespace netxs::ui
                     SIGNAL_GLOBAL(e2::config::fps, fps);
                 });
             }
+            //todo logs
             //void handle(s11n::xs::request_debug       lock)
             //{
             //    netxs::events::enqueue(owner.This(), [&](auto& boss)
@@ -7615,10 +7616,11 @@ namespace netxs::ui
         // dtvt: Logs callback handler.
         void request_debug()
         {
+            //todo logs
             //SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
             //{
             //    //todo text -> view
-            //    stream.debuglogs.send(ptycon, text{shadow});
+            //    stream.debuglogs2.send(ptycon, text{shadow});
             //};
             //SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
             //{

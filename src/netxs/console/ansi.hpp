@@ -2672,6 +2672,7 @@ namespace netxs::ansi
             STRUCT(warping,           (id_t, window_id) (dent, warpdata))
             STRUCT(vt_command,        (text, command))
             STRUCT_LITE(expose)
+            //todo logs
             //STRUCT_LITE(request_debug)
 
             // Input stream.
@@ -2701,6 +2702,8 @@ namespace netxs::ansi
             STRUCT(slimmenu,          (bool, menusize))
             STRUCT(startdata,         (text, ip) (text, name) (text, user) (si32, mode) (text, conf))
             STRUCT(debuglogs,         (si64, id) (text, data))
+            //todo logs
+            //STRUCT(debuglogs2,        (text, data))
             //STRUCT(debugdata,         (text, data))
             //STRUCT(debugtext,         (text, data))
 
@@ -2982,6 +2985,8 @@ namespace netxs::ansi
                 X(slimmenu         ) /* Set window menu size.                         */\
                 X(startdata        ) /* Startup data.                                 */\
                 X(debuglogs        ) /* Debug logs.                                   */
+                //todo logs
+                //X(debuglogs2       ) /* Debug logs.                                   */
                 //X(debugdata        ) /* Debug data.                                   */
                 //X(debugtext        ) /* Debug forwarding.                             */
                 //X(request_debug    ) /* Request debug output redirection to stdin.    */

@@ -5311,12 +5311,13 @@ namespace netxs::console
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
         }
+        //todo logs
         //void handle(s11n::xs::debugdata   lock) // For Logs only.
         //{
         //    auto& item = lock.thing;
         //    notify<tier::anycast>(e2::debug::output, item.data);
         //}
-        //void handle(s11n::xs::debuglogs   lock) // For Logs only.
+        //void handle(s11n::xs::debuglogs2  lock) // For Logs only.
         //{
         //    auto& item = lock.thing;
         //    notify<tier::anycast>(e2::debug::logs, item.data);
@@ -5492,6 +5493,7 @@ namespace netxs::console
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 auto coor = basexy;
                 coor += gear.coord;
                 coor.y--;
@@ -5510,6 +5512,7 @@ namespace netxs::console
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 area.coor = coor + gear.coord;
                 area.coor -= base;
                 if (gear.m.buttons) brush.txt(64 + gear.m.buttons).bgc(reddk).fgc(0xFFffffff);
@@ -5522,6 +5525,7 @@ namespace netxs::console
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 if (props.clip_preview_time == period::zero()
                  || props.clip_preview_time > stamp - gear.delta.stamp())
                 {
@@ -5538,6 +5542,7 @@ namespace netxs::console
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 if (gear.tooltip_enabled())
                 {
                     auto tooltip_data = gear.get_tooltip();
@@ -5561,6 +5566,7 @@ namespace netxs::console
             for (auto& [gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 if (gear.is_tooltip_changed())
                 {
                     list.thing.push(gear_id, gear.get_tooltip());
@@ -5574,6 +5580,7 @@ namespace netxs::console
             for (auto& [gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 result |= gear.tooltip_check(now);
             }
             if (result) base::strike();
@@ -5877,6 +5884,7 @@ namespace netxs::console
 
                 if (direct) // Forward unhandled events outside.
                 {
+                    //todo crash in dtvt mode
                     //SUBMIT_T(tier::anycast, e2::debug::request, token, count)
                     //{
                     //    if (count > 0) conio.request_debug.send(conio);
