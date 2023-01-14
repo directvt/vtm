@@ -29,25 +29,10 @@
     #endif
 
     #pragma warning(disable:4996) // disable std::getenv warnimg
-    #pragma comment(lib, "Advapi32.lib")  // GetUserName()
 
     #include <Windows.h>
-    #include <Psapi.h>      // GetModuleFileNameEx
-    #include <Wtsapi32.h>   // WTSEnumerateSessions, get_logged_usres
-    #include <Shlwapi.h>
-    #include <shobjidl.h>   // IShellLink
-    #include <shlguid.h>    // IID_IShellLink
-    #include <Shlobj.h>     // create_shortcut: SHGetFolderLocation / (SHGetFolderPathW - vist and later) CLSID_ShellLink
-    #include <Psapi.h>      // GetModuleFileNameEx
-
-    #include <DsGetDC.h>    // DsGetDcName
-    #include <LMCons.h>     // DsGetDcName
-    #include <Lmapibuf.h>   // DsGetDcName
-
-    #include <Sddl.h>       // security_descriptor
-
-    #include <winternl.h>   // NtOpenFile
-    #include <wingdi.h>     // TranslateCharsetInfo
+    #include <Psapi.h>      // ::GetModuleFileNameEx
+    #include <winternl.h>   // ::NtOpenFile
 
 #else
 
@@ -4050,8 +4035,24 @@ namespace netxs::os
             }
         };
     }
+}
 
-    // Deprecated stuff.
+/* Deprecated/unused stuff.
+#if defined(_WIN32)
+
+    #include <Wtsapi32.h>   // WTSEnumerateSessions, get_logged_usres
+    #include <Shlwapi.h>
+    #include <shobjidl.h>   // IShellLink
+    #include <shlguid.h>    // IID_IShellLink
+    #include <Shlobj.h>     // create_shortcut: SHGetFolderLocation / (SHGetFolderPathW - vist and later) CLSID_ShellLink
+    #include <DsGetDC.h>    // DsGetDcName
+    #include <LMCons.h>     // DsGetDcName
+    #include <Lmapibuf.h>   // DsGetDcName
+    #include <Sddl.h>       // security_descriptor
+
+#endif
+namespace netxs::os
+{
     auto host_name()
     {
         auto hostname = text{};
@@ -4524,3 +4525,4 @@ namespace netxs::os
 
     #endif  // Windows specific
 }
+*/
