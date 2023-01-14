@@ -15,8 +15,6 @@
 #include "file_system.hpp"
 #include "../text/logger.hpp"
 #include "../console/input.hpp"
-#include "../abstract/ptr.hpp"
-#include "../console/richtext.hpp"
 #include "../ui/layout.hpp"
 
 #include <type_traits>
@@ -177,8 +175,8 @@ namespace netxs::os
 
             nt()
             {
-                ntdll_dll  = ::LoadLibraryEx("ntdll.dll",  nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                user32_dll = ::LoadLibraryEx("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                ntdll_dll  = ::LoadLibraryExA("ntdll.dll",  nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
                 if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
                 else
                 {
@@ -1403,16 +1401,16 @@ namespace netxs::os
                         if (active && connected) // Recreate the waiting point for the next client.
                         {
                             next_waiting_point =
-                                ::CreateNamedPipe(path.c_str(),             // pipe path
-                                                  type,                     // read/write access
-                                                  PIPE_TYPE_BYTE |          // message type pipe
-                                                  PIPE_READMODE_BYTE |      // message-read mode
-                                                  PIPE_WAIT,                // blocking mode
-                                                  PIPE_UNLIMITED_INSTANCES, // max. instances
-                                                  os::pipebuf,              // output buffer size
-                                                  os::pipebuf,              // input buffer size
-                                                  0,                        // client time-out
-                                                  NULL);                    // DACL (pipe_acl)
+                                ::CreateNamedPipeA(path.c_str(),             // pipe path
+                                                   type,                     // read/write access
+                                                   PIPE_TYPE_BYTE |          // message type pipe
+                                                   PIPE_READMODE_BYTE |      // message-read mode
+                                                   PIPE_WAIT,                // blocking mode
+                                                   PIPE_UNLIMITED_INSTANCES, // max. instances
+                                                   os::pipebuf,              // output buffer size
+                                                    os::pipebuf,              // input buffer size
+                                                   0,                        // client time-out
+                                                   NULL);                    // DACL (pipe_acl)
                             // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);
                             //       The ACLs in the default security descriptor for a named pipe grant full control to the
                             //       LocalSystem account, administrators, and the creator owner. They also grant read access to
@@ -1565,16 +1563,16 @@ namespace netxs::os
 
                         auto pipe = [](auto const& path, auto type)
                         {
-                            return ::CreateNamedPipe(path.c_str(),             // pipe path
-                                                     type,                     // read/write access
-                                                     PIPE_TYPE_BYTE |          // message type pipe
-                                                     PIPE_READMODE_BYTE |      // message-read mode
-                                                     PIPE_WAIT,                // blocking mode
-                                                     PIPE_UNLIMITED_INSTANCES, // max instances
-                                                     os::pipebuf,              // output buffer size
-                                                     os::pipebuf,              // input buffer size
-                                                     0,                        // client time-out
-                                                     NULL);                    // DACL
+                            return ::CreateNamedPipeA(path.c_str(),             // pipe path
+                                                      type,                     // read/write access
+                                                      PIPE_TYPE_BYTE |          // message type pipe
+                                                      PIPE_READMODE_BYTE |      // message-read mode
+                                                      PIPE_WAIT,                // blocking mode
+                                                      PIPE_UNLIMITED_INSTANCES, // max instances
+                                                      os::pipebuf,              // output buffer size
+                                                      os::pipebuf,              // input buffer size
+                                                      0,                        // client time-out
+                                                      NULL);                    // DACL
                         };
 
                         r = pipe(to_server, PIPE_ACCESS_INBOUND);
@@ -1612,13 +1610,13 @@ namespace netxs::os
                     {
                         auto pipe = [](auto const& path, auto type)
                         {
-                            return ::CreateFile(path.c_str(),  // pipe path
-                                                type,
-                                                0,             // no sharing
-                                                NULL,          // default security attributes
-                                                OPEN_EXISTING, // opens existing pipe
-                                                0,             // default attributes
-                                                NULL);         // no template file
+                            return ::CreateFileA(path.c_str(),  // pipe path
+                                                 type,
+                                                 0,             // no sharing
+                                                 NULL,          // default security attributes
+                                                 OPEN_EXISTING, // opens existing pipe
+                                                 0,             // default attributes
+                                                 NULL);         // no template file
                         };
                         auto play = [&]
                         {
@@ -2883,7 +2881,7 @@ namespace netxs::os
                     auto s_pipe_w = INVALID_FD;
                     auto m_pipe_r = INVALID_FD;
                     auto m_pipe_w = INVALID_FD;
-                    auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
+                    auto startinf = STARTUPINFOEXA{ sizeof(STARTUPINFOEXA) };
                     auto procsinf = PROCESS_INFORMATION{};
                     auto attrbuff = std::vector<uint8_t>{};
                     auto attrsize = SIZE_T{ 0 };

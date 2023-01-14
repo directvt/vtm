@@ -6,7 +6,6 @@
 #include "../os/system.hpp"
 #include "../text/xml.hpp"
 
-#include <iostream>
 #include <typeindex>
 
 #define SPD            10   // console: Auto-scroll initial speed component ΔR.
