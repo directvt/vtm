@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         os::fail(errmsg);
-        auto myname = os::current_module_file<true>();
+        auto myname = os::process::binary<true>();
         log("\nUsage:\n\n " + myname + " [ -c <file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
             + "\n"s
                 + "\tNo arguments        Run client, auto start server if it is not running.\n"s
@@ -151,7 +151,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        auto userid = os::user();
+        auto userid = os::env::user();
         auto usernm = os::env::get("USER");
         auto hostip = os::env::get("SSH_CLIENT");
         auto config = app::shared::load::settings(cfpath, os::dtvt::config());
@@ -163,13 +163,13 @@ int main(int argc, char* argv[])
             {
                 log("main: new desktopio environment for ", userid);
                 auto success = faux;
-                if (os::fork(success, prefix, config.utf8())) whoami = type::server;
+                if (os::process::fork(success, prefix, config.utf8())) whoami = type::server;
                 return success;
             });
             if (client)
             {
                 auto direct = !!(vtmode & os::legacy::direct);
-                if (!direct) os::start_log(DESKTOPIO_MYPATH);
+                if (!direct) os::logging::start(DESKTOPIO_MYPATH);
                 auto init = ansi::dtvt::binary::startdata_t{};
                 init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
                 init.send([&](auto& data){ client->send(data); });
@@ -188,7 +188,7 @@ int main(int argc, char* argv[])
         if (whoami == type::daemon)
         {
             auto success = faux;
-            if (os::fork(success, prefix, config.utf8()))
+            if (os::process::fork(success, prefix, config.utf8()))
             {
                 whoami = type::server;
             }

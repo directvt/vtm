@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         os::fail(errmsg);
-        auto myname = os::current_module_file<true>();
+        auto myname = os::process::binary<true>();
         log("\nUsage:\n\n " + myname + " [ -c <file> ] [ -l ]\n"s
             + "\n"s
                 + "\t-c | --config <..>  Use specified configuration file.\n"s

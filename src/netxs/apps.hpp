@@ -935,7 +935,7 @@ R"==(
                 if (shadow.starts_with(":"))
                 {
                     shadow.remove_prefix(1);
-                    auto utf8 = os::get_shared_data(shadow);
+                    auto utf8 = os::ipc::memory::get(shadow);
                     if (utf8.size())
                     {
                         conf.fuse<Print>(utf8);
@@ -1009,7 +1009,7 @@ R"==(
     auto start(text app_name, text log_title, si32 vtmode, xml::settings& config)
     {
         auto direct = !!(vtmode & os::legacy::direct);
-        if (!direct) os::start_log(log_title);
+        if (!direct) os::logging::start(log_title);
 
         //std::this_thread::sleep_for(15s);
 
@@ -1523,7 +1523,7 @@ namespace netxs::app::shared
         {
             if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
 
-            auto args = os::current_module_file();
+            auto args = os::process::binary();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
 
             args += " -r term ";
@@ -1533,7 +1533,7 @@ namespace netxs::app::shared
         };
         auto build_SHELL         = [](text cwd, text param, xml::settings& config, text patch)
         {
-            auto args = os::current_module_file();
+            auto args = os::process::binary();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
 
             args += " -r term ";

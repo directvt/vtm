@@ -20,7 +20,7 @@
 #include "../ui/layout.hpp"
 
 #include <type_traits>
-#include <iostream>         // std::cout
+#include <iostream>
 
 #if defined(_WIN32)
 
@@ -131,27 +131,6 @@ namespace netxs::os
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
 
-        //static constexpr auto security_descriptor_string =
-        //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
-        //	"O:AND:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)";
-        //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;AU)";// Authenticated users
-        //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)"; // CREATOR OWNER
-        //	//"D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)";
-        //	//  "D:"  DACL
-        //	//  "P"   SDDL_PROTECTED        The SE_DACL_PROTECTED flag is set.
-        //	//  "A"   SDDL_ACCESS_ALLOWED
-        //	// ace_flags:
-        //	//  "OI"  SDDL_OBJECT_INHERIT
-        //	//  "CI"  SDDL_CONTAINER_INHERIT
-        //	//  "NP"  SDDL_NO_PROPAGATE
-        //	// rights:
-        //	//  "GA"  SDDL_GENERIC_ALL
-        //	// account_sid: see https://docs.microsoft.com/en-us/windows/win32/secauthz/sid-strings
-        //	//  "SY"  SDDL_LOCAL_SYSTEM
-        //	//  "BA"  SDDL_BUILTIN_ADMINISTRATORS
-        //	//  "CO"  SDDL_CREATOR_OWNER
-        //	//  "WD"  SDDL_EVERYONE
-
     #else
 
         using sigt = int;
@@ -176,8 +155,9 @@ namespace netxs::os
 
     #endif
 
-    class args
+    struct args
     {
+    private:
         using list = std::list<text>;
         using it_t = list::iterator;
 
@@ -304,6 +284,21 @@ namespace netxs::os
             return faux;
         }
         else return true;
+    }
+    void exit(int code)
+    {
+        #if defined(_WIN32)
+            ::ExitProcess(code);
+        #else
+            if (is_daemon) ::closelog();
+            ::exit(code);
+        #endif
+    }
+    template<class ...Args>
+    void exit(int code, Args&&... args)
+    {
+        log(args...);
+        os::exit(code);
     }
 
     #if defined(_WIN32)
@@ -810,7 +805,6 @@ namespace netxs::os
 
         #endif
     }
-
     template<bool NONBLOCKED = faux, class ...Args>
     void select(Args&&... args)
     {
@@ -839,6 +833,126 @@ namespace netxs::os
 
         #endif
     }
+
+    struct fire
+    {
+        #if defined(_WIN32)
+
+            fd_t h; // fire: Descriptor for IO interrupt.
+
+            operator auto () { return h; }
+            fire(bool i = 1) { ok(h = ::CreateEvent(NULL, i, FALSE, NULL), "CreateEvent error"); }
+           ~fire()           { os::close(h); }
+            void reset()     { ok(::SetEvent(h), "SetEvent error"); }
+            void flush()     { ok(::ResetEvent(h), "ResetEvent error"); }
+
+        #else
+
+            fd_t h[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
+            char x = 1;
+
+            operator auto () { return h[0]; }
+            fire()           { ok(::pipe(h), "pipe[2] creation failed"); }
+           ~fire()           { for (auto& f : h) os::close(f); }
+            void reset()     { os::send(h[1], &x, sizeof(x)); }
+            void flush()     { os::recv(h[0], &x, sizeof(x)); }
+
+        #endif
+        void bell() { reset(); }
+    };
+
+    struct pool
+    {
+    private:
+        struct item
+        {
+            bool        state;
+            std::thread guest;
+        };
+
+        std::recursive_mutex            mutex;
+        std::condition_variable_any     synch;
+        std::map<std::thread::id, item> index;
+        si32                            count;
+        bool                            alive;
+        std::thread                     agent;
+
+        void worker()
+        {
+            auto guard = std::unique_lock{ mutex };
+            log("pool: session control started");
+
+            while (alive)
+            {
+                synch.wait(guard);
+                for (auto it = index.begin(); it != index.end();)
+                {
+                    auto& [sid, session] = *it;
+                    auto& [state, guest] = session;
+                    if (state == faux || !alive)
+                    {
+                        if (guest.joinable())
+                        {
+                            guard.unlock();
+                            guest.join();
+                            guard.lock();
+                            log("pool: id: ", sid, " session joined");
+                        }
+                        it = index.erase(it);
+                    }
+                    else ++it;
+                }
+            }
+        }
+        void checkout()
+        {
+            auto guard = std::lock_guard{ mutex };
+            auto session_id = std::this_thread::get_id();
+            index[session_id].state = faux;
+            synch.notify_one();
+            log("pool: id: ", session_id, " session deleted");
+        }
+
+    public:
+        template<class PROC>
+        void run(PROC process)
+        {
+            auto guard = std::lock_guard{ mutex };
+            auto next_id = count++;
+            auto session = std::thread([&, process, next_id]
+            {
+                process(next_id);
+                checkout();
+            });
+            auto session_id = session.get_id();
+            index[session_id] = { true, std::move(session) };
+            log("pool: id: ", session_id, " session created");
+        }
+        auto size()
+        {
+            return index.size();
+        }
+
+        pool()
+            : count{ 0    },
+              alive{ true },
+              agent{ &pool::worker, this }
+        { }
+       ~pool()
+        {
+            mutex.lock();
+            alive = faux;
+            synch.notify_one();
+            mutex.unlock();
+
+            if (agent.joinable())
+            {
+                log("pool: joining agent");
+                agent.join();
+            }
+            log("pool: session control ended");
+        }
+    };
 
     struct legacy
     {
@@ -1052,22 +1166,6 @@ namespace netxs::os
         }
     };
 
-    void exit(int code)
-    {
-        #if defined(_WIN32)
-            ::ExitProcess(code);
-        #else
-            if (is_daemon) ::closelog();
-            ::exit(code);
-        #endif
-    }
-    template<class ...Args>
-    void exit(int code, Args&&... args)
-    {
-        log(args...);
-        os::exit(code);
-    }
-
     namespace env
     {
         // os::env: Get envvar value.
@@ -1134,10 +1232,42 @@ namespace netxs::os
 
             #endif
         }
+        // os::env: Get user name.
+        auto user()
+        {
+            #if defined(_WIN32)
+
+                static constexpr auto INFO_BUFFER_SIZE = 32767UL;
+                char infoBuf[INFO_BUFFER_SIZE];
+                auto bufCharCount = DWORD{ INFO_BUFFER_SIZE };
+
+                if (::GetUserNameA(infoBuf, &bufCharCount))
+                {
+                    if (bufCharCount && infoBuf[bufCharCount - 1] == 0)
+                    {
+                        bufCharCount--;
+                    }
+                    return text(infoBuf, bufCharCount);
+                }
+                else
+                {
+                    os::fail("GetUserName error");
+                    return text{};
+                }
+
+            #else
+
+                uid_t id;
+                id = ::geteuid();
+                return id;
+
+            #endif
+        }
     }
 
     namespace clipboard
     {
+        static constexpr auto ocs52head = "\033]52;"sv;
         #if defined(_WIN32)
             static auto sequence = std::numeric_limits<DWORD>::max();
             static auto mutex   = std::mutex();
@@ -1338,1027 +1468,106 @@ namespace netxs::os
             #endif
             return success;
         }
-    }
 
-    template<bool NameOnly = faux>
-    auto current_module_file()
-    {
-        auto result = text{};
-        #if defined(_WIN32)
+        struct proxy
+        {
+            using time = datetime::moment;
 
-            auto handle = ::GetCurrentProcess();
-            auto buffer = std::vector<char>(MAX_PATH);
+            text cache;
+            time stamp;
+            text brand;
 
-            while (buffer.size() <= 32768)
+            proxy()
+                : stamp{ datetime::tempus::now() }
+            { }
+
+            auto operator() (auto& yield) // Redirect clipboard data.
             {
-                auto length = ::GetModuleFileNameEx(handle,         // hProcess
-                                                    NULL,           // hModule
-                                                    buffer.data(),  // lpFilename
-                                 static_cast<DWORD>(buffer.size()));// nSize
-                if (length == 0) break;
-
-                if (buffer.size() > length + 1)
+                if (cache.size() || yield.starts_with(ocs52head))
                 {
-                    result = text(buffer.data(), length);
-                    break;
-                }
-
-                buffer.resize(buffer.size() << 1);
-            }
-
-        #elif defined(__linux__) || defined(__NetBSD__)
-
-            auto path = ::realpath("/proc/self/exe", nullptr);
-            if (path)
-            {
-                result = text(path);
-                ::free(path);
-            }
-
-        #elif defined(__APPLE__)
-
-            auto size = uint32_t{};
-            if (-1 == ::_NSGetExecutablePath(nullptr, &size))
-            {
-                auto buff = std::vector<char>(size);
-                if (0 == ::_NSGetExecutablePath(buff.data(), &size))
-                {
-                    auto path = ::realpath(buff.data(), nullptr);
-                    if (path)
+                    auto now = datetime::tempus::now();
+                    if (now - stamp > 3s) // Drop outdated cache.
                     {
-                        result = text(path);
-                        ::free(path);
+                        cache.clear();
+                        brand.clear();
                     }
-                }
-            }
-
-        #elif defined(__FreeBSD__)
-
-            auto size = 0_sz;
-            int  name[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
-            if (::sysctl(name, std::size(name), nullptr, &size, nullptr, 0) == 0)
-            {
-                auto buff = std::vector<char>(size);
-                if (::sysctl(name, std::size(name), buff.data(), &size, nullptr, 0) == 0)
-                {
-                    result = text(buff.data(), size);
-                }
-            }
-
-        #endif
-        #if not defined(_WIN32)
-
-            if (result.empty())
-            {
-                      auto path = ::realpath("/proc/self/exe",        nullptr);
-                if (!path) path = ::realpath("/proc/curproc/file",    nullptr);
-                if (!path) path = ::realpath("/proc/self/path/a.out", nullptr);
-                if (path)
-                {
-                    result = text(path);
-                    ::free(path);
-                }
-            }
-
-        #endif
-        if (result.empty())
-        {
-            os::fail("can't get current module file path, fallback to '", DESKTOPIO_MYPATH, "`");
-            result = DESKTOPIO_MYPATH;
-        }
-        if constexpr (NameOnly)
-        {
-            auto code = std::error_code{};
-            auto file = fs::directory_entry(result, code);
-            if (!code)
-            {
-                result = file.path().filename().string();
-            }
-        }
-        auto c = result.front();
-        if (c != '\"' && c != '\'' && result.find(' ') != text::npos)
-        {
-            result = '\"' + result + '\"';
-        }
-        return result;
-    }
-    auto execvp(text cmdline)
-    {
-        #if defined(_WIN32)
-        #else
-
-            if (auto args = os::args::split(cmdline); args.size())
-            {
-                auto& binary = args.front();
-                if (binary.size() > 2) // Remove quotes,
-                {
-                    auto c = binary.front();
-                    if (binary.back() == c && (c == '\"' || c == '\''))
+                    auto start = cache.size();
+                    cache += yield;
+                    yield = cache;
+                    stamp = now;
+                    if (brand.empty())
                     {
-                        binary = binary.substr(1, binary.size() - 2);
+                        yield.remove_prefix(ocs52head.size());
+                        if (auto p = yield.find(';'); p != view::npos)
+                        {
+                            brand = yield.substr(0, p++/*;*/);
+                            yield.remove_prefix(p);
+                            start = ocs52head.size() + p;
+                        }
+                        else return faux;
                     }
-                }
-                auto argv = std::vector<char*>{};
-                for (auto& c : args)
-                {
-                    argv.push_back(c.data());
-                }
-                argv.push_back(nullptr);
-                ::execvp(argv.front(), argv.data());
-            }
+                    else yield.remove_prefix(start);
 
-        #endif
-    }
-    template<bool Logs = true, bool Daemon = faux>
-    auto exec(text cmdline)
-    {
-        if constexpr (Logs) log("exec: '" + cmdline + "'");
-        #if defined(_WIN32)
-            
-            auto shadow = view{ cmdline };
-            auto binary = utf::to_utf(utf::get_token(shadow));
-            auto params = utf::to_utf(shadow);
-            auto ShExecInfo = ::SHELLEXECUTEINFOW{};
-            ShExecInfo.cbSize = sizeof(::SHELLEXECUTEINFOW);
-            ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-            ShExecInfo.hwnd = NULL;
-            ShExecInfo.lpVerb = NULL;
-            ShExecInfo.lpFile = binary.c_str();
-            ShExecInfo.lpParameters = params.c_str();
-            ShExecInfo.lpDirectory = NULL;
-            ShExecInfo.nShow = 0;
-            ShExecInfo.hInstApp = NULL;
-            if (::ShellExecuteExW(&ShExecInfo)) return true;
-
-        #else
-
-            auto p_id = ::fork();
-            if (p_id == 0) // Child branch.
-            {
-                if constexpr (Daemon)
-                {
-                    ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
-                    ::close(STDIN_FD);
-                    ::close(STDOUT_FD);
-                    ::close(STDERR_FD);
-                }
-                os::execvp(cmdline);
-                auto errcode = errno;
-                if constexpr (Logs) os::fail("exec: failed to spawn '", cmdline, "'");
-                os::exit(errcode);
-            }
-            else if (p_id > 0) // Parent branch.
-            {
-                auto stat = int{};
-                ::waitpid(p_id, &stat, 0); // Wait for the child to avoid zombies.
-                if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
-                {
-                    return true; // Child forked and exited successfully.
-                }
-            }
-
-        #endif
-        if constexpr (Logs) os::fail("exec: failed to spawn '", cmdline, "'");
-        return faux;
-    }
-
-    void start_log(text srv_name)
-    {
-        is_daemon = true;
-        #if defined(_WIN32)
-            //todo implement
-        #else
-            ::openlog(srv_name.c_str(), LOG_NOWAIT | LOG_PID, LOG_USER);
-        #endif
-    }
-    void stdlog(view data)
-    {
-        static auto logs = ansi::dtvt::binary::debuglogs_t{};
-        //todo view -> text
-        logs.set(os::process_id, text{ data });
-        logs.send([&](auto& block){ os::send(STDOUT_FD, block); });
-    }
-    void syslog(view data)
-    {
-        if (os::is_daemon)
-        {
-            #if defined(_WIN32)
-                //todo implement
-            #else
-                auto copy = text{ data };
-                ::syslog(LOG_NOTICE, "%s", copy.c_str());
-            #endif
-        }
-        else std::cout << data << std::flush;
-    }
-
-    auto fork(bool& result, view prefix, text config)
-    {
-        result = faux;
-        #if defined(_WIN32)
-
-            auto proinf = PROCESS_INFORMATION{};
-            auto srtinf = STARTUPINFOA{ sizeof(STARTUPINFOA) };
-            auto source = view{ config.data(), config.size() + 1/*trailing null*/ };
-            auto handle = ::CreateFileMappingA(os::INVALID_FD, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), nullptr); ok(handle, "::CreateFileMappingA() returns unexpected result");
-            auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                ok(buffer, "::MapViewOfFile() returns unexpected result");
-            std::copy(std::begin(source), std::end(source), (char*)buffer);
-            ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile() returns unexpected result");
-            ok(::SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT), "::SetHandleInformation() returns unexpected result");
-            auto cmdarg = utf::concat(os::current_module_file(), " -p ", prefix, " -c :", handle, " -s");
-            result = ::CreateProcessA(nullptr,            // lpApplicationName
-                                      cmdarg.data(),      // lpCommandLine
-                                      nullptr,            // lpProcessAttributes
-                                      nullptr,            // lpThreadAttributes
-                                      TRUE,               // bInheritHandles
-                                      DETACHED_PROCESS,   // dwCreationFlags
-                                      nullptr,            // lpEnvironment
-                                      nullptr,            // lpCurrentDirectory
-                                      &srtinf,            // lpStartupInfo
-                                      &proinf);           // lpProcessInformation
-            os::close(handle);
-            if (result)
-            {
-                os::close(proinf.hProcess);
-                os::close(proinf.hThread);
-                log("  os: process forked successfully");
-                return faux; // Success. The fork concept is not supported on Windows.
-            }
-
-        #else
-
-            auto p_id = ::fork();
-            if (p_id == 0) // Child process.
-            {
-                ::setsid(); // Make this process the session leader of a new session.
-                p_id = ::fork(); // Second fork to avoid zombies.
-                if (p_id == 0) // GrandChild process.
-                {
-                    ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
-                    ::close(STDIN_FD);
-                    ::close(STDOUT_FD);
-                    ::close(STDERR_FD);
-                    return true;
-                }
-                else if (p_id > 0) os::exit(0);
-            }
-            else if (p_id > 0) // Parent branch. Reap the child, leaving the grandchild to be inherited by init.
-            {
-                auto stat = int{};
-                ::waitpid(p_id, &stat, 0);
-                if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
-                {
-                    log("  os: process forked successfully");
-                    result = true;
-                    return faux; // Child forked and exited successfully.
-                }
-            }
-
-        #endif
-        os::fail("  os: can't fork process");
-        return faux;
-    }
-    auto get_shared_data(view shadow)
-    {
-        auto utf8 = text{};
-        #if defined(_WIN32)
-
-            if (auto reference = utf::to_int<intptr_t, 0x10>(shadow))
-            {
-                auto handle = (HANDLE)reference.value();
-                if (auto data = ::MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0))
-                {
-                    utf8 = (char*)data;
-                    ::UnmapViewOfFile(data);
-                }
-                os::close(handle);
-            }
-
-        #endif
-        return utf8;
-    }
-
-    auto host_name()
-    {
-        auto hostname = text{};
-        #if defined(_WIN32)
-
-            auto dwSize = DWORD{ 0 };
-            ::GetComputerNameEx(::ComputerNamePhysicalDnsFullyQualified, NULL, &dwSize);
-
-            if (dwSize)
-            {
-                auto buffer = std::vector<char>(dwSize);
-                if (::GetComputerNameEx(::ComputerNamePhysicalDnsFullyQualified, buffer.data(), &dwSize))
-                {
-                    if (dwSize && buffer[dwSize - 1] == 0) dwSize--;
-                    hostname = text(buffer.data(), dwSize);
-                }
-            }
-
-        #else
-
-            // APPLE: AI_CANONNAME undeclared
-            //std::vector<char> buffer(MAXHOSTNAMELEN);
-            //if (0 == gethostname(buffer.data(), buffer.size()))
-            //{
-            //	struct addrinfo hints, * info;
-            //
-            //	::memset(&hints, 0, sizeof hints);
-            //	hints.ai_family = AF_UNSPEC;
-            //	hints.ai_socktype = SOCK_STREAM;
-            //	hints.ai_flags = AI_CANONNAME | AI_CANONIDN;
-            //
-            //	if (0 == getaddrinfo(buffer.data(), "http", &hints, &info))
-            //	{
-            //		hostname = std::string(info->ai_canonname);
-            //		//for (auto p = info; p != NULL; p = p->ai_next)
-            //		//{
-            //		//	hostname = std::string(p->ai_canonname);
-            //		//}
-            //		freeaddrinfo(info);
-            //	}
-            //}
-
-        #endif
-        return hostname;
-    }
-    auto is_mutex_exists(text&& mutex_name)
-    {
-        auto result = faux;
-        #if defined(_WIN32)
-
-            auto mutex = ::CreateMutexA(0, 0, mutex_name.c_str());
-            result = ::GetLastError() == ERROR_ALREADY_EXISTS;
-            ::CloseHandle(mutex);
-
-        #else
-
-            //todo linux implementation
-            result = true;
-
-        #endif
-        return result;
-    }
-    static auto logged_in_users(view domain_delimiter = "\\", view record_delimiter = "\0") //  static required by ::WTSQuerySessionInformation
-    {
-        auto active_users_array = text{};
-        #if defined(_WIN32)
-
-            auto SessionInfo_pointer = PWTS_SESSION_INFO{};
-            auto count = DWORD{};
-            if (::WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, &SessionInfo_pointer, &count))
-            {
-                for (DWORD i = 0; i < count; i++)
-                {
-                    auto si = SessionInfo_pointer[i];
-                    auto buffer_pointer = LPTSTR{};
-                    auto buffer_length = DWORD{};
-
-                    ::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSUserName, &buffer_pointer, &buffer_length);
-                    auto user = text(utf::to_view(buffer_pointer, buffer_length));
-                    ::WTSFreeMemory(buffer_pointer);
-
-                    if (user.length())
+                    if (auto p = yield.find(ansi::C0_BEL); p != view::npos)
                     {
-                        ::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSDomainName, &buffer_pointer, &buffer_length);
-                        auto domain = text(utf::to_view(buffer_pointer, buffer_length / sizeof(wchr)));
-                        ::WTSFreeMemory(buffer_pointer);
-
-                        active_users_array += domain;
-                        active_users_array += domain_delimiter;
-                        active_users_array += user;
-                        active_users_array += domain_delimiter;
-                        active_users_array += "local";
-                        active_users_array += record_delimiter;
+                        auto temp = view{ cache };
+                        auto skip = ocs52head.size() + brand.size() + 1/*;*/;
+                        auto data = temp.substr(skip, p + start - skip);
+                        if (os::clipboard::set(brand, utf::unbase64(data)))
+                        {
+                            yield.remove_prefix(p + 1/* C0_BEL */);
+                        }
+                        else yield = temp; // Forward all out;
+                        cache.clear();
+                        brand.clear();
+                        if (yield.empty()) return faux;
                     }
+                    else return faux;
                 }
-                ::WTSFreeMemory(SessionInfo_pointer);
-                if (active_users_array.size())
-                {
-                    active_users_array = utf::remove(active_users_array, record_delimiter);
-                }
-            }
-
-        #else
-
-            static constexpr auto NAME_WIDTH = 8;
-
-            // APPLE: utmp is deprecated
-
-            // if (FILE* ufp = ::fopen(_PATH_UTMP, "r"))
-            // {
-            // 	struct utmp usr;
-            //
-            // 	while (::fread((char*)&usr, sizeof(usr), 1, ufp) == 1)
-            // 	{
-            // 		if (*usr.ut_user && *usr.ut_host && *usr.ut_line && *usr.ut_line != '~')
-            // 		{
-            // 			active_users_array += usr.ut_host;
-            // 			active_users_array += domain_delimiter;
-            // 			active_users_array += usr.ut_user;
-            // 			active_users_array += domain_delimiter;
-            // 			active_users_array += usr.ut_line;
-            // 			active_users_array += record_delimiter;
-            // 		}
-            // 	}
-            // 	::fclose(ufp);
-            // }
-
-        #endif
-        return active_users_array;
-    }
-    auto user()
-    {
-        #if defined(_WIN32)
-
-            static constexpr auto INFO_BUFFER_SIZE = 32767UL;
-            char infoBuf[INFO_BUFFER_SIZE];
-            auto bufCharCount = DWORD{ INFO_BUFFER_SIZE };
-
-            if (::GetUserNameA(infoBuf, &bufCharCount))
-            {
-                if (bufCharCount && infoBuf[bufCharCount - 1] == 0)
-                {
-                    bufCharCount--;
-                }
-                return text(infoBuf, bufCharCount);
-            }
-            else
-            {
-                os::fail("GetUserName error");
-                return text{};
-            }
-
-        #else
-
-            uid_t id;
-            id = ::geteuid();
-            return id;
-
-        #endif
-    }
-
-    #if defined(_WIN32)
-
-    /* cl.exe issue
-    class security_descriptor
-    {
-        SECURITY_ATTRIBUTES descriptor;
-
-    public:
-        text security_string;
-
-        operator SECURITY_ATTRIBUTES* () throw()
-        {
-            return &descriptor;
-        }
-
-        security_descriptor(text SSD)
-            : security_string{ SSD }
-        {
-            ZeroMemory(&descriptor, sizeof(descriptor));
-            descriptor.nLength = sizeof(descriptor);
-
-            // four main components of a security descriptor https://docs.microsoft.com/en-us/windows/win32/secauthz/security-descriptor-string-format
-            //       "O:" - owner
-            //       "G:" - primary group
-            //       "D:" - DACL discretionary access control list https://docs.microsoft.com/en-us/windows/desktop/SecGloss/d-gly
-            //       "S:" - SACL system access control list https://docs.microsoft.com/en-us/windows/desktop/SecGloss/s-gly
-            //
-            // the object's owner:
-            //   O:owner_sid
-            //
-            // the object's primary group:
-            //   G:group_sid
-            //
-            // Security descriptor control flags that apply to the DACL:
-            //   D:dacl_flags(string_ace1)(string_ace2)... (string_acen)
-            //
-            // Security descriptor control flags that apply to the SACL
-            //   S:sacl_flags(string_ace1)(string_ace2)... (string_acen)
-            //
-            //   dacl_flags/sacl_flags:
-            //   "P"                 SDDL_PROTECTED        The SE_DACL_PROTECTED flag is set.
-            //   "AR"                SDDL_AUTO_INHERIT_REQ The SE_DACL_AUTO_INHERIT_REQ flag is set.
-            //   "AI"                SDDL_AUTO_INHERITED   The SE_DACL_AUTO_INHERITED flag is set.
-            //   "NO_ACCESS_CONTROL" SSDL_NULL_ACL         The ACL is null.
-            //
-            //   string_ace - The fields of the ACE are in the following
-            //                order and are separated by semicolons (;)
-            //   for syntax see https://docs.microsoft.com/en-us/windows/win32/secauthz/ace-strings
-            //   ace_type;ace_flags;rights;object_guid;inherit_object_guid;account_sid;(resource_attribute)
-            // ace_type:
-            //  "A" SDDL_ACCESS_ALLOWED
-            // ace_flags:
-            //  "OI"	SDDL_OBJECT_INHERIT
-            //  "CI"	SDDL_CONTAINER_INHERIT
-            //  "NP"	SDDL_NO_PROPAGATE
-            // rights:
-            //  "GA"	SDDL_GENERIC_ALL
-            // account_sid: see https://docs.microsoft.com/en-us/windows/win32/secauthz/sid-strings
-            //  "SY"	SDDL_LOCAL_SYSTEM
-            //  "BA"	SDDL_BUILTIN_ADMINISTRATORS
-            //  "CO"	SDDL_CREATOR_OWNER
-            if (!ConvertStringSecurityDescriptorToSecurityDescriptorA(
-                //"D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)",
-                SSD.c_str(),
-                SDDL_REVISION_1,
-                &descriptor.lpSecurityDescriptor,
-                NULL))
-            {
-                log("ConvertStringSecurityDescriptorToSecurityDescriptor error:",
-                    GetLastError());
-            }
-        }
-
-       ~security_descriptor()
-        {
-            LocalFree(descriptor.lpSecurityDescriptor);
-        }
-    };
-
-    static security_descriptor global_access{ "D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)" };
-    */
-
-    auto take_partition(text&& utf8_file_name)
-    {
-        auto result = text{};
-        auto volume = std::vector<char>(std::max<size_t>(MAX_PATH, utf8_file_name.size() + 1));
-        if (::GetVolumePathName(utf8_file_name.c_str(), volume.data(), (DWORD)volume.size()) != 0)
-        {
-            auto partition = std::vector<char>(50 + 1);
-            if (0 != ::GetVolumeNameForVolumeMountPoint( volume.data(),
-                                                      partition.data(),
-                                               (DWORD)partition.size()))
-            {
-                result = text(partition.data());
-            }
-            else
-            {
-                //error_handler();
-            }
-        }
-        else
-        {
-            //error_handler();
-        }
-        return result;
-    }
-    auto take_temp(text&& utf8_file_name)
-    {
-        auto tmp_dir = text{};
-        auto file_guid = take_partition(std::move(utf8_file_name));
-        auto i = uint8_t{ 0 };
-
-        while (i < 100 && netxs::os::test_path(tmp_dir = file_guid + "\\$temp_" + utf::adjust(std::to_string(i++), 3, "0", true)))
-        { }
-
-        if (i == 100) tmp_dir.clear();
-
-        return tmp_dir;
-    }
-    static auto trusted_domain_name() // static required by ::DsEnumerateDomainTrusts
-    {
-        auto info = PDS_DOMAIN_TRUSTS{};
-        auto domain_name = text{};
-        auto DomainCount = ULONG{};
-
-        bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &DomainCount);
-        if (result == ERROR_SUCCESS)
-        {
-            domain_name = text(info->DnsDomainName);
-            ::NetApiBufferFree(info);
-        }
-        return domain_name;
-    }
-    static auto trusted_domain_guid() // static required by ::DsEnumerateDomainTrusts
-    {
-        auto info = PDS_DOMAIN_TRUSTS{};
-        auto domain_guid = text{};
-        auto domain_count = ULONG{};
-
-        bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &domain_count);
-        if (result == ERROR_SUCCESS && domain_count > 0)
-        {
-            auto& guid = info->DomainGuid;
-            domain_guid = utf::to_hex(guid.Data1)
-                  + '-' + utf::to_hex(guid.Data2)
-                  + '-' + utf::to_hex(guid.Data3)
-                  + '-' + utf::to_hex(std::string(guid.Data4, guid.Data4 + 2))
-                  + '-' + utf::to_hex(std::string(guid.Data4 + 2, guid.Data4 + sizeof(guid.Data4)));
-
-            ::NetApiBufferFree(info);
-        }
-        return domain_guid;
-    }
-    auto create_shortcut(text&& path_to_object, text&& path_to_link)
-    {
-        auto result = HRESULT{};
-        IShellLink* psl;
-        ::CoInitialize(0);
-        result = ::CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
-
-        if (result == S_OK)
-        {
-            IPersistFile* ppf;
-            auto path_to_link_w = utf::to_utf(path_to_link);
-
-            psl->SetPath(path_to_object.c_str());
-            result = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
-            if (SUCCEEDED(result))
-            {
-                result = ppf->Save(path_to_link_w.c_str(), TRUE);
-                ppf->Release();
-                ::CoUninitialize();
                 return true;
             }
-            else
-            {
-                //todo
-                //shell_error_handler(result);
-            }
-            psl->Release();
-        }
-        else
-        {
-            //todo
-            //shell_error_handler(result);
-        }
-        ::CoUninitialize();
-
-        return faux;
-    }
-    auto expand(text&& directory)
-    {
-        auto result = text{};
-        if (auto len = ::ExpandEnvironmentStrings(directory.c_str(), NULL, 0))
-        {
-            auto buffer = std::vector<char>(len);
-            if (::ExpandEnvironmentStrings(directory.c_str(), buffer.data(), (DWORD)buffer.size()))
-            {
-                result = text(buffer.data());
-            }
-        }
-        return result;
-    }
-    auto set_registry_key(text&& key_path, text&& parameter_name, text&& value)
-    {
-        auto hKey = HKEY{};
-        auto status = ::RegCreateKeyEx( HKEY_LOCAL_MACHINE,
-                                        key_path.c_str(),
-                                        0,
-                                        0,
-                                        REG_OPTION_NON_VOLATILE,
-                                        KEY_ALL_ACCESS,
-                                        NULL,
-                                        &hKey,
-                                        0);
-
-        if (status == ERROR_SUCCESS && hKey != NULL)
-        {
-            status = ::RegSetValueEx( hKey,
-                                      parameter_name.empty() ? nullptr : parameter_name.c_str(),
-                                      0,
-                                      REG_SZ,
-                                      (BYTE*)value.c_str(),
-                                      ((DWORD)value.size() + 1) * sizeof(wchr)
-            );
-
-            ::RegCloseKey(hKey);
-        }
-        else
-        {
-            //todo
-            //error_handler();
-        }
-
-        return (status == ERROR_SUCCESS);
-    }
-    auto get_registry_string_value(text&& key_path, text&& parameter_name)
-    {
-        auto result = text{};
-        auto hKey = HKEY{};
-        auto value_type = DWORD{};
-        auto data_length = DWORD{};
-        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
-                                      key_path.c_str(),
-                                      0,
-                                      KEY_ALL_ACCESS,
-                                      &hKey);
-
-        if (status == ERROR_SUCCESS && hKey != NULL)
-        {
-            auto param = parameter_name.empty() ? nullptr : parameter_name.c_str();
-
-            status = ::RegQueryValueEx( hKey,
-                                        param,
-                                        NULL,
-                                        &value_type,
-                                        NULL,
-                                        &data_length);
-
-            if (status == ERROR_SUCCESS && value_type == REG_SZ)
-            {
-                auto data = std::vector<BYTE>(data_length);
-                status = ::RegQueryValueEx( hKey,
-                                            param,
-                                            NULL,
-                                            &value_type,
-                                            data.data(),
-                                            &data_length);
-
-                if (status == ERROR_SUCCESS)
-                {
-                    result = text(utf::to_view(reinterpret_cast<char*>(data.data()), data.size()));
-                }
-            }
-        }
-        if (status != ERROR_SUCCESS)
-        {
-            //todo
-            //error_handler();
-        }
-
-        return result;
-    }
-    auto get_registry_subkeys(text&& key_path)
-    {
-        auto result = list{};
-        auto hKey = HKEY{};
-        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
-                                      key_path.c_str(),
-                                      0,
-                                      KEY_ALL_ACCESS,
-                                      &hKey);
-
-        if (status == ERROR_SUCCESS && hKey != NULL)
-        {
-            auto lpcbMaxSubKeyLen = DWORD{};
-            if (ERROR_SUCCESS == ::RegQueryInfoKey(hKey, NULL, NULL, NULL, NULL, &lpcbMaxSubKeyLen, NULL, NULL, NULL, NULL, NULL, NULL))
-            {
-                auto size = lpcbMaxSubKeyLen;
-                auto index = DWORD{ 0 };
-                auto szName = std::vector<char>(size);
-
-                while (ERROR_SUCCESS == ::RegEnumKeyEx( hKey,
-                                                        index++,
-                                                        szName.data(),
-                                                        &lpcbMaxSubKeyLen,
-                                                        NULL,
-                                                        NULL,
-                                                        NULL,
-                                                        NULL))
-                {
-                    result.push_back(text(utf::to_view(szName.data(), std::min<size_t>(lpcbMaxSubKeyLen, size))));
-                    lpcbMaxSubKeyLen = size;
-                }
-            }
-
-            ::RegCloseKey(hKey);
-        }
-
-        return result;
-    }
-    static auto delete_registry_tree(text&& path) // static required by ::SHDeleteKey
-    {
-        auto hKey = HKEY{};
-        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
-                                      path.c_str(),
-                                      0,
-                                      KEY_ALL_ACCESS,
-                                      &hKey);
-
-        if (status == ERROR_SUCCESS && hKey != NULL)
-        {
-            status = ::SHDeleteKey(hKey, path.c_str());
-            ::RegCloseKey(hKey);
-        }
-
-        auto result = status == ERROR_SUCCESS;
-
-        if (!result)
-        {
-            //todo
-            //error_handler();
-        }
-
-        return result;
-    }
-    void update_process_privileges(void)
-    {
-        auto hToken = INVALID_FD;
-        auto tp = TOKEN_PRIVILEGES{};
-        auto luid = LUID{};
-
-        if (::OpenProcessToken(::GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
-        {
-            ::LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid);
-
-            tp.PrivilegeCount = 1;
-            tp.Privileges[0].Luid = luid;
-            tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-
-            ::AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL);
-        }
-    }
-    auto kill_process(unsigned long proc_id)
-    {
-        auto result = faux;
-
-        update_process_privileges();
-        auto process_handle = ::OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, proc_id);
-        if (process_handle && ::TerminateProcess(process_handle, 0))
-        {
-            result = ::WaitForSingleObject(process_handle, 10000) == WAIT_OBJECT_0;
-        }
-        else
-        {
-            //todo
-            //error_handler();
-        }
-
-        if (process_handle) ::CloseHandle(process_handle);
-
-        return result;
-    }
-    auto global_startup_dir()
-    {
-        auto result = text{};
-
-        //todo vista & later
-        // use SHGetFolderPath
-        //PWSTR path;
-        //if (S_OK != SHGetKnownFolderPath(FOLDERID_CommonStartup, 0, NULL, &path))
-        //{
-        //	//todo
-        //	//error_handler();
-        //}
-        //else
-        //{
-        //	result = utils::to_utf(wide(path)) + '\\';
-        //	CoTaskMemFree(path);
-        //}
-
-        auto pidl = PIDLIST_ABSOLUTE{};
-        if (S_OK == ::SHGetFolderLocation(NULL, CSIDL_COMMON_STARTUP, NULL, 0, &pidl))
-        {
-            char path[MAX_PATH];
-            if (TRUE == ::SHGetPathFromIDList(pidl, path))
-            {
-                result = text(path) + '\\';
-            }
-            ::ILFree(pidl);
-        }
-        else
-        {
-            //todo
-            //error_handler();
-        }
-
-        return result;
-    }
-    auto check_pipe(text const& path, text prefix = "\\\\.\\pipe\\")
-    {
-        auto hits = faux;
-        auto next = WIN32_FIND_DATAA{};
-        auto name = path.substr(prefix.size());
-        auto what = prefix + '*';
-        auto hndl = ::FindFirstFileA(what.c_str(), &next);
-        if (hndl != INVALID_FD)
-        {
-            do hits = next.cFileName == name;
-            while (!hits && ::FindNextFileA(hndl, &next));
-
-            if (hits) log("path: ", path);
-            ::FindClose(hndl);
-        }
-        return hits;
-    }
-
-    #endif  // Windows specific
-
-    struct fire
-    {
-        #if defined(_WIN32)
-
-            fd_t h; // fire: Descriptor for IO interrupt.
-
-            operator auto () { return h; }
-            fire(bool i = 1) { ok(h = ::CreateEvent(NULL, i, FALSE, NULL), "CreateEvent error"); }
-           ~fire()           { os::close(h); }
-            void reset()     { ok(::SetEvent(h), "SetEvent error"); }
-            void flush()     { ok(::ResetEvent(h), "ResetEvent error"); }
-
-        #else
-
-            fd_t h[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
-            char x = 1;
-
-            operator auto () { return h[0]; }
-            fire()           { ok(::pipe(h), "pipe[2] creation failed"); }
-           ~fire()           { for (auto& f : h) os::close(f); }
-            void reset()     { os::send(h[1], &x, sizeof(x)); }
-            void flush()     { os::recv(h[0], &x, sizeof(x)); }
-
-        #endif
-        void bell() { reset(); }
-    };
-
-    class pool
-    {
-        struct item
-        {
-            bool        state;
-            std::thread guest;
         };
-
-        std::recursive_mutex            mutex;
-        std::condition_variable_any     synch;
-        std::map<std::thread::id, item> index;
-        si32                            count;
-        bool                            alive;
-        std::thread                     agent;
-
-        void worker()
-        {
-            auto guard = std::unique_lock{ mutex };
-            log("pool: session control started");
-
-            while (alive)
-            {
-                synch.wait(guard);
-                for (auto it = index.begin(); it != index.end();)
-                {
-                    auto& [sid, session] = *it;
-                    auto& [state, guest] = session;
-                    if (state == faux || !alive)
-                    {
-                        if (guest.joinable())
-                        {
-                            guard.unlock();
-                            guest.join();
-                            guard.lock();
-                            log("pool: id: ", sid, " session joined");
-                        }
-                        it = index.erase(it);
-                    }
-                    else ++it;
-                }
-            }
-        }
-        void checkout()
-        {
-            auto guard = std::lock_guard{ mutex };
-            auto session_id = std::this_thread::get_id();
-            index[session_id].state = faux;
-            synch.notify_one();
-            log("pool: id: ", session_id, " session deleted");
-        }
-
-    public:
-        template<class PROC>
-        void run(PROC process)
-        {
-            auto guard = std::lock_guard{ mutex };
-            auto next_id = count++;
-            auto session = std::thread([&, process, next_id]
-            {
-                process(next_id);
-                checkout();
-            });
-            auto session_id = session.get_id();
-            index[session_id] = { true, std::move(session) };
-            log("pool: id: ", session_id, " session created");
-        }
-        auto size()
-        {
-            return index.size();
-        }
-
-        pool()
-            : count{ 0    },
-              alive{ true },
-              agent{ &pool::worker, this }
-        { }
-       ~pool()
-        {
-            mutex.lock();
-            alive = faux;
-            synch.notify_one();
-            mutex.unlock();
-
-            if (agent.joinable())
-            {
-                log("pool: joining agent");
-                agent.join();
-            }
-            log("pool: session control ended");
-        }
-    };
+    }
 
     namespace ipc
     {
+        struct memory
+        {
+            static auto get(view reference)
+            {
+                auto utf8 = text{};
+                #if defined(_WIN32)
+
+                    if (auto ref = utf::to_int<intptr_t, 0x10>(reference))
+                    {
+                        auto handle = (HANDLE)ref.value();
+                        if (auto data = ::MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0))
+                        {
+                            utf8 = (char*)data;
+                            ::UnmapViewOfFile(data);
+                        }
+                        os::close(handle);
+                    }
+
+                #endif
+                return utf8;
+            }
+            static auto set(view data)
+            {
+                #if defined(_WIN32)
+
+                    auto source = view{ data.data(), data.size() + 1/*trailing null*/ };
+                    auto handle = ::CreateFileMappingA(os::INVALID_FD, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), nullptr); ok(handle, "::CreateFileMappingA() returns unexpected result");
+                    auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                ok(buffer, "::MapViewOfFile() returns unexpected result");
+                    std::copy(std::begin(source), std::end(source), (char*)buffer);
+                    ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile() returns unexpected result");
+                    ok(::SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT), "::SetHandleInformation() returns unexpected result");
+                    return handle;
+
+                #endif
+            }
+        };
+
         struct stdcon
         {
             using flux = std::ostream;
@@ -2432,7 +1641,7 @@ namespace netxs::os
             }
         };
 
-        struct memory
+        struct xcross
             : public stdcon
         {
             class fifo
@@ -2487,7 +1696,7 @@ namespace netxs::os
             sptr<fifo> server;
             sptr<fifo> client;
 
-            memory(sptr<fifo> s_queue = std::make_shared<fifo>(),
+            xcross(sptr<fifo> s_queue = std::make_shared<fifo>(),
                    sptr<fifo> c_queue = std::make_shared<fifo>())
                 : server{ s_queue },
                   client{ c_queue }
@@ -2742,13 +1951,31 @@ namespace netxs::os
 
                     //security_descriptor pipe_acl(security_descriptor_string);
                     //log("pipe: DACL=", pipe_acl.security_string);
+                    // https://docs.microsoft.com/en-us/windows/win32/secauthz/sid-strings
 
                     auto to_server = RD_PIPE_PATH + path;
                     auto to_client = WR_PIPE_PATH + path;
 
                     if constexpr (ROLE == role::server)
                     {
-                        if (os::check_pipe(to_server))
+                        auto test = [](text const& path, text prefix = "\\\\.\\pipe\\")
+                        {
+                            auto hits = faux;
+                            auto next = WIN32_FIND_DATAA{};
+                            auto name = path.substr(prefix.size());
+                            auto what = prefix + '*';
+                            auto hndl = ::FindFirstFileA(what.c_str(), &next);
+                            if (hndl != INVALID_FD)
+                            {
+                                do hits = next.cFileName == name;
+                                while (!hits && ::FindNextFileA(hndl, &next));
+
+                                if (hits) log("path: ", path);
+                                ::FindClose(hndl);
+                            }
+                            return hits;
+                        };
+                        if (test(to_server))
                         {
                             os::fail("server already running");
                             return socket;
@@ -2930,9 +2157,288 @@ namespace netxs::os
         }
         auto xlink()
         {
-            auto a = std::make_shared<ipc::memory>();
-            auto b = std::make_shared<ipc::memory>(a->client, a->server); // Swap queues for xlink.
+            auto a = std::make_shared<ipc::xcross>();
+            auto b = std::make_shared<ipc::xcross>(a->client, a->server); // Swap queues for xlink.
             return std::pair{ a, b };
+        }
+    }
+
+    namespace process
+    {
+        template<bool NameOnly = faux>
+        auto binary()
+        {
+            auto result = text{};
+            #if defined(_WIN32)
+
+                auto handle = ::GetCurrentProcess();
+                auto buffer = std::vector<char>(MAX_PATH);
+
+                while (buffer.size() <= 32768)
+                {
+                    auto length = ::GetModuleFileNameEx(handle,         // hProcess
+                                                        NULL,           // hModule
+                                                        buffer.data(),  // lpFilename
+                                     static_cast<DWORD>(buffer.size()));// nSize
+                    if (length == 0) break;
+
+                    if (buffer.size() > length + 1)
+                    {
+                        result = text(buffer.data(), length);
+                        break;
+                    }
+
+                    buffer.resize(buffer.size() << 1);
+                }
+
+            #elif defined(__linux__) || defined(__NetBSD__)
+
+                auto path = ::realpath("/proc/self/exe", nullptr);
+                if (path)
+                {
+                    result = text(path);
+                    ::free(path);
+                }
+
+            #elif defined(__APPLE__)
+
+                auto size = uint32_t{};
+                if (-1 == ::_NSGetExecutablePath(nullptr, &size))
+                {
+                    auto buff = std::vector<char>(size);
+                    if (0 == ::_NSGetExecutablePath(buff.data(), &size))
+                    {
+                        auto path = ::realpath(buff.data(), nullptr);
+                        if (path)
+                        {
+                            result = text(path);
+                            ::free(path);
+                        }
+                    }
+                }
+
+            #elif defined(__FreeBSD__)
+
+                auto size = 0_sz;
+                int  name[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+                if (::sysctl(name, std::size(name), nullptr, &size, nullptr, 0) == 0)
+                {
+                    auto buff = std::vector<char>(size);
+                    if (::sysctl(name, std::size(name), buff.data(), &size, nullptr, 0) == 0)
+                    {
+                        result = text(buff.data(), size);
+                    }
+                }
+
+            #endif
+            #if not defined(_WIN32)
+
+                if (result.empty())
+                {
+                          auto path = ::realpath("/proc/self/exe",        nullptr);
+                    if (!path) path = ::realpath("/proc/curproc/file",    nullptr);
+                    if (!path) path = ::realpath("/proc/self/path/a.out", nullptr);
+                    if (path)
+                    {
+                        result = text(path);
+                        ::free(path);
+                    }
+                }
+
+            #endif
+            if (result.empty())
+            {
+                os::fail("can't get current module file path, fallback to '", DESKTOPIO_MYPATH, "`");
+                result = DESKTOPIO_MYPATH;
+            }
+            if constexpr (NameOnly)
+            {
+                auto code = std::error_code{};
+                auto file = fs::directory_entry(result, code);
+                if (!code)
+                {
+                    result = file.path().filename().string();
+                }
+            }
+            auto c = result.front();
+            if (c != '\"' && c != '\'' && result.find(' ') != text::npos)
+            {
+                result = '\"' + result + '\"';
+            }
+            return result;
+        }
+        auto execvp(text cmdline)
+        {
+            #if defined(_WIN32)
+            #else
+
+                if (auto args = os::args::split(cmdline); args.size())
+                {
+                    auto& binary = args.front();
+                    if (binary.size() > 2) // Remove quotes,
+                    {
+                        auto c = binary.front();
+                        if (binary.back() == c && (c == '\"' || c == '\''))
+                        {
+                            binary = binary.substr(1, binary.size() - 2);
+                        }
+                    }
+                    auto argv = std::vector<char*>{};
+                    for (auto& c : args)
+                    {
+                        argv.push_back(c.data());
+                    }
+                    argv.push_back(nullptr);
+                    ::execvp(argv.front(), argv.data());
+                }
+
+            #endif
+        }
+        template<bool Logs = true, bool Daemon = faux>
+        auto exec(text cmdline)
+        {
+            if constexpr (Logs) log("exec: '" + cmdline + "'");
+            #if defined(_WIN32)
+                
+                auto shadow = view{ cmdline };
+                auto binary = utf::to_utf(utf::get_token(shadow));
+                auto params = utf::to_utf(shadow);
+                auto ShExecInfo = ::SHELLEXECUTEINFOW{};
+                ShExecInfo.cbSize = sizeof(::SHELLEXECUTEINFOW);
+                ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+                ShExecInfo.hwnd = NULL;
+                ShExecInfo.lpVerb = NULL;
+                ShExecInfo.lpFile = binary.c_str();
+                ShExecInfo.lpParameters = params.c_str();
+                ShExecInfo.lpDirectory = NULL;
+                ShExecInfo.nShow = 0;
+                ShExecInfo.hInstApp = NULL;
+                if (::ShellExecuteExW(&ShExecInfo)) return true;
+
+            #else
+
+                auto p_id = ::fork();
+                if (p_id == 0) // Child branch.
+                {
+                    if constexpr (Daemon)
+                    {
+                        ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
+                        ::close(STDIN_FD);
+                        ::close(STDOUT_FD);
+                        ::close(STDERR_FD);
+                    }
+                    os::process::execvp(cmdline);
+                    auto errcode = errno;
+                    if constexpr (Logs) os::fail("exec: failed to spawn '", cmdline, "'");
+                    os::exit(errcode);
+                }
+                else if (p_id > 0) // Parent branch.
+                {
+                    auto stat = int{};
+                    ::waitpid(p_id, &stat, 0); // Wait for the child to avoid zombies.
+                    if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+                    {
+                        return true; // Child forked and exited successfully.
+                    }
+                }
+
+            #endif
+            if constexpr (Logs) os::fail("exec: failed to spawn '", cmdline, "'");
+            return faux;
+        }
+        auto fork(bool& result, view prefix, view config)
+        {
+            result = faux;
+            #if defined(_WIN32)
+
+                auto proinf = PROCESS_INFORMATION{};
+                auto srtinf = STARTUPINFOA{ sizeof(STARTUPINFOA) };
+                auto handle = os::ipc::memory::set(config);
+                auto cmdarg = utf::concat(os::process::binary(), " -p ", prefix, " -c :", handle, " -s");
+                result = ::CreateProcessA(nullptr,            // lpApplicationName
+                                          cmdarg.data(),      // lpCommandLine
+                                          nullptr,            // lpProcessAttributes
+                                          nullptr,            // lpThreadAttributes
+                                          TRUE,               // bInheritHandles
+                                          DETACHED_PROCESS,   // dwCreationFlags
+                                          nullptr,            // lpEnvironment
+                                          nullptr,            // lpCurrentDirectory
+                                          &srtinf,            // lpStartupInfo
+                                          &proinf);           // lpProcessInformation
+                os::close(handle);
+                if (result)
+                {
+                    os::close(proinf.hProcess);
+                    os::close(proinf.hThread);
+                    log("  os: process forked successfully");
+                    return faux; // Success. The fork concept is not supported on Windows.
+                }
+
+            #else
+
+                auto p_id = ::fork();
+                if (p_id == 0) // Child process.
+                {
+                    ::setsid(); // Make this process the session leader of a new session.
+                    p_id = ::fork(); // Second fork to avoid zombies.
+                    if (p_id == 0) // GrandChild process.
+                    {
+                        ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
+                        ::close(STDIN_FD);
+                        ::close(STDOUT_FD);
+                        ::close(STDERR_FD);
+                        return true;
+                    }
+                    else if (p_id > 0) os::exit(0);
+                }
+                else if (p_id > 0) // Parent branch. Reap the child, leaving the grandchild to be inherited by init.
+                {
+                    auto stat = int{};
+                    ::waitpid(p_id, &stat, 0);
+                    if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+                    {
+                        log("  os: process forked successfully");
+                        result = true;
+                        return faux; // Child forked and exited successfully.
+                    }
+                }
+
+            #endif
+            os::fail("  os: can't fork process");
+            return faux;
+        }
+    }
+
+    namespace logging
+    {
+        void start(text srv_name)
+        {
+            is_daemon = true;
+            #if defined(_WIN32)
+                //todo implement
+            #else
+                ::openlog(srv_name.c_str(), LOG_NOWAIT | LOG_PID, LOG_USER);
+            #endif
+        }
+        void stdlog(view data)
+        {
+            static auto logs = ansi::dtvt::binary::debuglogs_t{};
+            //todo view -> text
+            logs.set(os::process_id, text{ data });
+            logs.send([&](auto& block){ os::send(STDOUT_FD, block); });
+        }
+        void syslog(view data)
+        {
+            if (os::is_daemon)
+            {
+                #if defined(_WIN32)
+                    //todo implement
+                #else
+                    auto copy = text{ data };
+                    ::syslog(LOG_NOTICE, "%s", copy.c_str());
+                #endif
+            }
+            else std::cout << data << std::flush;
         }
     }
 
@@ -3144,8 +2650,8 @@ namespace netxs::os
         auto logger(si32 mode)
         {
             auto direct = !!(mode & os::legacy::direct);
-            return direct ? netxs::logger([](auto data) { os::stdlog(data); })
-                          : netxs::logger([](auto data) { os::syslog(data); });
+            return direct ? netxs::logger([](auto data) { os::logging::stdlog(data); })
+                          : netxs::logger([](auto data) { os::logging::syslog(data); });
         }
         void direct(xipc link)
         {
@@ -3812,13 +3318,10 @@ namespace netxs::os
         }
         auto splice(xipc pipe, si32 mode)
         {
-            static auto ocs52head = "\033]52;"sv;
             ignite(pipe, mode);
             auto& ipcio = *pipe;
             auto& alarm = globals().alarm;
-            auto  cache = text{};
-            auto  brand = text{};
-            auto  stamp = datetime::tempus::now();
+            auto  proxy = os::clipboard::proxy{};
             auto  vga16 = mode & os::legacy::vga16;
             auto  vtrun = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).setutf(true).set_palette(vga16);
             auto  vtend = ansi::scrn_reset().altbuf(faux).cursor(true).bpmode(faux).load_title().rst_palette(vga16);
@@ -3827,56 +3330,10 @@ namespace netxs::os
             vtend.vmouse(faux);
             #endif
 
-            auto proxy = [&](auto& yield) // Redirect clipboard data.
-            {
-                if (cache.size() || yield.starts_with(ocs52head))
-                {
-                    auto now = datetime::tempus::now();
-                    if (now - stamp > 3s) // Drop outdated cache.
-                    {
-                        cache.clear();
-                        brand.clear();
-                    }
-                    auto start = cache.size();
-                    cache += yield;
-                    yield = cache;
-                    stamp = now;
-                    if (brand.empty())
-                    {
-                        yield.remove_prefix(ocs52head.size());
-                        if (auto p = yield.find(';'); p != view::npos)
-                        {
-                            brand = yield.substr(0, p++/*;*/);
-                            yield.remove_prefix(p);
-                            start = ocs52head.size() + p;
-                        }
-                        else return faux;
-                    }
-                    else yield.remove_prefix(start);
-
-                    if (auto p = yield.find(ansi::C0_BEL); p != view::npos)
-                    {
-                        auto temp = view{ cache };
-                        auto skip = ocs52head.size() + brand.size() + 1/*;*/;
-                        auto data = temp.substr(skip, p + start - skip);
-                        if (os::clipboard::set(brand, utf::unbase64(data)))
-                        {
-                            yield.remove_prefix(p + 1/* C0_BEL */);
-                        }
-                        else yield = temp; // Forward all out;
-                        cache.clear();
-                        brand.clear();
-                        if (yield.empty()) return faux;
-                    }
-                    else return faux;
-                }
-                return true;
-            };
-
             os::send(STDOUT_FD, vtrun);
 
             auto input = std::thread{ [&]{ reader(mode); } };
-            auto clips = std::thread{ [&]{ clipbd(mode); } };
+            auto clips = std::thread{ [&]{ clipbd(mode); } }; //todo move to os::clipboard::proxy (globals())
             while (auto yield = ipcio.recv())
             {
                 if (proxy(yield) && !os::send(STDOUT_FD, yield)) break;
@@ -4133,7 +3590,7 @@ namespace netxs::os
                 proc_pid = ::fork();
                 if (proc_pid == 0) // Child branch.
                 {
-                    os::close(fdm); // os::fdcleanup();
+                    os::close(fdm);
                     auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
 
                     // In order to receive WINCH signal make fds the controlling
@@ -4169,7 +3626,7 @@ namespace netxs::os
                         ::setenv("TERM_PROGRAM", "vtm", 1);
                     }
 
-                    os::execvp(cmdline);
+                    os::process::execvp(cmdline);
                     auto errcode = errno;
                     std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
                                                                    " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
@@ -4447,7 +3904,7 @@ namespace netxs::os
                     proc_pid = ::fork();
                     if (proc_pid == 0) // Child branch.
                     {
-                        os::close(to_client[1]); // os::fdcleanup();
+                        os::close(to_client[1]);
                         os::close(to_server[0]);
 
                         ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
@@ -4470,7 +3927,7 @@ namespace netxs::os
                             //else     log("dtvt: change current working directory to '", cwd, "'");
                         }
 
-                        os::execvp(cmdline);
+                        os::process::execvp(cmdline);
                         auto errcode = errno;
                         //todo use dtvt to log
                         //os::fail("dtvt: exec error");
@@ -4593,4 +4050,477 @@ namespace netxs::os
             }
         };
     }
+
+    // Deprecated stuff.
+    auto host_name()
+    {
+        auto hostname = text{};
+        #if defined(_WIN32)
+
+            auto dwSize = DWORD{ 0 };
+            ::GetComputerNameEx(::ComputerNamePhysicalDnsFullyQualified, NULL, &dwSize);
+
+            if (dwSize)
+            {
+                auto buffer = std::vector<char>(dwSize);
+                if (::GetComputerNameEx(::ComputerNamePhysicalDnsFullyQualified, buffer.data(), &dwSize))
+                {
+                    if (dwSize && buffer[dwSize - 1] == 0) dwSize--;
+                    hostname = text(buffer.data(), dwSize);
+                }
+            }
+
+        #else
+
+            // APPLE: AI_CANONNAME undeclared
+            //std::vector<char> buffer(MAXHOSTNAMELEN);
+            //if (0 == gethostname(buffer.data(), buffer.size()))
+            //{
+            //    struct addrinfo hints, * info;
+            //
+            //    ::memset(&hints, 0, sizeof hints);
+            //    hints.ai_family = AF_UNSPEC;
+            //    hints.ai_socktype = SOCK_STREAM;
+            //    hints.ai_flags = AI_CANONNAME | AI_CANONIDN;
+            //
+            //    if (0 == getaddrinfo(buffer.data(), "http", &hints, &info))
+            //    {
+            //        hostname = std::string(info->ai_canonname);
+            //        //for (auto p = info; p != NULL; p = p->ai_next)
+            //        //{
+            //        //    hostname = std::string(p->ai_canonname);
+            //        //}
+            //        freeaddrinfo(info);
+            //    }
+            //}
+
+        #endif
+        return hostname;
+    }
+    auto is_mutex_exists(text&& mutex_name)
+    {
+        auto result = faux;
+        #if defined(_WIN32)
+
+            auto mutex = ::CreateMutexA(0, 0, mutex_name.c_str());
+            result = ::GetLastError() == ERROR_ALREADY_EXISTS;
+            ::CloseHandle(mutex);
+
+        #else
+
+            //todo linux implementation
+            result = true;
+
+        #endif
+        return result;
+    }
+    static auto logged_in_users(view domain_delimiter = "\\", view record_delimiter = "\0") //  static required by ::WTSQuerySessionInformation
+    {
+        auto active_users_array = text{};
+        #if defined(_WIN32)
+
+            auto SessionInfo_pointer = PWTS_SESSION_INFO{};
+            auto count = DWORD{};
+            if (::WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, &SessionInfo_pointer, &count))
+            {
+                for (DWORD i = 0; i < count; i++)
+                {
+                    auto si = SessionInfo_pointer[i];
+                    auto buffer_pointer = LPTSTR{};
+                    auto buffer_length = DWORD{};
+
+                    ::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSUserName, &buffer_pointer, &buffer_length);
+                    auto user = text(utf::to_view(buffer_pointer, buffer_length));
+                    ::WTSFreeMemory(buffer_pointer);
+
+                    if (user.length())
+                    {
+                        ::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSDomainName, &buffer_pointer, &buffer_length);
+                        auto domain = text(utf::to_view(buffer_pointer, buffer_length / sizeof(wchr)));
+                        ::WTSFreeMemory(buffer_pointer);
+
+                        active_users_array += domain;
+                        active_users_array += domain_delimiter;
+                        active_users_array += user;
+                        active_users_array += domain_delimiter;
+                        active_users_array += "local";
+                        active_users_array += record_delimiter;
+                    }
+                }
+                ::WTSFreeMemory(SessionInfo_pointer);
+                if (active_users_array.size())
+                {
+                    active_users_array = utf::remove(active_users_array, record_delimiter);
+                }
+            }
+
+        #else
+
+            static constexpr auto NAME_WIDTH = 8;
+
+            // APPLE: utmp is deprecated
+
+            // if (FILE* ufp = ::fopen(_PATH_UTMP, "r"))
+            // {
+            //     struct utmp usr;
+            //     while (::fread((char*)&usr, sizeof(usr), 1, ufp) == 1)
+            //     {
+            //         if (*usr.ut_user && *usr.ut_host && *usr.ut_line && *usr.ut_line != '~')
+            //         {
+            //             active_users_array += usr.ut_host;
+            //             active_users_array += domain_delimiter;
+            //             active_users_array += usr.ut_user;
+            //             active_users_array += domain_delimiter;
+            //             active_users_array += usr.ut_line;
+            //             active_users_array += record_delimiter;
+            //         }
+            //     }
+            // 	::fclose(ufp);
+            // }
+
+        #endif
+        return active_users_array;
+    }
+
+    #if defined(_WIN32)
+
+    auto take_partition(text&& utf8_file_name)
+    {
+        auto result = text{};
+        auto volume = std::vector<char>(std::max<size_t>(MAX_PATH, utf8_file_name.size() + 1));
+        if (::GetVolumePathName(utf8_file_name.c_str(), volume.data(), (DWORD)volume.size()) != 0)
+        {
+            auto partition = std::vector<char>(50 + 1);
+            if (0 != ::GetVolumeNameForVolumeMountPoint( volume.data(),
+                                                      partition.data(),
+                                               (DWORD)partition.size()))
+            {
+                result = text(partition.data());
+            }
+            else
+            {
+                //error_handler();
+            }
+        }
+        else
+        {
+            //error_handler();
+        }
+        return result;
+    }
+    auto take_temp(text&& utf8_file_name)
+    {
+        auto tmp_dir = text{};
+        auto file_guid = take_partition(std::move(utf8_file_name));
+        auto i = uint8_t{ 0 };
+
+        while (i < 100 && netxs::os::test_path(tmp_dir = file_guid + "\\$temp_" + utf::adjust(std::to_string(i++), 3, "0", true)))
+        { }
+
+        if (i == 100) tmp_dir.clear();
+
+        return tmp_dir;
+    }
+    static auto trusted_domain_name() // static required by ::DsEnumerateDomainTrusts
+    {
+        auto info = PDS_DOMAIN_TRUSTS{};
+        auto domain_name = text{};
+        auto DomainCount = ULONG{};
+
+        bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &DomainCount);
+        if (result == ERROR_SUCCESS)
+        {
+            domain_name = text(info->DnsDomainName);
+            ::NetApiBufferFree(info);
+        }
+        return domain_name;
+    }
+    static auto trusted_domain_guid() // static required by ::DsEnumerateDomainTrusts
+    {
+        auto info = PDS_DOMAIN_TRUSTS{};
+        auto domain_guid = text{};
+        auto domain_count = ULONG{};
+
+        bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &domain_count);
+        if (result == ERROR_SUCCESS && domain_count > 0)
+        {
+            auto& guid = info->DomainGuid;
+            domain_guid = utf::to_hex(guid.Data1)
+                  + '-' + utf::to_hex(guid.Data2)
+                  + '-' + utf::to_hex(guid.Data3)
+                  + '-' + utf::to_hex(std::string(guid.Data4, guid.Data4 + 2))
+                  + '-' + utf::to_hex(std::string(guid.Data4 + 2, guid.Data4 + sizeof(guid.Data4)));
+
+            ::NetApiBufferFree(info);
+        }
+        return domain_guid;
+    }
+    auto create_shortcut(text&& path_to_object, text&& path_to_link)
+    {
+        auto result = HRESULT{};
+        IShellLink* psl;
+        ::CoInitialize(0);
+        result = ::CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
+
+        if (result == S_OK)
+        {
+            IPersistFile* ppf;
+            auto path_to_link_w = utf::to_utf(path_to_link);
+
+            psl->SetPath(path_to_object.c_str());
+            result = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
+            if (SUCCEEDED(result))
+            {
+                result = ppf->Save(path_to_link_w.c_str(), TRUE);
+                ppf->Release();
+                ::CoUninitialize();
+                return true;
+            }
+            else
+            {
+                //todo
+                //shell_error_handler(result);
+            }
+            psl->Release();
+        }
+        else
+        {
+            //todo
+            //shell_error_handler(result);
+        }
+        ::CoUninitialize();
+
+        return faux;
+    }
+    auto expand(text&& directory)
+    {
+        auto result = text{};
+        if (auto len = ::ExpandEnvironmentStrings(directory.c_str(), NULL, 0))
+        {
+            auto buffer = std::vector<char>(len);
+            if (::ExpandEnvironmentStrings(directory.c_str(), buffer.data(), (DWORD)buffer.size()))
+            {
+                result = text(buffer.data());
+            }
+        }
+        return result;
+    }
+    auto set_registry_key(text&& key_path, text&& parameter_name, text&& value)
+    {
+        auto hKey = HKEY{};
+        auto status = ::RegCreateKeyEx( HKEY_LOCAL_MACHINE,
+                                        key_path.c_str(),
+                                        0,
+                                        0,
+                                        REG_OPTION_NON_VOLATILE,
+                                        KEY_ALL_ACCESS,
+                                        NULL,
+                                        &hKey,
+                                        0);
+
+        if (status == ERROR_SUCCESS && hKey != NULL)
+        {
+            status = ::RegSetValueEx( hKey,
+                                      parameter_name.empty() ? nullptr : parameter_name.c_str(),
+                                      0,
+                                      REG_SZ,
+                                      (BYTE*)value.c_str(),
+                                      ((DWORD)value.size() + 1) * sizeof(wchr)
+            );
+
+            ::RegCloseKey(hKey);
+        }
+        else
+        {
+            //todo
+            //error_handler();
+        }
+
+        return (status == ERROR_SUCCESS);
+    }
+    auto get_registry_string_value(text&& key_path, text&& parameter_name)
+    {
+        auto result = text{};
+        auto hKey = HKEY{};
+        auto value_type = DWORD{};
+        auto data_length = DWORD{};
+        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
+                                      key_path.c_str(),
+                                      0,
+                                      KEY_ALL_ACCESS,
+                                      &hKey);
+
+        if (status == ERROR_SUCCESS && hKey != NULL)
+        {
+            auto param = parameter_name.empty() ? nullptr : parameter_name.c_str();
+
+            status = ::RegQueryValueEx( hKey,
+                                        param,
+                                        NULL,
+                                        &value_type,
+                                        NULL,
+                                        &data_length);
+
+            if (status == ERROR_SUCCESS && value_type == REG_SZ)
+            {
+                auto data = std::vector<BYTE>(data_length);
+                status = ::RegQueryValueEx( hKey,
+                                            param,
+                                            NULL,
+                                            &value_type,
+                                            data.data(),
+                                            &data_length);
+
+                if (status == ERROR_SUCCESS)
+                {
+                    result = text(utf::to_view(reinterpret_cast<char*>(data.data()), data.size()));
+                }
+            }
+        }
+        if (status != ERROR_SUCCESS)
+        {
+            //todo
+            //error_handler();
+        }
+
+        return result;
+    }
+    auto get_registry_subkeys(text&& key_path)
+    {
+        auto result = list{};
+        auto hKey = HKEY{};
+        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
+                                      key_path.c_str(),
+                                      0,
+                                      KEY_ALL_ACCESS,
+                                      &hKey);
+
+        if (status == ERROR_SUCCESS && hKey != NULL)
+        {
+            auto lpcbMaxSubKeyLen = DWORD{};
+            if (ERROR_SUCCESS == ::RegQueryInfoKey(hKey, NULL, NULL, NULL, NULL, &lpcbMaxSubKeyLen, NULL, NULL, NULL, NULL, NULL, NULL))
+            {
+                auto size = lpcbMaxSubKeyLen;
+                auto index = DWORD{ 0 };
+                auto szName = std::vector<char>(size);
+
+                while (ERROR_SUCCESS == ::RegEnumKeyEx( hKey,
+                                                        index++,
+                                                        szName.data(),
+                                                        &lpcbMaxSubKeyLen,
+                                                        NULL,
+                                                        NULL,
+                                                        NULL,
+                                                        NULL))
+                {
+                    result.push_back(text(utf::to_view(szName.data(), std::min<size_t>(lpcbMaxSubKeyLen, size))));
+                    lpcbMaxSubKeyLen = size;
+                }
+            }
+
+            ::RegCloseKey(hKey);
+        }
+
+        return result;
+    }
+    static auto delete_registry_tree(text&& path) // static required by ::SHDeleteKey
+    {
+        auto hKey = HKEY{};
+        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
+                                      path.c_str(),
+                                      0,
+                                      KEY_ALL_ACCESS,
+                                      &hKey);
+
+        if (status == ERROR_SUCCESS && hKey != NULL)
+        {
+            status = ::SHDeleteKey(hKey, path.c_str());
+            ::RegCloseKey(hKey);
+        }
+
+        auto result = status == ERROR_SUCCESS;
+
+        if (!result)
+        {
+            //todo
+            //error_handler();
+        }
+
+        return result;
+    }
+    void update_process_privileges(void)
+    {
+        auto hToken = INVALID_FD;
+        auto tp = TOKEN_PRIVILEGES{};
+        auto luid = LUID{};
+
+        if (::OpenProcessToken(::GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
+        {
+            ::LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid);
+
+            tp.PrivilegeCount = 1;
+            tp.Privileges[0].Luid = luid;
+            tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+            ::AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL);
+        }
+    }
+    auto kill_process(unsigned long proc_id)
+    {
+        auto result = faux;
+
+        update_process_privileges();
+        auto process_handle = ::OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, proc_id);
+        if (process_handle && ::TerminateProcess(process_handle, 0))
+        {
+            result = ::WaitForSingleObject(process_handle, 10000) == WAIT_OBJECT_0;
+        }
+        else
+        {
+            //todo
+            //error_handler();
+        }
+
+        if (process_handle) ::CloseHandle(process_handle);
+
+        return result;
+    }
+    auto global_startup_dir()
+    {
+        auto result = text{};
+
+        //todo vista & later
+        // use SHGetFolderPath
+        //PWSTR path;
+        //if (S_OK != SHGetKnownFolderPath(FOLDERID_CommonStartup, 0, NULL, &path))
+        //{
+        //	//todo
+        //	//error_handler();
+        //}
+        //else
+        //{
+        //	result = utils::to_utf(wide(path)) + '\\';
+        //	CoTaskMemFree(path);
+        //}
+
+        auto pidl = PIDLIST_ABSOLUTE{};
+        if (S_OK == ::SHGetFolderLocation(NULL, CSIDL_COMMON_STARTUP, NULL, 0, &pidl))
+        {
+            char path[MAX_PATH];
+            if (TRUE == ::SHGetPathFromIDList(pidl, path))
+            {
+                result = text(path) + '\\';
+            }
+            ::ILFree(pidl);
+        }
+        else
+        {
+            //todo
+            //error_handler();
+        }
+
+        return result;
+    }
+
+    #endif  // Windows specific
 }

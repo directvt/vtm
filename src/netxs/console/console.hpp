@@ -4900,7 +4900,7 @@ namespace netxs::console
         hall(xipc server_pipe, xml::settings& config)
             : host{ server_pipe, config }
         {
-            auto current_module_file = os::current_module_file();
+            auto current_module_file = os::process::binary();
             auto& menu_list = *regis.app_ptr;
             auto& conf_list = *regis.lnk_ptr;
             auto  free_list = std::list<std::pair<text, menuitem_t>>{};
