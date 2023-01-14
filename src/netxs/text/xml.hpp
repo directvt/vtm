@@ -83,8 +83,7 @@ namespace netxs::xml
     template<>
     auto take<bool>(view utf8) -> std::optional<bool>
     {
-        auto value = text{ utf8 };
-        utf::to_low(value);
+        auto value = utf::to_low(text{ utf8 });
         return value.empty() || value.starts_with("1")  // 1 - true
                              || value.starts_with("on") // on
                              || value.starts_with("y")  // yes
@@ -135,8 +134,7 @@ namespace netxs::xml
             else                           return 0;
         };
 
-        auto value = text{ utf8 };
-        utf::to_low(value);
+        auto value = utf::to_low(text{ utf8 });
         auto result = rgba{};
         auto shadow = view{ value };
         utf::trim_front(shadow, " ({[\"\'");
@@ -768,7 +766,7 @@ namespace netxs::xml
         }
         auto name(view& data)
         {
-            auto item = utf::get_tail(data, token_delims);
+            auto item = text{ utf::get_tail(data, token_delims) };
             utf::to_low(item);
             return item;
         }
@@ -1193,8 +1191,8 @@ namespace netxs::xml
             else                 log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + frompath);
             tempbuff.clear();
             if (auto result = xml::take<T>(crop)) return result.value();
-            else if (crop.size()) return take("/config/set/" + crop, defval);
-            else                  return defval;
+            if (crop.size())                      return take("/config/set/" + crop, defval);
+            else                                  return defval;
         }
         template<class T>
         auto take(text frompath, T defval, std::unordered_map<text, T> const& dict)

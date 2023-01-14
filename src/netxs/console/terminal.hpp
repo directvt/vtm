@@ -286,6 +286,7 @@ namespace netxs::ui
                 drag = 1 << 1,
                 move = 1 << 2,
                 over = 1 << 3,
+                utf8 = 1 << 4,
                 buttons_press = bttn,
                 buttons_drags = bttn | drag,
                 all_movements = bttn | drag | move,
@@ -376,9 +377,17 @@ namespace netxs::ui
                                                                     : std::clamp(c, dot_00, console.panel - dot_11));
                             if (saved.changed != gear.m.changed)
                             {
-                                     if (proto == w32) owner.ptycon.mouse(gear, moved, coord);
-                                else if (proto == sgr) queue.   mouse_sgr(gear, saved, coord);
-                                else if (proto == x11) queue.   mouse_x11(gear, saved, coord);
+                                if (proto == w32) owner.ptycon.mouse(gear, moved, coord);
+                                else
+                                {
+                                    if (state & mode::move
+                                    || (state & mode::drag && gear.m.buttons && moved)
+                                    || (state & mode::bttn && (gear.m.buttons != saved.buttons || gear.m.wheeled)))
+                                    {
+                                             if (proto == sgr) queue.mouse_sgr(gear, saved, coord);
+                                        else if (proto == x11) queue.mouse_x11(gear, saved, coord, state & mode::utf8);
+                                    }
+                                }
                                 owner.answer(queue);
                                 saved = gear.m;
                             }
@@ -6087,7 +6096,7 @@ namespace netxs::ui
         };
 
         using buffer_ptr = bufferbase*;
-        using vtty = os::pty<term>;
+        using vtty = os::vt::vtty<term>;
 
         termconfig config; // term: Terminal settings.
         pro::timer worker; // term: Linear animation controller.
@@ -6198,8 +6207,8 @@ namespace netxs::ui
                 case 1004: // Enable focus tracking.
                     ftrack.set(true);
                     break;
-                case 1005: // Enable UTF-8 mouse reporting protocol.
-                    log("decset: CSI ? 1005 h  UTF-8 mouse reporting protocol is not supported");
+                case 1005: // Enable UTF8 mousee position encoding.
+                    mtrack.enable(m_tracking::utf8);
                     break;
                 case 1006: // Enable SGR mouse reporting protocol.
                     mtrack.setmode(m_tracking::sgr);
@@ -6306,7 +6315,7 @@ namespace netxs::ui
                     ftrack.set(faux);
                     break;
                 case 1005: // Disable UTF-8 mouse reporting protocol.
-                    log("decset: CSI ? 1005 l  UTF-8 mouse reporting protocol is not supported");
+                    mtrack.disable(m_tracking::utf8);
                     break;
                 case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
                     mtrack.setmode(m_tracking::x11);
@@ -7023,7 +7032,7 @@ namespace netxs::ui
               selmod{ config.def_selmod },
               selalt{ config.def_selalt }
         {
-            linux_console = os::local_mode();
+            linux_console = os::vt::console();
             form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
@@ -7405,12 +7414,25 @@ namespace netxs::ui
                     SIGNAL_GLOBAL(e2::config::fps, fps);
                 });
             }
-            void handle(s11n::xs::request_debug       lock)
+            //todo logs
+            //void handle(s11n::xs::request_debug       lock)
+            //{
+            //    netxs::events::enqueue(owner.This(), [&](auto& boss)
+            //    {
+            //        owner.request_debug();
+            //    });
+            //}
+            void handle(s11n::xs::debuglogs           lock)
             {
-                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                if (lock.thing.id != os::process_id) // To avoid overflow on recursive dtvt connections.
                 {
-                    owner.request_debug();
-                });
+                    auto utf8 = view{ lock.thing.data };
+                    if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
+                    utf::divide(utf8, '\n', [&](auto line)
+                    {
+                        log(owner.prompt, line);
+                    });
+                }
             }
 
             events_t(dtvt& owner)
@@ -7522,33 +7544,36 @@ namespace netxs::ui
                 };
                 owner.SUBMIT_T(tier::release, e2::size::any, token, new_size)
                 {
-                    if (owner.pty_resize(new_size))
-                    {
-                        s11n::winsz.send(owner, 0, new_size);
-                    }
+                    owner.pty_resize(new_size);
                 };
             }
         };
 
-        events_t        stream; // dtvt: .
-        text            curdir; // dtvt: Current working directory.
-        text            cmdarg; // dtvt: Startup command line arguments.
-        text            xmlcfg; // dtvt: Startup config.
-        bool            active; // dtvt: Terminal lifetime.
-        si32            nodata; // dtvt: Show splash "No signal".
-        face            splash; // dtvt: "No signal" splash.
-        hook            oneoff; // dtvt: One-shot token for start and shutdown events.
-        period          maxoff; // dtvt: Max delay before showing "No signal".
-        subs            debugs; // dtvt: Tokens for debug output subcriptions.
-        byte            opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
-        ansi::esc       prompt; // dtvt: PTY logger prompt.
-        testy<twod>     termsz; // dtvt: PTY device window size.
-        os::direct::pty ptycon; // dtvt: PTY device. Should be destroyed first.
+        using vtty = os::dtvt::vtty;
+
+        events_t    stream; // dtvt: .
+        text        curdir; // dtvt: Current working directory.
+        text        cmdarg; // dtvt: Startup command line arguments.
+        text        xmlcfg; // dtvt: Startup config.
+        bool        active; // dtvt: Terminal lifetime.
+        si32        nodata; // dtvt: Show splash "No signal".
+        face        splash; // dtvt: "No signal" splash.
+        hook        oneoff; // dtvt: One-shot token for start and shutdown events.
+        period      maxoff; // dtvt: Max delay before showing "No signal".
+        subs        debugs; // dtvt: Tokens for debug output subcriptions.
+        byte        opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
+        ansi::esc   prompt; // dtvt: PTY logger prompt.
+        testy<twod> termsz; // dtvt: PTY device window size.
+        vtty        ptycon; // dtvt: PTY device. Should be destroyed first.
 
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
         {
-            stream.s11n::sync(data);
+            if (active) // ui::form::std::from_shared is destroyed prior the ptycon which is still running.
+            {
+                auto backup = This(); // To avoid calling the destructor during deserialization (it causes deadlock when using events::sync{} inside the sync()).
+                stream.s11n::sync(data);
+            }
         }
         // dtvt: Shutdown callback handler.
         void onexit(si32 code)
@@ -7589,27 +7614,19 @@ namespace netxs::ui
             }
         }
         // dtvt: Logs callback handler.
-        void onlogs(view utf8)
-        {
-            if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
-            utf::divide(utf8, '\n', [&](auto line)
-            {
-                log(prompt, line);
-            });
-        }
-        // dtvt: Logs callback handler.
         void request_debug()
         {
-            SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
-            {
-                //todo text -> view
-                stream.debuglogs.send(ptycon, text{shadow});
-            };
-            SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
-            {
-                //todo text -> view
-                stream.debugdata.send(ptycon, text{shadow});
-            };
+            //todo logs
+            //SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
+            //{
+            //    //todo text -> view
+            //    stream.debuglogs2.send(ptycon, text{shadow});
+            //};
+            //SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
+            //{
+            //    //todo text -> view
+            //    stream.debugdata.send(ptycon, text{shadow});
+            //};
         }
 
     public:
@@ -7635,21 +7652,24 @@ namespace netxs::ui
                         this->riseup<tier::request>(e2::form::prop::ui::footer, footer);
                         stream.s11n::form_header.send(*this, 0, header);
                         stream.s11n::form_footer.send(*this, 0, footer);
-                        termsz(base::size());
-                        auto procid = ptycon.start(curdir, cmdarg, termsz, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                                   [&](auto log_message) { onlogs(log_message); },
-                                                                                   [&](auto exit_reason) { atexit(exit_reason); },
-                                                                                   [&](auto exit_reason) { onexit(exit_reason); } );
+                        auto procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                           [&](auto exit_reason) { atexit(exit_reason); },
+                                                                           [&](auto exit_reason) { onexit(exit_reason); });
+                        pty_resize<true>(base::size());
                         unique = timer;
                         oneoff.reset();
-                        prompt.add("    ", procid, ": ");
+                        prompt.add("      ", procid, ": ");
                     }
                 };
             }
         }
-        bool pty_resize(twod const& new_size)
+        template<bool Forced = faux>
+        void pty_resize(twod const& new_size)
         {
-            return ptycon && termsz(new_size);
+            if (ptycon && (Forced || termsz(new_size)))
+            {
+                stream.s11n::winsz.send(*this, 0, new_size);
+            }
         }
 
        ~dtvt()

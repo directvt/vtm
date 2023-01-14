@@ -105,7 +105,7 @@
  *
  *
  **/
- 
+
 #pragma once
 
 #include <cstdint>

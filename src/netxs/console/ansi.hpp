@@ -751,6 +751,45 @@ namespace netxs::ansi
             osc_palette(15, rgba::color256[tint::whitelt  ]);
             return *this;
         }
+        auto& set_palette(bool legacy_color)
+        {
+            if (legacy_color)
+            {
+                auto set_pal = [](auto proc)
+                {
+                    proc(0,  rgba::color16[tint16::blackdk  ]);
+                    proc(1,  rgba::color16[tint16::blacklt  ]);
+                    proc(2,  rgba::color16[tint16::graydk   ]);
+                    proc(3,  rgba::color16[tint16::graylt   ]);
+                    proc(4,  rgba::color16[tint16::whitedk  ]);
+                    proc(5,  rgba::color16[tint16::whitelt  ]);
+                    proc(6,  rgba::color16[tint16::redlt    ]);
+                    proc(7,  rgba::color16[tint16::bluelt   ]);
+                    proc(8,  rgba::color16[tint16::greenlt  ]);
+                    proc(9,  rgba::color16[tint16::yellowlt ]);
+                    proc(10, rgba::color16[tint16::magentalt]);
+                    proc(11, rgba::color16[tint16::reddk    ]);
+                    proc(12, rgba::color16[tint16::bluedk   ]);
+                    proc(13, rgba::color16[tint16::greendk  ]);
+                    proc(14, rgba::color16[tint16::yellowdk ]);
+                    proc(15, rgba::color16[tint16::cyanlt   ]);
+                };
+                save_palette();
+                set_pal([&](auto ...Args){ ansi::esc::old_palette(Args...); });
+                set_pal([&](auto ...Args){ ansi::esc::osc_palette(Args...); });
+            }
+            return *this;
+        }
+        auto& rst_palette(bool legacy_color)
+        {
+            if (legacy_color)
+            {
+                old_palette_reset();
+                osc_palette_reset();
+                load_palette();
+            }
+            return *this;
+        }
         template<class T, class S>
         auto& mouse_sgr(T const& gear, S const& cached, twod const& coor) // esc: Mouse tracking report (SGR).
         {
@@ -817,7 +856,7 @@ namespace netxs::ansi
                            coor.y + 1, pressed ? 'M' : 'm');
         }
         template<class T, class S>
-        auto& mouse_x11(T const& gear, S const& cached, twod const& coor) // esc: Mouse tracking report (X11).
+        auto& mouse_x11(T const& gear, S const& cached, twod const& coor, bool utf8) // esc: Mouse tracking report (X11).
         {
             using hids = T;
             static constexpr auto left     = si32{ 0  };
@@ -855,9 +894,22 @@ namespace netxs::ansi
                 ctrl |= idle;
             }
             else ctrl |= idle + btup;
-            return add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 255-32) + 32),
-                                 static_cast<char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
-                                 static_cast<char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
+
+            if (utf8)
+            {
+                add("\033[M");
+                utf::to_utf_from_code(std::clamp(ctrl,       0, std::numeric_limits<si16>::max() - 32) + 32, *this);
+                utf::to_utf_from_code(std::clamp(coor.x + 1, 1, std::numeric_limits<si16>::max() - 32) + 32, *this);
+                utf::to_utf_from_code(std::clamp(coor.y + 1, 1, std::numeric_limits<si16>::max() - 32) + 32, *this);
+            }
+            else
+            {
+                add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 127-32) + 32),
+                              static_cast<char>(std::clamp(coor.x + 1, 1, 127-32) + 32),
+                              static_cast<char>(std::clamp(coor.y + 1, 1, 127-32) + 32));
+            }
+
+            return *this;
         }
         auto& w32keybd(si32 Vk, si32 Sc, si32 Uc, si32 Kd, si32 Cs, si32 Rc) // esc: win32-input-mode sequence (keyboard).
         {
@@ -967,6 +1019,8 @@ namespace netxs::ansi
     static auto locate(twod const& n) { return esc{}.locate(n);     } // ansi: 1-Based caret position.
     static auto locate_wipe()         { return esc{}.locate_wipe(); } // ansi: Enable scrolling for entire display (clear screen).
     static auto locate_call()         { return esc{}.locate_call(); } // ansi: Report caret position.
+    static auto scrn_reset()          { return esc{}.scrn_reset();  } // ansi: Reset palette, erase scrollback and reset caret location.
+    static auto save_title()          { return esc{}.save_title();  } // ansi: Save terminal window title.
     static auto setutf(bool b)        { return esc{}.setutf(b);     } // ansi: Select UTF-8 character set.
     static auto header(view t)        { return esc{}.header(t);     } // ansi: Window title.
     static auto altbuf(bool b)        { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
@@ -1841,7 +1895,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
                             utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                             return utf8;
                         }
@@ -1857,7 +1911,7 @@ namespace netxs::ansi
                             {
                                 if (tail - step < 8)
                                 {
-                                    //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                                    //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
                                     utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                                 }
                                 else
@@ -1879,7 +1933,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
                             utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                             return utf8;
                         }
@@ -1904,7 +1958,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
                             utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                             return utf8;
                         }
@@ -1923,7 +1977,7 @@ namespace netxs::ansi
                     {
                         if (++next == tail)
                         {
-                            //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
                             utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                         }
                     }
@@ -1961,7 +2015,7 @@ namespace netxs::ansi
                 }
                 else
                 {
-                    //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                    //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
                     utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                     return utf8;
                 }
@@ -1991,10 +2045,8 @@ namespace netxs::ansi
             {
                 struct mask
                 {
-                    using twod = le_t<netxs::twod>;
                     using sz_t = le_t<size_t>;
                     char mark_FF;
-                    twod winsize;
                     sz_t cfgsize;
                     char mark_FE;
                 };
@@ -2005,20 +2057,18 @@ namespace netxs::ansi
 
                 marker()
                 { }
-                marker(twod const& winsize, size_t cfgsize)
+                marker(size_t cfgsize)
                 {
                     pack.mark_FF = initial;
-                    pack.winsize.set(winsize);
                     pack.cfgsize.set(cfgsize);
                     pack.mark_FE = initial - 1;
                 }
 
-                auto get_sz(twod& winsize, size_t& cfgsize)
+                auto get_sz(size_t& cfgsize)
                 {
                     if (pack.mark_FF == initial
                      && pack.mark_FE == initial - 1)
                     {
-                        winsize = pack.winsize.get();
                         cfgsize = pack.cfgsize.get();
                         return true;
                     }
@@ -2297,6 +2347,57 @@ namespace netxs::ansi
                         stream::reset();
                     }
                 }
+                template<bool Discard_empty = faux, class P>
+                void send(P output)
+                {
+                    if (stream::commit(Discard_empty))
+                    {
+                        output(block);
+                        stream::reset();
+                    }
+                }
+                template<class T, class P>
+                static auto read_block(T& object, P input)
+                {
+                    auto buff = text(sizeof(sz_t), 0);
+                    auto shot = input(buff.data(), buff.size());
+                    if (shot.size() != buff.size())
+                    {
+                        log("dtvt: stream corrupted");
+                        return faux;
+                    }
+                    auto rest = size_t{};
+                    rest = *reinterpret_cast<sz_t const*>(buff.data());
+                    if (rest < sizeof(sz_t))
+                    {
+                        log("dtvt: stream corrupted, frame size: ", rest);
+                        return faux;
+                    }
+                    rest -= shot.size();
+                    buff.resize(rest);
+                    auto head = buff.data();
+                    while (rest)
+                    {
+                        shot = input(head, rest);
+                        if (!shot)
+                        {
+                            log("dtvt: stream corrupted");
+                            return faux;
+                        }
+                        rest -= shot.size();
+                        head += shot.size();
+                    }
+                    auto data = view{ buff };
+                    auto kind = *reinterpret_cast<type const*>(data.data());
+                    if (kind != object.kind)
+                    {
+                        log("dtvt: object type mismatch");
+                        return faux;
+                    }
+                    data.remove_prefix(sizeof(type));
+                    object.get(data);
+                    return true;
+                }
                 // stream: .
                 template<type Kind, class ...Args>
                 void set(Args&&... args)
@@ -2513,6 +2614,11 @@ namespace netxs::ansi
                         std::tie(SEQ_NAME(WRAP(struct_members)) _tmp) =               \
                             stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(_data); \
                     }                                                                 \
+                    template<class P>                                                 \
+                    auto load(P recv)                                                 \
+                    {                                                                 \
+                        return stream::read_block(*this, recv);                       \
+                    }                                                                 \
                     void wipe()                                                       \
                     {                                                                 \
                         SEQ_WIPE(WRAP(struct_members))                                \
@@ -2548,9 +2654,7 @@ namespace netxs::ansi
                 };                                                                    \
                 using struct_name = wrapper<CAT(struct_name, _t)>;
 
-            using imap = netxs::imap<text, text>;
             //todo unify
-            static auto& operator << (std::ostream& s, imap const& o) { return s << "{...}"; }
             static auto& operator << (std::ostream& s, wchr const& o) { return s << "0x" << utf::to_hex(o); }
 
             // Output stream.
@@ -2567,9 +2671,9 @@ namespace netxs::ansi
             STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
             STRUCT(warping,           (id_t, window_id) (dent, warpdata))
             STRUCT(vt_command,        (text, command))
-            STRUCT(configuration,     (imap, confug))
             STRUCT_LITE(expose)
-            STRUCT_LITE(request_debug)
+            //todo logs
+            //STRUCT_LITE(request_debug)
 
             // Input stream.
             STRUCT(sysfocus,          (id_t, gear_id) (bool, enabled) (bool, combine_focus) (bool, force_group_focus))
@@ -2596,9 +2700,12 @@ namespace netxs::ansi
             STRUCT(bgc,               (rgba, color))
             STRUCT(fgc,               (rgba, color))
             STRUCT(slimmenu,          (bool, menusize))
-            STRUCT(debugdata,         (text, data))
-            STRUCT(debuglogs,         (text, data))
-            STRUCT(debugtext,         (text, data))
+            STRUCT(startdata,         (text, ip) (text, name) (text, user) (si32, mode) (text, conf))
+            STRUCT(debuglogs,         (si64, id) (text, data))
+            //todo logs
+            //STRUCT(debuglogs2,        (text, data))
+            //STRUCT(debugdata,         (text, data))
+            //STRUCT(debugtext,         (text, data))
 
             #undef STRUCT
             #undef STRUCT_LITE
@@ -2857,11 +2964,9 @@ namespace netxs::ansi
                 X(warping          ) /* Warp resize.                                  */\
                 X(expose           ) /* Bring the form to the front.                  */\
                 X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
-                X(configuration    ) /* Initial application configuration.            */\
                 X(frames           ) /* Received frames.                              */\
                 X(tooltip_element  ) /* Tooltip text.                                 */\
                 X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
-                X(request_debug    ) /* Request debug output redirection to stdin.    */\
                 /* Input stream                                                       */\
                 X(sysfocus         ) /* System focus state.                           */\
                 X(syskeybd         ) /* System keybd device.                          */\
@@ -2878,9 +2983,13 @@ namespace netxs::ansi
                 X(bgc              ) /* Set background color.                         */\
                 X(fgc              ) /* Set foreground color.                         */\
                 X(slimmenu         ) /* Set window menu size.                         */\
-                X(debugdata        ) /* Debug data.                                   */\
-                X(debuglogs        ) /* Debug logs.                                   */\
-                X(debugtext        ) /* Debug forwarding.                             */
+                X(startdata        ) /* Startup data.                                 */\
+                X(debuglogs        ) /* Debug logs.                                   */
+                //todo logs
+                //X(debuglogs2       ) /* Debug logs.                                   */
+                //X(debugdata        ) /* Debug data.                                   */
+                //X(debugtext        ) /* Debug forwarding.                             */
+                //X(request_debug    ) /* Request debug output redirection to stdin.    */
 
                 struct xs
                 {

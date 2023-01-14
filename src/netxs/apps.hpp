@@ -928,19 +928,35 @@ R"==(
         auto settings(view cli_config_path, view patch)
         {
             auto conf = xml::settings{ default_config };
+            auto pads = "      ";
             auto load = [&](view shadow)
             {
                 if (shadow.empty()) return faux;
+                if (shadow.starts_with(":"))
+                {
+                    shadow.remove_prefix(1);
+                    auto utf8 = os::ipc::memory::get(shadow);
+                    if (utf8.size())
+                    {
+                        conf.fuse<Print>(utf8);
+                        return true;
+                    }
+                    else
+                    {
+                        log("apps: failed to get configuration from :", shadow);
+                        return faux;
+                    }
+                }
                 auto path = text{ shadow };
                 log("apps: loading configuration from ", path, "...");
                 if (path.starts_with("$"))
                 {
                     auto temp = path.substr(1);
-                    path = os::get_env(temp);
+                    path = os::env::get(temp);
                     if (path.empty()) return faux;
-                    log('\t', temp, " = ", path);
+                    log(pads, temp, " = ", path);
                 }
-                auto config_path = path.starts_with("~/") ? os::homepath() / path.substr(2)
+                auto config_path = path.starts_with("~/") ? os::env::homepath() / path.substr(2)
                                                           : fs::path{ path };
                 auto ec = std::error_code{};
                 auto config_file = fs::directory_entry(config_path, ec);
@@ -951,12 +967,12 @@ R"==(
                     auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
                     if (file.seekg(0, std::ios::end).fail())
                     {
-                        log("\tfailed\n\tunable to get configuration file size, skip it: ", config_path_str);
+                        log(pads, "failed\n\tunable to get configuration file size, skip it: ", config_path_str);
                         return faux;
                     }
                     else
                     {
-                        log("\treading configuration: ", config_path_str);
+                        log(pads, "reading configuration: ", config_path_str);
                         auto size = file.tellg();
                         auto buff = text(size, '\0');
                         file.seekg(0, std::ios::beg);
@@ -965,17 +981,17 @@ R"==(
                         return true;
                     }
                 }
-                log("\tno configuration found, try another source");
+                log(pads, "no configuration found, try another source");
                 return faux;
             };
             if (!load(cli_config_path)
              && !load(app::shared::env_config)
              && !load(app::shared::usr_config))
             {
-                log("apps: fallback to hardcoded configuration");
+                log(pads, "fallback to hardcoded configuration");
             }
 
-            os::set_env(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
+            os::env::set(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
 
             conf.fuse<Print>(patch);
             return conf;
@@ -992,42 +1008,43 @@ R"==(
 
     auto start(text app_name, text log_title, si32 vtmode, xml::settings& config)
     {
-        auto direct = !!(vtmode & os::legacy::direct);
-        if (!direct) os::start_log(log_title);
+        auto direct = !!(vtmode & os::vt::direct);
+        if (!direct) os::logging::start(log_title);
 
         //std::this_thread::sleep_for(15s);
 
         auto shadow = app_name;
         utf::to_low(shadow);
-        if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
-
-        auto tunnel = os::ipc::local(vtmode);
-        auto cons = os::tty::proxy(tunnel.second);
-        auto size = cons.ignite(vtmode);
-        if (!size.last) return faux;
-
+        //if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
-        auto ground = base::create<host>(tunnel.first, config);
-        auto runapp = [&]
+        auto runapp = [&](auto uplink)
         {
             auto patch = ""s;
-            auto aclass = utf::cutoff(app_name, ' ');
-            utf::to_low(aclass);
+            auto ground = base::create<host>(uplink, config);
+            auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            auto window = ground->invite<gate>(vtmode, config);
-            window->resize(size);
-            window->launch(tunnel.first, applet);
+            auto window = ground->template invite<gate>(vtmode, config);
+            window->launch(uplink, applet);
             window.reset();
             applet.reset();
             ground->shutdown();
         };
 
-        if (direct) runapp();
+        if (direct)
+        {
+            auto server = os::ipc::stdio();
+            runapp(server);
+        }
         else
         {
-            auto thread = std::thread{ [&]{ os::ipc::splice(cons, vtmode); }};
-            runapp();
+            //todo Clang 11.0.1 doesn't get it
+            //auto [client, server] = os::ipc::xlink();
+            auto xlinks = os::ipc::xlink();
+            auto client = xlinks.first;
+            auto server = xlinks.second;
+            auto thread = std::thread{ [&]{ os::tty::splice(client, vtmode); }};
+            runapp(server);
             thread.join();
         }
         return true;
@@ -1349,7 +1366,7 @@ namespace netxs::app::shared
                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
-                    auto data = param.empty() ? os::get_shell() + " -i"
+                    auto data = param.empty() ? os::env::shell() + " -i"
                                               : param;
                     auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
                                       ->colors(whitelt, blackdk) //todo apply settings
@@ -1506,7 +1523,7 @@ namespace netxs::app::shared
         {
             if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
 
-            auto args = os::current_module_file();
+            auto args = os::process::binary();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
 
             args += " -r term ";
@@ -1516,7 +1533,7 @@ namespace netxs::app::shared
         };
         auto build_SHELL         = [](text cwd, text param, xml::settings& config, text patch)
         {
-            auto args = os::current_module_file();
+            auto args = os::process::binary();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
 
             args += " -r term ";
@@ -1525,7 +1542,7 @@ namespace netxs::app::shared
                 #if defined(_WIN32)
                     args += "cmd";
                 #else
-                    args += os::get_shell();
+                    args += os::env::shell();
                 #endif
             }
             else
@@ -1533,7 +1550,7 @@ namespace netxs::app::shared
                 #if defined(_WIN32)
                     args += "cmd /c ";
                 #else
-                    args += os::get_shell() + " -c ";
+                    args += os::env::shell() + " -c ";
                 #endif
                 args += param;
             }

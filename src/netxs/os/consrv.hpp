@@ -158,7 +158,7 @@ struct consrv
             {
                 if (h.kind == hndl::type::events)
                 {
-                    s << "events 0";
+                    s << "events(" << h.mode << ") 0";
                     if (h.mode & nt::console::inmode::echo      ) s << " | ECHO";
                     if (h.mode & nt::console::inmode::insert    ) s << " | INSERT";
                     if (h.mode & nt::console::inmode::cooked    ) s << " | COOKED_READ";
@@ -170,7 +170,7 @@ struct consrv
                 }
                 else
                 {
-                    s << "scroll 0";
+                    s << "scroll(" << h.mode << ") 0";
                     if (h.mode & nt::console::outmode::preprocess ) s << " | PROCESSED_OUTPUT";
                     if (h.mode & nt::console::outmode::wrap_at_eol) s << " | WRAP_AT_EOL";
                     if (h.mode & nt::console::outmode::vt         ) s << " | VIRTUAL_TERMINAL_PROCESSING";
@@ -343,7 +343,7 @@ struct consrv
     struct event_list
     {
         using jobs = netxs::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
-        using fire = netxs::os::fire;
+        using fire = netxs::os::io::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
         using vect = std::vector<INPUT_RECORD>;
@@ -936,7 +936,7 @@ struct consrv
                         static auto zero = cell{ '\0' }.wdt(1);
                         auto& term = *server.uiterm.target;
                         auto& data = line.content();
-                        data.crop(line.length() + 1, zero); // To avoid pendind cursor.
+                        data.crop(line.length() + 1, zero); // To avoid pending cursor.
                         term.move(-coor);
                         term.data(data);
                         using erase = std::decay_t<decltype(server.uiterm)>::commands::erase;
@@ -1030,7 +1030,7 @@ struct consrv
                     auto& answer = std::get<0>(token);
                     auto& cancel = std::get<2>(token);
                     auto& client = *packet.client;
-                    answer.buffer = &packet.input; // Restore after copy.
+                    answer.buffer = &packet.input; // Restore after copy. Payload start address.
 
                     if (closed || cancel) return;
 
@@ -1115,7 +1115,7 @@ struct consrv
                         auto lock = std::unique_lock{ locker };
                         auto& answer = std::get<0>(token);
                         auto& cancel = std::get<2>(token);
-                        answer.buffer = &packet.input; // Restore after copy.
+                        answer.buffer = &packet.reply; // Restore after copy. Payload start address.
 
                         if (closed || cancel) return;
                         while ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel && buffer.empty())
@@ -3208,6 +3208,7 @@ struct consrv
     using apis = std::vector<void(consrv::*)()>;
     using list = std::list<clnt>;
     using face = Term::face;
+    using fire = netxs::os::io::fire;
 
     Term&       uiterm; // consrv: Terminal reference.
     fd_t&       condrv; // consrv: Console driver handle.
@@ -3241,7 +3242,7 @@ struct consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
-                log(" pty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
+                log("vtty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
@@ -3369,7 +3370,7 @@ struct consrv
           impcls{ faux   },
           answer{        },
           winhnd{        },
-          prompt{ " pty: consrv: " }
+          prompt{ "vtty: consrv: " }
     {
         using _ = consrv;
         apimap.resize(0xFF, &_::api_unsupported);

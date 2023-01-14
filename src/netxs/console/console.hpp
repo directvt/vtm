@@ -6,7 +6,6 @@
 #include "../os/system.hpp"
 #include "../text/xml.hpp"
 
-#include <iostream>
 #include <typeindex>
 
 #define SPD            10   // console: Auto-scroll initial speed component ΔR.
@@ -87,7 +86,7 @@ namespace netxs::console
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
     using s11n = netxs::ansi::dtvt::binary::s11n;
-    using os::xipc;
+    using os::tty::xipc;
 
     static constexpr auto attr_id       = "id";
     static constexpr auto attr_alias    = "alias";
@@ -1449,7 +1448,7 @@ namespace netxs::console
               legacy_mode{ mode }
         {
             read(config);
-            simple            = !(legacy_mode & os::legacy::direct);
+            simple            = !(legacy_mode & os::vt::direct);
             glow_fx           = faux;
             is_standalone_app = true;
             title             = "";
@@ -1457,23 +1456,21 @@ namespace netxs::console
         conf(xipc peer, si32 session_id, xml::settings& config)
             : session_id{ session_id }
         {
-            auto _ip     = peer->line(';');
-            auto _name   = peer->line(';');
-            auto _user   = peer->line(';');
-            auto _mode   = peer->line(';');
-            auto _runcfg = peer->line(';');
-            auto utf8_xml = utf::unbase64(_runcfg);
-            config.fuse(utf8_xml);
-
-            _user = "[" + _user + ":" + std::to_string(session_id) + "]";
-            auto c_info = utf::divide(_ip, " ");
+            auto init = ansi::dtvt::binary::startdata_t{};
+            if (!init.load([&](auto... args){ return peer->recv(args...); }))
+            {
+                log("conf: init data corrupted");
+            }
+            config.fuse(init.conf);
+            init.user = "[" + init.user + ":" + std::to_string(session_id) + "]";
+            auto c_info = utf::divide(init.ip, " ");
             ip                = c_info.size() > 0 ? c_info[0] : text{};
             port              = c_info.size() > 1 ? c_info[1] : text{};
-            legacy_mode       = utf::to_int(_mode, os::legacy::clean);
-            os_user_id        = _user;
-            fullname          = _name;
-            name              = _user;
-            title             = _user;
+            legacy_mode       = init.mode;
+            os_user_id        = init.user;
+            fullname          = init.name;
+            name              = init.user;
+            title             = init.user;
             selected          = config.take("/config/menu/selected", ""s);
             read(config);
             background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
@@ -1496,7 +1493,7 @@ namespace netxs::console
                      << "\n\tregion: " << c.region
                      << "\n\t  name: " << c.fullname
                      << "\n\t  user: " << c.os_user_id
-                     << "\n\t  mode: " << os::legacy::str(c.legacy_mode);
+                     << "\n\t  mode: " << os::vt::str(c.legacy_mode);
         }
     };
 
@@ -4527,7 +4524,7 @@ namespace netxs::console
             {
                 //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
                 log("host: shutdown: ", msg);
-                joint->shut();
+                joint->stop();
             };
             synch.ignite(hertz);
             log("host: started at ", hertz, "fps");
@@ -4902,7 +4899,7 @@ namespace netxs::console
         hall(xipc server_pipe, xml::settings& config)
             : host{ server_pipe, config }
         {
-            auto current_module_file = os::current_module_file();
+            auto current_module_file = os::process::binary();
             auto& menu_list = *regis.app_ptr;
             auto& conf_list = *regis.lnk_ptr;
             auto  free_list = std::list<std::pair<text, menuitem_t>>{};
@@ -5142,7 +5139,7 @@ namespace netxs::console
         : public s11n
     {
         using sptr = netxs::sptr<bell>;
-        using ipc  = os::ipc::iobase;
+        using ipc  = os::ipc::stdcon;
 
     public:
         struct relay_t
@@ -5246,6 +5243,7 @@ namespace netxs::console
         void handle(s11n::xs::syskeybd    lock)
         {
             auto& keybd = lock.thing;
+            log("keybd ", keybd.cluster);
             notify(e2::conio::keybd, keybd);
         }
         void handle(s11n::xs::plain       lock)
@@ -5313,21 +5311,22 @@ namespace netxs::console
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
         }
-        void handle(s11n::xs::debugdata   lock) // For Logs only.
-        {
-            auto& item = lock.thing;
-            notify<tier::anycast>(e2::debug::output, item.data);
-        }
-        void handle(s11n::xs::debuglogs   lock) // For Logs only.
-        {
-            auto& item = lock.thing;
-            notify<tier::anycast>(e2::debug::logs, item.data);
-        }
-        void handle(s11n::xs::debugtext   lock)
-        {
-            auto& item = lock.thing;
-            log(item.data);
-        }
+        //todo logs
+        //void handle(s11n::xs::debugdata   lock) // For Logs only.
+        //{
+        //    auto& item = lock.thing;
+        //    notify<tier::anycast>(e2::debug::output, item.data);
+        //}
+        //void handle(s11n::xs::debuglogs2  lock) // For Logs only.
+        //{
+        //    auto& item = lock.thing;
+        //    notify<tier::anycast>(e2::debug::logs, item.data);
+        //}
+        //void handle(s11n::xs::debugtext   lock)
+        //{
+        //    auto& item = lock.thing;
+        //    log(item.data);
+        //}
         void handle(s11n::xs::form_header lock)
         {
             auto& item = lock.thing;
@@ -5347,7 +5346,7 @@ namespace netxs::console
         using lock = std::mutex;
         using cond = std::condition_variable_any;
         using span = period;
-        using ipc  = os::ipc::iobase;
+        using ipc  = os::ipc::stdcon;
 
         struct stat
         {
@@ -5484,7 +5483,7 @@ namespace netxs::console
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
         bool  fullscreen = faux; //gate: Fullscreen mode.
-        si32  legacy = os::legacy::clean;
+        si32  legacy = os::vt::clean;
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -5494,6 +5493,7 @@ namespace netxs::console
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 auto coor = basexy;
                 coor += gear.coord;
                 coor.y--;
@@ -5512,6 +5512,7 @@ namespace netxs::console
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 area.coor = coor + gear.coord;
                 area.coor -= base;
                 if (gear.m.buttons) brush.txt(64 + gear.m.buttons).bgc(reddk).fgc(0xFFffffff);
@@ -5524,6 +5525,7 @@ namespace netxs::console
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 if (props.clip_preview_time == period::zero()
                  || props.clip_preview_time > stamp - gear.delta.stamp())
                 {
@@ -5540,6 +5542,7 @@ namespace netxs::console
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 if (gear.tooltip_enabled())
                 {
                     auto tooltip_data = gear.get_tooltip();
@@ -5563,6 +5566,7 @@ namespace netxs::console
             for (auto& [gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 if (gear.is_tooltip_changed())
                 {
                     list.thing.push(gear_id, gear.get_tooltip());
@@ -5576,6 +5580,7 @@ namespace netxs::console
             for (auto& [gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
+                if (gear.disabled) continue;
                 result |= gear.tooltip_check(now);
             }
             if (result) base::strike();
@@ -5613,10 +5618,10 @@ namespace netxs::console
 
                 legacy |= props.legacy_mode;
 
-                auto vtmode = legacy & os::legacy::vga16  ? svga::vga16
-                            : legacy & os::legacy::vga256 ? svga::vga256
-                            : legacy & os::legacy::direct ? svga::directvt
-                                                          : svga::truecolor;
+                auto vtmode = legacy & os::vt::vga16  ? svga::vga16
+                            : legacy & os::vt::vga256 ? svga::vga256
+                            : legacy & os::vt::direct ? svga::directvt
+                                                      : svga::truecolor;
                 auto direct = vtmode == svga::directvt;
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
@@ -5626,9 +5631,16 @@ namespace netxs::console
                 base::moveby(props.coor);
 
                 auto& canal = *termio;
-                link conio{ canal, This() }; // gate: Terminal IO.
-                diff paint{ canal, vtmode }; // gate: Rendering loop.
-                subs token;                  // gate: Subscription tokens.
+                auto  conio = link{ canal, This() }; // gate: Terminal IO.
+                auto  paint = diff{ canal, vtmode }; // gate: Rendering loop.
+                auto  token = subs{};                // gate: Subscription tokens.
+                auto logger = netxs::logger([&](auto data)
+                {
+                    if (direct && !props.is_standalone_app)
+                    {
+                        conio.debuglogs.send(canal, os::process_id, text{ data });
+                    }
+                });
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -5658,7 +5670,7 @@ namespace netxs::console
                             if (props.glow_fx) canvas.render(uibar, base::coor()); // Render the main menu twice to achieve the glow effect.
                                                canvas.render(uibar, base::coor());
                         }
-                        if (legacy & os::legacy::mouse) // Render our mouse pointer.
+                        if (legacy & os::vt::mouse) // Render our mouse pointer.
                         {
                             draw_mouse_pointer(canvas);
                         }
@@ -5735,13 +5747,7 @@ namespace netxs::console
                 };
                 SUBMIT_T(tier::release, e2::conio::pointer, token, pointer)
                 {
-                    legacy |= pointer ? os::legacy::mouse : 0;
-                };
-                SUBMIT_T(tier::release, e2::conio::error, token, errcode)
-                {
-                    auto msg = text{ "\n\rgate: Term error: " } + std::to_string(errcode) + "\r\n";
-                    log("gate: error byemsg: ", msg);
-                    canal.stop();
+                    legacy |= pointer ? os::vt::mouse : 0;
                 };
                 SUBMIT_T(tier::release, e2::conio::clipdata, token, clipdata)
                 {
@@ -5752,20 +5758,26 @@ namespace netxs::console
                         base::deface();
                     }
                 };
+                SUBMIT_T(tier::release, e2::conio::error, token, errcode)
+                {
+                    auto msg = ansi::bgc(reddk).fgc(whitelt).add("\n\rgate: Term error: ", errcode, "\r\n");
+                    log("gate: error byemsg: ", msg);
+                    canal.shut();
+                };
                 SUBMIT_T(tier::release, e2::conio::quit, token, msg)
                 {
                     log("gate: quit byemsg: ", msg);
-                    canal.stop();
+                    canal.shut();
                 };
                 SUBMIT_T(tier::general, e2::conio::quit, token, msg)
                 {
                     log("gate: global shutdown byemsg: ", msg);
-                    canal.stop();
+                    canal.shut();
                 };
                 SUBMIT_T(tier::release, e2::form::quit, token, initiator)
                 {
                     auto msg = ansi::add("gate: quit message from: ", initiator->id);
-                    canal.stop();
+                    canal.shut();
                     this->SIGNAL(tier::general, e2::shutdown, msg);
                 };
                 SUBMIT_T(tier::release, e2::form::prop::ui::footer, token, newfooter)
@@ -5872,10 +5884,15 @@ namespace netxs::console
 
                 if (direct) // Forward unhandled events outside.
                 {
-                    SUBMIT_T(tier::anycast, e2::debug::request, token, count)
-                    {
-                        if (count > 0) conio.request_debug.send(conio);
-                    };
+                    //todo crash in dtvt mode
+                    //SUBMIT_T(tier::anycast, e2::debug::request, token, count)
+                    //{
+                    //    if (count > 0) conio.request_debug.send(conio);
+                    //};
+                    //SUBMIT_T(tier::general, e2::debug::logs, token, utf8)
+                    //{
+                    //    log(utf8);
+                    //};
                     SUBMIT_T(tier::release, e2::config::fps, token, fps)
                     {
                         if (fps > 0) SIGNAL_GLOBAL(e2::config::fps, fps);
@@ -5912,35 +5929,38 @@ namespace netxs::console
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                         conio.off_focus.send(conio, ext_gear_id);
                     };
-                    SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
+                    if (props.is_standalone_app)
                     {
-                        using button = hids::events::mouse::button;
-                        auto forward = faux;
-                        auto cause = gear.mouse::cause;//this->bell::protos<tier::release>();
-                        if (events::subevent(cause, button::click     ::any.id)
-                         || events::subevent(cause, button::dblclick  ::any.id)
-                         || events::subevent(cause, button::tplclick  ::any.id)
-                         || events::subevent(cause, button::drag::pull::any.id))
+                        SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
                         {
-                            forward = true;
-                        }
-                        else if (events::subevent(cause, button::drag::start::any.id))
-                        {
-                            gear.capture(bell::id); // To avoid unhandled mouse pull processing.
-                            forward = true;
-                        }
-                        else if (events::subevent(cause, button::drag::cancel::any.id)
-                              || events::subevent(cause, button::drag::stop  ::any.id))
-                        {
-                            gear.setfree();
-                        }
-                        if (forward)
-                        {
-                            auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                            conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
-                            gear.dismiss();
-                        }
-                    };
+                            using button = hids::events::mouse::button;
+                            auto forward = faux;
+                            auto cause = gear.mouse::cause;//this->bell::protos<tier::release>();
+                            if (events::subevent(cause, button::click     ::any.id)
+                             || events::subevent(cause, button::dblclick  ::any.id)
+                             || events::subevent(cause, button::tplclick  ::any.id)
+                             || events::subevent(cause, button::drag::pull::any.id))
+                            {
+                                forward = true;
+                            }
+                            else if (events::subevent(cause, button::drag::start::any.id))
+                            {
+                                gear.capture(bell::id); // To avoid unhandled mouse pull processing.
+                                forward = true;
+                            }
+                            else if (events::subevent(cause, button::drag::cancel::any.id)
+                                  || events::subevent(cause, button::drag::stop  ::any.id))
+                            {
+                                gear.setfree();
+                            }
+                            if (forward)
+                            {
+                                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                                conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                                gear.dismiss();
+                            }
+                        };
+                    }
                 }
                 else
                 {
@@ -5958,7 +5978,7 @@ namespace netxs::console
             ansi::dtvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
 
             lock.lock();
-                log("link: signaling to close the read channel ", canal);
+                log("link: signaling to close read channel ", canal);
                 SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
                 token.clear();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.

@@ -1528,6 +1528,18 @@ namespace netxs::utf
         }
         return head;
     }
+    template<class ITER>
+    auto find_char(ITER head, ITER tail, char delim)
+    {
+        while (head != tail)
+        {
+            auto c = *head;
+                 if (delim == c) break;
+            else if (c == '\\' && head != tail) ++head;
+            ++head;
+        }
+        return head;
+    }
     auto check_any(view shadow, view delims)
     {
         auto p = utf::find_char(shadow.begin(), shadow.end(), delims);
@@ -1565,6 +1577,16 @@ namespace netxs::utf
         trim_front_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
         return temp.substr(0, temp.size() - utf8.size());
     }
+    auto trim_front(view& utf8)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        while (head != tail && *head == ' ')
+        {
+            ++head;
+        }
+        utf8.remove_prefix(std::distance(utf8.begin(), head));
+    }
     auto trim_back(view& utf8, view delims)
     {
         auto temp = utf8;
@@ -1583,7 +1605,7 @@ namespace netxs::utf
         trim_back (utf8, delims);
         return utf8;
     }
-    auto get_quote(view& utf8, view delims, view skip = {})
+    auto get_quote(view& utf8, view delims, view skip = {}) // Without quotes.
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
@@ -1591,19 +1613,44 @@ namespace netxs::utf
         if (std::distance(coor, tail) < 2)
         {
             utf8 = view{};
-            return text{};
+            return utf8;
         }
         ++coor;
         auto stop = find_char(coor, tail, delims);
         if (stop == tail)
         {
             utf8 = view{};
-            return text{};
+            return utf8;
         }
-        utf8.remove_prefix(std::distance(head, stop) + 1);
-        auto str = text{ coor, stop };
+        //todo Clang 11.0.1 doesn't get it
+        //auto crop = view{ coor, stop };
+        auto crop = view{ &(*coor), (size_t)(stop - coor) };
+
+        utf8.remove_prefix(crop.size() + 2);
         if (!skip.empty()) trim_front(utf8, skip);
-        return str;
+        return crop;
+    }
+    auto get_quote(view& utf8) // With quotes.
+    {
+        if (utf8.size() < 2)
+        {
+            utf8 = view{};
+            return utf8;
+        }
+        auto quot = utf8.front();
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto stop = find_char(head + 1, tail, quot);
+        if (stop == tail)
+        {
+            utf8 = view{};
+            return utf8;
+        }
+        //todo Clang 11.0.1 doesn't get it
+        //auto crop = view{ head, stop + 1 };
+        auto crop = view{ &(*head), (size_t)(stop + 1 - head) };
+        utf8.remove_prefix(crop.size());
+        return crop;
     }
     template<bool Lazy = true>
     auto get_tail(view& utf8, view delims)
@@ -1616,18 +1663,33 @@ namespace netxs::utf
             if constexpr (Lazy)
             {
                 utf8 = view{};
-                return text{};
+                return utf8;
             }
             else
             {
-                auto crop = text{ utf8 };
+                auto crop = utf8;
                 utf8 = view{};
                 return crop;
             }
         }
-        auto str = text{ head, stop };
+        //todo Clang 11.0.1 doesn't get it
+        //auto str = view{ head, stop };
+        auto str = view{ &(*head), (size_t)(stop - head) };
         utf8.remove_prefix(std::distance(head, stop));
         return str;
+    }
+    auto get_word(view& utf8, char delim = ' ')
+    {
+        return get_tail<faux>(utf8, view{ &delim, 1 });
+    }
+    auto get_token(view& utf8)
+    {
+        if (utf8.empty()) return utf8;
+        auto c = utf8.front();
+        auto item = (c == '\'' || c == '"') ? utf::get_quote(utf8)
+                                            : utf::get_word(utf8);
+        utf::trim_front(utf8);
+        return item;
     }
     auto eat_tail(view& utf8, view delims)
     {
@@ -1650,12 +1712,20 @@ namespace netxs::utf
         std::transform(head, tail, head, [](unsigned char c) { return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c; });
         return utf8;
     }
+    auto to_low(text&& utf8)
+    {
+        return to_low(utf8);
+    }
     auto& to_up(text& utf8, size_t size = text::npos)
     {
         auto head = utf8.begin();
         auto tail = head + std::min(utf8.size(), size);
         std::transform(head, tail, head, [](unsigned char c) { return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c; });
         return utf8;
+    }
+    auto to_up(text&& utf8)
+    {
+        return to_up(utf8);
     }
     template<class W, class P>
     void for_each(text& utf8, W const& what, P proc)
