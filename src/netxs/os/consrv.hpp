@@ -343,7 +343,7 @@ struct consrv
     struct event_list
     {
         using jobs = netxs::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
-        using fire = netxs::os::fire;
+        using fire = netxs::os::io::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
         using vect = std::vector<INPUT_RECORD>;
@@ -3208,6 +3208,7 @@ struct consrv
     using apis = std::vector<void(consrv::*)()>;
     using list = std::list<clnt>;
     using face = Term::face;
+    using fire = netxs::os::io::fire;
 
     Term&       uiterm; // consrv: Terminal reference.
     fd_t&       condrv; // consrv: Console driver handle.

@@ -6096,7 +6096,7 @@ namespace netxs::ui
         };
 
         using buffer_ptr = bufferbase*;
-        using vtty = os::vtty<term>;
+        using vtty = os::vt::vtty<term>;
 
         termconfig config; // term: Terminal settings.
         pro::timer worker; // term: Linear animation controller.
@@ -7032,7 +7032,7 @@ namespace netxs::ui
               selmod{ config.def_selmod },
               selalt{ config.def_selalt }
         {
-            linux_console = os::legacy::console();
+            linux_console = os::vt::console();
             form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
@@ -7548,7 +7548,7 @@ namespace netxs::ui
             }
         };
 
-        using vtty = os::direct::vtty;
+        using vtty = os::dtvt::vtty;
 
         events_t    stream; // dtvt: .
         text        curdir; // dtvt: Current working directory.

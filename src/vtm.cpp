@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
     auto cfpath = text{};
     auto errmsg = text{};
     auto vtpipe = text{};
-    auto getopt = os::args{ argc, argv };
+    auto getopt = os::process::args{ argc, argv };
     while (getopt)
     {
         if (getopt.match("-r", "--runapp"))
@@ -168,7 +168,7 @@ int main(int argc, char* argv[])
             });
             if (client)
             {
-                auto direct = !!(vtmode & os::legacy::direct);
+                auto direct = !!(vtmode & os::vt::direct);
                 if (!direct) os::logging::start(DESKTOPIO_MYPATH);
                 auto init = ansi::dtvt::binary::startdata_t{};
                 init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
@@ -208,7 +208,7 @@ int main(int argc, char* argv[])
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
         config.cd("/config/appearance/defaults/");
         auto ground = base::create<hall>(server, config);
-        auto thread = os::pool{};
+        auto thread = os::process::pool{};
         app::shared::activate(ground, config);
 
         log("main: listening socket ", server,

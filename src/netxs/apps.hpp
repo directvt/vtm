@@ -1008,7 +1008,7 @@ R"==(
 
     auto start(text app_name, text log_title, si32 vtmode, xml::settings& config)
     {
-        auto direct = !!(vtmode & os::legacy::direct);
+        auto direct = !!(vtmode & os::vt::direct);
         if (!direct) os::logging::start(log_title);
 
         //std::this_thread::sleep_for(15s);

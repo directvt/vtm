@@ -87,7 +87,7 @@ namespace netxs::console
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
     using s11n = netxs::ansi::dtvt::binary::s11n;
-    using os::xipc;
+    using os::tty::xipc;
 
     static constexpr auto attr_id       = "id";
     static constexpr auto attr_alias    = "alias";
@@ -1449,7 +1449,7 @@ namespace netxs::console
               legacy_mode{ mode }
         {
             read(config);
-            simple            = !(legacy_mode & os::legacy::direct);
+            simple            = !(legacy_mode & os::vt::direct);
             glow_fx           = faux;
             is_standalone_app = true;
             title             = "";
@@ -1494,7 +1494,7 @@ namespace netxs::console
                      << "\n\tregion: " << c.region
                      << "\n\t  name: " << c.fullname
                      << "\n\t  user: " << c.os_user_id
-                     << "\n\t  mode: " << os::legacy::str(c.legacy_mode);
+                     << "\n\t  mode: " << os::vt::str(c.legacy_mode);
         }
     };
 
@@ -5483,7 +5483,7 @@ namespace netxs::console
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
         bool  fullscreen = faux; //gate: Fullscreen mode.
-        si32  legacy = os::legacy::clean;
+        si32  legacy = os::vt::clean;
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -5612,10 +5612,10 @@ namespace netxs::console
 
                 legacy |= props.legacy_mode;
 
-                auto vtmode = legacy & os::legacy::vga16  ? svga::vga16
-                            : legacy & os::legacy::vga256 ? svga::vga256
-                            : legacy & os::legacy::direct ? svga::directvt
-                                                          : svga::truecolor;
+                auto vtmode = legacy & os::vt::vga16  ? svga::vga16
+                            : legacy & os::vt::vga256 ? svga::vga256
+                            : legacy & os::vt::direct ? svga::directvt
+                                                      : svga::truecolor;
                 auto direct = vtmode == svga::directvt;
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
@@ -5664,7 +5664,7 @@ namespace netxs::console
                             if (props.glow_fx) canvas.render(uibar, base::coor()); // Render the main menu twice to achieve the glow effect.
                                                canvas.render(uibar, base::coor());
                         }
-                        if (legacy & os::legacy::mouse) // Render our mouse pointer.
+                        if (legacy & os::vt::mouse) // Render our mouse pointer.
                         {
                             draw_mouse_pointer(canvas);
                         }
@@ -5741,7 +5741,7 @@ namespace netxs::console
                 };
                 SUBMIT_T(tier::release, e2::conio::pointer, token, pointer)
                 {
-                    legacy |= pointer ? os::legacy::mouse : 0;
+                    legacy |= pointer ? os::vt::mouse : 0;
                 };
                 SUBMIT_T(tier::release, e2::conio::clipdata, token, clipdata)
                 {

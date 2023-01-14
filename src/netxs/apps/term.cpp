@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
     auto cfonly = faux;
     auto cfpath = text{};
     auto errmsg = text{};
-    auto getopt = os::args{ argc, argv };
+    auto getopt = os::process::args{ argc, argv };
     auto params = DESKTOPIO_DEFAPP + " "s + getopt.rest();
     getopt.reset();
     while (getopt)

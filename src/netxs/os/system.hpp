@@ -82,17 +82,10 @@
 
 namespace netxs::os
 {
-    namespace ipc
-    {
-        struct stdcon;
-    }
-
     namespace fs = std::filesystem;
-    using namespace std::chrono_literals;
     using namespace std::literals;
+    using namespace std::chrono_literals;
     using namespace netxs::ui::atoms;
-    using list = std::vector<text>;
-    using xipc = std::shared_ptr<ipc::stdcon>;
     using page = console::page;
     using para = console::para;
     using rich = console::rich;
@@ -140,106 +133,6 @@ namespace netxs::os
 
     #endif
 
-    struct args
-    {
-    private:
-        using list = std::list<text>;
-        using it_t = list::iterator;
-
-        list data{};
-        it_t iter{};
-
-        // args: Recursive argument matching.
-        template<class I>
-        auto test(I&& item) { return faux; }
-        // args: Recursive argument matching.
-        template<class I, class T, class ...Args>
-        auto test(I&& item, T&& sample, Args&&... args)
-        {
-            return item == sample || test(item, std::forward<Args>(args)...);
-        }
-
-    public:
-        args(int argc, char** argv)
-        {
-            auto head = argv + 1;
-            auto tail = argv + argc;
-            while (head != tail)
-            {
-                data.splice(data.end(), split(*head++));
-            }
-            reset();
-        }
-        // args: Split command line options into tokens.
-        template<class T = list>
-        static T split(view line)
-        {
-            auto args = T{};
-            line = utf::trim(line);
-            while (line.size())
-            {
-                auto item = utf::get_token(line);
-                if (item.size()) args.emplace_back(item);
-            }
-            return args;
-        }
-        // args: Reset arg iterator to begin.
-        void reset()
-        {
-            iter = data.begin();
-        }
-        // args: Return true if not the end.
-        operator bool () const { return iter != data.end(); }
-        // args: Test the current argument and step forward if met.
-        template<class ...Args>
-        auto match(Args&&... args)
-        {
-            auto result = iter != data.end() && test(*iter, std::forward<Args>(args)...);
-            if (result) ++iter;
-            return result;
-        }
-        // args: Return current argument and step forward.
-        template<class ...Args>
-        auto next()
-        {
-            return iter != data.end() ? view{ *iter++ }
-                                      : view{};
-        }
-        // args: Return the rest of the command line arguments.
-        auto rest()
-        {
-            auto crop = text{};
-            if (iter != data.end())
-            {
-                crop += *iter++;
-                while (iter != data.end())
-                {
-                    crop.push_back(' ');
-                    crop += *iter++;
-                }
-            }
-            return crop;
-        }
-    };
-
-    struct nothing
-    {
-        template<class T>
-        operator T () { return T{}; }
-    };
-
-    void close(fd_t& h)
-    {
-        if (h != INVALID_FD)
-        {
-            #if defined(_WIN32)
-                ::CloseHandle(h);
-            #else
-                ::close(h);
-            #endif
-            h = INVALID_FD;
-        }
-    }
     auto error()
     {
         #if defined(_WIN32)
@@ -252,7 +145,6 @@ namespace netxs::os
     auto fail(Args&&... msg)
     {
         log("  os: ", ansi::fgc(tint::redlt), msg..., " (", os::error(), ") ", ansi::nil());
-        return nothing{};
     };
     template<class T>
     auto ok(T error_condition, text msg = {})
@@ -270,82 +162,8 @@ namespace netxs::os
         }
         else return true;
     }
-    void exit(int code)
-    {
-        #if defined(_WIN32)
-            ::ExitProcess(code);
-        #else
-            if (is_daemon) ::closelog();
-            ::exit(code);
-        #endif
-    }
-    template<class ...Args>
-    void exit(int code, Args&&... args)
-    {
-        log(args...);
-        os::exit(code);
-    }
 
     #if defined(_WIN32)
-
-        template<class T1, class T2 = si32>
-        auto kbstate(si32& modstate, T1 ms_ctrls, T2 scancode = {}, bool pressed = {})
-        {
-            if (scancode == 0x2a)
-            {
-                if (pressed) modstate |= input::hids::LShift;
-                else         modstate &=~input::hids::LShift;
-            }
-            if (scancode == 0x36)
-            {
-                if (pressed) modstate |= input::hids::RShift;
-                else         modstate &=~input::hids::RShift;
-            }
-            auto lshift = modstate & input::hids::LShift;
-            auto rshift = modstate & input::hids::RShift;
-            bool lalt   = ms_ctrls & LEFT_ALT_PRESSED;
-            bool ralt   = ms_ctrls & RIGHT_ALT_PRESSED;
-            bool lctrl  = ms_ctrls & LEFT_CTRL_PRESSED;
-            bool rctrl  = ms_ctrls & RIGHT_CTRL_PRESSED;
-            bool nums   = ms_ctrls & NUMLOCK_ON;
-            bool caps   = ms_ctrls & CAPSLOCK_ON;
-            bool scrl   = ms_ctrls & SCROLLLOCK_ON;
-            auto state  = ui32{};
-            if (lshift) state |= input::hids::LShift;
-            if (rshift) state |= input::hids::RShift;
-            if (lalt  ) state |= input::hids::LAlt;
-            if (ralt  ) state |= input::hids::RAlt;
-            if (lctrl ) state |= input::hids::LCtrl;
-            if (rctrl ) state |= input::hids::RCtrl;
-            if (nums  ) state |= input::hids::NumLock;
-            if (caps  ) state |= input::hids::CapsLock;
-            if (scrl  ) state |= input::hids::ScrlLock;
-            return state;
-        }
-        template<class T1>
-        auto ms_kbstate(T1 ctrls)
-        {
-            bool lshift = ctrls & input::hids::LShift;
-            bool rshift = ctrls & input::hids::RShift;
-            bool lalt   = ctrls & input::hids::LAlt;
-            bool ralt   = ctrls & input::hids::RAlt;
-            bool lctrl  = ctrls & input::hids::LCtrl;
-            bool rctrl  = ctrls & input::hids::RCtrl;
-            bool nums   = ctrls & input::hids::NumLock;
-            bool caps   = ctrls & input::hids::CapsLock;
-            bool scrl   = ctrls & input::hids::ScrlLock;
-            auto state  = ui32{};
-            if (lshift) state |= SHIFT_PRESSED;
-            if (rshift) state |= SHIFT_PRESSED;
-            if (lalt  ) state |= LEFT_ALT_PRESSED;
-            if (ralt  ) state |= RIGHT_ALT_PRESSED;
-            if (lctrl ) state |= LEFT_CTRL_PRESSED;
-            if (rctrl ) state |= RIGHT_CTRL_PRESSED;
-            if (nums  ) state |= NUMLOCK_ON;
-            if (caps  ) state |= CAPSLOCK_ON;
-            if (scrl  ) state |= SCROLLLOCK_ON;
-            return state;
-        }
 
         class nt
         {
@@ -561,595 +379,367 @@ namespace netxs::os
                     }
                 }
             };
+
+            template<class T1, class T2 = si32>
+            static auto kbstate(si32& modstate, T1 ms_ctrls, T2 scancode = {}, bool pressed = {})
+            {
+                if (scancode == 0x2a)
+                {
+                    if (pressed) modstate |= input::hids::LShift;
+                    else         modstate &=~input::hids::LShift;
+                }
+                if (scancode == 0x36)
+                {
+                    if (pressed) modstate |= input::hids::RShift;
+                    else         modstate &=~input::hids::RShift;
+                }
+                auto lshift = modstate & input::hids::LShift;
+                auto rshift = modstate & input::hids::RShift;
+                bool lalt   = ms_ctrls & LEFT_ALT_PRESSED;
+                bool ralt   = ms_ctrls & RIGHT_ALT_PRESSED;
+                bool lctrl  = ms_ctrls & LEFT_CTRL_PRESSED;
+                bool rctrl  = ms_ctrls & RIGHT_CTRL_PRESSED;
+                bool nums   = ms_ctrls & NUMLOCK_ON;
+                bool caps   = ms_ctrls & CAPSLOCK_ON;
+                bool scrl   = ms_ctrls & SCROLLLOCK_ON;
+                auto state  = ui32{};
+                if (lshift) state |= input::hids::LShift;
+                if (rshift) state |= input::hids::RShift;
+                if (lalt  ) state |= input::hids::LAlt;
+                if (ralt  ) state |= input::hids::RAlt;
+                if (lctrl ) state |= input::hids::LCtrl;
+                if (rctrl ) state |= input::hids::RCtrl;
+                if (nums  ) state |= input::hids::NumLock;
+                if (caps  ) state |= input::hids::CapsLock;
+                if (scrl  ) state |= input::hids::ScrlLock;
+                return state;
+            }
+            template<class T1>
+            static auto ms_kbstate(T1 ctrls)
+            {
+                bool lshift = ctrls & input::hids::LShift;
+                bool rshift = ctrls & input::hids::RShift;
+                bool lalt   = ctrls & input::hids::LAlt;
+                bool ralt   = ctrls & input::hids::RAlt;
+                bool lctrl  = ctrls & input::hids::LCtrl;
+                bool rctrl  = ctrls & input::hids::RCtrl;
+                bool nums   = ctrls & input::hids::NumLock;
+                bool caps   = ctrls & input::hids::CapsLock;
+                bool scrl   = ctrls & input::hids::ScrlLock;
+                auto state  = ui32{};
+                if (lshift) state |= SHIFT_PRESSED;
+                if (rshift) state |= SHIFT_PRESSED;
+                if (lalt  ) state |= LEFT_ALT_PRESSED;
+                if (ralt  ) state |= RIGHT_ALT_PRESSED;
+                if (lctrl ) state |= LEFT_CTRL_PRESSED;
+                if (rctrl ) state |= RIGHT_CTRL_PRESSED;
+                if (nums  ) state |= NUMLOCK_ON;
+                if (caps  ) state |= CAPSLOCK_ON;
+                if (scrl  ) state |= SCROLLLOCK_ON;
+                return state;
+            }
         };
 
     #endif
 
-    struct file
+    namespace io
     {
-        fd_t r; // file: Read descriptor.
-        fd_t w; // file: Send descriptor.
-
-        operator bool ()    { return r != INVALID_FD
-                                  && w != INVALID_FD; }
-        void close()
+        void close(fd_t& h)
         {
-            if (w == r)
+            if (h != INVALID_FD)
             {
-                os::close(r);
-                w = r;
-            }
-            else
-            {
-                os::close(w); // Wriite end should be closed first.
-                os::close(r);
+                #if defined(_WIN32)
+                    ::CloseHandle(h);
+                #else
+                    ::close(h);
+                #endif
+                h = INVALID_FD;
             }
         }
-        void shutdown() // Reset writing end of the pipe to interrupt reading call.
+
+        struct file
         {
-            if (w == r)
+            fd_t r; // file: Read descriptor.
+            fd_t w; // file: Send descriptor.
+
+            operator bool ()
             {
-                // Use ::shutdown() for full duplex sockets.
+                return r != INVALID_FD && w != INVALID_FD;
             }
-            else
+            void close()
             {
-                os::close(w);
+                if (w == r)
+                {
+                    io::close(r);
+                    w = r;
+                }
+                else
+                {
+                    io::close(w); // Wriite end should be closed first.
+                    io::close(r);
+                }
             }
-        }
-        friend auto& operator << (std::ostream& s, file const& handle)
-        {
-            if (handle.w != handle.r) s << handle.r << ",";
-            return s << handle.w;
-        }
-        auto& operator = (file&& f)
-        {
-            r = f.r;
-            w = f.w;
-            f.r = INVALID_FD;
-            f.w = INVALID_FD;
-            return *this;
-        }
+            void shutdown() // Reset writing end of the pipe to interrupt reading call.
+            {
+                if (w == r)
+                {
+                    // Use ::shutdown() for full duplex sockets.
+                }
+                else
+                {
+                    io::close(w);
+                }
+            }
+            friend auto& operator << (std::ostream& s, file const& handle)
+            {
+                if (handle.w != handle.r) s << handle.r << ",";
+                return s << handle.w;
+            }
+            auto& operator = (file&& f)
+            {
+                r = f.r;
+                w = f.w;
+                f.r = INVALID_FD;
+                f.w = INVALID_FD;
+                return *this;
+            }
 
-        file(file const&) = delete;
-        file(file&& f)
-            : r{ f.r },
-              w{ f.w }
-        {
-            f.r = INVALID_FD;
-            f.w = INVALID_FD;
-        }
-        file(fd_t r = INVALID_FD, fd_t w = INVALID_FD)
-            : r{ r },
-              w{ w }
-        { }
-       ~file()
-        {
-            close();
-        }
-    };
+            file(file const&) = delete;
+            file(file&& f)
+                : r{ f.r },
+                  w{ f.w }
+            {
+                f.r = INVALID_FD;
+                f.w = INVALID_FD;
+            }
+            file(fd_t r = INVALID_FD, fd_t w = INVALID_FD)
+                : r{ r },
+                  w{ w }
+            { }
+           ~file()
+            {
+                close();
+            }
+        };
 
-    template<class SIZE_T>
-    auto recv(fd_t fd, char* buff, SIZE_T size)
-    {
-        #if defined(_WIN32)
-
-            auto count = DWORD{};
-            auto fSuccess = ::ReadFile( fd,       // pipe handle
-                                        buff,     // buffer to receive reply
-                                (DWORD) size,     // size of buffer
-                                       &count,    // number of bytes read
-                                        nullptr); // not overlapped
-            if (!fSuccess) count = 0;
-
-        #else
-
-            auto count = ::read(fd, buff, size);
-
-        #endif
-
-        return count > 0 ? qiew{ buff, count }
-                         : qiew{}; // An empty result is always an error condition.
-    }
-    template<bool IS_TTY = true, class SIZE_T>
-    auto send(fd_t fd, char const* buff, SIZE_T size)
-    {
-        while (size)
+        template<class SIZE_T>
+        auto recv(fd_t fd, char* buff, SIZE_T size)
         {
             #if defined(_WIN32)
 
                 auto count = DWORD{};
-                auto fSuccess = ::WriteFile( fd,       // pipe handle
-                                             buff,     // message
-                                     (DWORD) size,     // message length
-                                            &count,    // bytes written
-                                             nullptr); // not overlapped
+                auto fSuccess = ::ReadFile( fd,       // pipe handle
+                                            buff,     // buffer to receive reply
+                                    (DWORD) size,     // size of buffer
+                                           &count,    // number of bytes read
+                                            nullptr); // not overlapped
+                if (!fSuccess) count = 0;
 
             #else
-                // Mac OS X does not support the flag MSG_NOSIGNAL
-                // See GH#182, https://lists.apple.com/archives/macnetworkprog/2002/Dec/msg00091.html
-                #if defined(__APPLE__)
-                    #define NO_SIGSEND SO_NOSIGPIPE
+
+                auto count = ::read(fd, buff, size);
+
+            #endif
+
+            return count > 0 ? qiew{ buff, count }
+                             : qiew{}; // An empty result is always an error condition.
+        }
+        template<bool IS_TTY = true, class SIZE_T>
+        auto send(fd_t fd, char const* buff, SIZE_T size)
+        {
+            while (size)
+            {
+                #if defined(_WIN32)
+
+                    auto count = DWORD{};
+                    auto fSuccess = ::WriteFile( fd,       // pipe handle
+                                                 buff,     // message
+                                         (DWORD) size,     // message length
+                                                &count,    // bytes written
+                                                 nullptr); // not overlapped
+
                 #else
-                    #define NO_SIGSEND MSG_NOSIGNAL
+                    // Mac OS X does not support the flag MSG_NOSIGNAL
+                    // See GH#182, https://lists.apple.com/archives/macnetworkprog/2002/Dec/msg00091.html
+                    #if defined(__APPLE__)
+                        #define NO_SIGSEND SO_NOSIGPIPE
+                    #else
+                        #define NO_SIGSEND MSG_NOSIGNAL
+                    #endif
+
+                    auto count = IS_TTY ? ::write(fd, buff, size)              // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
+                                        : ::send (fd, buff, size, NO_SIGSEND); // ::send() does not work with ::open_pty() and ::pipe() (Errno 88 - it is not a socket)
+
+                    #undef NO_SIGSEND
+                    //  send(2) does not work with file descriptors, only sockets.
+                    // write(2) works with fds as well as sockets.
+
                 #endif
 
-                auto count = IS_TTY ? ::write(fd, buff, size)              // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
-                                    : ::send (fd, buff, size, NO_SIGSEND); // ::send() does not work with ::open_pty() and ::pipe() (Errno 88 - it is not a socket)
-
-                #undef NO_SIGSEND
-                //  send(2) does not work with file descriptors, only sockets.
-                // write(2) works with fds as well as sockets.
-
-            #endif
-
-            if (count != size)
-            {
-                if (count > 0)
+                if (count != size)
                 {
-                    //todo stackoverflow in dtvt mode
-                    //log("send: partial writing: socket=", fd,
-                    //    " total=", size, ", written=", count);
-                    buff += count;
-                    size -= count;
-                }
-                else
-                {
-                    //todo stackoverflow in dtvt mode
-                    //log("send: aborted write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
-                    return faux;
-                }
-            }
-            else return true;
-        }
-        return faux;
-    }
-    template<bool IS_TTY = true, class T, class SIZE_T>
-    auto send(fd_t fd, T* buff, SIZE_T size)
-    {
-        return os::send<IS_TTY, SIZE_T>(fd, (char const*)buff, size);
-    }
-    template<bool IS_TTY = true>
-    auto send(fd_t fd, view buff)
-    {
-        return os::send<IS_TTY>(fd, buff.data(), buff.size());
-    }
-    template<class ...Args>
-    auto recv(file& handle, Args&&... args)
-    {
-        return recv(handle.r, std::forward<Args>(args)...);
-    }
-    template<class ...Args>
-    auto send(file& handle, Args&&... args)
-    {
-        return send(handle.w, std::forward<Args>(args)...);
-    }
-
-    namespace
-    {
-        #if defined(_WIN32)
-
-            template<class A, std::size_t... I>
-            constexpr auto _repack(fd_t h, A const& a, std::index_sequence<I...>)
-            {
-                return std::array{ a[I]..., h };
-            }
-            template<std::size_t N, class P, class IDX = std::make_index_sequence<N>, class ...Args>
-            constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
-            {   // Clang 11.0.1 don't allow sizeof...(args) as bool
-                if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, IDX{}), std::forward<Args>(args)...);
-                else                             return _repack(h, a, IDX{});
-            }
-            template<class P, class ...Args>
-            constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
-            {
-                if constexpr (!!sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
-                else                             return std::array{ handle };
-            }
-            template<class R, class P, class ...Args>
-            constexpr auto _handle(R i, fd_t handle, P&& proc, Args&&... args)
-            {
-                if (i == 0)
-                {
-                    proc();
-                    return true;
-                }
-                else
-                {
-                    if constexpr (!!sizeof...(args)) return _handle(--i, std::forward<Args>(args)...);
-                    else                             return faux;
-                }
-            }
-
-        #else
-
-            template<class P, class ...Args>
-            auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
-            {
-                FD_SET(handle, &socks);
-                if constexpr (!!sizeof...(args))
-                {
-                    return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
-                }
-                else
-                {
-                    return handle;
-                }
-            }
-            template<class P, class ...Args>
-            auto _select(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
-            {
-                if (FD_ISSET(handle, &socks))
-                {
-                    proc();
-                }
-                else
-                {
-                    if constexpr (!!sizeof...(args)) _select(socks, std::forward<Args>(args)...);
-                }
-            }
-
-        #endif
-    }
-    template<bool NONBLOCKED = faux, class ...Args>
-    void select(Args&&... args)
-    {
-        #if defined(_WIN32)
-
-            static constexpr auto timeout = NONBLOCKED ? 0 /*milliseconds*/ : INFINITE;
-            auto socks = _fd_set(std::forward<Args>(args)...);
-
-            // Note: ::WaitForMultipleObjects() does not work with pipes (DirectVT).
-            auto yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeout);
-            yield -= WAIT_OBJECT_0;
-            _handle(yield, std::forward<Args>(args)...);
-
-        #else
-
-            auto timeval = ::timeval{ .tv_sec = 0, .tv_usec = 0 };
-            auto timeout = NONBLOCKED ? &timeval/*returns immediately*/ : nullptr;
-            auto socks = fd_set{};
-            FD_ZERO(&socks);
-
-            auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
-            if (::select(nfds, &socks, 0, 0, timeout) > 0)
-            {
-                _select(socks, std::forward<Args>(args)...);
-            }
-
-        #endif
-    }
-
-    struct fire
-    {
-        #if defined(_WIN32)
-
-            fd_t h; // fire: Descriptor for IO interrupt.
-
-            operator auto () { return h; }
-            fire(bool i = 1) { ok(h = ::CreateEvent(NULL, i, FALSE, NULL), "CreateEvent error"); }
-           ~fire()           { os::close(h); }
-            void reset()     { ok(::SetEvent(h), "SetEvent error"); }
-            void flush()     { ok(::ResetEvent(h), "ResetEvent error"); }
-
-        #else
-
-            fd_t h[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
-            char x = 1;
-
-            operator auto () { return h[0]; }
-            fire()           { ok(::pipe(h), "pipe[2] creation failed"); }
-           ~fire()           { for (auto& f : h) os::close(f); }
-            void reset()     { os::send(h[1], &x, sizeof(x)); }
-            void flush()     { os::recv(h[0], &x, sizeof(x)); }
-
-        #endif
-        void bell() { reset(); }
-    };
-
-    struct pool
-    {
-    private:
-        struct item
-        {
-            bool        state;
-            std::thread guest;
-        };
-
-        std::recursive_mutex            mutex;
-        std::condition_variable_any     synch;
-        std::map<std::thread::id, item> index;
-        si32                            count;
-        bool                            alive;
-        std::thread                     agent;
-
-        void worker()
-        {
-            auto guard = std::unique_lock{ mutex };
-            log("pool: session control started");
-
-            while (alive)
-            {
-                synch.wait(guard);
-                for (auto it = index.begin(); it != index.end();)
-                {
-                    auto& [sid, session] = *it;
-                    auto& [state, guest] = session;
-                    if (state == faux || !alive)
+                    if (count > 0)
                     {
-                        if (guest.joinable())
-                        {
-                            guard.unlock();
-                            guest.join();
-                            guard.lock();
-                            log("pool: id: ", sid, " session joined");
-                        }
-                        it = index.erase(it);
-                    }
-                    else ++it;
-                }
-            }
-        }
-        void checkout()
-        {
-            auto guard = std::lock_guard{ mutex };
-            auto session_id = std::this_thread::get_id();
-            index[session_id].state = faux;
-            synch.notify_one();
-            log("pool: id: ", session_id, " session deleted");
-        }
-
-    public:
-        template<class PROC>
-        void run(PROC process)
-        {
-            auto guard = std::lock_guard{ mutex };
-            auto next_id = count++;
-            auto session = std::thread([&, process, next_id]
-            {
-                process(next_id);
-                checkout();
-            });
-            auto session_id = session.get_id();
-            index[session_id] = { true, std::move(session) };
-            log("pool: id: ", session_id, " session created");
-        }
-        auto size()
-        {
-            return index.size();
-        }
-
-        pool()
-            : count{ 0    },
-              alive{ true },
-              agent{ &pool::worker, this }
-        { }
-       ~pool()
-        {
-            mutex.lock();
-            alive = faux;
-            synch.notify_one();
-            mutex.unlock();
-
-            if (agent.joinable())
-            {
-                log("pool: joining agent");
-                agent.join();
-            }
-            log("pool: session control ended");
-        }
-    };
-
-    struct legacy
-    {
-        static constexpr auto clean  = 0;
-        static constexpr auto mouse  = 1 << 0;
-        static constexpr auto vga16  = 1 << 1;
-        static constexpr auto vga256 = 1 << 2;
-        static constexpr auto direct = 1 << 3;
-        template<class T>
-        static auto str(T mode)
-        {
-            auto result = text{};
-            if (mode)
-            {
-                if (mode & mouse ) result += "mouse ";
-                if (mode & vga16 ) result += "vga16 ";
-                if (mode & vga256) result += "vga256 ";
-                if (mode & direct) result += "direct ";
-                if (result.size()) result.pop_back();
-            }
-            else result = "fresh";
-            return result;
-        }
-        static auto console()
-        {
-            auto conmode = -1;
-            #if defined(__linux__)
-
-                if (-1 != ::ioctl(STDOUT_FD, KDGETMODE, &conmode))
-                {
-                    switch (conmode)
-                    {
-                        case KD_TEXT:     break;
-                        case KD_GRAPHICS: break;
-                        default:          break;
-                    }
-                }
-
-            #endif
-            return conmode != -1;
-        }
-        static auto vgafont(si32 mode)
-        {
-            #if defined(__linux__)
-
-                if (mode & legacy::mouse)
-                {
-                    auto chars = std::vector<unsigned char>(512 * 32 * 4);
-                    auto fdata = console_font_op{ .op        = KD_FONT_OP_GET,
-                                                  .flags     = 0,
-                                                  .width     = 32,
-                                                  .height    = 32,
-                                                  .charcount = 512,
-                                                  .data      = chars.data() };
-                    if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "first KDFONTOP + KD_FONT_OP_GET failed")) return;
-
-                    auto slice_bytes = (fdata.width + 7) / 8;
-                    auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
-                    auto tophalf_idx = 10;
-                    auto lowhalf_idx = 254;
-                    auto tophalf_ptr = fdata.data + block_bytes * tophalf_idx;
-                    auto lowhalf_ptr = fdata.data + block_bytes * lowhalf_idx;
-                    for (auto row = 0; row < fdata.height; row++)
-                    {
-                        auto is_top = row < fdata.height / 2;
-                       *tophalf_ptr = is_top ? 0xFF : 0x00;
-                       *lowhalf_ptr = is_top ? 0x00 : 0xFF;
-                        tophalf_ptr+= slice_bytes;
-                        lowhalf_ptr+= slice_bytes;
-                    }
-                    fdata.op = KD_FONT_OP_SET;
-                    if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "second KDFONTOP + KD_FONT_OP_SET failed")) return;
-
-                    auto max_sz = std::numeric_limits<unsigned short>::max();
-                    auto spairs = std::vector<unipair>(max_sz);
-                    auto dpairs = std::vector<unipair>(max_sz);
-                    auto srcmap = unimapdesc{ max_sz, spairs.data() };
-                    auto dstmap = unimapdesc{ max_sz, dpairs.data() };
-                    auto dstptr = dstmap.entries;
-                    auto srcptr = srcmap.entries;
-                    if (!ok(::ioctl(STDOUT_FD, GIO_UNIMAP, &srcmap), "ioctl(STDOUT_FD, GIO_UNIMAP) failed")) return;
-                    auto srcend = srcmap.entries + srcmap.entry_ct;
-                    while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
-                    {
-                        auto& smap = *srcptr++;
-                        if (smap.fontpos != 10
-                         && smap.fontpos != 211
-                         && smap.fontpos != 254
-                         && smap.unicode != 0x2580
-                         && smap.unicode != 0x2584) *dstptr++ = smap;
-                    }
-                    dstmap.entry_ct = dstptr - dstmap.entries;
-                    unipair new_recs[] = { { 0x2580,  10 },
-                                           { 0x2219, 211 },
-                                           { 0x2022, 211 },
-                                           { 0x25CF, 211 },
-                                           { 0x25A0, 254 },
-                                           { 0x25AE, 254 },
-                                           { 0x2584, 254 } };
-                    if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
-                    {
-                        for (auto& p : new_recs) *dstptr++ = p;
-                        dstmap.entry_ct += std::size(new_recs);
-                        if (!ok(::ioctl(STDOUT_FD, PIO_UNIMAP, &dstmap), "ioctl(STDOUT_FD, PIO_UNIMAP) failed")) return;
-                    }
-                    else log("  os: vgafont loading failed - UNIMAP is full");
-                }
-
-            #endif
-        }
-    };
-
-    namespace dtvt
-    {
-        namespace
-        {
-            auto& _state()
-            {
-                static auto state = faux;
-                return state;
-            }
-            auto& _start()
-            {
-                static auto start = text{};
-                return start;
-            }
-            auto& _ready()
-            {
-                static auto ready = faux;
-                return ready;
-            }
-        }
-        auto& config()
-        {
-            static auto setup = text{};
-            return setup;
-        }
-        void send(fd_t m_pipe_w, view config)
-        {
-            auto buffer = ansi::dtvt::binary::marker{ config.size() };
-            os::send<true>(m_pipe_w, buffer.data, buffer.size);
-        }
-        auto peek(fd_t stdin_fd)
-        {
-            auto& ready = _ready();
-            auto& state = _state();
-            auto& start = _start();
-            auto& setup = config();
-            auto cfsize = size_t{};
-            if (ready) return state;
-            ready = true;
-            #if defined(_WIN32)
-
-                // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
-                auto buffer = ansi::dtvt::binary::marker{};
-                auto length = DWORD{ 0 };
-                if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
-                                    &buffer,        // lpBuffer
-                                    sizeof(buffer), // nBufferSize
-                                    &length,        // lpBytesRead
-                                    NULL,           // lpTotalBytesAvail,
-                                    NULL))          // lpBytesLeftThisMessage
-                {
-                    if (length)
-                    {
-                        state = buffer.size == length && buffer.get_sz(cfsize);
-                        if (state)
-                        {
-                            os::recv(stdin_fd, buffer.data, buffer.size);
-                        }
-                    }
-                }
-
-            #else
-
-                os::select<true>(stdin_fd, [&]
-                {
-                    auto buffer = ansi::dtvt::binary::marker{};
-                    auto header = os::recv(stdin_fd, buffer.data, buffer.size);
-                    auto length = header.length();
-                    if (length)
-                    {
-                        state = buffer.size == length && buffer.get_sz(cfsize);
-                        if (!state)
-                        {
-                            start = header; //todo use it when the reading thread starts
-                        }
-                    }
-                });
-
-            #endif
-            if (cfsize)
-            {
-                setup.resize(cfsize);
-                auto buffer = setup.data();
-                while (cfsize)
-                {
-                    if (auto crop = os::recv(stdin_fd, buffer, cfsize))
-                    {
-                        cfsize -= crop.size();
-                        buffer += crop.size();
+                        //todo stackoverflow in dtvt mode
+                        //log("send: partial writing: socket=", fd,
+                        //    " total=", size, ", written=", count);
+                        buff += count;
+                        size -= count;
                     }
                     else
                     {
-                        state = faux;
-                        break;
+                        //todo stackoverflow in dtvt mode
+                        //log("send: aborted write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                        return faux;
                     }
                 }
+                else return true;
             }
-            return state;
+            return faux;
         }
-    };
+        template<bool IS_TTY = true, class T, class SIZE_T>
+        auto send(fd_t fd, T* buff, SIZE_T size)
+        {
+            return io::send<IS_TTY, SIZE_T>(fd, (char const*)buff, size);
+        }
+        template<bool IS_TTY = true>
+        auto send(fd_t fd, view buff)
+        {
+            return io::send<IS_TTY>(fd, buff.data(), buff.size());
+        }
+        template<class ...Args>
+        auto recv(file& handle, Args&&... args)
+        {
+            return io::recv(handle.r, std::forward<Args>(args)...);
+        }
+        template<class ...Args>
+        auto send(file& handle, Args&&... args)
+        {
+            return io::send(handle.w, std::forward<Args>(args)...);
+        }
+
+        namespace
+        {
+            #if defined(_WIN32)
+
+                template<class A, std::size_t... I>
+                constexpr auto _repack(fd_t h, A const& a, std::index_sequence<I...>)
+                {
+                    return std::array{ a[I]..., h };
+                }
+                template<std::size_t N, class P, class IDX = std::make_index_sequence<N>, class ...Args>
+                constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
+                {   // Clang 11.0.1 don't allow sizeof...(args) as bool
+                    if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, IDX{}), std::forward<Args>(args)...);
+                    else                             return _repack(h, a, IDX{});
+                }
+                template<class P, class ...Args>
+                constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
+                {
+                    if constexpr (!!sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
+                    else                             return std::array{ handle };
+                }
+                template<class R, class P, class ...Args>
+                constexpr auto _handle(R i, fd_t handle, P&& proc, Args&&... args)
+                {
+                    if (i == 0)
+                    {
+                        proc();
+                        return true;
+                    }
+                    else
+                    {
+                        if constexpr (!!sizeof...(args)) return _handle(--i, std::forward<Args>(args)...);
+                        else                             return faux;
+                    }
+                }
+
+            #else
+
+                template<class P, class ...Args>
+                auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+                {
+                    FD_SET(handle, &socks);
+                    if constexpr (!!sizeof...(args))
+                    {
+                        return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
+                    }
+                    else
+                    {
+                        return handle;
+                    }
+                }
+                template<class P, class ...Args>
+                auto _select(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+                {
+                    if (FD_ISSET(handle, &socks))
+                    {
+                        proc();
+                    }
+                    else
+                    {
+                        if constexpr (!!sizeof...(args)) _select(socks, std::forward<Args>(args)...);
+                    }
+                }
+
+            #endif
+        }
+        template<bool NONBLOCKED = faux, class ...Args>
+        void select(Args&&... args)
+        {
+            #if defined(_WIN32)
+
+                static constexpr auto timeout = NONBLOCKED ? 0 /*milliseconds*/ : INFINITE;
+                auto socks = _fd_set(std::forward<Args>(args)...);
+
+                // Note: ::WaitForMultipleObjects() does not work with pipes (DirectVT).
+                auto yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeout);
+                yield -= WAIT_OBJECT_0;
+                _handle(yield, std::forward<Args>(args)...);
+
+            #else
+
+                auto timeval = ::timeval{ .tv_sec = 0, .tv_usec = 0 };
+                auto timeout = NONBLOCKED ? &timeval/*returns immediately*/ : nullptr;
+                auto socks = fd_set{};
+                FD_ZERO(&socks);
+
+                auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
+                if (::select(nfds, &socks, 0, 0, timeout) > 0)
+                {
+                    _select(socks, std::forward<Args>(args)...);
+                }
+
+            #endif
+        }
+
+        struct fire
+        {
+            #if defined(_WIN32)
+
+                fd_t h; // fire: Descriptor for IO interrupt.
+
+                operator auto () { return h; }
+                fire(bool i = 1) { ok(h = ::CreateEvent(NULL, i, FALSE, NULL), "CreateEvent error"); }
+               ~fire()           { io::close(h); }
+                void reset()     { ok(::SetEvent(h), "SetEvent error"); }
+                void flush()     { ok(::ResetEvent(h), "ResetEvent error"); }
+
+            #else
+
+                fd_t h[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
+                char x = 1;
+
+                operator auto () { return h[0]; }
+                fire()           { ok(::pipe(h), "pipe[2] creation failed"); }
+               ~fire()           { for (auto& f : h) io::close(f); }
+                void reset()     { os::io::send(h[1], &x, sizeof(x)); }
+                void flush()     { os::io::recv(h[0], &x, sizeof(x)); }
+
+            #endif
+            void bell() { reset(); }
+        };
+    }
 
     namespace env
     {
@@ -1437,7 +1027,7 @@ namespace netxs::os
                 {
                     yield.clipbuf(size, utf8, clip::textonly);
                 }
-                os::send<true>(STDOUT_FD, yield);
+                os::io::send<true>(STDOUT_FD, yield);
                 success = true;
 
                 #if defined(__ANDROID__)
@@ -1531,7 +1121,7 @@ namespace netxs::os
                             utf8 = (char*)data;
                             ::UnmapViewOfFile(data);
                         }
-                        os::close(handle);
+                        io::close(handle);
                     }
 
                 #endif
@@ -1556,6 +1146,8 @@ namespace netxs::os
         struct stdcon
         {
             using flux = std::ostream;
+            using file = io::file;
+            using xipc = std::shared_ptr<stdcon>;
 
             bool active; // ipc::stdcon: Is connected.
             file handle; // ipc::stdcon: IO descriptor.
@@ -1589,11 +1181,11 @@ namespace netxs::os
 
             virtual bool send(view buff)
             {
-                return os::send(handle.w, buff);
+                return os::io::send(handle.w, buff);
             }
             virtual qiew recv(char* buff, size_t size)
             {
-                return os::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
+                return os::io::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
             }
             virtual qiew recv() // It's not thread safe!
             {
@@ -1616,7 +1208,7 @@ namespace netxs::os
             {
                 return sock.show(s << "{ xipc: ") << " }";
             }
-            friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
+            friend auto& operator << (std::ostream& s, xipc const& sock)
             {
                 return s << *sock;
             }
@@ -1712,6 +1304,8 @@ namespace netxs::os
         struct socket
             : public stdcon
         {
+            using fire = io::fire;
+
             text scpath; // ipc:socket: Socket path (in order to unlink).
             fire signal; // ipc:socket: Interruptor.
 
@@ -1855,7 +1449,7 @@ namespace netxs::os
                     auto h_proc = [&]
                     {
                         auto h = ::accept(handle.r, 0, 0);
-                        auto s = file{ h, h };
+                        auto s = io::file{ h, h };
                         if (s) client = std::make_shared<ipc::socket>(s);
                     };
                     auto f_proc = [&]
@@ -1863,15 +1457,15 @@ namespace netxs::os
                         log("meet: signal fired");
                         signal.flush();
                     };
-                    os::select(handle.r, h_proc,
-                               signal  , f_proc);
+                    os::io::select(handle.r, h_proc,
+                                   signal  , f_proc);
 
                 #endif
                 return client;
             }
             bool send(view buff) override
             {
-                return os::send<faux>(handle.w, buff);
+                return os::io::send<faux>(handle.w, buff);
             }
             void stop() override
             {
@@ -1902,7 +1496,7 @@ namespace netxs::os
                     //    to receive pending data the peer sent.
                     //    "shutdown() doesn't actually close the file descriptor
                     //     — it just changes its usability.
-                    // To free a socket descriptor, you need to use os::close().
+                    // To free a socket descriptor, you need to use io::close().
                     // Note: .r == .w, it is a full duplex socket handle on POSIX.
                 #endif
             }
@@ -1919,15 +1513,18 @@ namespace netxs::os
                     {
                         if (!retry_proc())
                         {
-                            return !!os::fail("failed to start server");
+                           os::fail("failed to start server");
                         }
-                        auto stop = datetime::tempus::now() + retry_timeout;
-                        do
+                        else
                         {
-                            std::this_thread::sleep_for(100ms);
-                            done = play();
+                            auto stop = datetime::tempus::now() + retry_timeout;
+                            do
+                            {
+                                std::this_thread::sleep_for(100ms);
+                                done = play();
+                            }
+                            while (!done && stop > datetime::tempus::now());
                         }
-                        while (!done && stop > datetime::tempus::now());
                     }
                     return done;
                 };
@@ -1991,7 +1588,7 @@ namespace netxs::os
                             if (w == INVALID_FD)
                             {
                                 os::fail("::CreateNamedPipe unexpected (write)");
-                                os::close(r);
+                                io::close(r);
                             }
                             else
                             {
@@ -2034,7 +1631,7 @@ namespace netxs::os
                             r = pipe(to_client, GENERIC_READ);
                             if (r == INVALID_FD)
                             {
-                                os::close(w);
+                                io::close(w);
                                 return faux;
                             }
                             return true;
@@ -2095,7 +1692,7 @@ namespace netxs::os
                                     if (play())
                                     {
                                         os::fail("server already running");
-                                        os::close(r);
+                                        io::close(r);
                                     }
                                     else
                                     {
@@ -2108,12 +1705,12 @@ namespace netxs::os
                             if (r != INVALID_FD && ::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
                             {
                                 os::fail("error unix socket bind for ", path);
-                                os::close(r);
+                                io::close(r);
                             }
                             else if (::listen(r, 5) == -1)
                             {
                                 os::fail("error listen socket for ", path);
-                                os::close(r);
+                                io::close(r);
                             }
                         }
                         else if constexpr (ROLE == role::client)
@@ -2122,7 +1719,7 @@ namespace netxs::os
                             if (!try_start(play, retry_proc))
                             {
                                 os::fail("connection error");
-                                os::close(r);
+                                io::close(r);
                             }
                         }
                     }
@@ -2150,6 +1747,181 @@ namespace netxs::os
 
     namespace process
     {
+        struct args
+        {
+        private:
+            using list = std::list<text>;
+            using it_t = list::iterator;
+
+            list data{};
+            it_t iter{};
+
+            // args: Recursive argument matching.
+            template<class I>
+            auto test(I&& item) { return faux; }
+            // args: Recursive argument matching.
+            template<class I, class T, class ...Args>
+            auto test(I&& item, T&& sample, Args&&... args)
+            {
+                return item == sample || test(item, std::forward<Args>(args)...);
+            }
+
+        public:
+            args(int argc, char** argv)
+            {
+                auto head = argv + 1;
+                auto tail = argv + argc;
+                while (head != tail)
+                {
+                    data.splice(data.end(), split(*head++));
+                }
+                reset();
+            }
+            // args: Split command line options into tokens.
+            template<class T = list>
+            static T split(view line)
+            {
+                auto args = T{};
+                line = utf::trim(line);
+                while (line.size())
+                {
+                    auto item = utf::get_token(line);
+                    if (item.size()) args.emplace_back(item);
+                }
+                return args;
+            }
+            // args: Reset arg iterator to begin.
+            void reset()
+            {
+                iter = data.begin();
+            }
+            // args: Return true if not the end.
+            operator bool () const { return iter != data.end(); }
+            // args: Test the current argument and step forward if met.
+            template<class ...Args>
+            auto match(Args&&... args)
+            {
+                auto result = iter != data.end() && test(*iter, std::forward<Args>(args)...);
+                if (result) ++iter;
+                return result;
+            }
+            // args: Return current argument and step forward.
+            template<class ...Args>
+            auto next()
+            {
+                return iter != data.end() ? view{ *iter++ }
+                                        : view{};
+            }
+            // args: Return the rest of the command line arguments.
+            auto rest()
+            {
+                auto crop = text{};
+                if (iter != data.end())
+                {
+                    crop += *iter++;
+                    while (iter != data.end())
+                    {
+                        crop.push_back(' ');
+                        crop += *iter++;
+                    }
+                }
+                return crop;
+            }
+        };
+
+        struct pool
+        {
+        private:
+            struct item
+            {
+                bool        state;
+                std::thread guest;
+            };
+
+            std::recursive_mutex            mutex;
+            std::condition_variable_any     synch;
+            std::map<std::thread::id, item> index;
+            si32                            count;
+            bool                            alive;
+            std::thread                     agent;
+
+            void worker()
+            {
+                auto guard = std::unique_lock{ mutex };
+                log("pool: session control started");
+
+                while (alive)
+                {
+                    synch.wait(guard);
+                    for (auto it = index.begin(); it != index.end();)
+                    {
+                        auto& [sid, session] = *it;
+                        auto& [state, guest] = session;
+                        if (state == faux || !alive)
+                        {
+                            if (guest.joinable())
+                            {
+                                guard.unlock();
+                                guest.join();
+                                guard.lock();
+                                log("pool: id: ", sid, " session joined");
+                            }
+                            it = index.erase(it);
+                        }
+                        else ++it;
+                    }
+                }
+            }
+            void checkout()
+            {
+                auto guard = std::lock_guard{ mutex };
+                auto session_id = std::this_thread::get_id();
+                index[session_id].state = faux;
+                synch.notify_one();
+                log("pool: id: ", session_id, " session deleted");
+            }
+
+        public:
+            template<class PROC>
+            void run(PROC process)
+            {
+                auto guard = std::lock_guard{ mutex };
+                auto next_id = count++;
+                auto session = std::thread([&, process, next_id]
+                {
+                    process(next_id);
+                    checkout();
+                });
+                auto session_id = session.get_id();
+                index[session_id] = { true, std::move(session) };
+                log("pool: id: ", session_id, " session created");
+            }
+            auto size()
+            {
+                return index.size();
+            }
+
+            pool()
+                : count{ 0    },
+                alive{ true },
+                agent{ &pool::worker, this }
+            { }
+        ~pool()
+            {
+                mutex.lock();
+                alive = faux;
+                synch.notify_one();
+                mutex.unlock();
+
+                if (agent.joinable())
+                {
+                    log("pool: joining agent");
+                    agent.join();
+                }
+                log("pool: session control ended");
+            }
+        };
+
         template<bool NameOnly = faux>
         auto binary()
         {
@@ -2252,12 +2024,27 @@ namespace netxs::os
             }
             return result;
         }
+        void exit(int code)
+        {
+            #if defined(_WIN32)
+                ::ExitProcess(code);
+            #else
+                if (os::is_daemon) ::closelog();
+                ::exit(code);
+            #endif
+        }
+        template<class ...Args>
+        void exit(int code, Args&&... args)
+        {
+            log(args...);
+            process::exit(code);
+        }
         auto execvp(text cmdline)
         {
             #if defined(_WIN32)
             #else
 
-                if (auto args = os::args::split(cmdline); args.size())
+                if (auto args = os::process::args::split(cmdline); args.size())
                 {
                     auto& binary = args.front();
                     if (binary.size() > 2) // Remove quotes,
@@ -2315,7 +2102,7 @@ namespace netxs::os
                     os::process::execvp(cmdline);
                     auto errcode = errno;
                     if constexpr (Logs) os::fail("exec: failed to spawn '", cmdline, "'");
-                    os::exit(errcode);
+                    os::process::exit(errcode);
                 }
                 else if (p_id > 0) // Parent branch.
                 {
@@ -2350,11 +2137,11 @@ namespace netxs::os
                                           nullptr,            // lpCurrentDirectory
                                           &srtinf,            // lpStartupInfo
                                           &proinf);           // lpProcessInformation
-                os::close(handle);
+                io::close(handle);
                 if (result)
                 {
-                    os::close(proinf.hProcess);
-                    os::close(proinf.hThread);
+                    io::close(proinf.hProcess);
+                    io::close(proinf.hThread);
                     log("  os: process forked successfully");
                     return faux; // Success. The fork concept is not supported on Windows.
                 }
@@ -2374,7 +2161,7 @@ namespace netxs::os
                         ::close(STDERR_FD);
                         return true;
                     }
-                    else if (p_id > 0) os::exit(0);
+                    else if (p_id > 0) os::process::exit(0);
                 }
                 else if (p_id > 0) // Parent branch. Reap the child, leaving the grandchild to be inherited by init.
                 {
@@ -2398,7 +2185,7 @@ namespace netxs::os
     {
         void start(text srv_name)
         {
-            is_daemon = true;
+            os::is_daemon = true;
             #if defined(_WIN32)
                 //todo implement
             #else
@@ -2410,7 +2197,7 @@ namespace netxs::os
             static auto logs = ansi::dtvt::binary::debuglogs_t{};
             //todo view -> text
             logs.set(os::process_id, text{ data });
-            logs.send([&](auto& block){ os::send(STDOUT_FD, block); });
+            logs.send([&](auto& block){ os::io::send(STDOUT_FD, block); });
         }
         void syslog(view data)
         {
@@ -2427,8 +2214,919 @@ namespace netxs::os
         }
     }
 
+    namespace vt
+    {
+        static constexpr auto clean  = 0;
+        static constexpr auto mouse  = 1 << 0;
+        static constexpr auto vga16  = 1 << 1;
+        static constexpr auto vga256 = 1 << 2;
+        static constexpr auto direct = 1 << 3;
+        template<class T>
+        static auto str(T mode)
+        {
+            auto result = text{};
+            if (mode)
+            {
+                if (mode & mouse ) result += "mouse ";
+                if (mode & vga16 ) result += "vga16 ";
+                if (mode & vga256) result += "vga256 ";
+                if (mode & direct) result += "direct ";
+                if (result.size()) result.pop_back();
+            }
+            else result = "fresh";
+            return result;
+        }
+        static auto console()
+        {
+            auto conmode = -1;
+            #if defined(__linux__)
+
+                if (-1 != ::ioctl(STDOUT_FD, KDGETMODE, &conmode))
+                {
+                    switch (conmode)
+                    {
+                        case KD_TEXT:     break;
+                        case KD_GRAPHICS: break;
+                        default:          break;
+                    }
+                }
+
+            #endif
+            return conmode != -1;
+        }
+        static auto vgafont(si32 mode)
+        {
+            #if defined(__linux__)
+
+                if (mode & vt::mouse)
+                {
+                    auto chars = std::vector<unsigned char>(512 * 32 * 4);
+                    auto fdata = console_font_op{ .op        = KD_FONT_OP_GET,
+                                                  .flags     = 0,
+                                                  .width     = 32,
+                                                  .height    = 32,
+                                                  .charcount = 512,
+                                                  .data      = chars.data() };
+                    if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "first KDFONTOP + KD_FONT_OP_GET failed")) return;
+
+                    auto slice_bytes = (fdata.width + 7) / 8;
+                    auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
+                    auto tophalf_idx = 10;
+                    auto lowhalf_idx = 254;
+                    auto tophalf_ptr = fdata.data + block_bytes * tophalf_idx;
+                    auto lowhalf_ptr = fdata.data + block_bytes * lowhalf_idx;
+                    for (auto row = 0; row < fdata.height; row++)
+                    {
+                        auto is_top = row < fdata.height / 2;
+                       *tophalf_ptr = is_top ? 0xFF : 0x00;
+                       *lowhalf_ptr = is_top ? 0x00 : 0xFF;
+                        tophalf_ptr+= slice_bytes;
+                        lowhalf_ptr+= slice_bytes;
+                    }
+                    fdata.op = KD_FONT_OP_SET;
+                    if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "second KDFONTOP + KD_FONT_OP_SET failed")) return;
+
+                    auto max_sz = std::numeric_limits<unsigned short>::max();
+                    auto spairs = std::vector<unipair>(max_sz);
+                    auto dpairs = std::vector<unipair>(max_sz);
+                    auto srcmap = unimapdesc{ max_sz, spairs.data() };
+                    auto dstmap = unimapdesc{ max_sz, dpairs.data() };
+                    auto dstptr = dstmap.entries;
+                    auto srcptr = srcmap.entries;
+                    if (!ok(::ioctl(STDOUT_FD, GIO_UNIMAP, &srcmap), "ioctl(STDOUT_FD, GIO_UNIMAP) failed")) return;
+                    auto srcend = srcmap.entries + srcmap.entry_ct;
+                    while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
+                    {
+                        auto& smap = *srcptr++;
+                        if (smap.fontpos != 10
+                         && smap.fontpos != 211
+                         && smap.fontpos != 254
+                         && smap.unicode != 0x2580
+                         && smap.unicode != 0x2584) *dstptr++ = smap;
+                    }
+                    dstmap.entry_ct = dstptr - dstmap.entries;
+                    unipair new_recs[] = { { 0x2580,  10 },
+                                           { 0x2219, 211 },
+                                           { 0x2022, 211 },
+                                           { 0x25CF, 211 },
+                                           { 0x25A0, 254 },
+                                           { 0x25AE, 254 },
+                                           { 0x2584, 254 } };
+                    if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
+                    {
+                        for (auto& p : new_recs) *dstptr++ = p;
+                        dstmap.entry_ct += std::size(new_recs);
+                        if (!ok(::ioctl(STDOUT_FD, PIO_UNIMAP, &dstmap), "ioctl(STDOUT_FD, PIO_UNIMAP) failed")) return;
+                    }
+                    else log("  os: vgafont loading failed - UNIMAP is full");
+                }
+
+            #endif
+        }
+
+        template<class Term>
+        class vtty // Note: STA.
+        {
+            Term&                   terminal;
+            ipc::stdcon             termlink;
+            std::thread             stdinput;
+            std::thread             stdwrite;
+            std::thread             waitexit;
+            testy<twod>             termsize;
+            pidt                    proc_pid;
+            fd_t                    prochndl;
+            fd_t                    srv_hndl;
+            fd_t                    ref_hndl;
+            text                    writebuf;
+            std::mutex              writemtx;
+            std::condition_variable writesyn;
+
+            #if defined(_WIN32)
+                #include "consrv.hpp"
+                //todo con_serv is a termlink
+                consrv con_serv{ terminal, srv_hndl };
+            #endif
+
+        public:
+            vtty(Term& uiterminal)
+                : terminal{ uiterminal },
+                  prochndl{ INVALID_FD },
+                  srv_hndl{ INVALID_FD },
+                  ref_hndl{ INVALID_FD },
+                  proc_pid{            }
+            { }
+           ~vtty()
+            {
+                log("vtty: dtor started");
+                stop();
+                log("vtty: dtor complete");
+            }
+
+            operator bool () { return connected(); }
+
+            bool connected()
+            {
+                #if defined(_WIN32)
+                    return srv_hndl != INVALID_FD;
+                #else
+                    return !!termlink;
+                #endif
+            }
+            // vtty: Cleaning in order to be able to restart.
+            void cleanup()
+            {
+                if (stdwrite.joinable())
+                {
+                    writesyn.notify_one();
+                    log("vtty: id: ", stdwrite.get_id(), " writing thread joining");
+                    stdwrite.join();
+                }
+                if (stdinput.joinable())
+                {
+                    log("vtty: id: ", stdinput.get_id(), " reading thread joining");
+                    stdinput.join();
+                }
+                if (waitexit.joinable())
+                {
+                    auto id = waitexit.get_id();
+                    log("vtty: id: ", id, " child process waiter thread joining");
+                    waitexit.join();
+                    log("vtty: id: ", id, " child process waiter thread joined");
+                }
+                auto guard = std::lock_guard{ writemtx };
+                termlink = {};
+                writebuf = {};
+            }
+            auto wait_child()
+            {
+                auto guard = std::lock_guard{ writemtx };
+                auto exit_code = si32{};
+                log("vtty: wait child process ", proc_pid);
+
+                if (proc_pid != 0)
+                {
+                #if defined(_WIN32)
+
+                    io::close( srv_hndl );
+                    io::close( ref_hndl );
+                    con_serv.stop();
+                    auto code = DWORD{ 0 };
+                    if (!::GetExitCodeProcess(prochndl, &code))
+                    {
+                        log("vtty: GetExitCodeProcess() return code: ", ::GetLastError());
+                    }
+                    else if (code == STILL_ACTIVE)
+                    {
+                        log("vtty: child process still running");
+                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
+                        if (!result || !::GetExitCodeProcess(prochndl, &code))
+                        {
+                            ::TerminateProcess(prochndl, 0);
+                            code = 0;
+                        }
+                    }
+                    else log("vtty: child process exit code 0x", utf::to_hex(code), " (", code, ")");
+                    exit_code = code;
+                    io::close(prochndl);
+
+                #else
+
+                    termlink.stop();
+                    auto status = int{};
+                    ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
+                    ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                    if (WIFEXITED(status))
+                    {
+                        exit_code = WEXITSTATUS(status);
+                        log("vtty: child process exit code ", exit_code);
+                    }
+                    else
+                    {
+                        exit_code = 0;
+                        log("vtty: warning: child process exit code not detected");
+                    }
+
+                #endif
+                }
+                log("vtty: child waiting complete");
+                return exit_code;
+            }
+            void start(twod winsz)
+            {
+                auto cwd     = terminal.curdir;
+                auto cmdline = terminal.cmdarg;
+                utf::change(cmdline, "\\\"", "\"");
+                log("vtty: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
+                                                                                                : "'" + cwd + "'");
+                #if defined(_WIN32)
+
+                    termsize(winsz);
+                    auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
+                    auto procsinf = PROCESS_INFORMATION{};
+                    auto attrbuff = std::vector<uint8_t>{};
+                    auto attrsize = SIZE_T{ 0 };
+
+                    srv_hndl = nt::console::handle("\\Device\\ConDrv\\Server");
+                    ref_hndl = nt::console::handle(srv_hndl, "\\Reference");
+
+                    if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, con_serv.events.ondata))
+                    {
+                        auto errcode = os::error();
+                        log("vtty: console server creation error ", errcode);
+                        terminal.onexit(errcode, "Console server creation error");
+                        return;
+                    }
+
+                    con_serv.start();
+                    startinf.StartupInfo.dwX = 0;
+                    startinf.StartupInfo.dwY = 0;
+                    startinf.StartupInfo.dwXCountChars = 0;
+                    startinf.StartupInfo.dwYCountChars = 0;
+                    startinf.StartupInfo.dwXSize = winsz.x;
+                    startinf.StartupInfo.dwYSize = winsz.y;
+                    startinf.StartupInfo.dwFillAttribute = 1;
+                    startinf.StartupInfo.hStdInput  = nt::console::handle(srv_hndl, "\\Input",  true);
+                    startinf.StartupInfo.hStdOutput = nt::console::handle(srv_hndl, "\\Output", true);
+                    startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput);
+                    startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
+                                                 | STARTF_USESIZE
+                                                 | STARTF_USEPOSITION
+                                                 | STARTF_USECOUNTCHARS
+                                                 | STARTF_USEFILLATTRIBUTE;
+                    ::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
+                    attrbuff.resize(attrsize);
+                    startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
+                    ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
+                    ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                                0,
+                                                PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                               &startinf.StartupInfo.hStdInput,
+                                         sizeof(startinf.StartupInfo.hStdInput) * 3,
+                                                nullptr,
+                                                nullptr);
+                    ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                                0,
+                                                ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
+                                               &ref_hndl,
+                                         sizeof(ref_hndl),
+                                                nullptr,
+                                                nullptr);
+                    auto ret = ::CreateProcessA(nullptr,                             // lpApplicationName
+                                                cmdline.data(),                      // lpCommandLine
+                                                nullptr,                             // lpProcessAttributes
+                                                nullptr,                             // lpThreadAttributes
+                                                TRUE,                                // bInheritHandles
+                                                EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
+                                                nullptr,                             // lpEnvironment
+                                                cwd.empty() ? nullptr
+                                                            : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
+                                               &startinf.StartupInfo,                // lpStartupInfo (ptr to STARTUPINFOEX)
+                                               &procsinf);                           // lpProcessInformation
+                    if (ret == 0)
+                    {
+                        auto errcode = os::error();
+                        log("vtty: child process creation error ", errcode);
+                        io::close( srv_hndl );
+                        io::close( ref_hndl );
+                        con_serv.stop();
+                        terminal.onexit(errcode, "Process creation error \n"s
+                                                 " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
+                                                 " cmd: "s + cmdline + " "s);
+                        return;
+                    }
+
+                    io::close( procsinf.hThread );
+                    prochndl = procsinf.hProcess;
+                    proc_pid = procsinf.dwProcessId;
+                    waitexit = std::thread([&]
+                    {
+                        os::io::select(prochndl, []{ log("vtty: child process terminated"); });
+                        if (srv_hndl != INVALID_FD)
+                        {
+                            auto exit_code = wait_child();
+                            terminal.onexit(exit_code);
+                        }
+                        log("vtty: child process waiter ended");
+                    });
+
+                #else
+
+                    auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
+                    auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
+                    auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
+                    auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
+
+                    termlink = { fdm, fdm };
+                    termsize = {};
+                    resize(winsz);
+
+                    proc_pid = ::fork();
+                    if (proc_pid == 0) // Child branch.
+                    {
+                        io::close(fdm);
+                        auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
+
+                        // In order to receive WINCH signal make fds the controlling
+                        // terminal of the current process.
+                        // Current process must be a session leader (::setsid()) and not have
+                        // a controlling terminal already.
+                        // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
+                        auto rc1 = ::ioctl(fds, TIOCSCTTY, 0);
+
+                        ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
+                        ::signal(SIGQUIT, SIG_DFL); //
+                        ::signal(SIGTSTP, SIG_DFL); //
+                        ::signal(SIGTTIN, SIG_DFL); //
+                        ::signal(SIGTTOU, SIG_DFL); //
+                        ::signal(SIGCHLD, SIG_DFL); //
+
+                        if (cwd.size())
+                        {
+                            auto err = std::error_code{};
+                            fs::current_path(cwd, err);
+                            if (err) std::cerr << "vtty: failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
+                            else     std::cerr << "vtty: change current working directory to '" << cwd << "'" << "\n" << std::flush;
+                        }
+
+                        ::dup2(fds, STDIN_FD ); // Assign stdio lines atomically
+                        ::dup2(fds, STDOUT_FD); // = close(new);
+                        ::dup2(fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
+                        os::fdcleanup();
+
+                        ::setenv("TERM", "xterm-256color", 1); //todo too hacky
+                        if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
+                        {
+                            ::setenv("TERM_PROGRAM", "vtm", 1);
+                        }
+
+                        os::process::execvp(cmdline);
+                        auto errcode = errno;
+                        std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
+                                                                       " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
+                                                                       " cmd: "s + cmdline + " "s).nil() << std::flush;
+                        os::process::exit(errcode);
+                    }
+
+                    // Parent branch.
+                    io::close(fds);
+
+                    stdinput = std::thread([&] { read_socket_thread(); });
+
+                #endif
+
+                stdwrite = std::thread([&] { send_socket_thread(); });
+                writesyn.notify_one(); // Flush temp buffer.
+
+                log("vtty: new vtty created with size ", winsz);
+            }
+            void stop()
+            {
+                if (connected())
+                {
+                    wait_child();
+                }
+                cleanup();
+            }
+            void read_socket_thread()
+            {
+                #if not defined(_WIN32)
+
+                    log("vtty: id: ", stdinput.get_id(), " reading thread started");
+                    auto flow = text{};
+                    while (termlink)
+                    {
+                        auto shot = termlink.recv();
+                        if (shot && termlink)
+                        {
+                            flow += shot;
+                            auto crop = ansi::purify(flow);
+                            terminal.ondata(crop);
+                            flow.erase(0, crop.size()); // Delete processed data.
+                        }
+                        else break;
+                    }
+                    if (termlink)
+                    {
+                        auto exit_code = wait_child();
+                        terminal.onexit(exit_code);
+                    }
+                    log("vtty: id: ", stdinput.get_id(), " reading thread ended");
+
+                #endif
+            }
+            void send_socket_thread()
+            {
+                log("vtty: id: ", stdwrite.get_id(), " writing thread started");
+                auto guard = std::unique_lock{ writemtx };
+                auto cache = text{};
+                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !connected(); }), connected())
+                {
+                    std::swap(cache, writebuf);
+                    guard.unlock();
+                    #if defined(_WIN32)
+
+                        con_serv.events.write(cache);
+                        cache.clear();
+
+                    #else
+
+                        if (termlink.send(cache)) cache.clear();
+                        else                      break;
+
+                    #endif
+                    guard.lock();
+                }
+                log("vtty: id: ", stdwrite.get_id(), " writing thread ended");
+            }
+            void resize(twod const& newsize)
+            {
+                if (connected() && termsize(newsize))
+                {
+                    #if defined(_WIN32)
+
+                        con_serv.resize(termsize);
+
+                    #else
+
+                        auto winsz = winsize{};
+                        winsz.ws_col = newsize.x;
+                        winsz.ws_row = newsize.y;
+                        ok(::ioctl(termlink.handle.w, TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
+
+                    #endif
+                }
+            }
+            void reset()
+            {
+                #if defined(_WIN32)
+                    con_serv.reset();
+                #endif
+            }
+            void keybd(input::hids& gear, bool decckm)
+            {
+                #if defined(_WIN32)
+                    con_serv.events.keybd(gear, decckm);
+                #endif
+            }
+            void mouse(input::hids& gear, bool moved, twod const& coord)
+            {
+                #if defined(_WIN32)
+                    con_serv.events.mouse(gear, moved, coord);
+                #endif
+            }
+            void write(view data)
+            {
+                auto guard = std::lock_guard{ writemtx };
+                writebuf += data;
+                if (connected()) writesyn.notify_one();
+            }
+            void undo(bool undoredo)
+            {
+                #if defined(_WIN32)
+                    con_serv.events.undo(undoredo);
+                #endif
+            }
+        };
+    }
+
+    namespace dtvt
+    {
+        namespace
+        {
+            auto& _state()
+            {
+                static auto state = faux;
+                return state;
+            }
+            auto& _start()
+            {
+                static auto start = text{};
+                return start;
+            }
+            auto& _ready()
+            {
+                static auto ready = faux;
+                return ready;
+            }
+        }
+        auto& config()
+        {
+            static auto setup = text{};
+            return setup;
+        }
+        void send(fd_t m_pipe_w, view config)
+        {
+            auto buffer = ansi::dtvt::binary::marker{ config.size() };
+            os::io::send<true>(m_pipe_w, buffer.data, buffer.size);
+        }
+        auto peek(fd_t stdin_fd)
+        {
+            auto& ready = _ready();
+            auto& state = _state();
+            auto& start = _start();
+            auto& setup = config();
+            auto cfsize = size_t{};
+            if (ready) return state;
+            ready = true;
+            #if defined(_WIN32)
+
+                // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
+                auto buffer = ansi::dtvt::binary::marker{};
+                auto length = DWORD{ 0 };
+                if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
+                                    &buffer,        // lpBuffer
+                                    sizeof(buffer), // nBufferSize
+                                    &length,        // lpBytesRead
+                                    NULL,           // lpTotalBytesAvail,
+                                    NULL))          // lpBytesLeftThisMessage
+                {
+                    if (length)
+                    {
+                        state = buffer.size == length && buffer.get_sz(cfsize);
+                        if (state)
+                        {
+                            os::io::recv(stdin_fd, buffer.data, buffer.size);
+                        }
+                    }
+                }
+
+            #else
+
+                os::io::select<true>(stdin_fd, [&]
+                {
+                    auto buffer = ansi::dtvt::binary::marker{};
+                    auto header = os::io::recv(stdin_fd, buffer.data, buffer.size);
+                    auto length = header.length();
+                    if (length)
+                    {
+                        state = buffer.size == length && buffer.get_sz(cfsize);
+                        if (!state)
+                        {
+                            start = header; //todo use it when the reading thread starts
+                        }
+                    }
+                });
+
+            #endif
+            if (cfsize)
+            {
+                setup.resize(cfsize);
+                auto buffer = setup.data();
+                while (cfsize)
+                {
+                    if (auto crop = os::io::recv(stdin_fd, buffer, cfsize))
+                    {
+                        cfsize -= crop.size();
+                        buffer += crop.size();
+                    }
+                    else
+                    {
+                        state = faux;
+                        break;
+                    }
+                }
+            }
+            return state;
+        }
+
+        class vtty
+        {
+            fd_t                      prochndl{ INVALID_FD };
+            pidt                      proc_pid{};
+            ipc::stdcon               termlink{};
+            std::thread               stdinput{};
+            std::thread               stdwrite{};
+            std::function<void(view)> receiver{};
+            std::function<void(si32)> shutdown{};
+            std::function<void(si32)> preclose{};
+            text                      writebuf{};
+            std::mutex                writemtx{};
+            std::condition_variable   writesyn{};
+
+        public:
+           ~vtty()
+            {
+                log("dtvt: dtor started");
+                if (termlink)
+                {
+                    stop();
+                }
+                if (stdwrite.joinable())
+                {
+                    writesyn.notify_one();
+                    log("dtvt: id: ", stdwrite.get_id(), " writing thread joining");
+                    stdwrite.join();
+                }
+                if (stdinput.joinable())
+                {
+                    log("dtvt: id: ", stdinput.get_id(), " reading thread joining");
+                    stdinput.join();
+                }
+                log("dtvt: dtor complete");
+            }
+
+            operator bool () { return termlink; }
+
+            auto start(text cwd, text cmdline, text config, std::function<void(view)> input_hndl,
+                                                            std::function<void(si32)> preclose_hndl,
+                                                            std::function<void(si32)> shutdown_hndl)
+            {
+                receiver = input_hndl;
+                preclose = preclose_hndl;
+                shutdown = shutdown_hndl;
+                utf::change(cmdline, "\\\"", "'");
+                log("dtvt: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
+                                                                                                 : "'" + cwd + "'");
+                #if defined(_WIN32)
+
+                    auto s_pipe_r = INVALID_FD;
+                    auto s_pipe_w = INVALID_FD;
+                    auto m_pipe_r = INVALID_FD;
+                    auto m_pipe_w = INVALID_FD;
+                    auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
+                    auto procsinf = PROCESS_INFORMATION{};
+                    auto attrbuff = std::vector<uint8_t>{};
+                    auto attrsize = SIZE_T{ 0 };
+                    auto stdhndls = std::array<HANDLE, 2>{};
+
+                    auto tunnel = [&]
+                    {
+                        auto sa = SECURITY_ATTRIBUTES{};
+                        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+                        sa.lpSecurityDescriptor = NULL;
+                        sa.bInheritHandle = TRUE;
+                        if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
+                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
+                        {
+                            os::dtvt::send(m_pipe_w, config);
+
+                            startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
+                            startinf.StartupInfo.hStdInput  = s_pipe_r;
+                            startinf.StartupInfo.hStdOutput = s_pipe_w;
+                            return true;
+                        }
+                        else
+                        {
+                            io::close(m_pipe_w);
+                            io::close(m_pipe_r);
+                            return faux;
+                        }
+                    };
+                    auto fillup = [&]
+                    {
+                        stdhndls[0] = s_pipe_r;
+                        stdhndls[1] = s_pipe_w;
+                        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
+                        attrbuff.resize(attrsize);
+                        startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
+
+                        if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
+                         && ::UpdateProcThreadAttribute( startinf.lpAttributeList,
+                                                         0,
+                                                         PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                                         &stdhndls,
+                                                         sizeof(stdhndls),
+                                                         nullptr,
+                                                         nullptr))
+                        {
+                            return true;
+                        }
+                        else return faux;
+                    };
+                    auto create = [&]
+                    {
+                        return ::CreateProcessA( nullptr,                             // lpApplicationName
+                                                 cmdline.data(),                      // lpCommandLine
+                                                 nullptr,                             // lpProcessAttributes
+                                                 nullptr,                             // lpThreadAttributes
+                                                 TRUE,                                // bInheritHandles
+                                                 DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
+                                                 EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
+                                                 nullptr,                             // lpEnvironment
+                                                 cwd.empty() ? nullptr
+                                                             : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
+                                                 &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
+                                                 &procsinf);                          // lpProcessInformation
+                    };
+
+                    if (tunnel()
+                     && fillup()
+                     && create())
+                    {
+                        io::close( procsinf.hThread );
+                        prochndl = procsinf.hProcess;
+                        proc_pid = procsinf.dwProcessId;
+                        termlink = { m_pipe_r, m_pipe_w };
+                    }
+                    else log("dtvt: child process creation error ", ::GetLastError());
+
+                    io::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
+                    io::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+
+                #else
+
+                    fd_t to_server[2] = { INVALID_FD, INVALID_FD };
+                    fd_t to_client[2] = { INVALID_FD, INVALID_FD };
+                    ok(::pipe(to_server), "dtvt: server ipc unexpected result");
+                    ok(::pipe(to_client), "dtvt: client ipc unexpected result");
+
+                    termlink = { to_server[0], to_client[1] };
+                    os::dtvt::send(to_client[1], config);
+
+                    proc_pid = ::fork();
+                    if (proc_pid == 0) // Child branch.
+                    {
+                        io::close(to_client[1]);
+                        io::close(to_server[0]);
+
+                        ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
+                        ::signal(SIGQUIT, SIG_DFL); //
+                        ::signal(SIGTSTP, SIG_DFL); //
+                        ::signal(SIGTTIN, SIG_DFL); //
+                        ::signal(SIGTTOU, SIG_DFL); //
+                        ::signal(SIGCHLD, SIG_DFL); //
+
+                        ::dup2(to_client[0], STDIN_FD ); // Assign stdio lines atomically
+                        ::dup2(to_server[1], STDOUT_FD); // = close(new); fcntl(old, F_DUPFD, new).
+                        os::fdcleanup();
+
+                        if (cwd.size())
+                        {
+                            auto err = std::error_code{};
+                            fs::current_path(cwd, err);
+                            //todo use dtvt to log
+                            //if (err) os::fail("dtvt: failed to change current working directory to '", cwd, "', error code: ", err.value());
+                            //else     log("dtvt: change current working directory to '", cwd, "'");
+                        }
+
+                        os::process::execvp(cmdline);
+                        auto errcode = errno;
+                        //todo use dtvt to log
+                        //os::fail("dtvt: exec error");
+                        ::close(STDOUT_FD);
+                        ::close(STDIN_FD );
+                        os::process::exit(errcode);
+                    }
+
+                    // Parent branch.
+                    io::close(to_client[0]);
+                    io::close(to_server[1]);
+
+                #endif
+
+                if (config.size())
+                {
+                    auto guard = std::lock_guard{ writemtx };
+                    writebuf = config + writebuf;
+                }
+
+                stdinput = std::thread([&] { read_socket_thread(); });
+                stdwrite = std::thread([&] { send_socket_thread(); });
+
+                if (termlink) log("dtvt: vtty created: proc_pid ", proc_pid);
+                writesyn.notify_one(); // Flush temp buffer.
+
+                return proc_pid;
+            }
+            void stop()
+            {
+                termlink.shut();
+                writesyn.notify_one();
+            }
+            auto wait_child()
+            {
+                //auto guard = std::lock_guard{ writemtx };
+                auto exit_code = si32{};
+                log("dtvt: wait child process, tty=", termlink);
+                if (termlink)
+                {
+                    termlink.shut();
+                }
+
+                if (proc_pid != 0)
+                {
+                    #if defined(_WIN32)
+
+                        auto code = DWORD{ 0 };
+                        if (!::GetExitCodeProcess(prochndl, &code))
+                        {
+                            log("dtvt: GetExitCodeProcess() return code: ", ::GetLastError());
+                        }
+                        else if (code == STILL_ACTIVE)
+                        {
+                            log("dtvt: child process still running");
+                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
+                            if (!result || !::GetExitCodeProcess(prochndl, &code))
+                            {
+                                ::TerminateProcess(prochndl, 0);
+                                code = 0;
+                            }
+                        }
+                        else log("dtvt: child process exit code ", code);
+                        exit_code = code;
+                        io::close(prochndl);
+
+                    #else
+
+                        int status;
+                        ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
+                        ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                        if (WIFEXITED(status))
+                        {
+                            exit_code = WEXITSTATUS(status);
+                            log("dtvt: child process exit code ", exit_code);
+                        }
+                        else
+                        {
+                            exit_code = 0;
+                            log("dtvt: warning: child process exit code not detected");
+                        }
+
+                    #endif
+                }
+                log("dtvt: child waiting complete");
+                return exit_code;
+            }
+            void read_socket_thread()
+            {
+                log("dtvt: id: ", stdinput.get_id(), " reading thread started");
+
+                ansi::dtvt::binary::stream::reading_loop(termlink, receiver);
+
+                preclose(0); //todo send msg from the client app
+                shutdown(wait_child());
+                log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
+            }
+            void send_socket_thread()
+            {
+                log("dtvt: id: ", stdwrite.get_id(), " writing thread started");
+                auto guard = std::unique_lock{ writemtx };
+                auto cache = text{};
+                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
+                {
+                    std::swap(cache, writebuf);
+                    guard.unlock();
+                    if (termlink.send(cache)) cache.clear();
+                    else                      break;
+                    guard.lock();
+                }
+                //todo block dtvt-logs after termlink stops
+                //guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
+                log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");
+            }
+            void output(view data)
+            {
+                auto guard = std::lock_guard{ writemtx };
+                writebuf += data;
+                if (termlink) writesyn.notify_one();
+            }
+        };
+    }
+
     namespace tty
     {
+        using xipc = ipc::stdcon::xipc;
+
         auto& globals()
         {
             struct
@@ -2438,18 +3136,18 @@ namespace netxs::os
                 testy<twod>              winsz; // globals: Current console window size.
                 ansi::dtvt::binary::s11n wired; // globals: Serialization buffers.
                 si32                     kbmod; // globals: Keyboard modifiers state.
-                fire                     alarm; // globals: IO interrupter.
+                io::fire                 alarm; // globals: IO interrupter.
             }
             static vars;
             return vars;
         }
         auto vtmode()
         {
-            auto mode = si32{ legacy::clean };
+            auto mode = si32{ vt::clean };
             if (os::dtvt::peek(STDIN_FD))
             {
                 log("  os: DirectVT detected");
-                mode |= legacy::direct;
+                mode |= vt::direct;
             }
             else
             {
@@ -2482,7 +3180,7 @@ namespace netxs::os
 
                     if (term.ends_with("16color") || term.ends_with("16colour"))
                     {
-                        mode |= legacy::vga16;
+                        mode |= vt::vga16;
                     }
                     else
                     {
@@ -2490,7 +3188,7 @@ namespace netxs::os
                         {
                             if (term == type)
                             {
-                                mode |= legacy::vga16;
+                                mode |= vt::vga16;
                                 break;
                             }
                         }
@@ -2500,7 +3198,7 @@ namespace netxs::os
                             {
                                 if (term == type)
                                 {
-                                    mode |= legacy::vga256;
+                                    mode |= vt::vga256;
                                     break;
                                 }
                             }
@@ -2510,15 +3208,15 @@ namespace netxs::os
                     if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
                     {
                         log("  os: macOS Apple_Terminal detected");
-                        if (!(mode & legacy::vga16)) mode |= legacy::vga256;
+                        if (!(mode & vt::vga16)) mode |= vt::vga256;
                     }
 
-                    if (os::legacy::console()) mode |= legacy::mouse;
+                    if (os::vt::console()) mode |= vt::mouse;
 
-                    log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
-                                            : mode & legacy::vga256 ? "256-color"
-                                                                    : "true-color");
-                    log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "vt-style");
+                    log("  os: color mode: ", mode & vt::vga16  ? "16-color"
+                                            : mode & vt::vga256 ? "256-color"
+                                                                : "true-color");
+                    log("  os: mouse mode: ", mode & vt::mouse ? "console" : "vt-style");
                 }
             }
             return mode;
@@ -2590,7 +3288,7 @@ namespace netxs::os
                         auto UnicodeChar = L'\x03'; // ansi::C0_ETX
                         g.wired.syskeybd.send(*g.ipcio,
                             0,
-                            os::kbstate(g.kbmod, dwControlKeyState),
+                            os::nt::kbstate(g.kbmod, dwControlKeyState),
                             dwControlKeyState,
                             wVirtualKeyCode,
                             wVirtualScanCode,
@@ -2634,7 +3332,7 @@ namespace netxs::os
         }
         auto logger(si32 mode)
         {
-            auto direct = !!(mode & os::legacy::direct);
+            auto direct = !!(mode & os::vt::direct);
             return direct ? netxs::logger([](auto data) { os::logging::stdlog(data); })
                           : netxs::logger([](auto data) { os::logging::syslog(data); });
         }
@@ -2677,7 +3375,7 @@ namespace netxs::os
                         // 233 (0xE9)
                         // No process is on the other end of the pipe.
                         //defeat("GetNumberOfConsoleInputEvents error");
-                        os::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", ::GetLastError());
+                        os::process::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", ::GetLastError());
                         break;
                     }
                     else if (count)
@@ -2688,7 +3386,7 @@ namespace netxs::os
                         {
                             //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
                             //defeat("ReadConsoleInput error");
-                            os::exit(-1, " tty: ReadConsoleInput error ", ::GetLastError());
+                            os::process::exit(-1, " tty: ReadConsoleInput error ", ::GetLastError());
                             break;
                         }
                         else
@@ -2703,7 +3401,7 @@ namespace netxs::os
                                     case KEY_EVENT:
                                         wired.syskeybd.send(ipcio,
                                             0,
-                                            os::kbstate(g.kbmod, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
+                                            os::nt::kbstate(g.kbmod, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
                                             reply.Event.KeyEvent.dwControlKeyState,
                                             reply.Event.KeyEvent.wVirtualKeyCode,
                                             reply.Event.KeyEvent.wVirtualScanCode,
@@ -2716,7 +3414,7 @@ namespace netxs::os
                                         wired.sysmouse.send(ipcio,
                                             0,
                                             input::hids::ok,
-                                            os::kbstate(g.kbmod, reply.Event.MouseEvent.dwControlKeyState),
+                                            os::nt::kbstate(g.kbmod, reply.Event.MouseEvent.dwControlKeyState),
                                             reply.Event.MouseEvent.dwControlKeyState,
                                             reply.Event.MouseEvent.dwButtonState & 0b00011111,
                                             reply.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK,
@@ -2746,8 +3444,8 @@ namespace netxs::os
 
             #else
 
-                auto legacy_mouse = !!(mode & os::legacy::mouse);
-                auto legacy_color = !!(mode & os::legacy::vga16);
+                auto legacy_mouse = !!(mode & os::vt::mouse);
+                auto legacy_color = !!(mode & os::vt::vga16);
                 auto micefd = INVALID_FD;
                 auto mcoord = twod{};
                 auto buffer = text(os::pipebuf, '\0');
@@ -2784,10 +3482,10 @@ namespace netxs::os
                     if (fd == -1) log(" tty: error opening ", mouse_device, " and ", mouse_fallback1, ", error ", errno, errno == 13 ? " - permission denied" : "");
                     if (fd == -1) fd = ::open(mouse_fallback2, O_RDWR);
                     if (fd == -1) log(" tty: error opening ", mouse_device, " and ", mouse_fallback2, ", error ", errno, errno == 13 ? " - permission denied" : "");
-                    else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
+                    else if (os::io::send(fd, imps2_init_string, sizeof(imps2_init_string)))
                     {
                         char ack;
-                        os::recv(fd, &ack, sizeof(ack));
+                        os::io::recv(fd, &ack, sizeof(ack));
                         micefd = fd;
                         auto tty_word = tty_name.find("tty", 0);
                         if (tty_word != text::npos)
@@ -2806,7 +3504,7 @@ namespace netxs::os
                     else
                     {
                         log(" tty: mouse initialization error");
-                        os::close(fd);
+                        io::close(fd);
                     }
                 }
 
@@ -3047,7 +3745,7 @@ namespace netxs::os
 
                 auto h_proc = [&]
                 {
-                    auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                    auto data = os::io::recv(STDIN_FD, buffer.data(), buffer.size());
                     if (micefd != INVALID_FD)
                     {
                         auto kb_state = get_kb_state();
@@ -3063,7 +3761,7 @@ namespace netxs::os
                 };
                 auto m_proc = [&]
                 {
-                    auto data = os::recv(micefd, buffer.data(), buffer.size());
+                    auto data = os::io::recv(micefd, buffer.data(), buffer.size());
                     auto size = data.size();
                     if (size == 4 /* ImPS/2 */
                      || size == 3 /* PS/2 compatibility mode */)
@@ -3099,18 +3797,18 @@ namespace netxs::os
                 {
                     if (micefd != INVALID_FD)
                     {
-                        os::select(STDIN_FD, h_proc,
-                                   micefd,   m_proc,
-                                   alarm,    f_proc);
+                        os::io::select(STDIN_FD, h_proc,
+                                       micefd,   m_proc,
+                                       alarm,    f_proc);
                     }
                     else
                     {
-                        os::select(STDIN_FD, h_proc,
-                                   alarm,    f_proc);
+                        os::io::select(STDIN_FD, h_proc,
+                                       alarm,    f_proc);
                     }
                 }
 
-                os::close(micefd);
+                io::close(micefd);
 
             #endif
 
@@ -3120,7 +3818,7 @@ namespace netxs::os
         {
             using namespace os::clipboard;
 
-            if (mode & legacy::direct) return;
+            if (mode & vt::direct) return;
             log(" tty: id: ", std::this_thread::get_id(), " clipboard watcher thread started");
 
             #if defined(_WIN32)
@@ -3297,7 +3995,7 @@ namespace netxs::os
 
             #endif
 
-            os::legacy::vgafont(mode);
+            os::vt::vgafont(mode);
             ::atexit(repair);
             resize();
         }
@@ -3307,7 +4005,7 @@ namespace netxs::os
             auto& ipcio = *pipe;
             auto& alarm = globals().alarm;
             auto  proxy = os::clipboard::proxy{};
-            auto  vga16 = mode & os::legacy::vga16;
+            auto  vga16 = mode & os::vt::vga16;
             auto  vtrun = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).setutf(true).set_palette(vga16);
             auto  vtend = ansi::scrn_reset().altbuf(faux).cursor(true).bpmode(faux).load_title().rst_palette(vga16);
             #if not defined(_WIN32) // Use Win32 Console API for mouse tracking on Windows.
@@ -3315,13 +4013,13 @@ namespace netxs::os
             vtend.vmouse(faux);
             #endif
 
-            os::send(STDOUT_FD, vtrun);
+            os::io::send(STDOUT_FD, vtrun);
 
             auto input = std::thread{ [&]{ reader(mode); } };
             auto clips = std::thread{ [&]{ clipbd(mode); } }; //todo move to os::clipboard::proxy (globals())
             while (auto yield = ipcio.recv())
             {
-                if (proxy(yield) && !os::send(STDOUT_FD, yield)) break;
+                if (proxy(yield) && !os::io::send(STDOUT_FD, yield)) break;
             }
 
             ipcio.shut();
@@ -3329,1200 +4027,8 @@ namespace netxs::os
             clips.join();
             input.join();
 
-            os::send(STDOUT_FD, vtend);
+            os::io::send(STDOUT_FD, vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
     };
-
-    template<class Term>
-    class vtty // Note: STA.
-    {
-        Term&                   terminal;
-        ipc::stdcon             termlink;
-        std::thread             stdinput;
-        std::thread             stdwrite;
-        std::thread             waitexit;
-        testy<twod>             termsize;
-        pidt                    proc_pid;
-        fd_t                    prochndl;
-        fd_t                    srv_hndl;
-        fd_t                    ref_hndl;
-        text                    writebuf;
-        std::mutex              writemtx;
-        std::condition_variable writesyn;
-
-        #if defined(_WIN32)
-
-            #include "consrv.hpp"
-            //todo con_serv is a termlink
-            consrv con_serv{ terminal, srv_hndl };
-
-        #endif
-
-    public:
-        vtty(Term& uiterminal)
-            : terminal{ uiterminal },
-              prochndl{ INVALID_FD },
-              srv_hndl{ INVALID_FD },
-              ref_hndl{ INVALID_FD },
-              proc_pid{            }
-        { }
-       ~vtty()
-        {
-            log("vtty: dtor started");
-            stop();
-            log("vtty: dtor complete");
-        }
-
-        operator bool () { return connected(); }
-
-        bool connected()
-        {
-            #if defined(_WIN32)
-                return srv_hndl != INVALID_FD;
-            #else
-                return !!termlink;
-            #endif
-        }
-        // vtty: Cleaning in order to be able to restart.
-        void cleanup()
-        {
-            if (stdwrite.joinable())
-            {
-                writesyn.notify_one();
-                log("vtty: id: ", stdwrite.get_id(), " writing thread joining");
-                stdwrite.join();
-            }
-            if (stdinput.joinable())
-            {
-                log("vtty: id: ", stdinput.get_id(), " reading thread joining");
-                stdinput.join();
-            }
-            if (waitexit.joinable())
-            {
-                auto id = waitexit.get_id();
-                log("vtty: id: ", id, " child process waiter thread joining");
-                waitexit.join();
-                log("vtty: id: ", id, " child process waiter thread joined");
-            }
-            auto guard = std::lock_guard{ writemtx };
-            termlink = {};
-            writebuf = {};
-        }
-        auto wait_child()
-        {
-            auto guard = std::lock_guard{ writemtx };
-            auto exit_code = si32{};
-            log("vtty: wait child process ", proc_pid);
-
-            if (proc_pid != 0)
-            {
-            #if defined(_WIN32)
-
-                os::close( srv_hndl );
-                os::close( ref_hndl );
-                con_serv.stop();
-                auto code = DWORD{ 0 };
-                if (!::GetExitCodeProcess(prochndl, &code))
-                {
-                    log("vtty: GetExitCodeProcess() return code: ", ::GetLastError());
-                }
-                else if (code == STILL_ACTIVE)
-                {
-                    log("vtty: child process still running");
-                    auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
-                    if (!result || !::GetExitCodeProcess(prochndl, &code))
-                    {
-                        ::TerminateProcess(prochndl, 0);
-                        code = 0;
-                    }
-                }
-                else log("vtty: child process exit code 0x", utf::to_hex(code), " (", code, ")");
-                exit_code = code;
-                os::close(prochndl);
-
-            #else
-
-                termlink.stop();
-                auto status = int{};
-                ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
-                ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
-                if (WIFEXITED(status))
-                {
-                    exit_code = WEXITSTATUS(status);
-                    log("vtty: child process exit code ", exit_code);
-                }
-                else
-                {
-                    exit_code = 0;
-                    log("vtty: warning: child process exit code not detected");
-                }
-
-            #endif
-            }
-            log("vtty: child waiting complete");
-            return exit_code;
-        }
-        void start(twod winsz)
-        {
-            auto cwd     = terminal.curdir;
-            auto cmdline = terminal.cmdarg;
-            utf::change(cmdline, "\\\"", "\"");
-            log("vtty: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
-                                                                                             : "'" + cwd + "'");
-            #if defined(_WIN32)
-
-                termsize(winsz);
-                auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
-                auto procsinf = PROCESS_INFORMATION{};
-                auto attrbuff = std::vector<uint8_t>{};
-                auto attrsize = SIZE_T{ 0 };
-
-                srv_hndl = nt::console::handle("\\Device\\ConDrv\\Server");
-                ref_hndl = nt::console::handle(srv_hndl, "\\Reference");
-
-                if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, con_serv.events.ondata))
-                {
-                    auto errcode = os::error();
-                    log("vtty: console server creation error ", errcode);
-                    terminal.onexit(errcode, "Console server creation error");
-                    return;
-                }
-
-                con_serv.start();
-                startinf.StartupInfo.dwX = 0;
-                startinf.StartupInfo.dwY = 0;
-                startinf.StartupInfo.dwXCountChars = 0;
-                startinf.StartupInfo.dwYCountChars = 0;
-                startinf.StartupInfo.dwXSize = winsz.x;
-                startinf.StartupInfo.dwYSize = winsz.y;
-                startinf.StartupInfo.dwFillAttribute = 1;
-                startinf.StartupInfo.hStdInput  = nt::console::handle(srv_hndl, "\\Input",  true);
-                startinf.StartupInfo.hStdOutput = nt::console::handle(srv_hndl, "\\Output", true);
-                startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput);
-                startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
-                                             | STARTF_USESIZE
-                                             | STARTF_USEPOSITION
-                                             | STARTF_USECOUNTCHARS
-                                             | STARTF_USEFILLATTRIBUTE;
-                ::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
-                attrbuff.resize(attrsize);
-                startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
-                ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
-                ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                            0,
-                                            PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                           &startinf.StartupInfo.hStdInput,
-                                     sizeof(startinf.StartupInfo.hStdInput) * 3,
-                                            nullptr,
-                                            nullptr);
-                ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                            0,
-                                            ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
-                                           &ref_hndl,
-                                     sizeof(ref_hndl),
-                                            nullptr,
-                                            nullptr);
-                auto ret = ::CreateProcessA(nullptr,                             // lpApplicationName
-                                            cmdline.data(),                      // lpCommandLine
-                                            nullptr,                             // lpProcessAttributes
-                                            nullptr,                             // lpThreadAttributes
-                                            TRUE,                                // bInheritHandles
-                                            EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
-                                            nullptr,                             // lpEnvironment
-                                            cwd.empty() ? nullptr
-                                                        : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
-                                           &startinf.StartupInfo,                // lpStartupInfo (ptr to STARTUPINFOEX)
-                                           &procsinf);                           // lpProcessInformation
-                if (ret == 0)
-                {
-                    auto errcode = os::error();
-                    log("vtty: child process creation error ", errcode);
-                    os::close( srv_hndl );
-                    os::close( ref_hndl );
-                    con_serv.stop();
-                    terminal.onexit(errcode, "Process creation error \n"s
-                                             " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
-                                             " cmd: "s + cmdline + " "s);
-                    return;
-                }
-
-                os::close( procsinf.hThread );
-                prochndl = procsinf.hProcess;
-                proc_pid = procsinf.dwProcessId;
-                waitexit = std::thread([&]
-                {
-                    os::select(prochndl, []{ log("vtty: child process terminated"); });
-                    if (srv_hndl != INVALID_FD)
-                    {
-                        auto exit_code = wait_child();
-                        terminal.onexit(exit_code);
-                    }
-                    log("vtty: child process waiter ended");
-                });
-
-            #else
-
-                auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
-                auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
-                auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
-                auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
-
-                termlink = { fdm, fdm };
-                termsize = {};
-                resize(winsz);
-
-                proc_pid = ::fork();
-                if (proc_pid == 0) // Child branch.
-                {
-                    os::close(fdm);
-                    auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
-
-                    // In order to receive WINCH signal make fds the controlling
-                    // terminal of the current process.
-                    // Current process must be a session leader (::setsid()) and not have
-                    // a controlling terminal already.
-                    // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-                    auto rc1 = ::ioctl(fds, TIOCSCTTY, 0);
-
-                    ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
-                    ::signal(SIGQUIT, SIG_DFL); //
-                    ::signal(SIGTSTP, SIG_DFL); //
-                    ::signal(SIGTTIN, SIG_DFL); //
-                    ::signal(SIGTTOU, SIG_DFL); //
-                    ::signal(SIGCHLD, SIG_DFL); //
-
-                    if (cwd.size())
-                    {
-                        auto err = std::error_code{};
-                        fs::current_path(cwd, err);
-                        if (err) std::cerr << "vtty: failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
-                        else     std::cerr << "vtty: change current working directory to '" << cwd << "'" << "\n" << std::flush;
-                    }
-
-                    ::dup2(fds, STDIN_FD ); // Assign stdio lines atomically
-                    ::dup2(fds, STDOUT_FD); // = close(new);
-                    ::dup2(fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
-                    os::fdcleanup();
-
-                    ::setenv("TERM", "xterm-256color", 1); //todo too hacky
-                    if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
-                    {
-                        ::setenv("TERM_PROGRAM", "vtm", 1);
-                    }
-
-                    os::process::execvp(cmdline);
-                    auto errcode = errno;
-                    std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
-                                                                   " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
-                                                                   " cmd: "s + cmdline + " "s).nil() << std::flush;
-                    os::exit(errcode);
-                }
-
-                // Parent branch.
-                os::close(fds);
-
-                stdinput = std::thread([&] { read_socket_thread(); });
-
-            #endif
-
-            stdwrite = std::thread([&] { send_socket_thread(); });
-            writesyn.notify_one(); // Flush temp buffer.
-
-            log("vtty: new vtty created with size ", winsz);
-        }
-        void stop()
-        {
-            if (connected())
-            {
-                wait_child();
-            }
-            cleanup();
-        }
-        void read_socket_thread()
-        {
-            #if not defined(_WIN32)
-
-                log("vtty: id: ", stdinput.get_id(), " reading thread started");
-                auto flow = text{};
-                while (termlink)
-                {
-                    auto shot = termlink.recv();
-                    if (shot && termlink)
-                    {
-                        flow += shot;
-                        auto crop = ansi::purify(flow);
-                        terminal.ondata(crop);
-                        flow.erase(0, crop.size()); // Delete processed data.
-                    }
-                    else break;
-                }
-                if (termlink)
-                {
-                    auto exit_code = wait_child();
-                    terminal.onexit(exit_code);
-                }
-                log("vtty: id: ", stdinput.get_id(), " reading thread ended");
-
-            #endif
-        }
-        void send_socket_thread()
-        {
-            log("vtty: id: ", stdwrite.get_id(), " writing thread started");
-            auto guard = std::unique_lock{ writemtx };
-            auto cache = text{};
-            while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !connected(); }), connected())
-            {
-                std::swap(cache, writebuf);
-                guard.unlock();
-                #if defined(_WIN32)
-
-                    con_serv.events.write(cache);
-                    cache.clear();
-
-                #else
-
-                    if (termlink.send(cache)) cache.clear();
-                    else                      break;
-
-                #endif
-                guard.lock();
-            }
-            log("vtty: id: ", stdwrite.get_id(), " writing thread ended");
-        }
-        void resize(twod const& newsize)
-        {
-            if (connected() && termsize(newsize))
-            {
-                #if defined(_WIN32)
-
-                    con_serv.resize(termsize);
-
-                #else
-
-                    auto winsz = winsize{};
-                    winsz.ws_col = newsize.x;
-                    winsz.ws_row = newsize.y;
-                    ok(::ioctl(termlink.handle.w, TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
-
-                #endif
-            }
-        }
-        void reset()
-        {
-            #if defined(_WIN32)
-                con_serv.reset();
-            #endif
-        }
-        void keybd(input::hids& gear, bool decckm)
-        {
-            #if defined(_WIN32)
-                con_serv.events.keybd(gear, decckm);
-            #endif
-        }
-        void mouse(input::hids& gear, bool moved, twod const& coord)
-        {
-            #if defined(_WIN32)
-                con_serv.events.mouse(gear, moved, coord);
-            #endif
-        }
-        void write(view data)
-        {
-            auto guard = std::lock_guard{ writemtx };
-            writebuf += data;
-            if (connected()) writesyn.notify_one();
-        }
-        void undo(bool undoredo)
-        {
-            #if defined(_WIN32)
-                con_serv.events.undo(undoredo);
-            #endif
-        }
-    };
-
-    namespace direct
-    {
-        class vtty
-        {
-            fd_t                      prochndl{ INVALID_FD };
-            pidt                      proc_pid{};
-            ipc::stdcon               termlink{};
-            std::thread               stdinput{};
-            std::thread               stdwrite{};
-            std::function<void(view)> receiver{};
-            std::function<void(si32)> shutdown{};
-            std::function<void(si32)> preclose{};
-            text                      writebuf{};
-            std::mutex                writemtx{};
-            std::condition_variable   writesyn{};
-
-        public:
-           ~vtty()
-            {
-                log("dtvt: dtor started");
-                if (termlink)
-                {
-                    stop();
-                }
-                if (stdwrite.joinable())
-                {
-                    writesyn.notify_one();
-                    log("dtvt: id: ", stdwrite.get_id(), " writing thread joining");
-                    stdwrite.join();
-                }
-                if (stdinput.joinable())
-                {
-                    log("dtvt: id: ", stdinput.get_id(), " reading thread joining");
-                    stdinput.join();
-                }
-                log("dtvt: dtor complete");
-            }
-
-            operator bool () { return termlink; }
-
-            auto start(text cwd, text cmdline, text config, std::function<void(view)> input_hndl,
-                                                            std::function<void(si32)> preclose_hndl,
-                                                            std::function<void(si32)> shutdown_hndl)
-            {
-                receiver = input_hndl;
-                preclose = preclose_hndl;
-                shutdown = shutdown_hndl;
-                utf::change(cmdline, "\\\"", "'");
-                log("dtvt: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
-                                                                                                 : "'" + cwd + "'");
-                #if defined(_WIN32)
-
-                    auto s_pipe_r = INVALID_FD;
-                    auto s_pipe_w = INVALID_FD;
-                    auto m_pipe_r = INVALID_FD;
-                    auto m_pipe_w = INVALID_FD;
-                    auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
-                    auto procsinf = PROCESS_INFORMATION{};
-                    auto attrbuff = std::vector<uint8_t>{};
-                    auto attrsize = SIZE_T{ 0 };
-                    auto stdhndls = std::array<HANDLE, 2>{};
-
-                    auto tunnel = [&]
-                    {
-                        auto sa = SECURITY_ATTRIBUTES{};
-                        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-                        sa.lpSecurityDescriptor = NULL;
-                        sa.bInheritHandle = TRUE;
-                        if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
-                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
-                        {
-                            os::dtvt::send(m_pipe_w, config);
-
-                            startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
-                            startinf.StartupInfo.hStdInput  = s_pipe_r;
-                            startinf.StartupInfo.hStdOutput = s_pipe_w;
-                            return true;
-                        }
-                        else
-                        {
-                            os::close(m_pipe_w);
-                            os::close(m_pipe_r);
-                            return faux;
-                        }
-                    };
-                    auto fillup = [&]
-                    {
-                        stdhndls[0] = s_pipe_r;
-                        stdhndls[1] = s_pipe_w;
-                        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
-                        attrbuff.resize(attrsize);
-                        startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
-
-                        if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
-                         && ::UpdateProcThreadAttribute( startinf.lpAttributeList,
-                                                         0,
-                                                         PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                                         &stdhndls,
-                                                         sizeof(stdhndls),
-                                                         nullptr,
-                                                         nullptr))
-                        {
-                            return true;
-                        }
-                        else return faux;
-                    };
-                    auto create = [&]
-                    {
-                        return ::CreateProcessA( nullptr,                             // lpApplicationName
-                                                 cmdline.data(),                      // lpCommandLine
-                                                 nullptr,                             // lpProcessAttributes
-                                                 nullptr,                             // lpThreadAttributes
-                                                 TRUE,                                // bInheritHandles
-                                                 DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
-                                                 EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
-                                                 nullptr,                             // lpEnvironment
-                                                 cwd.empty() ? nullptr
-                                                             : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
-                                                 &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
-                                                 &procsinf);                          // lpProcessInformation
-                    };
-
-                    if (tunnel()
-                     && fillup()
-                     && create())
-                    {
-                        os::close( procsinf.hThread );
-                        prochndl = procsinf.hProcess;
-                        proc_pid = procsinf.dwProcessId;
-                        termlink = { m_pipe_r, m_pipe_w };
-                    }
-                    else log("dtvt: child process creation error ", ::GetLastError());
-
-                    os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
-                    os::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
-
-                #else
-
-                    fd_t to_server[2] = { INVALID_FD, INVALID_FD };
-                    fd_t to_client[2] = { INVALID_FD, INVALID_FD };
-                    ok(::pipe(to_server), "dtvt: server ipc unexpected result");
-                    ok(::pipe(to_client), "dtvt: client ipc unexpected result");
-
-                    termlink = { to_server[0], to_client[1] };
-                    os::dtvt::send(to_client[1], config);
-
-                    proc_pid = ::fork();
-                    if (proc_pid == 0) // Child branch.
-                    {
-                        os::close(to_client[1]);
-                        os::close(to_server[0]);
-
-                        ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
-                        ::signal(SIGQUIT, SIG_DFL); //
-                        ::signal(SIGTSTP, SIG_DFL); //
-                        ::signal(SIGTTIN, SIG_DFL); //
-                        ::signal(SIGTTOU, SIG_DFL); //
-                        ::signal(SIGCHLD, SIG_DFL); //
-
-                        ::dup2(to_client[0], STDIN_FD ); // Assign stdio lines atomically
-                        ::dup2(to_server[1], STDOUT_FD); // = close(new); fcntl(old, F_DUPFD, new).
-                        os::fdcleanup();
-
-                        if (cwd.size())
-                        {
-                            auto err = std::error_code{};
-                            fs::current_path(cwd, err);
-                            //todo use dtvt to log
-                            //if (err) os::fail("dtvt: failed to change current working directory to '", cwd, "', error code: ", err.value());
-                            //else     log("dtvt: change current working directory to '", cwd, "'");
-                        }
-
-                        os::process::execvp(cmdline);
-                        auto errcode = errno;
-                        //todo use dtvt to log
-                        //os::fail("dtvt: exec error");
-                        ::close(STDOUT_FD);
-                        ::close(STDIN_FD );
-                        os::exit(errcode);
-                    }
-
-                    // Parent branch.
-                    os::close(to_client[0]);
-                    os::close(to_server[1]);
-
-                #endif
-
-                if (config.size())
-                {
-                    auto guard = std::lock_guard{ writemtx };
-                    writebuf = config + writebuf;
-                }
-
-                stdinput = std::thread([&] { read_socket_thread(); });
-                stdwrite = std::thread([&] { send_socket_thread(); });
-
-                if (termlink) log("dtvt: vtty created: proc_pid ", proc_pid);
-                writesyn.notify_one(); // Flush temp buffer.
-
-                return proc_pid;
-            }
-            void stop()
-            {
-                termlink.shut();
-                writesyn.notify_one();
-            }
-            auto wait_child()
-            {
-                //auto guard = std::lock_guard{ writemtx };
-                auto exit_code = si32{};
-                log("dtvt: wait child process, tty=", termlink);
-                if (termlink)
-                {
-                    termlink.shut();
-                }
-
-                if (proc_pid != 0)
-                {
-                    #if defined(_WIN32)
-
-                        auto code = DWORD{ 0 };
-                        if (!::GetExitCodeProcess(prochndl, &code))
-                        {
-                            log("dtvt: GetExitCodeProcess() return code: ", ::GetLastError());
-                        }
-                        else if (code == STILL_ACTIVE)
-                        {
-                            log("dtvt: child process still running");
-                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
-                            if (!result || !::GetExitCodeProcess(prochndl, &code))
-                            {
-                                ::TerminateProcess(prochndl, 0);
-                                code = 0;
-                            }
-                        }
-                        else log("dtvt: child process exit code ", code);
-                        exit_code = code;
-                        os::close(prochndl);
-
-                    #else
-
-                        int status;
-                        ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
-                        ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
-                        if (WIFEXITED(status))
-                        {
-                            exit_code = WEXITSTATUS(status);
-                            log("dtvt: child process exit code ", exit_code);
-                        }
-                        else
-                        {
-                            exit_code = 0;
-                            log("dtvt: warning: child process exit code not detected");
-                        }
-
-                    #endif
-                }
-                log("dtvt: child waiting complete");
-                return exit_code;
-            }
-            void read_socket_thread()
-            {
-                log("dtvt: id: ", stdinput.get_id(), " reading thread started");
-
-                ansi::dtvt::binary::stream::reading_loop(termlink, receiver);
-
-                preclose(0); //todo send msg from the client app
-                shutdown(wait_child());
-                log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
-            }
-            void send_socket_thread()
-            {
-                log("dtvt: id: ", stdwrite.get_id(), " writing thread started");
-                auto guard = std::unique_lock{ writemtx };
-                auto cache = text{};
-                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
-                {
-                    std::swap(cache, writebuf);
-                    guard.unlock();
-                    if (termlink.send(cache)) cache.clear();
-                    else                      break;
-                    guard.lock();
-                }
-                //todo block dtvt-logs after termlink stops
-                //guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
-                log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");
-            }
-            void output(view data)
-            {
-                auto guard = std::lock_guard{ writemtx };
-                writebuf += data;
-                if (termlink) writesyn.notify_one();
-            }
-        };
-    }
 }
-
-/* Deprecated/unused stuff.
-#if defined(_WIN32)
-
-    #include <Wtsapi32.h>   // WTSEnumerateSessions, get_logged_usres
-    #include <Shlwapi.h>
-    #include <shobjidl.h>   // IShellLink
-    #include <shlguid.h>    // IID_IShellLink
-    #include <Shlobj.h>     // create_shortcut: SHGetFolderLocation / (SHGetFolderPathW - vist and later) CLSID_ShellLink
-    #include <DsGetDC.h>    // DsGetDcName
-    #include <LMCons.h>     // DsGetDcName
-    #include <Lmapibuf.h>   // DsGetDcName
-    #include <Sddl.h>       // security_descriptor
-
-#endif
-namespace netxs::os
-{
-    auto host_name()
-    {
-        auto hostname = text{};
-        #if defined(_WIN32)
-
-            auto dwSize = DWORD{ 0 };
-            ::GetComputerNameEx(::ComputerNamePhysicalDnsFullyQualified, NULL, &dwSize);
-
-            if (dwSize)
-            {
-                auto buffer = std::vector<char>(dwSize);
-                if (::GetComputerNameEx(::ComputerNamePhysicalDnsFullyQualified, buffer.data(), &dwSize))
-                {
-                    if (dwSize && buffer[dwSize - 1] == 0) dwSize--;
-                    hostname = text(buffer.data(), dwSize);
-                }
-            }
-
-        #else
-
-            // APPLE: AI_CANONNAME undeclared
-            //std::vector<char> buffer(MAXHOSTNAMELEN);
-            //if (0 == gethostname(buffer.data(), buffer.size()))
-            //{
-            //    struct addrinfo hints, * info;
-            //
-            //    ::memset(&hints, 0, sizeof hints);
-            //    hints.ai_family = AF_UNSPEC;
-            //    hints.ai_socktype = SOCK_STREAM;
-            //    hints.ai_flags = AI_CANONNAME | AI_CANONIDN;
-            //
-            //    if (0 == getaddrinfo(buffer.data(), "http", &hints, &info))
-            //    {
-            //        hostname = std::string(info->ai_canonname);
-            //        //for (auto p = info; p != NULL; p = p->ai_next)
-            //        //{
-            //        //    hostname = std::string(p->ai_canonname);
-            //        //}
-            //        freeaddrinfo(info);
-            //    }
-            //}
-
-        #endif
-        return hostname;
-    }
-    auto is_mutex_exists(text&& mutex_name)
-    {
-        auto result = faux;
-        #if defined(_WIN32)
-
-            auto mutex = ::CreateMutexA(0, 0, mutex_name.c_str());
-            result = ::GetLastError() == ERROR_ALREADY_EXISTS;
-            ::CloseHandle(mutex);
-
-        #else
-
-            //todo linux implementation
-            result = true;
-
-        #endif
-        return result;
-    }
-    static auto logged_in_users(view domain_delimiter = "\\", view record_delimiter = "\0") //  static required by ::WTSQuerySessionInformation
-    {
-        auto active_users_array = text{};
-        #if defined(_WIN32)
-
-            auto SessionInfo_pointer = PWTS_SESSION_INFO{};
-            auto count = DWORD{};
-            if (::WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, &SessionInfo_pointer, &count))
-            {
-                for (DWORD i = 0; i < count; i++)
-                {
-                    auto si = SessionInfo_pointer[i];
-                    auto buffer_pointer = LPTSTR{};
-                    auto buffer_length = DWORD{};
-
-                    ::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSUserName, &buffer_pointer, &buffer_length);
-                    auto user = text(utf::to_view(buffer_pointer, buffer_length));
-                    ::WTSFreeMemory(buffer_pointer);
-
-                    if (user.length())
-                    {
-                        ::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSDomainName, &buffer_pointer, &buffer_length);
-                        auto domain = text(utf::to_view(buffer_pointer, buffer_length / sizeof(wchr)));
-                        ::WTSFreeMemory(buffer_pointer);
-
-                        active_users_array += domain;
-                        active_users_array += domain_delimiter;
-                        active_users_array += user;
-                        active_users_array += domain_delimiter;
-                        active_users_array += "local";
-                        active_users_array += record_delimiter;
-                    }
-                }
-                ::WTSFreeMemory(SessionInfo_pointer);
-                if (active_users_array.size())
-                {
-                    active_users_array = utf::remove(active_users_array, record_delimiter);
-                }
-            }
-
-        #else
-
-            static constexpr auto NAME_WIDTH = 8;
-
-            // APPLE: utmp is deprecated
-
-            // if (FILE* ufp = ::fopen(_PATH_UTMP, "r"))
-            // {
-            //     struct utmp usr;
-            //     while (::fread((char*)&usr, sizeof(usr), 1, ufp) == 1)
-            //     {
-            //         if (*usr.ut_user && *usr.ut_host && *usr.ut_line && *usr.ut_line != '~')
-            //         {
-            //             active_users_array += usr.ut_host;
-            //             active_users_array += domain_delimiter;
-            //             active_users_array += usr.ut_user;
-            //             active_users_array += domain_delimiter;
-            //             active_users_array += usr.ut_line;
-            //             active_users_array += record_delimiter;
-            //         }
-            //     }
-            // 	::fclose(ufp);
-            // }
-
-        #endif
-        return active_users_array;
-    }
-
-    #if defined(_WIN32)
-
-    auto take_partition(text&& utf8_file_name)
-    {
-        auto result = text{};
-        auto volume = std::vector<char>(std::max<size_t>(MAX_PATH, utf8_file_name.size() + 1));
-        if (::GetVolumePathName(utf8_file_name.c_str(), volume.data(), (DWORD)volume.size()) != 0)
-        {
-            auto partition = std::vector<char>(50 + 1);
-            if (0 != ::GetVolumeNameForVolumeMountPoint( volume.data(),
-                                                      partition.data(),
-                                               (DWORD)partition.size()))
-            {
-                result = text(partition.data());
-            }
-            else
-            {
-                //error_handler();
-            }
-        }
-        else
-        {
-            //error_handler();
-        }
-        return result;
-    }
-    auto take_temp(text&& utf8_file_name)
-    {
-        auto tmp_dir = text{};
-        auto file_guid = take_partition(std::move(utf8_file_name));
-        auto i = uint8_t{ 0 };
-
-        while (i < 100 && netxs::os::test_path(tmp_dir = file_guid + "\\$temp_" + utf::adjust(std::to_string(i++), 3, "0", true)))
-        { }
-
-        if (i == 100) tmp_dir.clear();
-
-        return tmp_dir;
-    }
-    static auto trusted_domain_name() // static required by ::DsEnumerateDomainTrusts
-    {
-        auto info = PDS_DOMAIN_TRUSTS{};
-        auto domain_name = text{};
-        auto DomainCount = ULONG{};
-
-        bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &DomainCount);
-        if (result == ERROR_SUCCESS)
-        {
-            domain_name = text(info->DnsDomainName);
-            ::NetApiBufferFree(info);
-        }
-        return domain_name;
-    }
-    static auto trusted_domain_guid() // static required by ::DsEnumerateDomainTrusts
-    {
-        auto info = PDS_DOMAIN_TRUSTS{};
-        auto domain_guid = text{};
-        auto domain_count = ULONG{};
-
-        bool result = ::DsEnumerateDomainTrusts(nullptr, DS_DOMAIN_PRIMARY, &info, &domain_count);
-        if (result == ERROR_SUCCESS && domain_count > 0)
-        {
-            auto& guid = info->DomainGuid;
-            domain_guid = utf::to_hex(guid.Data1)
-                  + '-' + utf::to_hex(guid.Data2)
-                  + '-' + utf::to_hex(guid.Data3)
-                  + '-' + utf::to_hex(std::string(guid.Data4, guid.Data4 + 2))
-                  + '-' + utf::to_hex(std::string(guid.Data4 + 2, guid.Data4 + sizeof(guid.Data4)));
-
-            ::NetApiBufferFree(info);
-        }
-        return domain_guid;
-    }
-    auto create_shortcut(text&& path_to_object, text&& path_to_link)
-    {
-        auto result = HRESULT{};
-        IShellLink* psl;
-        ::CoInitialize(0);
-        result = ::CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
-
-        if (result == S_OK)
-        {
-            IPersistFile* ppf;
-            auto path_to_link_w = utf::to_utf(path_to_link);
-
-            psl->SetPath(path_to_object.c_str());
-            result = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
-            if (SUCCEEDED(result))
-            {
-                result = ppf->Save(path_to_link_w.c_str(), TRUE);
-                ppf->Release();
-                ::CoUninitialize();
-                return true;
-            }
-            else
-            {
-                //todo
-                //shell_error_handler(result);
-            }
-            psl->Release();
-        }
-        else
-        {
-            //todo
-            //shell_error_handler(result);
-        }
-        ::CoUninitialize();
-
-        return faux;
-    }
-    auto expand(text&& directory)
-    {
-        auto result = text{};
-        if (auto len = ::ExpandEnvironmentStrings(directory.c_str(), NULL, 0))
-        {
-            auto buffer = std::vector<char>(len);
-            if (::ExpandEnvironmentStrings(directory.c_str(), buffer.data(), (DWORD)buffer.size()))
-            {
-                result = text(buffer.data());
-            }
-        }
-        return result;
-    }
-    auto set_registry_key(text&& key_path, text&& parameter_name, text&& value)
-    {
-        auto hKey = HKEY{};
-        auto status = ::RegCreateKeyEx( HKEY_LOCAL_MACHINE,
-                                        key_path.c_str(),
-                                        0,
-                                        0,
-                                        REG_OPTION_NON_VOLATILE,
-                                        KEY_ALL_ACCESS,
-                                        NULL,
-                                        &hKey,
-                                        0);
-
-        if (status == ERROR_SUCCESS && hKey != NULL)
-        {
-            status = ::RegSetValueEx( hKey,
-                                      parameter_name.empty() ? nullptr : parameter_name.c_str(),
-                                      0,
-                                      REG_SZ,
-                                      (BYTE*)value.c_str(),
-                                      ((DWORD)value.size() + 1) * sizeof(wchr)
-            );
-
-            ::RegCloseKey(hKey);
-        }
-        else
-        {
-            //todo
-            //error_handler();
-        }
-
-        return (status == ERROR_SUCCESS);
-    }
-    auto get_registry_string_value(text&& key_path, text&& parameter_name)
-    {
-        auto result = text{};
-        auto hKey = HKEY{};
-        auto value_type = DWORD{};
-        auto data_length = DWORD{};
-        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
-                                      key_path.c_str(),
-                                      0,
-                                      KEY_ALL_ACCESS,
-                                      &hKey);
-
-        if (status == ERROR_SUCCESS && hKey != NULL)
-        {
-            auto param = parameter_name.empty() ? nullptr : parameter_name.c_str();
-
-            status = ::RegQueryValueEx( hKey,
-                                        param,
-                                        NULL,
-                                        &value_type,
-                                        NULL,
-                                        &data_length);
-
-            if (status == ERROR_SUCCESS && value_type == REG_SZ)
-            {
-                auto data = std::vector<BYTE>(data_length);
-                status = ::RegQueryValueEx( hKey,
-                                            param,
-                                            NULL,
-                                            &value_type,
-                                            data.data(),
-                                            &data_length);
-
-                if (status == ERROR_SUCCESS)
-                {
-                    result = text(utf::to_view(reinterpret_cast<char*>(data.data()), data.size()));
-                }
-            }
-        }
-        if (status != ERROR_SUCCESS)
-        {
-            //todo
-            //error_handler();
-        }
-
-        return result;
-    }
-    auto get_registry_subkeys(text&& key_path)
-    {
-        auto result = list{};
-        auto hKey = HKEY{};
-        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
-                                      key_path.c_str(),
-                                      0,
-                                      KEY_ALL_ACCESS,
-                                      &hKey);
-
-        if (status == ERROR_SUCCESS && hKey != NULL)
-        {
-            auto lpcbMaxSubKeyLen = DWORD{};
-            if (ERROR_SUCCESS == ::RegQueryInfoKey(hKey, NULL, NULL, NULL, NULL, &lpcbMaxSubKeyLen, NULL, NULL, NULL, NULL, NULL, NULL))
-            {
-                auto size = lpcbMaxSubKeyLen;
-                auto index = DWORD{ 0 };
-                auto szName = std::vector<char>(size);
-
-                while (ERROR_SUCCESS == ::RegEnumKeyEx( hKey,
-                                                        index++,
-                                                        szName.data(),
-                                                        &lpcbMaxSubKeyLen,
-                                                        NULL,
-                                                        NULL,
-                                                        NULL,
-                                                        NULL))
-                {
-                    result.push_back(text(utf::to_view(szName.data(), std::min<size_t>(lpcbMaxSubKeyLen, size))));
-                    lpcbMaxSubKeyLen = size;
-                }
-            }
-
-            ::RegCloseKey(hKey);
-        }
-
-        return result;
-    }
-    static auto delete_registry_tree(text&& path) // static required by ::SHDeleteKey
-    {
-        auto hKey = HKEY{};
-        auto status = ::RegOpenKeyEx( HKEY_LOCAL_MACHINE,
-                                      path.c_str(),
-                                      0,
-                                      KEY_ALL_ACCESS,
-                                      &hKey);
-
-        if (status == ERROR_SUCCESS && hKey != NULL)
-        {
-            status = ::SHDeleteKey(hKey, path.c_str());
-            ::RegCloseKey(hKey);
-        }
-
-        auto result = status == ERROR_SUCCESS;
-
-        if (!result)
-        {
-            //todo
-            //error_handler();
-        }
-
-        return result;
-    }
-    void update_process_privileges(void)
-    {
-        auto hToken = INVALID_FD;
-        auto tp = TOKEN_PRIVILEGES{};
-        auto luid = LUID{};
-
-        if (::OpenProcessToken(::GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
-        {
-            ::LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid);
-
-            tp.PrivilegeCount = 1;
-            tp.Privileges[0].Luid = luid;
-            tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-
-            ::AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL);
-        }
-    }
-    auto kill_process(unsigned long proc_id)
-    {
-        auto result = faux;
-
-        update_process_privileges();
-        auto process_handle = ::OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, proc_id);
-        if (process_handle && ::TerminateProcess(process_handle, 0))
-        {
-            result = ::WaitForSingleObject(process_handle, 10000) == WAIT_OBJECT_0;
-        }
-        else
-        {
-            //todo
-            //error_handler();
-        }
-
-        if (process_handle) ::CloseHandle(process_handle);
-
-        return result;
-    }
-    auto global_startup_dir()
-    {
-        auto result = text{};
-
-        //todo vista & later
-        // use SHGetFolderPath
-        //PWSTR path;
-        //if (S_OK != SHGetKnownFolderPath(FOLDERID_CommonStartup, 0, NULL, &path))
-        //{
-        //	//todo
-        //	//error_handler();
-        //}
-        //else
-        //{
-        //	result = utils::to_utf(wide(path)) + '\\';
-        //	CoTaskMemFree(path);
-        //}
-
-        auto pidl = PIDLIST_ABSOLUTE{};
-        if (S_OK == ::SHGetFolderLocation(NULL, CSIDL_COMMON_STARTUP, NULL, 0, &pidl))
-        {
-            char path[MAX_PATH];
-            if (TRUE == ::SHGetPathFromIDList(pidl, path))
-            {
-                result = text(path) + '\\';
-            }
-            ::ILFree(pidl);
-        }
-        else
-        {
-            //todo
-            //error_handler();
-        }
-
-        return result;
-    }
-
-    #endif  // Windows specific
-}
-*/
