@@ -164,20 +164,21 @@ namespace netxs::app::desk
                                              if (auto boss = boss_shadow.lock())
                                              {
                                                  boss->SIGNAL(tier::anycast, events::ui::selected, inst_id);
-                                             }
-                                             auto world_ptr = e2::config::whereami.param();
-                                             SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-                                             if (world_ptr)
-                                             {
-                                                 static si32 random = 0;
-                                                 random = (random + 2) % 10;
-                                                 auto offset = twod{ random * 2, random };
-                                                 auto viewport = gear.area();
-                                                 gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
-                                                 gear.slot.size = viewport.size * 3 / 4;
-                                                 gear.slot_forced = faux;
-                                                 world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
-                                                 gear.dismiss();
+                                                 auto world_ptr = e2::config::whereami.param();
+                                                 SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+                                                 if (world_ptr)
+                                                 {
+                                                     static auto offset = dot_00;
+                                                     auto viewport = e2::form::prop::viewport.param();
+                                                     boss->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                                                     viewport.coor += gear.area().coor;;
+                                                     offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                                                     gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                                                     gear.slot.size = viewport.size * 3 / 4;
+                                                     gear.slot_forced = faux;
+                                                     world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
+                                                     gear.dismiss();
+                                                 }
                                              }
                                          };
                                          //boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::scroll::any, gear)

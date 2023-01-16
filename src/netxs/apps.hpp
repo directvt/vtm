@@ -1460,11 +1460,12 @@ namespace netxs::app::shared
                         if (auto boss = shadow.lock())
                         if (world_ptr)
                         {
-                            static auto random = 0;
-                            random = (random + 2) % 10;
-                            auto offset = twod{ random * 2, random };
-                            auto viewport = gear.area();
-                            gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
+                            static auto offset = dot_00;
+                            auto viewport = e2::form::prop::viewport.param();
+                            boss->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                            viewport.coor += gear.area().coor;
+                            offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                            gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
                             gear.slot.size = viewport.size * 3 / 4;
                             gear.slot_forced = faux;
 

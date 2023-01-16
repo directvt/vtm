@@ -28,8 +28,6 @@
 
 namespace netxs::console
 {
-    namespace fs = std::filesystem;
-
     class face;
     class base;
     class form;
