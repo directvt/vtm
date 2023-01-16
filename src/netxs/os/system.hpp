@@ -2747,6 +2747,14 @@ namespace netxs::os
                 return ready;
             }
         }
+        auto haspty(fd_t stdin_fd)
+        {
+            #if defined(_WIN32)
+                return FILE_TYPE_CHAR == ::GetFileType(stdin_fd);
+            #else
+                return ::isatty(stdin_fd);
+            #endif
+        }
         auto& config()
         {
             static auto setup = text{};
@@ -2768,17 +2776,13 @@ namespace netxs::os
             ready = true;
             #if defined(_WIN32)
 
-                // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
                 auto buffer = ansi::dtvt::binary::marker{};
                 auto length = DWORD{ 0 };
-                if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
-                                    &buffer,        // lpBuffer
-                                    sizeof(buffer), // nBufferSize
-                                    &length,        // lpBytesRead
-                                    NULL,           // lpTotalBytesAvail,
-                                    NULL))          // lpBytesLeftThisMessage
+                if (haspty(stdin_fd))
                 {
-                    if (length)
+                    // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
+                    if (::PeekNamedPipe(stdin_fd, &buffer, sizeof(buffer), &length, NULL, NULL)
+                     && length)
                     {
                         state = buffer.size == length && buffer.get_sz(cfsize);
                         if (state)
@@ -2787,23 +2791,33 @@ namespace netxs::os
                         }
                     }
                 }
+                else
+                {
+                    length = os::io::recv(stdin_fd, (char*)&buffer, sizeof(buffer)).size();
+                    state = buffer.size == length && buffer.get_sz(cfsize);
+                }
 
             #else
 
-                os::io::select<true>(stdin_fd, [&]
+                auto proc = [&](auto get)
                 {
-                    auto buffer = ansi::dtvt::binary::marker{};
-                    auto header = os::io::recv(stdin_fd, buffer.data, buffer.size);
-                    auto length = header.length();
-                    if (length)
+                    get(stdin_fd, [&]
                     {
-                        state = buffer.size == length && buffer.get_sz(cfsize);
-                        if (!state)
+                        auto buffer = ansi::dtvt::binary::marker{};
+                        auto header = os::io::recv(stdin_fd, buffer.data, buffer.size);
+                        auto length = header.length();
+                        if (length)
                         {
-                            start = header; //todo use it when the reading thread starts
+                            state = buffer.size == length && buffer.get_sz(cfsize);
+                            if (!state)
+                            {
+                                start = header; //todo use it when the reading thread starts
+                            }
                         }
-                    }
-                });
+                    });
+                };
+                haspty(stdin_fd) ? proc([&](auto ...args){ return os::io::select<true>(args...); })
+                                 : proc([&](auto ...args){ return os::io::select<faux>(args...); });
 
             #endif
             if (cfsize)
