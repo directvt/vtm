@@ -2479,7 +2479,7 @@ namespace netxs::os
                     if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, con_serv.events.ondata))
                     {
                         auto errcode = os::error();
-                        log("vtty: console server creation error ", errcode);
+                        os::fail("vtty: console server creation error");
                         terminal.onexit(errcode, "Console server creation error");
                         return;
                     }
@@ -2532,7 +2532,7 @@ namespace netxs::os
                     if (ret == 0)
                     {
                         auto errcode = os::error();
-                        log("vtty: child process creation error ", errcode);
+                        os::fail("vtty: child process creation error");
                         io::close( srv_hndl );
                         io::close( ref_hndl );
                         con_serv.stop();
