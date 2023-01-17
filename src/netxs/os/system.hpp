@@ -1904,7 +1904,7 @@ namespace netxs::os
                 alive{ true },
                 agent{ &pool::worker, this }
             { }
-        ~pool()
+           ~pool()
             {
                 mutex.lock();
                 alive = faux;
@@ -2121,26 +2121,35 @@ namespace netxs::os
             result = faux;
             #if defined(_WIN32)
 
-                auto proinf = PROCESS_INFORMATION{};
-                auto srtinf = STARTUPINFOA{ sizeof(STARTUPINFOA) };
                 auto handle = os::ipc::memory::set(config);
                 auto cmdarg = utf::concat(os::process::binary(), " -p ", prefix, " -c :", handle, " -s");
-                result = ::CreateProcessA(nullptr,            // lpApplicationName
-                                          cmdarg.data(),      // lpCommandLine
-                                          nullptr,            // lpProcessAttributes
-                                          nullptr,            // lpThreadAttributes
-                                          TRUE,               // bInheritHandles
-                                          DETACHED_PROCESS,   // dwCreationFlags
-                                          nullptr,            // lpEnvironment
-                                          nullptr,            // lpCurrentDirectory
-                                          &srtinf,            // lpStartupInfo
-                                          &proinf);           // lpProcessInformation
+                auto proinf = PROCESS_INFORMATION{};
+                auto srtinf = STARTUPINFOEXA{ sizeof(STARTUPINFOEXA) };
+                auto buffer = std::vector<uint8_t>{};
+                auto buflen = SIZE_T{ 0 };
+                ::InitializeProcThreadAttributeList(nullptr, 1, 0, &buflen);
+                result = buflen;
+                buffer.resize(buflen);
+                srtinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(buffer.data());
+                result = result && ::InitializeProcThreadAttributeList(srtinf.lpAttributeList, 1, 0, &buflen);
+                result = result && ::UpdateProcThreadAttribute(srtinf.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handle, sizeof(handle), nullptr, nullptr);
+                result = result && ::CreateProcessA(nullptr,                      // lpApplicationName
+                                                    cmdarg.data(),                // lpCommandLine
+                                                    nullptr,                      // lpProcessAttributes
+                                                    nullptr,                      // lpThreadAttributes
+                                                    TRUE,                         // bInheritHandles
+                                                    DETACHED_PROCESS |            // dwCreationFlags
+                                                    EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
+                                                    nullptr,                      // lpEnvironment
+                                                    nullptr,                      // lpCurrentDirectory
+                                                    &srtinf.StartupInfo,          // lpStartupInfo
+                                                    &proinf);                     // lpProcessInformation
                 io::close(handle);
                 if (result)
                 {
                     io::close(proinf.hProcess);
                     io::close(proinf.hThread);
-                    log("  os: process forked successfully");
+                    log("  os: process forked");
                     return faux; // Success. The fork concept is not supported on Windows.
                 }
 
@@ -2167,7 +2176,7 @@ namespace netxs::os
                     ::waitpid(p_id, &stat, 0);
                     if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
                     {
-                        log("  os: process forked successfully");
+                        log("  os: process forked");
                         result = true;
                         return faux; // Child forked and exited successfully.
                     }
@@ -2470,7 +2479,7 @@ namespace netxs::os
                     if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, con_serv.events.ondata))
                     {
                         auto errcode = os::error();
-                        log("vtty: console server creation error ", errcode);
+                        os::fail("vtty: console server creation error");
                         terminal.onexit(errcode, "Console server creation error");
                         return;
                     }
@@ -2523,7 +2532,7 @@ namespace netxs::os
                     if (ret == 0)
                     {
                         auto errcode = os::error();
-                        log("vtty: child process creation error ", errcode);
+                        os::fail("vtty: child process creation error");
                         io::close( srv_hndl );
                         io::close( ref_hndl );
                         con_serv.stop();
@@ -2747,6 +2756,14 @@ namespace netxs::os
                 return ready;
             }
         }
+        auto haspty(fd_t stdin_fd)
+        {
+            #if defined(_WIN32)
+                return FILE_TYPE_CHAR == ::GetFileType(stdin_fd);
+            #else
+                return ::isatty(stdin_fd);
+            #endif
+        }
         auto& config()
         {
             static auto setup = text{};
@@ -2768,17 +2785,13 @@ namespace netxs::os
             ready = true;
             #if defined(_WIN32)
 
-                // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
                 auto buffer = ansi::dtvt::binary::marker{};
                 auto length = DWORD{ 0 };
-                if (::PeekNamedPipe(stdin_fd,       // hNamedPipe
-                                    &buffer,        // lpBuffer
-                                    sizeof(buffer), // nBufferSize
-                                    &length,        // lpBytesRead
-                                    NULL,           // lpTotalBytesAvail,
-                                    NULL))          // lpBytesLeftThisMessage
+                if (haspty(stdin_fd))
                 {
-                    if (length)
+                    // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
+                    if (::PeekNamedPipe(stdin_fd, &buffer, sizeof(buffer), &length, NULL, NULL)
+                     && length)
                     {
                         state = buffer.size == length && buffer.get_sz(cfsize);
                         if (state)
@@ -2787,23 +2800,33 @@ namespace netxs::os
                         }
                     }
                 }
+                else
+                {
+                    length = (DWORD)os::io::recv(stdin_fd, (char*)&buffer, sizeof(buffer)).size();
+                    state = buffer.size == length && buffer.get_sz(cfsize);
+                }
 
             #else
 
-                os::io::select<true>(stdin_fd, [&]
+                auto proc = [&](auto get)
                 {
-                    auto buffer = ansi::dtvt::binary::marker{};
-                    auto header = os::io::recv(stdin_fd, buffer.data, buffer.size);
-                    auto length = header.length();
-                    if (length)
+                    get(stdin_fd, [&]
                     {
-                        state = buffer.size == length && buffer.get_sz(cfsize);
-                        if (!state)
+                        auto buffer = ansi::dtvt::binary::marker{};
+                        auto header = os::io::recv(stdin_fd, buffer.data, buffer.size);
+                        auto length = header.length();
+                        if (length)
                         {
-                            start = header; //todo use it when the reading thread starts
+                            state = buffer.size == length && buffer.get_sz(cfsize);
+                            if (!state)
+                            {
+                                start = header; //todo use it when the reading thread starts
+                            }
                         }
-                    }
-                });
+                    });
+                };
+                haspty(stdin_fd) ? proc([&](auto ...args){ return os::io::select<true>(args...); })
+                                 : proc([&](auto ...args){ return os::io::select<faux>(args...); });
 
             #endif
             if (cfsize)
@@ -2897,7 +2920,6 @@ namespace netxs::os
                          && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
                         {
                             os::dtvt::send(m_pipe_w, config);
-
                             startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                             startinf.StartupInfo.hStdInput  = s_pipe_r;
                             startinf.StartupInfo.hStdOutput = s_pipe_w;
@@ -2907,6 +2929,8 @@ namespace netxs::os
                         {
                             io::close(m_pipe_w);
                             io::close(m_pipe_r);
+                            io::close(s_pipe_w);
+                            io::close(s_pipe_r);
                             return faux;
                         }
                     };
@@ -2919,13 +2943,13 @@ namespace netxs::os
                         startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
 
                         if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
-                         && ::UpdateProcThreadAttribute( startinf.lpAttributeList,
-                                                         0,
-                                                         PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                                         &stdhndls,
-                                                         sizeof(stdhndls),
-                                                         nullptr,
-                                                         nullptr))
+                         && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                                        0,
+                                                        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                                        &stdhndls,
+                                                        sizeof(stdhndls),
+                                                        nullptr,
+                                                        nullptr))
                         {
                             return true;
                         }
@@ -2933,18 +2957,18 @@ namespace netxs::os
                     };
                     auto create = [&]
                     {
-                        return ::CreateProcessA( nullptr,                             // lpApplicationName
-                                                 cmdline.data(),                      // lpCommandLine
-                                                 nullptr,                             // lpProcessAttributes
-                                                 nullptr,                             // lpThreadAttributes
-                                                 TRUE,                                // bInheritHandles
-                                                 DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
-                                                 EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
-                                                 nullptr,                             // lpEnvironment
-                                                 cwd.empty() ? nullptr
-                                                             : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
-                                                 &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
-                                                 &procsinf);                          // lpProcessInformation
+                        return ::CreateProcessA(nullptr,                             // lpApplicationName
+                                                cmdline.data(),                      // lpCommandLine
+                                                nullptr,                             // lpProcessAttributes
+                                                nullptr,                             // lpThreadAttributes
+                                                TRUE,                                // bInheritHandles
+                                                DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
+                                                EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
+                                                nullptr,                             // lpEnvironment
+                                                cwd.empty() ? nullptr
+                                                            : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
+                                                &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
+                                                &procsinf);                          // lpProcessInformation
                     };
 
                     if (tunnel()
@@ -2956,7 +2980,7 @@ namespace netxs::os
                         proc_pid = procsinf.dwProcessId;
                         termlink = { m_pipe_r, m_pipe_w };
                     }
-                    else log("dtvt: child process creation error ", ::GetLastError());
+                    else os::fail("dtvt: child process creation error");
 
                     io::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
                     io::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
@@ -3108,6 +3132,7 @@ namespace netxs::os
                     else                      break;
                     guard.lock();
                 }
+                //if (termlink) termlink.shut();
                 //todo block dtvt-logs after termlink stops
                 //guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
                 log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");

@@ -91,8 +91,8 @@ R"==(
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15/>
         <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
         <autorun item*>  <!-- Autorun of specified menu items -->
-            <item* id=Term winsize=80,25/> <!-- Set defaults for the list -->
-            <item focused wincoor=8,3/>
+            <!--  <item* id=Term winsize=80,25/> --> <!-- Set defaults for the list -->
+            <!--  <item focused wincoor=8,3/> -->
             <!--  <item wincoor=92,30/> -->
             <!--  <item wincoor=8,30 focused/> -->
         </autorun>
@@ -307,8 +307,8 @@ R"==(
 </config>
 )==";
 
-    static constexpr auto usr_config = "~/.config/vtm/settings.xml";
-    static constexpr auto env_config = "$VTM_CONFIG"sv;
+    static const auto usr_config = "~/.config/vtm/settings.xml";
+    static const auto env_config = "$VTM_CONFIG"s;
 
     static constexpr auto path_autorun  = "config/menu/autorun";
     static constexpr auto path_hotkeys  = "config/hotkeys";
@@ -1460,11 +1460,12 @@ namespace netxs::app::shared
                         if (auto boss = shadow.lock())
                         if (world_ptr)
                         {
-                            static auto random = 0;
-                            random = (random + 2) % 10;
-                            auto offset = twod{ random * 2, random };
-                            auto viewport = gear.area();
-                            gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
+                            static auto offset = dot_00;
+                            auto viewport = e2::form::prop::viewport.param();
+                            boss->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                            viewport.coor += gear.area().coor;
+                            offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                            gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
                             gear.slot.size = viewport.size * 3 / 4;
                             gear.slot_forced = faux;
 
