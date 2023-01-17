@@ -71,6 +71,7 @@ Use `Developer Command Prompt` as a build environment
 ```cmd
 git clone https://github.com/netxs-group/vtm.git
 cd ./vtm
+chcp 65001
 cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019"
 cmake --build . --config Release
 cd Release
@@ -80,6 +81,7 @@ vtm
 ```cmd
 git clone https://github.com/netxs-group/vtm.git
 cd ./vtm
+chcp 65001
 cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 17 2022"
 cmake --build . --config Release
 cd Release

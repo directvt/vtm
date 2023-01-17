@@ -121,7 +121,7 @@
         },
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj",
+          "value": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj /utf-8",
           "type": "STRING"
         },
         {
@@ -165,7 +165,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "/MDd /Zi /Ob0 /Od /RTC1 /bigobj",
+          "value": "/MDd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
           "type": "STRING"
         },
         {
@@ -189,7 +189,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "/MT /O1 /Ob1 /DNDEBUG /bigobj",
+          "value": "/MT /O1 /Ob1 /DNDEBUG /bigobj /utf-8",
           "type": "STRING"
         }
       ]
@@ -212,7 +212,7 @@
         },
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "/MTd /Zi /Ob0 /Od /RTC1 /bigobj",
+          "value": "/MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
           "type": "STRING"
         }
       ]
@@ -230,7 +230,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "/MT /O1 /Ob1 /DNDEBUG /bigobj",
+          "value": "/MT /O1 /Ob1 /DNDEBUG /bigobj /utf-8",
           "type": "STRING"
         }
       ]

@@ -1904,7 +1904,7 @@ namespace netxs::os
                 alive{ true },
                 agent{ &pool::worker, this }
             { }
-        ~pool()
+           ~pool()
             {
                 mutex.lock();
                 alive = faux;
@@ -2793,7 +2793,7 @@ namespace netxs::os
                 }
                 else
                 {
-                    length = os::io::recv(stdin_fd, (char*)&buffer, sizeof(buffer)).size();
+                    length = (DWORD)os::io::recv(stdin_fd, (char*)&buffer, sizeof(buffer)).size();
                     state = buffer.size == length && buffer.get_sz(cfsize);
                 }
 
@@ -3122,6 +3122,7 @@ namespace netxs::os
                     else                      break;
                     guard.lock();
                 }
+                //if (termlink) termlink.shut();
                 //todo block dtvt-logs after termlink stops
                 //guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
                 log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");
