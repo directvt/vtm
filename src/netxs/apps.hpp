@@ -91,8 +91,8 @@ R"==(
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15/>
         <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
         <autorun item*>  <!-- Autorun of specified menu items -->
-            <item* id=Term winsize=80,25/> <!-- Set defaults for the list -->
-            <item focused wincoor=8,3/>
+            <!--  <item* id=Term winsize=80,25/> --> <!-- Set defaults for the list -->
+            <!--  <item focused wincoor=8,3/> -->
             <!--  <item wincoor=92,30/> -->
             <!--  <item wincoor=8,30 focused/> -->
         </autorun>
