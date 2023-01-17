@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-?", "-h", "--help"))
         {
-            errmsg = ansi::nil().add("show usage message");
+            errmsg = ansi::nil().add("show help message");
             break;
         }
         else if (getopt.match("--"))
@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
         }
         else
         {
-            errmsg = utf::concat("unknown command line parameter '", getopt.next(), "'");
+            errmsg = utf::concat("unknown option '", getopt.next(), "'");
             break;
         }
     }
@@ -58,18 +58,19 @@ int main(int argc, char* argv[])
     {
         os::fail(errmsg);
         auto myname = os::process::binary<true>();
-        log("\nUsage:\n\n " + myname + " [ -c <file> ] [ -l ]\n"s
+        log("Terminal emulator.\n\n"s
+            + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -l ]\n"s
             + "\n"s
             + "  Options:\n\n"s
             + "    No arguments        Run application.\n"s
             + "    -c | --config <..>  Use specified configuration file.\n"s
             + "    -l | --listconfig   Show configuration and exit.\n"s
             + "\n"s
-            + "  Configuration file location precedence (descending priority):\n\n"s
+            + "  Configuration file precedence (descending priority):\n\n"s
             + "    1. Command line options; e.g., " + myname + " -c path/to/settings.xml\n"s
             + "    2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
             + "    3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
-            + "    4. Default configuration\n"s);
+            + "    4. Hardcoded configuration\n"s);
     }
     else if (cfonly)
     {
