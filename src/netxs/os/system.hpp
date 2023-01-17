@@ -2131,19 +2131,19 @@ namespace netxs::os
                 result = buflen;
                 buffer.resize(buflen);
                 srtinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(buffer.data());
-                result &= ::InitializeProcThreadAttributeList(srtinf.lpAttributeList, 1, 0, &buflen);
-                result &= ::UpdateProcThreadAttribute(srtinf.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handle, sizeof(handle), nullptr, nullptr);
-                result &= ::CreateProcessA(nullptr,                      // lpApplicationName
-                                           cmdarg.data(),                // lpCommandLine
-                                           nullptr,                      // lpProcessAttributes
-                                           nullptr,                      // lpThreadAttributes
-                                           TRUE,                         // bInheritHandles
-                                           DETACHED_PROCESS |            // dwCreationFlags
-                                           EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
-                                           nullptr,                      // lpEnvironment
-                                           nullptr,                      // lpCurrentDirectory
-                                           &srtinf.StartupInfo,          // lpStartupInfo
-                                           &proinf);                     // lpProcessInformation
+                result = result && ::InitializeProcThreadAttributeList(srtinf.lpAttributeList, 1, 0, &buflen);
+                result = result && ::UpdateProcThreadAttribute(srtinf.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handle, sizeof(handle), nullptr, nullptr);
+                result = result && ::CreateProcessA(nullptr,                      // lpApplicationName
+                                                    cmdarg.data(),                // lpCommandLine
+                                                    nullptr,                      // lpProcessAttributes
+                                                    nullptr,                      // lpThreadAttributes
+                                                    TRUE,                         // bInheritHandles
+                                                    DETACHED_PROCESS |            // dwCreationFlags
+                                                    EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
+                                                    nullptr,                      // lpEnvironment
+                                                    nullptr,                      // lpCurrentDirectory
+                                                    &srtinf.StartupInfo,          // lpStartupInfo
+                                                    &proinf);                     // lpProcessInformation
                 io::close(handle);
                 if (result)
                 {
