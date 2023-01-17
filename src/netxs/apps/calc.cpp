@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
     {
         os::fail(errmsg);
         auto myname = os::process::binary<true>();
-        log("Spreadsheet calculator (Demo).\n\n"s
+        log("\nSpreadsheet calculator (Demo).\n\n"s
             + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -l ]\n"s
             + "\n"s
             + "  Options:\n\n"s
@@ -66,10 +66,10 @@ int main(int argc, char* argv[])
             + "    -c | --config <..>  Use specified configuration file.\n"s
             + "    -l | --listconfig   Show configuration and exit.\n"s
             + "\n"s
-            + "  Configuration file precedence (descending priority):\n\n"s
-            + "    1. Command line options; e.g., " + myname + " -c path/to/settings.xml\n"s
-            + "    2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
-            + "    3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
+            + "  Configuration precedence (descending priority):\n\n"s
+            + "    1. Command line options: " + myname + " -c path/to/settings.xml\n"s
+            + "    2. Environment variable: "s + app::shared::env_config.substr(1) + "=path/to/settings.xml\n"s
+            + "    3. Hardcoded location \""s  + app::shared::usr_config + "\"\n"s
             + "    4. Hardcoded configuration\n"s);
     }
     else if (cfonly)

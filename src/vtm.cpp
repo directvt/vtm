@@ -107,10 +107,10 @@ int main(int argc, char* argv[])
             + "    -r | --runapp <..>  Run standalone application.\n"s
             + "    -? | -h | --help    Show usage message.\n"s
             + "\n"s
-            + "  Configuration file precedence (descending priority):\n\n"s
-            + "    1. Command line options; e.g., " + myname + " -c path/to/settings.xml\n"s
-            + "    2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
-            + "    3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
+            + "  Configuration precedence (descending priority):\n\n"s
+            + "    1. Command line options: " + myname + " -c path/to/settings.xml\n"s
+            + "    2. Environment variable: "s + app::shared::env_config.substr(1) + "=path/to/settings.xml\n"s
+            + "    3. Hardcoded location \""s  + app::shared::usr_config + "\"\n"s
             + "    4. Hardcoded configuration\n"s
             + "\n"s
             + "  Registered applications:\n\n"s
