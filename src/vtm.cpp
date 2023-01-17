@@ -96,27 +96,28 @@ int main(int argc, char* argv[])
         auto myname = os::process::binary<true>();
         log("\nUsage:\n\n " + myname + " [ -c <file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
             + "\n"s
-                + "\tNo arguments        Run client, auto start server if it is not running.\n"s
-                + "\t-c | --config <..>  Use specified configuration file.\n"s
-                + "\t-p | --pipe   <..>  Set the pipe to connect to.\n"s
-                + "\t-l | --listconfig   Show configuration and exit.\n"s
-                + "\t-d | --daemon       Run server in background.\n"s
-                + "\t-s | --server       Run server in interactive mode.\n"s
-                + "\t-r | --runapp <..>  Run standalone application.\n"s
-                + "\t-? | -h | --help    Show usage message.\n"s
-                + "\n"s
-                + "\tConfiguration file location precedence (descending priority):\n\n"s
-                + "\t\t1. Command line options; e.g., " + myname + " -c path/to/settings.xml\n"s
-                + "\t\t2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
-                + "\t\t3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
-                + "\t\t4. Default configuration\n"s
-                + "\n"s
-                + "\tList of registered applications:\n\n"s
-                + "\t\tTerm\tTerminal emulator (default)\n"s
-                + "\t\tText\t(Demo) Text editor\n"s
-                + "\t\tCalc\t(Demo) Spreadsheet calculator\n"s
-                + "\t\tGems\t(Demo) Desktopio application manager\n"s
-                );
+            + "  Options:\n\n"s
+            + "    No arguments        Run client, auto start server if it is not running.\n"s
+            + "    -c | --config <..>  Use specified configuration file.\n"s
+            + "    -p | --pipe   <..>  Set the pipe to connect to.\n"s
+            + "    -l | --listconfig   Show configuration and exit.\n"s
+            + "    -d | --daemon       Run server in background.\n"s
+            + "    -s | --server       Run server in interactive mode.\n"s
+            + "    -r | --runapp <..>  Run standalone application.\n"s
+            + "    -? | -h | --help    Show usage message.\n"s
+            + "\n"s
+            + "  Configuration file location precedence (descending priority):\n\n"s
+            + "    1. Command line options; e.g., " + myname + " -c path/to/settings.xml\n"s
+            + "    2. Environment variable; e.g., VTM_CONFIG=path/to/settings.xml\n"s
+            + "    3. Hardcoded location \""s + app::shared::usr_config + "\"\n"s
+            + "    4. Hardcoded configuration\n"s
+            + "\n"s
+            + "  List of registered applications:\n\n"s
+            + "    Term  Terminal emulator (default)\n"s
+            + "    Text  (Demo) Text editor\n"s
+            + "    Calc  (Demo) Spreadsheet calculator\n"s
+            + "    Gems  (Demo) Desktopio application manager\n"s
+            );
     }
     else if (whoami == type::config)
     {
