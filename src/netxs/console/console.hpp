@@ -365,19 +365,20 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( proceed )
                 {
-                    EVENT_XS( create  , rect                ), // return coordinates of the new object placeholder.
-                    EVENT_XS( createat, console::create_t   ), // general: create an intance at the specified location and return sptr<base>.
-                    EVENT_XS( createfrom, console::create_t ), // general: attach spcified intance and return sptr<base>.
-                    EVENT_XS( createby, input::hids         ), // return gear with coordinates of the new object placeholder gear::slot.
-                    EVENT_XS( destroy , console::base       ), // ??? bool return reference to the parent.
-                    EVENT_XS( render  , bool                ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
-                    EVENT_XS( attach  , sptr<console::base> ), // order to attach a child, arg is a parent base_sptr.
-                    EVENT_XS( detach  , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
-                    EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
-                    EVENT_XS( swap    , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
-                    EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
-                    EVENT_XS( onbehalf, console::proc       ), // exec functor on behalf (see gate).
-                    GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+                    EVENT_XS( create    , rect                ), // return coordinates of the new object placeholder.
+                    EVENT_XS( createat  , console::create_t   ), // general: create an intance at the specified location and return sptr<base>.
+                    EVENT_XS( createfrom, console::create_t   ), // general: attach spcified intance and return sptr<base>.
+                    EVENT_XS( createby  , input::hids         ), // return gear with coordinates of the new object placeholder gear::slot.
+                    EVENT_XS( autofocus , input::hids         ), // release: restore the last foci state.
+                    EVENT_XS( destroy   , console::base       ), // ??? bool return reference to the parent.
+                    EVENT_XS( render    , bool                ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
+                    EVENT_XS( attach    , sptr<console::base> ), // order to attach a child, arg is a parent base_sptr.
+                    EVENT_XS( detach    , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
+                    EVENT_XS( unfocus   , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
+                    EVENT_XS( swap      , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
+                    EVENT_XS( functor   , console::functor    ), // exec functor (see pro::focus).
+                    EVENT_XS( onbehalf  , console::proc       ), // exec functor on behalf (see gate).
+                    GROUP_XS( d_n_d     , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
                     //EVENT_XS( focus      , sptr<console::base>      ), // order to set focus to the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , si32                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
@@ -5052,6 +5053,10 @@ namespace netxs::console
                     prev = prev_ptr->object;
                 }
             };
+            SUBMIT(tier::release, e2::form::proceed::autofocus, gear)
+            {
+                autofocus(gear);
+            };
         }
 
     public:
@@ -5062,6 +5067,7 @@ namespace netxs::console
             items.reset();
         }
 
+        // hall: Autorun apps from config.
         void autorun(xml::settings& config)
         {
             auto what = e2::form::proceed::createat.param();
@@ -5082,6 +5088,23 @@ namespace netxs::console
                     }
                     else log("hall: Unexpected empty app id in autorun configuration");
                 }
+            }
+        }
+        // hall: Restore all foci for the first user.
+        void autofocus(hids& gear)
+        {
+            if (taken.size())
+            {
+                gear.force_group_focus = true;
+                for (auto id : taken)
+                {
+                    if (auto window_ptr = bell::getref(id))
+                    {
+                        window_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    }
+                }
+                gear.force_group_focus = faux;
+                taken.clear();
             }
         }
         void redraw(face& canvas) override
@@ -5111,23 +5134,6 @@ namespace netxs::console
             users.append(user);
             regis.usr.push_back(user);
             SIGNAL(tier::release, e2::bindings::list::users, regis.usr_ptr);
-            if (regis.usr.size() == 1) // Restore all foci for the first user.
-            {
-                for (auto& [id, gear_ptr] : user->input.gears)
-                {
-                    auto& gear = *gear_ptr;
-                    gear.force_group_focus = true;
-                    for (auto id : taken)
-                    {
-                        if (auto window_ptr = bell::getref(id))
-                        {
-                            window_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                        }
-                    }
-                    gear.force_group_focus = faux;
-                }
-                taken.clear();
-            }
             return user;
         }
     };
@@ -5816,6 +5822,13 @@ namespace netxs::console
                 }
 
                 // Focus relay.
+                if (!props.is_standalone_app)
+                {
+                    SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
+                    {
+                        world.SIGNAL(tier::release, e2::form::proceed::autofocus, gear);
+                    };
+                }
                 SUBMIT_T(tier::release, hids::events::notify::focus::got, token, from_gear)
                 {
                     auto myid = from_gear.id;
