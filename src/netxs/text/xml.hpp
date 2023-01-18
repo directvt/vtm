@@ -104,23 +104,23 @@ namespace netxs::xml
         return std::nullopt;
     }
     template<>
-    auto take<period>(view utf8) -> std::optional<period>
+    auto take<span>(view utf8) -> std::optional<span>
     {
         using namespace std::chrono;
         utf::trim_front(utf8, " ({[\"\'");
         if (auto x = utf::to_int(utf8))
         {
             auto v = x.value();
-            auto p = period{};
+            auto p = span{};
                  if (utf8.empty()
-                  || utf8.starts_with("ms" )) return period{ milliseconds{ v } };
-            else if (utf8.starts_with("us" )) return period{ microseconds{ v } };
-            else if (utf8.starts_with("ns" )) return period{  nanoseconds{ v } };
-            else if (utf8.starts_with("s"  )) return period{      seconds{ v } };
-            else if (utf8.starts_with("min")) return period{      minutes{ v } };
-            else if (utf8.starts_with("h"  )) return period{        hours{ v } };
-            else if (utf8.starts_with("d"  )) return period{         days{ v } };
-            else if (utf8.starts_with("w"  )) return period{        weeks{ v } };
+                  || utf8.starts_with("ms" )) return span{ milliseconds{ v } };
+            else if (utf8.starts_with("us" )) return span{ microseconds{ v } };
+            else if (utf8.starts_with("ns" )) return span{  nanoseconds{ v } };
+            else if (utf8.starts_with("s"  )) return span{      seconds{ v } };
+            else if (utf8.starts_with("min")) return span{      minutes{ v } };
+            else if (utf8.starts_with("h"  )) return span{        hours{ v } };
+            else if (utf8.starts_with("d"  )) return span{         days{ v } };
+            else if (utf8.starts_with("w"  )) return span{        weeks{ v } };
         }
         return std::nullopt;
     }

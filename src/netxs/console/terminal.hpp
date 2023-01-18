@@ -128,7 +128,6 @@ namespace netxs::ui
         {
             using mime = clip::mime;
             using pals = std::remove_const_t<decltype(rgba::color256)>;
-            using time = period;
 
             si32 def_mxline;
             si32 def_length;
@@ -146,7 +145,7 @@ namespace netxs::ui
             bool def_cur_on;
             bool resetonkey;
             bool resetonout;
-            time def_period;
+            span def_period;
             pals def_colors;
 
             cell def_safe_c;
@@ -193,7 +192,7 @@ namespace netxs::ui
                 def_selalt =             config.take("selection/rect",       faux);
                 def_cur_on =             config.take("cursor/show",          true);
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
-                def_period =             config.take("cursor/blink",         time{ BLINK_PERIOD });
+                def_period =             config.take("cursor/blink",         span{ BLINK_PERIOD });
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
@@ -6292,7 +6291,7 @@ namespace netxs::ui
                     target->style.wrp(wrap::off);
                     break;
                 case 12:   // Disable cursor blinking.
-                    cursor.blink_period(period::zero());
+                    cursor.blink_period(span::zero());
                     break;
                 case 25:   // Caret off.
                     cursor.hide();
@@ -7425,7 +7424,7 @@ namespace netxs::ui
             //}
             void handle(s11n::xs::debuglogs           lock)
             {
-                if (lock.thing.id != os::process_id) // To avoid overflow on recursive dtvt connections.
+                if (lock.thing.id != os::process::id) // To avoid overflow on recursive dtvt connections.
                 {
                     auto utf8 = view{ lock.thing.data };
                     if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
@@ -7560,7 +7559,7 @@ namespace netxs::ui
         si32        nodata; // dtvt: Show splash "No signal".
         face        splash; // dtvt: "No signal" splash.
         hook        oneoff; // dtvt: One-shot token for start and shutdown events.
-        period      maxoff; // dtvt: Max delay before showing "No signal".
+        span        maxoff; // dtvt: Max delay before showing "No signal".
         subs        debugs; // dtvt: Tokens for debug output subcriptions.
         byte        opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         ansi::esc   prompt; // dtvt: PTY logger prompt.
@@ -7690,10 +7689,10 @@ namespace netxs::ui
             static constexpr auto max_drops = 1;
             auto fps = e2::config::fps.param(-1);
             SIGNAL(tier::general, e2::config::fps, fps);
-            maxoff = max_drops * period{ period::period::den / fps };
+            maxoff = max_drops * span{ span::period::den / fps };
             SUBMIT(tier::general, e2::config::fps, fps)
             {
-                maxoff = max_drops * period{ period::period::den / fps };
+                maxoff = max_drops * span{ span::period::den / fps };
             };
             SUBMIT(tier::anycast, e2::form::prop::lucidity, value)
             {

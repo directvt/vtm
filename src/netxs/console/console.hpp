@@ -128,7 +128,7 @@ namespace netxs::events::userland
             EVENT_XS( nextframe , bool                ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
             EVENT_XS( depth     , si32                ), // request: Determine the depth of the hierarchy.
             EVENT_XS( shutdown  , const view          ), // general: Server shutdown.
-            GROUP_XS( timer     , moment              ), // timer tick, arg: current moment (now).
+            GROUP_XS( timer     , time                ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , console::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , si32                ),
             GROUP_XS( size      , twod                ), // release: Object size.
@@ -142,7 +142,7 @@ namespace netxs::events::userland
 
             SUBSET_XS( timer )
             {
-                EVENT_XS( tick, moment ), // relaese: execute before e2::timer::any (rendering)
+                EVENT_XS( tick, time ), // relaese: execute before e2::timer::any (rendering)
             };
             SUBSET_XS( render ) // release any: UI-tree default rendering submission.
             {
@@ -184,13 +184,13 @@ namespace netxs::events::userland
             {
                 EVENT_XS( whereami , sptr<console::base> ), // request: pointer to world object.
                 EVENT_XS( fps      , si32                ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
-                GROUP_XS( caret    , period              ), // any kind of intervals property.
+                GROUP_XS( caret    , span                ), // any kind of intervals property.
                 GROUP_XS( plugins  , si32                ),
 
                 SUBSET_XS( caret )
                 {
-                    EVENT_XS( blink, period ), // caret blinking interval.
-                    EVENT_XS( style, si32   ), // caret style: 0 - underline, 1 - box.
+                    EVENT_XS( blink, span ), // caret blinking interval.
+                    EVENT_XS( style, si32 ), // caret style: 0 - underline, 1 - box.
                 };
                 SUBSET_XS( plugins )
                 {
@@ -582,8 +582,8 @@ namespace netxs::console
         cell menu_white;
         cell menu_black;
 
-        period fader_time;
-        period fader_fast;
+        span fader_time;
+        span fader_fast;
 
         template<class V>
         struct _globals
@@ -635,7 +635,7 @@ namespace netxs::console
                 default: break;
             }
         }
-        static void setup(tone::prop parameter, period const& p)
+        static void setup(tone::prop parameter, span const& p)
         {
             auto& global = _globals<void>::global;
             switch (parameter)
@@ -699,7 +699,7 @@ namespace netxs::console
             }
         }
         // skin:: Return global gradient for brighter/shadower.
-        static period& timeout(si32 property)
+        static span& timeout(si32 property)
         {
             auto& global = _globals<void>::global;
             switch (property)
@@ -1387,8 +1387,6 @@ namespace netxs::console
     // console: Client properties.
     class conf
     {
-        using time = period;
-
     public:
         text ip;
         text port;
@@ -1399,7 +1397,7 @@ namespace netxs::console
         text title;
         text selected;
         twod coor;
-        time clip_preview_time;
+        span clip_preview_time;
         cell clip_preview_clrs;
         byte clip_preview_alfa;
         bool clip_preview_show;
@@ -1409,8 +1407,8 @@ namespace netxs::console
         face background_image;
         si32 legacy_mode;
         si32 session_id;
-        time dblclick_timeout; // conf: Double click timeout.
-        time tooltip_timeout; // conf: Timeout for tooltip.
+        span dblclick_timeout; // conf: Double click timeout.
+        span tooltip_timeout; // conf: Timeout for tooltip.
         cell tooltip_colors; // conf: Tooltip rendering colors.
         bool tooltip_enabled; // conf: Enable tooltips.
         bool glow_fx; // conf: Enable glow effect in main menu.
@@ -1425,15 +1423,15 @@ namespace netxs::console
         {
             config.cd("/config/client/");
             clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
-            clip_preview_time = config.take("clipboard/preview/timeout", time{ 3s });
+            clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
             clip_preview_alfa = config.take("clipboard/preview/alpha", 0xFF);
             clip_preview_glow = config.take("clipboard/preview/shadow", 7);
             clip_preview_show = config.take("clipboard/preview/enabled", true);
             clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
             coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
-            dblclick_timeout  = config.take("mouse/dblclick",  time{ 500ms });
+            dblclick_timeout  = config.take("mouse/dblclick",  span{ 500ms });
             tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
-            tooltip_timeout   = config.take("tooltip/timeout", time{ 500ms });
+            tooltip_timeout   = config.take("tooltip/timeout", span{ 500ms });
             tooltip_enabled   = config.take("tooltip/enabled", true);
             debug_overlay     = config.take("debug/overlay", faux);
             debug_toggle      = config.take("debug/toggle", "🐞"s);
@@ -2174,7 +2172,7 @@ namespace netxs::console
 
             // pro::timer: Start countdown for specified ID.
             template<class P>
-            void actify(id_t ID, period timeout, P lambda)
+            void actify(id_t ID, span timeout, P lambda)
             {
                 auto alarm = tempus::now() + timeout;
                 auto handler = [&, ID, timeout, lambda, alarm](auto now) mutable
@@ -2189,7 +2187,7 @@ namespace netxs::console
             }
             // pro::timer: Start countdown.
             template<class P>
-            void actify(period timeout, P lambda)
+            void actify(span timeout, P lambda)
             {
                 actify(bell::noid, timeout, lambda);
             }
@@ -2634,18 +2632,18 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            subs   conf; // caret: Configuration subscriptions.
-            bool   live; // caret: Should the caret be drawn.
-            bool   done; // caret: Is the caret already drawn.
-            bool   down; // caret: Is the caret suppressed (lost focus).
-            bool   form; // caret: Caret style.
-            rect   body; // caret: Caret position.
-            period step; // caret: Blink interval. period::zero() if steady.
-            moment next; // caret: Time of next blinking.
+            subs conf; // caret: Configuration subscriptions.
+            bool live; // caret: Should the caret be drawn.
+            bool done; // caret: Is the caret already drawn.
+            bool down; // caret: Is the caret suppressed (lost focus).
+            bool form; // caret: Caret style.
+            rect body; // caret: Caret position.
+            span step; // caret: Blink interval. span::zero() if steady.
+            time next; // caret: Time of next blinking.
 
         public:
             caret(base&&) = delete;
-            caret(base& boss, bool visible = faux, bool abox = faux, twod position = dot_00, period freq = BLINK_PERIOD)
+            caret(base& boss, bool visible = faux, bool abox = faux, twod position = dot_00, span freq = BLINK_PERIOD)
                 : skill{ boss },
                    live{ faux },
                    done{ faux },
@@ -2698,9 +2696,9 @@ namespace netxs::console
                 }
             }
             // pro::caret: Set blink period.
-            void blink_period(period const& new_step = BLINK_PERIOD)
+            void blink_period(span const& new_step = BLINK_PERIOD)
             {
-                auto changed = (step == period::zero()) != (new_step == period::zero());
+                auto changed = (step == span::zero()) != (new_step == span::zero());
                 step = new_step;
                 if (changed)
                 {
@@ -2718,7 +2716,7 @@ namespace netxs::console
                         style(true);
                         break;
                     case 2: // n = 2  steady box
-                        blink_period(period::zero());
+                        blink_period(span::zero());
                         style(true);
                         break;
                     case 3: // n = 3  blinking underline
@@ -2726,7 +2724,7 @@ namespace netxs::console
                         style(faux);
                         break;
                     case 4: // n = 4  steady underline
-                        blink_period(period::zero());
+                        blink_period(span::zero());
                         style(faux);
                         break;
                     case 5: // n = 5  blinking I-bar
@@ -2734,7 +2732,7 @@ namespace netxs::console
                         style(true);
                         break;
                     case 6: // n = 6  steady I-bar
-                        blink_period(period::zero());
+                        blink_period(span::zero());
                         style(true);
                         break;
                     default:
@@ -2769,7 +2767,7 @@ namespace netxs::console
             // pro::caret: Force to redraw caret.
             void reset()
             {
-                if (step != period::zero())
+                if (step != span::zero())
                 {
                     live = faux;
                     next = {};
@@ -2781,7 +2779,7 @@ namespace netxs::console
                 if (!*this)
                 {
                     done = faux;
-                    live = step == period::zero();
+                    live = step == span::zero();
                     if (!live)
                     {
                         boss.SUBMIT_T(tier::general, e2::timer::tick, memo, timestamp)
@@ -2797,7 +2795,7 @@ namespace netxs::console
                     boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
                     {
                         done = live;
-                        auto state = down ? (step == period::zero() ? faux : true)
+                        auto state = down ? (step == span::zero() ? faux : true)
                                           : live;
                         if (state)
                         {
@@ -2917,11 +2915,11 @@ namespace netxs::console
 
             struct
             {
-                period render = period::zero();
-                period output = period::zero();
-                si32   frsize = 0;
-                si64   totals = 0;
-                si32   number = 0;    // info: Current frame number
+                span render = span::zero();
+                span output = span::zero();
+                si32 frsize = 0;
+                si64 totals = 0;
+                si32 number = 0;    // info: Current frame number
                 //bool   onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
             }
             track; // debug: Textify the telemetry data for debugging purpose.
@@ -2958,13 +2956,13 @@ namespace netxs::console
                     std::to_string(new_size.x) + " x " +
                     std::to_string(new_size.y);
             }
-            void update(period const& watch, si32 delta)
+            void update(span const& watch, si32 delta)
             {
                 track.output = watch;
                 track.frsize = delta;
                 track.totals+= delta;
             }
-            void update(moment const& timestamp)
+            void update(time const& timestamp)
             {
                 track.render = tempus::now() - timestamp;
             }
@@ -3247,9 +3245,9 @@ namespace netxs::console
             static constexpr auto QUIT_MSG = e2::conio::quit;
             static constexpr auto ESC_THRESHOLD = si32{ 500 }; // guard: Double escape threshold in ms.
 
-            bool   wait; // guard: Ready to close.
-            moment stop; // guard: Timeout for single Esc.
-            text   desc = "exit after preclose";
+            bool wait; // guard: Ready to close.
+            time stop; // guard: Timeout for single Esc.
+            text desc = "exit after preclose";
 
         public:
             guard(base&&) = delete;
@@ -3290,10 +3288,10 @@ namespace netxs::console
             static constexpr auto QUIT_MSG   = e2::shutdown;
             static constexpr auto LIMIT = 60 * 10; //todo unify // watch: Idle timeout in seconds.
 
-            hook   pong; // watch: Alibi subsciption token.
-            hook   ping; // watch: Zombie check countdown token.
-            moment stop; // watch: Timeout for zombies.
-            text   desc = "no mouse clicking events";
+            hook pong; // watch: Alibi subsciption token.
+            hook ping; // watch: Zombie check countdown token.
+            time stop; // watch: Timeout for zombies.
+            text desc = "no mouse clicking events";
 
         public:
             watch(base&&) = delete;
@@ -3846,7 +3844,7 @@ namespace netxs::console
                   skill::memo;
 
             robot  robo;   // fader: .
-            period fade;
+            span fade;
             si32 transit;
             cell c1;
             cell c2;
@@ -3866,7 +3864,7 @@ namespace netxs::console
 
         public:
             fader(base&&) = delete;
-            fader(base& boss, cell default_state, cell highlighted_state, period fade_out = 250ms)
+            fader(base& boss, cell default_state, cell highlighted_state, span fade_out = 250ms)
                 : skill{ boss },
                 robo{ boss },
                 fade{ fade_out },
@@ -4474,8 +4472,8 @@ namespace netxs::console
             skin::setup(tone::inactive  , config.take("inactive"  , cell{}));
             skin::setup(tone::menu_white, config.take("menu_white", cell{}));
             skin::setup(tone::menu_black, config.take("menu_black", cell{}));
-            skin::setup(tone::fader     , config.take("fader/duration", period{ 150ms }));
-            skin::setup(tone::fastfader , config.take("fader/fast"    , period{ 0ms }));
+            skin::setup(tone::fader     , config.take("fader/duration", span{ 150ms }));
+            skin::setup(tone::fastfader , config.take("fader/fast"    , span{ 0ms }));
             hertz = config.take("fps");
             if (hertz <= 0) hertz = 60;
 
@@ -5349,7 +5347,6 @@ namespace netxs::console
         using work = std::thread;
         using lock = std::mutex;
         using cond = std::condition_variable_any;
-        using span = period;
         using ipc  = os::ipc::stdcon;
 
         struct stat
@@ -5372,7 +5369,7 @@ namespace netxs::console
         void render(ipc& canal)
         {
             log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
-            auto start = moment{};
+            auto start = time{};
             auto image = Bitmap{};
             auto guard = std::unique_lock{ mutex };
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
@@ -5524,13 +5521,13 @@ namespace netxs::console
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
-        void draw_clip_preview(face& canvas, moment const& stamp)
+        void draw_clip_preview(face& canvas, time const& stamp)
         {
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
-                if (props.clip_preview_time == period::zero()
+                if (props.clip_preview_time == span::zero()
                  || props.clip_preview_time > stamp - gear.delta.stamp())
                 {
                     auto coor = gear.coord + dot_21 * 2;
@@ -5578,7 +5575,7 @@ namespace netxs::console
             }
             list.thing.sendby<true>(conio);
         }
-        void check_tooltips(moment now)
+        void check_tooltips(time now)
         {
             auto result = faux;
             for (auto& [gear_id, gear_ptr] : input.gears)
@@ -5642,7 +5639,7 @@ namespace netxs::console
                 {
                     if (direct && !props.is_standalone_app)
                     {
-                        conio.debuglogs.send(canal, os::process_id, text{ data });
+                        conio.debuglogs.send(canal, os::process::id, text{ data });
                     }
                 });
 

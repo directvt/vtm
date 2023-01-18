@@ -87,6 +87,8 @@ namespace netxs::os
     using page = console::page;
     using para = console::para;
     using rich = console::rich;
+    using time = datetime::time;
+    using span = datetime::span;
 
     enum role { client, server };
 
@@ -103,7 +105,6 @@ namespace netxs::os
         static const auto STDIN_FD     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
         static const auto STDOUT_FD    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
         static const auto STDERR_FD    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
-        static const auto process_id   = si64{ ::GetCurrentProcessId()           };
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
 
@@ -117,7 +118,6 @@ namespace netxs::os
         static const auto STDIN_FD   = fd_t{ STDIN_FILENO  };
         static const auto STDOUT_FD  = fd_t{ STDOUT_FILENO };
         static const auto STDERR_FD  = fd_t{ STDERR_FILENO };
-        static const auto process_id = si64{ ::getpid()    };
 
         void fdcleanup() // Close all file descriptors except the standard ones.
         {
@@ -1044,8 +1044,6 @@ namespace netxs::os
 
         struct proxy
         {
-            using time = datetime::moment;
-
             text cache;
             time stamp;
             text brand;
@@ -1499,7 +1497,7 @@ namespace netxs::os
                 #endif
             }
             template<role ROLE, class P = noop>
-            static auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
+            static auto open(text path, datetime::span retry_timeout = {}, P retry_proc = P())
             {
                 auto r = INVALID_FD;
                 auto w = INVALID_FD;
@@ -1745,6 +1743,8 @@ namespace netxs::os
 
     namespace process
     {
+        static auto id = datetime::tempus::now();
+
         struct args
         {
         private:
@@ -2162,6 +2162,7 @@ namespace netxs::os
                     p_id = ::fork(); // Second fork to avoid zombies.
                     if (p_id == 0) // GrandChild process.
                     {
+                        process::id = datetime::tempus::now();
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
                         ::close(STDIN_FD);
                         ::close(STDOUT_FD);
@@ -2203,7 +2204,7 @@ namespace netxs::os
         {
             static auto logs = ansi::dtvt::binary::debuglogs_t{};
             //todo view -> text
-            logs.set(os::process_id, text{ data });
+            logs.set(os::process::id, text{ data });
             logs.send([&](auto& block){ os::io::send(STDOUT_FD, block); });
         }
         void syslog(view data)
@@ -4001,8 +4002,7 @@ namespace netxs::os
 
             #else
 
-                auto& state = globals().state;
-                auto& ipcio = globals().ipcio;
+                auto& state = g.state;
                 if (ok(::tcgetattr(STDIN_FD, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
                 {
                     auto raw_mode = state;

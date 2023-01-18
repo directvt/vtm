@@ -18,6 +18,8 @@ namespace netxs::ansi
 {
     using namespace netxs::ui::atoms;
     using namespace netxs::utf;
+    using time = datetime::time;
+    using span = datetime::span;
 
     static const auto ESCCSI = "\033[";
     static const auto ESCOCS = "\033]";
@@ -2122,6 +2124,12 @@ namespace netxs::ansi
                         block += size;
                         block += data;
                     }
+                    else if constexpr (std::is_same_v<D, time>)
+                    {
+                        auto n = data.time_since_epoch().count();
+                        auto v = view{ reinterpret_cast<char const*>(&n), sizeof(n) };
+                        block += v;
+                    }
                     else if constexpr (std::is_same_v<D, std::unordered_map<text, text>>
                                     || std::is_same_v<D, std::map<text, text>>
                                     || std::is_same_v<D, imap<text, text>>)
@@ -2180,6 +2188,23 @@ namespace netxs::ansi
                     else if constexpr (std::is_same_v<D, noop>)
                     {
                         return 0;
+                    }
+                    else if constexpr (std::is_same_v<D, time>)
+                    {
+                        using span = decltype(time{}.time_since_epoch());
+                        using type = decltype(span{}.count());
+                        if (data.size() < sizeof(type))
+                        {
+                            log("dtvt: corrupted time data");
+                            return D{};
+                        }
+                        auto temp = *reinterpret_cast<type const*>(data.data());
+                        auto crop = time{ span{ temp }};
+                        if constexpr (!PeekOnly)
+                        {
+                            data.remove_prefix(sizeof(type));
+                        }
+                        return crop;
                     }
                     else
                     {
@@ -2656,6 +2681,7 @@ namespace netxs::ansi
 
             //todo unify
             static auto& operator << (std::ostream& s, wchr const& o) { return s << "0x" << utf::to_hex(o); }
+            static auto& operator << (std::ostream& s, time const& o) { return s << "0x" << utf::to_hex(o.time_since_epoch().count()); }
 
             // Output stream.
             STRUCT(frame_element,     (frag, data))
@@ -2701,7 +2727,7 @@ namespace netxs::ansi
             STRUCT(fgc,               (rgba, color))
             STRUCT(slimmenu,          (bool, menusize))
             STRUCT(startdata,         (text, ip) (text, name) (text, user) (si32, mode) (text, conf))
-            STRUCT(debuglogs,         (si64, id) (text, data))
+            STRUCT(debuglogs,         (time, id) (text, data))
             //todo logs
             //STRUCT(debuglogs2,        (text, data))
             //STRUCT(debugdata,         (text, data))
