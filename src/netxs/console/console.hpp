@@ -5823,21 +5823,10 @@ namespace netxs::console
 
                 if (!props.is_standalone_app)
                 {
-                    if (direct)
+                    SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
                     {
-                        SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
-                        {
-                            world.SIGNAL(tier::release, e2::form::proceed::autofocus, gear);
-                        };
-                    }
-                    else
-                    {
-                        if (auto& gear_ptr = input.gears[id_t{}])
-                        {
-                            auto& gear = *gear_ptr;
-                            world.SIGNAL(tier::release, e2::form::proceed::autofocus, gear);
-                        }
-                    }
+                        world.SIGNAL(tier::release, e2::form::proceed::autofocus, gear);
+                    };
                 }
                 // Focus relay.
                 SUBMIT_T(tier::release, hids::events::notify::focus::got, token, from_gear)

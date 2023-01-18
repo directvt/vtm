@@ -3969,7 +3969,10 @@ namespace netxs::os
         }
         void ignite(xipc pipe, si32 mode)
         {
-            globals().ipcio = pipe;
+            auto& g = globals();
+            g.ipcio = pipe;
+            auto& ipcio =*g.ipcio;
+            auto& wired = g.wired;
             auto& sig_hndl = signal;
 
             #if defined(_WIN32)
@@ -4021,6 +4024,7 @@ namespace netxs::os
             os::vt::vgafont(mode);
             ::atexit(repair);
             resize();
+            wired.sysfocus.send(ipcio, id_t{}, true, faux, faux);
         }
         auto splice(xipc pipe, si32 mode)
         {
