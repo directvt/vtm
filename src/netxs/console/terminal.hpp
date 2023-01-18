@@ -854,6 +854,7 @@ namespace netxs::ui
                 vt.intro[ctrl::TAB] = VT_PROC{ p->tab(q.pop_all(ctrl::TAB)); };
                 vt.intro[ctrl::EOL] = VT_PROC{ p->lf (q.pop_all(ctrl::EOL)); }; // LF
                 vt.intro[ctrl::VT ] = VT_PROC{ p->lf (q.pop_all(ctrl::VT )); }; // VT same as LF
+                vt.intro[ctrl::FF ] = VT_PROC{ p->lf (q.pop_all(ctrl::FF )); }; // FF same as LF
                 vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                     }; // CR
 
                 vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
