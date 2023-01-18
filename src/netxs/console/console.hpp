@@ -5821,14 +5821,25 @@ namespace netxs::console
                     };
                 }
 
-                // Focus relay.
                 if (!props.is_standalone_app)
                 {
-                    SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
+                    if (direct)
                     {
-                        world.SIGNAL(tier::release, e2::form::proceed::autofocus, gear);
-                    };
+                        SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
+                        {
+                            world.SIGNAL(tier::release, e2::form::proceed::autofocus, gear);
+                        };
+                    }
+                    else
+                    {
+                        if (auto& gear_ptr = input.gears[id_t{}])
+                        {
+                            auto& gear = *gear_ptr;
+                            world.SIGNAL(tier::release, e2::form::proceed::autofocus, gear);
+                        }
+                    }
                 }
+                // Focus relay.
                 SUBMIT_T(tier::release, hids::events::notify::focus::got, token, from_gear)
                 {
                     auto myid = from_gear.id;
