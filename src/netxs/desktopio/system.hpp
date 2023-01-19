@@ -14,7 +14,6 @@
 
 #include "logger.hpp"
 #include "input.hpp"
-#include "layout.hpp"
 
 #include <type_traits>
 #include <iostream>

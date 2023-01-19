@@ -4,8 +4,8 @@
 #pragma once
 
 #include "hash.hpp"
-#include "layout.hpp"
 #include "queue.hpp"
+#include "geometry.hpp"
 
 #include <vector>
 #include <mutex>

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "layout.hpp"
+#include "canvas.hpp"
 #include "quartz.hpp"
 
 namespace netxs::xml

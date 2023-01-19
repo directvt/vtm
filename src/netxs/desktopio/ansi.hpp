@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "layout.hpp"
+#include "canvas.hpp"
 #include "tree.hpp"
 #include "quartz.hpp"
 
