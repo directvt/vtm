@@ -50,7 +50,8 @@ Build-time dependencies
    - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `9GB` of RAM
 
 ```bash
-git clone https://github.com/netxs-group/vtm.git && cd ./vtm
+git clone https://github.com/netxs-group/vtm.git
+cd ./vtm
 cmake ./src -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 cmake --install .
