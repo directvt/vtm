@@ -5,7 +5,6 @@
 
 #include "ansi.hpp"
 #include "logger.hpp"
-#include "ring.hpp"
 
 namespace netxs::ui
 {

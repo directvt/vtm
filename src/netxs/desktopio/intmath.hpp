@@ -181,6 +181,44 @@ namespace netxs
         T    get() const     { return netxs::letoh(data); }
     };
 
+    // intmath: Value change tracker.
+    template<class T>
+    struct testy
+    {
+        T    prev = {};
+        T    last = {};
+        bool test = faux;
+
+        bool test_and_set(T newvalue)
+        {
+            prev = last;
+            test = last != newvalue;
+            if (test) last = newvalue;
+            return test;
+        }
+        bool operator () (T newvalue)
+        {
+            return test_and_set(newvalue);
+        }
+        operator auto& ()       { return last; }
+        operator auto& () const { return last; }
+        auto reset()
+        {
+            auto temp = test;
+            test = faux;
+            return temp;
+        }
+        testy()                          = default;
+        testy(testy&&)                   = default;
+        testy(testy const&)              = default;
+        testy& operator = (testy const&) = default;
+        testy(T const& value)
+            : prev{ value },
+              last{ value },
+              test{ faux  }
+        { }
+    };
+
     // intmath: Summ and return TRUE in case of
     //          unsigned integer overflow and store result in accum.
     template<class T1, class T2>

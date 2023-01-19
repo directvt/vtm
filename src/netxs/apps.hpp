@@ -624,7 +624,7 @@ R"==(
     const auto app_limit = [](auto boss, text title)
     {
         log("app_limit: max count reached");
-        auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
+        auto timeout = datetime::now() + APPS_DEL_TIMEOUT;
         auto shadow = ptr::shadow(boss);
         boss->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
         {
@@ -742,10 +742,10 @@ R"==(
                 };
                 boss.SUBMIT(tier::release, e2::dtor, p)
                 {
-                    auto start = tempus::now();
+                    auto start = datetime::now();
                     auto counter = e2::cleanup.param();
                     SIGNAL_GLOBAL(e2::cleanup, counter);
-                    auto stop = tempus::now() - start;
+                    auto stop = datetime::now() - start;
                     log("host: garbage collection",
                     "\n\ttime ", utf::format(stop.count()), "ns",
                     "\n\tobjs ", counter.obj_count,

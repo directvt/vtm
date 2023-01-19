@@ -342,7 +342,7 @@ struct consrv
 
     struct event_list
     {
-        using jobs = netxs::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
+        using jobs = generics::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
         using fire = netxs::os::io::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;

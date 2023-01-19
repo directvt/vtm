@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../desktopio/queue.hpp"
+#include "../desktopio/generics.hpp"
 
 namespace netxs::events::userland
 {
@@ -40,11 +40,14 @@ namespace netxs::app::logs
         struct log_parser
             : public bell
         {
-            std::thread           input;
-            ansi::esc             yield;
-            netxs::mt_queue<text> queue;
-            bool                  alive = true;
-            bool show_codepoints = faux;
+            using mt_queue = generics::mt_queue<text>;
+
+            std::thread input;
+            ansi::esc   yield;
+            mt_queue    queue;
+            bool        alive = true;
+            bool        show_codepoints = faux;
+
            ~log_parser()
             {
                 alive = faux;

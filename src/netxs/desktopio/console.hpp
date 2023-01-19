@@ -76,7 +76,7 @@ namespace netxs::ui
     };
 
     using namespace netxs::input;
-    using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
+    using registry_t = generics::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using links_t = std::unordered_map<text, menuitem_t>;
     using focus_test_t = std::pair<id_t, si32>;
     using gear_id_list_t = std::list<id_t>;
@@ -2095,7 +2095,7 @@ namespace netxs::ui
             template<class P, class S>
             void actify(id_t ID, S flow, P proc)
             {
-                auto init = tempus::now();
+                auto init = datetime::now();
                 auto handler = [&, ID, proc, flow, init](auto p)
                 {
                     auto now = datetime::round<si32>(p - init);
@@ -2172,7 +2172,7 @@ namespace netxs::ui
             template<class P>
             void actify(id_t ID, span timeout, P lambda)
             {
-                auto alarm = tempus::now() + timeout;
+                auto alarm = datetime::now() + timeout;
                 auto handler = [&, ID, timeout, lambda, alarm](auto now) mutable
                 {
                     if (now > alarm)
@@ -2962,7 +2962,7 @@ namespace netxs::ui
             }
             void update(time const& timestamp)
             {
-                track.render = tempus::now() - timestamp;
+                track.render = datetime::now() - timestamp;
             }
             void output(face& canvas)
             {
@@ -3257,7 +3257,7 @@ namespace netxs::ui
                 {
                     if ((wait = pre_close))
                     {
-                        stop = tempus::now() + std::chrono::milliseconds(ESC_THRESHOLD);
+                        stop = datetime::now() + std::chrono::milliseconds(ESC_THRESHOLD);
                     }
                 };
 
@@ -3295,16 +3295,16 @@ namespace netxs::ui
             watch(base&&) = delete;
             watch(base& boss) : skill{ boss }
             {
-                stop = tempus::now() + std::chrono::seconds(LIMIT);
+                stop = datetime::now() + std::chrono::seconds(LIMIT);
 
                 // No mouse events watchdog.
                 boss.SUBMIT_T(tier::preview, EXCUSE_MSG, pong, something)
                 {
-                    stop = tempus::now() + std::chrono::seconds(LIMIT);
+                    stop = datetime::now() + std::chrono::seconds(LIMIT);
                 };
                 boss.SUBMIT_T(tier::general, e2::timer::any, ping, something)
                 {
-                    if (tempus::now() > stop)
+                    if (datetime::now() > stop)
                     {
                         auto shadow = boss.This();
                         boss.SIGNAL(tier::general, QUIT_MSG, desc);
@@ -5372,7 +5372,7 @@ namespace netxs::ui
             auto guard = std::unique_lock{ mutex };
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
-                start = tempus::now();
+                start = datetime::now();
                 ready = faux;
                 abort = faux;
                 auto winid = id_t{ 0xddccbbaa };
@@ -5382,7 +5382,7 @@ namespace netxs::ui
                 {
                     image.sendby(canal); // Sending, this is the frame synchronization point.
                 }                        // Frames should drop, the rest should wait for the end of sending.
-                debug.watch = tempus::now() - start;
+                debug.watch = datetime::now() - start;
             }
             log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
         }
@@ -5643,7 +5643,7 @@ namespace netxs::ui
 
                 auto rebuild_scene = [&](bool damaged)
                 {
-                    auto stamp = tempus::now();
+                    auto stamp = datetime::now();
 
                     auto& canvas = input.xmap;
                     if (damaged)

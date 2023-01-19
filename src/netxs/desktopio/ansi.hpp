@@ -4,7 +4,6 @@
 #pragma once
 
 #include "canvas.hpp"
-#include "tree.hpp"
 #include "quartz.hpp"
 
 #include <mutex>
@@ -1232,7 +1231,7 @@ namespace netxs::ansi
     };
 
     template<class Q, class C>
-    using func = netxs::generics::tree<Q, C*, std::function<void(Q&, C*&)>>;
+    using func = generics::tree<Q, C*, std::function<void(Q&, C*&)>>;
 
     template<class T, bool NOMULTIARG = faux>
     struct csi_t
@@ -1499,7 +1498,7 @@ namespace netxs::ansi
             //      [-----------------------]
 
             static constexpr auto maxarg = 32_sz; // ansi: Maximal number of the parameters in one escaped sequence.
-            using fifo = netxs::generics::bank<si32, maxarg>;
+            using fifo = generics::bank<si32, maxarg>;
 
             if (ascii.length())
             {
@@ -2130,7 +2129,7 @@ namespace netxs::ansi
                     }
                     else if constexpr (std::is_same_v<D, std::unordered_map<text, text>>
                                     || std::is_same_v<D, std::map<text, text>>
-                                    || std::is_same_v<D, imap<text, text>>)
+                                    || std::is_same_v<D, generics::imap<text, text>>)
                     {
                         //todo implement
                     }

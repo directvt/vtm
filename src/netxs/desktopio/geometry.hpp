@@ -4,7 +4,7 @@
 #pragma once
 
 #include "utf.hpp"
-#include "fifo.hpp"
+#include "generics.hpp"
 
 #if defined(__linux__) || defined(__APPLE__)
     #include <stdint.h>
@@ -12,7 +12,7 @@
 
 namespace netxs
 {
-    using fifo = netxs::generics::fifo<si32>;
+    using fifo = generics::fifo<si32>;
 
     // geometry: 2D point template.
     template<class T = int>

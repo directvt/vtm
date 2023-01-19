@@ -4,8 +4,6 @@
 #pragma once
 
 #include "geometry.hpp"
-#include "hash.hpp"
-#include "utf.hpp"
 #include "ptr.hpp"
 
 #include <cstring> // std::memcpy

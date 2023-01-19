@@ -8,49 +8,6 @@
 
 namespace netxs
 {
-    template<class T>
-    struct testy
-    {
-        T    prev = {};
-        T    last = {};
-        bool test = faux;
-
-        bool test_and_set(T newvalue)
-        {
-            prev = last;
-            test = last != newvalue;
-            if (test) last = newvalue;
-            return test;
-        }
-        bool operator () (T newvalue)
-        {
-            return test_and_set(newvalue);
-        }
-        operator auto& ()       { return last; }
-        operator auto& () const { return last; }
-        auto reset()
-        {
-            auto temp = test;
-            test = faux;
-            return temp;
-        }
-        testy()                          = default;
-        testy(testy&&)                   = default;
-        testy(testy const&)              = default;
-        testy& operator = (testy const&) = default;
-        testy(T const& value)
-            : prev{ value },
-              last{ value },
-              test{ faux  }
-        { }
-    };
-
-    struct	null_deleter
-    {
-        void operator () (void const*) const
-        { }
-    };
-
     template<class T> using sptr = std::shared_ptr<T>;
     template<class T> using wptr = std::  weak_ptr<T>;
     template<class T> using uptr = std::unique_ptr<T>;

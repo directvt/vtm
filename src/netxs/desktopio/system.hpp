@@ -1048,14 +1048,14 @@ namespace netxs::os
             text brand;
 
             proxy()
-                : stamp{ datetime::tempus::now() }
+                : stamp{ datetime::now() }
             { }
 
             auto operator() (auto& yield) // Redirect clipboard data.
             {
                 if (cache.size() || yield.starts_with(ocs52head))
                 {
-                    auto now = datetime::tempus::now();
+                    auto now = datetime::now();
                     if (now - stamp > 3s) // Drop outdated cache.
                     {
                         cache.clear();
@@ -1512,13 +1512,13 @@ namespace netxs::os
                         }
                         else
                         {
-                            auto stop = datetime::tempus::now() + retry_timeout;
+                            auto stop = datetime::now() + retry_timeout;
                             do
                             {
                                 std::this_thread::sleep_for(100ms);
                                 done = play();
                             }
-                            while (!done && stop > datetime::tempus::now());
+                            while (!done && stop > datetime::now());
                         }
                     }
                     return done;
@@ -1742,7 +1742,7 @@ namespace netxs::os
 
     namespace process
     {
-        static auto id = datetime::tempus::now();
+        static auto id = datetime::now();
 
         struct args
         {
@@ -2161,7 +2161,7 @@ namespace netxs::os
                     p_id = ::fork(); // Second fork to avoid zombies.
                     if (p_id == 0) // GrandChild process.
                     {
-                        process::id = datetime::tempus::now();
+                        process::id = datetime::now();
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
                         ::close(STDIN_FD);
                         ::close(STDOUT_FD);

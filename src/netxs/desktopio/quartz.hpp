@@ -14,7 +14,6 @@
 
 namespace netxs::datetime
 {
-    using tempus = std::chrono::steady_clock;
     using span = std::chrono::steady_clock::duration;
     using time = std::chrono::time_point<std::chrono::steady_clock>;
     using namespace std::chrono_literals;
@@ -22,22 +21,27 @@ namespace netxs::datetime
     // quartz: Round a chrono time moment in degree (def: milliseconds)
     //         units since epoch.
     template<class T, class degree = std::chrono::milliseconds>
-    static T round(time t)
+    T round(time t)
     {
         return clamp<T>(std::chrono::duration_cast<degree>(t.time_since_epoch()).count());
     }
     // quartz: Round a chrono time period in degree (def: milliseconds).
     template<class T, class degree = std::chrono::milliseconds>
-    static T round(span t)
+    T round(span t)
     {
         return clamp<T>(std::chrono::duration_cast<degree>(t).count());
     }
 
     // quartz: Return a total count degree unts (def: milliseconds) since epoch.
     template<class T, class degree = std::chrono::milliseconds>
-    static T now()
+    T _now()
     {
-        return round<T, degree>(tempus::now());
+        return round<T, degree>(std::chrono::steady_clock::now());
+    }
+    // quartz: Return current moment.
+    auto now()
+    {
+        return std::chrono::steady_clock::now();
     }
 
     template<class REACTOR, class CONTEXT>
@@ -61,7 +65,7 @@ namespace netxs::datetime
             auto mutex = std::mutex{};
             auto lock = std::unique_lock{ mutex };
 
-            auto now = tempus::now();
+            auto now = datetime::now();
             auto prior = now;
 
             while (alive)
@@ -69,7 +73,7 @@ namespace netxs::datetime
                 watch += now - prior;
                 prior =  now;
 
-                now = tempus::now();
+                now = datetime::now();
                 alarm.notify(cause, now);
 
                 if (letup)
@@ -181,13 +185,13 @@ namespace netxs::datetime
               period{ period },
               minint{ minint }
         {
-            hist.resize(1, { tempus::now(), Item{} });
+            hist.resize(1, { datetime::now(), Item{} });
         }
 
         // tail: Add new value and current time.
         void set(Item const& item)
         {
-            auto now = tempus::now();
+            auto now = datetime::now();
 
             if (++iter == size)
             {
@@ -246,7 +250,7 @@ namespace netxs::datetime
             } v;
 
             auto count = 0_sz;
-            auto until = tempus::now() - period;
+            auto until = datetime::now() - period;
 
             for (auto i = 0_sz; i + 1 < size; i++)
             {

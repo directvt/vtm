@@ -487,7 +487,7 @@ namespace netxs::input
                                 // Fire a double/triple-click if delay is not expired
                                 // and the mouse is at the same position.
                                 auto& s = stamp[i];
-                                auto fired = tempus::now();
+                                auto fired = datetime::now();
                                 if (fired - s.fired < delay && s.coord == coord)
                                 {
                                     if (!genbtn.blocked)
@@ -760,7 +760,7 @@ namespace netxs::input
                         }
                         else
                         {
-                            tooltip_time = tempus::now() + tooltip_timeout;
+                            tooltip_time = datetime::now() + tooltip_timeout;
                             tooltip_show = faux;
                         }
                     }

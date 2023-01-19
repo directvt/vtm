@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "hash.hpp"
-#include "queue.hpp"
 #include "geometry.hpp"
 
 #include <vector>
@@ -597,7 +595,7 @@ namespace netxs::events
         template<class T>
         auto& _agent()
         {
-            static auto agent = netxs::jobs<netxs::wptr<bell>>{};
+            static auto agent = generics::jobs<netxs::wptr<bell>>{};
             return agent;
         }
     }
