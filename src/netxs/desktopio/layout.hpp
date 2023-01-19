@@ -6,14 +6,13 @@
 #include "duplet.hpp"
 #include "hash.hpp"
 #include "utf.hpp"
-#include "events.hpp"
+#include "ptr.hpp"
 
 #include <cstring> // std::memcpy
 #include <span>
 
 namespace netxs::ui::atoms
 {
-    using netxs::events::id_t;
     using netxs::utf::text;
     using netxs::utf::view;
     using netxs::utf::wiew;

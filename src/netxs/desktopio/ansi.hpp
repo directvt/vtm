@@ -2030,8 +2030,6 @@ namespace netxs::ansi
 
     namespace dtvt
     {
-        using hint = netxs::events::type;
-
         namespace binary
         {
             using type = byte;

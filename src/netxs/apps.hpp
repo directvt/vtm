@@ -16,13 +16,11 @@ namespace netxs::app
 
     using namespace std::placeholders;
     using namespace netxs::console;
-    using namespace netxs;
 
     using slot = ui::slot;
     using axis = ui::axis;
     using axes = ui::axes;
     using snap = ui::snap;
-    using id_t = netxs::input::id_t;
 }
 
 namespace netxs::app::shared

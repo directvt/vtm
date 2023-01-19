@@ -250,12 +250,10 @@ namespace netxs::input
 {
     using namespace netxs::ui::atoms;
     using namespace netxs::datetime;
-    using hint = netxs::events::type;
     using netxs::events::bell;
     using netxs::events::subs;
     using netxs::events::tier;
     using netxs::events::hook;
-    using netxs::events::id_t;
     using netxs::ansi::clip;
     using sysmouse = ansi::dtvt::binary::sysmouse_t;
     using syskeybd = ansi::dtvt::binary::syskeybd_t;

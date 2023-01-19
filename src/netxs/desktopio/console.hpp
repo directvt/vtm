@@ -117,7 +117,6 @@ namespace netxs::events::userland
 
     struct e2
     {
-        using type = netxs::events::type;
         static constexpr auto dtor = netxs::events::userland::root::dtor;
         static constexpr auto cascade = netxs::events::userland::root::cascade;
         static constexpr auto cleanup = netxs::events::userland::root::cleanup;
@@ -3759,7 +3758,7 @@ namespace netxs::console
                     boss.SIGNAL(tier::release, e2::conio::focus, f);
                 }
             }
-            void fire(events::id_t event_id)
+            void fire(hint event_id)
             {
                 for (auto& [id, gear_ptr] : gears)
                 {
@@ -4440,7 +4439,7 @@ namespace netxs::console
     class host
         : public base
     {
-        using tick = quartz<events::reactor<>, e2::type>;
+        using tick = quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
 
         pro::keybd keybd{*this }; // host: Keyboard controller.
