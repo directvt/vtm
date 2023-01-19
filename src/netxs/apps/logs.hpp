@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../abstract/queue.hpp"
+#include "../desktopio/generics.hpp"
 
 namespace netxs::events::userland
 {
@@ -40,11 +40,14 @@ namespace netxs::app::logs
         struct log_parser
             : public bell
         {
-            std::thread           input;
-            ansi::esc             yield;
-            netxs::mt_queue<text> queue;
-            bool                  alive = true;
-            bool show_codepoints = faux;
+            using mt_queue = generics::mt_queue<text>;
+
+            std::thread input;
+            ansi::esc   yield;
+            mt_queue    queue;
+            bool        alive = true;
+            bool        show_codepoints = faux;
+
            ~log_parser()
             {
                 alive = faux;
@@ -97,9 +100,9 @@ namespace netxs::app::logs
 
                 yield.clear();
                 yield.wrp(wrap::off)
-                    .bgc(ansi::yellowlt).add(utf::repeat(' ', max_col * (wc + 3))).eol().bgc()
+                    .bgc(yellowlt).add(utf::repeat(' ', max_col * (wc + 3))).eol().bgc()
                     .add("STDOUT: plain text, ", shadow.size(), " bytes")
-                    .eol().bgc(ansi::whitedk).fgc(blackdk)
+                    .eol().bgc(whitedk).fgc(blackdk)
                     .add(utf::debase(shadow))
                     .fgc().bgc().eol().eol();
                 if (show_codepoints)
@@ -107,15 +110,15 @@ namespace netxs::app::logs
                     yield.wrp(wrap::off).add("STDOUT: codepoints").eol();
                     auto f = [&](auto cp, view utf8, si32 wide)
                     {
-                        yield.fgc(ansi::blackdk);
+                        yield.fgc(blackdk);
                         if (wide)
                         {
-                            yield.bgc(ansi::whitedk).add(' ', utf8);
+                            yield.bgc(whitedk).add(' ', utf8);
                             if (wide == 1) yield.add(' ');
                         }
-                        else yield.bgc(ansi::redlt).add(" - ");
+                        else yield.bgc(redlt).add(" - ");
 
-                        yield.bgc().fgc(ansi::greendk)
+                        yield.bgc().fgc(greendk)
                             .add(utf::adjust(utf::to_hex<true>(cp, (cp <= 0xFF   ? 2 :
                                                                     cp <= 0xFFFF ? 4 : 5)), wc, ' '))
                             .fgc().bgc();

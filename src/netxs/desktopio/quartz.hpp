@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../math/intmath.hpp"
+#include "intmath.hpp"
 
 #include <string>
 #include <thread>
@@ -12,32 +12,39 @@
 #include <optional>
 #include <condition_variable>
 
+namespace netxs
+{
+    using span = std::chrono::steady_clock::duration;
+    using time = std::chrono::time_point<std::chrono::steady_clock>;
+    using namespace std::chrono_literals;
+}
+
 namespace netxs::datetime
 {
-    using tempus = std::chrono::steady_clock;
-    using period = std::chrono::steady_clock::duration;
-    using moment = std::chrono::time_point<std::chrono::steady_clock>;
-    using namespace std::chrono_literals;
-
     // quartz: Round a chrono time moment in degree (def: milliseconds)
     //         units since epoch.
     template<class T, class degree = std::chrono::milliseconds>
-    static T round(moment t)
+    T round(time t)
     {
         return clamp<T>(std::chrono::duration_cast<degree>(t.time_since_epoch()).count());
     }
     // quartz: Round a chrono time period in degree (def: milliseconds).
     template<class T, class degree = std::chrono::milliseconds>
-    static T round(period t)
+    T round(span t)
     {
         return clamp<T>(std::chrono::duration_cast<degree>(t).count());
     }
 
     // quartz: Return a total count degree unts (def: milliseconds) since epoch.
     template<class T, class degree = std::chrono::milliseconds>
-    static T now()
+    T _now()
     {
-        return round<T, degree>(tempus::now());
+        return round<T, degree>(std::chrono::steady_clock::now());
+    }
+    // quartz: Return current moment.
+    auto now()
+    {
+        return std::chrono::steady_clock::now();
     }
 
     template<class REACTOR, class CONTEXT>
@@ -50,18 +57,18 @@ namespace netxs::datetime
         CONTEXT   cause;
         bool      alive;
         bool      letup;
-        period    delay;
-        period    pulse;
+        span      delay;
+        span      pulse;
         work      fiber;
         cond      synch;
-        period    watch;
+        span      watch;
 
         void worker()
         {
             auto mutex = std::mutex{};
             auto lock = std::unique_lock{ mutex };
 
-            auto now = tempus::now();
+            auto now = datetime::now();
             auto prior = now;
 
             while (alive)
@@ -69,14 +76,14 @@ namespace netxs::datetime
                 watch += now - prior;
                 prior =  now;
 
-                now = tempus::now();
+                now = datetime::now();
                 alarm.notify(cause, now);
 
                 if (letup)
                 {
                     synch.wait_for(lock, delay);
 
-                    delay = period::zero();
+                    delay = span::zero();
                     letup = faux;
                 }
                 else
@@ -89,20 +96,20 @@ namespace netxs::datetime
 
     public:
         quartz(REACTOR& router, CONTEXT cause)
-            : alarm{ router         },
-              cause{ cause          },
-              alive{ faux           },
-              letup{ faux           },
-              delay{ period::zero() },
-              watch{ period::zero() },
-              pulse{ period::max()  }
+            : alarm{ router       },
+              cause{ cause        },
+              alive{ faux         },
+              letup{ faux         },
+              delay{ span::zero() },
+              watch{ span::zero() },
+              pulse{ span::max()  }
         { }
 
         operator bool ()
         {
             return alive;
         }
-        void ignite(period const& interval)
+        void ignite(span const& interval)
         {
             pulse = interval;
 
@@ -114,18 +121,18 @@ namespace netxs::datetime
         }
         void ignite(int frequency)
         {
-            ignite(period{ period::period::den / frequency });
+            ignite(span{ span::period::den / frequency });
         }
-        void freeze(period pause2)
+        void freeze(span pause2)
         {
             delay = pause2;
             letup = true;
         }
-        bool stopwatch(period const& p)
+        bool stopwatch(span const& p)
         {
             if (watch > p)
             {
-                watch = period::zero();
+                watch = span::zero();
                 return true;
             }
             else
@@ -150,13 +157,13 @@ namespace netxs::datetime
     };
 
     // quartz: Cyclic item logger.
-    template<class ITEM_T>
+    template<class Item>
     class tail
     {
         struct record
         {
-            moment time;
-            ITEM_T item;
+            time moment;
+            Item object;
         };
 
         using report = std::vector<record>;
@@ -172,28 +179,28 @@ namespace netxs::datetime
         }
 
     public:
-        period span; // tail: Period of time to be stored.
-        period mint; // tail: The minimal period of time between the records stored.
+        span period; // tail: Period of time to be stored.
+        span minint; // tail: The minimal period of time between the records stored.
 
-        tail(period const& span = 75ms, period const& mint = 4ms) //todo unify the mint=1/fps
-            : size{ 1    },
-              iter{ 0    },
-              span{ span },
-              mint{ mint }
+        tail(span const& period = 75ms, span const& minint = 4ms) //todo unify the minint=1/fps
+            : size{ 1 },
+              iter{ 0 },
+              period{ period },
+              minint{ minint }
         {
-            hist.resize(1, { tempus::now(), ITEM_T{} });
+            hist.resize(1, { datetime::now(), Item{} });
         }
 
         // tail: Add new value and current time.
-        void set(ITEM_T const& item)
+        void set(Item const& item)
         {
-            auto now = tempus::now();
+            auto now = datetime::now();
 
             if (++iter == size)
             {
                 auto& first = hist.front();
 
-                if (now - first.time < span)
+                if (now - first.moment < period)
                 {
                     hist.push_back({ now, item });
                     size++;
@@ -201,31 +208,31 @@ namespace netxs::datetime
                 else
                 {
                     iter = 0;
-                    first.time = now;
-                    first.item = item;
+                    first.moment = now;
+                    first.object = item;
                 }
             }
             else
             {
                 auto& rec = hist[iter];
-                rec.time = now;
-                rec.item = item;
+                rec.moment = now;
+                rec.object = item;
             }
         }
         // tail: Update last time stamp.
         void set()
         {
-            set(hist[iter].item);
+            set(hist[iter].object);
         }
         // tail: Return last value.
         auto& get() const
         {
-            return hist[iter].item;
+            return hist[iter].object;
         }
         // tail: Return last time stamp.
         auto& stamp() const
         {
-            return hist[iter].time;
+            return hist[iter].moment;
         }
         // tail: Shrink tail size to 1 and free memory.
         void dry()
@@ -241,22 +248,22 @@ namespace netxs::datetime
         {
             struct velocity_factors
             {
-                period dT = period::zero();
-                ITEM_T dS = ITEM_T{};// ITEM_T::zero;
+                span dT = span::zero();
+                Item dS = Item{};// ITEM_T::zero;
             } v;
 
             auto count = 0_sz;
-            auto until = tempus::now() - span;
+            auto until = datetime::now() - period;
 
             for (auto i = 0_sz; i + 1 < size; i++)
             {
                 auto& rec1 = at(i);
                 auto& rec2 = at(i + 1);
 
-                if (rec2.time > until)
+                if (rec2.moment > until)
                 {
-                    v.dS += rec1.item;
-                    v.dT += std::max(rec1.time - rec2.time, mint);
+                    v.dS += rec1.object;
+                    v.dT += std::max(rec1.moment - rec2.moment, minint);
                     count++;
                 }
                 else
@@ -267,13 +274,13 @@ namespace netxs::datetime
 
             if (count < 2)
             {
-                v.dS = ITEM_T{};
+                v.dS = Item{};
             }
 
             return v;
         }
         template<class LAW>
-        auto fader(period spell)
+        auto fader(span spell)
         {
             auto v0 = avg();
 

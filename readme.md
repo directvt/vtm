@@ -241,11 +241,11 @@ No arguments              | Run client (auto start server)
 ` -r | --runapp [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
 ` -? | -h | --help `      | Show usage message.
 
-Configuration file location precedence (descending priority):<br>
+Configuration precedence (descending priority):<br>
 1. Command line options `vtm -c path/to/settings.xml`<br>
 2. Environment variable `VTM_CONFIG=path/to/settings.xml`<br>
 3. Hardcoded location `~/.config/vtm/settings.xml`<br>
-4. Use predefined configuration at apps.hpp(~line:28)
+4. Predefined configuration at application.hpp(~line:28)
 
 # Settings
 

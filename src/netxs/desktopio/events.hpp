@@ -3,10 +3,7 @@
 
 #pragma once
 
-#include "../abstract/ptr.hpp"
-#include "../abstract/hash.hpp"
-#include "../abstract/duplet.hpp"
-#include "../abstract/queue.hpp"
+#include "geometry.hpp"
 
 #include <vector>
 #include <mutex>
@@ -19,9 +16,6 @@
 
 namespace netxs::events
 {
-    using type = unsigned int;
-    using id_t = uint32_t;
-
     enum class execution_order
     {
         forward, // Execute concrete event  first. Forward means from particular to general: 1. event_group::item, 2. event_group::any
@@ -84,7 +78,7 @@ namespace netxs::events
     static constexpr auto block = 4;
 
     // events: Return event level by its ID. Find the log base 2**block.
-    static constexpr inline auto level(type event)
+    static constexpr inline auto level(hint event)
     {
         if (event == 0) return 0;
         auto level = 1;
@@ -92,7 +86,7 @@ namespace netxs::events
         return level;
     }
     // events: Return event level mask by its ID. Find the log base 2**block.
-    static constexpr inline type level_mask(type event, int level = 0)
+    static constexpr inline hint level_mask(hint event, int level = 0)
     {
         while (event >>= block) { level += block; }
         return (1 << level) - 1;
@@ -105,24 +99,24 @@ namespace netxs::events
         //if (!(event >>= block)) return (1 << (__COUNTER__ - c) * block) - 1;
         //if (!(event >>= block)) return (1 << (__COUNTER__ - c) * block) - 1;
         //if (!(event >>= block)) return (1 << (__COUNTER__ - c) * block) - 1;
-        //return std::numeric_limits<type>::max();
+        //return std::numeric_limits<hint>::max();
     }
     // events: Return true if the event belongs to the branch.
-    static constexpr inline auto subevent(type event, type branch)
+    static constexpr inline auto subevent(hint event, hint branch)
     {
         return (event & level_mask(branch, block)) == branch;
     }
-    template<type event>             constexpr auto offset = level(event) * block;                                  // events: Item/msg bit shift.
-    template<type event>             constexpr auto parent =          event & ((1 << (offset<event> - block)) - 1); // events: Event group ID.
-    template<type event>             constexpr auto number =               (event >> (offset<event> - block)) - 1;  // events: Item index inside the group by its ID.
-    template<type group, auto index> constexpr auto entity = group | ((index + 1) <<  offset<group>);               // events: Event ID of the specified item inside the group.
+    template<hint event>             constexpr auto offset = level(event) * block;                                  // events: Item/msg bit shift.
+    template<hint event>             constexpr auto parent =          event & ((1 << (offset<event> - block)) - 1); // events: Event group ID.
+    template<hint event>             constexpr auto number =               (event >> (offset<event> - block)) - 1;  // events: Item index inside the group by its ID.
+    template<hint group, auto index> constexpr auto entity = group | ((index + 1) <<  offset<group>);               // events: Event ID of the specified item inside the group.
 
-    template<type group, auto... index>
+    template<hint group, auto... index>
     constexpr auto _instantiate(std::index_sequence<index...>)
     {
-        return std::array<type, sizeof...(index)>{ entity<group, index>... };
+        return std::array<hint, sizeof...(index)>{ entity<group, index>... };
     }
-    template<type group, auto count> constexpr auto subset = _instantiate<group>(std::make_index_sequence<count>{});
+    template<hint group, auto count> constexpr auto subset = _instantiate<group>(std::make_index_sequence<count>{});
 
     struct handler
     {
@@ -153,8 +147,8 @@ namespace netxs::events
             proceed,
         };
 
-        std::map<type, list> stock; // reactor: Handlers repository.
-        std::vector<type>    queue; // reactor: Event queue.
+        std::map<hint, list> stock; // reactor: Handlers repository.
+        std::vector<hint>    queue; // reactor: Event queue.
         vect                 qcopy; // reactor: Copy of the current pretenders to exec on current event.
         branch               alive; // reactor: Current exec branch interruptor.
 
@@ -182,7 +176,7 @@ namespace netxs::events
             }
         }
         template<class F>
-        hook subscribe(type event, hndl<F> proc)
+        hook subscribe(hint event, hndl<F> proc)
         {
             auto proc_ptr = std::make_shared<wrapper<F>>(std::move(proc));
 
@@ -197,7 +191,7 @@ namespace netxs::events
         }
         // reactor: Calling delegates. Returns the number of active ones.
         template<class F>
-        auto notify(type event, F&& param)
+        auto notify(hint event, F&& param)
         {
             auto lock = sync{};
 
@@ -219,9 +213,9 @@ namespace netxs::events
             }
             else
             {
-                static constexpr auto mask = type{ (1 << events::block) - 1 };
+                static constexpr auto mask = hint{ (1 << events::block) - 1 };
                 auto itermask = mask; // Skip root event block.
-                auto subgroup = type{};
+                auto subgroup = hint{};
                 do
                 {
                     itermask = itermask << events::block | mask;
@@ -530,7 +524,7 @@ namespace netxs::events
             else                                      token = anycast.subscribe(EVENT::id, handler);
         }
         template<tier TIER, class F>
-        auto signal(type event, F&& data)
+        auto signal(hint event, F&& data)
         {
                  if constexpr (TIER == tier::preview) return preview.notify(event, std::forward<F>(data));
             else if constexpr (TIER == tier::general) return general.notify(event, std::forward<F>(data));
@@ -548,16 +542,16 @@ namespace netxs::events
             }
         }
         template<class EVENT> static auto submit_global(hook& token)           { return submit_helper_token_global<EVENT>(token); }
-        template<class F>     static auto signal_global(type  event, F&& data) { return _globals<void>::general.notify(event, std::forward<F>(data)); }
+        template<class F>     static auto signal_global(hint  event, F&& data) { return _globals<void>::general.notify(event, std::forward<F>(data)); }
         // bell: Return initial event of the current event execution branch.
         template<tier TIER>
         auto protos()
         {
-                 if constexpr (TIER == tier::preview) return preview.queue.empty() ? type{} : preview.queue.back();
-            else if constexpr (TIER == tier::general) return general.queue.empty() ? type{} : general.queue.back();
-            else if constexpr (TIER == tier::request) return request.queue.empty() ? type{} : request.queue.back();
-            else if constexpr (TIER == tier::release) return release.queue.empty() ? type{} : release.queue.back();
-            else                                      return anycast.queue.empty() ? type{} : anycast.queue.back();
+                 if constexpr (TIER == tier::preview) return preview.queue.empty() ? hint{} : preview.queue.back();
+            else if constexpr (TIER == tier::general) return general.queue.empty() ? hint{} : general.queue.back();
+            else if constexpr (TIER == tier::request) return request.queue.empty() ? hint{} : request.queue.back();
+            else if constexpr (TIER == tier::release) return release.queue.empty() ? hint{} : release.queue.back();
+            else                                      return anycast.queue.empty() ? hint{} : anycast.queue.back();
         }
         template<tier TIER, class EVENT> auto protos(EVENT) { return bell::protos<TIER>() == EVENT::id; }
         template<tier TIER>
@@ -601,7 +595,7 @@ namespace netxs::events
         template<class T>
         auto& _agent()
         {
-            static auto agent = netxs::jobs<netxs::wptr<bell>>{};
+            static auto agent = generics::jobs<netxs::wptr<bell>>{};
             return agent;
         }
     }

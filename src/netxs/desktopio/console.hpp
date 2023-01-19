@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "../os/system.hpp"
-#include "../text/xml.hpp"
+#include "system.hpp"
+#include "xml.hpp"
 
 #include <typeindex>
 
@@ -26,13 +26,11 @@
 #define REPEAT_DELAY   500ms // console: Repeat delay.
 #define REPEAT_RATE    30ms  // console: Repeat rate.
 
-namespace netxs::console
+namespace netxs::ui
 {
     class face;
     class base;
-    class form;
     class link;
-    class site;
 
     struct create_t
     {
@@ -77,13 +75,13 @@ namespace netxs::console
     };
 
     using namespace netxs::input;
-    using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
+    using registry_t = generics::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using links_t = std::unordered_map<text, menuitem_t>;
     using focus_test_t = std::pair<id_t, si32>;
     using gear_id_list_t = std::list<id_t>;
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
-    using s11n = netxs::ansi::dtvt::binary::s11n;
+    using s11n = directvt::binary::s11n;
     using os::tty::xipc;
 
     static constexpr auto attr_id       = "id";
@@ -112,41 +110,37 @@ namespace netxs::console
 
 namespace netxs::events::userland
 {
-    using namespace netxs::ui::atoms;
-    using namespace netxs::datetime;
-
     struct e2
     {
-        using type = netxs::events::type;
         static constexpr auto dtor = netxs::events::userland::root::dtor;
         static constexpr auto cascade = netxs::events::userland::root::cascade;
         static constexpr auto cleanup = netxs::events::userland::root::cleanup;
 
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
-            EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
-            EVENT_XS( nextframe , bool                ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
-            EVENT_XS( depth     , si32                ), // request: Determine the depth of the hierarchy.
-            EVENT_XS( shutdown  , const view          ), // general: Server shutdown.
-            GROUP_XS( timer     , moment              ), // timer tick, arg: current moment (now).
-            GROUP_XS( render    , console::face       ), // release: UI-tree rendering.
-            GROUP_XS( conio     , si32                ),
-            GROUP_XS( size      , twod                ), // release: Object size.
-            GROUP_XS( coor      , twod                ), // release: Object coor.
-            GROUP_XS( form      , bool                ),
-            GROUP_XS( data      , si32                ),
-            GROUP_XS( debug     , const view          ), // return info struct with telemtry data.
-            GROUP_XS( config    , si32                ), // set/notify/get/global_set configuration data.
-            GROUP_XS( command   , si32                ), // exec UI command.
-            GROUP_XS( bindings  , sptr<console::base> ), // Dynamic Data Bindings.
+            EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
+            EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
+            EVENT_XS( depth     , si32           ), // request: Determine the depth of the hierarchy.
+            EVENT_XS( shutdown  , const view     ), // general: Server shutdown.
+            GROUP_XS( timer     , time           ), // timer tick, arg: current moment (now).
+            GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
+            GROUP_XS( conio     , si32           ),
+            GROUP_XS( size      , twod           ), // release: Object size.
+            GROUP_XS( coor      , twod           ), // release: Object coor.
+            GROUP_XS( form      , bool           ),
+            GROUP_XS( data      , si32           ),
+            GROUP_XS( debug     , const view     ), // return info struct with telemtry data.
+            GROUP_XS( config    , si32           ), // set/notify/get/global_set configuration data.
+            GROUP_XS( command   , si32           ), // exec UI command.
+            GROUP_XS( bindings  , sptr<ui::base> ), // Dynamic Data Bindings.
 
             SUBSET_XS( timer )
             {
-                EVENT_XS( tick, moment ), // relaese: execute before e2::timer::any (rendering)
+                EVENT_XS( tick, time ), // relaese: execute before e2::timer::any (rendering)
             };
             SUBSET_XS( render ) // release any: UI-tree default rendering submission.
             {
-                EVENT_XS( prerender, console::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
+                EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
             };
             SUBSET_XS( size ) // preview: checking by pro::limit.
             {
@@ -162,18 +156,18 @@ namespace netxs::events::userland
 
                 SUBSET_XS( list )
                 {
-                    EVENT_XS( users, sptr<std::list<sptr<console::base>>> ), // list of connected users.
-                    EVENT_XS( apps , sptr<console::registry_t>            ), // list of running apps.
-                    EVENT_XS( links, sptr<console::links_t>               ), // list of registered apps.
+                    EVENT_XS( users, sptr<std::list<sptr<ui::base>>> ), // list of connected users.
+                    EVENT_XS( apps , sptr<ui::registry_t>            ), // list of running apps.
+                    EVENT_XS( links, sptr<ui::links_t>               ), // list of registered apps.
                 };
             };
             SUBSET_XS( debug )
             {
-                EVENT_XS( logs  , const view          ), // logs output.
-                EVENT_XS( output, const view          ), // logs has to be parsed.
-                EVENT_XS( parsed, const console::page ), // output parced logs.
-                EVENT_XS( request, si32               ), // request debug data.
-                GROUP_XS( count , si32                ), // global: log listeners.
+                EVENT_XS( logs  , const view     ), // logs output.
+                EVENT_XS( output, const view     ), // logs has to be parsed.
+                EVENT_XS( parsed, const ui::page ), // output parced logs.
+                EVENT_XS( request, si32          ), // request debug data.
+                GROUP_XS( count , si32           ), // global: log listeners.
 
                 SUBSET_XS( count )
                 {
@@ -182,15 +176,15 @@ namespace netxs::events::userland
             };
             SUBSET_XS( config )
             {
-                EVENT_XS( whereami , sptr<console::base> ), // request: pointer to world object.
-                EVENT_XS( fps      , si32                ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
-                GROUP_XS( caret    , period              ), // any kind of intervals property.
-                GROUP_XS( plugins  , si32                ),
+                EVENT_XS( whereami , sptr<ui::base> ), // request: pointer to world object.
+                EVENT_XS( fps      , si32           ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
+                GROUP_XS( caret    , span           ), // any kind of intervals property.
+                GROUP_XS( plugins  , si32           ),
 
                 SUBSET_XS( caret )
                 {
-                    EVENT_XS( blink, period ), // caret blinking interval.
-                    EVENT_XS( style, si32   ), // caret style: 0 - underline, 1 - box.
+                    EVENT_XS( blink, span ), // caret blinking interval.
+                    EVENT_XS( style, si32 ), // caret style: 0 - underline, 1 - box.
                 };
                 SUBSET_XS( plugins )
                 {
@@ -223,11 +217,11 @@ namespace netxs::events::userland
             SUBSET_XS( data )
             {
                 //todo revise (see app::desk)
-                EVENT_XS( changed, utf::text       ), // release/preview/request: current menu item id(text).
-                EVENT_XS( request, si32            ),
-                EVENT_XS( disable, si32            ),
-                EVENT_XS( flush  , si32            ),
-                EVENT_XS( text   , const utf::text ), // signaling with a text string, release only.
+                EVENT_XS( changed, netxs::text       ), // release/preview/request: current menu item id(text).
+                EVENT_XS( request, si32              ),
+                EVENT_XS( disable, si32              ),
+                EVENT_XS( flush  , si32              ),
+                EVENT_XS( text   , const netxs::text ), // signaling with a text string, release only.
             };
             SUBSET_XS( command )
             {
@@ -238,21 +232,21 @@ namespace netxs::events::userland
             };
             SUBSET_XS( form )
             {
-                EVENT_XS( canvas   , sptr<console::core> ), // request global canvas.
-                EVENT_XS( maximize , input::hids         ), // request to toggle maximize/restore.
-                EVENT_XS( restore  , sptr<console::base> ), // request to toggle restore.
-                EVENT_XS( quit     , sptr<console::base> ), // request parent for destroy.
-                GROUP_XS( layout   , const twod          ),
-                GROUP_XS( draggable, bool                ), // signal to the form to enable draggablity for specified mouse button.
-                GROUP_XS( highlight, bool                ),
-                GROUP_XS( upon     , bool                ),
-                GROUP_XS( proceed  , bool                ),
-                GROUP_XS( cursor   , bool                ),
-                GROUP_XS( drag     , input::hids         ),
-                GROUP_XS( prop     , text                ),
-                GROUP_XS( global   , twod                ),
-                GROUP_XS( state    , const twod          ),
-                GROUP_XS( animate  , id_t                ),
+                EVENT_XS( canvas   , sptr<core>     ), // request global canvas.
+                EVENT_XS( maximize , input::hids    ), // request to toggle maximize/restore.
+                EVENT_XS( restore  , sptr<ui::base> ), // request to toggle restore.
+                EVENT_XS( quit     , sptr<ui::base> ), // request parent for destroy.
+                GROUP_XS( layout   , const twod     ),
+                GROUP_XS( draggable, bool           ), // signal to the form to enable draggablity for specified mouse button.
+                GROUP_XS( highlight, bool           ),
+                GROUP_XS( upon     , bool           ),
+                GROUP_XS( proceed  , bool           ),
+                GROUP_XS( cursor   , bool           ),
+                GROUP_XS( drag     , input::hids    ),
+                GROUP_XS( prop     , text           ),
+                GROUP_XS( global   , twod           ),
+                GROUP_XS( state    , const twod     ),
+                GROUP_XS( animate  , id_t           ),
 
                 SUBSET_XS( draggable )
                 {
@@ -267,14 +261,14 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( layout )
                 {
-                    EVENT_XS( shift , const twod         ), // request a global shifting  with delta.
-                    EVENT_XS( convey, cube               ), // request a global conveying with delta (Inform all children to be conveyed).
-                    EVENT_XS( bubble, console::base      ), // order to popup the requested item through the visual tree.
-                    EVENT_XS( expose, console::base      ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
-                    EVENT_XS( appear, twod               ), // fly to the specified coords.
-                    EVENT_XS( gonext, sptr<console::base>), // request: proceed request for available objects (next)
-                    EVENT_XS( goprev, sptr<console::base>), // request: proceed request for available objects (prev)
-                    EVENT_XS( swarp , const dent         ), // preview: form swarping
+                    EVENT_XS( shift , const twod    ), // request a global shifting  with delta.
+                    EVENT_XS( convey, cube          ), // request a global conveying with delta (Inform all children to be conveyed).
+                    EVENT_XS( bubble, ui::base      ), // order to popup the requested item through the visual tree.
+                    EVENT_XS( expose, ui::base      ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
+                    EVENT_XS( appear, twod          ), // fly to the specified coords.
+                    EVENT_XS( gonext, sptr<ui::base>), // request: proceed request for available objects (next)
+                    EVENT_XS( goprev, sptr<ui::base>), // request: proceed request for available objects (prev)
+                    EVENT_XS( swarp , const dent    ), // preview: form swarping
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
@@ -291,24 +285,24 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( upon )
                 {
-                    EVENT_XS( redrawn, console::face       ), // inform about camvas is completely redrawn.
-                    EVENT_XS( cached , console::face       ), // inform about camvas is cached.
-                    EVENT_XS( wiped  , console::face       ), // event after wipe the canvas.
-                    EVENT_XS( changed, twod                ), // event after resize, arg: diff bw old and new size.
-                    EVENT_XS( dragged, input::hids         ), // event after drag.
-                    EVENT_XS( created, input::hids         ), // release: notify the instance of who created it.
-                    EVENT_XS( started, sptr<console::base> ), // release: notify the instance is commissioned. arg: visual root.
-                    GROUP_XS( vtree  , sptr<console::base> ), // visual tree events, arg: parent base_sptr.
-                    GROUP_XS( scroll , rack                ), // event after scroll.
-                    //EVENT_XS( created    , sptr<console::base> ), // event after itself creation, arg: itself bell_sptr.
-                    //EVENT_XS( detached   , bell_sptr           ), // inform that subject is detached, arg: parent bell_sptr.
-                    //EVENT_XS( invalidated, bool                ),
-                    //EVENT_XS( moved      , twod                ), // release: event after moveto, arg: diff bw old and new coor twod. preview: event after moved by somebody.
+                    EVENT_XS( redrawn, ui::face       ), // inform about camvas is completely redrawn.
+                    EVENT_XS( cached , ui::face       ), // inform about camvas is cached.
+                    EVENT_XS( wiped  , ui::face       ), // event after wipe the canvas.
+                    EVENT_XS( changed, twod           ), // event after resize, arg: diff bw old and new size.
+                    EVENT_XS( dragged, input::hids    ), // event after drag.
+                    EVENT_XS( created, input::hids    ), // release: notify the instance of who created it.
+                    EVENT_XS( started, sptr<ui::base> ), // release: notify the instance is commissioned. arg: visual root.
+                    GROUP_XS( vtree  , sptr<ui::base> ), // visual tree events, arg: parent base_sptr.
+                    GROUP_XS( scroll , rack           ), // event after scroll.
+                    //EVENT_XS( created    , sptr<ui::base> ), // event after itself creation, arg: itself bell_sptr.
+                    //EVENT_XS( detached   , bell_sptr      ), // inform that subject is detached, arg: parent bell_sptr.
+                    //EVENT_XS( invalidated, bool           ),
+                    //EVENT_XS( moved      , twod           ), // release: event after moveto, arg: diff bw old and new coor twod. preview: event after moved by somebody.
 
                     SUBSET_XS( vtree )
                     {
-                        EVENT_XS( attached, sptr<console::base> ), // Child has been attached, arg: parent sptr<base>.
-                        EVENT_XS( detached, sptr<console::base> ), // Child has been detached, arg: parent sptr<base>.
+                        EVENT_XS( attached, sptr<ui::base> ), // Child has been attached, arg: parent sptr<base>.
+                        EVENT_XS( detached, sptr<ui::base> ), // Child has been detached, arg: parent sptr<base>.
                     };
                     SUBSET_XS( scroll )
                     {
@@ -365,30 +359,31 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( proceed )
                 {
-                    EVENT_XS( create  , rect                ), // return coordinates of the new object placeholder.
-                    EVENT_XS( createat, console::create_t   ), // general: create an intance at the specified location and return sptr<base>.
-                    EVENT_XS( createfrom, console::create_t ), // general: attach spcified intance and return sptr<base>.
-                    EVENT_XS( createby, input::hids         ), // return gear with coordinates of the new object placeholder gear::slot.
-                    EVENT_XS( destroy , console::base       ), // ??? bool return reference to the parent.
-                    EVENT_XS( render  , bool                ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
-                    EVENT_XS( attach  , sptr<console::base> ), // order to attach a child, arg is a parent base_sptr.
-                    EVENT_XS( detach  , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
-                    EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
-                    EVENT_XS( swap    , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
-                    EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
-                    EVENT_XS( onbehalf, console::proc       ), // exec functor on behalf (see gate).
-                    GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
-                    //EVENT_XS( focus      , sptr<console::base>      ), // order to set focus to the specified object, arg is a object sptr.
-                    //EVENT_XS( commit     , si32                     ), // order to output the targets, arg is a frame number.
-                    //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
-                    //EVENT_XS( draw       , face                     ), // ????  order to render itself to the canvas.
-                    //EVENT_XS( checkin    , face_sptr                ), // order to register an output client canvas.
+                    EVENT_XS( create    , rect           ), // return coordinates of the new object placeholder.
+                    EVENT_XS( createat  , ui::create_t   ), // general: create an intance at the specified location and return sptr<base>.
+                    EVENT_XS( createfrom, ui::create_t   ), // general: attach spcified intance and return sptr<base>.
+                    EVENT_XS( createby  , input::hids    ), // return gear with coordinates of the new object placeholder gear::slot.
+                    EVENT_XS( autofocus , input::hids    ), // release: restore the last foci state.
+                    EVENT_XS( destroy   , ui::base       ), // ??? bool return reference to the parent.
+                    EVENT_XS( render    , bool           ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
+                    EVENT_XS( attach    , sptr<ui::base> ), // order to attach a child, arg is a parent base_sptr.
+                    EVENT_XS( detach    , sptr<ui::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
+                    EVENT_XS( unfocus   , sptr<ui::base> ), // order to unset focus on the specified object, arg is a object sptr.
+                    EVENT_XS( swap      , sptr<ui::base> ), // order to replace existing client. See tiling manager empty slot.
+                    EVENT_XS( functor   , ui::functor    ), // exec functor (see pro::focus).
+                    EVENT_XS( onbehalf  , ui::proc       ), // exec functor on behalf (see gate).
+                    GROUP_XS( d_n_d     , sptr<ui::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+                    //EVENT_XS( focus      , sptr<ui::base>     ), // order to set focus to the specified object, arg is a object sptr.
+                    //EVENT_XS( commit     , si32               ), // order to output the targets, arg is a frame number.
+                    //EVENT_XS( multirender, vector<sptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
+                    //EVENT_XS( draw       , face               ), // ????  order to render itself to the canvas.
+                    //EVENT_XS( checkin    , face_sptr          ), // order to register an output client canvas.
 
                     SUBSET_XS(d_n_d)
                     {
-                        EVENT_XS(ask  , sptr<console::base>),
-                        EVENT_XS(drop , console::create_t  ),
-                        EVENT_XS(abort, sptr<console::base>),
+                        EVENT_XS(ask  , sptr<ui::base>),
+                        EVENT_XS(drop , ui::create_t  ),
+                        EVENT_XS(abort, sptr<ui::base>),
                     };
                 };
                 SUBSET_XS( cursor )
@@ -504,21 +499,21 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse , si32          ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
-                    EVENT_XS( header, console::para ), // notify the client has changed title.
-                    EVENT_XS( footer, console::para ), // notify the client has changed footer.
-                    EVENT_XS( params, console::para ), // notify the client has changed title params.
-                    EVENT_XS( color , console::tone ), // notify the client has changed tone, preview to set.
-                    GROUP_XS( keybd , bool          ), // notify the client if keybd is active or not. The form is active when the number of clients (form::eventa::keybd::got - keybd::lost) is not zero, only release.
+                    EVENT_XS( mouse , si32     ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
+                    EVENT_XS( header, ui::para ), // notify the client has changed title.
+                    EVENT_XS( footer, ui::para ), // notify the client has changed footer.
+                    EVENT_XS( params, ui::para ), // notify the client has changed title params.
+                    EVENT_XS( color , ui::tone ), // notify the client has changed tone, preview to set.
+                    GROUP_XS( keybd , bool     ), // notify the client if keybd is active or not. The form is active when the number of clients (form::eventa::keybd::got - keybd::lost) is not zero, only release.
 
                     SUBSET_XS( keybd )
                     {
-                        EVENT_XS( got     , input::hids             ), // release: got  keyboard focus.
-                        EVENT_XS( lost    , input::hids             ), // release: lost keyboard focus.
-                        EVENT_XS( handover, console::gear_id_list_t ), // request: Handover all available foci.
-                        EVENT_XS( enlist  , console::gear_id_list_t ), // anycast: Enumerate all available foci.
-                        EVENT_XS( find    , console::focus_test_t   ), // request: Check the focus.
-                        EVENT_XS( check   , bool                    ), // anycast: Check any focus.
+                        EVENT_XS( got     , input::hids        ), // release: got  keyboard focus.
+                        EVENT_XS( lost    , input::hids        ), // release: lost keyboard focus.
+                        EVENT_XS( handover, ui::gear_id_list_t ), // request: Handover all available foci.
+                        EVENT_XS( enlist  , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
+                        EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
+                        EVENT_XS( check   , bool               ), // anycast: Check any focus.
                     };
                 };
             };
@@ -526,7 +521,7 @@ namespace netxs::events::userland
     };
 }
 
-namespace netxs::console
+namespace netxs::ui
 {
     using e2 = netxs::events::userland::e2;
 
@@ -581,8 +576,8 @@ namespace netxs::console
         cell menu_white;
         cell menu_black;
 
-        period fader_time;
-        period fader_fast;
+        span fader_time;
+        span fader_fast;
 
         template<class V>
         struct _globals
@@ -634,7 +629,7 @@ namespace netxs::console
                 default: break;
             }
         }
-        static void setup(tone::prop parameter, period const& p)
+        static void setup(tone::prop parameter, span const& p)
         {
             auto& global = _globals<void>::global;
             switch (parameter)
@@ -698,7 +693,7 @@ namespace netxs::console
             }
         }
         // skin:: Return global gradient for brighter/shadower.
-        static period& timeout(si32 property)
+        static span& timeout(si32 property)
         {
             auto& global = _globals<void>::global;
             switch (property)
@@ -1386,8 +1381,6 @@ namespace netxs::console
     // console: Client properties.
     class conf
     {
-        using time = period;
-
     public:
         text ip;
         text port;
@@ -1398,7 +1391,7 @@ namespace netxs::console
         text title;
         text selected;
         twod coor;
-        time clip_preview_time;
+        span clip_preview_time;
         cell clip_preview_clrs;
         byte clip_preview_alfa;
         bool clip_preview_show;
@@ -1408,8 +1401,8 @@ namespace netxs::console
         face background_image;
         si32 legacy_mode;
         si32 session_id;
-        time dblclick_timeout; // conf: Double click timeout.
-        time tooltip_timeout; // conf: Timeout for tooltip.
+        span dblclick_timeout; // conf: Double click timeout.
+        span tooltip_timeout; // conf: Timeout for tooltip.
         cell tooltip_colors; // conf: Tooltip rendering colors.
         bool tooltip_enabled; // conf: Enable tooltips.
         bool glow_fx; // conf: Enable glow effect in main menu.
@@ -1424,15 +1417,15 @@ namespace netxs::console
         {
             config.cd("/config/client/");
             clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
-            clip_preview_time = config.take("clipboard/preview/timeout", time{ 3s });
+            clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
             clip_preview_alfa = config.take("clipboard/preview/alpha", 0xFF);
             clip_preview_glow = config.take("clipboard/preview/shadow", 7);
             clip_preview_show = config.take("clipboard/preview/enabled", true);
             clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
             coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
-            dblclick_timeout  = config.take("mouse/dblclick",  time{ 500ms });
+            dblclick_timeout  = config.take("mouse/dblclick",  span{ 500ms });
             tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
-            tooltip_timeout   = config.take("tooltip/timeout", time{ 500ms });
+            tooltip_timeout   = config.take("tooltip/timeout", span{ 500ms });
             tooltip_enabled   = config.take("tooltip/enabled", true);
             debug_overlay     = config.take("debug/overlay", faux);
             debug_toggle      = config.take("debug/toggle", "🐞"s);
@@ -1454,7 +1447,7 @@ namespace netxs::console
         conf(xipc peer, si32 session_id, xml::settings& config)
             : session_id{ session_id }
         {
-            auto init = ansi::dtvt::binary::startdata_t{};
+            auto init = directvt::binary::startdata_t{};
             if (!init.load([&](auto... args){ return peer->recv(args...); }))
             {
                 log("conf: init data corrupted");
@@ -2098,7 +2091,7 @@ namespace netxs::console
             template<class P, class S>
             void actify(id_t ID, S flow, P proc)
             {
-                auto init = tempus::now();
+                auto init = datetime::now();
                 auto handler = [&, ID, proc, flow, init](auto p)
                 {
                     auto now = datetime::round<si32>(p - init);
@@ -2173,9 +2166,9 @@ namespace netxs::console
 
             // pro::timer: Start countdown for specified ID.
             template<class P>
-            void actify(id_t ID, period timeout, P lambda)
+            void actify(id_t ID, span timeout, P lambda)
             {
-                auto alarm = tempus::now() + timeout;
+                auto alarm = datetime::now() + timeout;
                 auto handler = [&, ID, timeout, lambda, alarm](auto now) mutable
                 {
                     if (now > alarm)
@@ -2188,7 +2181,7 @@ namespace netxs::console
             }
             // pro::timer: Start countdown.
             template<class P>
-            void actify(period timeout, P lambda)
+            void actify(span timeout, P lambda)
             {
                 actify(bell::noid, timeout, lambda);
             }
@@ -2633,18 +2626,18 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            subs   conf; // caret: Configuration subscriptions.
-            bool   live; // caret: Should the caret be drawn.
-            bool   done; // caret: Is the caret already drawn.
-            bool   down; // caret: Is the caret suppressed (lost focus).
-            bool   form; // caret: Caret style.
-            rect   body; // caret: Caret position.
-            period step; // caret: Blink interval. period::zero() if steady.
-            moment next; // caret: Time of next blinking.
+            subs conf; // caret: Configuration subscriptions.
+            bool live; // caret: Should the caret be drawn.
+            bool done; // caret: Is the caret already drawn.
+            bool down; // caret: Is the caret suppressed (lost focus).
+            bool form; // caret: Caret style.
+            rect body; // caret: Caret position.
+            span step; // caret: Blink interval. span::zero() if steady.
+            time next; // caret: Time of next blinking.
 
         public:
             caret(base&&) = delete;
-            caret(base& boss, bool visible = faux, bool abox = faux, twod position = dot_00, period freq = BLINK_PERIOD)
+            caret(base& boss, bool visible = faux, bool abox = faux, twod position = dot_00, span freq = BLINK_PERIOD)
                 : skill{ boss },
                    live{ faux },
                    done{ faux },
@@ -2697,9 +2690,9 @@ namespace netxs::console
                 }
             }
             // pro::caret: Set blink period.
-            void blink_period(period const& new_step = BLINK_PERIOD)
+            void blink_period(span const& new_step = BLINK_PERIOD)
             {
-                auto changed = (step == period::zero()) != (new_step == period::zero());
+                auto changed = (step == span::zero()) != (new_step == span::zero());
                 step = new_step;
                 if (changed)
                 {
@@ -2717,7 +2710,7 @@ namespace netxs::console
                         style(true);
                         break;
                     case 2: // n = 2  steady box
-                        blink_period(period::zero());
+                        blink_period(span::zero());
                         style(true);
                         break;
                     case 3: // n = 3  blinking underline
@@ -2725,7 +2718,7 @@ namespace netxs::console
                         style(faux);
                         break;
                     case 4: // n = 4  steady underline
-                        blink_period(period::zero());
+                        blink_period(span::zero());
                         style(faux);
                         break;
                     case 5: // n = 5  blinking I-bar
@@ -2733,7 +2726,7 @@ namespace netxs::console
                         style(true);
                         break;
                     case 6: // n = 6  steady I-bar
-                        blink_period(period::zero());
+                        blink_period(span::zero());
                         style(true);
                         break;
                     default:
@@ -2768,7 +2761,7 @@ namespace netxs::console
             // pro::caret: Force to redraw caret.
             void reset()
             {
-                if (step != period::zero())
+                if (step != span::zero())
                 {
                     live = faux;
                     next = {};
@@ -2780,7 +2773,7 @@ namespace netxs::console
                 if (!*this)
                 {
                     done = faux;
-                    live = step == period::zero();
+                    live = step == span::zero();
                     if (!live)
                     {
                         boss.SUBMIT_T(tier::general, e2::timer::tick, memo, timestamp)
@@ -2796,7 +2789,7 @@ namespace netxs::console
                     boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
                     {
                         done = live;
-                        auto state = down ? (step == period::zero() ? faux : true)
+                        auto state = down ? (step == span::zero() ? faux : true)
                                           : live;
                         if (state)
                         {
@@ -2916,11 +2909,11 @@ namespace netxs::console
 
             struct
             {
-                period render = period::zero();
-                period output = period::zero();
-                si32   frsize = 0;
-                si64   totals = 0;
-                si32   number = 0;    // info: Current frame number
+                span render = span::zero();
+                span output = span::zero();
+                si32 frsize = 0;
+                si64 totals = 0;
+                si32 number = 0;    // info: Current frame number
                 //bool   onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
             }
             track; // debug: Textify the telemetry data for debugging purpose.
@@ -2957,15 +2950,15 @@ namespace netxs::console
                     std::to_string(new_size.x) + " x " +
                     std::to_string(new_size.y);
             }
-            void update(period const& watch, si32 delta)
+            void update(span const& watch, si32 delta)
             {
                 track.output = watch;
                 track.frsize = delta;
                 track.totals+= delta;
             }
-            void update(moment const& timestamp)
+            void update(time const& timestamp)
             {
-                track.render = tempus::now() - timestamp;
+                track.render = datetime::now() - timestamp;
             }
             void output(face& canvas)
             {
@@ -3246,9 +3239,9 @@ namespace netxs::console
             static constexpr auto QUIT_MSG = e2::conio::quit;
             static constexpr auto ESC_THRESHOLD = si32{ 500 }; // guard: Double escape threshold in ms.
 
-            bool   wait; // guard: Ready to close.
-            moment stop; // guard: Timeout for single Esc.
-            text   desc = "exit after preclose";
+            bool wait; // guard: Ready to close.
+            time stop; // guard: Timeout for single Esc.
+            text desc = "exit after preclose";
 
         public:
             guard(base&&) = delete;
@@ -3260,7 +3253,7 @@ namespace netxs::console
                 {
                     if ((wait = pre_close))
                     {
-                        stop = tempus::now() + std::chrono::milliseconds(ESC_THRESHOLD);
+                        stop = datetime::now() + std::chrono::milliseconds(ESC_THRESHOLD);
                     }
                 };
 
@@ -3289,25 +3282,25 @@ namespace netxs::console
             static constexpr auto QUIT_MSG   = e2::shutdown;
             static constexpr auto LIMIT = 60 * 10; //todo unify // watch: Idle timeout in seconds.
 
-            hook   pong; // watch: Alibi subsciption token.
-            hook   ping; // watch: Zombie check countdown token.
-            moment stop; // watch: Timeout for zombies.
-            text   desc = "no mouse clicking events";
+            hook pong; // watch: Alibi subsciption token.
+            hook ping; // watch: Zombie check countdown token.
+            time stop; // watch: Timeout for zombies.
+            text desc = "no mouse clicking events";
 
         public:
             watch(base&&) = delete;
             watch(base& boss) : skill{ boss }
             {
-                stop = tempus::now() + std::chrono::seconds(LIMIT);
+                stop = datetime::now() + std::chrono::seconds(LIMIT);
 
                 // No mouse events watchdog.
                 boss.SUBMIT_T(tier::preview, EXCUSE_MSG, pong, something)
                 {
-                    stop = tempus::now() + std::chrono::seconds(LIMIT);
+                    stop = datetime::now() + std::chrono::seconds(LIMIT);
                 };
                 boss.SUBMIT_T(tier::general, e2::timer::any, ping, something)
                 {
-                    if (tempus::now() > stop)
+                    if (datetime::now() > stop)
                     {
                         auto shadow = boss.This();
                         boss.SIGNAL(tier::general, QUIT_MSG, desc);
@@ -3760,7 +3753,7 @@ namespace netxs::console
                     boss.SIGNAL(tier::release, e2::conio::focus, f);
                 }
             }
-            void fire(events::id_t event_id)
+            void fire(hint event_id)
             {
                 for (auto& [id, gear_ptr] : gears)
                 {
@@ -3845,7 +3838,7 @@ namespace netxs::console
                   skill::memo;
 
             robot  robo;   // fader: .
-            period fade;
+            span fade;
             si32 transit;
             cell c1;
             cell c2;
@@ -3865,7 +3858,7 @@ namespace netxs::console
 
         public:
             fader(base&&) = delete;
-            fader(base& boss, cell default_state, cell highlighted_state, period fade_out = 250ms)
+            fader(base& boss, cell default_state, cell highlighted_state, span fade_out = 250ms)
                 : skill{ boss },
                 robo{ boss },
                 fade{ fade_out },
@@ -4441,7 +4434,7 @@ namespace netxs::console
     class host
         : public base
     {
-        using tick = quartz<events::reactor<>, e2::type>;
+        using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
 
         pro::keybd keybd{*this }; // host: Keyboard controller.
@@ -4473,8 +4466,8 @@ namespace netxs::console
             skin::setup(tone::inactive  , config.take("inactive"  , cell{}));
             skin::setup(tone::menu_white, config.take("menu_white", cell{}));
             skin::setup(tone::menu_black, config.take("menu_black", cell{}));
-            skin::setup(tone::fader     , config.take("fader/duration", period{ 150ms }));
-            skin::setup(tone::fastfader , config.take("fader/fast"    , period{ 0ms }));
+            skin::setup(tone::fader     , config.take("fader/duration", span{ 150ms }));
+            skin::setup(tone::fastfader , config.take("fader/fast"    , span{ 0ms }));
             hertz = config.take("fps");
             if (hertz <= 0) hertz = 60;
 
@@ -5052,6 +5045,10 @@ namespace netxs::console
                     prev = prev_ptr->object;
                 }
             };
+            SUBMIT(tier::release, e2::form::proceed::autofocus, gear)
+            {
+                autofocus(gear);
+            };
         }
 
     public:
@@ -5062,6 +5059,7 @@ namespace netxs::console
             items.reset();
         }
 
+        // hall: Autorun apps from config.
         void autorun(xml::settings& config)
         {
             auto what = e2::form::proceed::createat.param();
@@ -5082,6 +5080,23 @@ namespace netxs::console
                     }
                     else log("hall: Unexpected empty app id in autorun configuration");
                 }
+            }
+        }
+        // hall: Restore all foci for the first user.
+        void autofocus(hids& gear)
+        {
+            if (taken.size())
+            {
+                gear.force_group_focus = true;
+                for (auto id : taken)
+                {
+                    if (auto window_ptr = bell::getref(id))
+                    {
+                        window_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    }
+                }
+                gear.force_group_focus = faux;
+                taken.clear();
             }
         }
         void redraw(face& canvas) override
@@ -5111,23 +5126,6 @@ namespace netxs::console
             users.append(user);
             regis.usr.push_back(user);
             SIGNAL(tier::release, e2::bindings::list::users, regis.usr_ptr);
-            if (regis.usr.size() == 1) // Restore all foci for the first user.
-            {
-                for (auto& [id, gear_ptr] : user->input.gears)
-                {
-                    auto& gear = *gear_ptr;
-                    gear.force_group_focus = true;
-                    for (auto id : taken)
-                    {
-                        if (auto window_ptr = bell::getref(id))
-                        {
-                            window_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                        }
-                    }
-                    gear.force_group_focus = faux;
-                }
-                taken.clear();
-            }
             return user;
         }
     };
@@ -5343,7 +5341,6 @@ namespace netxs::console
         using work = std::thread;
         using lock = std::mutex;
         using cond = std::condition_variable_any;
-        using span = period;
         using ipc  = os::ipc::stdcon;
 
         struct stat
@@ -5366,12 +5363,12 @@ namespace netxs::console
         void render(ipc& canal)
         {
             log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
-            auto start = moment{};
+            auto start = time{};
             auto image = Bitmap{};
             auto guard = std::unique_lock{ mutex };
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
-                start = tempus::now();
+                start = datetime::now();
                 ready = faux;
                 abort = faux;
                 auto winid = id_t{ 0xddccbbaa };
@@ -5381,7 +5378,7 @@ namespace netxs::console
                 {
                     image.sendby(canal); // Sending, this is the frame synchronization point.
                 }                        // Frames should drop, the rest should wait for the end of sending.
-                debug.watch = tempus::now() - start;
+                debug.watch = datetime::now() - start;
             }
             log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
         }
@@ -5434,11 +5431,11 @@ namespace netxs::console
               ready{ faux },
               abort{ faux }
         {
-            using namespace netxs::ansi::dtvt;
+            using namespace netxs::directvt;
             paint = work([&, vtmode]
             {
                 //todo revise (bitmap/bitmap_t)
-                     if (vtmode == svga::directvt ) render<binary::bitmap_t>               (canal);
+                     if (vtmode == svga::dtvt     ) render<binary::bitmap_t>               (canal);
                 else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(canal);
                 else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>(canal);
                 else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(canal);
@@ -5518,13 +5515,13 @@ namespace netxs::console
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
-        void draw_clip_preview(face& canvas, moment const& stamp)
+        void draw_clip_preview(face& canvas, time const& stamp)
         {
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
-                if (props.clip_preview_time == period::zero()
+                if (props.clip_preview_time == span::zero()
                  || props.clip_preview_time > stamp - gear.delta.stamp())
                 {
                     auto coor = gear.coord + dot_21 * 2;
@@ -5572,7 +5569,7 @@ namespace netxs::console
             }
             list.thing.sendby<true>(conio);
         }
-        void check_tooltips(moment now)
+        void check_tooltips(time now)
         {
             auto result = faux;
             for (auto& [gear_id, gear_ptr] : input.gears)
@@ -5618,9 +5615,9 @@ namespace netxs::console
 
                 auto vtmode = legacy & os::vt::vga16  ? svga::vga16
                             : legacy & os::vt::vga256 ? svga::vga256
-                            : legacy & os::vt::direct ? svga::directvt
+                            : legacy & os::vt::direct ? svga::dtvt
                                                       : svga::truecolor;
-                auto direct = vtmode == svga::directvt;
+                auto direct = vtmode == svga::dtvt;
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
                 auto conf_usr_name = props.name;
@@ -5636,13 +5633,13 @@ namespace netxs::console
                 {
                     if (direct && !props.is_standalone_app)
                     {
-                        conio.debuglogs.send(canal, os::process_id, text{ data });
+                        conio.debuglogs.send(canal, os::process::id, text{ data });
                     }
                 });
 
                 auto rebuild_scene = [&](bool damaged)
                 {
-                    auto stamp = tempus::now();
+                    auto stamp = datetime::now();
 
                     auto& canvas = input.xmap;
                     if (damaged)
@@ -5815,6 +5812,13 @@ namespace netxs::console
                     };
                 }
 
+                if (!props.is_standalone_app)
+                {
+                    SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
+                    {
+                        world.SIGNAL(tier::release, e2::form::proceed::autofocus, gear);
+                    };
+                }
                 // Focus relay.
                 SUBMIT_T(tier::release, hids::events::notify::focus::got, token, from_gear)
                 {
@@ -5973,7 +5977,7 @@ namespace netxs::console
 
             lock.unlock();
 
-            ansi::dtvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
+            directvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
 
             lock.lock();
                 log("link: signaling to close read channel ", canal);

@@ -6,10 +6,9 @@
 #define DESKTOPIO_MYPATH "vtm/term"
 #define DESKTOPIO_DEFAPP "Term"
 
-#include "../apps.hpp"
+#include "term.hpp"
 
 using namespace netxs;
-using namespace netxs::console;
 
 int main(int argc, char* argv[])
 {

@@ -3,15 +3,11 @@
 
 #pragma once
 
-#include "../ui/layout.hpp"
-#include "../datetime/quartz.hpp"
+#include "canvas.hpp"
+#include "quartz.hpp"
 
 namespace netxs::xml
 {
-    using namespace netxs::utf;
-    using namespace netxs::ui::atoms;
-    using namespace netxs::datetime;
-
     static constexpr auto spaces = " \n\r\t"sv;
 
     auto escape(qiew line)
@@ -104,23 +100,23 @@ namespace netxs::xml
         return std::nullopt;
     }
     template<>
-    auto take<period>(view utf8) -> std::optional<period>
+    auto take<span>(view utf8) -> std::optional<span>
     {
         using namespace std::chrono;
         utf::trim_front(utf8, " ({[\"\'");
         if (auto x = utf::to_int(utf8))
         {
             auto v = x.value();
-            auto p = period{};
+            auto p = span{};
                  if (utf8.empty()
-                  || utf8.starts_with("ms" )) return period{ milliseconds{ v } };
-            else if (utf8.starts_with("us" )) return period{ microseconds{ v } };
-            else if (utf8.starts_with("ns" )) return period{  nanoseconds{ v } };
-            else if (utf8.starts_with("s"  )) return period{      seconds{ v } };
-            else if (utf8.starts_with("min")) return period{      minutes{ v } };
-            else if (utf8.starts_with("h"  )) return period{        hours{ v } };
-            else if (utf8.starts_with("d"  )) return period{         days{ v } };
-            else if (utf8.starts_with("w"  )) return period{        weeks{ v } };
+                  || utf8.starts_with("ms" )) return span{ milliseconds{ v } };
+            else if (utf8.starts_with("us" )) return span{ microseconds{ v } };
+            else if (utf8.starts_with("ns" )) return span{  nanoseconds{ v } };
+            else if (utf8.starts_with("s"  )) return span{      seconds{ v } };
+            else if (utf8.starts_with("min")) return span{      minutes{ v } };
+            else if (utf8.starts_with("h"  )) return span{        hours{ v } };
+            else if (utf8.starts_with("d"  )) return span{         days{ v } };
+            else if (utf8.starts_with("w"  )) return span{        weeks{ v } };
         }
         return std::nullopt;
     }
@@ -444,7 +440,6 @@ namespace netxs::xml
             template<bool WithTemplate = faux>
             auto list(qiew path_str)
             {
-                using utf::text;
                 path_str = utf::trim(path_str, '/');
                 auto root = this;
                 auto crop = vect{}; //auto& items = config.root->hive["menu"][0]->hive["item"]...;
@@ -755,7 +750,7 @@ namespace netxs::xml
             else if (data.starts_with(view_equal        )) what = type::equal;
             else if (data.starts_with(view_defaults     )
                   && last == type::token)                  what = type::defaults;
-            else if (view_spaces.find(data.front()) != view::npos) what = type::whitespaces;
+            else if (utf::view_spaces.find(data.front()) != view::npos) what = type::whitespaces;
             else if (last == type::close_tag
                   || last == type::begin_tag
                   || last == type::token

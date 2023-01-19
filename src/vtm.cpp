@@ -14,7 +14,7 @@
 #include "netxs/apps.hpp"
 
 using namespace netxs;
-using namespace netxs::console;
+using namespace netxs::ui;
 
 enum class type
 {
@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
             {
                 auto direct = !!(vtmode & os::vt::direct);
                 if (!direct) os::logging::start(DESKTOPIO_MYPATH);
-                auto init = ansi::dtvt::binary::startdata_t{};
+                auto init = directvt::binary::startdata_t{};
                 init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
                 init.send([&](auto& data){ client->send(data); });
 
@@ -207,9 +207,10 @@ int main(int argc, char* argv[])
             os::fail("can't start desktopio server");
             return 1;
         }
+        using e2 = netxs::ui::e2;
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
         config.cd("/config/appearance/defaults/");
-        auto ground = base::create<hall>(server, config);
+        auto ground = ui::base::create<ui::hall>(server, config);
         auto thread = os::process::pool{};
         app::shared::activate(ground, config);
 
@@ -227,12 +228,12 @@ int main(int argc, char* argv[])
 
             thread.run([&, client](auto session_id)
             {
-                if (auto window = ground->invite<gate>(client, session_id, config))
+                if (auto window = ground->invite<ui::gate>(client, session_id, config))
                 {
                     log("user: new gate for ", client);
                     auto patch = ""s;
-                    auto deskmenu = app::shared::create::builder(menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
-                    auto bkground = app::shared::create::builder(menuitem_t::type_Fone)("", "gems;About;", config, patch);
+                    auto deskmenu = app::shared::create::builder(ui::menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
+                    auto bkground = app::shared::create::builder(ui::menuitem_t::type_Fone)("", "gems;About;", config, patch);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }

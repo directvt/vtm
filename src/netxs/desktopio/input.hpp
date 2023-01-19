@@ -4,7 +4,7 @@
 #pragma once
 
 #include "richtext.hpp"
-#include "../ui/events.hpp"
+#include "events.hpp"
 
 namespace netxs::input { struct hids; }
 
@@ -248,18 +248,14 @@ namespace netxs::events::userland
 
 namespace netxs::input
 {
-    using namespace netxs::ui::atoms;
-    using namespace netxs::datetime;
-    using hint = netxs::events::type;
     using netxs::events::bell;
     using netxs::events::subs;
     using netxs::events::tier;
     using netxs::events::hook;
-    using netxs::events::id_t;
     using netxs::ansi::clip;
-    using sysmouse = ansi::dtvt::binary::sysmouse_t;
-    using syskeybd = ansi::dtvt::binary::syskeybd_t;
-    using sysfocus = ansi::dtvt::binary::sysfocus_t;
+    using sysmouse = directvt::binary::sysmouse_t;
+    using syskeybd = directvt::binary::syskeybd_t;
+    using sysfocus = directvt::binary::sysfocus_t;
 
     // console: Mouse tracker.
     struct mouse
@@ -291,7 +287,6 @@ namespace netxs::input
         };
         struct hist_t // Timer for successive double-clicks, e.g. triple-clicks.
         {
-            using time = moment;
             time fired; // hist: .
             twod coord; // hist: .
             si32 count; // hist: .
@@ -300,7 +295,6 @@ namespace netxs::input
         using hist = std::array<hist_t, numofbuttons>;
         using knob = std::array<knob_t, numofbuttons>;
         using tail = netxs::datetime::tail<twod>;
-        using time = netxs::datetime::period;
 
         static constexpr auto dragstrt = mouse_event::button::drag::start:: any.group<numofbuttons>();
         static constexpr auto dragpull = mouse_event::button::drag::pull::  any.group<numofbuttons>();
@@ -331,7 +325,7 @@ namespace netxs::input
         id_t start = {}; // mouse: Initiator control ID.
         hint cause = {}; // mouse: Current event id.
         hist stamp = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
-        time delay = {}; // mouse: Double-click threshold.
+        span delay = {}; // mouse: Double-click threshold.
         knob bttns = {}; // mouse: Extended state of mouse buttons.
         sysmouse m = {}; // mouse: Device state.
 
@@ -382,7 +376,7 @@ namespace netxs::input
         }
         // mouse: Return a kinetic animator.
         template<class LAW>
-        auto fader(period spell)
+        auto fader(span spell)
         {
             //todo use current item's type: LAW<twod>
             return delta.fader<LAW>(spell);
@@ -491,7 +485,7 @@ namespace netxs::input
                                 // Fire a double/triple-click if delay is not expired
                                 // and the mouse is at the same position.
                                 auto& s = stamp[i];
-                                auto fired = tempus::now();
+                                auto fired = datetime::now();
                                 if (fired - s.fired < delay && s.coord == coord)
                                 {
                                     if (!genbtn.blocked)
@@ -658,13 +652,12 @@ namespace netxs::input
     {
         using events = netxs::events::userland::hids;
         using list = std::list<wptr<bell>>;
-        using xmap = netxs::console::core;
 
         id_t        relay; // hids: Mouse routing call stack initiator.
-        xmap const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
+        core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
-        period&     tooltip_timeout; // hids: .
+        span&       tooltip_timeout; // hids: .
         bool&       simple_instance; // hids: .
 
         //todo unify
@@ -672,7 +665,7 @@ namespace netxs::input
         ui32        digest = 0; // hids: Tooltip digest.
         testy<ui32> digest_tracker = 0; // hids: Tooltip changes tracker.
         ui32        tooltip_digest = 0; // hids: Tooltip digest.
-        moment      tooltip_time = {}; // hids: The moment to show tooltip.
+        time        tooltip_time = {}; // hids: The moment to show tooltip.
         bool        tooltip_show = faux; // hids: Show tooltip or not.
         bool        tooltip_stop = faux; // hids: Disable tooltip.
         testy<twod> tooltip_coor = {}; // hids: .
@@ -764,7 +757,7 @@ namespace netxs::input
                         }
                         else
                         {
-                            tooltip_time = tempus::now() + tooltip_timeout;
+                            tooltip_time = datetime::now() + tooltip_timeout;
                             tooltip_show = faux;
                         }
                     }
@@ -776,7 +769,7 @@ namespace netxs::input
                 }
             }
         }
-        auto tooltip_check(moment now)
+        auto tooltip_check(time now)
         {
             if (!tooltip_stop
              && !tooltip_show
@@ -848,7 +841,7 @@ namespace netxs::input
             return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift);
         }
 
-        hids(bell& owner, xmap const& idmap, time& dblclick_timeout, time& tooltip_timeout, bool& simple_instance)
+        hids(bell& owner, core const& idmap, span& dblclick_timeout, span& tooltip_timeout, bool& simple_instance)
             : relay{ 0     },
               owner{ owner },
               idmap{ idmap },

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "../desktopio/application.hpp"
+
 namespace netxs::events::userland
 {
     struct calc
@@ -25,7 +27,7 @@ namespace netxs::events::userland
     };
 }
 
-namespace netxs::console
+namespace netxs::ui
 {
     // console: Template modules for the base class behavior extension.
     namespace pro

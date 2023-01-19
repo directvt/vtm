@@ -12,13 +12,12 @@
     #pragma clang diagnostic ignored "-Wunused-function"
 #endif
 
-#include "file_system.hpp"
-#include "../text/logger.hpp"
-#include "../console/input.hpp"
-#include "../ui/layout.hpp"
+#include "logger.hpp"
+#include "input.hpp"
 
 #include <type_traits>
 #include <iostream>
+#include <filesystem>
 
 #if defined(_WIN32)
 
@@ -81,12 +80,9 @@
 namespace netxs::os
 {
     namespace fs = std::filesystem;
-    using namespace std::literals;
-    using namespace std::chrono_literals;
-    using namespace netxs::ui::atoms;
-    using page = console::page;
-    using para = console::para;
-    using rich = console::rich;
+    using page = ui::page;
+    using para = ui::para;
+    using rich = ui::rich;
 
     enum role { client, server };
 
@@ -103,7 +99,6 @@ namespace netxs::os
         static const auto STDIN_FD     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
         static const auto STDOUT_FD    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
         static const auto STDERR_FD    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
-        static const auto process_id   = si64{ ::GetCurrentProcessId()           };
         static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
         static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
 
@@ -117,7 +112,6 @@ namespace netxs::os
         static const auto STDIN_FD   = fd_t{ STDIN_FILENO  };
         static const auto STDOUT_FD  = fd_t{ STDOUT_FILENO };
         static const auto STDERR_FD  = fd_t{ STDERR_FILENO };
-        static const auto process_id = si64{ ::getpid()    };
 
         void fdcleanup() // Close all file descriptors except the standard ones.
         {
@@ -1044,21 +1038,19 @@ namespace netxs::os
 
         struct proxy
         {
-            using time = datetime::moment;
-
             text cache;
             time stamp;
             text brand;
 
             proxy()
-                : stamp{ datetime::tempus::now() }
+                : stamp{ datetime::now() }
             { }
 
             auto operator() (auto& yield) // Redirect clipboard data.
             {
                 if (cache.size() || yield.starts_with(ocs52head))
                 {
-                    auto now = datetime::tempus::now();
+                    auto now = datetime::now();
                     if (now - stamp > 3s) // Drop outdated cache.
                     {
                         cache.clear();
@@ -1499,7 +1491,7 @@ namespace netxs::os
                 #endif
             }
             template<role ROLE, class P = noop>
-            static auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
+            static auto open(text path, span retry_timeout = {}, P retry_proc = P())
             {
                 auto r = INVALID_FD;
                 auto w = INVALID_FD;
@@ -1515,13 +1507,13 @@ namespace netxs::os
                         }
                         else
                         {
-                            auto stop = datetime::tempus::now() + retry_timeout;
+                            auto stop = datetime::now() + retry_timeout;
                             do
                             {
                                 std::this_thread::sleep_for(100ms);
                                 done = play();
                             }
-                            while (!done && stop > datetime::tempus::now());
+                            while (!done && stop > datetime::now());
                         }
                     }
                     return done;
@@ -1745,6 +1737,8 @@ namespace netxs::os
 
     namespace process
     {
+        static auto id = datetime::now();
+
         struct args
         {
         private:
@@ -2162,6 +2156,7 @@ namespace netxs::os
                     p_id = ::fork(); // Second fork to avoid zombies.
                     if (p_id == 0) // GrandChild process.
                     {
+                        process::id = datetime::now();
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
                         ::close(STDIN_FD);
                         ::close(STDOUT_FD);
@@ -2201,9 +2196,9 @@ namespace netxs::os
         }
         void stdlog(view data)
         {
-            static auto logs = ansi::dtvt::binary::debuglogs_t{};
+            static auto logs = directvt::binary::debuglogs_t{};
             //todo view -> text
-            logs.set(os::process_id, text{ data });
+            logs.set(os::process::id, text{ data });
             logs.send([&](auto& block){ os::io::send(STDOUT_FD, block); });
         }
         void syslog(view data)
@@ -2771,7 +2766,7 @@ namespace netxs::os
         }
         void send(fd_t m_pipe_w, view config)
         {
-            auto buffer = ansi::dtvt::binary::marker{ config.size() };
+            auto buffer = directvt::binary::marker{ config.size() };
             os::io::send<true>(m_pipe_w, buffer.data, buffer.size);
         }
         auto peek(fd_t stdin_fd)
@@ -2785,7 +2780,7 @@ namespace netxs::os
             ready = true;
             #if defined(_WIN32)
 
-                auto buffer = ansi::dtvt::binary::marker{};
+                auto buffer = directvt::binary::marker{};
                 auto length = DWORD{ 0 };
                 if (haspty(stdin_fd))
                 {
@@ -2812,7 +2807,7 @@ namespace netxs::os
                 {
                     get(stdin_fd, [&]
                     {
-                        auto buffer = ansi::dtvt::binary::marker{};
+                        auto buffer = directvt::binary::marker{};
                         auto header = os::io::recv(stdin_fd, buffer.data, buffer.size);
                         auto length = header.length();
                         if (length)
@@ -3113,7 +3108,7 @@ namespace netxs::os
             {
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
 
-                ansi::dtvt::binary::stream::reading_loop(termlink, receiver);
+                directvt::binary::stream::reading_loop(termlink, receiver);
 
                 preclose(0); //todo send msg from the client app
                 shutdown(wait_child());
@@ -3154,12 +3149,12 @@ namespace netxs::os
         {
             struct
             {
-                xipc                     ipcio; // globals: STDIN/OUT.
-                conmode                  state; // globals: Saved console mode to restore at exit.
-                testy<twod>              winsz; // globals: Current console window size.
-                ansi::dtvt::binary::s11n wired; // globals: Serialization buffers.
-                si32                     kbmod; // globals: Keyboard modifiers state.
-                io::fire                 alarm; // globals: IO interrupter.
+                xipc                   ipcio; // globals: STDIN/OUT.
+                conmode                state; // globals: Saved console mode to restore at exit.
+                testy<twod>            winsz; // globals: Current console window size.
+                directvt::binary::s11n wired; // globals: Serialization buffers.
+                si32                   kbmod; // globals: Keyboard modifiers state.
+                io::fire               alarm; // globals: IO interrupter.
             }
             static vars;
             return vars;
@@ -3969,7 +3964,10 @@ namespace netxs::os
         }
         void ignite(xipc pipe, si32 mode)
         {
-            globals().ipcio = pipe;
+            auto& g = globals();
+            g.ipcio = pipe;
+            auto& ipcio =*g.ipcio;
+            auto& wired = g.wired;
             auto& sig_hndl = signal;
 
             #if defined(_WIN32)
@@ -3998,8 +3996,7 @@ namespace netxs::os
 
             #else
 
-                auto& state = globals().state;
-                auto& ipcio = globals().ipcio;
+                auto& state = g.state;
                 if (ok(::tcgetattr(STDIN_FD, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
                 {
                     auto raw_mode = state;
@@ -4021,6 +4018,7 @@ namespace netxs::os
             os::vt::vgafont(mode);
             ::atexit(repair);
             resize();
+            wired.sysfocus.send(ipcio, id_t{}, true, faux, faux);
         }
         auto splice(xipc pipe, si32 mode)
         {

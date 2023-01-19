@@ -3,16 +3,11 @@
 
 #pragma once
 
-#include "ansi.hpp"
-#include "../text/logger.hpp"
-#include "../abstract/ring.hpp"
+#include "directvt.hpp"
+#include "logger.hpp"
 
-namespace netxs::console
+namespace netxs::ui
 {
-    using namespace netxs::ui::atoms;
-    using namespace std::literals;
-
-    using ansi::qiew;
     using ansi::writ;
     using ansi::deco;
 
@@ -580,7 +575,7 @@ namespace netxs::console
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, console::whitespace);
+            //        lyric.emplace_back(cluster, ui::whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -636,7 +631,7 @@ namespace netxs::console
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, console::whitespace);
+            //        lyric.emplace_back(cluster, ui::whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -689,7 +684,7 @@ namespace netxs::console
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, console::whitespace);
+            //        lyric.emplace_back(cluster, ui::whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 

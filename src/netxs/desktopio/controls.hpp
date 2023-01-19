@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../console/console.hpp"
+#include "console.hpp"
 
 #include <vector>
 #include <mutex>
@@ -11,9 +11,6 @@
 
 namespace netxs::ui
 {
-    using namespace netxs::ui::atoms;
-    using namespace netxs::console;
-
     enum sort
     {
         forward,

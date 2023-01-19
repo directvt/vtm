@@ -4,7 +4,7 @@
 #pragma once
 
 #include "unidata.hpp"
-#include "../math/intmath.hpp"
+#include "intmath.hpp"
 
 #include <string>
 #include <string_view>
@@ -22,7 +22,7 @@
 #define WCWIDTH_FIELD_SIZE     (2)
 #define WCWIDTH_CLAMP(wcwidth) (wcwidth & (0XFF >> (8 - WCWIDTH_FIELD_SIZE)))
 
-namespace netxs::utf
+namespace netxs
 {
     using view = std::string_view;
     using text = std::string;
@@ -31,8 +31,12 @@ namespace netxs::utf
     using wchr = wchar_t;
     using flux = std::stringstream;
     using utfx = uint32_t;
-    using ctrl = unidata::cntrls::type;
     using namespace std::literals;
+}
+
+namespace netxs::utf
+{
+    using ctrl = unidata::cntrls::type;
 
     static constexpr auto REPLACEMENT_CHARACTER           = utfx{ 0x0000FFFD };
     static constexpr auto REPLACEMENT_CHARACTER_UTF8      = "\uFFFD";	// 0xEF 0xBF 0xBD (efbfbd) "�"
@@ -1744,4 +1748,9 @@ namespace netxs::utf
             spot += what_sz;
         }
     }
+}
+
+namespace netxs
+{
+    using qiew = utf::qiew;
 }
