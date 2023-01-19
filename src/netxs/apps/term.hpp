@@ -4,6 +4,7 @@
 #pragma once
 
 #include "../desktopio/terminal.hpp"
+#include "../desktopio/application.hpp"
 
 namespace netxs::events::userland
 {

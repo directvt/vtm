@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "../desktopio/application.hpp"
+
 namespace netxs::events::userland
 {
     struct calc

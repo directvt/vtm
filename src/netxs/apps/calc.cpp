@@ -6,10 +6,9 @@
 #define DESKTOPIO_MYPATH "vtm/calc"
 #define DESKTOPIO_DEFAPP "Calc"
 
-#include "../apps.hpp"
+#include "calc.hpp"
 
 using namespace netxs;
-using namespace netxs::ui;
 
 int main(int argc, char* argv[])
 {
