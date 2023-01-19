@@ -31,7 +31,6 @@ namespace netxs::ui
     class face;
     class base;
     class link;
-    class site;
 
     struct create_t
     {
