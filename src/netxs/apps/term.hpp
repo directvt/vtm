@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../console/terminal.hpp"
+#include "../desktopio/terminal.hpp"
 
 namespace netxs::events::userland
 {

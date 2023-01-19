@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../abstract/queue.hpp"
+#include "../desktopio/queue.hpp"
 
 namespace netxs::events::userland
 {

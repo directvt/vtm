@@ -5,8 +5,8 @@
 
 #define APPS_DEL_TIMEOUT 1s
 
-#include "ui/controls.hpp"
-#include "text/xml.hpp"
+#include "desktopio/controls.hpp"
+#include "desktopio/xml.hpp"
 
 #include <fstream>
 
