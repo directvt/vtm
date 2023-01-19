@@ -935,7 +935,7 @@ namespace netxs::ui
                 line(core&& s)
                     : rich{ std::forward<core>(s) }
                 { }
-                line(utf::view utf8)
+                line(netxs::view utf8)
                     : rich{ para{ utf8 }.content() }
                 { }
 

@@ -80,14 +80,9 @@
 namespace netxs::os
 {
     namespace fs = std::filesystem;
-    using namespace std::literals;
-    using namespace std::chrono_literals;
-    using namespace netxs::ui::atoms;
     using page = ui::page;
     using para = ui::para;
     using rich = ui::rich;
-    using time = datetime::time;
-    using span = datetime::span;
 
     enum role { client, server };
 
@@ -1496,7 +1491,7 @@ namespace netxs::os
                 #endif
             }
             template<role ROLE, class P = noop>
-            static auto open(text path, datetime::span retry_timeout = {}, P retry_proc = P())
+            static auto open(text path, span retry_timeout = {}, P retry_proc = P())
             {
                 auto r = INVALID_FD;
                 auto w = INVALID_FD;

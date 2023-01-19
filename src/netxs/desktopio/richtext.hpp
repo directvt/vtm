@@ -8,10 +8,6 @@
 
 namespace netxs::ui
 {
-    using namespace netxs::ui::atoms;
-    using namespace std::literals;
-
-    using ansi::qiew;
     using ansi::writ;
     using ansi::deco;
 

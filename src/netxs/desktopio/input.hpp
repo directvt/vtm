@@ -248,8 +248,6 @@ namespace netxs::events::userland
 
 namespace netxs::input
 {
-    using namespace netxs::ui::atoms;
-    using namespace netxs::datetime;
     using netxs::events::bell;
     using netxs::events::subs;
     using netxs::events::tier;
@@ -654,10 +652,9 @@ namespace netxs::input
     {
         using events = netxs::events::userland::hids;
         using list = std::list<wptr<bell>>;
-        using xmap = netxs::ui::core;
 
         id_t        relay; // hids: Mouse routing call stack initiator.
-        xmap const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
+        core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
         span&       tooltip_timeout; // hids: .
@@ -844,7 +841,7 @@ namespace netxs::input
             return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift);
         }
 
-        hids(bell& owner, xmap const& idmap, span& dblclick_timeout, span& tooltip_timeout, bool& simple_instance)
+        hids(bell& owner, core const& idmap, span& dblclick_timeout, span& tooltip_timeout, bool& simple_instance)
             : relay{ 0     },
               owner{ owner },
               idmap{ idmap },

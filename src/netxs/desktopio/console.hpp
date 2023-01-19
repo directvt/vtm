@@ -110,9 +110,6 @@ namespace netxs::ui
 
 namespace netxs::events::userland
 {
-    using namespace netxs::ui::atoms;
-    using namespace netxs::datetime;
-
     struct e2
     {
         static constexpr auto dtor = netxs::events::userland::root::dtor;
@@ -220,11 +217,11 @@ namespace netxs::events::userland
             SUBSET_XS( data )
             {
                 //todo revise (see app::desk)
-                EVENT_XS( changed, utf::text       ), // release/preview/request: current menu item id(text).
-                EVENT_XS( request, si32            ),
-                EVENT_XS( disable, si32            ),
-                EVENT_XS( flush  , si32            ),
-                EVENT_XS( text   , const utf::text ), // signaling with a text string, release only.
+                EVENT_XS( changed, netxs::text       ), // release/preview/request: current menu item id(text).
+                EVENT_XS( request, si32              ),
+                EVENT_XS( disable, si32              ),
+                EVENT_XS( flush  , si32              ),
+                EVENT_XS( text   , const netxs::text ), // signaling with a text string, release only.
             };
             SUBSET_XS( command )
             {
@@ -235,7 +232,7 @@ namespace netxs::events::userland
             };
             SUBSET_XS( form )
             {
-                EVENT_XS( canvas   , sptr<ui::core> ), // request global canvas.
+                EVENT_XS( canvas   , sptr<core>     ), // request global canvas.
                 EVENT_XS( maximize , input::hids    ), // request to toggle maximize/restore.
                 EVENT_XS( restore  , sptr<ui::base> ), // request to toggle restore.
                 EVENT_XS( quit     , sptr<ui::base> ), // request parent for destroy.
@@ -4437,7 +4434,7 @@ namespace netxs::ui
     class host
         : public base
     {
-        using tick = quartz<events::reactor<>, hint>;
+        using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
 
         pro::keybd keybd{*this }; // host: Keyboard controller.
@@ -5438,7 +5435,7 @@ namespace netxs::ui
             paint = work([&, vtmode]
             {
                 //todo revise (bitmap/bitmap_t)
-                     if (vtmode == svga::directvt ) render<binary::bitmap_t>               (canal);
+                     if (vtmode == svga::dtvt     ) render<binary::bitmap_t>               (canal);
                 else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(canal);
                 else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>(canal);
                 else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(canal);
@@ -5618,9 +5615,9 @@ namespace netxs::ui
 
                 auto vtmode = legacy & os::vt::vga16  ? svga::vga16
                             : legacy & os::vt::vga256 ? svga::vga256
-                            : legacy & os::vt::direct ? svga::directvt
+                            : legacy & os::vt::direct ? svga::dtvt
                                                       : svga::truecolor;
-                auto direct = vtmode == svga::directvt;
+                auto direct = vtmode == svga::dtvt;
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
                 auto conf_usr_name = props.name;

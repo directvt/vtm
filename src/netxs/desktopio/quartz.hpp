@@ -12,12 +12,15 @@
 #include <optional>
 #include <condition_variable>
 
-namespace netxs::datetime
+namespace netxs
 {
     using span = std::chrono::steady_clock::duration;
     using time = std::chrono::time_point<std::chrono::steady_clock>;
     using namespace std::chrono_literals;
+}
 
+namespace netxs::datetime
+{
     // quartz: Round a chrono time moment in degree (def: milliseconds)
     //         units since epoch.
     template<class T, class degree = std::chrono::milliseconds>

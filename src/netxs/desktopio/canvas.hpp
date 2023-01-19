@@ -9,15 +9,8 @@
 #include <cstring> // std::memcpy
 #include <span>
 
-namespace netxs::ui::atoms
+namespace netxs
 {
-    using netxs::utf::text;
-    using netxs::utf::view;
-    using netxs::utf::wiew;
-    using netxs::utf::qiew;
-    using netxs::utf::wchr;
-    using netxs::utf::wide;
-
     static constexpr auto whitespace = char{ 0x20 };
     //static constexpr auto whitespace = '.';
 
@@ -26,7 +19,7 @@ namespace netxs::ui::atoms
         truecolor,
         vga16    ,
         vga256   ,
-        directvt ,
+        dtvt     ,
     };
 
     enum Z_order : si32
@@ -658,7 +651,7 @@ namespace netxs::ui::atoms
             template<svga VGAMODE = svga::truecolor>
             view get() const
             {
-                if constexpr (VGAMODE == svga::directvt) return {};
+                if constexpr (VGAMODE == svga::dtvt) return {};
                 else
                 {
                     if (state.jumbo)
@@ -772,7 +765,7 @@ namespace netxs::ui::atoms
             template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
             void get(body& base, T& dest) const
             {
-                if constexpr (VGAMODE == svga::directvt) return;
+                if constexpr (VGAMODE == svga::dtvt) return;
                 if (!like(base))
                 {
                     auto& cvar =      param.shared.var;
@@ -883,7 +876,7 @@ namespace netxs::ui::atoms
             template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
             void get(clrs& base, T& dest) const
             {
-                if constexpr (VGAMODE == svga::directvt) return;
+                if constexpr (VGAMODE == svga::dtvt) return;
                 if (bg != base.bg)
                 {
                     base.bg = bg;
@@ -1081,7 +1074,7 @@ namespace netxs::ui::atoms
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         void scan(cell& base, T& dest) const
         {
-            if constexpr (VGAMODE != svga::directvt)
+            if constexpr (VGAMODE != svga::dtvt)
             {
                 if (!like(base))
                 {
@@ -1097,7 +1090,7 @@ namespace netxs::ui::atoms
         template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         bool scan(cell const& next, cell& base, T& dest) const
         {
-            if constexpr (VGAMODE == svga::directvt) return {};
+            if constexpr (VGAMODE == svga::dtvt) return {};
             if (gc.same(next.gc) && like(next))
             {
                 if (!like(base))
@@ -1705,13 +1698,13 @@ namespace netxs::ui::atoms
         {
             netxs::onrect(*this, region, proc);
         }
-        void utf8(text& crop) // core: Convert to raw utf-8 text. Ignore right halves.
+        void utf8(netxs::text& crop) // core: Convert to raw utf-8 text. Ignore right halves.
         {
             each([&](cell& c) { c.scan(crop); });
         }
         auto utf8() // core: Convert to raw utf-8 text. Ignore right halves.
         {
-            auto crop = utf::text{};
+            auto crop = netxs::text{};
             each([&](cell& c) { c.scan(crop); });
             return crop;
         }
@@ -1947,8 +1940,8 @@ namespace netxs::ui::atoms
             temp.size.x = std::max(0, border.east.step);
             fill(temp.clip(area), fuse);
         }
-        template<class TEXT, class P = noop>
-        void text(twod const& pos, TEXT const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
+        template<class Text, class P = noop>
+        void text(twod const& pos, Text const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
         {
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);

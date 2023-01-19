@@ -11,8 +11,6 @@
 
 namespace netxs::ui
 {
-    using namespace netxs::ui::atoms;
-
     enum sort
     {
         forward,

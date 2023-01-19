@@ -100,9 +100,9 @@ namespace netxs::app::logs
 
                 yield.clear();
                 yield.wrp(wrap::off)
-                    .bgc(ansi::yellowlt).add(utf::repeat(' ', max_col * (wc + 3))).eol().bgc()
+                    .bgc(yellowlt).add(utf::repeat(' ', max_col * (wc + 3))).eol().bgc()
                     .add("STDOUT: plain text, ", shadow.size(), " bytes")
-                    .eol().bgc(ansi::whitedk).fgc(blackdk)
+                    .eol().bgc(whitedk).fgc(blackdk)
                     .add(utf::debase(shadow))
                     .fgc().bgc().eol().eol();
                 if (show_codepoints)
@@ -110,15 +110,15 @@ namespace netxs::app::logs
                     yield.wrp(wrap::off).add("STDOUT: codepoints").eol();
                     auto f = [&](auto cp, view utf8, si32 wide)
                     {
-                        yield.fgc(ansi::blackdk);
+                        yield.fgc(blackdk);
                         if (wide)
                         {
-                            yield.bgc(ansi::whitedk).add(' ', utf8);
+                            yield.bgc(whitedk).add(' ', utf8);
                             if (wide == 1) yield.add(' ');
                         }
-                        else yield.bgc(ansi::redlt).add(" - ");
+                        else yield.bgc(redlt).add(" - ");
 
-                        yield.bgc().fgc(ansi::greendk)
+                        yield.bgc().fgc(greendk)
                             .add(utf::adjust(utf::to_hex<true>(cp, (cp <= 0xFF   ? 2 :
                                                                     cp <= 0xFFFF ? 4 : 5)), wc, ' '))
                             .fgc().bgc();

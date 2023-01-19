@@ -8,10 +8,6 @@
 
 namespace netxs::xml
 {
-    using namespace netxs::utf;
-    using namespace netxs::ui::atoms;
-    using namespace netxs::datetime;
-
     static constexpr auto spaces = " \n\r\t"sv;
 
     auto escape(qiew line)
@@ -444,7 +440,6 @@ namespace netxs::xml
             template<bool WithTemplate = faux>
             auto list(qiew path_str)
             {
-                using utf::text;
                 path_str = utf::trim(path_str, '/');
                 auto root = this;
                 auto crop = vect{}; //auto& items = config.root->hive["menu"][0]->hive["item"]...;
@@ -755,7 +750,7 @@ namespace netxs::xml
             else if (data.starts_with(view_equal        )) what = type::equal;
             else if (data.starts_with(view_defaults     )
                   && last == type::token)                  what = type::defaults;
-            else if (view_spaces.find(data.front()) != view::npos) what = type::whitespaces;
+            else if (utf::view_spaces.find(data.front()) != view::npos) what = type::whitespaces;
             else if (last == type::close_tag
                   || last == type::begin_tag
                   || last == type::token

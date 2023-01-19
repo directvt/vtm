@@ -15,10 +15,7 @@
 
 namespace netxs::ansi
 {
-    using namespace netxs::ui::atoms;
-    using namespace netxs::utf;
-    using time = datetime::time;
-    using span = datetime::span;
+    using ctrl = utf::ctrl;
 
     static const auto ESCCSI = "\033[";
     static const auto ESCOCS = "\033]";
