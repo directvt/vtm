@@ -15,12 +15,7 @@ namespace netxs::app
     namespace fs = std::filesystem;
 
     using namespace std::placeholders;
-    using namespace netxs::console;
-
-    using slot = ui::slot;
-    using axis = ui::axis;
-    using axes = ui::axes;
-    using snap = ui::snap;
+    using namespace netxs::ui;
 }
 
 namespace netxs::app::shared

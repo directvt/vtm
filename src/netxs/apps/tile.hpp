@@ -17,10 +17,10 @@ namespace netxs::events::userland
     {
         EVENTPACK( tile, netxs::events::userland::root::custom )
         {
-            EVENT_XS( backup, app::tile::backups  ),
-            EVENT_XS( enlist, sptr<console::base> ),
-            EVENT_XS( delist, bool                ),
-            GROUP_XS( ui    , input::hids         ), // Window manager command pack.
+            EVENT_XS( backup, app::tile::backups ),
+            EVENT_XS( enlist, sptr<ui::base>     ),
+            EVENT_XS( delist, bool               ),
+            GROUP_XS( ui    , input::hids        ), // Window manager command pack.
 
             SUBSET_XS( ui )
             {

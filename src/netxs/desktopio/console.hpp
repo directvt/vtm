@@ -26,11 +26,10 @@
 #define REPEAT_DELAY   500ms // console: Repeat delay.
 #define REPEAT_RATE    30ms  // console: Repeat rate.
 
-namespace netxs::console
+namespace netxs::ui
 {
     class face;
     class base;
-    class form;
     class link;
     class site;
 
@@ -123,21 +122,21 @@ namespace netxs::events::userland
 
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
-            EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
-            EVENT_XS( nextframe , bool                ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
-            EVENT_XS( depth     , si32                ), // request: Determine the depth of the hierarchy.
-            EVENT_XS( shutdown  , const view          ), // general: Server shutdown.
-            GROUP_XS( timer     , time                ), // timer tick, arg: current moment (now).
-            GROUP_XS( render    , console::face       ), // release: UI-tree rendering.
-            GROUP_XS( conio     , si32                ),
-            GROUP_XS( size      , twod                ), // release: Object size.
-            GROUP_XS( coor      , twod                ), // release: Object coor.
-            GROUP_XS( form      , bool                ),
-            GROUP_XS( data      , si32                ),
-            GROUP_XS( debug     , const view          ), // return info struct with telemtry data.
-            GROUP_XS( config    , si32                ), // set/notify/get/global_set configuration data.
-            GROUP_XS( command   , si32                ), // exec UI command.
-            GROUP_XS( bindings  , sptr<console::base> ), // Dynamic Data Bindings.
+            EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
+            EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
+            EVENT_XS( depth     , si32           ), // request: Determine the depth of the hierarchy.
+            EVENT_XS( shutdown  , const view     ), // general: Server shutdown.
+            GROUP_XS( timer     , time           ), // timer tick, arg: current moment (now).
+            GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
+            GROUP_XS( conio     , si32           ),
+            GROUP_XS( size      , twod           ), // release: Object size.
+            GROUP_XS( coor      , twod           ), // release: Object coor.
+            GROUP_XS( form      , bool           ),
+            GROUP_XS( data      , si32           ),
+            GROUP_XS( debug     , const view     ), // return info struct with telemtry data.
+            GROUP_XS( config    , si32           ), // set/notify/get/global_set configuration data.
+            GROUP_XS( command   , si32           ), // exec UI command.
+            GROUP_XS( bindings  , sptr<ui::base> ), // Dynamic Data Bindings.
 
             SUBSET_XS( timer )
             {
@@ -145,7 +144,7 @@ namespace netxs::events::userland
             };
             SUBSET_XS( render ) // release any: UI-tree default rendering submission.
             {
-                EVENT_XS( prerender, console::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
+                EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
             };
             SUBSET_XS( size ) // preview: checking by pro::limit.
             {
@@ -161,18 +160,18 @@ namespace netxs::events::userland
 
                 SUBSET_XS( list )
                 {
-                    EVENT_XS( users, sptr<std::list<sptr<console::base>>> ), // list of connected users.
-                    EVENT_XS( apps , sptr<console::registry_t>            ), // list of running apps.
-                    EVENT_XS( links, sptr<console::links_t>               ), // list of registered apps.
+                    EVENT_XS( users, sptr<std::list<sptr<ui::base>>> ), // list of connected users.
+                    EVENT_XS( apps , sptr<ui::registry_t>            ), // list of running apps.
+                    EVENT_XS( links, sptr<ui::links_t>               ), // list of registered apps.
                 };
             };
             SUBSET_XS( debug )
             {
-                EVENT_XS( logs  , const view          ), // logs output.
-                EVENT_XS( output, const view          ), // logs has to be parsed.
-                EVENT_XS( parsed, const console::page ), // output parced logs.
-                EVENT_XS( request, si32               ), // request debug data.
-                GROUP_XS( count , si32                ), // global: log listeners.
+                EVENT_XS( logs  , const view     ), // logs output.
+                EVENT_XS( output, const view     ), // logs has to be parsed.
+                EVENT_XS( parsed, const ui::page ), // output parced logs.
+                EVENT_XS( request, si32          ), // request debug data.
+                GROUP_XS( count , si32           ), // global: log listeners.
 
                 SUBSET_XS( count )
                 {
@@ -181,10 +180,10 @@ namespace netxs::events::userland
             };
             SUBSET_XS( config )
             {
-                EVENT_XS( whereami , sptr<console::base> ), // request: pointer to world object.
-                EVENT_XS( fps      , si32                ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
-                GROUP_XS( caret    , span                ), // any kind of intervals property.
-                GROUP_XS( plugins  , si32                ),
+                EVENT_XS( whereami , sptr<ui::base> ), // request: pointer to world object.
+                EVENT_XS( fps      , si32           ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
+                GROUP_XS( caret    , span           ), // any kind of intervals property.
+                GROUP_XS( plugins  , si32           ),
 
                 SUBSET_XS( caret )
                 {
@@ -237,21 +236,21 @@ namespace netxs::events::userland
             };
             SUBSET_XS( form )
             {
-                EVENT_XS( canvas   , sptr<console::core> ), // request global canvas.
-                EVENT_XS( maximize , input::hids         ), // request to toggle maximize/restore.
-                EVENT_XS( restore  , sptr<console::base> ), // request to toggle restore.
-                EVENT_XS( quit     , sptr<console::base> ), // request parent for destroy.
-                GROUP_XS( layout   , const twod          ),
-                GROUP_XS( draggable, bool                ), // signal to the form to enable draggablity for specified mouse button.
-                GROUP_XS( highlight, bool                ),
-                GROUP_XS( upon     , bool                ),
-                GROUP_XS( proceed  , bool                ),
-                GROUP_XS( cursor   , bool                ),
-                GROUP_XS( drag     , input::hids         ),
-                GROUP_XS( prop     , text                ),
-                GROUP_XS( global   , twod                ),
-                GROUP_XS( state    , const twod          ),
-                GROUP_XS( animate  , id_t                ),
+                EVENT_XS( canvas   , sptr<ui::core> ), // request global canvas.
+                EVENT_XS( maximize , input::hids    ), // request to toggle maximize/restore.
+                EVENT_XS( restore  , sptr<ui::base> ), // request to toggle restore.
+                EVENT_XS( quit     , sptr<ui::base> ), // request parent for destroy.
+                GROUP_XS( layout   , const twod     ),
+                GROUP_XS( draggable, bool           ), // signal to the form to enable draggablity for specified mouse button.
+                GROUP_XS( highlight, bool           ),
+                GROUP_XS( upon     , bool           ),
+                GROUP_XS( proceed  , bool           ),
+                GROUP_XS( cursor   , bool           ),
+                GROUP_XS( drag     , input::hids    ),
+                GROUP_XS( prop     , text           ),
+                GROUP_XS( global   , twod           ),
+                GROUP_XS( state    , const twod     ),
+                GROUP_XS( animate  , id_t           ),
 
                 SUBSET_XS( draggable )
                 {
@@ -266,14 +265,14 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( layout )
                 {
-                    EVENT_XS( shift , const twod         ), // request a global shifting  with delta.
-                    EVENT_XS( convey, cube               ), // request a global conveying with delta (Inform all children to be conveyed).
-                    EVENT_XS( bubble, console::base      ), // order to popup the requested item through the visual tree.
-                    EVENT_XS( expose, console::base      ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
-                    EVENT_XS( appear, twod               ), // fly to the specified coords.
-                    EVENT_XS( gonext, sptr<console::base>), // request: proceed request for available objects (next)
-                    EVENT_XS( goprev, sptr<console::base>), // request: proceed request for available objects (prev)
-                    EVENT_XS( swarp , const dent         ), // preview: form swarping
+                    EVENT_XS( shift , const twod    ), // request a global shifting  with delta.
+                    EVENT_XS( convey, cube          ), // request a global conveying with delta (Inform all children to be conveyed).
+                    EVENT_XS( bubble, ui::base      ), // order to popup the requested item through the visual tree.
+                    EVENT_XS( expose, ui::base      ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
+                    EVENT_XS( appear, twod          ), // fly to the specified coords.
+                    EVENT_XS( gonext, sptr<ui::base>), // request: proceed request for available objects (next)
+                    EVENT_XS( goprev, sptr<ui::base>), // request: proceed request for available objects (prev)
+                    EVENT_XS( swarp , const dent    ), // preview: form swarping
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
@@ -290,24 +289,24 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( upon )
                 {
-                    EVENT_XS( redrawn, console::face       ), // inform about camvas is completely redrawn.
-                    EVENT_XS( cached , console::face       ), // inform about camvas is cached.
-                    EVENT_XS( wiped  , console::face       ), // event after wipe the canvas.
-                    EVENT_XS( changed, twod                ), // event after resize, arg: diff bw old and new size.
-                    EVENT_XS( dragged, input::hids         ), // event after drag.
-                    EVENT_XS( created, input::hids         ), // release: notify the instance of who created it.
-                    EVENT_XS( started, sptr<console::base> ), // release: notify the instance is commissioned. arg: visual root.
-                    GROUP_XS( vtree  , sptr<console::base> ), // visual tree events, arg: parent base_sptr.
-                    GROUP_XS( scroll , rack                ), // event after scroll.
-                    //EVENT_XS( created    , sptr<console::base> ), // event after itself creation, arg: itself bell_sptr.
-                    //EVENT_XS( detached   , bell_sptr           ), // inform that subject is detached, arg: parent bell_sptr.
-                    //EVENT_XS( invalidated, bool                ),
-                    //EVENT_XS( moved      , twod                ), // release: event after moveto, arg: diff bw old and new coor twod. preview: event after moved by somebody.
+                    EVENT_XS( redrawn, ui::face       ), // inform about camvas is completely redrawn.
+                    EVENT_XS( cached , ui::face       ), // inform about camvas is cached.
+                    EVENT_XS( wiped  , ui::face       ), // event after wipe the canvas.
+                    EVENT_XS( changed, twod           ), // event after resize, arg: diff bw old and new size.
+                    EVENT_XS( dragged, input::hids    ), // event after drag.
+                    EVENT_XS( created, input::hids    ), // release: notify the instance of who created it.
+                    EVENT_XS( started, sptr<ui::base> ), // release: notify the instance is commissioned. arg: visual root.
+                    GROUP_XS( vtree  , sptr<ui::base> ), // visual tree events, arg: parent base_sptr.
+                    GROUP_XS( scroll , rack           ), // event after scroll.
+                    //EVENT_XS( created    , sptr<ui::base> ), // event after itself creation, arg: itself bell_sptr.
+                    //EVENT_XS( detached   , bell_sptr      ), // inform that subject is detached, arg: parent bell_sptr.
+                    //EVENT_XS( invalidated, bool           ),
+                    //EVENT_XS( moved      , twod           ), // release: event after moveto, arg: diff bw old and new coor twod. preview: event after moved by somebody.
 
                     SUBSET_XS( vtree )
                     {
-                        EVENT_XS( attached, sptr<console::base> ), // Child has been attached, arg: parent sptr<base>.
-                        EVENT_XS( detached, sptr<console::base> ), // Child has been detached, arg: parent sptr<base>.
+                        EVENT_XS( attached, sptr<ui::base> ), // Child has been attached, arg: parent sptr<base>.
+                        EVENT_XS( detached, sptr<ui::base> ), // Child has been detached, arg: parent sptr<base>.
                     };
                     SUBSET_XS( scroll )
                     {
@@ -364,31 +363,31 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( proceed )
                 {
-                    EVENT_XS( create    , rect                ), // return coordinates of the new object placeholder.
-                    EVENT_XS( createat  , console::create_t   ), // general: create an intance at the specified location and return sptr<base>.
-                    EVENT_XS( createfrom, console::create_t   ), // general: attach spcified intance and return sptr<base>.
-                    EVENT_XS( createby  , input::hids         ), // return gear with coordinates of the new object placeholder gear::slot.
-                    EVENT_XS( autofocus , input::hids         ), // release: restore the last foci state.
-                    EVENT_XS( destroy   , console::base       ), // ??? bool return reference to the parent.
-                    EVENT_XS( render    , bool                ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
-                    EVENT_XS( attach    , sptr<console::base> ), // order to attach a child, arg is a parent base_sptr.
-                    EVENT_XS( detach    , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
-                    EVENT_XS( unfocus   , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
-                    EVENT_XS( swap      , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
-                    EVENT_XS( functor   , console::functor    ), // exec functor (see pro::focus).
-                    EVENT_XS( onbehalf  , console::proc       ), // exec functor on behalf (see gate).
-                    GROUP_XS( d_n_d     , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
-                    //EVENT_XS( focus      , sptr<console::base>      ), // order to set focus to the specified object, arg is a object sptr.
-                    //EVENT_XS( commit     , si32                     ), // order to output the targets, arg is a frame number.
-                    //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
-                    //EVENT_XS( draw       , face                     ), // ????  order to render itself to the canvas.
-                    //EVENT_XS( checkin    , face_sptr                ), // order to register an output client canvas.
+                    EVENT_XS( create    , rect           ), // return coordinates of the new object placeholder.
+                    EVENT_XS( createat  , ui::create_t   ), // general: create an intance at the specified location and return sptr<base>.
+                    EVENT_XS( createfrom, ui::create_t   ), // general: attach spcified intance and return sptr<base>.
+                    EVENT_XS( createby  , input::hids    ), // return gear with coordinates of the new object placeholder gear::slot.
+                    EVENT_XS( autofocus , input::hids    ), // release: restore the last foci state.
+                    EVENT_XS( destroy   , ui::base       ), // ??? bool return reference to the parent.
+                    EVENT_XS( render    , bool           ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
+                    EVENT_XS( attach    , sptr<ui::base> ), // order to attach a child, arg is a parent base_sptr.
+                    EVENT_XS( detach    , sptr<ui::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
+                    EVENT_XS( unfocus   , sptr<ui::base> ), // order to unset focus on the specified object, arg is a object sptr.
+                    EVENT_XS( swap      , sptr<ui::base> ), // order to replace existing client. See tiling manager empty slot.
+                    EVENT_XS( functor   , ui::functor    ), // exec functor (see pro::focus).
+                    EVENT_XS( onbehalf  , ui::proc       ), // exec functor on behalf (see gate).
+                    GROUP_XS( d_n_d     , sptr<ui::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+                    //EVENT_XS( focus      , sptr<ui::base>     ), // order to set focus to the specified object, arg is a object sptr.
+                    //EVENT_XS( commit     , si32               ), // order to output the targets, arg is a frame number.
+                    //EVENT_XS( multirender, vector<sptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
+                    //EVENT_XS( draw       , face               ), // ????  order to render itself to the canvas.
+                    //EVENT_XS( checkin    , face_sptr          ), // order to register an output client canvas.
 
                     SUBSET_XS(d_n_d)
                     {
-                        EVENT_XS(ask  , sptr<console::base>),
-                        EVENT_XS(drop , console::create_t  ),
-                        EVENT_XS(abort, sptr<console::base>),
+                        EVENT_XS(ask  , sptr<ui::base>),
+                        EVENT_XS(drop , ui::create_t  ),
+                        EVENT_XS(abort, sptr<ui::base>),
                     };
                 };
                 SUBSET_XS( cursor )
@@ -504,21 +503,21 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse , si32          ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
-                    EVENT_XS( header, console::para ), // notify the client has changed title.
-                    EVENT_XS( footer, console::para ), // notify the client has changed footer.
-                    EVENT_XS( params, console::para ), // notify the client has changed title params.
-                    EVENT_XS( color , console::tone ), // notify the client has changed tone, preview to set.
-                    GROUP_XS( keybd , bool          ), // notify the client if keybd is active or not. The form is active when the number of clients (form::eventa::keybd::got - keybd::lost) is not zero, only release.
+                    EVENT_XS( mouse , si32     ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
+                    EVENT_XS( header, ui::para ), // notify the client has changed title.
+                    EVENT_XS( footer, ui::para ), // notify the client has changed footer.
+                    EVENT_XS( params, ui::para ), // notify the client has changed title params.
+                    EVENT_XS( color , ui::tone ), // notify the client has changed tone, preview to set.
+                    GROUP_XS( keybd , bool     ), // notify the client if keybd is active or not. The form is active when the number of clients (form::eventa::keybd::got - keybd::lost) is not zero, only release.
 
                     SUBSET_XS( keybd )
                     {
-                        EVENT_XS( got     , input::hids             ), // release: got  keyboard focus.
-                        EVENT_XS( lost    , input::hids             ), // release: lost keyboard focus.
-                        EVENT_XS( handover, console::gear_id_list_t ), // request: Handover all available foci.
-                        EVENT_XS( enlist  , console::gear_id_list_t ), // anycast: Enumerate all available foci.
-                        EVENT_XS( find    , console::focus_test_t   ), // request: Check the focus.
-                        EVENT_XS( check   , bool                    ), // anycast: Check any focus.
+                        EVENT_XS( got     , input::hids        ), // release: got  keyboard focus.
+                        EVENT_XS( lost    , input::hids        ), // release: lost keyboard focus.
+                        EVENT_XS( handover, ui::gear_id_list_t ), // request: Handover all available foci.
+                        EVENT_XS( enlist  , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
+                        EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
+                        EVENT_XS( check   , bool               ), // anycast: Check any focus.
                     };
                 };
             };
@@ -526,7 +525,7 @@ namespace netxs::events::userland
     };
 }
 
-namespace netxs::console
+namespace netxs::ui
 {
     using e2 = netxs::events::userland::e2;
 

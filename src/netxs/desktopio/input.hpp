@@ -654,7 +654,7 @@ namespace netxs::input
     {
         using events = netxs::events::userland::hids;
         using list = std::list<wptr<bell>>;
-        using xmap = netxs::console::core;
+        using xmap = netxs::ui::core;
 
         id_t        relay; // hids: Mouse routing call stack initiator.
         xmap const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.

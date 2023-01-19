@@ -84,9 +84,9 @@ namespace netxs::os
     using namespace std::literals;
     using namespace std::chrono_literals;
     using namespace netxs::ui::atoms;
-    using page = console::page;
-    using para = console::para;
-    using rich = console::rich;
+    using page = ui::page;
+    using para = ui::para;
+    using rich = ui::rich;
     using time = datetime::time;
     using span = datetime::span;
 

@@ -45,7 +45,7 @@ namespace netxs::ui
     {
     public:
         using events = netxs::events::userland::uiterm;
-        using face = netxs::console::face;
+        using face = ui::face; // Reference for consrv.
 
         struct commands
         {

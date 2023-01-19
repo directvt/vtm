@@ -14,7 +14,7 @@
 #include "netxs/apps.hpp"
 
 using namespace netxs;
-using namespace netxs::console;
+using namespace netxs::ui;
 
 enum class type
 {

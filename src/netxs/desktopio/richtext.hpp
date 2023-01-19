@@ -7,7 +7,7 @@
 #include "logger.hpp"
 #include "ring.hpp"
 
-namespace netxs::console
+namespace netxs::ui
 {
     using namespace netxs::ui::atoms;
     using namespace std::literals;
@@ -580,7 +580,7 @@ namespace netxs::console
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, console::whitespace);
+            //        lyric.emplace_back(cluster, ui::whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -636,7 +636,7 @@ namespace netxs::console
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, console::whitespace);
+            //        lyric.emplace_back(cluster, ui::whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -689,7 +689,7 @@ namespace netxs::console
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, console::whitespace);
+            //        lyric.emplace_back(cluster, ui::whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 

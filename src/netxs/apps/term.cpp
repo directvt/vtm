@@ -9,7 +9,7 @@
 #include "../apps.hpp"
 
 using namespace netxs;
-using namespace netxs::console;
+using namespace netxs::ui;
 
 int main(int argc, char* argv[])
 {

@@ -12,7 +12,6 @@
 namespace netxs::ui
 {
     using namespace netxs::ui::atoms;
-    using namespace netxs::console;
 
     enum sort
     {

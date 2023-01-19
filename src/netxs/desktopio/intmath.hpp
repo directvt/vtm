@@ -971,7 +971,7 @@ namespace netxs
     /// <param name="P_DEST d_ref"> Lambda to convert destination pointer to the reference. </param>
     /// <param name="POSTFX shade"> Lambda for further processing. </param>
     /// <exmpla>
-    ///		see console:pro::panel::blur()
+    ///		see ui:pro::panel::blur()
     /// </exmpla>
     template<class RGB_T,
         class SRC_T,
