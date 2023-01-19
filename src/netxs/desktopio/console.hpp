@@ -82,7 +82,7 @@ namespace netxs::ui
     using gear_id_list_t = std::list<id_t>;
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
-    using s11n = netxs::ansi::dtvt::binary::s11n;
+    using s11n = directvt::binary::s11n;
     using os::tty::xipc;
 
     static constexpr auto attr_id       = "id";
@@ -1451,7 +1451,7 @@ namespace netxs::ui
         conf(xipc peer, si32 session_id, xml::settings& config)
             : session_id{ session_id }
         {
-            auto init = ansi::dtvt::binary::startdata_t{};
+            auto init = directvt::binary::startdata_t{};
             if (!init.load([&](auto... args){ return peer->recv(args...); }))
             {
                 log("conf: init data corrupted");
@@ -5435,7 +5435,7 @@ namespace netxs::ui
               ready{ faux },
               abort{ faux }
         {
-            using namespace netxs::ansi::dtvt;
+            using namespace netxs::directvt;
             paint = work([&, vtmode]
             {
                 //todo revise (bitmap/bitmap_t)
@@ -5981,7 +5981,7 @@ namespace netxs::ui
 
             lock.unlock();
 
-            ansi::dtvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
+            directvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
 
             lock.lock();
                 log("link: signaling to close read channel ", canal);

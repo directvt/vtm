@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
             {
                 auto direct = !!(vtmode & os::vt::direct);
                 if (!direct) os::logging::start(DESKTOPIO_MYPATH);
-                auto init = ansi::dtvt::binary::startdata_t{};
+                auto init = directvt::binary::startdata_t{};
                 init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
                 init.send([&](auto& data){ client->send(data); });
 

@@ -2201,7 +2201,7 @@ namespace netxs::os
         }
         void stdlog(view data)
         {
-            static auto logs = ansi::dtvt::binary::debuglogs_t{};
+            static auto logs = directvt::binary::debuglogs_t{};
             //todo view -> text
             logs.set(os::process::id, text{ data });
             logs.send([&](auto& block){ os::io::send(STDOUT_FD, block); });
@@ -2771,7 +2771,7 @@ namespace netxs::os
         }
         void send(fd_t m_pipe_w, view config)
         {
-            auto buffer = ansi::dtvt::binary::marker{ config.size() };
+            auto buffer = directvt::binary::marker{ config.size() };
             os::io::send<true>(m_pipe_w, buffer.data, buffer.size);
         }
         auto peek(fd_t stdin_fd)
@@ -2785,7 +2785,7 @@ namespace netxs::os
             ready = true;
             #if defined(_WIN32)
 
-                auto buffer = ansi::dtvt::binary::marker{};
+                auto buffer = directvt::binary::marker{};
                 auto length = DWORD{ 0 };
                 if (haspty(stdin_fd))
                 {
@@ -2812,7 +2812,7 @@ namespace netxs::os
                 {
                     get(stdin_fd, [&]
                     {
-                        auto buffer = ansi::dtvt::binary::marker{};
+                        auto buffer = directvt::binary::marker{};
                         auto header = os::io::recv(stdin_fd, buffer.data, buffer.size);
                         auto length = header.length();
                         if (length)
@@ -3113,7 +3113,7 @@ namespace netxs::os
             {
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
 
-                ansi::dtvt::binary::stream::reading_loop(termlink, receiver);
+                directvt::binary::stream::reading_loop(termlink, receiver);
 
                 preclose(0); //todo send msg from the client app
                 shutdown(wait_child());
@@ -3154,12 +3154,12 @@ namespace netxs::os
         {
             struct
             {
-                xipc                     ipcio; // globals: STDIN/OUT.
-                conmode                  state; // globals: Saved console mode to restore at exit.
-                testy<twod>              winsz; // globals: Current console window size.
-                ansi::dtvt::binary::s11n wired; // globals: Serialization buffers.
-                si32                     kbmod; // globals: Keyboard modifiers state.
-                io::fire                 alarm; // globals: IO interrupter.
+                xipc                   ipcio; // globals: STDIN/OUT.
+                conmode                state; // globals: Saved console mode to restore at exit.
+                testy<twod>            winsz; // globals: Current console window size.
+                directvt::binary::s11n wired; // globals: Serialization buffers.
+                si32                   kbmod; // globals: Keyboard modifiers state.
+                io::fire               alarm; // globals: IO interrupter.
             }
             static vars;
             return vars;

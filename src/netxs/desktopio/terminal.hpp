@@ -7226,7 +7226,7 @@ namespace netxs::ui
         : public ui::form<dtvt>
     {
         using sync = std::condition_variable;
-        using s11n = netxs::ansi::dtvt::binary::s11n;
+        using s11n = directvt::binary::s11n;
 
         // dtvt: Event handler.
         class events_t
