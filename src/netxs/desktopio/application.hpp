@@ -851,6 +851,7 @@ R"==(
                         log("hall: detached: ", insts_count);
                     };
 
+                    gear.clear_kb_focus(); // DirectVT app could have a group of focused.
                     gear.kb_focus_changed = faux;
                     frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                     frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.

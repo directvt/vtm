@@ -7359,7 +7359,7 @@ namespace netxs::ui
                     //todo unify (hids)
                     auto state = gear.state();
                     gear.force_group_focus = f.force_group_focus;
-                    gear.combine_focus = f.combine_focus;
+                    gear.combine_focus = true; // dtvt app is always a group of focused.
                     gear.set_kb_focus(owner.This());
                     gear.state(state);
                 }
