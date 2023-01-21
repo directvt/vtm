@@ -38,8 +38,9 @@ namespace netxs::events::userland
             };
             SUBSET_XS( notify )
             {
-                GROUP_XS( mouse, input::hids ), // request context menu at specified coords.
-                GROUP_XS( keybd, input::hids ), // request the prev scene window.
+                GROUP_XS( mouse, input::hids ),
+                GROUP_XS( keybd, input::hids ),
+                GROUP_XS( focus, input::hids ),
 
                 SUBSET_XS( mouse )
                 {
@@ -50,7 +51,6 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( got , input::hids ),
                     EVENT_XS( lost, input::hids ),
-                    EVENT_XS( test, input::hids ),
                 };
                 SUBSET_XS( focus )
                 {
@@ -670,23 +670,6 @@ namespace netxs::input
         bool        tooltip_stop = faux; // hids: Disable tooltip.
         testy<twod> tooltip_coor = {}; // hids: .
 
-        static constexpr auto enter_event   = events::notify::mouse::enter.id;
-        static constexpr auto leave_event   = events::notify::mouse::leave.id;
-        static constexpr auto keybd_take    = events::notify::keybd::got  .id;
-        static constexpr auto keybd_lost    = events::notify::keybd::lost .id;
-        static constexpr auto keybd_test    = events::notify::keybd::test .id;
-        static constexpr auto focus_take    = events::notify::focus::got  .id;
-        static constexpr auto focus_lost    = events::notify::focus::lost .id;
-        static constexpr auto kboffer_event = events::upevent::kboffer    .id;
-        static constexpr auto kbannul_event = events::upevent::kbannul    .id;
-        //todo revise (focus_set/off)
-        static constexpr auto focus_set     = events::focus::set          .id;
-        static constexpr auto focus_off     = events::focus::off          .id;
-        static constexpr auto halt_event    = events::halt                .id;
-        static constexpr auto die_event     = events::die                 .id;
-        static constexpr auto m_device      = events::device::mouse       .id;
-        //static constexpr auto k_device = events::device::keybd.id;
-
     public:
         bell& owner;
         ui32 ctlstate = 0;
@@ -841,27 +824,6 @@ namespace netxs::input
             return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift);
         }
 
-        hids(bell& owner, core const& idmap, span& dblclick_timeout, span& tooltip_timeout, bool& simple_instance)
-            : relay{ 0     },
-              owner{ owner },
-              idmap{ idmap },
-              alive{ faux  },
-              tooltip_timeout{ tooltip_timeout },
-              simple_instance{ simple_instance }
-        {
-            mouse::prime = dot_mx;
-            mouse::coord = dot_mx;
-            mouse::delay = dblclick_timeout;
-        }
-       ~hids()
-        {
-            auto lock = netxs::events::sync{};
-            mouse_leave(mouse::hover, mouse::start);
-            clear_kb_focus();
-            bell::signal_global(halt_event, *this);
-            bell::signal_global(die_event, *this);
-        }
-
         // hids: Stop handeling this event.
         void dismiss(bool set_nodbl = faux)
         {
@@ -869,11 +831,6 @@ namespace netxs::input
             if (set_nodbl) nodbl = true;
         }
 
-        // hids: Whether event processing is complete.
-        operator bool () const
-        {
-            return alive;
-        }
         void take(sysmouse& m)
         {
             ctlstate = m.ctlstat;
@@ -895,12 +852,12 @@ namespace netxs::input
                 auto s = state();
                 force_group_focus = f.force_group_focus;
                 combine_focus     = f.combine_focus    ;
-                owner.bell::template signal<tier::release>(kboffer_event, *this);
+                owner.SIGNAL(tier::release, events::upevent::kboffer, *this);
                 state(s);
             }
             else
             {
-                owner.bell::template signal<tier::release>(kbannul_event, *this);
+                owner.SIGNAL(tier::release, events::upevent::kbannul, *this);
             }
         }
 
@@ -929,7 +886,7 @@ namespace netxs::input
                 {
                     auto start = mouse::start;
                     mouse::start = start_id;
-                    last->bell::template signal<tier::release>(leave_event, *this);
+                    last->SIGNAL(tier::release, events::notify::mouse::leave, *this);
                     mouse::start = start;
                 }
                 else log("hids: error condition: Clients count is broken, dangling ", last_id);
@@ -950,7 +907,7 @@ namespace netxs::input
                 // acquired by children.
                 auto start_l = mouse::start;
                 mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
-                boss.bell::template signal<tier::release>(enter_event, *this);
+                boss.SIGNAL(tier::release, events::notify::mouse::enter, *this);
                 mouse_leave(mouse::hover, start_l);
                 mouse::hover = boss.id;
             }
@@ -960,7 +917,7 @@ namespace netxs::input
             mouse::load_button_state(0);
             mouse::m.buttons = {};
             take_mouse_focus(owner);
-            bell::signal_global(halt_event, *this);
+            SIGNAL_GLOBAL(events::halt, *this);
             disabled = true;
         }
         void okay(bell& boss)
@@ -1031,7 +988,7 @@ namespace netxs::input
                     auto  temp = m.coordxy;
                     m.coordxy += idmap.coor();
                     next.global(m.coordxy);
-                    next.bell::template signal<tier::release>(m_device, *this);
+                    next.SIGNAL(tier::release, events::device::mouse, *this);
                     m.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {
@@ -1081,14 +1038,14 @@ namespace netxs::input
         void _add_kb_focus(sptr<bell> item)
         {
             kb_focus.push_back(item);
-            item->bell::template signal<tier::release>(keybd_take, *this);
+            item->SIGNAL(tier::release, events::notify::keybd::got, *this);
         }
         bool remove_from_kb_focus(sptr<bell> item)
         {
             return _check_kb_focus(item, [&](auto iter)
             {
                 auto next = iter->lock();
-                next->bell::template signal<tier::release>(keybd_lost, *this);
+                next->SIGNAL(tier::release, events::notify::keybd::lost, *this);
                 kb_focus.erase(iter);
             });
         }
@@ -1106,7 +1063,7 @@ namespace netxs::input
                         iter++;
                         continue;
                     }
-                    next->bell::template signal<tier::release>(keybd_lost, *this);
+                    next->SIGNAL(tier::release, events::notify::keybd::lost, *this);
                 }
                 iter++;
                 kb_focus.erase(std::prev(iter));
@@ -1142,21 +1099,24 @@ namespace netxs::input
             {
                 add_single_kb_focus(item);
             }
-            item->bell::template signal<tier::release>(keybd_test, *this);
+            if (kb_focus.size()) owner.SIGNAL(tier::preview, events::notify::focus::got, *this);
         }
-        void clear_kb_focus()
+        auto clear_kb_focus()
         {
+            auto last = std::list<id_t>{};
             auto iter = kb_focus.begin();
             while (iter != kb_focus.end())
             {
                 if (auto next = iter->lock())
                 {
-                    next->bell::template signal<tier::release>(keybd_lost, *this);
+                    last.push_back(next->id);
+                    next->SIGNAL(tier::release, events::notify::keybd::lost, *this);
                 }
                 iter++;
                 kb_focus.erase(std::prev(iter));
-                //kb_focus.erase(iter);
             }
+            if (kb_focus.empty()) owner.SIGNAL(tier::preview, events::notify::focus::lost, *this);
+            return last;
         }
         bool focus_changed()
         {
@@ -1166,22 +1126,22 @@ namespace netxs::input
         {
             clear_kb_focus();
             kb_focus_changed = faux;
-            inst.bell::template signal<tier::release>(kboffer_event, *this);
+            inst.SIGNAL(tier::release, events::upevent::kboffer, *this);
         }
         void offer_kb_focus(sptr<bell> inst_ptr)
         {
             //todo signal to the owner to do a focus relay
             force_group_focus = true;
             kb_focus_changed = faux;
-            inst_ptr->bell::template signal<tier::release>(kboffer_event, *this);
+            inst_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
             force_group_focus = faux;
-            owner.bell::template signal<tier::release>(focus_set, *this);
+            owner.SIGNAL(tier::release, events::focus::set, *this);
         }
         void annul_kb_focus(sptr<bell> inst_ptr)
         {
             kb_focus_changed = faux; //todo used in base::upevent handler
-            inst_ptr->bell::template signal<tier::release>(kbannul_event, *this);
-            owner.bell::template signal<tier::release>(focus_off, *this);
+            inst_ptr->SIGNAL(tier::release, events::upevent::kbannul, *this);
+            owner.SIGNAL(tier::release, events::focus::off, *this);
         }
         auto interpret()
         {
@@ -1248,6 +1208,31 @@ namespace netxs::input
                 }
             }
             return textline;
+        }
+        // hids: Whether event processing is complete.
+        operator bool() const
+        {
+            return alive;
+        }
+        hids(bell& owner, core const& idmap, span& dblclick_timeout, span& tooltip_timeout, bool& simple_instance)
+            : relay{ 0 },
+            owner{ owner },
+            idmap{ idmap },
+            alive{ faux },
+            tooltip_timeout{ tooltip_timeout },
+            simple_instance{ simple_instance }
+        {
+            mouse::prime = dot_mx;
+            mouse::coord = dot_mx;
+            mouse::delay = dblclick_timeout;
+        }
+        ~hids()
+        {
+            auto lock = netxs::events::sync{};
+            mouse_leave(mouse::hover, mouse::start);
+            clear_kb_focus();
+            SIGNAL_GLOBAL(events::halt, *this);
+            SIGNAL_GLOBAL(events::die, *this);
         }
     };
 }

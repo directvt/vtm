@@ -363,7 +363,6 @@ namespace netxs::events::userland
                     EVENT_XS( createat  , ui::create_t   ), // general: create an intance at the specified location and return sptr<base>.
                     EVENT_XS( createfrom, ui::create_t   ), // general: attach spcified intance and return sptr<base>.
                     EVENT_XS( createby  , input::hids    ), // return gear with coordinates of the new object placeholder gear::slot.
-                    EVENT_XS( autofocus , input::hids    ), // release: restore the last foci state.
                     EVENT_XS( destroy   , ui::base       ), // ??? bool return reference to the parent.
                     EVENT_XS( render    , bool           ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
                     EVENT_XS( attach    , sptr<ui::base> ), // order to attach a child, arg is a parent base_sptr.
@@ -373,6 +372,7 @@ namespace netxs::events::userland
                     EVENT_XS( functor   , ui::functor    ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf  , ui::proc       ), // exec functor on behalf (see gate).
                     GROUP_XS( d_n_d     , sptr<ui::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+                    GROUP_XS( autofocus , input::hids    ), // release: restore the last foci state.
                     //EVENT_XS( focus      , sptr<ui::base>     ), // order to set focus to the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , si32               ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<sptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
@@ -384,6 +384,11 @@ namespace netxs::events::userland
                         EVENT_XS(ask  , sptr<ui::base>),
                         EVENT_XS(drop , ui::create_t  ),
                         EVENT_XS(abort, sptr<ui::base>),
+                    };
+                    SUBSET_XS(autofocus)
+                    {
+                        EVENT_XS(take, input::hids),
+                        EVENT_XS(lost, input::hids),
                     };
                 };
                 SUBSET_XS( cursor )
@@ -3356,8 +3361,15 @@ namespace netxs::ui
                     if (deed == hids::events::mouse::button::click::left.id) //todo make it configurable (left click)
                     {
                         // Propagate throughout nested objects by base::
+                        auto state = gear.state();
                         gear.kb_focus_changed = faux;
+                        if (gear.meta(hids::anyCtrl))
+                        {
+                            gear.force_group_focus = true;
+                            gear.combine_focus = faux;
+                        }
                         boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        gear.state(state);
                         gear.dismiss();
                     }
                     else if (deed == hids::events::mouse::button::click::right.id) //todo make it configurable (left click)
@@ -3742,16 +3754,6 @@ namespace netxs::ui
                 {
                     forward(f);
                 };
-            }
-            void check_focus()
-            {
-                if (props.simple)
-                {
-                    auto f = sysfocus{};
-                    f.gear_id = 0;
-                    f.enabled = true;
-                    boss.SIGNAL(tier::release, e2::conio::focus, f);
-                }
             }
             void fire(hint event_id)
             {
@@ -4879,7 +4881,7 @@ namespace netxs::ui
             }
         };
 
-        using idls = std::list<id_t>;
+        using idls = std::unordered_map<id_t, std::list<id_t>>;
 
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
@@ -4992,9 +4994,10 @@ namespace netxs::ui
             {
                 if (regis.usr.size() == 1) // Save all foci for the last user.
                 {
+                    auto& active = taken[id_t{}];
                     auto proc = e2::form::proceed::functor.param([&](sptr<base> focused_item_ptr)
                     {
-                        taken.push_back(focused_item_ptr->id);
+                        active.push_back(focused_item_ptr->id);
                     });
                     this->SIGNAL(tier::general, e2::form::proceed::functor, proc);
                 }
@@ -5045,9 +5048,13 @@ namespace netxs::ui
                     prev = prev_ptr->object;
                 }
             };
-            SUBMIT(tier::release, e2::form::proceed::autofocus, gear)
+            SUBMIT(tier::release, e2::form::proceed::autofocus::take, gear)
             {
                 autofocus(gear);
+            };
+            SUBMIT(tier::release, e2::form::proceed::autofocus::lost, gear)
+            {
+                taken[gear.id] = gear.clear_kb_focus();
             };
         }
 
@@ -5063,6 +5070,7 @@ namespace netxs::ui
         void autorun(xml::settings& config)
         {
             auto what = e2::form::proceed::createat.param();
+            auto& active = taken[id_t{}];
             for (auto app_ptr : config.list(path_autorun))
             {
                 auto& app = *app_ptr;
@@ -5076,7 +5084,7 @@ namespace netxs::ui
                     if (what.menuid.size())
                     {
                         SIGNAL(tier::release, e2::form::proceed::createat, what);
-                        if (focused) taken.push_back(what.object->id);
+                        if (focused) active.push_back(what.object->id);
                     }
                     else log("hall: Unexpected empty app id in autorun configuration");
                 }
@@ -5085,19 +5093,28 @@ namespace netxs::ui
         // hall: Restore all foci for the first user.
         void autofocus(hids& gear)
         {
-            if (taken.size())
+            auto force_group_focus = gear.force_group_focus;
+            gear.force_group_focus = true;
+            auto focus = [&](auto& active)
             {
-                gear.force_group_focus = true;
-                for (auto id : taken)
+                if (active.size())
                 {
-                    if (auto window_ptr = bell::getref(id))
+                    for (auto id : active)
                     {
-                        window_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        if (auto window_ptr = bell::getref(id))
+                        {
+                            window_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                        }
                     }
+                    active.clear();
                 }
-                gear.force_group_focus = faux;
-                taken.clear();
+            };
+            focus(taken[id_t{}]);
+            if (auto iter = taken.find(gear.id); iter != taken.end())
+            {
+                focus(iter->second);
             }
+            gear.force_group_focus = force_group_focus;
         }
         void redraw(face& canvas) override
         {
@@ -5816,7 +5833,24 @@ namespace netxs::ui
                 {
                     SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
                     {
-                        world.SIGNAL(tier::release, e2::form::proceed::autofocus, gear);
+                        world.SIGNAL(tier::release, e2::form::proceed::autofocus::take, gear);
+                    };
+                    SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
+                    {
+                        world.SIGNAL(tier::release, e2::form::proceed::autofocus::lost, gear);
+                    };
+                }
+                if (direct)
+                {
+                    SUBMIT_T(tier::preview, hids::events::notify::focus::any, token, from_gear)
+                    {
+                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
+                        auto deed =this->bell::protos<tier::preview>();
+                        switch (deed)
+                        {
+                            case hids::events::notify::focus::got.id:  conio.set_focus.send(conio, ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus); break;
+                            case hids::events::notify::focus::lost.id: conio.off_focus.send(conio, ext_gear_id); break;
+                        }
                     };
                 }
                 // Focus relay.
@@ -5920,17 +5954,6 @@ namespace netxs::ui
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                         conio.maximize.send(conio, ext_gear_id);
                     };
-                    SUBMIT_T(tier::release, hids::events::notify::keybd::test, token, from_gear)
-                    {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                        from_gear.kb_focus_set ? conio.set_focus.send(conio, ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus)
-                                               : conio.off_focus.send(conio, ext_gear_id);
-                    };
-                    SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, from_gear)
-                    {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                        conio.off_focus.send(conio, ext_gear_id);
-                    };
                     if (props.is_standalone_app)
                     {
                         SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
@@ -5966,7 +5989,6 @@ namespace netxs::ui
                 }
                 else
                 {
-                    input.check_focus();
                     if (props.title.size())
                     {
                         conio.output(ansi::header(props.title));
@@ -6104,7 +6126,12 @@ namespace netxs::ui
                             auto& area = item.area();
                             auto center = area.coor + (area.size / 2);
                             this->SIGNAL(tier::release, e2::form::layout::shift, center);
-                            gear.pass_kb_focus(item);
+                            //todo unify
+                            gear.clear_kb_focus();
+                            gear.kb_focus_changed = faux;
+                            gear.force_group_focus = faux;
+                            gear.combine_focus = faux;
+                            item.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                         }
                         gear.dismiss();
                     }
