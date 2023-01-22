@@ -229,7 +229,7 @@ vtm
 
 # Command line Options `vtm(.exe)`
 
- `vtm [ -c <file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]`
+ `vtm [ -c <file> ] [ -p <pipe> ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]`
 
 Option                    | Description
 --------------------------|-------------------------------------------------------
@@ -237,6 +237,7 @@ No arguments              | Run client (auto start server)
 ` -c | --config <file> `  | Use specified configuration file
 ` -p | --pipe <pipe> `    | Set the pipe to connect to
 ` -l | --listconfig `     | Show configuration and exit
+` -m | --monitor `        | Monitor server log
 ` -d | --daemon `         | Run server in background
 ` -s | --server `         | Run server in interactive mode
 ` -r | --runapp [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
@@ -508,7 +509,7 @@ Note: The following configuration sections are not implemented yet
         <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
-        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
+        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r term $0 -m" notes=" run Logs "/>
    <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
    <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
    <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
@@ -732,9 +733,6 @@ Note: The following configuration sections are not implemented yet
     <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </calc>
-    <logs>      <!-- Base configuration for the Logs app. It can be overridden by param's subargs. -->
-        <!-- not implemented -->
-    </logs>
     <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </settings>
@@ -746,7 +744,6 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 # Built-in Applications
 
 - `▀▄ Term` Terminal emulator
-- `▀▄ Logs` Debug output console
 - `▀▄ View` Workspace navigation helper
 - `▀▄ Tile` Tiling window manager
 - `▀▄ Gems` Application manager (Demo)
@@ -946,9 +943,6 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        *TerminalVideoBackward       | Rewind DTVT-video by N ms.
        *TerminalVideoHome           | Rewind DTVT-video to the beginning.
        *TerminalVideoEnd            | Rewind DTVT-video to the end.
-
- - `▀▄ Logs`
-   - Debug output console.
 
  - `▀▄ View`
    - Serves for quick navigation through the workspace using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
