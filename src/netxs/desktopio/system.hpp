@@ -599,6 +599,10 @@ namespace netxs::os
         {
             return io::send<IS_TTY>(fd, buff.data(), buff.size());
         }
+        auto send(view buff)
+        {
+            return io::send(STDOUT_FD, buff);
+        }
         template<class ...Args>
         auto recv(file& handle, Args&&... args)
         {

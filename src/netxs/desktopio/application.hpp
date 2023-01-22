@@ -82,7 +82,7 @@ R"==(
         <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15/>
-        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
+        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r term $0 -m" notes=" run Logs "/>
         <autorun item*>  <!-- Autorun of specified menu items -->
             <!--  <item* id=Term winsize=80,25/> --> <!-- Set defaults for the list -->
             <!--  <item focused wincoor=8,3/> -->
@@ -291,9 +291,6 @@ R"==(
     <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </calc>
-    <logs>      <!-- Base configuration for the Logs app. It can be overridden by param's subargs. -->
-        <!-- not implemented -->
-    </logs>
     <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </settings>

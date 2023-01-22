@@ -8,7 +8,6 @@
 #include "apps/calc.hpp"
 #include "apps/text.hpp"
 #include "apps/shop.hpp"
-#include "apps/logs.hpp"
 #include "apps/test.hpp"
 #include "apps/desk.hpp"
 
