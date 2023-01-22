@@ -645,8 +645,6 @@ namespace netxs::directvt
         STRUCT(warping,           (id_t, window_id) (dent, warpdata))
         STRUCT(vt_command,        (text, command))
         STRUCT_LITE(expose)
-        //todo logs
-        //STRUCT_LITE(request_debug)
         // Input stream.
         STRUCT(sysfocus,          (id_t, gear_id) (bool, enabled) (bool, combine_focus) (bool, force_group_focus))
         STRUCT(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
@@ -673,11 +671,10 @@ namespace netxs::directvt
         STRUCT(fgc,               (rgba, color))
         STRUCT(slimmenu,          (bool, menusize))
         STRUCT(startdata,         (text, ip) (text, name) (text, user) (si32, mode) (text, conf))
-        STRUCT(debuglogs,         (time, id) (text, data))
         //todo logs
-        //STRUCT(debuglogs2,        (text, data))
-        //STRUCT(debugdata,         (text, data))
-        //STRUCT(debugtext,         (text, data))
+        STRUCT(debuglogs,         (ui32, id) (time, guid) (text, data))
+        STRUCT(debugdata,         (text, data))
+        STRUCT_LITE(request_debug)
         #undef STRUCT
         #undef STRUCT_LITE
         #define MACROGEN_UNDEF
@@ -945,12 +942,10 @@ namespace netxs::directvt
             X(fgc              ) /* Set foreground color.                         */\
             X(slimmenu         ) /* Set window menu size.                         */\
             X(startdata        ) /* Startup data.                                 */\
-            X(debuglogs        ) /* Debug logs.                                   */
-            //todo logs
-            //X(debuglogs2       ) /* Debug logs.                                   */
-            //X(debugdata        ) /* Debug data.                                   */
-            //X(debugtext        ) /* Debug forwarding.                             */
-            //X(request_debug    ) /* Request debug output redirection to stdin.    */
+            /*todo logs*/\
+            X(debuglogs        ) /* Debug logs.                                   */\
+            X(debugdata        ) /* Debug data.                                   */\
+            X(request_debug    ) /* Request debug output redirection to stdin.    */
             struct xs
             {
                 #define X(_object) using _object = binary::_object::access;

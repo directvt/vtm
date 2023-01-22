@@ -1737,7 +1737,19 @@ namespace netxs::os
 
     namespace process
     {
-        static auto id = datetime::now();
+        auto getid()
+        {
+            auto id = ui32
+            {
+            #if defined(_WIN32)
+                ::GetCurrentProcessId()
+            #else
+                ::getpid()
+            #endif
+            };
+            return std::pair{ id, datetime::now() };
+        }
+        static auto id = process::getid();
 
         struct args
         {
@@ -2058,6 +2070,7 @@ namespace netxs::os
 
             #endif
         }
+        //todo deprecated
         template<bool Logs = true, bool Daemon = faux>
         auto exec(text cmdline)
         {
@@ -2156,7 +2169,7 @@ namespace netxs::os
                     p_id = ::fork(); // Second fork to avoid zombies.
                     if (p_id == 0) // GrandChild process.
                     {
-                        process::id = datetime::now();
+                        process::id = process::getid();
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
                         ::close(STDIN_FD);
                         ::close(STDOUT_FD);
@@ -2198,7 +2211,8 @@ namespace netxs::os
         {
             static auto logs = directvt::binary::debuglogs_t{};
             //todo view -> text
-            logs.set(os::process::id, text{ data });
+            //todo logs
+            logs.set(os::process::id.first, os::process::id.second, text{ data });
             logs.send([&](auto& block){ os::io::send(STDOUT_FD, block); });
         }
         void syslog(view data)

@@ -162,7 +162,7 @@ namespace netxs::app::logs
         }
 
     public:
-        netxs::sptr<log_parser> worker = netxs::shared_singleton<log_parser>();
+        log_parser worker;
 
         post_logs()
         {
@@ -183,7 +183,7 @@ namespace netxs::app::logs
                 switch (status)
                 {
                     case 1:
-                        status = worker->show_codepoints ? 1 : 2;
+                        status = worker.show_codepoints ? 1 : 2;
                         break;
                     default:
                         break;
@@ -199,7 +199,7 @@ namespace netxs::app::logs
                     case 1:
                     case 2:
                         itsme = true;
-                        worker->enable_codepoints(cmd_id == 1 ? true : faux);
+                        worker.enable_codepoints(cmd_id == 1 ? true : faux);
                         itsme = faux;
                         break;
                     default:
@@ -208,15 +208,15 @@ namespace netxs::app::logs
             };
             SUBMIT(tier::anycast, e2::form::upon::started, root)
             {
-                this->SIGNAL(tier::anycast, events::codepoints::release, worker->show_codepoints ? 1 : 2);
+                this->SIGNAL(tier::anycast, events::codepoints::release, worker.show_codepoints ? 1 : 2);
                 this->SIGNAL(tier::anycast, e2::debug::count::set, 1); // For Term.
-                this->SIGNAL(tier::anycast, e2::debug::request, 1); // For gate.
+                this->SIGNAL(tier::general, e2::debug::request, 1); // For gate.
             };
             SUBMIT(tier::preview, e2::size::set, newsize)
             {
                 caret.coor(flow::cp());
             };
-            SUBMIT(tier::anycast, e2::debug::logs, utf8)
+            SUBMIT(tier::general, e2::debug::data, utf8) // Internal logs.
             {
                 topic += utf8;
                 update();
@@ -237,11 +237,11 @@ namespace netxs::app::logs
                     gear.dismiss();
                 }
             };
-            worker->SUBMIT_T(tier::release, events::codepoints::release, token, status)
+            worker.SUBMIT_T(tier::release, events::codepoints::release, token, status)
             {
                 this->SIGNAL(tier::anycast, events::codepoints::release, status);
             };
-            worker->SUBMIT_T(tier::release, e2::debug::parsed, token, parsed_page)
+            worker.SUBMIT_T(tier::release, e2::debug::parsed, token, parsed_page)
             {
                 topic += parsed_page;
                 update();

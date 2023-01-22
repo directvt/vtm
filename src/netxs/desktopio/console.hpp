@@ -164,6 +164,7 @@ namespace netxs::events::userland
             SUBSET_XS( debug )
             {
                 EVENT_XS( logs  , const view     ), // logs output.
+                EVENT_XS( data  , const view     ), // external logs.
                 EVENT_XS( output, const view     ), // logs has to be parsed.
                 EVENT_XS( parsed, const ui::page ), // output parced logs.
                 EVENT_XS( request, si32          ), // request debug data.
@@ -5325,21 +5326,11 @@ namespace netxs::ui
             notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
         }
         //todo logs
-        //void handle(s11n::xs::debugdata   lock) // For Logs only.
-        //{
-        //    auto& item = lock.thing;
-        //    notify<tier::anycast>(e2::debug::output, item.data);
-        //}
-        //void handle(s11n::xs::debuglogs2  lock) // For Logs only.
-        //{
-        //    auto& item = lock.thing;
-        //    notify<tier::anycast>(e2::debug::logs, item.data);
-        //}
-        //void handle(s11n::xs::debugtext   lock)
-        //{
-        //    auto& item = lock.thing;
-        //    log(item.data);
-        //}
+        void handle(s11n::xs::debugdata   lock) // For Logs only.
+        {
+            auto& item = lock.thing;
+            notify<tier::general>(e2::debug::data, item.data);
+        }
         void handle(s11n::xs::form_header lock)
         {
             auto& item = lock.thing;
@@ -5646,13 +5637,12 @@ namespace netxs::ui
                 auto  conio = link{ canal, This() }; // gate: Terminal IO.
                 auto  paint = diff{ canal, vtmode }; // gate: Rendering loop.
                 auto  token = subs{};                // gate: Subscription tokens.
-                auto logger = netxs::logger([&](auto data)
+                //todo logs
+                SUBMIT_T(tier::general, e2::debug::logs, token, utf8)
                 {
-                    if (direct && !props.is_standalone_app)
-                    {
-                        conio.debuglogs.send(canal, os::process::id, text{ data });
-                    }
-                });
+                    if (direct) conio.debuglogs.send(canal, os::process::id.first, os::process::id.second, text{ utf8 });
+                    else        SIGNAL(tier::general, e2::debug::data, utf8);
+                };
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -5920,15 +5910,11 @@ namespace netxs::ui
 
                 if (direct) // Forward unhandled events outside.
                 {
-                    //todo crash in dtvt mode
-                    //SUBMIT_T(tier::anycast, e2::debug::request, token, count)
-                    //{
-                    //    if (count > 0) conio.request_debug.send(conio);
-                    //};
-                    //SUBMIT_T(tier::general, e2::debug::logs, token, utf8)
-                    //{
-                    //    log(utf8);
-                    //};
+                    //todo logs
+                    SUBMIT_T(tier::general, e2::debug::request, token, count)
+                    {
+                        if (count > 0) conio.request_debug.send(conio);
+                    };
                     SUBMIT_T(tier::release, e2::config::fps, token, fps)
                     {
                         if (fps > 0) SIGNAL_GLOBAL(e2::config::fps, fps);

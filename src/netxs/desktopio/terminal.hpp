@@ -7415,22 +7415,24 @@ namespace netxs::ui
                 });
             }
             //todo logs
-            //void handle(s11n::xs::request_debug       lock)
-            //{
-            //    netxs::events::enqueue(owner.This(), [&](auto& boss)
-            //    {
-            //        owner.request_debug();
-            //    });
-            //}
+            void handle(s11n::xs::request_debug       lock)
+            {
+                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                {
+                    owner.request_debug();
+                });
+            }
             void handle(s11n::xs::debuglogs           lock)
             {
-                if (lock.thing.id != os::process::id) // To avoid overflow on recursive dtvt connections.
+                if (lock.thing.guid != os::process::id.second) // To avoid overflow on recursive dtvt connections.
                 {
                     auto utf8 = view{ lock.thing.data };
                     if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
+                    auto prompt = owner.procid != lock.thing.id ? ansi::add("      ", owner.procid, '/', lock.thing.id, ": ")
+                                                                : ansi::add("      ", owner.procid, ": ");
                     utf::divide(utf8, '\n', [&](auto line)
                     {
-                        log(owner.prompt, line);
+                        log(prompt, line); // Local pid/remote pid. It is different if sshed.
                     });
                 }
             }
@@ -7562,7 +7564,7 @@ namespace netxs::ui
         span        maxoff; // dtvt: Max delay before showing "No signal".
         subs        debugs; // dtvt: Tokens for debug output subcriptions.
         byte        opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
-        ansi::esc   prompt; // dtvt: PTY logger prompt.
+        os::pidt    procid; // dtvt: PTY child process id.
         testy<twod> termsz; // dtvt: PTY device window size.
         vtty        ptycon; // dtvt: PTY device. Should be destroyed first.
 
@@ -7610,6 +7612,7 @@ namespace netxs::ui
                     canvas.swap(splash);
                 }
                 auto lock = netxs::events::sync{};
+                debugs.reset();
                 this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
             }
         }
@@ -7617,16 +7620,14 @@ namespace netxs::ui
         void request_debug()
         {
             //todo logs
-            //SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
-            //{
-            //    //todo text -> view
-            //    stream.debuglogs2.send(ptycon, text{shadow});
-            //};
-            //SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
-            //{
-            //    //todo text -> view
-            //    stream.debugdata.send(ptycon, text{shadow});
-            //};
+            if (!debugs)
+            {
+                SUBMIT_T(tier::general, e2::debug::data, debugs, shadow)
+                {
+                    //todo text -> view
+                    stream.debugdata.send(ptycon, text{shadow});
+                };
+            }
         }
 
     public:
@@ -7652,13 +7653,12 @@ namespace netxs::ui
                         this->riseup<tier::request>(e2::form::prop::ui::footer, footer);
                         stream.s11n::form_header.send(*this, 0, header);
                         stream.s11n::form_footer.send(*this, 0, footer);
-                        auto procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                           [&](auto exit_reason) { atexit(exit_reason); },
-                                                                           [&](auto exit_reason) { onexit(exit_reason); });
+                        procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                      [&](auto exit_reason) { atexit(exit_reason); },
+                                                                      [&](auto exit_reason) { onexit(exit_reason); });
                         pty_resize<true>(base::size());
                         unique = timer;
                         oneoff.reset();
-                        prompt.add("      ", procid, ": ");
                     }
                 };
             }
