@@ -145,6 +145,7 @@ int main(int argc, char* argv[])
         {
             if (auto stream = os::ipc::socket::open<os::client, faux>(prefix))
             {
+                log("main: connected");
                 while (os::io::send(stream->recv()))
                 { }
                 return 0;
@@ -228,16 +229,16 @@ int main(int argc, char* argv[])
             }
         }
         
-        auto logger = os::ipc::socket::open<os::server>(prefix + DESKTOPIO_LOGGER);
-        if (!logger)
-        {
-            os::fail("can't start desktopio logger");
-            return 1;
-        }
         auto server = os::ipc::socket::open<os::server>(prefix);
         if (!server)
         {
             os::fail("can't start desktopio server");
+            return 1;
+        }
+        auto logger = os::ipc::socket::open<os::server>(prefix + DESKTOPIO_LOGGER);
+        if (!logger)
+        {
+            os::fail("can't start desktopio logger");
             return 1;
         }
         using e2 = netxs::ui::e2;
