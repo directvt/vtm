@@ -1743,14 +1743,11 @@ namespace netxs::os
     {
         auto getid()
         {
-            auto id = ui32
-            {
             #if defined(_WIN32)
-                ::GetCurrentProcessId()
+                auto id = static_cast<ui32>(::GetCurrentProcessId());
             #else
-                ::getpid()
+                auto id = static_cast<ui32>(::getpid());
             #endif
-            };
             return std::pair{ id, datetime::now() };
         }
         static auto id = process::getid();
