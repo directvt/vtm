@@ -167,7 +167,6 @@ namespace netxs::events::userland
                 EVENT_XS( data  , const view     ), // external logs.
                 EVENT_XS( output, const view     ), // logs has to be parsed.
                 EVENT_XS( parsed, const ui::page ), // output parced logs.
-                EVENT_XS( request, si32          ), // request debug data.
                 GROUP_XS( count , si32           ), // global: log listeners.
 
                 SUBSET_XS( count )
@@ -5257,7 +5256,6 @@ namespace netxs::ui
         void handle(s11n::xs::syskeybd    lock)
         {
             auto& keybd = lock.thing;
-            log("keybd ", keybd.cluster);
             notify(e2::conio::keybd, keybd);
         }
         void handle(s11n::xs::plain       lock)
@@ -5910,11 +5908,6 @@ namespace netxs::ui
 
                 if (direct) // Forward unhandled events outside.
                 {
-                    //todo logs
-                    SUBMIT_T(tier::general, e2::debug::request, token, count)
-                    {
-                        if (count > 0) conio.request_debug.send(conio);
-                    };
                     SUBMIT_T(tier::release, e2::config::fps, token, fps)
                     {
                         if (fps > 0) SIGNAL_GLOBAL(e2::config::fps, fps);

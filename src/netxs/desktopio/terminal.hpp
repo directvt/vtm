@@ -7414,14 +7414,6 @@ namespace netxs::ui
                     SIGNAL_GLOBAL(e2::config::fps, fps);
                 });
             }
-            //todo logs
-            void handle(s11n::xs::request_debug       lock)
-            {
-                netxs::events::enqueue(owner.This(), [&](auto& boss)
-                {
-                    owner.request_debug();
-                });
-            }
             void handle(s11n::xs::debuglogs           lock)
             {
                 if (lock.thing.guid != os::process::id.second) // To avoid overflow on recursive dtvt connections.
@@ -7562,7 +7554,6 @@ namespace netxs::ui
         face        splash; // dtvt: "No signal" splash.
         hook        oneoff; // dtvt: One-shot token for start and shutdown events.
         span        maxoff; // dtvt: Max delay before showing "No signal".
-        subs        debugs; // dtvt: Tokens for debug output subcriptions.
         byte        opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         os::pidt    procid; // dtvt: PTY child process id.
         testy<twod> termsz; // dtvt: PTY device window size.
@@ -7612,21 +7603,7 @@ namespace netxs::ui
                     canvas.swap(splash);
                 }
                 auto lock = netxs::events::sync{};
-                debugs.reset();
                 this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
-            }
-        }
-        // dtvt: Logs callback handler.
-        void request_debug()
-        {
-            //todo logs
-            if (!debugs)
-            {
-                SUBMIT_T(tier::general, e2::debug::data, debugs, shadow)
-                {
-                    //todo text -> view
-                    stream.debugdata.send(ptycon, text{shadow});
-                };
             }
         }
 

@@ -3146,8 +3146,6 @@ namespace netxs::os
                     guard.lock();
                 }
                 //if (termlink) termlink.shut();
-                //todo block dtvt-logs after termlink stops
-                //guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
                 log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");
             }
             void output(view data)

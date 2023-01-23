@@ -229,13 +229,14 @@ vtm
 
 # Command line Options `vtm(.exe)`
 
- `vtm [ -c <file> ] [ -p <pipe> ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]`
+ `vtm [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]`
 
 Option                    | Description
 --------------------------|-------------------------------------------------------
 No arguments              | Run client (auto start server)
 ` -c | --config <file> `  | Use specified configuration file
 ` -p | --pipe <pipe> `    | Set the pipe to connect to
+` -q | --quiet `          | Disable logging
 ` -l | --listconfig `     | Show configuration and exit
 ` -m | --monitor `        | Monitor server log
 ` -d | --daemon `         | Run server in background
@@ -509,7 +510,7 @@ Note: The following configuration sections are not implemented yet
         <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
-        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r term $0 -m" notes=" run Logs "/>
+        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -q -r term $0 -m" notes=" run Logs "/>
    <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
    <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
    <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->

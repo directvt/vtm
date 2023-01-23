@@ -4,6 +4,7 @@
 #define DESKTOPIO_VER "v0.9.8o"
 #define DESKTOPIO_MYNAME " vtm: " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
+#define DESKTOPIO_LOGGER "_log"
 #define DESKTOPIO_MYPATH "vtm"
 #define DESKTOPIO_DEFAPP "Term"
 #define DESKTOPIO_APPINF "Desktopio Terminal " DESKTOPIO_VER
@@ -65,6 +66,10 @@ int main(int argc, char* argv[])
                 break;
             }
         }
+        else if (getopt.match("-q", "--quiet"))
+        {
+            syslog.enabled(faux);
+        }
         else if (getopt.match("-l", "--listconfig"))
         {
             whoami = type::config;
@@ -100,12 +105,13 @@ int main(int argc, char* argv[])
         os::fail(errmsg);
         auto myname = os::process::binary<true>();
         log("\nTerminal multiplexer with window manager and session sharing.\n\n"s
-            + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -p <pipe> ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]\n"s
+            + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]\n"s
             + "\n"s
             + "  Options:\n\n"s
             + "    No arguments        Run client, auto start server if it is not running.\n"s
             + "    -c | --config <..>  Use specified configuration file.\n"s
             + "    -p | --pipe   <..>  Set the pipe to connect to.\n"s
+            + "    -q | --quiet        Disable logging.\n"s
             + "    -l | --listconfig   Show configuration and exit.\n"s
             + "    -m | --monitor      Monitor server log.\n"s
             + "    -d | --daemon       Run server in background.\n"s
@@ -134,7 +140,7 @@ int main(int argc, char* argv[])
     {
         auto userid = os::env::user();
         auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
-        if (auto stream = os::ipc::socket::open<os::client>(prefix + "_log", 0s, []{ return faux; }))
+        if (auto stream = os::ipc::socket::open<os::client>(prefix + DESKTOPIO_LOGGER, 0s, []{ return faux; }))
         {
             while (os::io::send(stream->recv()))
             { }
@@ -217,7 +223,7 @@ int main(int argc, char* argv[])
             }
         }
         
-        auto logger = os::ipc::socket::open<os::server>(prefix + "_log");
+        auto logger = os::ipc::socket::open<os::server>(prefix + DESKTOPIO_LOGGER);
         if (!logger)
         {
             os::fail("can't start desktopio logger");
@@ -242,19 +248,16 @@ int main(int argc, char* argv[])
 
         auto stdlog = std::thread{ [&]
         {
-            while (auto client = logger->meet())
+            while (auto stream = logger->meet())
             {
-                thread.run([&, client](auto session_id)
+                thread.run([&, stream](auto session_id)
                 {
-                    auto token = hook{};
-                    SUBMIT_GLOBAL(e2::debug::logs, token, utf8)
-                    {
-                        client->send(utf8);
-                    };
-                    log("logs: ", client, " connected");
-                    auto shot = client->recv();
-                    token.reset();
-                    log("logs: ", client, " disconnected");
+                    auto tokens = subs{};
+                    SUBMIT_GLOBAL(e2::conio::quit, tokens, utf8) { stream->shut(); };
+                    SUBMIT_GLOBAL(e2::debug::logs, tokens, utf8) { stream->send(utf8); };
+                    log("logs: monitor ", stream, " connected");
+                    stream->recv();
+                    log("logs: monitor ", stream, " disconnected");
                 });
             }
         }};
@@ -280,9 +283,9 @@ int main(int argc, char* argv[])
                 }
             });
         }
-        logger->stop();
-        stdlog.join();
         SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
         ground->shutdown();
+        logger->stop();
+        stdlog.join();
     }
 }

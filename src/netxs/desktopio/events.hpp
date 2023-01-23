@@ -542,6 +542,7 @@ namespace netxs::events
             }
         }
         template<class EVENT> static auto submit_global(hook& token)           { return submit_helper_token_global<EVENT>(token); }
+        template<class EVENT> static auto submit_global(subs& tokens)          { return submit_helper_token_global<EVENT>(tokens.extra()); }
         template<class F>     static auto signal_global(hint  event, F&& data) { return _globals<void>::general.notify(event, std::forward<F>(data)); }
         // bell: Return initial event of the current event execution branch.
         template<tier TIER>

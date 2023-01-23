@@ -674,7 +674,6 @@ namespace netxs::directvt
         //todo logs
         STRUCT(debuglogs,         (ui32, id) (time, guid) (text, data))
         STRUCT(debugdata,         (text, data))
-        STRUCT_LITE(request_debug)
         #undef STRUCT
         #undef STRUCT_LITE
         #define MACROGEN_UNDEF
@@ -944,8 +943,7 @@ namespace netxs::directvt
             X(startdata        ) /* Startup data.                                 */\
             /*todo logs*/\
             X(debuglogs        ) /* Debug logs.                                   */\
-            X(debugdata        ) /* Debug data.                                   */\
-            X(request_debug    ) /* Request debug output redirection to stdin.    */
+            X(debugdata        ) /* Debug data.                                   */
             struct xs
             {
                 #define X(_object) using _object = binary::_object::access;
