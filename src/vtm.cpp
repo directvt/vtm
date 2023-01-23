@@ -1,9 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.8o"
+#define DESKTOPIO_VER "v0.9.8p"
 #define DESKTOPIO_MYNAME " vtm: " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
+#define DESKTOPIO_LOGGER "_log"
 #define DESKTOPIO_MYPATH "vtm"
 #define DESKTOPIO_DEFAPP "Term"
 #define DESKTOPIO_APPINF "Desktopio Terminal " DESKTOPIO_VER
@@ -23,6 +24,7 @@ enum class type
     daemon,
     runapp,
     config,
+    logger,
 };
 
 int main(int argc, char* argv[])
@@ -51,6 +53,10 @@ int main(int argc, char* argv[])
         {
             whoami = type::daemon;
         }
+        else if (getopt.match("-m", "--monitor"))
+        {
+            whoami = type::logger;
+        }
         else if (getopt.match("-p", "--pipe"))
         {
             vtpipe = getopt.next();
@@ -59,6 +65,10 @@ int main(int argc, char* argv[])
                 errmsg = "custom pipe not specified";
                 break;
             }
+        }
+        else if (getopt.match("-q", "--quiet"))
+        {
+            syslog.enabled(faux);
         }
         else if (getopt.match("-l", "--listconfig"))
         {
@@ -95,13 +105,15 @@ int main(int argc, char* argv[])
         os::fail(errmsg);
         auto myname = os::process::binary<true>();
         log("\nTerminal multiplexer with window manager and session sharing.\n\n"s
-            + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -p <pipe> ] [ -l | -d | -s | -r [<app> [<args...>]] ]\n"s
+            + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]\n"s
             + "\n"s
             + "  Options:\n\n"s
             + "    No arguments        Run client, auto start server if it is not running.\n"s
             + "    -c | --config <..>  Use specified configuration file.\n"s
             + "    -p | --pipe   <..>  Set the pipe to connect to.\n"s
+            + "    -q | --quiet        Disable logging.\n"s
             + "    -l | --listconfig   Show configuration and exit.\n"s
+            + "    -m | --monitor      Monitor server log.\n"s
             + "    -d | --daemon       Run server in background.\n"s
             + "    -s | --server       Run server in interactive mode.\n"s
             + "    -r | --runapp <..>  Run standalone application.\n"s
@@ -124,6 +136,23 @@ int main(int argc, char* argv[])
     {
         log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::dtvt::config()));
     }
+    else if (whoami == type::logger)
+    {
+        auto userid = os::env::user();
+        auto prefix = (vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe) + DESKTOPIO_LOGGER;
+        log("main: waiting for server...");
+        while (true)
+        {
+            if (auto stream = os::ipc::socket::open<os::client, faux>(prefix))
+            {
+                log("main: connected");
+                while (os::io::send(stream->recv()))
+                { }
+                return 0;
+            }
+            std::this_thread::sleep_for(500ms);
+        }
+    }
     else if (whoami == type::runapp)
     {
         auto config = app::shared::load::settings(cfpath, os::dtvt::config());
@@ -133,7 +162,6 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with("calc"))       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
         else if (shadow.starts_with("gems"))       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
         else if (shadow.starts_with("test"))       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
-        else if (shadow.starts_with("logs"))       log("Desktopio Log Console "        DESKTOPIO_VER);
         else if (shadow.starts_with("term"))       log("Desktopio Terminal "           DESKTOPIO_VER);
         else if (shadow.starts_with("truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
         else if (shadow.starts_with("headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);
@@ -207,8 +235,14 @@ int main(int argc, char* argv[])
             os::fail("can't start desktopio server");
             return 1;
         }
+        auto logger = os::ipc::socket::open<os::server>(prefix + DESKTOPIO_LOGGER);
+        if (!logger)
+        {
+            os::fail("can't start desktopio logger");
+            return 1;
+        }
         using e2 = netxs::ui::e2;
-        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
+        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::conio::logs, utf8); });
         config.cd("/config/appearance/defaults/");
         auto ground = ui::base::create<ui::hall>(server, config);
         auto thread = os::process::pool{};
@@ -217,6 +251,22 @@ int main(int argc, char* argv[])
         log("main: listening socket ", server,
           "\n      user: ", userid,
           "\n      pipe: ", prefix);
+
+        auto stdlog = std::thread{ [&]
+        {
+            while (auto stream = logger->meet())
+            {
+                thread.run([&, stream](auto session_id)
+                {
+                    auto tokens = subs{};
+                    SUBMIT_GLOBAL(e2::conio::quit, tokens, utf8) { stream->shut(); };
+                    SUBMIT_GLOBAL(e2::conio::logs, tokens, utf8) { stream->send(utf8); };
+                    log("logs: monitor ", stream, " connected");
+                    stream->recv();
+                    log("logs: monitor ", stream, " disconnected");
+                });
+            }
+        }};
 
         while (auto client = server->meet())
         {
@@ -239,8 +289,9 @@ int main(int argc, char* argv[])
                 }
             });
         }
-
         SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
         ground->shutdown();
+        logger->stop();
+        stdlog.join();
     }
 }

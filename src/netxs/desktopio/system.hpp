@@ -599,6 +599,10 @@ namespace netxs::os
         {
             return io::send<IS_TTY>(fd, buff.data(), buff.size());
         }
+        auto send(view buff)
+        {
+            return io::send(STDOUT_FD, buff);
+        }
         template<class ...Args>
         auto recv(file& handle, Args&&... args)
         {
@@ -1490,7 +1494,7 @@ namespace netxs::os
                     // Note: .r == .w, it is a full duplex socket handle on POSIX.
                 #endif
             }
-            template<role ROLE, class P = noop>
+            template<role ROLE, bool Log = true, class P = noop>
             static auto open(text path, span retry_timeout = {}, P retry_proc = P())
             {
                 auto r = INVALID_FD;
@@ -1503,7 +1507,7 @@ namespace netxs::os
                     {
                         if (!retry_proc())
                         {
-                           os::fail("failed to start server");
+                           if constexpr (Log) os::fail("failed to start server");
                         }
                         else
                         {
@@ -1628,13 +1632,16 @@ namespace netxs::os
                         };
                         if (!try_start(play, retry_proc))
                         {
-                            os::fail("connection error");
+                            if constexpr (Log) os::fail("connection error");
                         }
                     }
 
                 #else
 
-                    ok(::signal(SIGPIPE, SIG_IGN), "failed to set SIG_IGN");
+                    if (!ok(::signal(SIGPIPE, SIG_IGN)))
+                    {
+                        if constexpr (Log) log("failed to set SIG_IGN");
+                    }
 
                     auto addr = sockaddr_un{};
                     auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
@@ -1644,23 +1651,23 @@ namespace netxs::os
                         auto home = os::env::homepath() / ".config/vtm";
                         if (!fs::exists(home))
                         {
-                            log("path: create home directory '", home.string(), "'");
+                            if constexpr (Log) log("path: create home directory '", home.string(), "'");
                             auto ec = std::error_code{};
                             fs::create_directory(home, ec);
-                            if (ec) log("path: directory '", home.string(), "' creation error ", ec.value());
+                            if (ec && Log) log("path: directory '", home.string(), "' creation error ", ec.value());
                         }
                         path = (home / path).string() + ".sock";
                         sun_path--; // File system unix domain socket.
-                        log("open: file system socket ", path);
+                        if constexpr (Log) log("open: file system socket ", path);
                     #endif
 
                     if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
                     {
-                        os::fail("socket path too long");
+                        if constexpr (Log) os::fail("socket path too long");
                     }
                     else if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
                     {
-                        os::fail("open unix domain socket error");
+                        if constexpr (Log) os::fail("open unix domain socket error");
                     }
                     else
                     {
@@ -1708,7 +1715,7 @@ namespace netxs::os
                             path.clear(); // No need to unlink a file system socket on client disconnect.
                             if (!try_start(play, retry_proc))
                             {
-                                os::fail("connection error");
+                                if constexpr (Log) os::fail("connection error");
                                 io::close(r);
                             }
                         }
@@ -1737,7 +1744,16 @@ namespace netxs::os
 
     namespace process
     {
-        static auto id = datetime::now();
+        auto getid()
+        {
+            #if defined(_WIN32)
+                auto id = static_cast<ui32>(::GetCurrentProcessId());
+            #else
+                auto id = static_cast<ui32>(::getpid());
+            #endif
+            return std::pair{ id, datetime::now() };
+        }
+        static auto id = process::getid();
 
         struct args
         {
@@ -2058,6 +2074,7 @@ namespace netxs::os
 
             #endif
         }
+        //todo deprecated
         template<bool Logs = true, bool Daemon = faux>
         auto exec(text cmdline)
         {
@@ -2156,7 +2173,7 @@ namespace netxs::os
                     p_id = ::fork(); // Second fork to avoid zombies.
                     if (p_id == 0) // GrandChild process.
                     {
-                        process::id = datetime::now();
+                        process::id = process::getid();
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
                         ::close(STDIN_FD);
                         ::close(STDOUT_FD);
@@ -2196,9 +2213,9 @@ namespace netxs::os
         }
         void stdlog(view data)
         {
-            static auto logs = directvt::binary::debuglogs_t{};
+            static auto logs = directvt::binary::logs_t{};
             //todo view -> text
-            logs.set(os::process::id, text{ data });
+            logs.set(os::process::id.first, os::process::id.second, text{ data });
             logs.send([&](auto& block){ os::io::send(STDOUT_FD, block); });
         }
         void syslog(view data)
@@ -3047,6 +3064,7 @@ namespace netxs::os
             }
             void stop()
             {
+                //todo wait_child()?
                 termlink.shut();
                 writesyn.notify_one();
             }
@@ -3128,8 +3146,6 @@ namespace netxs::os
                     guard.lock();
                 }
                 //if (termlink) termlink.shut();
-                //todo block dtvt-logs after termlink stops
-                //guard.unlock(); // To avoid debug output deadlocking. See ui::dtvt::request_debug() - e2::debug::logs
                 log("dtvt: id: ", stdwrite.get_id(), " writing thread ended");
             }
             void output(view data)

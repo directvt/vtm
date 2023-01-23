@@ -129,7 +129,6 @@ namespace netxs::events::userland
             GROUP_XS( coor      , twod           ), // release: Object coor.
             GROUP_XS( form      , bool           ),
             GROUP_XS( data      , si32           ),
-            GROUP_XS( debug     , const view     ), // return info struct with telemtry data.
             GROUP_XS( config    , si32           ), // set/notify/get/global_set configuration data.
             GROUP_XS( command   , si32           ), // exec UI command.
             GROUP_XS( bindings  , sptr<ui::base> ), // Dynamic Data Bindings.
@@ -159,19 +158,6 @@ namespace netxs::events::userland
                     EVENT_XS( users, sptr<std::list<sptr<ui::base>>> ), // list of connected users.
                     EVENT_XS( apps , sptr<ui::registry_t>            ), // list of running apps.
                     EVENT_XS( links, sptr<ui::links_t>               ), // list of registered apps.
-                };
-            };
-            SUBSET_XS( debug )
-            {
-                EVENT_XS( logs  , const view     ), // logs output.
-                EVENT_XS( output, const view     ), // logs has to be parsed.
-                EVENT_XS( parsed, const ui::page ), // output parced logs.
-                EVENT_XS( request, si32          ), // request debug data.
-                GROUP_XS( count , si32           ), // global: log listeners.
-
-                SUBSET_XS( count )
-                {
-                    EVENT_XS( set, si32 ), // global: log listeners.
                 };
             };
             SUBSET_XS( config )
@@ -212,6 +198,7 @@ namespace netxs::events::userland
                 EVENT_XS( quit    , const text      ), // release: quit, arg: text - bye msg.
                 EVENT_XS( pointer , const bool      ), // release: mouse pointer visibility.
                 EVENT_XS( clipdata, ansi::clip      ), // release: OS clipboard update.
+                EVENT_XS( logs    , const view      ), // logs output.
                 //EVENT_XS( menu  , si32 ),
             };
             SUBSET_XS( data )
@@ -5256,7 +5243,6 @@ namespace netxs::ui
         void handle(s11n::xs::syskeybd    lock)
         {
             auto& keybd = lock.thing;
-            log("keybd ", keybd.cluster);
             notify(e2::conio::keybd, keybd);
         }
         void handle(s11n::xs::plain       lock)
@@ -5324,22 +5310,6 @@ namespace netxs::ui
             auto& item = lock.thing;
             notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
         }
-        //todo logs
-        //void handle(s11n::xs::debugdata   lock) // For Logs only.
-        //{
-        //    auto& item = lock.thing;
-        //    notify<tier::anycast>(e2::debug::output, item.data);
-        //}
-        //void handle(s11n::xs::debuglogs2  lock) // For Logs only.
-        //{
-        //    auto& item = lock.thing;
-        //    notify<tier::anycast>(e2::debug::logs, item.data);
-        //}
-        //void handle(s11n::xs::debugtext   lock)
-        //{
-        //    auto& item = lock.thing;
-        //    log(item.data);
-        //}
         void handle(s11n::xs::form_header lock)
         {
             auto& item = lock.thing;
@@ -5646,13 +5616,6 @@ namespace netxs::ui
                 auto  conio = link{ canal, This() }; // gate: Terminal IO.
                 auto  paint = diff{ canal, vtmode }; // gate: Rendering loop.
                 auto  token = subs{};                // gate: Subscription tokens.
-                auto logger = netxs::logger([&](auto data)
-                {
-                    if (direct && !props.is_standalone_app)
-                    {
-                        conio.debuglogs.send(canal, os::process::id, text{ data });
-                    }
-                });
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -5920,15 +5883,10 @@ namespace netxs::ui
 
                 if (direct) // Forward unhandled events outside.
                 {
-                    //todo crash in dtvt mode
-                    //SUBMIT_T(tier::anycast, e2::debug::request, token, count)
-                    //{
-                    //    if (count > 0) conio.request_debug.send(conio);
-                    //};
-                    //SUBMIT_T(tier::general, e2::debug::logs, token, utf8)
-                    //{
-                    //    log(utf8);
-                    //};
+                    SUBMIT_T(tier::general, e2::conio::logs, token, utf8)
+                    {
+                        conio.logs.send(canal, os::process::id.first, os::process::id.second, text{ utf8 });
+                    };
                     SUBMIT_T(tier::release, e2::config::fps, token, fps)
                     {
                         if (fps > 0) SIGNAL_GLOBAL(e2::config::fps, fps);

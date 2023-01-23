@@ -129,10 +129,6 @@ namespace netxs::app::shop
                     item(ansi::fgc(0xFF00FFFF).add("Doom").fgc(), reddk, "4", "Free ", "Get",
                     "Doom II source port."),
 
-                    item("Logs", blackdk, "4096", "Free ", "Get",
-                    "Application for displaying debug trace. "
-                    "This is more efficient than writing to STDOUT."),
-
                     item("Clip", bluedk, "1", "Free ", "Get",
                     "Clipboard manager."),
 

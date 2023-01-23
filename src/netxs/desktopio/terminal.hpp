@@ -6120,7 +6120,7 @@ namespace netxs::ui
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
-        bool       onlogs; // term: Avoid logs if no subscriptions.
+        bool       onlogs; // term: Developer mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       selalt; // term: Selection form (rectangular/linear).
@@ -6429,7 +6429,8 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                //todo Developer Mode
+                //if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
                 ansi::parse(data, target);
             });
         }
@@ -6438,7 +6439,8 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                //todo Developer Mode
+                //if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
                 ansi::parse(data, target);
             });
         }
@@ -7049,10 +7051,6 @@ namespace netxs::ui
                 //todo revise, see dtvt
                 this->base::riseup<tier::release>(e2::form::quit, item);
             };
-            SUBMIT(tier::anycast, e2::debug::count::any, count)
-            {
-                onlogs = count > 0;
-            };
             SUBMIT(tier::preview, e2::coor::set, new_coor)
             {
                 follow[axis::Y] = target->set_slide(new_coor.y);
@@ -7414,24 +7412,20 @@ namespace netxs::ui
                     SIGNAL_GLOBAL(e2::config::fps, fps);
                 });
             }
-            //todo logs
-            //void handle(s11n::xs::request_debug       lock)
-            //{
-            //    netxs::events::enqueue(owner.This(), [&](auto& boss)
-            //    {
-            //        owner.request_debug();
-            //    });
-            //}
-            void handle(s11n::xs::debuglogs           lock)
+            void handle(s11n::xs::logs                lock)
             {
-                if (lock.thing.id != os::process::id) // To avoid overflow on recursive dtvt connections.
+                if (lock.thing.guid != os::process::id.second) // To avoid overflow on recursive dtvt connections.
                 {
                     auto utf8 = view{ lock.thing.data };
                     if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
+                    auto output = ansi::esc{};
+                    auto prompt = owner.procid != lock.thing.id ? ansi::add("      ", owner.procid, '/', lock.thing.id, ": ") // Local pid/remote pid. It is different if sshed.
+                                                                : ansi::add("      ", owner.procid, ": ");
                     utf::divide(utf8, '\n', [&](auto line)
                     {
-                        log(owner.prompt, line);
+                        output.add(prompt, line);
                     });
+                    log(output);
                 }
             }
 
@@ -7560,9 +7554,8 @@ namespace netxs::ui
         face        splash; // dtvt: "No signal" splash.
         hook        oneoff; // dtvt: One-shot token for start and shutdown events.
         span        maxoff; // dtvt: Max delay before showing "No signal".
-        subs        debugs; // dtvt: Tokens for debug output subcriptions.
         byte        opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
-        ansi::esc   prompt; // dtvt: PTY logger prompt.
+        os::pidt    procid; // dtvt: PTY child process id.
         testy<twod> termsz; // dtvt: PTY device window size.
         vtty        ptycon; // dtvt: PTY device. Should be destroyed first.
 
@@ -7613,21 +7606,6 @@ namespace netxs::ui
                 this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
             }
         }
-        // dtvt: Logs callback handler.
-        void request_debug()
-        {
-            //todo logs
-            //SUBMIT_T(tier::general, e2::debug::logs, debugs, shadow)
-            //{
-            //    //todo text -> view
-            //    stream.debuglogs2.send(ptycon, text{shadow});
-            //};
-            //SUBMIT_T(tier::general, e2::debug::output, debugs, shadow)
-            //{
-            //    //todo text -> view
-            //    stream.debugdata.send(ptycon, text{shadow});
-            //};
-        }
 
     public:
         // dtvt: Write client data.
@@ -7652,13 +7630,12 @@ namespace netxs::ui
                         this->riseup<tier::request>(e2::form::prop::ui::footer, footer);
                         stream.s11n::form_header.send(*this, 0, header);
                         stream.s11n::form_footer.send(*this, 0, footer);
-                        auto procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                           [&](auto exit_reason) { atexit(exit_reason); },
-                                                                           [&](auto exit_reason) { onexit(exit_reason); });
+                        procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                      [&](auto exit_reason) { atexit(exit_reason); },
+                                                                      [&](auto exit_reason) { onexit(exit_reason); });
                         pty_resize<true>(base::size());
                         unique = timer;
                         oneoff.reset();
-                        prompt.add("      ", procid, ": ");
                     }
                 };
             }
@@ -7703,6 +7680,11 @@ namespace netxs::ui
             {
                 if (ptycon) ptycon.stop();
                 else        this->base::riseup<tier::release>(e2::form::quit, item);
+            };
+            SUBMIT(tier::general, e2::conio::quit, msg)
+            {
+                active = faux;
+                if (ptycon) ptycon.stop();
             };
             SUBMIT(tier::release, e2::coor::any, coor)
             {
