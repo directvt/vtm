@@ -732,6 +732,7 @@ namespace netxs::ui
         bool caret = faux; // face: Cursor visibility.
         bool moved = faux; // face: Is reflow required.
         bool decoy = true; // face: Is the cursor inside the viewport.
+        svga cmode = svga::truecolor; // face: Color mode.
 
         // face: Print proxy something else at the specified coor.
         template<class T, class P>
@@ -5604,6 +5605,7 @@ namespace netxs::ui
                             : legacy & os::vt::vga256 ? svga::vga256
                             : legacy & os::vt::direct ? svga::dtvt
                                                       : svga::truecolor;
+                input.xmap.cmode = vtmode;
                 auto direct = vtmode == svga::dtvt;
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
@@ -6106,6 +6108,7 @@ namespace netxs::ui
 
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
+                if (parent_canvas.cmode != svga::vga16) // Don't show shadow in poor color environment.
                 if (&parent_canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
                 {
                     auto area = base::area();
