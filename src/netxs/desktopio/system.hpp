@@ -2210,9 +2210,8 @@ namespace netxs::os
         }
         void stdlog(view data)
         {
-            static auto logs = directvt::binary::debuglogs_t{};
+            static auto logs = directvt::binary::logs_t{};
             //todo view -> text
-            //todo logs
             logs.set(os::process::id.first, os::process::id.second, text{ data });
             logs.send([&](auto& block){ os::io::send(STDOUT_FD, block); });
         }

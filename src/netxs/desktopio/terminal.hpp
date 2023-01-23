@@ -6120,7 +6120,7 @@ namespace netxs::ui
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
-        bool       onlogs; // term: Avoid logs if no subscriptions.
+        bool       onlogs; // term: Developer mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       selalt; // term: Selection form (rectangular/linear).
@@ -6429,7 +6429,8 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                //todo Developer Mode
+                //if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
                 ansi::parse(data, target);
             });
         }
@@ -6438,7 +6439,8 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                //todo Developer Mode
+                //if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
                 ansi::parse(data, target);
             });
         }
@@ -7049,10 +7051,6 @@ namespace netxs::ui
                 //todo revise, see dtvt
                 this->base::riseup<tier::release>(e2::form::quit, item);
             };
-            SUBMIT(tier::anycast, e2::debug::count::any, count)
-            {
-                onlogs = count > 0;
-            };
             SUBMIT(tier::preview, e2::coor::set, new_coor)
             {
                 follow[axis::Y] = target->set_slide(new_coor.y);
@@ -7414,18 +7412,20 @@ namespace netxs::ui
                     SIGNAL_GLOBAL(e2::config::fps, fps);
                 });
             }
-            void handle(s11n::xs::debuglogs           lock)
+            void handle(s11n::xs::logs                lock)
             {
                 if (lock.thing.guid != os::process::id.second) // To avoid overflow on recursive dtvt connections.
                 {
                     auto utf8 = view{ lock.thing.data };
                     if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
-                    auto prompt = owner.procid != lock.thing.id ? ansi::add("      ", owner.procid, '/', lock.thing.id, ": ")
+                    auto output = ansi::esc{};
+                    auto prompt = owner.procid != lock.thing.id ? ansi::add("      ", owner.procid, '/', lock.thing.id, ": ") // Local pid/remote pid. It is different if sshed.
                                                                 : ansi::add("      ", owner.procid, ": ");
                     utf::divide(utf8, '\n', [&](auto line)
                     {
-                        log(prompt, line); // Local pid/remote pid. It is different if sshed.
+                        output.add(prompt, line);
                     });
+                    log(output);
                 }
             }
 

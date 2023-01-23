@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
             return 1;
         }
         using e2 = netxs::ui::e2;
-        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::debug::logs, utf8); });
+        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::conio::logs, utf8); });
         config.cd("/config/appearance/defaults/");
         auto ground = ui::base::create<ui::hall>(server, config);
         auto thread = os::process::pool{};
@@ -254,7 +254,7 @@ int main(int argc, char* argv[])
                 {
                     auto tokens = subs{};
                     SUBMIT_GLOBAL(e2::conio::quit, tokens, utf8) { stream->shut(); };
-                    SUBMIT_GLOBAL(e2::debug::logs, tokens, utf8) { stream->send(utf8); };
+                    SUBMIT_GLOBAL(e2::conio::logs, tokens, utf8) { stream->send(utf8); };
                     log("logs: monitor ", stream, " connected");
                     stream->recv();
                     log("logs: monitor ", stream, " disconnected");
