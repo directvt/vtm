@@ -7681,6 +7681,11 @@ namespace netxs::ui
                 if (ptycon) ptycon.stop();
                 else        this->base::riseup<tier::release>(e2::form::quit, item);
             };
+            SUBMIT(tier::general, e2::conio::quit, msg)
+            {
+                active = faux;
+                if (ptycon) ptycon.stop();
+            };
             SUBMIT(tier::release, e2::coor::any, coor)
             {
                 auto lock = stream.bitmap.freeze();

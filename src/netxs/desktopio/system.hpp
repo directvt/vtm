@@ -3061,6 +3061,7 @@ namespace netxs::os
             }
             void stop()
             {
+                //todo wait_child()?
                 termlink.shut();
                 writesyn.notify_one();
             }
