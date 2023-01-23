@@ -139,12 +139,17 @@ int main(int argc, char* argv[])
     else if (whoami == type::logger)
     {
         auto userid = os::env::user();
-        auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
-        if (auto stream = os::ipc::socket::open<os::client>(prefix + DESKTOPIO_LOGGER, 0s, []{ return faux; }))
+        auto prefix = (vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe) + DESKTOPIO_LOGGER;
+        log("main: waiting for server...");
+        while (true)
         {
-            while (os::io::send(stream->recv()))
-            { }
-            return 0;
+            if (auto stream = os::ipc::socket::open<os::client, faux>(prefix))
+            {
+                while (os::io::send(stream->recv()))
+                { }
+                return 0;
+            }
+            std::this_thread::sleep_for(500ms);
         }
     }
     else if (whoami == type::runapp)

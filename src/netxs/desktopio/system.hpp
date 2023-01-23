@@ -1494,7 +1494,7 @@ namespace netxs::os
                     // Note: .r == .w, it is a full duplex socket handle on POSIX.
                 #endif
             }
-            template<role ROLE, class P = noop>
+            template<role ROLE, bool Log = true, class P = noop>
             static auto open(text path, span retry_timeout = {}, P retry_proc = P())
             {
                 auto r = INVALID_FD;
@@ -1507,7 +1507,7 @@ namespace netxs::os
                     {
                         if (!retry_proc())
                         {
-                           os::fail("failed to start server");
+                           if constexpr (Log) os::fail("failed to start server");
                         }
                         else
                         {
@@ -1632,13 +1632,16 @@ namespace netxs::os
                         };
                         if (!try_start(play, retry_proc))
                         {
-                            os::fail("connection error");
+                            if constexpr (Log) os::fail("connection error");
                         }
                     }
 
                 #else
 
-                    ok(::signal(SIGPIPE, SIG_IGN), "failed to set SIG_IGN");
+                    if (!ok(::signal(SIGPIPE, SIG_IGN)))
+                    {
+                        if constexpr (Log) log("failed to set SIG_IGN");
+                    }
 
                     auto addr = sockaddr_un{};
                     auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
@@ -1648,23 +1651,23 @@ namespace netxs::os
                         auto home = os::env::homepath() / ".config/vtm";
                         if (!fs::exists(home))
                         {
-                            log("path: create home directory '", home.string(), "'");
+                            if constexpr (Log) log("path: create home directory '", home.string(), "'");
                             auto ec = std::error_code{};
                             fs::create_directory(home, ec);
-                            if (ec) log("path: directory '", home.string(), "' creation error ", ec.value());
+                            if (ec && Log) log("path: directory '", home.string(), "' creation error ", ec.value());
                         }
                         path = (home / path).string() + ".sock";
                         sun_path--; // File system unix domain socket.
-                        log("open: file system socket ", path);
+                        if constexpr (Log) log("open: file system socket ", path);
                     #endif
 
                     if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
                     {
-                        os::fail("socket path too long");
+                        if constexpr (Log) os::fail("socket path too long");
                     }
                     else if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
                     {
-                        os::fail("open unix domain socket error");
+                        if constexpr (Log) os::fail("open unix domain socket error");
                     }
                     else
                     {
@@ -1712,7 +1715,7 @@ namespace netxs::os
                             path.clear(); // No need to unlink a file system socket on client disconnect.
                             if (!try_start(play, retry_proc))
                             {
-                                os::fail("connection error");
+                                if constexpr (Log) os::fail("connection error");
                                 io::close(r);
                             }
                         }

@@ -32,7 +32,7 @@ namespace netxs
 
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
 
-    struct noop { template<class ...T> constexpr void operator()(T...) {}; };
+    struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };
 
     enum class feed : unsigned char { none, rev, fwd, };
 
