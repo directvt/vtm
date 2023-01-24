@@ -732,6 +732,7 @@ namespace netxs::ui
         bool caret = faux; // face: Cursor visibility.
         bool moved = faux; // face: Is reflow required.
         bool decoy = true; // face: Is the cursor inside the viewport.
+        svga cmode = svga::truecolor; // face: Color mode.
 
         // face: Print proxy something else at the specified coor.
         template<class T, class P>
@@ -4722,6 +4723,7 @@ namespace netxs::ui
         public:
             operator bool () { return items.size(); }
             auto size()      { return items.size(); }
+            auto back()      { return items.back()->object; }
             void append(sptr<base> item)
             {
                 items.push_back(std::make_shared<node>(item));
@@ -4994,6 +4996,26 @@ namespace netxs::ui
                 if (regis.remove(item_ptr))
                 {
                     inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, This());
+                }
+
+                if (items.size()) // Pass focus to the top most object.
+                {
+                    auto last_ptr = items.back();
+                    auto gear_id_list = e2::form::state::keybd::enlist.param();
+                    item_ptr->SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gear_id_list);
+                    for (auto gear_id : gear_id_list)
+                    {
+                        if (auto ptr = bell::getref(gear_id))
+                        if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                        {
+                            auto& gear = *gear_ptr;
+                            gear.annul_kb_focus(item_ptr);
+                            if (gear.kb_focus_empty())
+                            {
+                                gear.offer_kb_focus(last_ptr);
+                            }
+                        }
+                    }
                 }
             };
             SUBMIT(tier::release, e2::form::layout::bubble, inst)
@@ -5604,6 +5626,7 @@ namespace netxs::ui
                             : legacy & os::vt::vga256 ? svga::vga256
                             : legacy & os::vt::direct ? svga::dtvt
                                                       : svga::truecolor;
+                input.xmap.cmode = vtmode;
                 auto direct = vtmode == svga::dtvt;
                 if (props.debug_overlay) debug.start();
                 color(props.background_color.fgc(), props.background_color.bgc());
@@ -6106,6 +6129,7 @@ namespace netxs::ui
 
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
+                if (parent_canvas.cmode != svga::vga16) // Don't show shadow in poor color environment.
                 if (&parent_canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
                 {
                     auto area = base::area();

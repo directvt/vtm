@@ -310,16 +310,18 @@ namespace netxs::app::tile
                                 SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                                 world_ptr->SIGNAL(tier::release, e2::form::proceed::createfrom, what);
 
-                                // Pass unique focus.
+                                // Pass focus.
                                 auto& object = *what.object;
                                 //todo unify
                                 gear.kb_focus_changed = faux;
-                                gear.force_group_focus = faux;
+                                gear.force_group_focus = true;
                                 gear.combine_focus = true;
                                 object.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                                 gear.combine_focus = faux;
                                 gear.force_group_focus = faux;
 
+                                // Remove focus.
+                                master.SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
                                 // Destroy placeholder.
                                 master.base::template riseup<tier::release>(e2::form::quit, master_ptr);
 
