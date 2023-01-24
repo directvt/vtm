@@ -1128,6 +1128,10 @@ namespace netxs::input
             kb_focus_changed = faux;
             inst.SIGNAL(tier::release, events::upevent::kboffer, *this);
         }
+        auto kb_focus_empty()
+        {
+            return kb_focus.empty();
+        }
         void offer_kb_focus(sptr<bell> inst_ptr)
         {
             //todo signal to the owner to do a focus relay

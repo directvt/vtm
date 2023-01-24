@@ -4723,6 +4723,7 @@ namespace netxs::ui
         public:
             operator bool () { return items.size(); }
             auto size()      { return items.size(); }
+            auto back()      { return items.back()->object; }
             void append(sptr<base> item)
             {
                 items.push_back(std::make_shared<node>(item));
@@ -4995,6 +4996,26 @@ namespace netxs::ui
                 if (regis.remove(item_ptr))
                 {
                     inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, This());
+                }
+
+                if (items.size()) // Pass focus to the top most object.
+                {
+                    auto last_ptr = items.back();
+                    auto gear_id_list = e2::form::state::keybd::enlist.param();
+                    item_ptr->SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gear_id_list);
+                    for (auto gear_id : gear_id_list)
+                    {
+                        if (auto ptr = bell::getref(gear_id))
+                        if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                        {
+                            auto& gear = *gear_ptr;
+                            gear.annul_kb_focus(item_ptr);
+                            if (gear.kb_focus_empty())
+                            {
+                                gear.offer_kb_focus(last_ptr);
+                            }
+                        }
+                    }
                 }
             };
             SUBMIT(tier::release, e2::form::layout::bubble, inst)
