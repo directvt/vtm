@@ -314,7 +314,7 @@ namespace netxs::app::tile
                                 auto& object = *what.object;
                                 //todo unify
                                 gear.kb_focus_changed = faux;
-                                gear.force_group_focus = true;//faux;
+                                gear.force_group_focus = true;
                                 gear.combine_focus = true;
                                 object.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                                 gear.combine_focus = faux;
