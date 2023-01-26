@@ -88,6 +88,11 @@ int main(int argc, char* argv[])
             errmsg = ansi::nil().add("show help message");
             break;
         }
+        else if (getopt.match("-v", "--version"))
+        {
+            log(DESKTOPIO_VER);
+            return 0;
+        }
         else if (getopt.match("--"))
         {
             break;
@@ -117,6 +122,7 @@ int main(int argc, char* argv[])
             + "    -d | --daemon       Run server in background.\n"s
             + "    -s | --server       Run server in interactive mode.\n"s
             + "    -r | --runapp <..>  Run standalone application.\n"s
+            + "    -v | --version      Show version and exit.\n"s
             + "    -? | -h | --help    Show usage message.\n"s
             + "\n"s
             + "  Configuration precedence (descending priority):\n\n"s
