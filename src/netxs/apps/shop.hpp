@@ -205,7 +205,7 @@ namespace netxs::app::shop
                         boss.keybd.accept(true);
                         boss.SUBMIT(tier::anycast, e2::form::quit, item)
                         {
-                            boss.base::template riseup<tier::release>(e2::form::quit, item);
+                            boss.RISEUP(tier::release, e2::form::quit, item);
                         };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))

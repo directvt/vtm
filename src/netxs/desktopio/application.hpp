@@ -411,7 +411,7 @@ R"==(
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                                    boss.RISEUP(tier::release, e2::form::maximize, gear);
                                     gear.dismiss();
                                 };
                             })
@@ -453,7 +453,7 @@ R"==(
                     }
                     scrllist->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                     {
-                        boss.SUBMIT_BYVAL(tier::release, e2::dtor, v)
+                        boss.SUBMIT(tier::release, e2::dtor, v, 0, (item_ptr))
                         {
                             item_ptr.reset();
                         };
@@ -466,7 +466,7 @@ R"==(
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                             {
-                                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                                boss.RISEUP(tier::release, e2::form::quit, boss.This());
                                 gear.dismiss();
                             };
                         })
@@ -477,16 +477,13 @@ R"==(
                 ->invoke([&](ui::park& boss)
                 {
                     scroll_hint->visible(hints, faux);
-                    auto boss_shadow = ptr::shadow(boss.This());
                     auto park_shadow = ptr::shadow(scroll_hint);
                     auto grip_shadow = ptr::shadow(hints);
-                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear, 0, (park_shadow, grip_shadow))
                     {
                         if (auto park_ptr = park_shadow.lock())
                         if (auto grip_ptr = grip_shadow.lock())
-                        if (auto boss_ptr = boss_shadow.lock())
                         {
-                            auto& boss = *boss_ptr;
                             auto& limit = boss.plugins<pro::limit>();
                             auto limits = limit.get();
                             if (limits.min.y == 1)
@@ -504,14 +501,12 @@ R"==(
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::ui::slimmenu, slim)
+                    boss.SUBMIT(tier::anycast, e2::form::prop::ui::slimmenu, slim, 0, (park_shadow, grip_shadow))
                     {
                         auto size = slim ? 1 : 3;
                         if (auto park_ptr = park_shadow.lock())
                         if (auto grip_ptr = grip_shadow.lock())
-                        if (auto boss_ptr = boss_shadow.lock())
                         {
-                            auto& boss = *boss_ptr;
                             auto& limit = boss.plugins<pro::limit>();
                             auto limits = limit.get();
                             limits.min.y = limits.max.y = std::max(0, size);
@@ -531,14 +526,13 @@ R"==(
                     //todo revise
                     if (menu_items.size()) // Show scrolling hint only if elements exist.
                     {
-                        boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
+                        boss.SUBMIT(tier::release, e2::form::state::mouse, active, 0, (park_shadow, grip_shadow))
                         {
                             if (auto park_ptr = park_shadow.lock())
                             if (auto grip_ptr = grip_shadow.lock())
-                            if (auto boss_ptr = boss_shadow.lock())
                             {
                                 park_ptr->visible(grip_ptr, active);
-                                boss_ptr->base::deface();
+                                boss.base::deface();
                             }
                         };
                     }
@@ -553,15 +547,12 @@ R"==(
                     slot1->invoke([&](auto& boss)
                     {
                         auto menu_shadow = ptr::shadow(menu_block);
-                        auto boss_shadow = ptr::shadow(boss.This());
                         auto hide_shadow = ptr::shared(autohide);
-                        boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
+                        boss.SUBMIT(tier::release, e2::form::state::mouse, hits, 0, (menu_shadow, hide_shadow))
                         {
                             if (*hide_shadow)
                             if (auto menu_ptr = menu_shadow.lock())
-                            if (auto boss_ptr = boss_shadow.lock())
                             {
-                                auto& boss = *boss_ptr;
                                 if (!!hits != (boss.back() == menu_ptr))
                                 {
                                     boss.roll();
@@ -616,7 +607,7 @@ R"==(
     {
         boss.SUBMIT(tier::anycast, e2::form::quit, item)
         {
-            boss.base::template riseup<tier::release>(e2::form::quit, item);
+            boss.RISEUP(tier::release, e2::form::quit, item);
         };
     };
     const auto closing_by_gesture = [](auto& boss)
@@ -624,13 +615,13 @@ R"==(
         boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
-            boss.base::template riseup<tier::release>(e2::form::quit, backup);
+            boss.RISEUP(tier::release, e2::form::quit, backup);
             gear.dismiss();
         };
         boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
-            boss.base::template riseup<tier::release>(e2::form::quit, backup);
+            boss.RISEUP(tier::release, e2::form::quit, backup);
             gear.dismiss();
         };
     };
@@ -639,20 +630,20 @@ R"==(
         log("app_limit: max count reached");
         auto timeout = datetime::now() + APPS_DEL_TIMEOUT;
         auto shadow = ptr::shadow(boss);
-        boss->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
+        boss->SUBMIT(tier::general, e2::timer::any, timestamp, 0, (shadow))
         {
             if (timestamp > timeout)
             {
                 if (auto boss = shadow.lock())
                 {
                     log("app_limit: detached");
-                    boss->base::template riseup<tier::release>(e2::form::quit, boss);
+                    boss->RISEUP(tier::release, e2::form::quit, boss);
                 }
             }
         };
-        boss->SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+        boss->SUBMIT(tier::release, e2::form::upon::vtree::attached, parent, 0, (title))
         {
-            parent->base::riseup<tier::preview>(e2::form::prop::ui::header, title);
+            parent->RISEUP(tier::preview, e2::form::prop::ui::header, title);
         };
     };
     const auto scroll_bars = [](auto master)
@@ -674,7 +665,7 @@ R"==(
                 auto boss_shadow = ptr::shadow(boss.This());
                 auto park_shadow = ptr::shadow(area);
                 auto grip_shadow = ptr::shadow(grip);
-                master->SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
+                master->SUBMIT(tier::release, e2::form::state::mouse, active, 0, (boss_shadow, park_shadow, grip_shadow))
                 {
                     if (auto park_ptr = park_shadow.lock())
                     if (auto grip_ptr = grip_shadow.lock())
@@ -710,13 +701,10 @@ R"==(
             {
                 boss.keybd.active();
                 boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
-                auto shadow = ptr::shadow(boss.This());
-                boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
+                boss.SUBMIT(tier::preview, e2::form::proceed::d_n_d::drop, what, 0, (menu_item_id))
                 {
-                    if (auto boss_ptr = shadow.lock())
-                    if (auto object = boss_ptr->pop_back())
+                    if (auto object = boss.pop_back())
                     {
-                        auto& boss = *boss_ptr;
                         auto target = what.object;
                         what.menuid = menu_item_id;
                         what.object = object;
@@ -729,7 +717,7 @@ R"==(
                 };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
-                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                    boss.RISEUP(tier::release, e2::form::maximize, gear);
                     gear.dismiss();
                 };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -804,7 +792,7 @@ R"==(
                         boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                         {
                             auto title = "error"s;
-                            boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                         };
                     });
                 auto msg = ui::post::ctor()

@@ -45,7 +45,7 @@ namespace netxs::app::desk
                     {
                         auto data_src_shadow = ptr::shadow(data_src);
                         auto boss_ptr_shadow = ptr::shadow(boss.This());
-                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear, 0, (data_src_shadow))
                         {
                             if (auto data_src = data_src_shadow.lock())
                             {
@@ -58,13 +58,11 @@ namespace netxs::app::desk
                                 gear.dismiss();
                             }
                         };
-                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear, 0, (data_src_shadow))
                         {
                             if (auto data_src = data_src_shadow.lock())
-                            if (auto boss_ptr = boss_ptr_shadow.lock())
                             {
                                 auto& inst = *data_src;
-                                auto& boss = *boss_ptr;
                                 inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
                                 auto viewport = e2::form::prop::viewport.param();
                                 boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
@@ -74,7 +72,7 @@ namespace netxs::app::desk
                                 gear.dismiss();
                             }
                         };
-                        boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
+                        boss.SUBMIT(tier::release, e2::form::state::mouse, hits, 0, (data_src_shadow))
                         {
                             if (auto data_src = data_src_shadow.lock())
                             {
@@ -94,7 +92,7 @@ namespace netxs::app::desk
                                                     ->invoke([&](auto& boss)
                                                     {
                                                         auto data_src_shadow = ptr::shadow(data_src);
-                                                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear, 0, (data_src_shadow))
                                                         {
                                                             if (auto data_src = data_src_shadow.lock())
                                                             {
@@ -120,7 +118,7 @@ namespace netxs::app::desk
                     boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                     {
                         auto current_default = e2::data::changed.param();
-                        boss.template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
+                        boss.RISEUP(tier::request, e2::data::changed, current_default);
                         boss.SIGNAL(tier::anycast, events::ui::selected, current_default);
                     };
                 });
@@ -152,38 +150,31 @@ namespace netxs::app::desk
                                          boss.mouse.take_all_events(faux);
                                          auto boss_shadow = ptr::shadow(boss.This());
                                          auto data_src_shadow = ptr::shadow(data_src);
-                                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
+                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear, 0, (inst_id))
                                          {
-                                             if (auto boss = boss_shadow.lock())
-                                             {
-                                                 boss->SIGNAL(tier::anycast, events::ui::selected, inst_id);
-                                             }
+                                            boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
                                          };
-                                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear, 0, (inst_id))
                                          {
-                                             if (auto boss = boss_shadow.lock())
-                                             {
-                                                 boss->SIGNAL(tier::anycast, events::ui::selected, inst_id);
-                                                 auto world_ptr = e2::config::whereami.param();
-                                                 SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-                                                 if (world_ptr)
-                                                 {
-                                                     static auto offset = dot_00;
-                                                     auto viewport = e2::form::prop::viewport.param();
-                                                     boss->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                                                     viewport.coor += gear.area().coor;;
-                                                     offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                                                     gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
-                                                     gear.slot.size = viewport.size * 3 / 4;
-                                                     gear.slot_forced = faux;
-                                                     world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
-                                                     gear.dismiss();
-                                                 }
-                                             }
+                                            boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
+                                            auto world_ptr = e2::config::whereami.param();
+                                            SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+                                            if (world_ptr)
+                                            {
+                                                static auto offset = dot_00;
+                                                auto viewport = e2::form::prop::viewport.param();
+                                                boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                                                viewport.coor += gear.area().coor;;
+                                                offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                                                gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                                                gear.slot.size = viewport.size * 3 / 4;
+                                                gear.slot_forced = faux;
+                                                world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
+                                                gear.dismiss();
+                                            }
                                          };
-                                         //boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::scroll::any, gear)
+                                         //boss.SUBMIT(tier::release, hids::events::mouse::scroll::any, gear, 0, (inst_id, data_src_shadow))
                                          //{
-                                         //   if (auto boss = boss_shadow.lock())
                                          //   if (auto data_src = data_src_shadow.lock())
                                          //   {
                                          //       sptr<registry_t> registry_ptr;
@@ -191,7 +182,7 @@ namespace netxs::app::desk
                                          //       auto& app_list = (*registry_ptr)[inst_id];
                                          //       if (app_list.size())
                                          //       {
-                                         //           auto deed = boss->bell::protos<tier::release>();
+                                         //           auto deed = boss.bell::protos<tier::release>();
                                          //           if (deed == hids::events::mouse::scroll::down.id) // Rotate list forward.
                                          //           {
                                          //               app_list.push_back(app_list.front());
@@ -221,14 +212,11 @@ namespace netxs::app::desk
                             ->invoke([&](auto& boss)
                             {
                                 auto boss_shadow = ptr::shadow(boss.This());
-                                boss.SUBMIT_BYVAL(tier::anycast, events::ui::selected, data)
+                                boss.SUBMIT(tier::anycast, events::ui::selected, data, 0, (inst_id, obj_desc))
                                 {
                                     auto selected = inst_id == data;
-                                    if (auto boss = boss_shadow.lock())
-                                    {
-                                        boss->set(ansi::fgx(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
-                                        boss->deface();
-                                    }
+                                    boss.set(ansi::fgx(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
+                                    boss.deface();
                                 };
                             });
                     auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
@@ -289,52 +277,37 @@ namespace netxs::app::desk
 
                 window->invoke([uibar_max_size, uibar_min_size, menu_selected](auto& boss) mutable
                     {
-                        // Always set the first menu item as active.
-                        auto world_ptr = e2::config::whereami.param();
-                        SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-                        auto menu_list_ptr = e2::bindings::list::apps.param();
-                        world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
-                        auto current_default_sptr  = std::make_shared<text>(menu_selected);
-                        auto previous_default_sptr = std::make_shared<text>(menu_selected);
-                        auto subs_sptr = std::make_shared<subs>();
-                        auto shadow = ptr::shadow(boss.This());
-
-                        boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                        auto current_default  = text{ menu_selected };
+                        auto previous_default = text{ menu_selected };
+                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent, 0, (current_default, previous_default, tokens = subs{}))
                         {
-                            parent->SIGNAL(tier::anycast, events::ui::selected, *current_default_sptr);
-
-                            parent->SUBMIT_T(tier::request, e2::data::changed, *subs_sptr, data)
+                            parent->SIGNAL(tier::anycast, events::ui::selected, current_default);
+                            parent->SUBMIT(tier::request, e2::data::changed, data, tokens)
                             {
-                                if (current_default_sptr) data = *current_default_sptr;
+                                data = current_default;
                             };
-                            parent->SUBMIT_T(tier::preview, e2::data::changed, *subs_sptr, data)
+                            parent->SUBMIT(tier::preview, e2::data::changed, data, tokens)
                             {
-                                if (previous_default_sptr) data = *previous_default_sptr;
+                                data = previous_default;
                             };
-                            parent->SUBMIT_T_BYVAL(tier::release, e2::data::changed, *subs_sptr, data)
+                            parent->SUBMIT(tier::release, e2::data::changed, data, tokens)
                             {
-                                if (auto boss = shadow.lock())
+                                boss.SIGNAL(tier::anycast, events::ui::selected, data);
+                            };
+                            parent->SUBMIT(tier::anycast, events::ui::selected, data, tokens)
+                            {
+                                auto new_default = data;
+                                if (current_default != new_default)
                                 {
-                                    boss->SIGNAL(tier::anycast, events::ui::selected, data);
+                                    previous_default = current_default;
+                                    current_default = new_default;
                                 }
                             };
-                            parent->SUBMIT_T(tier::anycast, events::ui::selected, *subs_sptr, data)
+                            parent->SUBMIT(tier::release, e2::form::upon::vtree::detached, p, tokens)
                             {
-                                if (previous_default_sptr && current_default_sptr)
-                                {
-                                    auto new_default = data;
-                                    if (*current_default_sptr != new_default)
-                                    {
-                                        *previous_default_sptr = *current_default_sptr;
-                                        *current_default_sptr = new_default;
-                                    }
-                                }
-                            };
-                            parent->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, *subs_sptr, p)
-                            {
-                                current_default_sptr.reset();
-                                previous_default_sptr.reset();
-                                subs_sptr.reset();
+                                current_default.clear();
+                                previous_default.clear();
+                                tokens.clear();
                             };
                         };
                     });
@@ -358,50 +331,38 @@ namespace netxs::app::desk
                                         ->invoke([&](auto& boss)
                                         {
                                             boss.mouse.template draggable<hids::buttons::left>(true);
-                                            auto boss_shadow = ptr::shadow(boss.This());
-                                            auto size_config = std::make_shared<std::pair<si32, si32>>(uibar_max_size, uibar_min_size);
-                                            boss.SUBMIT_BYVAL(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear)
+                                            auto size_config = ptr::shared(std::pair{ uibar_max_size, uibar_min_size });
+                                            boss.SUBMIT(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear, 0, (size_config))
                                             {
-                                                if (auto boss_ptr = boss_shadow.lock())
+                                                auto& [uibar_max_size, uibar_min_size] = *size_config;
+                                                auto& limits = boss.template plugins<pro::limit>();
+                                                auto lims = limits.get();
+                                                lims.min.x += gear.delta.get().x;
+                                                lims.max.x = lims.min.x;
+                                                gear.meta(hids::anyCtrl) ? uibar_min_size = lims.min.x
+                                                                         : uibar_max_size = lims.min.x;
+                                                limits.set(lims.min, lims.max);
+                                                boss.base::reflow();
+                                            };
+                                            boss.SUBMIT(tier::release, e2::form::state::mouse, active, 0, (size_config))
+                                            {
+                                                auto apply = [&, size_config](auto active)
                                                 {
-                                                    auto& boss = *boss_ptr;
                                                     auto& [uibar_max_size, uibar_min_size] = *size_config;
                                                     auto& limits = boss.template plugins<pro::limit>();
-                                                    auto lims = limits.get();
-                                                    lims.min.x += gear.delta.get().x;
-                                                    lims.max.x = lims.min.x;
-                                                    gear.meta(hids::anyCtrl) ? uibar_min_size = lims.min.x
-                                                                             : uibar_max_size = lims.min.x;
-                                                    limits.set(lims.min, lims.max);
+                                                    auto size = active ? std::max(uibar_max_size, uibar_min_size)
+                                                                       : uibar_min_size;
+                                                    auto lims = twod{ size,-1 };
+                                                    limits.set(lims, lims);
                                                     boss.base::reflow();
-                                                }
+                                                    return faux; // One shot call.
+                                                };
+                                                auto& timer = boss.template plugins<pro::timer>();
+                                                timer.pacify(faux);
+                                                if (active) apply(true);
+                                                else        timer.actify(faux, MENU_TIMEOUT, apply);
                                             };
-                                            boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
-                                            {
-                                                if (auto boss_ptr = boss_shadow.lock())
-                                                {
-                                                    auto apply = [=](auto active)
-                                                    {
-                                                        if (auto boss_ptr = boss_shadow.lock())
-                                                        {
-                                                            auto& boss = *boss_ptr;
-                                                            auto& [uibar_max_size, uibar_min_size] = *size_config;
-                                                            auto& limits = boss.template plugins<pro::limit>();
-                                                            auto size = active ? std::max(uibar_max_size, uibar_min_size)
-                                                                               : uibar_min_size;
-                                                            auto lims = twod{ size,-1 };
-                                                            limits.set(lims, lims);
-                                                            boss.base::reflow();
-                                                        }
-                                                        return faux; // One shot call.
-                                                    };
-                                                    auto& timer = boss_ptr->template plugins<pro::timer>();
-                                                    timer.pacify(faux);
-                                                    if (active) apply(true);
-                                                    else        timer.actify(faux, MENU_TIMEOUT, apply);
-                                                }
-                                            };
-                                            boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::viewport, viewport)
+                                            boss.SUBMIT(tier::anycast, e2::form::prop::viewport, viewport, 0, (size_config))
                                             {
                                                 auto& [uibar_max_size, uibar_min_size] = *size_config;
                                                 viewport.coor.x += uibar_min_size;
@@ -455,13 +416,11 @@ namespace netxs::app::desk
                                             {
                                                 auto userlist_area_shadow = ptr::shadow(userlist_area);
                                                 auto bttn_shadow = ptr::shadow(bttn);
-                                                auto state_ptr = std::make_shared<bool>(faux);
-                                                boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear, 0, (userlist_area_shadow, bttn_shadow, state = faux))
                                                 {
                                                     if (auto bttn = bttn_shadow.lock())
                                                     if (auto userlist = userlist_area_shadow.lock())
                                                     {
-                                                        auto& state = *state_ptr;
                                                         state = !state;
                                                         bttn->set(state ? ">" : "<");
                                                         auto& limits = userlist->plugins<pro::limit>();

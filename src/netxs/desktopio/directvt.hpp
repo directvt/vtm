@@ -980,7 +980,7 @@ namespace netxs::directvt
     }
     namespace ascii
     {
-        template<svga VGAMODE = svga::truecolor>
+        template<svga Mode = svga::truecolor>
         class bitmap
             : public basevt<text>
         {
@@ -1034,12 +1034,12 @@ namespace netxs::directvt
                 auto put = [&](cell const& cache)
                 {
                     //todo
-                    cache.scan<VGAMODE>(state, *this);
+                    cache.scan<Mode>(state, *this);
                 };
                 auto dif = [&](cell const& cache, cell const& front)
                 {
                     //todo
-                    return !cache.scan<VGAMODE>(front, state, *this);
+                    return !cache.scan<Mode>(front, state, *this);
                 };
                 auto left_half = [&](cell const& cache)
                 {

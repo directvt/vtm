@@ -456,8 +456,8 @@ namespace netxs::utf
         }
     };
 
-    template<class A = si32, si32 Base = 10, class VIEW, class = std::enable_if_t<std::is_base_of<view, VIEW>::value == true, VIEW>>
-    inline std::optional<A> to_int(VIEW& ascii)
+    template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of<view, View>::value == true, View>>
+    inline std::optional<A> to_int(View& ascii)
     {
         auto num = A{};
         auto top = ascii.data();
@@ -636,8 +636,8 @@ namespace netxs::utf
     };
 
     //todo revise, use cp_table as an arg instead of a template parameter
-    template<auto cp_table, class TEXT_OR_VIEW>
-    auto cp_convert(TEXT_OR_VIEW const& utf8_text, char invalid_char)
+    template<auto cp_table, class TextOrView>
+    auto cp_convert(TextOrView const& utf8_text, char invalid_char)
     {
         auto crop = text{};
         auto count = sizeof(cp_table) / sizeof(letter_sync);
@@ -671,8 +671,8 @@ namespace netxs::utf
         return crop;
     }
 
-    template<class TEXT_OR_VIEW>
-    text to_dos(TEXT_OR_VIEW const& utf8, char invalid_char = '_', codepage cp = codepage::cp866)
+    template<class TextOrView>
+    text to_dos(TextOrView const& utf8, char invalid_char = '_', codepage cp = codepage::cp866)
     {
         switch (cp)
         {
@@ -733,8 +733,8 @@ namespace netxs::utf
         }
         //wide_text.shrink_to_fit();
     }
-    template<template<class...> class TEXT_OR_VIEW, class ...Args>
-    void to_utf(TEXT_OR_VIEW<char, Args...> const& utf8, wide& wide_text)
+    template<template<class...> class TextOrView, class ...Args>
+    void to_utf(TextOrView<char, Args...> const& utf8, wide& wide_text)
     {
         to_utf(utf8.data(), utf8.size(), wide_text);
     }
@@ -821,8 +821,8 @@ namespace netxs::utf
             }
         }
     }
-    template<template<class...> class WIDE_TEXT_OR_VIEW, class ...Args>
-    void to_utf(WIDE_TEXT_OR_VIEW<wchr, Args...> const& wide_text, text& utf8)
+    template<template<class...> class WideTextOrView, class ...Args>
+    void to_utf(WideTextOrView<wchr, Args...> const& wide_text, text& utf8)
     {
         to_utf(wide_text.data(), wide_text.size(), utf8);
     }
@@ -836,8 +836,8 @@ namespace netxs::utf
         to_utf(wide_text, size, utf8);
         return utf8;
     }
-    template<class TEXT_OR_VIEW>
-    auto to_utf(TEXT_OR_VIEW&& str)
+    template<class TextOrView>
+    auto to_utf(TextOrView&& str)
     {
         return to_utf(str.data(), str.size());
     }
@@ -886,8 +886,8 @@ namespace netxs::utf
         }
     }
 
-    template<class TEXT_OR_VIEW>
-    auto length(TEXT_OR_VIEW&& utf8)
+    template<class TextOrView>
+    auto length(TextOrView&& utf8)
     {
         auto length = si32{ 0 };
         for (auto c : utf8)
@@ -897,8 +897,8 @@ namespace netxs::utf
         return length;
     }
     // utf: Check utf-8 integrity (last codepoint) and cut off the invalid bytes at the end.
-    template<class TEXT_OR_VIEW>
-    void purify(TEXT_OR_VIEW& utf8)
+    template<class TextOrView>
+    void purify(TextOrView& utf8)
     {
         if (auto size = utf8.size())
         {
@@ -945,8 +945,8 @@ namespace netxs::utf
         return length;
     }
 
-    template<class TEXT_OR_VIEW>
-    auto substr(TEXT_OR_VIEW&& utf8, size_t start, size_t length = text::npos)
+    template<class TextOrView>
+    auto substr(TextOrView&& utf8, size_t start, size_t length = text::npos)
     {
         if (length == 0) return text{};
 
@@ -977,8 +977,8 @@ namespace netxs::utf
         else return data.substr(start);
     }
 
-    template<class TEXT_OR_VIEW>
-    auto repeat(TEXT_OR_VIEW&& utf8, size_t count)
+    template<class TextOrView>
+    auto repeat(TextOrView&& utf8, size_t count)
     {
         auto what = view{ utf8 };
         auto result = text{};
@@ -994,8 +994,8 @@ namespace netxs::utf
         return text(count, letter);
     }
 
-    template<class TEXT_OR_VIEW, class C>
-    auto remove(TEXT_OR_VIEW&& from, C&& what)
+    template<class TextOrView, class C>
+    auto remove(TextOrView&& from, C&& what)
     {
         auto _what = view{ what };
         auto s_size = from.size();
@@ -1077,10 +1077,10 @@ namespace netxs::utf
         }
     }
 
-    template<class TEXT_OR_VIEW, class T>
-    auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter, bool lazy = true)
+    template<class TextOrView, class T>
+    auto remain(TextOrView&& utf8, T const& delimiter, bool lazy = true)
     {
-        auto crop = std::remove_cvref_t<TEXT_OR_VIEW>{};
+        auto crop = std::remove_cvref_t<TextOrView>{};
         auto what = view{ delimiter };
         auto coor = lazy ? utf8.find(what) : utf8.rfind(what);
         if (coor != text::npos)
@@ -1089,11 +1089,11 @@ namespace netxs::utf
         }
         return crop;
     }
-    template<class TEXT_OR_VIEW>
-    auto remain(TEXT_OR_VIEW&& utf8, char delimiter = '.', bool lazy = true)
+    template<class TextOrView>
+    auto remain(TextOrView&& utf8, char delimiter = '.', bool lazy = true)
     {
         auto what = view{ &delimiter, 1 };
-        return remain(std::forward<TEXT_OR_VIEW>(utf8), what, lazy);
+        return remain(std::forward<TextOrView>(utf8), what, lazy);
     }
 
     // utf: Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right).
@@ -1113,8 +1113,8 @@ namespace netxs::utf
         return remain(txt);
     }
 
-    template<class TEXT_OR_VIEW, class F>
-    auto adjust(TEXT_OR_VIEW&& utf8, size_t required_width, F const& fill_char, bool right_aligned = faux)
+    template<class TextOrView, class F>
+    auto adjust(TextOrView&& utf8, size_t required_width, F const& fill_char, bool right_aligned = faux)
     {
         auto crop = text{};
         auto data = view{ utf8 };
@@ -1138,8 +1138,8 @@ namespace netxs::utf
         return crop;
     }
 
-    template<class INT_T, class T = char>
-    text format(INT_T number, size_t by_group = 3, T const& delimiter = ' ')
+    template<class Int_t, class T = char>
+    text format(Int_t number, size_t by_group = 3, T const& delimiter = ' ')
     {
         if (by_group)
         {
@@ -1164,11 +1164,11 @@ namespace netxs::utf
     {
         return std::bitset<L>(n).to_string();
     }
-    template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
+    template<bool UpperCase = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(V number, size_t width = sizeof(V) * 2, char filler = '0')
     {
-        static constexpr auto nums = UCASE ? "0123456789ABCDEF"
-                                           : "0123456789abcdef";
+        static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
+                                               : "0123456789abcdef";
         auto crop = text(width, filler);
         auto head = crop.begin();
         auto tail = head + width;
@@ -1180,17 +1180,17 @@ namespace netxs::utf
         }
         return crop;
     }
-    template <class T, class ...Args>
+    template<class T, class ...Args>
     auto to_hex(T* ptr, Args&&... args)
     {
         return to_hex(reinterpret_cast<std::uintptr_t>(ptr), std::forward<Args>(args)...);
     }
     // utf: to_hex without allocations (the crop should has a reserved capacity).
-    template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
+    template<bool UpperCase = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(text& crop, V number, size_t width = sizeof(V) * 2, char filler = '0')
     {
-        static constexpr auto nums = UCASE ? "0123456789ABCDEF"
-                                           : "0123456789abcdef";
+        static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
+                                               : "0123456789abcdef";
         auto part = -4 + 4 * width;
         while (width--)
         {
@@ -1199,7 +1199,7 @@ namespace netxs::utf
         }
         return crop;
     }
-    template <bool UCASE = faux>
+    template<bool UpperCase = faux>
     auto to_hex(view buffer, bool formatted = faux)
     {
         if (formatted)
@@ -1221,7 +1221,7 @@ namespace netxs::utf
                         crop += i < frag ? " -" : "  ";
                     }
 
-                    crop += i < frag ? ' ' + to_hex<UCASE>(buffer[addr + i], 2, true)
+                    crop += i < frag ? ' ' + to_hex<UpperCase>(buffer[addr + i], 2, true)
                                      : "   ";
                 }
 
@@ -1240,8 +1240,8 @@ namespace netxs::utf
         }
         else
         {
-            static constexpr auto nums = UCASE ? "0123456789ABCDEF"
-                                               : "0123456789abcdef";
+            static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
+                                                   : "0123456789abcdef";
             auto size = buffer.size() << 1;
             auto buff = buffer.begin();
             auto crop = text(size, '0');
@@ -1319,7 +1319,7 @@ namespace netxs::utf
         return crop;
     }
 
-    template <class Container>
+    template<class Container>
     auto maxlen(Container const& set)
     {
         auto len = 0_sz;
@@ -1350,7 +1350,7 @@ namespace netxs::utf
 
     namespace
     {
-        template <class T>
+        template<class T>
         void _concat(flux& s, T&& item)
         {
             s << item;
@@ -1520,8 +1520,8 @@ namespace netxs::utf
         return buff;
     }
 
-    template<class ITER>
-    auto find_char(ITER head, ITER tail, view delims)
+    template<class Iter>
+    auto find_char(Iter head, Iter tail, view delims)
     {
         while (head != tail)
         {
@@ -1532,8 +1532,8 @@ namespace netxs::utf
         }
         return head;
     }
-    template<class ITER>
-    auto find_char(ITER head, ITER tail, char delim)
+    template<class Iter>
+    auto find_char(Iter head, Iter tail, char delim)
     {
         while (head != tail)
         {
@@ -1703,8 +1703,8 @@ namespace netxs::utf
         if (stop == tail) utf8 = view{};
         else              utf8.remove_prefix(std::distance(head, stop));
     }
-    template<class TEXT_or_VIEW>
-    auto is_plain(TEXT_or_VIEW&& utf8)
+    template<class TextOrView>
+    auto is_plain(TextOrView&& utf8)
     {
         auto test = utf8.find('\033');
         return test == text::npos;

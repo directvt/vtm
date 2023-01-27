@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.8q"
+#define DESKTOPIO_VER "v0.9.8r"
 #define DESKTOPIO_MYNAME "Desktopio Terminal " DESKTOPIO_VER
 #define DESKTOPIO_MYPATH "vtm/term"
 #define DESKTOPIO_DEFAPP "Term"
@@ -40,6 +40,11 @@ int main(int argc, char* argv[])
         {
             errmsg = ansi::nil().add("show help message");
             break;
+        }
+        else if (getopt.match("-v", "--version"))
+        {
+            log(DESKTOPIO_VER);
+            return 0;
         }
         else if (getopt.match("--"))
         {

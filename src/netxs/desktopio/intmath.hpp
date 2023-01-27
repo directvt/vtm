@@ -41,19 +41,19 @@ namespace netxs
                         std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si32>::max(), si32, si64>>;
 
     // intmath: Set a single p-bit to v.
-    template<unsigned int p, class T>
+    template<unsigned int P, class T>
     void set_bit(T&& n, bool v)
     {
-        n = (n & ~(1 << p)) | (v << p);
+        n = (n & ~(1 << P)) | (v << P);
     }
     // intmath: Swap two bits.
-    template<unsigned int p1, unsigned int p2, class T>
+    template<unsigned int P1, unsigned int P2, class T>
     auto swap_bits(T n)
     {
-        auto a = 1 & (n >> p1);
-        auto b = 1 & (n >> p2);
+        auto a = 1 & (n >> P1);
+        auto b = 1 & (n >> P2);
         auto x = a ^ b;
-        return n ^ (x << p1 | x << p2);
+        return n ^ (x << P1 | x << P2);
     }
     // intmath: Convert LE to host endianness.
     template<class T>
@@ -622,8 +622,8 @@ namespace netxs
     // intmath: Draw the rectangle region inside the canvas by
     //          invoking handle(canvas_element)
     //          (without boundary checking).
-    template<bool RtoL = faux, class T, class RECT, class P, class NEWLINEFX = noop>
-    void onrect(T& canvas, RECT const& region, P handle, NEWLINEFX online = NEWLINEFX())
+    template<bool RtoL = faux, class T, class Rect, class P, class NewlineFx = noop>
+    void onrect(T& canvas, Rect const& region, P handle, NewlineFx online = NewlineFx())
     {
         //using ret_t = std::template result_of_t<P(decltype(*(canvas.data())))>;
         using ret_t = std::invoke_result_t<P, decltype(*(canvas.data()))>;
@@ -868,8 +868,8 @@ namespace netxs
         ///          To achieve a 2D blur, it needs to apply it again and swap the X with Y,
         ///          and source with destination.
         /// </summary>
-        /// <typeparam name="RGB_T"> Point value accumulator type. </typeparam>
-        /// <typeparam name="CALC" > Whether do the division in the current round. Performance burst by 40% ! </typeparam>
+        /// <typeparam name="RGB_t"> Point value accumulator type. </typeparam>
+        /// <typeparam name="Calc" > Whether do the division in the current round. Performance burst by 40% ! </typeparam>
         /// <param name="s_ptr"> Source bitmap array pointer. </param>
         /// <param name="d_ptr"> Destination bitmap array pointer. </param>
         /// <param name="w"    > Bitmap width. </param>
@@ -880,19 +880,19 @@ namespace netxs
         /// <param name="s_dty"> Index step along Y in the source. </param>
         /// <param name="d_dtx"> Index step along X in the destination. </param>
         /// <param name="d_dty"> Index step along Y in the destination. </param>
-        /// <param name="P_BASE s_ref"> Lambda to convert source pointer to the reference. </param>
-        /// <param name="P_DEST d_ref"> Lambda to convert destination pointer to the reference. </param>
-        /// <param name="POSTFX shade"> Lambda for further processing. </param>
-        template<class RGB_T, bool CALC,
-            class SRC_T,
-            class DST_T, class INT_T,
-            class P_BASE, class P_DEST, class POSTFX = noop>
-        void blur1d(SRC_T s_ptr,
-                    DST_T d_ptr, INT_T w,
-                                 INT_T h, INT_T rad_0,
-                                          INT_T rad_x, INT_T s_dtx, INT_T s_dty,
-                                                       INT_T d_dtx, INT_T d_dty,
-            P_BASE s_ref, P_DEST d_ref, POSTFX shade = POSTFX())
+        /// <param name="P_Base s_ref"> Lambda to convert source pointer to the reference. </param>
+        /// <param name="P_Dest d_ref"> Lambda to convert destination pointer to the reference. </param>
+        /// <param name="PostFx shade"> Lambda for further processing. </param>
+        template<class RGB_t, bool Calc,
+            class Src_t,
+            class Dst_t, class Int_t,
+            class P_Base, class P_Dest, class PostFx = noop>
+        void blur1d(Src_t s_ptr,
+                    Dst_t d_ptr, Int_t w,
+                                 Int_t h, Int_t rad_0,
+                                          Int_t rad_x, Int_t s_dtx, Int_t s_dty,
+                                                       Int_t d_dtx, Int_t d_dty,
+            P_Base s_ref, P_Dest d_ref, PostFx shade = PostFx())
         {
             auto rad_1 = rad_0 + 1;
             auto count = rad_0 + rad_1;
@@ -900,12 +900,12 @@ namespace netxs
             auto end_x = s_dtx * (w - count);
             auto limit = s_ptr + s_dty * h;
 
-            if constexpr (CALC) count *= rad_x + rad_x + 1;
+            if constexpr (Calc) count *= rad_x + rad_x + 1;
 
             while (s_ptr < limit)
             {
                 auto& first = s_ref(s_ptr);
-                auto  accum = RGB_T{ first };
+                auto  accum = RGB_t{ first };
                 accum *= rad_1;
 
                 auto front = s_ptr;
@@ -923,7 +923,7 @@ namespace netxs
                     accum -= first;
                     accum += s_ref(front);
                     auto& point = d_ref(caret);
-                    point = CALC ? accum / count : accum;
+                    point = Calc ? accum / count : accum;
                     shade(*caret);
                     front += s_dtx;
                     caret += d_dtx;
@@ -936,7 +936,7 @@ namespace netxs
                     accum -= s_ref(after);
                     accum += s_ref(front);
                     auto& point = d_ref(caret);
-                    point = CALC ? accum / count : accum;
+                    point = Calc ? accum / count : accum;
                     shade(*caret);
                     after += s_dtx;
                     front += s_dtx;
@@ -950,7 +950,7 @@ namespace netxs
                     accum -= s_ref(after);
                     accum += final;
                     auto& point = d_ref(caret);
-                    point = CALC ? accum / count : accum;
+                    point = Calc ? accum / count : accum;
                     shade(*caret);
                     after += s_dtx;
                     caret += d_dtx;
@@ -961,12 +961,12 @@ namespace netxs
             }
         }
         // intmath: Move block to the specified destination. If begin_it > end_it (exclusive) decrement is used.
-        template<bool FWD, class SRC, class DST, class P>
-        void proc_block(SRC begin_it, SRC end_it, DST dest_it, P proc)
+        template<bool Fwd, class Src, class Dst, class P>
+        void proc_block(Src begin_it, Src end_it, Dst dest_it, P proc)
         {
                 while (begin_it != end_it)
                 {
-                    if constexpr (FWD)
+                    if constexpr (Fwd)
                     {
                         proc(*begin_it, *dest_it);
                         ++begin_it;
@@ -982,22 +982,22 @@ namespace netxs
         }
     }
 
-    template<bool FWD = true, class SRC, class DST>
-    void move_block(SRC begin_it, SRC end_it, DST dest_it)
+    template<bool Fwd = true, class Src, class Dst>
+    void move_block(Src begin_it, Src end_it, Dst dest_it)
     {
-        _private::proc_block<FWD>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ dst = std::move(src); });
+        _private::proc_block<Fwd>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ dst = std::move(src); });
     }
-    template<bool FWD = true, class SRC, class DST>
-    void swap_block(SRC begin_it, SRC end_it, DST dest_it)
+    template<bool Fwd = true, class Src, class Dst>
+    void swap_block(Src begin_it, Src end_it, Dst dest_it)
     {
-        _private::proc_block<FWD>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ std::swap(src, dst); });
+        _private::proc_block<Fwd>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ std::swap(src, dst); });
     }
 
     /// <summary> intmath:
     ///           Bokeh (acryllic, blur) approximation.
     ///           Edge points are multiplied by r in order to form inner glow.
     /// </summary>
-    /// <typeparam name="RGB_T"> Point accumulator type. </typeparam>
+    /// <typeparam name="RGB_t"> Point accumulator type. </typeparam>
     /// <param name="s_ptr"> Source bitmap array pointer. </param>
     /// <param name="d_ptr"> Destination bitmap array pointer. </param>
     /// <param name="w"> Bitmap width. </param>
@@ -1005,21 +1005,21 @@ namespace netxs
     /// <param name="r"> Bokeh radius. </param>
     /// <param name="s_dty"> Index step along Y in the source. </param>
     /// <param name="d_dty"> Index step along Y in the destination. </param>
-    /// <param name="P_BASE s_ref"> Lambda to convert source pointer to the reference. </param>
-    /// <param name="P_DEST d_ref"> Lambda to convert destination pointer to the reference. </param>
-    /// <param name="POSTFX shade"> Lambda for further processing. </param>
+    /// <param name="P_Base s_ref"> Lambda to convert source pointer to the reference. </param>
+    /// <param name="P_Dest d_ref"> Lambda to convert destination pointer to the reference. </param>
+    /// <param name="PostFx shade"> Lambda for further processing. </param>
     /// <exmpla>
     ///		see ui:pro::panel::blur()
     /// </exmpla>
-    template<class RGB_T,
-        class SRC_T,
-        class DST_T, class INT_T,
-        class P_BASE, class P_DEST, class POSTFX = noop>
-    void bokefy(SRC_T s_ptr,
-                DST_T d_ptr, INT_T w,
-                             INT_T h, INT_T r, INT_T s_dty,
-                                               INT_T d_dty,
-        P_BASE s_ref, P_DEST d_ref, POSTFX shade = POSTFX())
+    template<class RGB_t,
+        class Src_t,
+        class Dst_t, class Int_t,
+        class P_Base, class P_Dest, class PostFx = noop>
+    void bokefy(Src_t s_ptr,
+                Dst_t d_ptr, Int_t w,
+                             Int_t h, Int_t r, Int_t s_dty,
+                                               Int_t d_dty,
+        P_Base s_ref, P_Dest d_ref, PostFx shade = PostFx())
     {
         //auto rx = std::min(r + r, w - 1) >> 1;
         auto rx = std::min((r + r) << 1, w - 1) >> 1; // x2 to preserve 2:1 text proportions
@@ -1027,13 +1027,13 @@ namespace netxs
 
         //for (auto i = 0; i < 1000; i++) //test performance
         {
-        _private::blur1d<RGB_T, 0>(s_ptr,    // blur horizontally and place
+        _private::blur1d<RGB_t, 0>(s_ptr,    // blur horizontally and place
                                    d_ptr, w, // result to the temp buffer
                                           h, rx,
                                              0,  1, s_dty,
                                                  1, d_dty, s_ref,
                                                            d_ref);
-        _private::blur1d<RGB_T, 1>(d_ptr,    // blur vertically and place
+        _private::blur1d<RGB_t, 1>(d_ptr,    // blur vertically and place
                                    s_ptr, h, // result back to the source
                                           w, ry,
                                              rx, d_dty, 1,

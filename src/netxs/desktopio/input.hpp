@@ -375,11 +375,11 @@ namespace netxs::input
             }
         }
         // mouse: Return a kinetic animator.
-        template<class LAW>
+        template<class Law>
         auto fader(span spell)
         {
-            //todo use current item's type: LAW<twod>
-            return delta.fader<LAW>(spell);
+            //todo use current item's type: Law<twod>
+            return delta.fader<Law>(spell);
         }
         // mouse: Extended mouse event generation.
         void update(sysmouse& m0)
@@ -863,7 +863,7 @@ namespace netxs::input
 
         auto& area() const { return idmap.area(); }
 
-        template<tier TIER, class T>
+        template<tier Tier, class T>
         void pass(sptr<T> object, twod const& offset, bool relative = faux)
         {
             if (object)
@@ -874,7 +874,7 @@ namespace netxs::input
                 {
                     object->global(coord);
                 }
-                object->bell::template signal<TIER>(mouse::cause, *this);
+                object->bell::template signal<Tier>(mouse::cause, *this);
                 mouse::coord = temp;
             }
         }
@@ -1057,6 +1057,8 @@ namespace netxs::input
             {
                 if (auto next = iter->lock())
                 {
+                    //todo foci
+                    //next->SIGNAL(tier::preview, events::notify::keybd::lost, *this);
                     if (item == next)
                     {
                         keep = faux;
@@ -1070,6 +1072,8 @@ namespace netxs::input
             }
 
             if (keep) _add_kb_focus(item);
+            //todo foci
+            //item->SIGNAL(tier::anycast, hids::events::upevent::kbannul, *this); // Drop saved foci (see pro::keybd).
         }
         auto add_group_kb_focus_or_release_captured(sptr<bell> item)
         {
@@ -1084,6 +1088,8 @@ namespace netxs::input
         {
             kb_focus_changed = true;
             kb_focus_set = true;
+            //todo foci
+            //auto kb_focus_size = kb_focus.size();
             if (!simple_instance && (hids::meta(anyCtrl) || force_group_focus))
             {
                 if (combine_focus)
@@ -1100,6 +1106,8 @@ namespace netxs::input
                 add_single_kb_focus(item);
             }
             if (kb_focus.size()) owner.SIGNAL(tier::preview, events::notify::focus::got, *this);
+            //todo foci
+            //else if (kb_focus_size) owner.SIGNAL(tier::preview, events::notify::focus::lost, *this);
         }
         auto clear_kb_focus()
         {

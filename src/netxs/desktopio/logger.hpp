@@ -11,11 +11,12 @@
 // User defined formatter example:
 // netxs::logger::custom( [](auto& p, auto& v)
 // {
-//      return netxs::current_short_date_time_with_ms() + "  " + utf::concat(p, text("."), text("> ")) + v + '\n';
+//      return utf::concat(datetime::now(), ' ', p, '.', "> ", v, '\n');
 // });
 //
 // Automatic prompt changing example:
-// void proc(...) {
+// auto proc(...)
+// {
 //      AUTO_PROMPT;                                // auto prompt
 //      ...code...
 //      {
@@ -23,9 +24,9 @@
 //          ...code...
 //      }
 //      ...code...
-//      Z("log message: ", some_data);              // prompted output
+//      log("log message: ", some_data);            // prompted output
 //      ...code...
-//      Z("log message: ", some_data, !true);       // promptless output
+//      log("log message: ", some_data, !true);     // promptless output
 //      ...code...
 // }
 
@@ -58,7 +59,7 @@ namespace netxs
         list writers;
         hash token;
 
-        template<class VOID>
+        template<class Void>
         struct globals
         {
             static vect prompt;
@@ -131,7 +132,7 @@ namespace netxs
         {
             return std::lock_guard{ g::mutex };
         }
-        template <class T>
+        template<class T>
         void add(T&& writer)
         {
             writers.emplace_back(std::forward<T>(writer));
@@ -192,7 +193,7 @@ namespace netxs
             auto sync = guard();
             g::enabled = allowed;
         }
-        template <class T>
+        template<class T>
         static void feed(T&& entity)
         {
             auto sync = guard();
@@ -211,12 +212,12 @@ namespace netxs
             g::builder << std::forward<T>(entity);
             feed(std::forward<Args>(args)...);
         }
-        template<class SYNC, class P>
+        template<class Sync, class P>
         static auto tee(P writer)
         {
             auto inst = logger([writer, buff = text{}](auto utf8) mutable
             {
-                if (auto sync = SYNC{})
+                if (auto sync = Sync{})
                 {
                     if (buff.size())
                     {
@@ -242,12 +243,6 @@ namespace netxs
 
 namespace
 {
-    template<class ...Args>
-    void Z(Args&&... args)
-    {
-        netxs::logger::feed(std::forward<Args>(args)...);
-    }
-
     template<class ...Args>
     void log(Args&&... args)
     {

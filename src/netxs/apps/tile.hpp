@@ -69,7 +69,7 @@ namespace netxs::app::tile
 
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
 
-            boss.SUBMIT_T(tier::release, e2::size::any, memo, newsz)
+            boss.SUBMIT(tier::release, e2::size::any, newsz, memo)
             {
                 if (client)
                 {
@@ -79,7 +79,7 @@ namespace netxs::app::tile
                     client->base::resize(new_size);
                 }
             };
-            boss.SUBMIT_T(tier::release, events::enlist, memo, object)
+            boss.SUBMIT(tier::release, events::enlist, object, memo)
             {
                 if (!client) return;
                 auto label = [](auto data_src_sptr, auto header)
@@ -93,10 +93,8 @@ namespace netxs::app::tile
                         ->branch(ui::item::ctor(header.empty() ? "- no title -" : header))
                         ->invoke([&](auto& boss)
                         {
-                            auto boss_shadow = ptr::shadow(boss.This());
                             auto data_shadow = ptr::shadow(data_src_sptr);
-
-                            boss.SUBMIT_T_BYVAL(tier::release, e2::form::upon::vtree::attached, boss.tracker, parent)
+                            boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
@@ -104,28 +102,27 @@ namespace netxs::app::tile
                                     data_ptr->SIGNAL(tier::anycast, e2::form::highlight::set, state);
                                 }
                             };
-                            data_src_sptr->SUBMIT_T(tier::preview, e2::form::highlight::any, boss.tracker, state)
+                            data_src_sptr->SUBMIT(tier::preview, e2::form::highlight::any, state, boss.tracker)
                             {
                                 auto highlight_color = skin::color(tone::highlight);
                                 auto c3 = highlight_color;
                                 auto x3 = cell{ c3 }.alpha(0x00);
                                 boss.color(state ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                             };
-                            data_src_sptr->SUBMIT_T(tier::release, events::delist, boss.tracker, object)
+                            data_src_sptr->SUBMIT(tier::release, events::delist, object, boss.tracker)
                             {
                                 boss.detach(); // Destroy itself.
                             };
-                            boss.SUBMIT_T_BYVAL(tier::release, hids::events::mouse::button::any, boss.tracker, gear)
+                            boss.SUBMIT(tier::release, hids::events::mouse::button::any, gear, boss.tracker, (data_shadow))
                             {
-                                if (auto boss_ptr = boss_shadow.lock())
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    auto deed = boss_ptr->bell::template protos<tier::release>(); //todo "template" keyword is required by FreeBSD clang 11.0.1
+                                    auto deed = boss.bell::template protos<tier::release>(); //todo "template" keyword is required by FreeBSD clang 11.0.1
                                     data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc
                                     gear.dismiss();
                                 }
                             };
-                            boss.SUBMIT_T_BYVAL(tier::release, e2::form::state::mouse, boss.tracker, active)
+                            boss.SUBMIT(tier::release, e2::form::state::mouse, active, boss.tracker, (data_shadow))
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
@@ -136,7 +133,7 @@ namespace netxs::app::tile
                 };
                 client->attach_element(e2::form::prop::ui::header, object, label);
             };
-            boss.SUBMIT_T(tier::release, e2::render::any, memo, parent_canvas)
+            boss.SUBMIT(tier::release, e2::render::any, parent_canvas, memo)
             {
                 //todo magic numbers
                 if (depth < 4 && client)
@@ -150,11 +147,11 @@ namespace netxs::app::tile
                     parent_canvas.core::view(canvas_view);
                 }
             };
-            boss.SUBMIT_T(tier::anycast, e2::form::upon::started, memo, root)
+            boss.SUBMIT(tier::anycast, e2::form::upon::started, root, memo)
             {
                 client->clear();
                 depth = 0;
-                boss.base::template riseup<tier::request>(e2::depth, depth, true);
+                boss.RISEUP(tier::request, e2::depth, depth, true);
                 log("tile: start depth=", depth);
             };
         }
@@ -175,8 +172,8 @@ namespace netxs::app::tile
         {
             boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                auto parent_memo = std::make_shared<subs>();
-                parent->SUBMIT_T(tier::anycast, app::tile::events::ui::any, *parent_memo, gear)
+                auto parent_memo = ptr::shared(subs{});
+                parent->SUBMIT(tier::anycast, app::tile::events::ui::any, gear, *parent_memo)
                 {
                     auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
                     boss.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
@@ -189,11 +186,11 @@ namespace netxs::app::tile
                             {
                                 case app::tile::events::ui::create.id:
                                     gear.force_group_focus = true;
-                                    boss.template riseup<tier::release>(e2::form::proceed::createby, gear);
+                                    boss.RISEUP(tier::release, e2::form::proceed::createby, gear);
                                     gear.force_group_focus = faux;
                                     break;
                                 case app::tile::events::ui::close.id:
-                                    boss.template riseup<tier::release>(e2::form::quit, boss.This());
+                                    boss.RISEUP(tier::release, e2::form::quit, boss.This());
                                     break;
                                 case app::tile::events::ui::toggle.id:
                                     if (boss.base::kind() == 0) // Only apps can be maximized.
@@ -204,53 +201,65 @@ namespace netxs::app::tile
                                         gear.force_group_focus = faux;
                                         gear.kb_focus_changed = faux;
                                         boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                                        boss.template riseup<tier::release>(e2::form::maximize, gear);
+                                        boss.RISEUP(tier::release, e2::form::maximize, gear);
                                         //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
                                     }
                                     break;
                                 case app::tile::events::ui::swap.id:
                                     if (gear.countdown > 0)
                                     {
-                                        boss.template riseup<tier::release>(app::tile::events::ui::swap, gear);
+                                        boss.RISEUP(tier::release, app::tile::events::ui::swap, gear);
                                     }
                                     break;
                                 case app::tile::events::ui::rotate.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::rotate, gear);
+                                    boss.RISEUP(tier::release, app::tile::events::ui::rotate, gear);
                                     break;
                                 case app::tile::events::ui::equalize.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::equalize, gear);
+                                    boss.RISEUP(tier::release, app::tile::events::ui::equalize, gear);
                                     break;
                                 case app::tile::events::ui::split::vt.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::split::vt, gear);
+                                    boss.RISEUP(tier::release, app::tile::events::ui::split::vt, gear);
                                     break;
                                 case app::tile::events::ui::split::hz.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::split::hz, gear);
+                                    boss.RISEUP(tier::release, app::tile::events::ui::split::hz, gear);
                                     break;
                             }
                         }
                     }
                 };
-                boss.SUBMIT_T_BYVAL(tier::release, e2::form::upon::vtree::detached, *parent_memo, parent)
+                boss.SUBMIT(tier::release, e2::form::upon::vtree::detached, parent, *parent_memo, (parent_memo))
                 {
                     parent_memo.reset();
                 };
+                // Forward keybd events.
+                //todo foci
+                //parent->SUBMIT(tier::anycast, hids::events::upevent::kboffer, gear, *parent_memo)
+                //{
+                //    log("forward kboffer");
+                //    boss.SIGNAL(tier::anycast, hids::events::upevent::kboffer, gear);
+                //};
+                //parent->SUBMIT(tier::anycast, hids::events::upevent::kbannul, gear, *parent_memo)
+                //{
+                //    log("forward kbannul");
+                //    boss.SIGNAL(tier::anycast, hids::events::upevent::kbannul, gear);
+                //};
             };
         };
         auto mouse_subs = [](auto& boss)
         {
             boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
-                boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                boss.RISEUP(tier::release, e2::form::maximize, gear);
                 gear.dismiss();
             };
             //boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
             //{
-            //    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+            //    boss.RISEUP(tier::release, e2::form::quit, boss.This());
             //    gear.dismiss();
             //};
             //boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
             //{
-            //    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+            //    boss.RISEUP(tier::release, e2::form::quit, boss.This());
             //    gear.dismiss();
             //};
         };
@@ -272,7 +281,7 @@ namespace netxs::app::tile
 
                         auto master_shadow = ptr::shadow(boss.This());
                         auto branch_shadow = ptr::shadow(branch);
-                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::drag::start::any, gear)
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear, 0, (branch_shadow, master_shadow, menu_item_id))
                         {
                             if (auto branch_ptr = branch_shadow.lock())
                             if (branch_ptr->area().hittest(gear.coord))
@@ -323,7 +332,7 @@ namespace netxs::app::tile
                                 // Remove focus.
                                 master.SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
                                 // Destroy placeholder.
-                                master.base::template riseup<tier::release>(e2::form::quit, master_ptr);
+                                master.RISEUP(tier::release, e2::form::quit, master_ptr);
 
                                 // Handover mouse input.
                                 master.SIGNAL(tier::release, hids::events::notify::mouse::leave, gear);
@@ -334,7 +343,7 @@ namespace netxs::app::tile
 
                         boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                         {
-                            boss.template riseup<tier::release>(events::enlist, boss.This()); //todo "template" keyword is required by gcc
+                            boss.RISEUP(tier::release, events::enlist, boss.This()); //todo "template" keyword is required by gcc
                         };
                     })
                     //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
@@ -344,9 +353,9 @@ namespace netxs::app::tile
                         ->invoke([&](auto& boss)
                         {
                             auto shadow = ptr::shadow(boss.This());
-                            boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                            boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent, 0, (shadow))
                             {
-                                parent->SUBMIT_BYVAL(tier::preview, e2::form::prop::ui::header, newtext)
+                                parent->SUBMIT(tier::preview, e2::form::prop::ui::header, newtext, 0, (shadow))
                                 {
                                     if (auto boss_ptr = shadow.lock())
                                     {
@@ -354,15 +363,15 @@ namespace netxs::app::tile
                                         boss_ptr->parent()->SIGNAL(tier::release, e2::form::prop::ui::header, newtext);
                                     }
                                 };
-                                parent->SUBMIT_BYVAL(tier::request, e2::form::prop::ui::header, curtext)
+                                parent->SUBMIT(tier::request, e2::form::prop::ui::header, curtext, 0, (shadow))
                                 {
-                                    if (auto ptr = shadow.lock()) curtext = ptr->get_source();
+                                    if (auto boss_ptr = shadow.lock()) curtext = boss_ptr->get_source();
                                 };
                             };
                         }))
                     ->branch(slot::_2, branch);
         };
-        auto pass_focus = [](auto& gear_id_list, auto& item_ptr)
+        auto pass_focus = [](auto& gear_id_list, auto item_ptr)
         {
             if (item_ptr)
             {
@@ -422,7 +431,7 @@ namespace netxs::app::tile
                     mouse_subs(boss);
                     boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                     {
-                        boss.base::template riseup<tier::release>(e2::form::proceed::createby, gear);
+                        boss.RISEUP(tier::release, e2::form::proceed::createby, gear);
                         gear.dismiss();
                     };
                 })
@@ -507,7 +516,7 @@ namespace netxs::app::tile
                     {
                         //todo revise, possible parent subscription leaks when reattached
                         auto parent_memo = std::make_shared<subs>();
-                        parent->SUBMIT_T(tier::request, e2::form::proceed::swap, *parent_memo, item_ptr)
+                        parent->SUBMIT(tier::request, e2::form::proceed::swap, item_ptr, *parent_memo)
                         {
                             if (item_ptr != boss.This()) // It wasn't me. It was the one-armed man.
                             {
@@ -527,7 +536,7 @@ namespace netxs::app::tile
                                 }
                             }
                         };
-                        boss.SUBMIT_T_BYVAL(tier::request /*swap specific*/, e2::form::upon::vtree::detached, *parent_memo, parent)
+                        boss.SUBMIT(tier::request /*swap specific*/, e2::form::upon::vtree::detached, parent, *parent_memo, (parent_memo))
                         {
                             parent_memo.reset();
                         };
@@ -558,134 +567,120 @@ namespace netxs::app::tile
                         }
                         else item.SIGNAL(tier::release, hids::events::upevent::kbannul, gear); // Exclude grips.
                     };
-                    subs oneoff; // One-time return ticket.
-                    boss.SUBMIT_BYVAL(tier::release, e2::form::maximize, gear)
+                    boss.SUBMIT(tier::release, e2::form::maximize, gear, 0, (oneoff = subs{}))
                     {
-                        if (auto boss_ptr = shadow.lock())
+                        auto count = boss.count();
+                        if (count > 2) // It is a root.
                         {
-                            auto& boss = *boss_ptr;
-                            auto count = boss.count();
-                            if (count > 2) // It is a root.
+                            auto item_ptr = boss.pop_back();
+                            item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
+                            return;
+                        }
+                        if (oneoff)
+                        {
+                            boss.RISEUP(tier::release, e2::form::proceed::attach, e2::form::proceed::attach.param());
+                            return;
+                        }
+                        if (count > 1) // Preventing the empty slot from maximizing.
+                        {
+                            //todo revise
+                            if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
                             {
-                                auto item_ptr = boss.pop_back();
-                                item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
-                                return;
-                            }
-                            if (oneoff)
-                            {
-                                boss.template riseup<tier::release>(e2::form::proceed::attach, e2::form::proceed::attach.param()); //todo "template" is required by gcc
-                                return;
-                            }
-                            if (count > 1) // Preventing the empty slot from maximizing.
-                            {
-                                //todo revise
-                                if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
-                                {
-                                    // Pass the focus to the maximized window.
-                                    //todo unify
-                                    gear.force_group_focus = faux;
-                                    gear.kb_focus_changed = faux;
-                                    gear.combine_focus = true;
-                                    boss.back()->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                                    gear.combine_focus = faux;
-                                    gear.force_group_focus = faux;
+                                // Pass the focus to the maximized window.
+                                //todo unify
+                                gear.force_group_focus = faux;
+                                gear.kb_focus_changed = faux;
+                                gear.combine_focus = true;
+                                boss.back()->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                gear.combine_focus = faux;
+                                gear.force_group_focus = faux;
 
-                                    auto fullscreen_item = boss.pop_back();
-                                    if (fullscreen_item)
+                                auto fullscreen_item = boss.pop_back();
+                                if (fullscreen_item)
+                                {
+                                    fullscreen_item->SUBMIT(tier::release, e2::form::restore, item_ptr, oneoff)
                                     {
-                                        fullscreen_item->SUBMIT_T(tier::release, e2::form::restore, oneoff, item_ptr)
+                                        if (item_ptr)
                                         {
-                                            if (item_ptr)
-                                            {
-                                                boss.attach(item_ptr);
-                                                boss.base::reflow();
-                                            }
-                                            oneoff.reset();
-                                        };
-                                        fullscreen_item->SUBMIT_T(tier::release, e2::dtor, oneoff, item_ptr)
-                                        {
-                                            oneoff.reset();
-                                        };
-                                        boss.base::template riseup<tier::release>(e2::form::proceed::attach, fullscreen_item);
-                                        boss.base::reflow();
-                                    }
+                                            boss.attach(item_ptr);
+                                            boss.base::reflow();
+                                        }
+                                        oneoff.reset();
+                                    };
+                                    fullscreen_item->SUBMIT(tier::release, e2::dtor, item_ptr, oneoff)
+                                    {
+                                        oneoff.reset();
+                                    };
+                                    boss.RISEUP(tier::release, e2::form::proceed::attach, fullscreen_item);
+                                    boss.base::reflow();
                                 }
                             }
                         }
                     };
-                    boss.SUBMIT_BYVAL(tier::release, app::tile::events::ui::split::any, gear)
+                    boss.SUBMIT(tier::release, app::tile::events::ui::split::any, gear)
                     {
-                        if (auto boss_ptr = shadow.lock())
+                        if (auto deed = boss.bell::template protos<tier::release>())
                         {
-                            auto& boss = *boss_ptr;
-                            if (auto deed = boss.bell::template protos<tier::release>())
-                            {
-                                auto depth = e2::depth.param();
-                                boss.base::template riseup<tier::request>(e2::depth, depth, true);
-                                log("tile: depth=", depth);
-                                if (depth > INHERITANCE_LIMIT) return;
+                            auto depth = e2::depth.param();
+                            boss.RISEUP(tier::request, e2::depth, depth, true);
+                            log("tile: depth=", depth);
+                            if (depth > INHERITANCE_LIMIT) return;
 
-                                auto heading = deed == app::tile::events::ui::split::vt.id;
-                                auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
-                                auto empty_1 = empty_slot(empty_slot);
-                                auto empty_2 = empty_slot(empty_slot);
-                                auto curitem = boss.pop_back(); // In order to preserve all foci.
-                                gear.offer_kb_focus(empty_2);
-                                gear.annul_kb_focus(curitem);
-                                if (boss.empty())
-                                {
-                                    boss.attach(empty_pane());
-                                    empty_1->pop_back();
-                                }
-                                auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
-                                auto slot_2 = newnode->attach(slot::_2, empty_2);
-                                boss.attach(newnode);
+                            auto heading = deed == app::tile::events::ui::split::vt.id;
+                            auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
+                            auto empty_1 = empty_slot(empty_slot);
+                            auto empty_2 = empty_slot(empty_slot);
+                            auto curitem = boss.pop_back(); // In order to preserve all foci.
+                            gear.offer_kb_focus(empty_2);
+                            gear.annul_kb_focus(curitem);
+                            if (boss.empty())
+                            {
+                                boss.attach(empty_pane());
+                                empty_1->pop_back();
                             }
+                            auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
+                            auto slot_2 = newnode->attach(slot::_2, empty_2);
+                            boss.attach(newnode);
                         }
                     };
-                    boss.SUBMIT_BYVAL(tier::release, e2::form::quit, nested_item_ptr)
+                    boss.SUBMIT(tier::release, e2::form::quit, nested_item_ptr)
                     {
                         if (nested_item_ptr)
                         {
                             auto& item = *nested_item_ptr;
-                            auto gear_id_list = e2::form::state::keybd::handover.param();
-                            item.SIGNAL(tier::anycast, e2::form::state::keybd::handover, gear_id_list);
-
-                            if (auto boss_ptr = shadow.lock())
+                            auto gear_id_list = e2::form::state::keybd::enlist.param();
+                            item.SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gear_id_list);
+                            auto count = boss.count();
+                            if (count > 1)
                             {
-                                auto& boss = *boss_ptr;
-                                auto count = boss.count();
-                                if (count > 1)
+                                if (boss.back()->base::kind() == 0) // Only apps can be deleted.
                                 {
-                                    if (boss.back()->base::kind() == 0) // Only apps can be deleted.
-                                    {
-                                        auto item = boss.pop_back(); // Throw away.
-                                        pass_focus(gear_id_list, boss_ptr);
-                                    }
+                                    auto item = boss.pop_back(); // Throw away.
+                                    pass_focus(gear_id_list, boss.This());
                                 }
-                                else if (count == 1) // Remove empty slot, reorganize.
+                            }
+                            else if (count == 1) // Remove empty slot, reorganize.
+                            {
+                                if (auto parent = boss.base::parent())
                                 {
-                                    if (auto parent = boss.base::parent())
+                                    auto item_ptr = e2::form::proceed::swap.param(boss.This()); // sptr must be of the same type as the event argument. Casting kills all intermediaries when return.
+                                    parent->SIGNAL(tier::request, e2::form::proceed::swap, item_ptr);
+                                    if (item_ptr)
                                     {
-                                        auto item_ptr = e2::form::proceed::swap.param(boss_ptr); // sptr must be of the same type as the event argument. Casting kills all intermediaries when return.
-                                        parent->SIGNAL(tier::request, e2::form::proceed::swap, item_ptr);
-                                        if (item_ptr)
+                                        if (item_ptr != boss.This()) // Parallel slot is not empty.
                                         {
-                                            if (item_ptr != boss_ptr) // Parallel slot is not empty.
-                                            {
-                                                parent->base::template riseup<tier::release>(e2::form::proceed::swap, item_ptr);
-                                                pass_focus(gear_id_list, item_ptr);
-                                            }
-                                            else // I'm alone.
-                                            {
-                                                // Nothing todo. There can be only one!
-                                            }
-                                        }
-                                        else // Both slots are empty.
-                                        {
-                                            parent->base::template riseup<tier::release>(e2::form::proceed::swap, item_ptr);
+                                            parent->RISEUP(tier::release, e2::form::proceed::swap, item_ptr);
                                             pass_focus(gear_id_list, item_ptr);
                                         }
+                                        else // I'm alone.
+                                        {
+                                            // Nothing todo. There can be only one!
+                                        }
+                                    }
+                                    else // Both slots are empty.
+                                    {
+                                        parent->RISEUP(tier::release, e2::form::proceed::swap, item_ptr);
+                                        pass_focus(gear_id_list, item_ptr);
                                     }
                                 }
                             }
@@ -809,14 +804,17 @@ namespace netxs::app::tile
             auto cB = menu_white;
 
             auto object = ui::fork::ctor(axis::Y)
-                        ->plugin<items>();
-
-            object->invoke([&](auto& boss)
+                //todo foci
+                //->plugin<pro::focus>(faux)
+                ->plugin<items>()
+                ->invoke([&](auto& boss)
                 {
-                    auto oneoff = std::make_shared<hook>();
+                    //todo foci
+                    //boss.keybd.master();
+                    auto oneoff = ptr::shared(hook{});
                     auto& conf_list = app::shared::get::configs();
                     auto objs_config_ptr = &conf_list;
-                    boss.SUBMIT_T_BYVAL(tier::anycast, e2::form::upon::created, *oneoff, gear)
+                    boss.SUBMIT(tier::anycast, e2::form::upon::created, gear, *oneoff, (objs_config_ptr, oneoff))
                     {
                         auto& gate = gear.owner;
                         auto& objs_config = *objs_config_ptr;
@@ -933,7 +931,7 @@ namespace netxs::app::tile
                       boss.keybd.active();
                       boss.SUBMIT(tier::anycast, e2::form::quit, item)
                       {
-                          boss.base::template riseup<tier::release>(e2::form::quit, item);
+                          boss.RISEUP(tier::release, e2::form::quit, item);
                       };
                   });
             menu_data->colors(cB.fgc(), cB.bgc())
@@ -943,7 +941,7 @@ namespace netxs::app::tile
             cover->invoke([&](auto& boss)
             {
                 auto bar = cell{ "▀"sv }.link(menu_id);
-                boss.SUBMIT_BYVAL(tier::release, e2::render::any, parent_canvas)
+                boss.SUBMIT(tier::release, e2::render::any, parent_canvas, 0, (bar))
                 {
                     auto menu_white = skin::color(tone::menu_white);
                     auto fgc = menu_white.bgc();
@@ -995,7 +993,7 @@ namespace netxs::app::tile
                                     item_ptr->SIGNAL(tier::request, e2::form::state::keybd::find, gear_test);
                                     if (gear_test.second)
                                     {
-                                        item_ptr->riseup<tier::release>(events::backup, empty_slot_list);
+                                        item_ptr->RISEUP(tier::release, events::backup, empty_slot_list);
                                     }
                                 });
                                 boss.SIGNAL(tier::general, e2::form::proceed::functor, proc);
@@ -1030,7 +1028,7 @@ namespace netxs::app::tile
                                         if (app_slot)
                                         {
                                             s->attach(app_slot);
-                                            app_slot->template riseup<tier::release>(events::enlist, app_slot);
+                                            app_slot->RISEUP(tier::release, events::enlist, app_slot);
                                         }
                                         std::swap(emp_slot, emp_next);
                                         std::swap(app_slot, app_next);
@@ -1040,7 +1038,7 @@ namespace netxs::app::tile
                                     if (app_slot)
                                     {
                                         s->attach(app_slot);
-                                        app_slot->template riseup<tier::release>(events::enlist, app_slot);
+                                        app_slot->RISEUP(tier::release, events::enlist, app_slot);
                                     }
                                     gear.countdown = 0; // Interrupt swapping.
                                 }
@@ -1056,7 +1054,19 @@ namespace netxs::app::tile
                         // Set focus to all panes.
                         boss.SIGNAL(tier::anycast, app::tile::events::ui::select, gear);
                         gear.dismiss(true);
+                        //todo foci
+                        //todo restore focused state
+                        //log("kb offer");
                     };
+                    //todo foci
+                    //boss.SUBMIT(tier::release, e2::form::state::keybd::lost, gear)
+                    //{
+                    //    //log("kb lost");
+                    //};
+                    //boss.SUBMIT(tier::release, e2::form::state::keybd::got, gear)
+                    //{
+                    //    //log("kb got");
+                    //};
                 });
             return object;
         };

@@ -648,10 +648,10 @@ namespace netxs
                 auto cluster = utf::letter(utf8);
                 set(cluster.text, cluster.attr.ucwidth);
             }
-            template<svga VGAMODE = svga::truecolor>
+            template<svga Mode = svga::truecolor>
             view get() const
             {
-                if constexpr (VGAMODE == svga::dtvt) return {};
+                if constexpr (Mode == svga::dtvt) return {};
                 else
                 {
                     if (state.jumbo)
@@ -762,15 +762,15 @@ namespace netxs
             {
                 return param.shared.token == b.param.shared.token;
             }
-            template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
+            template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
             void get(body& base, T& dest) const
             {
-                if constexpr (VGAMODE == svga::dtvt) return;
+                if constexpr (Mode == svga::dtvt) return;
                 if (!like(base))
                 {
                     auto& cvar =      param.shared.var;
                     auto& bvar = base.param.shared.var;
-                    if constexpr (USESGR)
+                    if constexpr (UseSGR)
                     {
                         if (cvar.bolded != bvar.bolded)
                         {
@@ -782,7 +782,7 @@ namespace netxs
                         }
                         if (cvar.unline != bvar.unline)
                         {
-                            if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
+                            if constexpr (Mode == svga::vga16) dest.inv(cvar.unline);
                             else                                  dest.und(cvar.unline);
                         }
                         if (cvar.invert != bvar.invert)
@@ -873,24 +873,24 @@ namespace netxs
                 return !operator==(c);
             }
 
-            template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
+            template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
             void get(clrs& base, T& dest) const
             {
-                if constexpr (VGAMODE == svga::dtvt) return;
+                if constexpr (Mode == svga::dtvt) return;
                 if (bg != base.bg)
                 {
                     base.bg = bg;
-                    if constexpr (USESGR)
+                    if constexpr (UseSGR)
                     {
-                        dest.template bgc<VGAMODE>(bg);
+                        dest.template bgc<Mode>(bg);
                     }
                 }
                 if (fg != base.fg)
                 {
                     base.fg = fg;
-                    if constexpr (USESGR)
+                    if constexpr (UseSGR)
                     {
-                        dest.template fgc<VGAMODE>(fg);
+                        dest.template fgc<Mode>(fg);
                     }
                 }
             }
@@ -1060,46 +1060,46 @@ namespace netxs
             st = c.st;
         }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
-        template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
+        template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
         void scan_attr(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get<VGAMODE, USESGR>(base.uv, dest);
-                st.get<VGAMODE, USESGR>(base.st, dest);
+                uv.get<Mode, UseSGR>(base.uv, dest);
+                st.get<Mode, UseSGR>(base.st, dest);
             }
         }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
-        template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
+        template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
         void scan(cell& base, T& dest) const
         {
-            if constexpr (VGAMODE != svga::dtvt)
+            if constexpr (Mode != svga::dtvt)
             {
                 if (!like(base))
                 {
                     //todo additionally consider UNIQUE ATTRIBUTES
-                    uv.get<VGAMODE, USESGR>(base.uv, dest);
-                    st.get<VGAMODE, USESGR>(base.st, dest);
+                    uv.get<Mode, UseSGR>(base.uv, dest);
+                    st.get<Mode, UseSGR>(base.st, dest);
                 }
-                if (wdt() && !gc.is_space()) dest += gc.get<VGAMODE>();
+                if (wdt() && !gc.is_space()) dest += gc.get<Mode>();
                 else                         dest += whitespace;
             }
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
-        template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
+        template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
         bool scan(cell const& next, cell& base, T& dest) const
         {
-            if constexpr (VGAMODE == svga::dtvt) return {};
+            if constexpr (Mode == svga::dtvt) return {};
             if (gc.same(next.gc) && like(next))
             {
                 if (!like(base))
                 {
                     //todo additionally consider UNIQUE ATTRIBUTES
-                    uv.get<VGAMODE, USESGR>(base.uv, dest);
-                    st.get<VGAMODE, USESGR>(base.st, dest);
+                    uv.get<Mode, UseSGR>(base.uv, dest);
+                    st.get<Mode, UseSGR>(base.st, dest);
                 }
-                dest += gc.get<VGAMODE>();
+                dest += gc.get<Mode>();
                 return true;
             }
             else
@@ -1325,15 +1325,15 @@ namespace netxs
 
         class shaders
         {
-            template<class FUNC>
+            template<class Func>
             struct brush_t
             {
-                template<class CELL>
+                template<class Cell>
                 struct func
                 {
-                    CELL brush;
-                    static constexpr auto f = FUNC{};
-                    constexpr func(CELL const& c)
+                    Cell brush;
+                    static constexpr auto f = Func{};
+                    constexpr func(Cell const& c)
                         : brush{ c }
                     { }
                     template<class D>
@@ -1648,21 +1648,21 @@ namespace netxs
         {
             crop(region.size.x + 1, c);
         }
-        template<bool Bottom_anchored = faux>
+        template<bool BottomAnchored = faux>
         void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
         {
             auto block = core{ region.coor, newsize, c };
-            if constexpr (Bottom_anchored) block.step({ 0, region.size.y - newsize.y });
+            if constexpr (BottomAnchored) block.step({ 0, region.size.y - newsize.y });
             netxs::onbody(block, *this, cell::shaders::full);
             region.size = newsize;
             client.size = region.size;
             swap(block);
             digest++;
         }
-        template<bool Bottom_anchored = faux>
+        template<bool BottomAnchored = faux>
         void crop(twod const& newsize) // core: Resize while saving the bitmap.
         {
-            crop<Bottom_anchored>(newsize, marker);
+            crop<BottomAnchored>(newsize, marker);
         }
         void kill() // core: Collapse canvas to size zero (see para).
         {

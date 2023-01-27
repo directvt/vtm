@@ -29,7 +29,7 @@ namespace netxs::app::shared
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
             auto stobe_state = true;
-            strob->SUBMIT_BYVAL(tier::general, e2::timer::any, now)
+            strob->SUBMIT(tier::general, e2::timer::any, now, 0, (strob_shadow, stobe_state))
             {
                 stobe_state = !stobe_state;
                 if (auto strob = strob_shadow.lock())
@@ -77,7 +77,7 @@ namespace netxs::app::shared
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           auto title = ansi::add("Empty Instance \nid: ", parent->id);
-                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                          boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::mock::ctor())
@@ -93,7 +93,7 @@ namespace netxs::app::shared
                         //boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                         //{
                         //    auto outer = e2::config::plugins::sizer::outer.param();
-                        //    boss.base::template riseup<tier::request>(e2::config::plugins::sizer::outer, outer);
+                        //    boss.RISEUP(tier::request, e2::config::plugins::sizer::outer, outer);
                         //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
                         //    if (actual_rect.hittest(gear.coord))
                         //    {
@@ -126,29 +126,29 @@ namespace netxs::app::shared
 
                             static auto i = 0; i++;
                             auto title = ansi::add("View\nRegion ", i);
-                            boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
 
                             auto outer = dent{ 2,2,1,1 };
                             auto inner = dent{ -4,-4,-2,-2 };
-                            boss.base::template riseup<tier::release>(e2::config::plugins::sizer::outer, outer);
-                            boss.base::template riseup<tier::release>(e2::config::plugins::sizer::inner, inner);
-                            boss.base::template riseup<tier::release>(e2::config::plugins::align, faux);
-                            boss.base::template riseup<tier::preview>(e2::form::prop::zorder, Z_order::backmost);
+                            boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer);
+                            boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner);
+                            boss.RISEUP(tier::release, e2::config::plugins::align, faux);
+                            boss.RISEUP(tier::preview, e2::form::prop::zorder, Z_order::backmost);
                             parent.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                             {
                                 auto old_title = e2::form::prop::ui::header.param();
-                                boss.base::template riseup<tier::request>(e2::form::prop::ui::header, old_title);
+                                boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title);
 
                                 auto data = gear.get_clip_data();
 
                                 if (utf::is_plain(data.utf8)) // Reset aligning to the center if text is plain.
                                 {
                                     auto align = ansi::jet(bias::center);
-                                    boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, align);
+                                    boss.RISEUP(tier::preview, e2::form::prop::ui::header, align);
                                 }
                                 // Copy clipboard data to title.
                                 auto title = e2::form::prop::ui::header.param(data.utf8);
-                                boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                                boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                                 gear.dismiss();
 
                                 if (old_title.size()) // Copy old title to clipboard.
@@ -398,22 +398,20 @@ namespace netxs::app::shared
                 ->template plugin<pro::notes>(" About Environment ")
                 ->invoke([&](auto& boss)
                 {
-                    auto shadow = ptr::shadow(boss.This());
                     auto data = utf::divide(param, ";");
                     auto type = text{ data.size() > 0 ? data[0] : view{} };
                     auto name = text{ data.size() > 1 ? data[1] : view{} };
                     auto args = text{ data.size() > 2 ? data[2] : view{} };
-                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear, 0, (type, name, args))
                     {
                         //todo revise/unify
                         auto world_ptr = e2::config::whereami.param();
                         SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-                        if (auto boss = shadow.lock())
                         if (world_ptr)
                         {
                             static auto offset = dot_00;
                             auto viewport = e2::form::prop::viewport.param();
-                            boss->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
                             viewport.coor += gear.area().coor;
                             offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
                             gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
@@ -445,9 +443,9 @@ namespace netxs::app::shared
                             menu_list[name];
 
                             auto current_default = e2::data::changed.param();
-                            boss->template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
+                            boss.RISEUP(tier::request, e2::data::changed, current_default);
 
-                            if (auto gate = boss->parent())
+                            if (auto gate = boss.parent())
                             {
                                 gate->SIGNAL(tier::release, e2::data::changed, name);
                                 world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);

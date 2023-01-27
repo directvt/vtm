@@ -243,8 +243,8 @@ namespace netxs::ui
             ui64 body{}; // term_state: Selection rough volume.
             ui64 hash{}; // term_state: Selection update indicator.
 
-            template<class bufferbase>
-            auto update(bufferbase const& scroll)
+            template<class BufferBase>
+            auto update(BufferBase const& scroll)
             {
                 if (scroll.update_status(*this))
                 {
@@ -359,7 +359,7 @@ namespace netxs::ui
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
-                    owner.SUBMIT_T(tier::release, hids::events::device::mouse, token, gear)
+                    owner.SUBMIT(tier::release, hids::events::device::mouse, gear, token)
                     {
                         check_focus(gear);
                         if (owner.selmod == clip::disabled)
@@ -421,7 +421,7 @@ namespace netxs::ui
                 {
                     if (!token) // Do not subscribe if it is already subscribed.
                     {
-                        owner.SUBMIT_T(tier::release, hids::events::notify::keybd::any, token, gear)
+                        owner.SUBMIT(tier::release, hids::events::notify::keybd::any, gear, token)
                         {
                             auto s = state;
                             switch (owner.bell::protos<tier::release>())
@@ -472,7 +472,7 @@ namespace netxs::ui
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
                     utf8 = jet_left + utf8;
-                    owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
+                    owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                 }
                 else
                 {
@@ -480,7 +480,7 @@ namespace netxs::ui
                     if (property == ansi::OSC_TITLE)
                     {
                         utf8 = jet_left + utf8;
-                        owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
+                        owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                     }
                 }
             }
@@ -1570,10 +1570,10 @@ namespace netxs::ui
                 resize_tabstops(panel.x, true);
             }
             // bufferbase: Horizontal tab implementation.
-            template<bool FWD, class T>
+            template<bool Fwd, class T>
             void tab_impl(T size)
             {
-                if constexpr (FWD)
+                if constexpr (Fwd)
                 {
                     auto x = std::clamp(coord.x, 0, size ? size - 1 : 0);
                     if (coord.x == x)
@@ -3303,8 +3303,8 @@ namespace netxs::ui
                 assert(test_resize());
             }
             // scroll_buf: Rebuild the next avail indexes from the known index (mapln).
-            template<class ITER, class INDEX_T>
-            void reindex(si32 avail, ITER curit, INDEX_T const& mapln)
+            template<class Iter, class Index>
+            void reindex(si32 avail, Iter curit, Index const& mapln)
             {
                 auto& curln =*curit;
                 auto  width = curln.length();
@@ -3496,7 +3496,7 @@ namespace netxs::ui
                 sync_coord();
             }
             // scroll_buf: Map the current cursor position to the scrollback.
-            template<bool ALLOW_PENDING_WRAP = true>
+            template<bool AllowPendingWrap = true>
             void sync_coord()
             {
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
@@ -3508,7 +3508,7 @@ namespace netxs::ui
                     auto& curln = batch.current();
                     auto  wraps = curln.wrapped();
                     auto  curid = curln.index;
-                    if constexpr (ALLOW_PENDING_WRAP)
+                    if constexpr (AllowPendingWrap)
                     {
                         if (coord.x > panel.x && wraps) coord.x = panel.x;
                     }
@@ -3546,7 +3546,7 @@ namespace netxs::ui
                 }
                 else // Always wraps inside margins.
                 {
-                    if constexpr (ALLOW_PENDING_WRAP)
+                    if constexpr (AllowPendingWrap)
                     {
                         if (coord.x > panel.x) coord.x = panel.x;
                     }
@@ -6451,10 +6451,10 @@ namespace netxs::ui
             auto close_proc = [&]
             {
                 log("term: submit for destruction on next frame/tick");
-                SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
+                SUBMIT_GLOBAL(e2::timer::any, t, oneoff)
                 {
                     auto backup = This();
-                    this->base::riseup<tier::release>(e2::form::quit, backup);
+                    this->RISEUP(tier::release, e2::form::quit, backup);
                     oneoff.reset();
                 };
             };
@@ -6464,7 +6464,7 @@ namespace netxs::ui
                     .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
                     .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                 ondata(error);
-                this->SUBMIT_T(tier::release, hids::events::keybd::any, onerun, gear)
+                this->SUBMIT(tier::release, hids::events::keybd::any, gear, onerun)
                 {
                     if (gear.pressed && gear.cluster.size())
                     {
@@ -6481,7 +6481,7 @@ namespace netxs::ui
                 auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
                     .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
                 ondata(error);
-                SUBMIT_GLOBAL(e2::timer::any, onerun, t)
+                SUBMIT_GLOBAL(e2::timer::any, t, onerun)
                 {
                     start();
                 };
@@ -6976,15 +6976,15 @@ namespace netxs::ui
         {
             static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions.
 
-            ptycon.cleanup();
             onerun.reset();
             if (!ptycon && !oneoff)
             {
-                SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)
+                ptycon.cleanup();
+                SUBMIT_GLOBAL(e2::timer::any, timer, oneoff)
                 {
                     if (unique != timer)
                     {
-                        this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
+                        this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
                         auto initsz = target->panel;
                         ptycon.start(initsz);
                         unique = timer;
@@ -7004,8 +7004,8 @@ namespace netxs::ui
         {
             auto size = winsz.less(dot_11, target->panel, std::max(dot_11, winsz));
             auto warp = rect{ dot_00, size} - rect{ dot_00, target->panel };
-            base::riseup<tier::preview>(e2::form::layout::swarp, warp);
-            base::riseup<tier::preview>(e2::form::prop::window::size, winsz);
+            RISEUP(tier::preview, e2::form::layout::swarp, warp);
+            RISEUP(tier::preview, e2::form::prop::window::size, winsz);
         }
         bool linux_console{};
        ~term(){ active = faux; }
@@ -7049,7 +7049,7 @@ namespace netxs::ui
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 //todo revise, see dtvt
-                this->base::riseup<tier::release>(e2::form::quit, item);
+                this->RISEUP(tier::release, e2::form::quit, item);
             };
             SUBMIT(tier::preview, e2::coor::set, new_coor)
             {
@@ -7074,7 +7074,7 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
-                this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
+                this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
                 if (gear.pressed && config.resetonkey
                 && (gear.cluster.size() || !gear.kbmod()))
@@ -7170,7 +7170,7 @@ namespace netxs::ui
                 auto& console = *target;
                 if (status.update(console))
                 {
-                    this->base::riseup<tier::preview>(e2::form::prop::ui::footer, status.data);
+                    this->RISEUP(tier::preview, e2::form::prop::ui::footer, status.data);
                 }
 
                 auto view = parent_canvas.view();
@@ -7290,7 +7290,7 @@ namespace netxs::ui
                 {
                     auto& gear = *gear_ptr;
                     if (gear.captured(owner.id)) gear.setfree(true);
-                    parent_ptr->riseup<tier::release>(e2::form::maximize, gear);
+                    parent_ptr->RISEUP(tier::release, e2::form::maximize, gear);
                 }
             };
             void handle(s11n::xs::mouse_event         lock)
@@ -7319,7 +7319,7 @@ namespace netxs::ui
             {
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
                 {
-                    owner.base::template riseup<tier::preview>(e2::form::layout::expose, owner);
+                    owner.RISEUP(tier::preview, e2::form::layout::expose, owner);
                 });
             }
             void handle(s11n::xs::set_clipboard       lock)
@@ -7379,7 +7379,7 @@ namespace netxs::ui
                 netxs::events::enqueue(owner.This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
                 {
                     //todo use window_id
-                    owner.base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
+                    owner.RISEUP(tier::preview, e2::form::prop::ui::header, header);
                 });
             }
             void handle(s11n::xs::form_footer         lock)
@@ -7388,7 +7388,7 @@ namespace netxs::ui
                 netxs::events::enqueue(owner.This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
                 {
                     //todo use window_id
-                    owner.base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
+                    owner.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
                 });
             }
             void handle(s11n::xs::warping             lock)
@@ -7397,7 +7397,7 @@ namespace netxs::ui
                 netxs::events::enqueue(owner.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
                 {
                     //todo use window_id
-                    owner.base::riseup<tier::release>(e2::form::layout::swarp, warp);
+                    owner.RISEUP(tier::release, e2::form::layout::swarp, warp);
                 });
             }
             void handle(s11n::xs::vt_command          lock)
@@ -7433,15 +7433,15 @@ namespace netxs::ui
                 : s11n{ *this, owner.id },
                  owner{ owner           }
             {
-                owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::header, token, utf8)
+                owner.SUBMIT(tier::anycast, e2::form::prop::ui::header, utf8, token)
                 {
                     s11n::form_header.send(owner, 0, utf8);
                 };
-                owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::footer, token, utf8)
+                owner.SUBMIT(tier::anycast, e2::form::prop::ui::footer, utf8, token)
                 {
                     s11n::form_footer.send(owner, 0, utf8);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::device::mouse, token, gear)
+                owner.SUBMIT(tier::release, hids::events::device::mouse, gear, token)
                 {
                     if (gear.captured(owner.id))
                     {
@@ -7452,26 +7452,26 @@ namespace netxs::ui
                     s11n::sysmouse.send(owner, gear.m);
                     gear.dismiss();
                 };
-                owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
+                owner.SUBMIT(tier::general, hids::events::die, gear, token)
                 {
                     gear.setfree(true);
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::die;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
+                owner.SUBMIT(tier::general, hids::events::halt, gear, token)
                 {
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::halt;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
+                owner.SUBMIT(tier::release, hids::events::notify::mouse::leave, gear, token)
                 {
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::halt;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
+                owner.SUBMIT(tier::release, hids::events::keybd::any, gear, token)
                 {
                     #if defined(KEYLOG)
                         auto d = std::stringstream{};
@@ -7494,7 +7494,7 @@ namespace netxs::ui
                                                gear.cluster,
                                                gear.winchar);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
+                owner.SUBMIT(tier::release, hids::events::upevent::kboffer, gear, token)
                 {
                     auto focus_state = true;
                     s11n::sysfocus.send(owner, gear.id,
@@ -7502,7 +7502,7 @@ namespace netxs::ui
                                                gear.combine_focus,
                                                gear.force_group_focus);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
+                owner.SUBMIT(tier::release, hids::events::upevent::kbannul, gear, token)
                 {
                     gear.remove_from_kb_focus(owner.This());
                     auto focus_state = faux;
@@ -7511,7 +7511,7 @@ namespace netxs::ui
                                                gear.combine_focus,
                                                gear.force_group_focus);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, gear)
+                owner.SUBMIT(tier::release, hids::events::notify::keybd::lost, gear, token)
                 {
                     auto focus_state = faux;
                     s11n::sysfocus.send(owner, gear.id,
@@ -7519,24 +7519,24 @@ namespace netxs::ui
                                                gear.combine_focus,
                                                gear.force_group_focus);
                 };
-                owner.SUBMIT_T(tier::general, e2::config::fps, token, frame_rate)
+                owner.SUBMIT(tier::general, e2::config::fps, frame_rate, token)
                 {
                     if (frame_rate > 0)
                     {
                         s11n::fps.send(owner, frame_rate);
                     }
                 };
-                owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::slimmenu, token, slim)
+                owner.SUBMIT(tier::anycast, e2::form::prop::ui::slimmenu, slim, token)
                 {
                     s11n::slimmenu.send(owner, slim);
                 };
-                owner.SUBMIT_T(tier::anycast, e2::form::prop::colors::any, token, clr)
+                owner.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr, token)
                 {
                     auto deed = owner.bell::template protos<tier::anycast>();
                          if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(owner, clr);
                     else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(owner, clr);
                 };
-                owner.SUBMIT_T(tier::release, e2::size::any, token, new_size)
+                owner.SUBMIT(tier::release, e2::size::any, new_size, token)
                 {
                     owner.pty_resize(new_size);
                 };
@@ -7576,10 +7576,10 @@ namespace netxs::ui
                 active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
                 else      log("dtvt: exit code 0");
-                SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
+                SUBMIT_GLOBAL(e2::timer::any, t, oneoff)
                 {
                     auto backup = This();
-                    this->base::riseup<tier::release>(e2::form::quit, backup);
+                    this->RISEUP(tier::release, e2::form::quit, backup);
                     oneoff.reset();
                 };
             }
@@ -7603,7 +7603,7 @@ namespace netxs::ui
                     canvas.swap(splash);
                 }
                 auto lock = netxs::events::sync{};
-                this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
+                this->RISEUP(tier::release, e2::config::plugins::sizer::alive, faux);
             }
         }
 
@@ -7620,14 +7620,14 @@ namespace netxs::ui
 
             if (!ptycon && !oneoff)
             {
-                SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)
+                SUBMIT_GLOBAL(e2::timer::any, timer, oneoff)
                 {
                     if (unique != timer)
                     {
                         auto header = e2::form::prop::ui::header.param();
                         auto footer = e2::form::prop::ui::footer.param();
-                        this->riseup<tier::request>(e2::form::prop::ui::header, header);
-                        this->riseup<tier::request>(e2::form::prop::ui::footer, footer);
+                        this->RISEUP(tier::request, e2::form::prop::ui::header, header);
+                        this->RISEUP(tier::request, e2::form::prop::ui::footer, footer);
                         stream.s11n::form_header.send(*this, 0, header);
                         stream.s11n::form_footer.send(*this, 0, footer);
                         procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
@@ -7679,7 +7679,7 @@ namespace netxs::ui
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 if (ptycon) ptycon.stop();
-                else        this->base::riseup<tier::release>(e2::form::quit, item);
+                else        this->RISEUP(tier::release, e2::form::quit, item);
             };
             SUBMIT(tier::general, e2::conio::quit, msg)
             {

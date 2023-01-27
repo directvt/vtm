@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.8q"
+#define DESKTOPIO_VER "v0.9.8r"
 #define DESKTOPIO_MYNAME " vtm: " DESKTOPIO_VER
 #define DESKTOPIO_PREFIX "desktopio_"
 #define DESKTOPIO_LOGGER "_log"
@@ -88,6 +88,11 @@ int main(int argc, char* argv[])
             errmsg = ansi::nil().add("show help message");
             break;
         }
+        else if (getopt.match("-v", "--version"))
+        {
+            log(DESKTOPIO_VER);
+            return 0;
+        }
         else if (getopt.match("--"))
         {
             break;
@@ -117,6 +122,7 @@ int main(int argc, char* argv[])
             + "    -d | --daemon       Run server in background.\n"s
             + "    -s | --server       Run server in interactive mode.\n"s
             + "    -r | --runapp <..>  Run standalone application.\n"s
+            + "    -v | --version      Show version and exit.\n"s
             + "    -? | -h | --help    Show usage message.\n"s
             + "\n"s
             + "  Configuration precedence (descending priority):\n\n"s
@@ -259,8 +265,8 @@ int main(int argc, char* argv[])
                 thread.run([&, stream](auto session_id)
                 {
                     auto tokens = subs{};
-                    SUBMIT_GLOBAL(e2::conio::quit, tokens, utf8) { stream->shut(); };
-                    SUBMIT_GLOBAL(e2::conio::logs, tokens, utf8) { stream->send(utf8); };
+                    SUBMIT_GLOBAL(e2::conio::quit, utf8, tokens) { stream->shut(); };
+                    SUBMIT_GLOBAL(e2::conio::logs, utf8, tokens) { stream->send(utf8); };
                     log("logs: monitor ", stream, " connected");
                     stream->recv();
                     log("logs: monitor ", stream, " disconnected");
