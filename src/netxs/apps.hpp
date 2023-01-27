@@ -29,7 +29,7 @@ namespace netxs::app::shared
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
             auto stobe_state = true;
-            strob->SUBMIT_BYVAL(tier::general, e2::timer::any, now)
+            strob->SUBMIT(tier::general, e2::timer::any, now, 0, (strob_shadow, stobe_state))
             {
                 stobe_state = !stobe_state;
                 if (auto strob = strob_shadow.lock())
@@ -398,22 +398,21 @@ namespace netxs::app::shared
                 ->template plugin<pro::notes>(" About Environment ")
                 ->invoke([&](auto& boss)
                 {
-                    auto shadow = ptr::shadow(boss.This());
+                    //auto shadow = ptr::shadow(boss.This());
                     auto data = utf::divide(param, ";");
                     auto type = text{ data.size() > 0 ? data[0] : view{} };
                     auto name = text{ data.size() > 1 ? data[1] : view{} };
                     auto args = text{ data.size() > 2 ? data[2] : view{} };
-                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear, 0, (type, name, args))
                     {
                         //todo revise/unify
                         auto world_ptr = e2::config::whereami.param();
                         SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-                        if (auto boss = shadow.lock())
                         if (world_ptr)
                         {
                             static auto offset = dot_00;
                             auto viewport = e2::form::prop::viewport.param();
-                            boss->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
                             viewport.coor += gear.area().coor;
                             offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
                             gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
@@ -445,9 +444,9 @@ namespace netxs::app::shared
                             menu_list[name];
 
                             auto current_default = e2::data::changed.param();
-                            boss->RISEUP(tier::request, e2::data::changed, current_default);
+                            boss.RISEUP(tier::request, e2::data::changed, current_default);
 
-                            if (auto gate = boss->parent())
+                            if (auto gate = boss.parent())
                             {
                                 gate->SIGNAL(tier::release, e2::data::changed, name);
                                 world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);

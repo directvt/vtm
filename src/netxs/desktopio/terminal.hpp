@@ -6451,7 +6451,7 @@ namespace netxs::ui
             auto close_proc = [&]
             {
                 log("term: submit for destruction on next frame/tick");
-                SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
+                SUBMIT_GLOBAL(e2::timer::any, t, oneoff)
                 {
                     auto backup = This();
                     this->RISEUP(tier::release, e2::form::quit, backup);
@@ -6481,7 +6481,7 @@ namespace netxs::ui
                 auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
                     .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
                 ondata(error);
-                SUBMIT_GLOBAL(e2::timer::any, onerun, t)
+                SUBMIT_GLOBAL(e2::timer::any, t, onerun)
                 {
                     start();
                 };
@@ -6980,7 +6980,7 @@ namespace netxs::ui
             if (!ptycon && !oneoff)
             {
                 ptycon.cleanup();
-                SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)
+                SUBMIT_GLOBAL(e2::timer::any, timer, oneoff)
                 {
                     if (unique != timer)
                     {
@@ -7576,7 +7576,7 @@ namespace netxs::ui
                 active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
                 else      log("dtvt: exit code 0");
-                SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
+                SUBMIT_GLOBAL(e2::timer::any, t, oneoff)
                 {
                     auto backup = This();
                     this->RISEUP(tier::release, e2::form::quit, backup);
@@ -7620,7 +7620,7 @@ namespace netxs::ui
 
             if (!ptycon && !oneoff)
             {
-                SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)
+                SUBMIT_GLOBAL(e2::timer::any, timer, oneoff)
                 {
                     if (unique != timer)
                     {

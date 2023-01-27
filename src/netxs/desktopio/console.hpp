@@ -1513,7 +1513,7 @@ namespace netxs::ui
 
                 socks()
                 {
-                    SUBMIT_GLOBAL(hids::events::die, token, gear)
+                    SUBMIT_GLOBAL(hids::events::die, gear, token)
                     {
                         del(gear);
                     };
@@ -2083,7 +2083,7 @@ namespace netxs::ui
             void actify(id_t ID, S flow, P proc)
             {
                 auto init = datetime::now();
-                auto handler = [&, ID, proc, flow, init](auto p)
+                boss.SUBMIT(tier::general, e2::timer::any, p, memo[ID], (ID, proc, flow, init))
                 {
                     auto now = datetime::round<si32>(p - init);
                     if (auto data = flow(now))
@@ -2097,7 +2097,6 @@ namespace netxs::ui
                         pacify(ID);
                     }
                 };
-                boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
                 boss.SIGNAL(tier::release, e2::form::animate::start, ID);
             }
             // pro::robot: Optional proceed every timer tick,
@@ -2160,7 +2159,7 @@ namespace netxs::ui
             void actify(id_t ID, span timeout, P lambda)
             {
                 auto alarm = datetime::now() + timeout;
-                auto handler = [&, ID, timeout, lambda, alarm](auto now) mutable
+                boss.SUBMIT(tier::general, e2::timer::any, now, memo[ID], (ID, timeout, lambda, alarm))
                 {
                     if (now > alarm)
                     {
@@ -2168,7 +2167,6 @@ namespace netxs::ui
                         if (!lambda(ID)) pacify(ID);
                     }
                 };
-                boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
             }
             // pro::timer: Start countdown.
             template<class P>

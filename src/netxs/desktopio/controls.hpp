@@ -167,7 +167,7 @@ namespace netxs::ui
             auto item_shadow = ptr::shadow(new_item);
             auto data_shadow = ptr::shadow(data_src_sptr);
             auto boss_shadow = ptr::shadow(backup);
-            data_src_sptr->SUBMIT_BYVAL(tier::release, Property{}, arg_new_value, memomap[data_src_sptr->id])
+            data_src_sptr->SUBMIT(tier::release, Property{}, arg_new_value, memomap[data_src_sptr->id], (boss_shadow, data_shadow, item_shadow))
             {
                 if (auto boss_ptr = boss_shadow.lock())
                 if (auto data_src = data_shadow.lock())
@@ -196,7 +196,7 @@ namespace netxs::ui
         template<class BackendProp, class P>
         void publish_property(BackendProp, P setter)
         {
-            SUBMIT_BYVAL(tier::request, BackendProp{}, property_value)
+            SUBMIT(tier::request, BackendProp{}, property_value, 0, (setter))
             {
                 setter(property_value);
             };
