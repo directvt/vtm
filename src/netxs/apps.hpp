@@ -398,7 +398,6 @@ namespace netxs::app::shared
                 ->template plugin<pro::notes>(" About Environment ")
                 ->invoke([&](auto& boss)
                 {
-                    //auto shadow = ptr::shadow(boss.This());
                     auto data = utf::divide(param, ";");
                     auto type = text{ data.size() > 0 ? data[0] : view{} };
                     auto name = text{ data.size() > 1 ? data[1] : view{} };
