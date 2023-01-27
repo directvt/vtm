@@ -514,8 +514,8 @@ namespace netxs::os
             }
         };
 
-        template<class SIZE_T>
-        auto recv(fd_t fd, char* buff, SIZE_T size)
+        template<class Size_t>
+        auto recv(fd_t fd, char* buff, Size_t size)
         {
             #if defined(_WIN32)
 
@@ -536,8 +536,8 @@ namespace netxs::os
             return count > 0 ? qiew{ buff, count }
                              : qiew{}; // An empty result is always an error condition.
         }
-        template<bool IS_TTY = true, class SIZE_T>
-        auto send(fd_t fd, char const* buff, SIZE_T size)
+        template<bool IsTTY = true, class Size_t>
+        auto send(fd_t fd, char const* buff, Size_t size)
         {
             while (size)
             {
@@ -559,8 +559,8 @@ namespace netxs::os
                         #define NO_SIGSEND MSG_NOSIGNAL
                     #endif
 
-                    auto count = IS_TTY ? ::write(fd, buff, size)              // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
-                                        : ::send (fd, buff, size, NO_SIGSEND); // ::send() does not work with ::open_pty() and ::pipe() (Errno 88 - it is not a socket)
+                    auto count = IsTTY ? ::write(fd, buff, size)              // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
+                                       : ::send (fd, buff, size, NO_SIGSEND); // ::send() does not work with ::open_pty() and ::pipe() (Errno 88 - it is not a socket)
 
                     #undef NO_SIGSEND
                     //  send(2) does not work with file descriptors, only sockets.
@@ -581,7 +581,7 @@ namespace netxs::os
                     else
                     {
                         //todo stackoverflow in dtvt mode
-                        //log("send: aborted write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                        //log("send: aborted write to socket=", fd, " count=", count, " size=", size, " IsTTY=", IsTTY ?"true":"faux");
                         return faux;
                     }
                 }
@@ -589,15 +589,15 @@ namespace netxs::os
             }
             return faux;
         }
-        template<bool IS_TTY = true, class T, class SIZE_T>
-        auto send(fd_t fd, T* buff, SIZE_T size)
+        template<bool IsTTY = true, class T, class Size_t>
+        auto send(fd_t fd, T* buff, Size_t size)
         {
-            return io::send<IS_TTY, SIZE_T>(fd, (char const*)buff, size);
+            return io::send<IsTTY, Size_t>(fd, (char const*)buff, size);
         }
-        template<bool IS_TTY = true>
+        template<bool IsTTY = true>
         auto send(fd_t fd, view buff)
         {
-            return io::send<IS_TTY>(fd, buff.data(), buff.size());
+            return io::send<IsTTY>(fd, buff.data(), buff.size());
         }
         auto send(view buff)
         {
@@ -623,11 +623,11 @@ namespace netxs::os
                 {
                     return std::array{ a[I]..., h };
                 }
-                template<std::size_t N, class P, class IDX = std::make_index_sequence<N>, class ...Args>
+                template<std::size_t N, class P, class Index = std::make_index_sequence<N>, class ...Args>
                 constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
                 {   // Clang 11.0.1 don't allow sizeof...(args) as bool
-                    if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, IDX{}), std::forward<Args>(args)...);
-                    else                             return _repack(h, a, IDX{});
+                    if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, Index{}), std::forward<Args>(args)...);
+                    else                             return _repack(h, a, Index{});
                 }
                 template<class P, class ...Args>
                 constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
@@ -680,12 +680,12 @@ namespace netxs::os
 
             #endif
         }
-        template<bool NONBLOCKED = faux, class ...Args>
+        template<bool NonBlocked = faux, class ...Args>
         void select(Args&&... args)
         {
             #if defined(_WIN32)
 
-                static constexpr auto timeout = NONBLOCKED ? 0 /*milliseconds*/ : INFINITE;
+                static constexpr auto timeout = NonBlocked ? 0 /*milliseconds*/ : INFINITE;
                 auto socks = _fd_set(std::forward<Args>(args)...);
 
                 // Note: ::WaitForMultipleObjects() does not work with pipes (DirectVT).
@@ -696,7 +696,7 @@ namespace netxs::os
             #else
 
                 auto timeval = ::timeval{ .tv_sec = 0, .tv_usec = 0 };
-                auto timeout = NONBLOCKED ? &timeval/*returns immediately*/ : nullptr;
+                auto timeout = NonBlocked ? &timeval/*returns immediately*/ : nullptr;
                 auto socks = fd_set{};
                 FD_ZERO(&socks);
 
@@ -1494,7 +1494,7 @@ namespace netxs::os
                     // Note: .r == .w, it is a full duplex socket handle on POSIX.
                 #endif
             }
-            template<role ROLE, bool Log = true, class P = noop>
+            template<role Role, bool Log = true, class P = noop>
             static auto open(text path, span retry_timeout = {}, P retry_proc = P())
             {
                 auto r = INVALID_FD;
@@ -1532,7 +1532,7 @@ namespace netxs::os
                     auto to_server = RD_PIPE_PATH + path;
                     auto to_client = WR_PIPE_PATH + path;
 
-                    if constexpr (ROLE == role::server)
+                    if constexpr (Role == role::server)
                     {
                         auto test = [](text const& path, text prefix = "\\\\.\\pipe\\")
                         {
@@ -1602,7 +1602,7 @@ namespace netxs::os
                             }
                         }
                     }
-                    else if constexpr (ROLE == role::client)
+                    else if constexpr (Role == role::client)
                     {
                         auto pipe = [](auto const& path, auto type)
                         {
@@ -1681,7 +1681,7 @@ namespace netxs::os
                             return -1 != ::connect(r, (struct sockaddr*)&addr, sock_addr_len);
                         };
 
-                        if constexpr (ROLE == role::server)
+                        if constexpr (Role == role::server)
                         {
                             #if defined(__BSD__)
                                 if (fs::exists(path))
@@ -1710,7 +1710,7 @@ namespace netxs::os
                                 io::close(r);
                             }
                         }
-                        else if constexpr (ROLE == role::client)
+                        else if constexpr (Role == role::client)
                         {
                             path.clear(); // No need to unlink a file system socket on client disconnect.
                             if (!try_start(play, retry_proc))
@@ -1890,8 +1890,8 @@ namespace netxs::os
             }
 
         public:
-            template<class PROC>
-            void run(PROC process)
+            template<class Proc>
+            void run(Proc process)
             {
                 auto guard = std::lock_guard{ mutex };
                 auto next_id = count++;

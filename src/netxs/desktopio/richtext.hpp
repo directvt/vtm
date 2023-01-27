@@ -80,9 +80,9 @@ namespace netxs::ui
         static void exec_zz(flow& f, si32 a) { f.zz( ); }
 
         // flow: Draw commands (customizable).
-        template<ansi::fn CMD>
-        static void exec_dc(flow& f, si32 a) { if (f.custom) f.custom(CMD, a); }
-        //static void exec_dc(flow& f, si32 a) { f.custom(CMD, a); }
+        template<ansi::fn Cmd>
+        static void exec_dc(flow& f, si32 a) { if (f.custom) f.custom(Cmd, a); }
+        //static void exec_dc(flow& f, si32 a) { f.custom(Cmd, a); }
 
         // flow: Abstract handler
         //       ansi::fn::ed
@@ -111,19 +111,19 @@ namespace netxs::ui
         };
 
         // flow: Main cursor forwarding proc.
-        template<bool SPLIT, bool WRAP, bool RtoL, bool ReLF, class T, class P>
+        template<bool Split, bool Wrap, bool RtoL, bool ReLF, class T, class P>
         void output(T const& block, P print)
         {
             textline.coor = caretpos;
 
             auto printout = rect{};
             auto outwidth = si32{};
-            if constexpr (WRAP)
+            if constexpr (Wrap)
             {
                 printout = textline.trunc(viewrect.size);
                 outwidth = printout.coor.x + printout.size.x - textline.coor.x;
 
-                if constexpr (!SPLIT)
+                if constexpr (!Split)
                 if (printout.size.x > 1)
                 {
                     auto p = curpoint + printout.size.x - 1;
@@ -158,7 +158,7 @@ namespace netxs::ui
             if constexpr (!std::is_same_v<P, noop>)
             {
                 //todo margins don't apply to unwrapped text
-                //auto imprint = WRAP ? printout
+                //auto imprint = Wrap ? printout
                 //                    : viewrect.clip(printout);
                 if (printout)
                 {
@@ -175,7 +175,7 @@ namespace netxs::ui
         auto middle() { return (viewrect.size.x >> 1) - (textline.size.x >> 1); }
         void autocr() { if (caretpos.x >= caret_mx) flow::nl(highness); }
 
-        template<bool SPLIT, bool RtoL, bool ReLF, class T, class P>
+        template<bool Split, bool RtoL, bool ReLF, class T, class P>
         void centred(T const& block, P print)
         {
             while (textline.size.x > 0)
@@ -184,33 +184,33 @@ namespace netxs::ui
                 auto axis = textline.size.x >= caret_mx ? 0
                                                         : middle();
                 flow::ax(axis);
-                output<SPLIT, true, RtoL, ReLF>(block, print);
+                output<Split, true, RtoL, ReLF>(block, print);
             }
         }
-        template<bool SPLIT, bool RtoL, bool ReLF, class T, class P>
+        template<bool Split, bool RtoL, bool ReLF, class T, class P>
         void wrapped(T const& block, P print)
         {
             while (textline.size.x > 0)
             {
                 autocr();
-                output<SPLIT, true, RtoL, ReLF>(block, print);
+                output<Split, true, RtoL, ReLF>(block, print);
             }
         }
-        template<bool SPLIT, bool RtoL, bool ReLF, class T, class P>
+        template<bool Split, bool RtoL, bool ReLF, class T, class P>
         void trimmed(T const& block, P print)
         {
             if (textline.size.x > 0)
             {
                 if (centered) flow::ax(middle());
-                output<SPLIT, faux, RtoL, ReLF>(block, print);
+                output<Split, faux, RtoL, ReLF>(block, print);
             }
         }
-        template<bool SPLIT, bool RtoL, bool ReLF, class T, class P>
+        template<bool Split, bool RtoL, bool ReLF, class T, class P>
         void proceed(T const& block, P print)
         {
-            if (iswrapln) if (centered) centred<SPLIT, RtoL, ReLF>(block, print);
-                          else          wrapped<SPLIT, RtoL, ReLF>(block, print);
-            else                        trimmed<SPLIT, RtoL, ReLF>(block, print);
+            if (iswrapln) if (centered) centred<Split, RtoL, ReLF>(block, print);
+                          else          wrapped<Split, RtoL, ReLF>(block, print);
+            else                        trimmed<Split, RtoL, ReLF>(block, print);
         }
 
         std::function<void(ansi::fn cmd, si32 arg)> custom; // flow: Draw commands (customizable).
@@ -237,7 +237,7 @@ namespace netxs::ui
 
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
-        template<bool SPLIT, class T, class P = noop>
+        template<bool Split, class T, class P = noop>
         void compose(T const& block, P print = P())
         {
             combine(runstyle, block.style);
@@ -262,13 +262,13 @@ namespace netxs::ui
 
                 if (arighted)
                 {
-                    if (isrlfeed) proceed<SPLIT, true, true>(block, print);
-                    else          proceed<SPLIT, true, faux>(block, print);
+                    if (isrlfeed) proceed<Split, true, true>(block, print);
+                    else          proceed<Split, true, faux>(block, print);
                 }
                 else
                 {
-                    if (isrlfeed) proceed<SPLIT, faux, true>(block, print);
-                    else          proceed<SPLIT, faux, faux>(block, print);
+                    if (isrlfeed) proceed<Split, faux, true>(block, print);
+                    else          proceed<Split, faux, faux>(block, print);
                 }
             }
         }
@@ -283,37 +283,37 @@ namespace netxs::ui
             }
             return flow::up();
         }
-        template<bool SPLIT = true, class T>
+        template<bool Split = true, class T>
         void go(T const& block)
         {
-            compose<SPLIT>(block);
+            compose<Split>(block);
         }
-        template<bool SPLIT = true, class T, class P = noop>
+        template<bool Split = true, class T, class P = noop>
         void go(T const& block, core& canvas, P printfx = P())
         {
-            compose<SPLIT>(block, [&](auto const& coord, auto const& subblock, auto isr_to_l)
+            compose<Split>(block, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                                   {
                                       canvas.text(coord, subblock, isr_to_l, printfx);
                                   });
         }
-        template<bool USE_LOCUS = true, class T, class P = noop>
+        template<bool UseLocus = true, class T, class P = noop>
         auto print(T const& block, core& canvas, P printfx = P())
         {
             auto coor = std::invoke_result_t<decltype(&flow::cp), flow>{};
 
-            if constexpr (USE_LOCUS) coor = forward(block);
-            else                     coor = flow::cp();
+            if constexpr (UseLocus) coor = forward(block);
+            else                    coor = flow::cp();
 
             go<faux>(block, canvas, printfx);
             return coor;
         }
-        template<bool USE_LOCUS = true, class T>
+        template<bool UseLocus = true, class T>
         auto print(T const& block)
         {
             auto coor = std::invoke_result_t<decltype(&flow::cp), flow>{};
 
-            if constexpr (USE_LOCUS) coor = forward(block);
-            else                     coor = flow::cp();
+            if constexpr (UseLocus) coor = forward(block);
+            else                    coor = flow::cp();
 
             go<faux>(block);
             return coor;
@@ -530,12 +530,12 @@ namespace netxs::ui
             if (max_size && max_size < new_size) new_size = max_size;
             if (new_size != length()) crop(new_size);
         }
-        template<bool AUTOGROW = faux>
+        template<bool AutoGrow = faux>
         void splice(si32 at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = length();
-            if constexpr (AUTOGROW)
+            if constexpr (AutoGrow)
             {
                 resize(at + count);
             }
@@ -560,8 +560,8 @@ namespace netxs::ui
             auto src = fragment.data();
             while (dst != end) fuse(*dst++, *src++);
         }
-        template<bool Copy = faux, class SRC_IT, class DST_IT, class Shader>
-        static void forward_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail, Shader fuse)
+        template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
+        static void forward_fill_proc(SrcIt data, DstIt dest, DstIt tail, Shader fuse)
         {
             if constexpr (Copy)
             {
@@ -616,8 +616,8 @@ namespace netxs::ui
                 else if (w >  2) fuse(*dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
             }
         }
-        template<bool Copy = faux, class SRC_IT, class DST_IT, class Shader>
-        static void unlimit_fill_proc(SRC_IT data, si32 size, DST_IT dest, DST_IT tail, si32 back, Shader fuse)
+        template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
+        static void unlimit_fill_proc(SrcIt data, si32 size, DstIt dest, DstIt tail, si32 back, Shader fuse)
         {
             if constexpr (Copy)
             {
@@ -669,8 +669,8 @@ namespace netxs::ui
                 }
             }
         }
-        template<bool Copy = faux, class SRC_IT, class DST_IT, class Shader>
-        static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail, Shader fuse)
+        template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
+        static void reverse_fill_proc(SrcIt data, DstIt dest, DstIt tail, Shader fuse)
         {
             if constexpr (Copy)
             {
@@ -1595,10 +1595,10 @@ namespace netxs::ui
             stream(publish);
         }
         // page: Split the text run.
-        template<bool FLUSH = true>
+        template<bool Flush = true>
         void fork()
         {
-            if constexpr (FLUSH) parser::flush();
+            if constexpr (Flush) parser::flush();
             layer = batch.insert(std::next(layer), std::make_shared<para>(parser::style));
             (**layer).id(++index);
             shrink();
@@ -1707,13 +1707,13 @@ namespace netxs::ui
                 data += tag2;
                 data += istr;
             }
-            template<svga VGAMODE = svga::truecolor>
+            template<svga Mode = svga::truecolor>
             auto fgc(rgba const& c)
             {
                 base.inv() ? clr(c, bg_1, bg_2)
                            : clr(c, fg_1, fg_2);
             }
-            template<svga VGAMODE = svga::truecolor>
+            template<svga Mode = svga::truecolor>
             auto bgc(rgba const& c)
             {
                 base.inv() ? clr(c, fg_1, fg_2)
@@ -1869,9 +1869,9 @@ namespace netxs::ui
                     }
                 }
             }
-            template<svga VGAMODE>
+            template<svga Mode>
             auto fgc(rgba const&) { }
-            template<svga VGAMODE>
+            template<svga Mode>
             auto bgc(rgba const&) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
@@ -1944,9 +1944,9 @@ namespace netxs::ui
             {
                 data += utf8;
             }
-            template<svga VGAMODE>
+            template<svga Mode>
             auto fgc(rgba const&) { }
-            template<svga VGAMODE>
+            template<svga Mode>
             auto bgc(rgba const&) { }
             auto bld(bool ) { }
             auto itc(bool ) { }

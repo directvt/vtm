@@ -22,27 +22,27 @@
 namespace netxs::generics
 {
     // generics: .
-    template<class ITEM>
+    template<class Item>
     class fifo
     {
-        ITEM * peak;
-        ITEM * tail;
-        ITEM * item;
+        Item * peak;
+        Item * tail;
+        Item * item;
         size_t size;
-        ITEM   zero;
+        Item   zero;
 
         // The second to last bit in the arg to mark the arg as a subparameter
         // In section 4.3.3.2 of EK-VT520-RM:
         //    “any parameter greater than 9 999 (decimal) is set to 9 999 (decimal)”.
         // In the DECSR (Secure Reset) - from 0 to 16 383 (decimal).
-        // Our maximum for ITEM=int32_t is +/- 1 073 741 823 (wo two last bits)
-        static constexpr auto subbit = unsigned{ 1 << (std::numeric_limits<ITEM>::digits - 2) };
-        static constexpr auto sigbit = unsigned{ 1 << (std::numeric_limits<ITEM>::digits - 1) };
+        // Our maximum for Item=int32_t is +/- 1 073 741 823 (wo two last bits)
+        static constexpr auto subbit = unsigned{ 1 << (std::numeric_limits<Item>::digits - 2) };
+        static constexpr auto sigbit = unsigned{ 1 << (std::numeric_limits<Item>::digits - 1) };
 
     public:
-        static inline bool issub(ITEM const& value) { return (value & subbit) != (value & sigbit) >> 1; }
-        static inline auto desub(ITEM const& value) { return static_cast<ITEM>((value & ~subbit) | (value & sigbit) >> 1); }
-        static inline auto insub(ITEM const& value) { return static_cast<ITEM>((value & ~subbit) | ((value & sigbit) ^ sigbit) >> 1); }
+        static inline bool issub(Item const& value) { return (value & subbit) != (value & sigbit) >> 1; }
+        static inline auto desub(Item const& value) { return static_cast<Item>((value & ~subbit) | (value & sigbit) >> 1); }
+        static inline auto insub(Item const& value) { return static_cast<Item>((value & ~subbit) | ((value & sigbit) ^ sigbit) >> 1); }
 
         static auto& fake() { static fifo empty; return empty; }
 
@@ -56,22 +56,22 @@ namespace netxs::generics
         { }
 
         constexpr
-        fifo( ITEM* data,  size_t SIZE)
-            : peak{ data + SIZE},
+        fifo( Item* data,  size_t size)
+            : peak{ data + size},
               tail{ data },
               item{ data },
               size{ 0    },
               zero{      }
         { }
 
-        template<bool ISSUB = !true>
+        template<bool IsSub = !true>
         constexpr
-        void push(ITEM value)
+        void push(Item value)
         {
             if (tail != peak)
             {
                 size++;
-                *tail++ = ISSUB ? insub(value)
+                *tail++ = IsSub ? insub(value)
                                 : value;
             }
         }
@@ -93,9 +93,9 @@ namespace netxs::generics
         }
         constexpr size_t   length ()    const             { return size;                }
         constexpr operator bool   ()    const             { return size;                }
-        constexpr ITEM     front  (ITEM const& dflt = {}) { return size ? *item : dflt; }
+        constexpr Item     front  (Item const& dflt = {}) { return size ? *item : dflt; }
         constexpr
-        ITEM operator () (ITEM const& dflt = {})
+        Item operator () (Item const& dflt = {})
         {
             if (size)
             {
@@ -107,12 +107,12 @@ namespace netxs::generics
             else return dflt;
         }
         constexpr
-        void settop(ITEM value)
+        void settop(Item value)
         {
             if (size) *item = value;
         }
         constexpr
-        ITEM rawarg(ITEM const& dflt = {})
+        Item rawarg(Item const& dflt = {})
         {
             if (size)
             {
@@ -123,7 +123,7 @@ namespace netxs::generics
             else return dflt;
         }
         constexpr
-        ITEM subarg(ITEM const& dflt = {})
+        Item subarg(Item const& dflt = {})
         {
             if (size)
             {
@@ -141,23 +141,23 @@ namespace netxs::generics
     };
 
     // generics: .
-    template<class ITEM, size_t SIZE>
+    template<class Item, size_t Size>
     class bank
-        : public fifo<ITEM>
+        : public fifo<Item>
     {
-        using fifo = netxs::generics::fifo<ITEM>;
+        using fifo = netxs::generics::fifo<Item>;
 
-        ITEM data[SIZE];
+        Item data[Size];
 
     public:
         constexpr
         bank()
-            : fifo(data, SIZE)
+            : fifo(data, Size)
         { }
 
         constexpr
-        bank(ITEM value)
-            : fifo(data, SIZE)
+        bank(Item value)
+            : fifo(data, Size)
         {
             fifo::push(value);
         }
@@ -171,7 +171,7 @@ namespace netxs::generics
     };
 
     // generics: .
-    template <class T>
+    template<class T>
     class mt_queue
     {
         std::mutex              d_mutex;
@@ -306,7 +306,7 @@ namespace netxs::generics
     };
 
     // generics: .
-    template<class vect, bool USE_UNDOCK = faux>
+    template<class vect, bool UseUndock = faux>
     struct ring
     {
         using type = typename vect::value_type;
@@ -327,19 +327,19 @@ namespace netxs::generics
         auto dst(si32  a, si32 b) const
                                 { return b < a ? b - a + peak
                                                : b - a;           }
-        template<class RING>
+        template<class Ring>
         struct iter
         {
-            RING& buff;
+            Ring& buff;
             si32  addr;
-            iter(RING& buff, si32 addr)
+            iter(Ring& buff, si32 addr)
               : buff{ buff },
                 addr{ addr }
             { }
-            auto  operator -  (si32 n)        const {      return iter<RING>{ buff, buff.mod(addr - n) };                 }
-            auto  operator +  (si32 n)        const {      return iter<RING>{ buff, buff.mod(addr + n) };                 }
-            auto  operator ++ (int)                 { auto temp = iter<RING>{ buff, addr }; buff.inc(addr); return temp;  }
-            auto  operator -- (int)                 { auto temp = iter<RING>{ buff, addr }; buff.dec(addr); return temp;  }
+            auto  operator -  (si32 n)        const {      return iter<Ring>{ buff, buff.mod(addr - n) };                 }
+            auto  operator +  (si32 n)        const {      return iter<Ring>{ buff, buff.mod(addr + n) };                 }
+            auto  operator ++ (int)                 { auto temp = iter<Ring>{ buff, addr }; buff.inc(addr); return temp;  }
+            auto  operator -- (int)                 { auto temp = iter<Ring>{ buff, addr }; buff.dec(addr); return temp;  }
             auto& operator ++ ()                    {                                       buff.inc(addr); return *this; }
             auto& operator -- ()                    {                                       buff.dec(addr); return *this; }
             auto& operator *  ()                    { return buff.buff[addr];                                             }
@@ -399,14 +399,14 @@ namespace netxs::generics
             }
             return faux;
         }
-        template<bool USE_BACK = faux>
+        template<bool UseBack = faux>
         inline void undock_front()
         {
             auto& item = front();
-            if constexpr (USE_UNDOCK)
+            if constexpr (UseUndock)
             {
-                if constexpr (USE_BACK) undock_base_back (item);
-                else                    undock_base_front(item);
+                if constexpr (UseBack) undock_base_back (item);
+                else                   undock_base_front(item);
             }
             item = type{};
             if (cart == head) inc(head), cart = head;
@@ -415,7 +415,7 @@ namespace netxs::generics
         inline void undock_back()
         {
             auto& item = back();
-            if constexpr (USE_UNDOCK) undock_base_back(item);
+            if constexpr (UseUndock) undock_base_back(item);
             item = type{};
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
@@ -444,7 +444,7 @@ namespace netxs::generics
                 if (full())
                 {
                     auto& item = front();
-                    if constexpr (USE_UNDOCK) undock_base_front(item);
+                    if constexpr (UseUndock) undock_base_front(item);
                     item = type(std::forward<Args>(args)...);
                     ++it_1;
                 }
@@ -468,7 +468,7 @@ namespace netxs::generics
                 if (full())
                 {
                     auto& item = front();
-                    if constexpr (USE_UNDOCK) undock_base_front(item);
+                    if constexpr (UseUndock) undock_base_front(item);
                     item = type{};
                     if (cart == head) inc(head), cart = head;
                     else              inc(head);
@@ -503,9 +503,9 @@ namespace netxs::generics
             item = type(std::forward<Args>(args)...);
             return item;
         }
-        template<bool USE_BACK = faux>
-        void pop_front() { undock_front<USE_BACK>(); --size; }
-        void pop_back () { undock_back();            --size; }
+        template<bool UseBack = faux>
+        void pop_front() { undock_front<UseBack>(); --size; }
+        void pop_back () { undock_back();           --size; }
         // ring: Insert an item before the specified position. Pop front when full. Return an iterator pointing to the new item.
         template<class ...Args>
         auto insert(si32 at, Args&&... args) // Pop front always if ring is full.
@@ -543,8 +543,8 @@ namespace netxs::generics
                 auto tail = begin() - 1;
                 auto head = tail + top_block;
                 netxs::swap_block<faux>(head, tail, head + n);
-                static constexpr auto USE_BACK = true;
-                while (n-- > 0) pop_front<USE_BACK>();
+                static constexpr auto UseBack = true;
+                while (n-- > 0) pop_front<UseBack>();
             }
             else
             {
@@ -558,25 +558,25 @@ namespace netxs::generics
         }
         void clear()
         {
-            if constexpr (USE_UNDOCK) while (size) pop_back(); //todo undock?
-            else                      size = 0;
+            if constexpr (UseUndock) while (size) pop_back(); //todo undock?
+            else                     size = 0;
             cart = 0;
             head = 0;
             tail = peak - 1;
         }
-        template<bool BOTTOM_ANCHORED = true>
+        template<bool BottomAnchored = true>
         void resize(si32 new_size, si32 grow_by = 0)
         {
             if (new_size > 0)
             {
-                if constexpr (BOTTOM_ANCHORED)
+                if constexpr (BottomAnchored)
                 {
                     if (size > new_size)
                     {
-                        //todo optimize for !USE_UNDOCK
+                        //todo optimize for !UseUndock
                         do
                         {
-                            if constexpr (USE_UNDOCK) undock_base_front(front());
+                            if constexpr (UseUndock) undock_base_front(front());
                             inc(head);
                         }
                         while (--size != new_size);
@@ -587,10 +587,10 @@ namespace netxs::generics
                 {
                     if (size > new_size)
                     {
-                        //todo optimize for !USE_UNDOCK
+                        //todo optimize for !UseUndock
                         do
                         {
-                            if constexpr (USE_UNDOCK) undock_base_back(back());
+                            if constexpr (UseUndock) undock_base_back(back());
                             dec(tail);
                         }
                         while (--size != new_size);
@@ -633,12 +633,12 @@ namespace netxs::generics
     };
 
     // generics: .
-    template<class IN, class OUT, class FUNC = void (*)(IN&, OUT&)>
+    template<class In, class Out, class Func = void (*)(In&, Out&)>
     struct tree
-        : public std::vector<tree<IN, OUT, FUNC>>
+        : public std::vector<tree<In, Out, Func>>
     {
         using bulk = std::vector<tree>;
-        using hndl = FUNC;
+        using hndl = Func;
 
         hndl proc = nullptr;
         bool sure = faux;
@@ -658,17 +658,17 @@ namespace netxs::generics
             bulk::resize(newsize);
             return *this;
         }
-        template<bool NOMULTIARG = faux>
+        template<bool NoMultiArg = faux>
         void enable_multi_arg()
         {
-            for (auto& rec : *this) rec.stop = NOMULTIARG;
+            for (auto& rec : *this) rec.stop = NoMultiArg;
         }
         operator bool () const
         {
             return sure;
         }
 
-        void execute(IN& queue, OUT& story) const
+        void execute(In& queue, Out& story) const
         {
             auto last = this;
             while (queue)
@@ -700,7 +700,7 @@ namespace netxs::generics
             }
         }
 
-        void execute(size_t firstcmd, IN& queue, OUT& story) const
+        void execute(size_t firstcmd, In& queue, Out& story) const
         {
             auto last = this;
             if (auto const& next = last->at(firstcmd))
@@ -743,9 +743,9 @@ namespace netxs::generics
             }
         }
         // Exec without parameters.
-        void execute(size_t alonecmd, OUT& story) const
+        void execute(size_t alonecmd, Out& story) const
         {
-            auto& queue = IN::fake();
+            auto& queue = In::fake();
             if (alonecmd >= 0 && alonecmd < this->size())
             {
                 if (auto const& next = this->at(alonecmd))
@@ -770,12 +770,12 @@ namespace netxs::generics
     };
 
     // generics: Map that keeps the insertion order.
-    template<class KEY, class VAL>
+    template<class Key, class Val>
     class imap
     {
-        std::unordered_map<KEY, VAL> storage{};
-        std::unordered_map<KEY, int> reverse{};
-        std::map          <int, KEY> forward{};
+        std::unordered_map<Key, Val> storage{};
+        std::unordered_map<Key, int> reverse{};
+        std::map          <int, Key> forward{};
         int                          counter{};
 
         template<class IMAP>
@@ -857,7 +857,7 @@ namespace netxs::generics
 
         imap()
         { }
-        imap(std::initializer_list<std::pair<KEY, VAL>> list)
+        imap(std::initializer_list<std::pair<Key, Val>> list)
         {
             for (auto& [key, val] : list) at(key) = val;
         }
@@ -867,7 +867,7 @@ namespace netxs::generics
 // generics: Map helpers.
 namespace netxs
 {
-    template <class M, class K>
+    template<class M, class K>
     bool on_key(M const& map, K const& key)
     {
         const auto it = map.find(key);
@@ -875,8 +875,8 @@ namespace netxs
     }
 
     // do it in place
-    //template <class M, class K>
-    //auto	on_key_get(const M& map, const K& key)
+    //template<class M, class K>
+    //auto on_key_get(const M& map, const K& key)
     //{
     //	const auto it = map.find(key);
     //	return it == map.end() ? std::nullopt

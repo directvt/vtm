@@ -183,8 +183,8 @@ namespace netxs
         twod coor;
         twod size;
 
-        // rect: Intersect two rects. If NESTED==true when use dot_00 as a base corner.
-        template<bool NESTED = faux>
+        // rect: Intersect two rects. If Nested==true when use dot_00 as a base corner.
+        template<bool Nested = faux>
         constexpr
         rect clip(rect block) const
         {
@@ -195,7 +195,7 @@ namespace netxs
                 block.size = std::clamp(block_apex, base, apex) - block.coor;
             };
 
-            if constexpr (NESTED) clamp(dot_00, size       );
+            if constexpr (Nested) clamp(dot_00, size       );
             else                  clamp(coor  , coor + size);
 
             return block;
@@ -490,14 +490,14 @@ namespace netxs
     // geometry: Padding, space around an element's content.
     struct dent
     {
-        template<auto just>
+        template<auto Just>
         struct edge
         {
             si32 step = 0;
             bool operator == (edge const&) const = default;
             constexpr inline auto get(si32 size) const
             {
-                if constexpr (just) return step;
+                if constexpr (Just) return step;
                 else                return size - step;
             }
         };

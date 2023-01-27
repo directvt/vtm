@@ -747,11 +747,11 @@ namespace netxs::ui
             flow::go(block, *this, printfx);
         }
         // face: Print something else.
-        template<bool USE_FWD = faux, class T, class P = noop>
+        template<bool UseFWD = faux, class T, class P = noop>
         void output(T const& block, P printfx = P())
         {
             //todo unify
-            flow::print<USE_FWD>(block, *this, printfx);
+            flow::print<UseFWD>(block, *this, printfx);
         }
         // face: Print paragraph.
         void output(para const& block)
@@ -924,16 +924,16 @@ namespace netxs::ui
         {
             return core::size();
         }
-        template<bool BOTTOM_ANCHORED = faux>
+        template<bool BottomAnchored = faux>
         void crop(twod const& newsize, cell const& c) // face: Resize while saving the bitmap.
         {
-            core::crop<BOTTOM_ANCHORED>(newsize, c);
+            core::crop<BottomAnchored>(newsize, c);
             flow::size(newsize);
         }
-        template<bool BOTTOM_ANCHORED = faux>
+        template<bool BottomAnchored = faux>
         void crop(twod const& newsize) // face: Resize while saving the bitmap.
         {
-            core::crop<BOTTOM_ANCHORED>(newsize, core::mark());
+            core::crop<BottomAnchored>(newsize, core::mark());
             flow::size(newsize);
         }
         template<class P = noop>
@@ -964,18 +964,18 @@ namespace netxs::ui
                                              d_width, s_point,
                                                       d_point, shade);
         }
-        // face: Render nested object to the canvas using renderproc. TRIM = trim viewport to the client area.
-        template<bool TRIM = true, class T>
+        // face: Render nested object to the canvas using renderproc. Trim = trim viewport to the client area.
+        template<bool Trim = true, class T>
         void render(sptr<T> nested_ptr, twod const& basis = {})
         {
             if (nested_ptr)
             {
                 auto& nested = *nested_ptr;
-                face::render<TRIM>(nested, basis);
+                face::render<Trim>(nested, basis);
             }
         }
-        // face: Render nested object to the canvas using renderproc. TRIM = trim viewport to the client area.
-        template<bool TRIM = true, class T>
+        // face: Render nested object to the canvas using renderproc. Trim = trim viewport to the client area.
+        template<bool Trim = true, class T>
         void render(T& nested, twod const& offset_coor)
         {
             auto canvas_view = core::view();
@@ -986,23 +986,23 @@ namespace netxs::ui
 
             auto nested_view = canvas_view.clip(object_area);
             //todo revise: why whole canvas is not used
-            if (TRIM ? nested_view : canvas_view)
+            if (Trim ? nested_view : canvas_view)
             {
                 auto canvas_coor = core::coor();
-                if constexpr (TRIM) core::view(nested_view);
+                if constexpr (Trim) core::view(nested_view);
                 core::back(offset_coor);
                 flow::full(object_area);
 
                 nested.SIGNAL(tier::release, e2::render::prerender, *this);
                 nested.SIGNAL(tier::release, e2::postrender, *this);
 
-                if constexpr (TRIM) core::view(canvas_view);
+                if constexpr (Trim) core::view(canvas_view);
                 core::move(canvas_coor);
                 flow::full(parent_area);
             }
         }
         // face: Render itself to the canvas using renderproc.
-        template<bool POST = true, class T>
+        template<bool Post = true, class T>
         void render(T& object)
         {
             auto canvas_view = core::view();
@@ -1017,7 +1017,7 @@ namespace netxs::ui
                 flow::full(object_area);
 
                                     object.SIGNAL(tier::release, e2::render::prerender, *this);
-                if constexpr (POST) object.SIGNAL(tier::release, e2::postrender,        *this);
+                if constexpr (Post) object.SIGNAL(tier::release, e2::postrender,        *this);
 
                 core::view(canvas_view);
                 flow::full(parent_area);
@@ -1057,11 +1057,11 @@ namespace netxs::ui
         auto parent()      { return parent_shadow.lock(); }
         void ruined(bool state) { invalid = state; }
         auto ruined() const { return invalid; }
-        template<bool ABSOLUTE_POS = true>
+        template<bool Absolute = true>
         auto actual_area() const
         {
             auto area = rect{ -oversz.topleft(), square.size + oversz.summ() };
-            if constexpr (ABSOLUTE_POS) area.coor += square.coor;
+            if constexpr (Absolute) area.coor += square.coor;
             return area;
         }
         auto color() const { return brush; }
@@ -1238,24 +1238,24 @@ namespace netxs::ui
         // base: Fire an event on yourself and pass it parent if not handled.
         // Usage example:
         //          base::riseup<tier::preview, e2::form::prop::ui::header>(txt);
-        template<tier TIER, class EVENT, class T>
-        void riseup(EVENT, T&& data, bool forced = faux)
+        template<tier Tier, class Event, class T>
+        void riseup(Event, T&& data, bool forced = faux)
         {
             if (forced)
             {
-                SIGNAL(TIER, EVENT{}, data);
+                SIGNAL(Tier, Event{}, data);
                 base::toboss([&](auto& boss)
                 {
-                    boss.base::template riseup<TIER>(EVENT{}, std::forward<T>(data), forced);
+                    boss.base::template riseup<Tier>(Event{}, std::forward<T>(data), forced);
                 });
             }
             else
             {
-                if (!SIGNAL(TIER, EVENT{}, data))
+                if (!SIGNAL(Tier, Event{}, data))
                 {
                     base::toboss([&](auto& boss)
                     {
-                        boss.base::template riseup<TIER>(EVENT{}, std::forward<T>(data), forced);
+                        boss.base::template riseup<Tier>(Event{}, std::forward<T>(data), forced);
                     });
                 }
             }
@@ -1264,24 +1264,24 @@ namespace netxs::ui
         // Warning: The parameter type is not checked/casted.
         // Usage example:
         //          base::raw_riseup<tier::preview, e2::form::prop::ui::header>(txt);
-        template<tier TIER, class T>
+        template<tier Tier, class T>
         void raw_riseup(hint event_id, T&& param, bool forced = faux)
         {
             if (forced)
             {
-                bell::template signal<TIER>(event_id, param);
+                bell::template signal<Tier>(event_id, param);
                 base::toboss([&](auto& boss)
                 {
-                    boss.base::template raw_riseup<TIER>(event_id, std::forward<T>(param), forced);
+                    boss.base::template raw_riseup<Tier>(event_id, std::forward<T>(param), forced);
                 });
             }
             else
             {
-                if (!bell::template signal<TIER>(event_id, param))
+                if (!bell::template signal<Tier>(event_id, param))
                 {
                     base::toboss([&](auto& boss)
                     {
-                        boss.base::template raw_riseup<TIER>(event_id, std::forward<T>(param), forced);
+                        boss.base::template raw_riseup<Tier>(event_id, std::forward<T>(param), forced);
                     });
                 }
             }
@@ -1518,7 +1518,7 @@ namespace netxs::ui
                         del(gear);
                     };
                 }
-                template<bool CONST_WARN = true>
+                template<bool ConstWarn = true>
                 auto& take(hids& gear)
                 {
                     for (auto& item : items) // Linear search, because a few items.
@@ -1526,7 +1526,7 @@ namespace netxs::ui
                         if (item.id == gear.id) return item;
                     }
 
-                    if constexpr (CONST_WARN)
+                    if constexpr (ConstWarn)
                     {
                         log("sock: error: access to unregistered input device, ", gear.id);
                     }
@@ -4725,10 +4725,10 @@ namespace netxs::ui
                 netxs::online(window, origin, center, pset);
             }
             // hall::node: Visualize the underlying object.
-            template<bool POST = true>
+            template<bool Post = true>
             void render(face& canvas)
             {
-                canvas.render<POST>(*object);
+                canvas.render<Post>(*object);
             }
             void postrender(face& canvas)
             {
@@ -5264,13 +5264,13 @@ namespace netxs::ui
         { }
 
         // link: Send an event message to the link owner.
-        template<tier TIER = tier::release, class E, class T>
+        template<tier Tier = tier::release, class E, class T>
         void notify(E, T&& data)
         {
             netxs::events::enqueue(owner, [d = data](auto& boss) mutable
             {
-                //boss.SIGNAL(TIER, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
-                boss.bell::template signal<TIER>(E::id, static_cast<typename E::type &&>(d));
+                //boss.SIGNAL(Tier, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
+                boss.bell::template signal<Tier>(E::id, static_cast<typename E::type &&>(d));
             });
         }
         void handle(s11n::xs::sysfocus    lock)

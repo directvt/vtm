@@ -243,8 +243,8 @@ namespace netxs::ui
             ui64 body{}; // term_state: Selection rough volume.
             ui64 hash{}; // term_state: Selection update indicator.
 
-            template<class bufferbase>
-            auto update(bufferbase const& scroll)
+            template<class BufferBase>
+            auto update(BufferBase const& scroll)
             {
                 if (scroll.update_status(*this))
                 {
@@ -1570,10 +1570,10 @@ namespace netxs::ui
                 resize_tabstops(panel.x, true);
             }
             // bufferbase: Horizontal tab implementation.
-            template<bool FWD, class T>
+            template<bool Fwd, class T>
             void tab_impl(T size)
             {
-                if constexpr (FWD)
+                if constexpr (Fwd)
                 {
                     auto x = std::clamp(coord.x, 0, size ? size - 1 : 0);
                     if (coord.x == x)
@@ -3303,8 +3303,8 @@ namespace netxs::ui
                 assert(test_resize());
             }
             // scroll_buf: Rebuild the next avail indexes from the known index (mapln).
-            template<class ITER, class INDEX_T>
-            void reindex(si32 avail, ITER curit, INDEX_T const& mapln)
+            template<class Iter, class Index>
+            void reindex(si32 avail, Iter curit, Index const& mapln)
             {
                 auto& curln =*curit;
                 auto  width = curln.length();
@@ -3496,7 +3496,7 @@ namespace netxs::ui
                 sync_coord();
             }
             // scroll_buf: Map the current cursor position to the scrollback.
-            template<bool ALLOW_PENDING_WRAP = true>
+            template<bool AllowPendingWrap = true>
             void sync_coord()
             {
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
@@ -3508,7 +3508,7 @@ namespace netxs::ui
                     auto& curln = batch.current();
                     auto  wraps = curln.wrapped();
                     auto  curid = curln.index;
-                    if constexpr (ALLOW_PENDING_WRAP)
+                    if constexpr (AllowPendingWrap)
                     {
                         if (coord.x > panel.x && wraps) coord.x = panel.x;
                     }
@@ -3546,7 +3546,7 @@ namespace netxs::ui
                 }
                 else // Always wraps inside margins.
                 {
-                    if constexpr (ALLOW_PENDING_WRAP)
+                    if constexpr (AllowPendingWrap)
                     {
                         if (coord.x > panel.x) coord.x = panel.x;
                     }

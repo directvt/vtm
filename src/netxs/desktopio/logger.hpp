@@ -59,7 +59,7 @@ namespace netxs
         list writers;
         hash token;
 
-        template<class VOID>
+        template<class Void>
         struct globals
         {
             static vect prompt;
@@ -132,7 +132,7 @@ namespace netxs
         {
             return std::lock_guard{ g::mutex };
         }
-        template <class T>
+        template<class T>
         void add(T&& writer)
         {
             writers.emplace_back(std::forward<T>(writer));
@@ -193,7 +193,7 @@ namespace netxs
             auto sync = guard();
             g::enabled = allowed;
         }
-        template <class T>
+        template<class T>
         static void feed(T&& entity)
         {
             auto sync = guard();
@@ -212,12 +212,12 @@ namespace netxs
             g::builder << std::forward<T>(entity);
             feed(std::forward<Args>(args)...);
         }
-        template<class SYNC, class P>
+        template<class Sync, class P>
         static auto tee(P writer)
         {
             auto inst = logger([writer, buff = text{}](auto utf8) mutable
             {
-                if (auto sync = SYNC{})
+                if (auto sync = Sync{})
                 {
                     if (buff.size())
                     {

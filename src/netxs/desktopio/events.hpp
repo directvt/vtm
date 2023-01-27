@@ -124,15 +124,15 @@ namespace netxs::events
     };
     using hook = sptr<handler>;
 
-    template<execution_order ORDER = execution_order::forward>
+    template<execution_order Order = execution_order::forward>
     struct reactor
     {
-        template <class F>
+        template<class F>
         using hndl = std::function<void(F&&)>;
         using list = std::list<wptr<handler>>;
         using vect = std::vector<wptr<handler>>;
 
-        template <class F>
+        template<class F>
         struct wrapper : handler
         {
             hndl<F> proc;
@@ -199,7 +199,7 @@ namespace netxs::events
             queue.push_back(event);
             auto head = qcopy.size();
 
-            if constexpr (ORDER == execution_order::forward)
+            if constexpr (Order == execution_order::forward)
             {
                 auto itermask = events::level_mask(event);
                 auto subgroup = event;
@@ -334,12 +334,12 @@ namespace netxs::events
         void  merge(subs const& m) {        tokens.insert( tokens.end(), m.tokens.begin(), m.tokens.end() ); }
     };
 
-    template<class _parent_type, class _object_type, auto _event_id>
+    template<class Parent_t, class Object_t, auto Event_id>
     struct type_clue
     {
-        using type = _object_type;
-        using base = _parent_type;
-        static constexpr auto id = _event_id;
+        using type = Object_t;
+        using base = Parent_t;
+        static constexpr auto id = Event_id;
         template<class ...Args> constexpr type_clue(Args&&...) { }
         template<class ...Args> static constexpr auto param(Args&&... args) { return type{ std::forward<Args>(args)... }; }
         template<auto N>        static constexpr auto group()               { return events::subset<id, N>;               }
@@ -430,10 +430,10 @@ namespace netxs::events
         rev_reactor  anycast;
 
         //todo deprecated?
-        template<tier TIER, class EVENT>
+        template<tier Tier, class Event>
         struct submit_helper2
         {
-            using type = typename EVENT::type;
+            using type = typename Event::type;
             bell& owner;
             type& p;
             submit_helper2(bell& owner, type& p)
@@ -443,15 +443,15 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                owner.submit<TIER>(EVENT{}, h);
+                owner.submit<Tier>(Event{}, h);
                 h(static_cast<type&&>(p));
             }
         };
         //todo deprecated?
-        template<tier TIER, class EVENT>
+        template<tier Tier, class Event>
         struct submit_helper2_token
         {
-            using type = typename EVENT::type;
+            using type = typename Event::type;
             bell& owner;
             type& p;
             hook& token;
@@ -463,11 +463,11 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                owner.submit<TIER>(EVENT{}, token, h);
+                owner.submit<Tier>(Event{}, token, h);
                 h(static_cast<type&&>(p));
             }
         };
-        template<tier TIER, class EVENT>
+        template<tier Tier, class Event>
         struct submit_helper
         {
             bell& owner;
@@ -477,10 +477,10 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                owner.submit<TIER>(EVENT{}, h);
+                owner.submit<Tier>(Event{}, h);
             }
         };
-        template<tier TIER, class EVENT>
+        template<tier Tier, class Event>
         struct submit_helper_token
         {
             bell& owner;
@@ -492,10 +492,10 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                owner.submit<TIER>(EVENT{}, token, h);
+                owner.submit<Tier>(Event{}, token, h);
             }
         };
-        template<class EVENT>
+        template<class Event>
         struct submit_helper_token_global
         {
             hook& token;
@@ -505,44 +505,44 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                token = _globals<void>::general.subscribe(EVENT::id, std::function<void(typename EVENT::type &&)>{ h });
+                token = _globals<void>::general.subscribe(Event::id, std::function<void(typename Event::type &&)>{ h });
             }
         };
 
     public:
         //todo deprecated?
-        template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p)               { return submit_helper2      <TIER, EVENT>(*this, p);                 }
-        template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p, subs& tokens) { return submit_helper2_token<TIER, EVENT>(*this, p, tokens.extra()); }
+        template<tier Tier, class Event> auto submit2(typename Event::type & p)               { return submit_helper2      <Tier, Event>(*this, p);                 }
+        template<tier Tier, class Event> auto submit2(typename Event::type & p, subs& tokens) { return submit_helper2_token<Tier, Event>(*this, p, tokens.extra()); }
 
-        template<tier TIER, class EVENT> auto submit(EVENT)               { return submit_helper      <TIER, EVENT>(*this);                 }
-        template<tier TIER, class EVENT> auto submit(EVENT, hook& token)  { return submit_helper_token<TIER, EVENT>(*this, token);          }
-        template<tier TIER, class EVENT> auto submit(EVENT, subs& tokens) { return submit_helper_token<TIER, EVENT>(*this, tokens.extra()); }
-        template<tier TIER, class EVENT>
-        void submit(EVENT, std::function<void(typename EVENT::type &&)> handler)
+        template<tier Tier, class Event> auto submit(Event)               { return submit_helper      <Tier, Event>(*this);                 }
+        template<tier Tier, class Event> auto submit(Event, hook& token)  { return submit_helper_token<Tier, Event>(*this, token);          }
+        template<tier Tier, class Event> auto submit(Event, subs& tokens) { return submit_helper_token<Tier, Event>(*this, tokens.extra()); }
+        template<tier Tier, class Event>
+        void submit(Event, std::function<void(typename Event::type &&)> handler)
         {
-                 if constexpr (TIER == tier::preview) tracker.admit(preview.subscribe(EVENT::id, handler));
-            else if constexpr (TIER == tier::general) tracker.admit(general.subscribe(EVENT::id, handler));
-            else if constexpr (TIER == tier::request) tracker.admit(request.subscribe(EVENT::id, handler));
-            else if constexpr (TIER == tier::release) tracker.admit(release.subscribe(EVENT::id, handler));
-            else                                      tracker.admit(anycast.subscribe(EVENT::id, handler));
+                 if constexpr (Tier == tier::preview) tracker.admit(preview.subscribe(Event::id, handler));
+            else if constexpr (Tier == tier::general) tracker.admit(general.subscribe(Event::id, handler));
+            else if constexpr (Tier == tier::request) tracker.admit(request.subscribe(Event::id, handler));
+            else if constexpr (Tier == tier::release) tracker.admit(release.subscribe(Event::id, handler));
+            else                                      tracker.admit(anycast.subscribe(Event::id, handler));
         }
-        template<tier TIER, class EVENT>
-        void submit(EVENT, hook& token, std::function<void(typename EVENT::type &&)> handler)
+        template<tier Tier, class Event>
+        void submit(Event, hook& token, std::function<void(typename Event::type &&)> handler)
         {
-                 if constexpr (TIER == tier::preview) token = preview.subscribe(EVENT::id, handler);
-            else if constexpr (TIER == tier::general) token = general.subscribe(EVENT::id, handler);
-            else if constexpr (TIER == tier::request) token = request.subscribe(EVENT::id, handler);
-            else if constexpr (TIER == tier::release) token = release.subscribe(EVENT::id, handler);
-            else                                      token = anycast.subscribe(EVENT::id, handler);
+                 if constexpr (Tier == tier::preview) token = preview.subscribe(Event::id, handler);
+            else if constexpr (Tier == tier::general) token = general.subscribe(Event::id, handler);
+            else if constexpr (Tier == tier::request) token = request.subscribe(Event::id, handler);
+            else if constexpr (Tier == tier::release) token = release.subscribe(Event::id, handler);
+            else                                      token = anycast.subscribe(Event::id, handler);
         }
-        template<tier TIER, class F>
+        template<tier Tier, class F>
         auto signal(hint event, F&& data)
         {
-                 if constexpr (TIER == tier::preview) return preview.notify(event, std::forward<F>(data));
-            else if constexpr (TIER == tier::general) return general.notify(event, std::forward<F>(data));
-            else if constexpr (TIER == tier::request) return request.notify(event, std::forward<F>(data));
-            else if constexpr (TIER == tier::release) return release.notify(event, std::forward<F>(data));
-            else            /* TIER == tier::anycast */
+                 if constexpr (Tier == tier::preview) return preview.notify(event, std::forward<F>(data));
+            else if constexpr (Tier == tier::general) return general.notify(event, std::forward<F>(data));
+            else if constexpr (Tier == tier::request) return request.notify(event, std::forward<F>(data));
+            else if constexpr (Tier == tier::release) return release.notify(event, std::forward<F>(data));
+            else            /* Tier == tier::anycast */
             {
                 auto root = gettop();
                 ftor proc = [&](auto boss_ptr) -> bool
@@ -553,36 +553,36 @@ namespace netxs::events
                 return root->release.notify(userland::root::cascade.id, proc);
             }
         }
-        template<class EVENT> static auto submit_global(hook& token)           { return submit_helper_token_global<EVENT>(token); }
-        template<class EVENT> static auto submit_global(subs& tokens)          { return submit_helper_token_global<EVENT>(tokens.extra()); }
+        template<class Event> static auto submit_global(hook& token)           { return submit_helper_token_global<Event>(token); }
+        template<class Event> static auto submit_global(subs& tokens)          { return submit_helper_token_global<Event>(tokens.extra()); }
         template<class F>     static auto signal_global(hint  event, F&& data) { return _globals<void>::general.notify(event, std::forward<F>(data)); }
         // bell: Return initial event of the current event execution branch.
-        template<tier TIER>
+        template<tier Tier>
         auto protos()
         {
-                 if constexpr (TIER == tier::preview) return preview.queue.empty() ? hint{} : preview.queue.back();
-            else if constexpr (TIER == tier::general) return general.queue.empty() ? hint{} : general.queue.back();
-            else if constexpr (TIER == tier::request) return request.queue.empty() ? hint{} : request.queue.back();
-            else if constexpr (TIER == tier::release) return release.queue.empty() ? hint{} : release.queue.back();
+                 if constexpr (Tier == tier::preview) return preview.queue.empty() ? hint{} : preview.queue.back();
+            else if constexpr (Tier == tier::general) return general.queue.empty() ? hint{} : general.queue.back();
+            else if constexpr (Tier == tier::request) return request.queue.empty() ? hint{} : request.queue.back();
+            else if constexpr (Tier == tier::release) return release.queue.empty() ? hint{} : release.queue.back();
             else                                      return anycast.queue.empty() ? hint{} : anycast.queue.back();
         }
-        template<tier TIER, class EVENT> auto protos(EVENT) { return bell::protos<TIER>() == EVENT::id; }
-        template<tier TIER>
+        template<tier Tier, class Event> auto protos(Event) { return bell::protos<Tier>() == Event::id; }
+        template<tier Tier>
         auto& router()
         {
-                 if constexpr (TIER == tier::preview) return preview;
-            else if constexpr (TIER == tier::general) return general;
-            else if constexpr (TIER == tier::request) return request;
-            else if constexpr (TIER == tier::release) return release;
+                 if constexpr (Tier == tier::preview) return preview;
+            else if constexpr (Tier == tier::general) return general;
+            else if constexpr (Tier == tier::request) return request;
+            else if constexpr (Tier == tier::release) return release;
             else                                      return anycast;
         }
-        template<tier TIER>
+        template<tier Tier>
         void expire()
         {
-                 if constexpr (TIER == tier::preview) return preview.stop();
-            else if constexpr (TIER == tier::general) return general.stop();
-            else if constexpr (TIER == tier::request) return request.stop();
-            else if constexpr (TIER == tier::release) return release.stop();
+                 if constexpr (Tier == tier::preview) return preview.stop();
+            else if constexpr (Tier == tier::general) return general.stop();
+            else if constexpr (Tier == tier::request) return request.stop();
+            else if constexpr (Tier == tier::release) return release.stop();
             else                                      return anycast.stop();
         }
 

@@ -47,14 +47,14 @@ namespace netxs::datetime
         return std::chrono::steady_clock::now();
     }
 
-    template<class REACTOR, class CONTEXT>
+    template<class Reactor, class Context>
     class quartz
     {
         using cond = std::condition_variable;
         using work = std::thread;
 
-        REACTOR & alarm;
-        CONTEXT   cause;
+        Reactor & alarm;
+        Context   cause;
         bool      alive;
         bool      letup;
         span      delay;
@@ -95,7 +95,7 @@ namespace netxs::datetime
         }
 
     public:
-        quartz(REACTOR& router, CONTEXT cause)
+        quartz(Reactor& router, Context cause)
             : alarm{ router       },
               cause{ cause        },
               alive{ faux         },
@@ -249,7 +249,7 @@ namespace netxs::datetime
             struct velocity_factors
             {
                 span dT = span::zero();
-                Item dS = Item{};// ITEM_T::zero;
+                Item dS = Item{};// Item_t::zero;
             } v;
 
             auto count = 0_sz;
@@ -279,7 +279,7 @@ namespace netxs::datetime
 
             return v;
         }
-        template<class LAW>
+        template<class Law>
         auto fader(span spell)
         {
             auto v0 = avg();
@@ -290,9 +290,9 @@ namespace netxs::datetime
             auto start = 0;
 
             return speed
-                //todo use current item's type: LAW<ITEM_T>
-                //? std::optional<LAW<ITEM_T>>({ speed, cycle, limit, start })
-                ? std::optional<LAW>({ speed, cycle, limit, start })
+                //todo use current item's type: Law<Item_t>
+                //? std::optional<Law<Item_t>>({ speed, cycle, limit, start })
+                ? std::optional<Law>({ speed, cycle, limit, start })
                 : std::nullopt;
         }
     };

@@ -375,11 +375,11 @@ namespace netxs::input
             }
         }
         // mouse: Return a kinetic animator.
-        template<class LAW>
+        template<class Law>
         auto fader(span spell)
         {
-            //todo use current item's type: LAW<twod>
-            return delta.fader<LAW>(spell);
+            //todo use current item's type: Law<twod>
+            return delta.fader<Law>(spell);
         }
         // mouse: Extended mouse event generation.
         void update(sysmouse& m0)
@@ -863,7 +863,7 @@ namespace netxs::input
 
         auto& area() const { return idmap.area(); }
 
-        template<tier TIER, class T>
+        template<tier Tier, class T>
         void pass(sptr<T> object, twod const& offset, bool relative = faux)
         {
             if (object)
@@ -874,7 +874,7 @@ namespace netxs::input
                 {
                     object->global(coord);
                 }
-                object->bell::template signal<TIER>(mouse::cause, *this);
+                object->bell::template signal<Tier>(mouse::cause, *this);
                 mouse::coord = temp;
             }
         }

@@ -556,30 +556,30 @@ namespace netxs::ansi
             }
             return add("\033[", clr, 'm');
         }
-        template<svga VGAMODE = svga::truecolor>
+        template<svga Mode = svga::truecolor>
         auto& fgc(rgba const& c) // esc: SGR Foreground color. RGB: red, green, blue.
         {
-                 if constexpr (VGAMODE == svga::vga16    ) return fgc_16(c);
-            else if constexpr (VGAMODE == svga::vga256   ) return fgc256(c);
-            else if constexpr (VGAMODE == svga::truecolor) return c.chan.a == 0 ? add("\033[39m")
-                                                                                : add("\033[38;2;", c.chan.r, ';',
-                                                                                                    c.chan.g, ';',
-                                                                                                    c.chan.b, 'm');
+                 if constexpr (Mode == svga::vga16    ) return fgc_16(c);
+            else if constexpr (Mode == svga::vga256   ) return fgc256(c);
+            else if constexpr (Mode == svga::truecolor) return c.chan.a == 0 ? add("\033[39m")
+                                                                             : add("\033[38;2;", c.chan.r, ';',
+                                                                                                 c.chan.g, ';',
+                                                                                                 c.chan.b, 'm');
             else return block;
         }
-        template<svga VGAMODE = svga::truecolor>
+        template<svga Mode = svga::truecolor>
         auto& bgc(rgba const& c) // esc: SGR Background color. RGB: red, green, blue.
         {
-                 if constexpr (VGAMODE == svga::vga16    ) return bgc_16(c);
-            else if constexpr (VGAMODE == svga::vga256   ) return bgc256(c);
-            else if constexpr (VGAMODE == svga::truecolor) return c.chan.a == 0 ? add("\033[49m")
-                                                                                : add("\033[48;2;", c.chan.r, ';',
-                                                                                                    c.chan.g, ';',
-                                                                                                    c.chan.b, 'm');
+                 if constexpr (Mode == svga::vga16    ) return bgc_16(c);
+            else if constexpr (Mode == svga::vga256   ) return bgc256(c);
+            else if constexpr (Mode == svga::truecolor) return c.chan.a == 0 ? add("\033[49m")
+                                                                             : add("\033[48;2;", c.chan.r, ';',
+                                                                                                 c.chan.g, ';',
+                                                                                                 c.chan.b, 'm');
             else return block;
         }
         // basevt: Ansify/textify content of specified region.
-        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, rect region, cell& state)
         {
             auto badfx = [&]
@@ -600,31 +600,31 @@ namespace netxs::ansi
                 if (width < 2) // Narrow character
                 {
                     if (state.wdt() == 2) badfx(); // Left part alone
-                    c.scan<svga::truecolor, USESGR>(state, block);
+                    c.scan<svga::truecolor, UseSGR>(state, block);
                 }
                 else
                 {
                     if (width == 2) // Left part
                     {
                         if (state.wdt() == 2) badfx();  // Left part alone
-                        c.scan_attr<svga::truecolor, USESGR>(state, block);
+                        c.scan_attr<svga::truecolor, UseSGR>(state, block);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
                     else if (width == 3) // Right part
                     {
                         if (state.wdt() == 2)
                         {
-                            if (state.scan<svga::truecolor, USESGR>(c, state, block)) state.set_gc(); // Cleanup used t
+                            if (state.scan<svga::truecolor, UseSGR>(c, state, block)) state.set_gc(); // Cleanup used t
                             else
                             {
                                 badfx(); // Left part alone
-                                c.scan_attr<svga::truecolor, USESGR>(state, block);
+                                c.scan_attr<svga::truecolor, UseSGR>(state, block);
                                 badfx(); // Right part alone
                             }
                         }
                         else
                         {
-                            c.scan_attr<svga::truecolor, USESGR>(state, block);
+                            c.scan_attr<svga::truecolor, UseSGR>(state, block);
                             if (state.wdt() == 0) side_badfx(); // Right part alone at the left side
                             else                  badfx(); // Right part alone
                         }
@@ -640,27 +640,27 @@ namespace netxs::ansi
 
             if (region)
             {
-                if constexpr (USESGR && INITIAL) basevt::nil();
+                if constexpr (UseSGR && Initial) basevt::nil();
                 netxs::onrect(canvas, region, allfx, eolfx);
-                if constexpr (FINALISE)
+                if constexpr (Finalize)
                 {
                     if (block.size()) block.pop_back(); // Pop last eol (lf).
-                    if constexpr (USESGR) basevt::nil();
+                    if constexpr (UseSGR) basevt::nil();
                 }
             }
             return *this;
         }
-        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, rect region) // basevt: Ansify/textify content of specified region.
         {
             auto state = cell{};
-            return s11n<USESGR, INITIAL, FINALISE>(canvas, region, state);
+            return s11n<UseSGR, Initial, Finalize>(canvas, region, state);
         }
-        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, cell& state) // basevt: Ansify/textify all content.
         {
             auto region = rect{-dot_mx / 2, dot_mx };
-            return s11n<USESGR, INITIAL, FINALISE>(canvas, region, state);
+            return s11n<UseSGR, Initial, Finalize>(canvas, region, state);
         }
     };
 
@@ -1230,7 +1230,7 @@ namespace netxs::ansi
     template<class Q, class C>
     using func = generics::tree<Q, C*, std::function<void(Q&, C*&)>>;
 
-    template<class T, bool NOMULTIARG = faux>
+    template<class T, bool NoMultiArg = faux>
     struct csi_t
     {
         using tree = func<fifo, T>;
@@ -1320,7 +1320,7 @@ namespace netxs::ansi
                 table[CSI_DSR] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
-                csi_ccc.template enable_multi_arg<NOMULTIARG>();
+                csi_ccc.template enable_multi_arg<NoMultiArg>();
                     csi_ccc[CCC_CUP] = VT_PROC{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup
                     csi_ccc[CCC_CPP] = VT_PROC{ F(py, q(0)); F(px, q(0)); }; // fx_ccc_cpp
                     csi_ccc[CCC_CHX] = VT_PROC{ F(ax, q(0)); }; // fx_ccc_chx
@@ -1354,7 +1354,7 @@ namespace netxs::ansi
                     csi_ccc[CCC_PAD] = nullptr;
 
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
-                csi_sgr.template enable_multi_arg<NOMULTIARG>();
+                csi_sgr.template enable_multi_arg<NoMultiArg>();
                     csi_sgr[SGR_RST      ] = VT_PROC{ p->brush.nil( );    }; // fx_sgr_rst      ;
                     csi_sgr[SGR_SAV      ] = VT_PROC{ p->brush.sav( );    }; // fx_sgr_sav      ;
                     csi_sgr[SGR_FG       ] = VT_PROC{ p->brush.rfg( );    }; // fx_sgr_fg_def   ;

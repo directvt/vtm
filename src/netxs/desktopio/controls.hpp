@@ -155,19 +155,19 @@ namespace netxs::ui
             return backup;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<class PROPERTY, class SPTR, class P>
-        auto attach_element(PROPERTY, SPTR data_src_sptr, P item_template)
+        template<class Property, class SPTR, class P>
+        auto attach_element(Property, SPTR data_src_sptr, P item_template)
         {
-            auto arg_value = typename PROPERTY::type{};
+            auto arg_value = typename Property::type{};
 
             auto backup = This();
-            data_src_sptr->SIGNAL(tier::request, PROPERTY{}, arg_value);
+            data_src_sptr->SIGNAL(tier::request, Property{}, arg_value);
             auto new_item = item_template(data_src_sptr, arg_value)
                                  ->depend(data_src_sptr);
             auto item_shadow = ptr::shadow(new_item);
             auto data_shadow = ptr::shadow(data_src_sptr);
             auto boss_shadow = ptr::shadow(backup);
-            data_src_sptr->SUBMIT_BYVAL(tier::release, PROPERTY{}, arg_new_value, memomap[data_src_sptr->id])
+            data_src_sptr->SUBMIT_BYVAL(tier::release, Property{}, arg_new_value, memomap[data_src_sptr->id])
             {
                 if (auto boss_ptr = boss_shadow.lock())
                 if (auto data_src = data_shadow.lock())
@@ -183,36 +183,36 @@ namespace netxs::ui
             return new_item;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<class PROPERTY, class S, class P>
-        auto attach_collection(PROPERTY, S& data_collection_src, P item_template)
+        template<class Property, class S, class P>
+        auto attach_collection(Property, S& data_collection_src, P item_template)
         {
             auto backup = This();
             for (auto& data_src_sptr : data_collection_src)
             {
-                attach_element(PROPERTY{}, data_src_sptr, item_template);
+                attach_element(Property{}, data_src_sptr, item_template);
             }
             return backup;
         }
-        template<class BACKEND_PROP, class P>
-        void publish_property(BACKEND_PROP, P setter)
+        template<class BackendProp, class P>
+        void publish_property(BackendProp, P setter)
         {
-            SUBMIT_BYVAL(tier::request, BACKEND_PROP{}, property_value)
+            SUBMIT_BYVAL(tier::request, BackendProp{}, property_value)
             {
                 setter(property_value);
             };
         }
-        template<class BACKEND_PROP, class FRONTEND_PROP>
-        auto attach_property(BACKEND_PROP, FRONTEND_PROP)
+        template<class BackendProp, class FrontendProp>
+        auto attach_property(BackendProp, FrontendProp)
         {
-            auto property_value = typename BACKEND_PROP::type{};
+            auto property_value = typename BackendProp::type{};
 
             auto backup = This();
-            SIGNAL(tier::request, BACKEND_PROP{},  property_value);
-            SIGNAL(tier::anycast, FRONTEND_PROP{}, property_value);
+            SIGNAL(tier::request, BackendProp{},  property_value);
+            SIGNAL(tier::anycast, FrontendProp{}, property_value);
 
-            SUBMIT(tier::release, BACKEND_PROP{}, property_value)
+            SUBMIT(tier::release, BackendProp{}, property_value)
             {
-                this->SIGNAL(tier::anycast, FRONTEND_PROP{}, property_value);
+                this->SIGNAL(tier::anycast, FrontendProp{}, property_value);
             };
             return backup;
         }
@@ -1095,8 +1095,8 @@ namespace netxs::ui
         auto& content(T paraid) { return topic[paraid]; }
 
         // post: Set content.
-        template<class TEXT>
-        auto upload(TEXT utf8, si32 initial_width = 0)
+        template<class Text>
+        auto upload(Text utf8, si32 initial_width = 0)
         {
             source = utf8;
             topic = utf8;
@@ -1212,8 +1212,8 @@ namespace netxs::ui
         auto& content(T paraid) { return topic[paraid]; }
 
         // post: Set content.
-        template<class TEXT>
-        auto upload(TEXT utf8, si32 initial_width = 0)
+        template<class Text>
+        auto upload(Text utf8, si32 initial_width = 0)
         {
             source = utf8;
             topic = utf8;
@@ -1337,14 +1337,14 @@ namespace netxs::ui
         }
 
     public:
-        template<axis AXIS>
+        template<axis Axis>
         auto follow(sptr master = {})
         {
             if (master)
             {
                 master->SUBMIT(tier::release, upon::scroll::bycoor::any, master_scinfo, fasten)
                 {
-                    this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<AXIS>, master_scinfo);
+                    this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<Axis>, master_scinfo);
                 };
             }
             else fasten.clear();
@@ -1520,10 +1520,10 @@ namespace netxs::ui
             gear.setfree();
             gear.dismiss();
         }
-        template<axis AXIS>
+        template<axis Axis>
         void wheels(bool dir)
         {
-            if (robot.active(AXIS) && (steer == dir))
+            if (robot.active(Axis) && (steer == dir))
             {
                 speed += SPD_ACCEL;
                 cycle += CCL_ACCEL;
@@ -1536,64 +1536,64 @@ namespace netxs::ui
                 speed = SPD;
                 cycle = CCL;
                 //todo at least one line should be
-                //move<AXIS>(dir ? 1 : -1);
+                //move<Axis>(dir ? 1 : -1);
             }
             auto start = 0;
-            keepon<AXIS>(quadratic<si32>(dir ? speed : -speed, pulse, cycle, start));
+            keepon<Axis>(quadratic<si32>(dir ? speed : -speed, pulse, cycle, start));
         }
-        template<axis AXIS, class FX>
-        void keepon(FX&& func)
+        template<axis Axis, class Fx>
+        void keepon(Fx&& func)
         {
-            strict[AXIS] = true;
-            robot.actify(AXIS, std::forward<FX>(func), [&](auto& p)
+            strict[Axis] = true;
+            robot.actify(Axis, std::forward<Fx>(func), [&](auto& p)
                 {
-                    move<AXIS>(p);
+                    move<Axis>(p);
                 });
         }
-        template<axis AXIS>
+        template<axis Axis>
         auto inside()
         {
-            if (client && manual[AXIS]) // Check overscroll if no auto correction.
+            if (client && manual[Axis]) // Check overscroll if no auto correction.
             {
                 auto& item = *client;
-                auto frame = base::size()[AXIS];
-                auto coord = item.base::coor()[AXIS] - item.oversz.topleft()[AXIS]; // coor - scroll origin basis.
-                auto block = item.base::size()[AXIS] + item.oversz.summ()[AXIS];
+                auto frame = base::size()[Axis];
+                auto coord = item.base::coor()[Axis] - item.oversz.topleft()[Axis]; // coor - scroll origin basis.
+                auto block = item.base::size()[Axis] + item.oversz.summ()[Axis];
                 auto bound = std::min(frame - block, 0);
                 auto clamp = std::clamp(coord, bound, 0);
                 return clamp == coord;
             }
             return true;
         }
-        template<axis AXIS, class FX>
-        void actify(FX&& func)
+        template<axis Axis, class Fx>
+        void actify(Fx&& func)
         {
-            if (inside<AXIS>()) keepon<AXIS>(std::forward<FX>(func));
-            else                lineup<AXIS>();
+            if (inside<Axis>()) keepon<Axis>(std::forward<Fx>(func));
+            else                lineup<Axis>();
         }
-        template<axis AXIS, bool FORCED = faux>
+        template<axis Axis, bool Forced = faux>
         void cancel()
         {
-            if (FORCED || !inside<AXIS>()) lineup<AXIS>();
+            if (Forced || !inside<Axis>()) lineup<Axis>();
         }
-        template<axis AXIS>
+        template<axis Axis>
         void lineup()
         {
             if (client)
             {
-                manual[AXIS] = faux;
+                manual[Axis] = faux;
                 auto block = client->base::area();
-                auto coord = block.coor[AXIS];
-                auto bound = std::min(base::size()[AXIS] - block.size[AXIS], 0);
+                auto coord = block.coor[Axis];
+                auto bound = std::min(base::size()[Axis] - block.size[Axis], 0);
                 auto newxy = std::clamp(coord, bound, 0);
                 auto route = newxy - coord;
                 auto tempo = SWITCHING_TIME;
                 auto start = 0;
                 auto fader = constlinearAtoB<si32>(route, tempo, start);
-                keepon<AXIS>(fader);
+                keepon<Axis>(fader);
             }
         }
-        template<bool PREVIEW>
+        template<bool Preview>
         auto scroll(twod& coord)
         {
             auto delta = dot_00;
@@ -1604,7 +1604,7 @@ namespace netxs::ui
                 auto block = item.base::size() + item.oversz.summ();
                 auto basis = item.oversz.topleft();
                 coord -= basis; // Scroll origin basis.
-                if constexpr (PREVIEW)
+                if constexpr (Preview)
                 {
                     auto bound = std::min(frame - block, dot_00);
                     auto clamp = std::clamp(coord, bound, dot_00);
@@ -1637,13 +1637,13 @@ namespace netxs::ui
                 client->base::moveby(delta);
             }
         }
-        template<axis AXIS>
+        template<axis Axis>
         void move(si32 p)
         {
             if (p)
             {
-                if constexpr (AXIS == X) movexy({ p, 0 });
-                if constexpr (AXIS == Y) movexy({ 0, p });
+                if constexpr (Axis == X) movexy({ p, 0 });
+                if constexpr (Axis == Y) movexy({ 0, p });
             }
         }
         // rail: Attach specified item.
@@ -1710,16 +1710,16 @@ namespace netxs::ui
     };
 
     // controls: Scrollbar.
-    template<axis AXIS>
+    template<axis Axis>
     class grip
-        : public form<grip<AXIS>>
+        : public form<grip<Axis>>
     {
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
         using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
         using wptr = netxs::wptr<base>;
-        using form = ui::form<grip<AXIS>>;
+        using form = ui::form<grip<Axis>>;
         using upon = e2::form::upon;
 
         enum activity
@@ -1733,9 +1733,9 @@ namespace netxs::ui
         struct math
         {
             rack  master_inf = {};                           // math: Master scroll info.
-            si32& master_len = master_inf.region     [AXIS]; // math: Master len.
-            si32& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
-            si32& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            si32& master_len = master_inf.region     [Axis]; // math: Master len.
+            si32& master_pos = master_inf.window.coor[Axis]; // math: Master viewport pos.
+            si32& master_box = master_inf.window.size[Axis]; // math: Master viewport len.
             si32& master_dir = master_inf.vector;            // math: Master scroll direction.
             si32  scroll_len = 0; // math: Scrollbar len.
             si32  scroll_pos = 0; // math: Scrollbar grip pos.
@@ -1787,7 +1787,7 @@ namespace netxs::ui
             }
             void resize(twod const& new_size)
             {
-                scroll_len = new_size[AXIS];
+                scroll_len = new_size[Axis];
                 m_to_s();
             }
             void stepby(si32 delta)
@@ -1797,8 +1797,8 @@ namespace netxs::ui
             }
             void commit(rect& handle)
             {
-                handle.coor[AXIS]+= scroll_pos;
-                handle.size[AXIS] = scroll_box;
+                handle.coor[Axis]+= scroll_pos;
+                handle.size[Axis] = scroll_box;
             }
             auto inside(si32 coor)
             {
@@ -1829,18 +1829,18 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<class EVENT>
+        template<class Event>
         void send()
         {
             if (auto master = this->boss.lock())
             {
-                master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
+                master->SIGNAL(tier::preview, Event::template _<Axis>, calc.master_inf);
             }
         }
         void config(si32 width)
         {
             thin = width;
-            auto lims = AXIS == axis::X ? twod{ -1,width }
+            auto lims = Axis == axis::X ? twod{ -1,width }
                                         : twod{ width,-1 };
             limit.set(lims, lims);
         }
@@ -1912,7 +1912,7 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
-                calc.cursor_pos = gear.mouse::coord[AXIS];
+                calc.cursor_pos = gear.mouse::coord[Axis];
             };
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
@@ -1923,7 +1923,7 @@ namespace netxs::ui
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(button::down::left)
                  || this->form::template protos<tier::release>(button::down::right))
-                if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
+                if (auto dir = calc.inside(gear.mouse::coord[Axis]))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -1993,7 +1993,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = gear.mouse::delta.get()[AXIS])
+                        if (auto delta = gear.mouse::delta.get()[Axis])
                         {
                             calc.stepby(delta);
                             send<upon::scroll::bycoor>();
@@ -2035,7 +2035,7 @@ namespace netxs::ui
                 auto apply = [&](auto active)
                 {
                     wide = active;
-                    if (AXIS == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
+                    if (Axis == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
                                                                : init);      // wider on hover.
                     base::reflow();
                     return faux; // One shot call.
@@ -2051,7 +2051,7 @@ namespace netxs::ui
             //	auto apply = [&](auto active)
             //	{
             //		wide = active;
-            //		if (AXIS == axis::Y) config(active ? init * 2 // Make vertical scrollbar
+            //		if (Axis == axis::Y) config(active ? init * 2 // Make vertical scrollbar
             //		                                   : init);   //  wider on hover
             //		base::reflow();
             //		return faux; // One shot call
@@ -2068,8 +2068,8 @@ namespace netxs::ui
 
                 calc.commit(handle);
 
-                auto& handle_len = handle.size[AXIS];
-                auto& region_len = region.size[AXIS];
+                auto& handle_len = handle.size[Axis];
+                auto& region_len = region.size[Axis];
 
                 handle = region.clip(handle);
                 handle_len = std::max(1, handle_len);
@@ -2093,19 +2093,19 @@ namespace netxs::ui
     };
 
     // controls: Scroll bar.
-    //template<axis AXIS, auto drawfx = noop{}> //todo apple clang doesn't get it
+    //template<axis Axis, auto drawfx = noop{}> //todo apple clang doesn't get it
     //class grip_fx
-    //    : public flow, public form<grip_fx<AXIS, drawfx>>
-    template<axis AXIS>
+    //    : public flow, public form<grip_fx<Axis, drawfx>>
+    template<axis Axis>
     class grip_fx
-        : public form<grip_fx<AXIS>>
+        : public form<grip_fx<Axis>>
     {
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
         using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
         using wptr = netxs::wptr<base>;
-        using form = ui::form<grip_fx<AXIS>>;
+        using form = ui::form<grip_fx<Axis>>;
         using upon = e2::form::upon;
 
         enum activity
@@ -2119,9 +2119,9 @@ namespace netxs::ui
         struct math
         {
             rack  master_inf = {};                           // math: Master scroll info.
-            si32& master_len = master_inf.region     [AXIS]; // math: Master len.
-            si32& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
-            si32& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            si32& master_len = master_inf.region     [Axis]; // math: Master len.
+            si32& master_pos = master_inf.window.coor[Axis]; // math: Master viewport pos.
+            si32& master_box = master_inf.window.size[Axis]; // math: Master viewport len.
             si32& master_dir = master_inf.vector;            // math: Master scroll direction.
             si32  scroll_len = 0; // math: Scrollbar len.
             si32  scroll_pos = 0; // math: Scrollbar grip pos.
@@ -2173,7 +2173,7 @@ namespace netxs::ui
             }
             void resize(twod const& new_size)
             {
-                scroll_len = new_size[AXIS];
+                scroll_len = new_size[Axis];
                 m_to_s();
             }
             void stepby(si32 delta)
@@ -2183,8 +2183,8 @@ namespace netxs::ui
             }
             void commit(rect& handle)
             {
-                handle.coor[AXIS]+= scroll_pos;
-                handle.size[AXIS] = scroll_box;
+                handle.coor[Axis]+= scroll_pos;
+                handle.size[Axis] = scroll_box;
             }
             auto inside(si32 coor)
             {
@@ -2215,18 +2215,18 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<class EVENT>
+        template<class Event>
         void send()
         {
             if (auto master = this->boss.lock())
             {
-                master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
+                master->SIGNAL(tier::preview, Event::template _<Axis>, calc.master_inf);
             }
         }
         void config(si32 width)
         {
             thin = width;
-            auto lims = AXIS == axis::X ? twod{ -1,width }
+            auto lims = Axis == axis::X ? twod{ -1,width }
                                         : twod{ width,-1 };
             limit.set(lims, lims);
         }
@@ -2298,7 +2298,7 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
-                calc.cursor_pos = gear.mouse::coord[AXIS];
+                calc.cursor_pos = gear.mouse::coord[Axis];
             };
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
@@ -2309,7 +2309,7 @@ namespace netxs::ui
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(bttn::down::left)
                  || this->form::template protos<tier::release>(bttn::down::right))
-                if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
+                if (auto dir = calc.inside(gear.mouse::coord[Axis]))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -2379,7 +2379,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = gear.mouse::delta.get()[AXIS])
+                        if (auto delta = gear.mouse::delta.get()[Axis])
                         {
                             calc.stepby(delta);
                             send<upon::scroll::bycoor>();
@@ -2421,7 +2421,7 @@ namespace netxs::ui
                 auto apply = [&](auto active)
                 {
                     wide = active;
-                    if (AXIS == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
+                    if (Axis == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
                                                                : init);      // wider on hover.
                     base::reflow();
                     return faux; // One shot call.
@@ -2437,7 +2437,7 @@ namespace netxs::ui
             //	auto apply = [&](auto active)
             //	{
             //		wide = active;
-            //		if (AXIS == axis::Y) config(active ? init * 2 // Make vertical scrollbar
+            //		if (Axis == axis::Y) config(active ? init * 2 // Make vertical scrollbar
             //		                                   : init);   //  wider on hover
             //		base::reflow();
             //		return faux; // One shot call
@@ -2455,9 +2455,9 @@ namespace netxs::ui
 
                 calc.commit(handle);
 
-                auto& handle_len = handle.size[AXIS];
-                auto& region_len = region.size[AXIS];
-                auto& object_len = object.size[AXIS];
+                auto& handle_len = handle.size[Axis];
+                auto& region_len = region.size[Axis];
+                auto& object_len = object.size[Axis];
 
                 handle = region.clip(handle);
                 handle_len = std::max(1, handle_len);
@@ -2472,19 +2472,19 @@ namespace netxs::ui
     };
 
     // controls: Scroll bar.
-    //template<axis AXIS, auto drawfx = noop{}> //todo apple clang doesn't get it
+    //template<axis Axis, auto drawfx = noop{}> //todo apple clang doesn't get it
     //class grip_fx
-    //    : public flow, public form<grip_fx<AXIS, drawfx>>
-    template<axis AXIS>
+    //    : public flow, public form<grip_fx<Axis, drawfx>>
+    template<axis Axis>
     class grip_fx2
-        : public form<grip_fx2<AXIS>>
+        : public form<grip_fx2<Axis>>
     {
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
         using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
         using wptr = netxs::wptr<base>;
-        using form = ui::form<grip_fx2<AXIS>>;
+        using form = ui::form<grip_fx2<Axis>>;
         using upon = e2::form::upon;
 
         enum activity
@@ -2498,9 +2498,9 @@ namespace netxs::ui
         struct math
         {
             rack  master_inf = {};                           // math: Master scroll info.
-            si32& master_len = master_inf.region     [AXIS]; // math: Master len.
-            si32& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
-            si32& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            si32& master_len = master_inf.region     [Axis]; // math: Master len.
+            si32& master_pos = master_inf.window.coor[Axis]; // math: Master viewport pos.
+            si32& master_box = master_inf.window.size[Axis]; // math: Master viewport len.
             si32& master_dir = master_inf.vector;            // math: Master scroll direction.
             si32  scroll_len = 0; // math: Scrollbar len.
             si32  scroll_pos = 0; // math: Scrollbar grip pos.
@@ -2552,7 +2552,7 @@ namespace netxs::ui
             }
             void resize(twod const& new_size)
             {
-                scroll_len = new_size[AXIS];
+                scroll_len = new_size[Axis];
                 m_to_s();
             }
             void stepby(si32 delta)
@@ -2562,8 +2562,8 @@ namespace netxs::ui
             }
             void commit(rect& handle)
             {
-                handle.coor[AXIS]+= scroll_pos;
-                handle.size[AXIS] = scroll_box;
+                handle.coor[Axis]+= scroll_pos;
+                handle.size[Axis] = scroll_box;
             }
             auto inside(si32 coor)
             {
@@ -2594,18 +2594,18 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<class EVENT>
+        template<class Event>
         void send()
         {
             if (auto master = this->boss.lock())
             {
-                master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
+                master->SIGNAL(tier::preview, Event::template _<Axis>, calc.master_inf);
             }
         }
         void config(si32 width)
         {
             thin = width;
-            auto lims = AXIS == axis::X ? twod{ -1,width }
+            auto lims = Axis == axis::X ? twod{ -1,width }
                                         : twod{ width,-1 };
             limit.set(lims, lims);
         }
@@ -2677,7 +2677,7 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
-                calc.cursor_pos = gear.mouse::coord[AXIS];
+                calc.cursor_pos = gear.mouse::coord[Axis];
             };
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
@@ -2688,7 +2688,7 @@ namespace netxs::ui
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(bttn::down::left)
                  || this->form::template protos<tier::release>(bttn::down::right))
-                if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
+                if (auto dir = calc.inside(gear.mouse::coord[Axis]))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -2758,7 +2758,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = gear.mouse::delta.get()[AXIS])
+                        if (auto delta = gear.mouse::delta.get()[Axis])
                         {
                             calc.stepby(delta);
                             send<upon::scroll::bycoor>();
@@ -2800,7 +2800,7 @@ namespace netxs::ui
                 auto apply = [&](auto active)
                 {
                     wide = active;
-                    if (AXIS == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
+                    if (Axis == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
                                                                : init);      // wider on hover.
                     base::reflow();
                     return faux; // One shot call.
@@ -2816,7 +2816,7 @@ namespace netxs::ui
             //	auto apply = [&](auto active)
             //	{
             //		wide = active;
-            //		if (AXIS == axis::Y) config(active ? init * 2 // Make vertical scrollbar
+            //		if (Axis == axis::Y) config(active ? init * 2 // Make vertical scrollbar
             //		                                   : init);   //  wider on hover
             //		base::reflow();
             //		return faux; // One shot call
@@ -2834,9 +2834,9 @@ namespace netxs::ui
 
                 calc.commit(handle);
 
-                auto& handle_len = handle.size[AXIS];
-                auto& region_len = region.size[AXIS];
-                auto& object_len = object.size[AXIS];
+                auto& handle_len = handle.size[Axis];
+                auto& region_len = region.size[Axis];
+                auto& object_len = object.size[Axis];
 
                 handle = region.clip(handle);
                 handle_len = std::max(1, handle_len);
@@ -3146,9 +3146,9 @@ namespace netxs::ui
         }
     };
 
-    template<tier TIER, class EVENT>
+    template<tier Tier, class Event>
     class stem_rate
-        : public form<stem_rate<TIER, EVENT>>
+        : public form<stem_rate<Tier, Event>>
     {
         pro::robot robot{*this }; // stem_rate: Animation controller.
         pro::limit limit{*this }; // stem_rate: Size limits.
@@ -3235,7 +3235,7 @@ namespace netxs::ui
         {
             if (_move_grip(new_val))
             {
-                RISEUP(TIER, EVENT{}, cur_val);
+                RISEUP(Tier, Event{}, cur_val);
             }
         }
         void giveup(hids& gear)
@@ -3262,7 +3262,7 @@ namespace netxs::ui
             SUBMIT(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
-            RISEUP(TIER, EVENT{}, cur_val);
+            RISEUP(Tier, Event{}, cur_val);
 
             limit.set(twod{ utf::length(caption) + (pad + 2) * 2,
                            10 });
@@ -3286,7 +3286,7 @@ namespace netxs::ui
                     base::deface();
                 }
             };
-            SUBMIT(tier::general, EVENT{}, cur_val)
+            SUBMIT(tier::general, Event{}, cur_val)
             {
                 if (cur_val >= min_val)
                 {
