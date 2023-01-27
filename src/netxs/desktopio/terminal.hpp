@@ -359,7 +359,7 @@ namespace netxs::ui
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
-                    owner.SUBMIT_T(tier::release, hids::events::device::mouse, token, gear)
+                    owner.SUBMIT(tier::release, hids::events::device::mouse, gear, token)
                     {
                         check_focus(gear);
                         if (owner.selmod == clip::disabled)
@@ -421,7 +421,7 @@ namespace netxs::ui
                 {
                     if (!token) // Do not subscribe if it is already subscribed.
                     {
-                        owner.SUBMIT_T(tier::release, hids::events::notify::keybd::any, token, gear)
+                        owner.SUBMIT(tier::release, hids::events::notify::keybd::any, gear, token)
                         {
                             auto s = state;
                             switch (owner.bell::protos<tier::release>())
@@ -6464,7 +6464,7 @@ namespace netxs::ui
                     .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
                     .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                 ondata(error);
-                this->SUBMIT_T(tier::release, hids::events::keybd::any, onerun, gear)
+                this->SUBMIT(tier::release, hids::events::keybd::any, gear, onerun)
                 {
                     if (gear.pressed && gear.cluster.size())
                     {
@@ -7433,15 +7433,15 @@ namespace netxs::ui
                 : s11n{ *this, owner.id },
                  owner{ owner           }
             {
-                owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::header, token, utf8)
+                owner.SUBMIT(tier::anycast, e2::form::prop::ui::header, utf8, token)
                 {
                     s11n::form_header.send(owner, 0, utf8);
                 };
-                owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::footer, token, utf8)
+                owner.SUBMIT(tier::anycast, e2::form::prop::ui::footer, utf8, token)
                 {
                     s11n::form_footer.send(owner, 0, utf8);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::device::mouse, token, gear)
+                owner.SUBMIT(tier::release, hids::events::device::mouse, gear, token)
                 {
                     if (gear.captured(owner.id))
                     {
@@ -7452,26 +7452,26 @@ namespace netxs::ui
                     s11n::sysmouse.send(owner, gear.m);
                     gear.dismiss();
                 };
-                owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
+                owner.SUBMIT(tier::general, hids::events::die, gear, token)
                 {
                     gear.setfree(true);
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::die;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.SUBMIT_T(tier::general, hids::events::halt, token, gear)
+                owner.SUBMIT(tier::general, hids::events::halt, gear, token)
                 {
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::halt;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, token, gear)
+                owner.SUBMIT(tier::release, hids::events::notify::mouse::leave, gear, token)
                 {
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::halt;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::keybd::any, token, gear)
+                owner.SUBMIT(tier::release, hids::events::keybd::any, gear, token)
                 {
                     #if defined(KEYLOG)
                         auto d = std::stringstream{};
@@ -7494,7 +7494,7 @@ namespace netxs::ui
                                                gear.cluster,
                                                gear.winchar);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
+                owner.SUBMIT(tier::release, hids::events::upevent::kboffer, gear, token)
                 {
                     auto focus_state = true;
                     s11n::sysfocus.send(owner, gear.id,
@@ -7502,7 +7502,7 @@ namespace netxs::ui
                                                gear.combine_focus,
                                                gear.force_group_focus);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
+                owner.SUBMIT(tier::release, hids::events::upevent::kbannul, gear, token)
                 {
                     gear.remove_from_kb_focus(owner.This());
                     auto focus_state = faux;
@@ -7511,7 +7511,7 @@ namespace netxs::ui
                                                gear.combine_focus,
                                                gear.force_group_focus);
                 };
-                owner.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, token, gear)
+                owner.SUBMIT(tier::release, hids::events::notify::keybd::lost, gear, token)
                 {
                     auto focus_state = faux;
                     s11n::sysfocus.send(owner, gear.id,
@@ -7519,24 +7519,24 @@ namespace netxs::ui
                                                gear.combine_focus,
                                                gear.force_group_focus);
                 };
-                owner.SUBMIT_T(tier::general, e2::config::fps, token, frame_rate)
+                owner.SUBMIT(tier::general, e2::config::fps, frame_rate, token)
                 {
                     if (frame_rate > 0)
                     {
                         s11n::fps.send(owner, frame_rate);
                     }
                 };
-                owner.SUBMIT_T(tier::anycast, e2::form::prop::ui::slimmenu, token, slim)
+                owner.SUBMIT(tier::anycast, e2::form::prop::ui::slimmenu, slim, token)
                 {
                     s11n::slimmenu.send(owner, slim);
                 };
-                owner.SUBMIT_T(tier::anycast, e2::form::prop::colors::any, token, clr)
+                owner.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr, token)
                 {
                     auto deed = owner.bell::template protos<tier::anycast>();
                          if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(owner, clr);
                     else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(owner, clr);
                 };
-                owner.SUBMIT_T(tier::release, e2::size::any, token, new_size)
+                owner.SUBMIT(tier::release, e2::size::any, new_size, token)
                 {
                     owner.pty_resize(new_size);
                 };

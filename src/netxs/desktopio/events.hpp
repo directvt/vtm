@@ -106,17 +106,17 @@ namespace netxs::events
     {
         return (event & level_mask(branch, block)) == branch;
     }
-    template<hint event>             constexpr auto offset = level(event) * block;                                  // events: Item/msg bit shift.
-    template<hint event>             constexpr auto parent =          event & ((1 << (offset<event> - block)) - 1); // events: Event group ID.
-    template<hint event>             constexpr auto number =               (event >> (offset<event> - block)) - 1;  // events: Item index inside the group by its ID.
-    template<hint group, auto index> constexpr auto entity = group | ((index + 1) <<  offset<group>);               // events: Event ID of the specified item inside the group.
+    template<hint Event>             constexpr auto offset = level(Event) * block;                                  // events: Item/msg bit shift.
+    template<hint Event>             constexpr auto parent =          Event & ((1 << (offset<Event> - block)) - 1); // events: Event group ID.
+    template<hint Event>             constexpr auto number =               (Event >> (offset<Event> - block)) - 1;  // events: Item index inside the group by its ID.
+    template<hint Group, auto Index> constexpr auto entity = Group | ((Index + 1) <<  offset<Group>);               // events: Event ID of the specified item inside the group.
 
-    template<hint group, auto... index>
-    constexpr auto _instantiate(std::index_sequence<index...>)
+    template<hint Group, auto... Index>
+    constexpr auto _instantiate(std::index_sequence<Index...>)
     {
-        return std::array<hint, sizeof...(index)>{ entity<group, index>... };
+        return std::array<hint, sizeof...(Index)>{ entity<Group, Index>... };
     }
-    template<hint group, auto count> constexpr auto subset = _instantiate<group>(std::make_index_sequence<count>{});
+    template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
     struct handler
     {
@@ -347,17 +347,28 @@ namespace netxs::events
     };
 
     #define RISEUP(        level, event,          ...) base::template riseup<level>(event, __VA_ARGS__)
-    #define SUBMIT(        level, event,        param) bell::template submit<level, decltype( event )>()        = [&] (typename decltype( event )::type &&  param)
-    #define SUBMIT_BYVAL(  level, event,        param) bell::template submit<level, decltype( event )>()        = [=] (typename decltype( event )::type &&  param) mutable
-    #define SUBMIT_T(      level, event, token, param) bell::template submit<level, decltype( event )>( token ) = [&] (typename decltype( event )::type &&  param)
-    #define SUBMIT_T_BYVAL(level, event, token, param) bell::template submit<level, decltype( event )>( token ) = [=] (typename decltype( event )::type &&  param) mutable
-    #define SUBMIT_TV(     level, event, token, proxy) bell::template submit<level, decltype( event )>( token, proxy )
-    #define SUBMIT_V(      level, event,        proxy) bell::template submit<level, decltype( event )>(        proxy )
+
+    #define SUBMIT_S_BYREF(level, event, param       ) bell::template submit<level>( event )        = [&] (typename decltype( event )::type &&  param)
+    #define SUBMIT_S_BYVAL(level, event, param       ) bell::template submit<level>( event )        = [=] (typename decltype( event )::type &&  param) mutable
+    #define SUBMIT_T_BYREF(level, event, param, token) bell::template submit<level>( event, token ) = [&] (typename decltype( event )::type &&  param)
+    #define SUBMIT_T_BYVAL(level, event, param, token) bell::template submit<level>( event, token ) = [=] (typename decltype( event )::type &&  param) mutable
+
+    #define ARG_EVAL(a) a
+    #define GET_LAST(a, b, c, d, last, ...) last
+    #define SUBMIT_BYREF_SEL(...) ARG_EVAL(GET_LAST(__VA_ARGS__, SUBMIT_T_BYREF, SUBMIT_S_BYREF, ))
+    #define SUBMIT_BYVAL_SEL(...) ARG_EVAL(GET_LAST(__VA_ARGS__, SUBMIT_T_BYVAL, SUBMIT_S_BYVAL, ))
+
+    #define SUBMIT(      ...) ARG_EVAL(SUBMIT_BYREF_SEL(__VA_ARGS__)(__VA_ARGS__))
+    #define SUBMIT_BYVAL(...) ARG_EVAL(SUBMIT_BYVAL_SEL(__VA_ARGS__)(__VA_ARGS__))
+
+    #define SUBMIT_TV(     level, event, token, proxy) bell::template submit<level>( event, token, proxy )
+
     #define SIGNAL(        level, event,        param) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
     #define SIGNAL_GLOBAL(        event,        param) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
     #define SUBMIT_GLOBAL(        event, token, param) bell::template submit_global<decltype( event )>( token ) = [&] (typename decltype( event )::type &&  param)
 
     //todo deprecated?
+    //#define SUBMIT_V(      level, event,        proxy) bell::template submit<level, decltype( event )>(        proxy )
     #define SUBMIT_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
     #define SUBMIT_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
 
@@ -432,7 +443,7 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                owner.submit<TIER, EVENT>(h);
+                owner.submit<TIER>(EVENT{}, h);
                 h(static_cast<type&&>(p));
             }
         };
@@ -452,7 +463,7 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                owner.submit<TIER, EVENT>(token, h);
+                owner.submit<TIER>(EVENT{}, token, h);
                 h(static_cast<type&&>(p));
             }
         };
@@ -466,7 +477,7 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                owner.submit<TIER, EVENT>(h);
+                owner.submit<TIER>(EVENT{}, h);
             }
         };
         template<tier TIER, class EVENT>
@@ -481,7 +492,7 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                owner.submit<TIER, EVENT>(token, h);
+                owner.submit<TIER>(EVENT{}, token, h);
             }
         };
         template<class EVENT>
@@ -503,11 +514,11 @@ namespace netxs::events
         template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p)               { return submit_helper2      <TIER, EVENT>(*this, p);                 }
         template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p, subs& tokens) { return submit_helper2_token<TIER, EVENT>(*this, p, tokens.extra()); }
 
-        template<tier TIER, class EVENT> auto submit()             { return submit_helper      <TIER, EVENT>(*this);                 }
-        template<tier TIER, class EVENT> auto submit(hook& token)  { return submit_helper_token<TIER, EVENT>(*this, token);          }
-        template<tier TIER, class EVENT> auto submit(subs& tokens) { return submit_helper_token<TIER, EVENT>(*this, tokens.extra()); }
+        template<tier TIER, class EVENT> auto submit(EVENT)               { return submit_helper      <TIER, EVENT>(*this);                 }
+        template<tier TIER, class EVENT> auto submit(EVENT, hook& token)  { return submit_helper_token<TIER, EVENT>(*this, token);          }
+        template<tier TIER, class EVENT> auto submit(EVENT, subs& tokens) { return submit_helper_token<TIER, EVENT>(*this, tokens.extra()); }
         template<tier TIER, class EVENT>
-        void submit(std::function<void(typename EVENT::type &&)> handler)
+        void submit(EVENT, std::function<void(typename EVENT::type &&)> handler)
         {
                  if constexpr (TIER == tier::preview) tracker.admit(preview.subscribe(EVENT::id, handler));
             else if constexpr (TIER == tier::general) tracker.admit(general.subscribe(EVENT::id, handler));
@@ -516,7 +527,7 @@ namespace netxs::events
             else                                      tracker.admit(anycast.subscribe(EVENT::id, handler));
         }
         template<tier TIER, class EVENT>
-        void submit(hook& token, std::function<void(typename EVENT::type &&)> handler)
+        void submit(EVENT, hook& token, std::function<void(typename EVENT::type &&)> handler)
         {
                  if constexpr (TIER == tier::preview) token = preview.subscribe(EVENT::id, handler);
             else if constexpr (TIER == tier::general) token = general.subscribe(EVENT::id, handler);

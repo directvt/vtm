@@ -1308,7 +1308,7 @@ namespace netxs::ui
             {
                 if (!visual_root)
                 {
-                    parent_ptr->SUBMIT_T(tier::release, e2::cascade, cascade_token, proc)
+                    parent_ptr->SUBMIT(tier::release, e2::cascade, proc, cascade_token)
                     {
                         auto backup = This();
                         backup->SIGNAL(tier::release, e2::cascade, proc);
@@ -1318,7 +1318,7 @@ namespace netxs::ui
                 // Propagate form events up to the visual branch ends (children).
                 // Exec after all subscriptions.
                 //todo implement via e2::cascade
-                parent_ptr->SUBMIT_T(tier::release, hids::events::upevent::any, kb_token, gear)
+                parent_ptr->SUBMIT(tier::release, hids::events::upevent::any, gear, kb_token)
                 {
                     if (auto parent_ptr = parent_shadow.lock())
                     {
@@ -1690,11 +1690,11 @@ namespace netxs::ui
                   width{ outer - inner },
                   alive{ true          }
             {
-                boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::alive, memo, state)
+                boss.SUBMIT(tier::release, e2::config::plugins::sizer::alive, state, memo)
                 {
                     alive = state;
                 };
-                boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
+                boss.SUBMIT(tier::release, e2::postrender, canvas, memo)
                 {
                     if (!alive) return;
                     auto area = canvas.full() + outer;
@@ -1711,35 +1711,35 @@ namespace netxs::ui
                         canvas.fill(side_y, fuse);
                     });
                 };
-                boss.SUBMIT_T(tier::release, e2::form::layout::swarp, memo, warp)
+                boss.SUBMIT(tier::release, e2::form::layout::swarp, warp, memo)
                 {
                     auto area = boss.base::area();
                     auto next = area + warp;
                     auto step = boss.extend(next);
                 };
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::mouse::enter, gear, memo)
                 {
                     items.add(gear);
                 };
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::mouse::leave, gear, memo)
                 {
                     items.dec(gear);
                 };
-                boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::outer, memo, outer_rect)
+                boss.SUBMIT(tier::release, e2::config::plugins::sizer::outer, outer_rect, memo)
                 {
                     outer = outer_rect;
                     width = outer - inner;
                 };
-                boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::inner, memo, inner_rect)
+                boss.SUBMIT(tier::release, e2::config::plugins::sizer::inner, inner_rect, memo)
                 {
                     inner = inner_rect;
                     width = outer - inner;
                 };
-                boss.SUBMIT_T(tier::request, e2::config::plugins::sizer::inner, memo, inner_rect)
+                boss.SUBMIT(tier::request, e2::config::plugins::sizer::inner, inner_rect, memo)
                 {
                     inner_rect = inner;
                 };
-                boss.SUBMIT_T(tier::request, e2::config::plugins::sizer::outer, memo, outer_rect)
+                boss.SUBMIT(tier::request, e2::config::plugins::sizer::outer, outer_rect, memo)
                 {
                     outer_rect = outer;
                 };
@@ -1752,32 +1752,32 @@ namespace netxs::ui
             void engage()
             {
                 boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
-                boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::mouse::move, gear, memo)
                 {
                     if (items.take(gear).calc(boss, gear.coord, outer, inner, width))
                     {
                         boss.base::deface(); // Deface only if mouse moved.
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::start::_<Button>, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
                     if (items.take(gear).grab(boss, gear.coord, outer))
                     {
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<Button>, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
                 {
                     if (items.take(gear).drag(boss, gear.coord, outer))
                     {
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<Button>, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
                 {
                     items.take(gear).drop();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::stop::_<Button>, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
                 {
                     items.take(gear).drop();
                     boss.SIGNAL(tier::release, e2::form::upon::dragged, gear);
@@ -1820,11 +1820,11 @@ namespace netxs::ui
                 : skill{ boss },
                   dest_shadow{ subject }
             {
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::mouse::enter, gear, memo)
                 {
                     items.add(gear);
                 };
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::mouse::leave, gear, memo)
                 {
                     items.dec(gear);
                 };
@@ -1838,7 +1838,7 @@ namespace netxs::ui
             void engage()
             {
                 boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
-                boss.SUBMIT_T(tier::release, e2::form::drag::start::_<Button>, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
                     if ((dest_object = dest_shadow.lock()))
                     {
@@ -1846,7 +1846,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<Button>, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
                 {
                     if (dest_object)
                     {
@@ -1856,7 +1856,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<Button>, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
                 {
                     if (dest_object)
                     {
@@ -1864,7 +1864,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::stop::_<Button>, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
                 {
                     if (dest_object)
                     {
@@ -1907,23 +1907,23 @@ namespace netxs::ui
                 : skill{ boss },
                   alive{ true }
             {
-                boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, lucidity)
+                boss.SUBMIT(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
                 {
                     if (lucidity != -1) alive = lucidity == 0xFF;
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
                 };
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::mouse::enter, gear, memo)
                 {
                     items.add(gear);
                 };
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::mouse::leave, gear, memo)
                 {
                     items.dec(gear);
                 };
-                boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
+                boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (!alive) return;
                     auto full = parent_canvas.full();
@@ -1965,11 +1965,11 @@ namespace netxs::ui
             align(base& boss, bool maximize = true)
                 : skill{ boss }
             {
-                boss.SUBMIT_T(tier::release, e2::config::plugins::align, memo, set)
+                boss.SUBMIT(tier::release, e2::config::plugins::align, set, memo)
                 {
                     if (set)
                     {
-                        boss.SUBMIT_T(tier::release, e2::form::maximize, maxs, gear)
+                        boss.SUBMIT(tier::release, e2::form::maximize, gear, maxs)
                         {
                             if (seized(gear.owner.id)) unbind();
                             else                       follow(gear.owner.id, dot_00);
@@ -2005,31 +2005,31 @@ namespace netxs::ui
                     gate.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
                     gate.SIGNAL(tier::release, e2::form::prop::fullscreen, true);
 
-                    gate.SUBMIT_T(tier::release, e2::size::any, memo, size)
+                    gate.SUBMIT(tier::release, e2::size::any, size, memo)
                     {
                         body.size = size + pads * 2;
                         boss.base::resize(body.size);
                     };
-                    gate.SUBMIT_T(tier::release, e2::coor::any, memo, coor)
+                    gate.SUBMIT(tier::release, e2::coor::any, coor, memo)
                     {
                         unbind();
                     };
-                    gate.SUBMIT_T(tier::release, e2::dtor, memo, master_id)
+                    gate.SUBMIT(tier::release, e2::dtor, master_id, memo)
                     {
                         unbind();
                     };
 
-                    boss.SUBMIT_T(tier::release, e2::size::any, memo, size)
+                    boss.SUBMIT(tier::release, e2::size::any, size, memo)
                     {
                         if (weak && body.size != size) unbind(faux);
                     };
-                    boss.SUBMIT_T(tier::release, e2::coor::any, memo, coor)
+                    boss.SUBMIT(tier::release, e2::coor::any, coor, memo)
                     {
                         if (weak && body.coor != coor) unbind(true, faux);
                     };
 
                     weak = master;
-                    boss.SUBMIT_T(tier::release, e2::form::prop::ui::header, memo, newhead)
+                    boss.SUBMIT(tier::release, e2::form::prop::ui::header, newhead, memo)
                     {
                         if (auto gate_ptr = bell::getref(weak))
                         {
@@ -2212,22 +2212,22 @@ namespace netxs::ui
                 robo{ boss    },
                 seat{ z_order }
             {
-                boss.SUBMIT_T(tier::release, e2::form::upon::vtree::attached, memo, parent)
+                boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent, memo)
                 {
-                    parent->SUBMIT_T(tier::preview, e2::form::global::lucidity, link, alpha)
+                    parent->SUBMIT(tier::preview, e2::form::global::lucidity, alpha, link)
                     {
                         boss.SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
                     };
-                    parent->SUBMIT_T(tier::preview, e2::form::layout::convey, link, convey_data)
+                    parent->SUBMIT(tier::preview, e2::form::layout::convey, convey_data, link)
                     {
                         convey(convey_data.delta, convey_data.stuff);
                     };
-                    parent->SUBMIT_T(tier::preview, e2::form::layout::shift, link, delta)
+                    parent->SUBMIT(tier::preview, e2::form::layout::shift, delta, link)
                     {
                         //boss.base::coor += delta;
                         boss.moveby(delta);
                     };
-                    parent->SUBMIT_T(tier::preview, e2::form::upon::vtree::detached, link, p)
+                    parent->SUBMIT(tier::preview, e2::form::upon::vtree::detached, p, link)
                     {
                         frame::link.clear();
                     };
@@ -2238,35 +2238,35 @@ namespace netxs::ui
                     seat = order;
                     boss.SIGNAL(tier::release, e2::form::prop::zorder, seat);
                 };
-                boss.SUBMIT_T(tier::preview, e2::form::layout::expose, memo, boss)
+                boss.SUBMIT(tier::preview, e2::form::layout::expose, boss, memo)
                 {
                     expose();
                 };
-                boss.SUBMIT_T(tier::preview, hids::events::mouse::button::click::left, memo, gear)
+                boss.SUBMIT(tier::preview, hids::events::mouse::button::click::left, gear, memo)
                 {
                     expose();
                 };
-                boss.SUBMIT_T(tier::preview, hids::events::mouse::button::click::right, memo, gear)
+                boss.SUBMIT(tier::preview, hids::events::mouse::button::click::right, gear, memo)
                 {
                     expose();
                 };
-                boss.SUBMIT_T(tier::preview, e2::form::layout::appear, memo, newpos)
+                boss.SUBMIT(tier::preview, e2::form::layout::appear, newpos, memo)
                 {
                     appear(newpos);
                 };
-                //boss.SUBMIT_T(tier::preview, e2::form::upon::moved, memo, delta)
+                //boss.SUBMIT(tier::preview, e2::form::upon::moved, delta, memo)
                 //{
                 //    bubble();
                 //};
-                boss.SUBMIT_T(tier::preview, e2::form::upon::changed, memo, delta)
+                boss.SUBMIT(tier::preview, e2::form::upon::changed, delta, memo)
                 {
                     bubble();
                 };
-                boss.SUBMIT_T(tier::preview, hids::events::mouse::button::down::any, memo, gear)
+                boss.SUBMIT(tier::preview, hids::events::mouse::button::down::any, gear, memo)
                 {
                     robo.pacify();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::pull::any, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::drag::pull::any, gear, memo)
                 {
                     if (gear)
                     {
@@ -2287,7 +2287,7 @@ namespace netxs::ui
                         }
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::upon::dragged, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::upon::dragged, gear, memo)
                 {
                     if (gear.meta(hids::anyCtrl))
                     {
@@ -2307,7 +2307,7 @@ namespace netxs::ui
                         });
                     }
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::right, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear, memo)
                 {
                     auto& area = boss.base::area();
                     auto coord = gear.coord + area.coor;
@@ -2512,55 +2512,55 @@ namespace netxs::ui
             {
                 using drag = hids::events::mouse::button::drag;
 
-                boss.SUBMIT_T(tier::preview, hids::events::keybd::any, memo, gear)
+                boss.SUBMIT(tier::preview, hids::events::keybd::any, gear, memo)
                 {
                     if (gear.captured(boss.bell::id)) check_modifiers(gear);
                 };
 
                 //todo unify - args... + template?
                 //middle button
-                boss.SUBMIT_T(tier::preview, drag::start::middle, memo, gear)
+                boss.SUBMIT(tier::preview, drag::start::middle, gear, memo)
                 {
                     handle_init(gear);
                 };
-                boss.SUBMIT_T(tier::release, drag::pull::middle, memo, gear)
+                boss.SUBMIT(tier::release, drag::pull::middle, gear, memo)
                 {
                     handle_pull(gear);
                 };
-                boss.SUBMIT_T(tier::release, drag::cancel::middle, memo, gear)
+                boss.SUBMIT(tier::release, drag::cancel::middle, gear, memo)
                 {
                     handle_drop(gear);
                 };
-                boss.SUBMIT_T(tier::release, drag::stop::middle, memo, gear)
+                boss.SUBMIT(tier::release, drag::stop::middle, gear, memo)
                 {
                     handle_stop(gear);
                 };
 
                 //todo unify
                 //right button
-                boss.SUBMIT_T(tier::release, drag::start::right, memo, gear)
+                boss.SUBMIT(tier::release, drag::start::right, gear, memo)
                 {
                     handle_init(gear);
                 };
-                boss.SUBMIT_T(tier::release, drag::pull::right, memo, gear)
+                boss.SUBMIT(tier::release, drag::pull::right, gear, memo)
                 {
                     handle_pull(gear);
                 };
-                boss.SUBMIT_T(tier::release, drag::cancel::right, memo, gear)
+                boss.SUBMIT(tier::release, drag::cancel::right, gear, memo)
                 {
                     handle_drop(gear);
                 };
-                boss.SUBMIT_T(tier::release, drag::stop::right, memo, gear)
+                boss.SUBMIT(tier::release, drag::stop::right, gear, memo)
                 {
                     handle_stop(gear);
                 };
 
-                boss.SUBMIT_T(tier::general, hids::events::halt, memo, gear)
+                boss.SUBMIT(tier::general, hids::events::halt, gear, memo)
                 {
                     handle_drop(gear);
                 };
 
-                boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
+                boss.SUBMIT(tier::release, e2::postrender, canvas, memo)
                 {
                     //todo Highlighted area drawn twice
                     auto offset = boss.coor() - canvas.coor();
@@ -2637,31 +2637,31 @@ namespace netxs::ui
                    body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
                    step{ freq }
             {
-                boss.SUBMIT_T(tier::anycast, e2::form::highlight::any, conf, state)
+                boss.SUBMIT(tier::anycast, e2::form::highlight::any, state, conf)
                 {
                     down = !state;
                 };
-                boss.SUBMIT_T(tier::request, e2::config::caret::blink, conf, req_step)
+                boss.SUBMIT(tier::request, e2::config::caret::blink, req_step, conf)
                 {
                     req_step = step;
                 };
-                boss.SUBMIT_T(tier::request, e2::config::caret::style, conf, req_style)
+                boss.SUBMIT(tier::request, e2::config::caret::style, req_style, conf)
                 {
                     req_style = form ? 1 : 0;
                 };
-                boss.SUBMIT_T(tier::general, e2::config::caret::blink, conf, new_step)
+                boss.SUBMIT(tier::general, e2::config::caret::blink, new_step, conf)
                 {
                     blink_period(new_step);
                 };
-                boss.SUBMIT_T(tier::preview, e2::config::caret::blink, conf, new_step)
+                boss.SUBMIT(tier::preview, e2::config::caret::blink, new_step, conf)
                 {
                     blink_period(new_step);
                 };
-                boss.SUBMIT_T(tier::general, e2::config::caret::style, conf, new_style)
+                boss.SUBMIT(tier::general, e2::config::caret::style, new_style, conf)
                 {
                     style(new_style);
                 };
-                boss.SUBMIT_T(tier::preview, e2::config::caret::style, conf, new_style)
+                boss.SUBMIT(tier::preview, e2::config::caret::style, new_style, conf)
                 {
                     style(new_style);
                 };
@@ -2767,7 +2767,7 @@ namespace netxs::ui
                     live = step == span::zero();
                     if (!live)
                     {
-                        boss.SUBMIT_T(tier::general, e2::timer::tick, memo, timestamp)
+                        boss.SUBMIT(tier::general, e2::timer::tick, timestamp, memo)
                         {
                             if (timestamp > next)
                             {
@@ -2777,7 +2777,7 @@ namespace netxs::ui
                             }
                         };
                     }
-                    boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
+                    boss.SUBMIT(tier::release, e2::postrender, canvas, memo)
                     {
                         done = live;
                         auto state = down ? (step == span::zero() ? faux : true)
@@ -2994,7 +2994,7 @@ namespace netxs::ui
                     coder.clear();
                 }
 
-                boss.SUBMIT_T(tier::general, e2::config::fps, memo, fps)
+                boss.SUBMIT(tier::general, e2::config::fps, fps, memo)
                 {
                     status[prop::frame_rate].set(stress) = std::to_string(fps);
                     boss.base::strike();
@@ -3003,17 +3003,17 @@ namespace netxs::ui
                     auto fps = e2::config::fps.param(-1);
                     boss.SIGNAL(tier::general, e2::config::fps, fps);
                 }
-                boss.SUBMIT_T(tier::release, e2::conio::focus, memo, focusstate)
+                boss.SUBMIT(tier::release, e2::conio::focus, focusstate, memo)
                 {
                     update(focusstate.enabled);
                     boss.base::strike();
                 };
-                boss.SUBMIT_T(tier::release, e2::size::any, memo, newsize)
+                boss.SUBMIT(tier::release, e2::size::any, newsize, memo)
                 {
                     update(newsize);
                 };
 
-                boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, m)
+                boss.SUBMIT(tier::release, e2::conio::mouse, m, memo)
                 {
                     if (bypass) return;
                     shadow();
@@ -3034,7 +3034,7 @@ namespace netxs::ui
                     status[prop::mouse_vtwheel].set(stress) = m.wheeled ? "active" : "idle  ";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
                 };
-                boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, k)
+                boss.SUBMIT(tier::release, e2::conio::keybd, k, memo)
                 {
                     shadow();
 
@@ -3061,7 +3061,7 @@ namespace netxs::ui
                     }
                 };
 
-                boss.SUBMIT_T(tier::release, e2::conio::error, memo, e)
+                boss.SUBMIT(tier::release, e2::conio::error, e, memo)
                 {
                     shadow();
                     status[prop::last_event].set(stress) = "error";
@@ -3141,11 +3141,11 @@ namespace netxs::ui
             }
             void init()
             {
-                boss.SUBMIT_T(tier::release, e2::size::any, memo, new_size)
+                boss.SUBMIT(tier::release, e2::size::any, new_size, memo)
                 {
                     recalc(new_size);
                 };
-                boss.SUBMIT_T(tier::release, e2::postrender, memo, canvas)
+                boss.SUBMIT(tier::release, e2::postrender, canvas, memo)
                 {
                     if (live)
                     {
@@ -3165,32 +3165,32 @@ namespace netxs::ui
                 };
                 if (head_live)
                 {
-                    boss.SUBMIT_T(tier::preview, e2::form::prop::ui::header, memo, newtext)
+                    boss.SUBMIT(tier::preview, e2::form::prop::ui::header, newtext, memo)
                     {
                         header(newtext);
                     };
-                    boss.SUBMIT_T(tier::request, e2::form::prop::ui::header, memo, curtext)
+                    boss.SUBMIT(tier::request, e2::form::prop::ui::header, curtext, memo)
                     {
                         curtext = head_text;
                     };
                 }
                 if (foot_live)
                 {
-                    boss.SUBMIT_T(tier::preview, e2::form::prop::ui::footer, memo, newtext)
+                    boss.SUBMIT(tier::preview, e2::form::prop::ui::footer, newtext, memo)
                     {
                         footer(newtext);
                     };
-                    boss.SUBMIT_T(tier::request, e2::form::prop::ui::footer, memo, curtext)
+                    boss.SUBMIT(tier::request, e2::form::prop::ui::footer, curtext, memo)
                     {
                         curtext = foot_text;
                     };
                 }
                 /*
-                boss.SUBMIT_T(tier::request, e2::form::state::header, memo, caption)
+                boss.SUBMIT(tier::request, e2::form::state::header, caption, memo)
                 {
                     caption = header();
                 };
-                boss.SUBMIT_T(tier::request, e2::form::state::footer, memo, caption)
+                boss.SUBMIT(tier::request, e2::form::state::footer, caption, memo)
                 {
                     caption = footer();
                 };
@@ -3240,7 +3240,7 @@ namespace netxs::ui
                 wait{ faux }
             {
                 // Suspected early completion.
-                boss.SUBMIT_T(tier::release, e2::conio::preclose, memo, pre_close)
+                boss.SUBMIT(tier::release, e2::conio::preclose, pre_close, memo)
                 {
                     if ((wait = pre_close))
                     {
@@ -3249,7 +3249,7 @@ namespace netxs::ui
                 };
 
                 // Double escape catcher.
-                boss.SUBMIT_T(tier::general, e2::timer::any, memo, timestamp)
+                boss.SUBMIT(tier::general, e2::timer::any, timestamp, memo)
                 {
                     if (wait && (timestamp > stop))
                     {
@@ -3285,11 +3285,11 @@ namespace netxs::ui
                 stop = datetime::now() + std::chrono::seconds(LIMIT);
 
                 // No mouse events watchdog.
-                boss.SUBMIT_T(tier::preview, EXCUSE_MSG, pong, something)
+                boss.SUBMIT(tier::preview, EXCUSE_MSG, something, pong)
                 {
                     stop = datetime::now() + std::chrono::seconds(LIMIT);
                 };
-                boss.SUBMIT_T(tier::general, e2::timer::any, ping, something)
+                boss.SUBMIT(tier::general, e2::timer::any, something, ping)
                 {
                     if (datetime::now() > stop)
                     {
@@ -3318,16 +3318,16 @@ namespace netxs::ui
             keybd(base& boss) : skill{ boss }
             {
                 // pro::keybd: Notify form::state::kbfocus when the number of clients is positive.
-                boss.SUBMIT_T(tier::release, hids::events::notify::keybd::got, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::keybd::got, gear, memo)
                 {
                     boss.SIGNAL(tier::release, e2::form::state::keybd::got, gear);
                 };
                 // pro::keybd: Notify form::state::active_kbd when the number of clients is zero.
-                boss.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::keybd::lost, gear, memo)
                 {
                     boss.SIGNAL(tier::release, e2::form::state::keybd::lost, gear);
                 };
-                boss.SUBMIT_T(tier::preview, hids::events::keybd::any, memo, gear)
+                boss.SUBMIT(tier::preview, hids::events::keybd::any, gear, memo)
                 {
                     #if defined(KEYLOG)
                         log("keybd fired virtcode: ", gear.virtcod,
@@ -3342,7 +3342,7 @@ namespace netxs::ui
             // pro::keybd: Keybd offers promoter.
             void active()
             {
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::any, kb_subs, gear)
+                boss.SUBMIT(tier::release, hids::events::mouse::button::any, gear, kb_subs)
                 {
                     if (!gear) return;
                     auto deed = boss.bell::protos<tier::release>();
@@ -3377,7 +3377,7 @@ namespace netxs::ui
             // pro::keybd: Set focus root.
             //void master()
             //{
-            //    boss.SUBMIT_T(tier::release, hids::events::upevent::kboffer, kb_subs, gear)
+            //    boss.SUBMIT(tier::release, hids::events::upevent::kboffer, gear, kb_subs)
             //    {
             //        log("restore");
             //        //if (boss.root()) // Restore focused state.
@@ -3396,7 +3396,7 @@ namespace netxs::ui
                 if (value)
                 {
                     active();
-                    boss.SUBMIT_T(tier::release, hids::events::upevent::kboffer, kb_subs, gear)
+                    boss.SUBMIT(tier::release, hids::events::upevent::kboffer, gear, kb_subs)
                     {
                         if (!gear.focus_changed())
                         {
@@ -3406,13 +3406,13 @@ namespace netxs::ui
                             boss.bell::expire<tier::release>();
                         }
                     };
-                    boss.SUBMIT_T(tier::release, hids::events::upevent::kbannul, kb_subs, gear)
+                    boss.SUBMIT(tier::release, hids::events::upevent::kbannul, gear, kb_subs)
                     {
                         gear.remove_from_kb_focus(boss.This());
                     };
 
                     ////todo foci
-                    //boss.SUBMIT_T(tier::anycast, hids::events::upevent::kboffer, kb_subs, gear) //todo no upevent used
+                    //boss.SUBMIT(tier::anycast, hids::events::upevent::kboffer, gear, kb_subs) //todo no upevent used
                     //{
                     //    log("restore in place boss-id=", boss.id, " gear_id=", gear.id, " saved_size=", saved.size());
                     //    for (auto gear_id : saved) // Restore saved focus.
@@ -3429,12 +3429,12 @@ namespace netxs::ui
                     //        }
                     //    }
                     //};
-                    //boss.SUBMIT_T(tier::preview, hids::events::notify::keybd::lost, kb_subs, gear) //todo no upevent used
+                    //boss.SUBMIT(tier::preview, hids::events::notify::keybd::lost, gear, kb_subs) //todo no upevent used
                     //{
                     //    log("save boss.id=", boss.id, " gear_id=", gear.id);
                     //    saved.push_back(gear.id);
                     //};
-                    //boss.SUBMIT_T(tier::anycast, hids::events::upevent::kbannul, kb_subs, gear) //todo no upevent used
+                    //boss.SUBMIT(tier::anycast, hids::events::upevent::kbannul, gear, kb_subs) //todo no upevent used
                     //{
                     //    if (gear.force_group_focus = faux)
                     //    {
@@ -3476,7 +3476,7 @@ namespace netxs::ui
                 auto brush = boss.base::color();
                 boss.base::color(brush.link(boss.bell::id));
                 // pro::mouse: Forward preview to all parents.
-                boss.SUBMIT_T(tier::preview, hids::events::mouse::any, memo, gear)
+                boss.SUBMIT(tier::preview, hids::events::mouse::any, gear, memo)
                 {
                     auto& offset = boss.base::coor();
                     gear.pass<tier::preview>(boss.parent(), offset);
@@ -3485,7 +3485,7 @@ namespace netxs::ui
                     else      boss.bell::expire<tier::preview>();
                 };
                 // pro::mouse: Forward all not expired mouse events to all parents.
-                boss.SUBMIT_T(tier::release, hids::events::mouse::any, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::mouse::any, gear, memo)
                 {
                     if (gear && !gear.captured())
                     {
@@ -3494,7 +3494,7 @@ namespace netxs::ui
                     }
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::mouse::enter, gear, memo)
                 {
                     if (!full++)
                     {
@@ -3509,7 +3509,7 @@ namespace netxs::ui
                     }
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::mouse::leave, gear, memo)
                 {
                     if (!--full)
                     {
@@ -3524,11 +3524,11 @@ namespace netxs::ui
                         }
                     }
                 };
-                boss.SUBMIT_T(tier::request, e2::form::state::mouse, memo, state)
+                boss.SUBMIT(tier::request, e2::form::state::mouse, state, memo)
                 {
                     state = rent;
                 };
-                boss.SUBMIT_T(tier::release, e2::form::draggable::any, memo, enabled)
+                boss.SUBMIT(tier::release, e2::form::draggable::any, enabled, memo)
                 {
                     switch (auto deed = boss.bell::protos<tier::release>())
                     {
@@ -3567,7 +3567,7 @@ namespace netxs::ui
                 {
                     drag |= 1 << Button;
                     //using bttn = hids::events::mouse::button; //MSVC 16.9.4 don't get it
-                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::_<Button>, dragmemo[Button], gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::start::_<Button>, gear, dragmemo[Button])
                     {
                         if (gear.capture(boss.bell::id))
                         {
@@ -3575,7 +3575,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::_<Button>, dragmemo[Button], gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::pull::_<Button>, gear, dragmemo[Button])
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3583,7 +3583,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::_<Button>, dragmemo[Button], gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::_<Button>, gear, dragmemo[Button])
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3592,7 +3592,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_T(tier::general, hids::events::halt, dragmemo[Button], gear)
+                    boss.SUBMIT(tier::general, hids::events::halt, gear, dragmemo[Button])
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3601,7 +3601,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::_<Button>, dragmemo[Button], gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::stop::_<Button>, gear, dragmemo[Button])
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3743,7 +3743,7 @@ namespace netxs::ui
                 xmap.link(boss.bell::id);
                 xmap.move(boss.base::coor());
                 xmap.size(boss.base::size());
-                boss.SUBMIT_T(tier::release, e2::command::printscreen, memo, gear)
+                boss.SUBMIT(tier::release, e2::command::printscreen, gear, memo)
                 {
                     auto data = ansi::esc{};
                     data.s11n(xmap, gear.slot);
@@ -3752,22 +3752,22 @@ namespace netxs::ui
                         gear.set_clip_data(clip{ gear.slot.size, data, clip::ansitext });
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::prop::brush, memo, brush)
+                boss.SUBMIT(tier::release, e2::form::prop::brush, brush, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.mark(brush);
                 };
-                boss.SUBMIT_T(tier::release, e2::size::any, memo, newsize)
+                boss.SUBMIT(tier::release, e2::size::any, newsize, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.size(newsize);
                 };
-                boss.SUBMIT_T(tier::release, e2::coor::any, memo, newcoor)
+                boss.SUBMIT(tier::release, e2::coor::any, newcoor, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.move(newcoor);
                 };
-                boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, m)
+                boss.SUBMIT(tier::release, e2::conio::mouse, m, memo)
                 {
                     if (m.enabled != hids::stat::ok)
                     {
@@ -3785,11 +3785,11 @@ namespace netxs::ui
                     }
                     else forward(m);
                 };
-                boss.SUBMIT_T(tier::release, e2::conio::keybd, memo, k)
+                boss.SUBMIT(tier::release, e2::conio::keybd, k, memo)
                 {
                     forward(k);
                 };
-                boss.SUBMIT_T(tier::release, e2::conio::focus, memo, f)
+                boss.SUBMIT(tier::release, e2::conio::focus, f, memo)
                 {
                     forward(f);
                 };
@@ -3836,7 +3836,7 @@ namespace netxs::ui
             grade(base&&) = delete;
             grade(base& boss) : skill{ boss }
             {
-                boss.SUBMIT_T(tier::release, e2::postrender, memo, parent_canvas)
+                boss.SUBMIT(tier::release, e2::postrender, parent_canvas, memo)
                 {
                     auto size = si32{ 5 }; // grade: Vertical gradient size.
                     auto step = si32{ 2 }; // grade: Vertical gradient step.
@@ -3924,7 +3924,7 @@ namespace netxs::ui
                         work(transit);
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::state::mouse, memo, active)
+                boss.SUBMIT(tier::release, e2::form::state::mouse, active, memo)
                 {
                     robo.pacify();
                     if (active)
@@ -3979,12 +3979,12 @@ namespace netxs::ui
             {
                 set(min_size, max_size, forced_clamp);
                 // Clamping before all.
-                boss.SUBMIT_T(tier::preview, e2::size::any, memo, new_size)
+                boss.SUBMIT(tier::preview, e2::size::any, new_size, memo)
                 {
                     new_size = std::clamp(new_size, lims.min, lims.max);
                 };
                 // Clamping after all.
-                boss.SUBMIT_T(tier::preview, e2::size::set, memo, new_size)
+                boss.SUBMIT(tier::preview, e2::size::set, new_size, memo)
                 {
                     if (sure)
                     {
@@ -3993,7 +3993,7 @@ namespace netxs::ui
                 };
                 if (forced_resize)
                 {
-                    boss.SUBMIT_T(tier::release, e2::form::prop::window::size, memo, new_size)
+                    boss.SUBMIT(tier::release, e2::form::prop::window::size, new_size, memo)
                     {
                         auto reserv = lims;
                         lims.fixed_size(new_size);
@@ -4044,7 +4044,7 @@ namespace netxs::ui
                 canvas.link(boss.bell::id);
                 canvas.move(boss.base::coor());
                 canvas.size(boss.base::size());
-                boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, value)
+                boss.SUBMIT(tier::anycast, e2::form::prop::lucidity, value, memo)
                 {
                     if (value == -1)
                     {
@@ -4056,16 +4056,16 @@ namespace netxs::ui
                         //boss.deface();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::upon::vtree::attached, memo, parent_ptr)
+                boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent_ptr, memo)
                 {
                     boss.SIGNAL(tier::general, e2::form::canvas, canvas.shared_from_this());
                 };
-                boss.SUBMIT_T(tier::release, e2::coor::any, memo, new_xy) { canvas.move(new_xy); };
-                boss.SUBMIT_T(tier::release, e2::size::any, memo, new_sz) { canvas.size(new_sz); };
-                boss.SUBMIT_T(tier::request, e2::form::canvas, memo, canvas_ptr) { canvas_ptr = coreface; };
+                boss.SUBMIT(tier::release, e2::coor::any, new_xy,        memo) { canvas.move(new_xy); };
+                boss.SUBMIT(tier::release, e2::size::any, new_sz,        memo) { canvas.size(new_sz); };
+                boss.SUBMIT(tier::request, e2::form::canvas, canvas_ptr, memo) { canvas_ptr = coreface; };
                 if (rendered)
                 {
-                    boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
+                    boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas, memo)
                     {
                         if (boss.base::ruined())
                         {
@@ -4098,11 +4098,11 @@ namespace netxs::ui
                   width{ size },
                   alive{ true }
             {
-                boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, lucidity)
+                boss.SUBMIT(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
                 {
                     if (lucidity != -1) alive = lucidity == 0xFF;
                 };
-                boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
+                boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (!alive) return;
                     auto brush = boss.base::color();
@@ -4127,12 +4127,12 @@ namespace netxs::ui
             light(base& boss, bool track_mouse = faux)
                 : skill{ boss }
             {
-                boss.SUBMIT_T(tier::release, e2::form::highlight::any, memo, state)
+                boss.SUBMIT(tier::release, e2::form::highlight::any, state, memo)
                 {
                     highlighted = state;
                     boss.base::deface();
                 };
-                boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
+                boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (highlighted)
                     {
@@ -4161,12 +4161,12 @@ namespace netxs::ui
             shade(base& boss)
                 : skill{ boss }
             {
-                boss.SUBMIT_T(tier::release, e2::form::state::mouse, memo, active)
+                boss.SUBMIT(tier::release, e2::form::state::mouse, active, memo)
                 {
                     highlighted = active;
                     boss.base::deface();
                 };
-                boss.SUBMIT_T(tier::release, e2::postrender, memo, parent_canvas)
+                boss.SUBMIT(tier::release, e2::postrender, parent_canvas, memo)
                 {
                     if (highlighted)
                     {
@@ -4203,15 +4203,15 @@ namespace netxs::ui
             focus(base& boss, bool visible = true)
                 : skill{ boss }
             {
-                boss.SUBMIT_T(tier::general, e2::form::proceed::functor, memo, proc)
+                boss.SUBMIT(tier::general, e2::form::proceed::functor, proc, memo)
                 {
                     if (pool.size()) proc(boss.This());
                 };
-                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::find, memo, gear_test)
+                boss.SUBMIT(tier::anycast, e2::form::state::keybd::find, gear_test, memo)
                 {
                     if (find(gear_test.first)) gear_test.second++;
                 };
-                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::enlist, memo, gear_id_list)
+                boss.SUBMIT(tier::anycast, e2::form::state::keybd::enlist, gear_id_list, memo)
                 {
                     if (pool.size())
                     {
@@ -4219,32 +4219,32 @@ namespace netxs::ui
                         gear_id_list.insert(tail, pool.begin(), pool.end());
                     }
                 };
-                boss.SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_test)
+                boss.SUBMIT(tier::request, e2::form::state::keybd::find, gear_test, memo)
                 {
                     if (find(gear_test.first)) gear_test.second++;
                 };
-                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::check, memo, state)
+                boss.SUBMIT(tier::anycast, e2::form::state::keybd::check, state, memo)
                 {
                     state = !pool.empty();
                 };
-                boss.SUBMIT_T(tier::anycast, e2::form::highlight::set, memo, state)
+                boss.SUBMIT(tier::anycast, e2::form::highlight::set, state, memo)
                 {
                     state = !pool.empty();
                     boss.RISEUP(tier::preview, e2::form::highlight::any, state);
                 };
-                boss.SUBMIT_T(tier::anycast, e2::form::upon::started, memo, root)
+                boss.SUBMIT(tier::anycast, e2::form::upon::started, root, memo)
                 {
                     auto state = !pool.empty();
                     boss.RISEUP(tier::preview, e2::form::highlight::any, state);
                 };
-                boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::state::keybd::got, gear, memo)
                 {
                     boss.RISEUP(tier::preview, e2::form::highlight::any, true);
                     boss.SIGNAL(tier::anycast, e2::form::highlight::any, true);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
+                boss.SUBMIT(tier::release, e2::form::state::keybd::lost, gear, memo)
                 {
                     if (!pool.empty())
                     {
@@ -4266,7 +4266,7 @@ namespace netxs::ui
                 };
                 if (visible)
                 {
-                    boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
+                    boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas, memo)
                     {
                         //todo revise, too many fillings (mold's artifacts)
                         auto normal = boss.base::color();
@@ -4345,7 +4345,7 @@ namespace netxs::ui
                   drags{ faux },
                   under{      }
             {
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::any, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear, memo)
                 {
                     if (boss.size().inside(gear.coord)
                     && !gear.kbmod())
@@ -4355,25 +4355,25 @@ namespace netxs::ui
                         under = {};
                     }
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::any, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              coord = gear.coord - gear.delta.get();
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::any, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              proceed(true);
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::any, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              proceed(true);
                 };
-                boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
+                boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (!drags) return;
                     auto full = parent_canvas.face::full();
@@ -4435,11 +4435,11 @@ namespace netxs::ui
                 : skill{ boss },
                   note { data }
             {
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
+                boss.SUBMIT(tier::release, hids::events::notify::mouse::enter, gear, memo)
                 {
                     gear.set_tooltip(boss.id, note);
                 };
-                boss.SUBMIT_T(tier::preview, e2::form::prop::ui::tooltip, memo, new_note)
+                boss.SUBMIT(tier::preview, e2::form::prop::ui::tooltip, new_note, memo)
                 {
                     note = new_note;
                 };
@@ -4494,17 +4494,17 @@ namespace netxs::ui
 
             keybd.accept(true); // Subscribe on keybd offers.
 
-            SUBMIT_T(tier::general, e2::timer::any, token, timestamp)
+            SUBMIT(tier::general, e2::timer::any, timestamp, token)
             {
                 auto damaged = !edges.empty();
                 edges.clear();
                 SIGNAL_GLOBAL(e2::nextframe, damaged);
             };
-            SUBMIT_T(tier::general, e2::config::whereami, token, world_ptr)
+            SUBMIT(tier::general, e2::config::whereami, world_ptr, token)
             {
                 world_ptr = base::This();
             };
-            SUBMIT_T(tier::general, e2::config::fps, token, fps)
+            SUBMIT(tier::general, e2::config::fps, fps, token)
             {
                 if (fps > 0)
                 {
@@ -4520,11 +4520,11 @@ namespace netxs::ui
                     synch.cancel();
                 }
             };
-            SUBMIT_T(tier::general, e2::cleanup, token, counter)
+            SUBMIT(tier::general, e2::cleanup, counter, token)
             {
                 this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
             };
-            SUBMIT_T(tier::general, hids::events::halt, token, gear)
+            SUBMIT(tier::general, hids::events::halt, gear, token)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4532,7 +4532,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT_T(tier::general, e2::shutdown, token, msg)
+            SUBMIT(tier::general, e2::shutdown, msg, token)
             {
                 //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
                 log("host: shutdown: ", msg);
@@ -5757,7 +5757,7 @@ namespace netxs::ui
                     }
                 };
                 // conio events.
-                SUBMIT_T(tier::release, e2::conio::winsz, token, newsize)
+                SUBMIT(tier::release, e2::conio::winsz, newsize, token)
                 {
                     auto delta = base::resize(newsize);
                     if (delta && direct)
@@ -5766,19 +5766,19 @@ namespace netxs::ui
                         rebuild_scene(true);
                     }
                 };
-                SUBMIT_T(tier::release, e2::size::any, token, newsz)
+                SUBMIT(tier::release, e2::size::any, newsz, token)
                 {
                     if (uibar) uibar->base::resize(newsz);
                     if (background) background->base::resize(newsz);
                 };
-                SUBMIT_T(tier::release, e2::conio::unknown, token, unkstate)
+                SUBMIT(tier::release, e2::conio::unknown, unkstate, token)
                 {
                 };
-                SUBMIT_T(tier::release, e2::conio::pointer, token, pointer)
+                SUBMIT(tier::release, e2::conio::pointer, pointer, token)
                 {
                     legacy |= pointer ? os::vt::mouse : 0;
                 };
-                SUBMIT_T(tier::release, e2::conio::clipdata, token, clipdata)
+                SUBMIT(tier::release, e2::conio::clipdata, clipdata, token)
                 {
                     if (!direct)
                     {
@@ -5787,29 +5787,29 @@ namespace netxs::ui
                         base::deface();
                     }
                 };
-                SUBMIT_T(tier::release, e2::conio::error, token, errcode)
+                SUBMIT(tier::release, e2::conio::error, errcode, token)
                 {
                     auto msg = ansi::bgc(reddk).fgc(whitelt).add("\n\rgate: Term error: ", errcode, "\r\n");
                     log("gate: error byemsg: ", msg);
                     canal.shut();
                 };
-                SUBMIT_T(tier::release, e2::conio::quit, token, msg)
+                SUBMIT(tier::release, e2::conio::quit, msg, token)
                 {
                     log("gate: quit byemsg: ", msg);
                     canal.shut();
                 };
-                SUBMIT_T(tier::general, e2::conio::quit, token, msg)
+                SUBMIT(tier::general, e2::conio::quit, msg, token)
                 {
                     log("gate: global shutdown byemsg: ", msg);
                     canal.shut();
                 };
-                SUBMIT_T(tier::release, e2::form::quit, token, initiator)
+                SUBMIT(tier::release, e2::form::quit, initiator, token)
                 {
                     auto msg = ansi::add("gate: quit message from: ", initiator->id);
                     canal.shut();
                     this->SIGNAL(tier::general, e2::shutdown, msg);
                 };
-                SUBMIT_T(tier::release, e2::form::prop::ui::footer, token, newfooter)
+                SUBMIT(tier::release, e2::form::prop::ui::footer, newfooter, token)
                 {
                     if (direct)
                     {
@@ -5817,7 +5817,7 @@ namespace netxs::ui
                         conio.form_footer.send(canal, window_id, newfooter);
                     }
                 };
-                SUBMIT_T(tier::release, e2::form::prop::ui::header, token, newheader)
+                SUBMIT(tier::release, e2::form::prop::ui::header, newheader, token)
                 {
                     if (direct)
                     {
@@ -5833,14 +5833,14 @@ namespace netxs::ui
                         conio.output(ansi::header(temp));
                     }
                 };
-                SUBMIT_T(tier::general, e2::nextframe, token, damaged)
+                SUBMIT(tier::general, e2::nextframe, damaged, token)
                 {
                     rebuild_scene(damaged);
                 };
 
                 if (props.tooltip_enabled)
                 {
-                    SUBMIT_T(tier::general, e2::timer::any, token, now)
+                    SUBMIT(tier::general, e2::timer::any, now, token)
                     {
                         check_tooltips(now);
                     };
@@ -5848,18 +5848,18 @@ namespace netxs::ui
 
                 if (!props.is_standalone_app)
                 {
-                    SUBMIT_T(tier::release, hids::events::upevent::kboffer, token, gear)
+                    SUBMIT(tier::release, hids::events::upevent::kboffer, gear, token)
                     {
                         world.SIGNAL(tier::release, e2::form::proceed::autofocus::take, gear);
                     };
-                    SUBMIT_T(tier::release, hids::events::upevent::kbannul, token, gear)
+                    SUBMIT(tier::release, hids::events::upevent::kbannul, gear, token)
                     {
                         world.SIGNAL(tier::release, e2::form::proceed::autofocus::lost, gear);
                     };
                 }
                 if (direct)
                 {
-                    SUBMIT_T(tier::preview, hids::events::notify::focus::any, token, from_gear)
+                    SUBMIT(tier::preview, hids::events::notify::focus::any, from_gear, token)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                         auto deed =this->bell::protos<tier::preview>();
@@ -5871,7 +5871,7 @@ namespace netxs::ui
                     };
                 }
                 // Focus relay.
-                SUBMIT_T(tier::release, hids::events::notify::focus::got, token, from_gear)
+                SUBMIT(tier::release, hids::events::notify::focus::got, from_gear, token)
                 {
                     auto myid = from_gear.id;
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
@@ -5883,7 +5883,7 @@ namespace netxs::ui
                     if (gear.focus_changed()) gear.dismiss();
                     gear.state(state);
                 };
-                SUBMIT_T(tier::release, hids::events::notify::focus::lost, token, from_gear)
+                SUBMIT(tier::release, hids::events::notify::focus::lost, from_gear, token)
                 {
                     auto myid = from_gear.id;
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
@@ -5893,7 +5893,7 @@ namespace netxs::ui
                 };
 
                 // Clipboard relay.
-                SUBMIT_T(tier::release, hids::events::clipbrd::set, token, from_gear)
+                SUBMIT(tier::release, hids::events::clipbrd::set, from_gear, token)
                 {
                     auto myid = from_gear.id;
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
@@ -5902,7 +5902,7 @@ namespace netxs::ui
                     if (direct) conio.set_clipboard.send(canal, ext_gear_id, data.size, data.utf8, data.kind);
                     else        conio.output(ansi::clipbuf(                  data.size, data.utf8, data.kind));
                 };
-                SUBMIT_T(tier::release, hids::events::clipbrd::get, token, from_gear)
+                SUBMIT(tier::release, hids::events::clipbrd::get, from_gear, token)
                 {
                     if (!direct) return;
                     auto myid = from_gear.id;
@@ -5916,7 +5916,7 @@ namespace netxs::ui
                 if (deskmenu)
                 {
                     attach(deskmenu); // Our size could be changed here during attaching.
-                    deskmenu->SUBMIT_T(tier::preview, hids::events::mouse::button::tplclick::leftright, token, gear)
+                    deskmenu->SUBMIT(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, token)
                     {
                         if (debug)
                         {
@@ -5937,38 +5937,38 @@ namespace netxs::ui
 
                 if (direct) // Forward unhandled events outside.
                 {
-                    SUBMIT_T(tier::general, e2::conio::logs, token, utf8)
+                    SUBMIT(tier::general, e2::conio::logs, utf8, token)
                     {
                         conio.logs.send(canal, os::process::id.first, os::process::id.second, text{ utf8 });
                     };
-                    SUBMIT_T(tier::release, e2::config::fps, token, fps)
+                    SUBMIT(tier::release, e2::config::fps, fps, token)
                     {
                         if (fps > 0) SIGNAL_GLOBAL(e2::config::fps, fps);
                     };
-                    SUBMIT_T(tier::preview, e2::config::fps, token, fps)
+                    SUBMIT(tier::preview, e2::config::fps, fps, token)
                     {
                         conio.fps.send(conio, fps);
                     };
-                    SUBMIT_T(tier::preview, hids::events::mouse::button::click::any, token, gear)
+                    SUBMIT(tier::preview, hids::events::mouse::button::click::any, gear, token)
                     {
                         conio.expose.send(conio);
                     };
-                    SUBMIT_T(tier::anycast, e2::form::layout::expose, token, item)
+                    SUBMIT(tier::anycast, e2::form::layout::expose, item, token)
                     {
                         conio.expose.send(conio);
                     };
-                    SUBMIT_T(tier::preview, e2::form::layout::swarp, token, warp)
+                    SUBMIT(tier::preview, e2::form::layout::swarp, warp, token)
                     {
                         conio.warping.send(conio, 0, warp);
                     };
-                    SUBMIT_T(tier::release, e2::form::maximize, token, gear)
+                    SUBMIT(tier::release, e2::form::maximize, gear, token)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                         conio.maximize.send(conio, ext_gear_id);
                     };
                     if (props.is_standalone_app)
                     {
-                        SUBMIT_T(tier::release, hids::events::mouse::button::any, token, gear)
+                        SUBMIT(tier::release, hids::events::mouse::button::any, gear, token)
                         {
                             using button = hids::events::mouse::button;
                             auto forward = faux;
