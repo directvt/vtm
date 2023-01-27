@@ -1057,6 +1057,8 @@ namespace netxs::input
             {
                 if (auto next = iter->lock())
                 {
+                    //todo foci
+                    //next->SIGNAL(tier::preview, events::notify::keybd::lost, *this);
                     if (item == next)
                     {
                         keep = faux;
@@ -1070,6 +1072,8 @@ namespace netxs::input
             }
 
             if (keep) _add_kb_focus(item);
+            //todo foci
+            //item->SIGNAL(tier::anycast, hids::events::upevent::kbannul, *this); // Drop saved foci (see pro::keybd).
         }
         auto add_group_kb_focus_or_release_captured(sptr<bell> item)
         {
@@ -1084,6 +1088,8 @@ namespace netxs::input
         {
             kb_focus_changed = true;
             kb_focus_set = true;
+            //todo foci
+            //auto kb_focus_size = kb_focus.size();
             if (!simple_instance && (hids::meta(anyCtrl) || force_group_focus))
             {
                 if (combine_focus)
@@ -1100,6 +1106,8 @@ namespace netxs::input
                 add_single_kb_focus(item);
             }
             if (kb_focus.size()) owner.SIGNAL(tier::preview, events::notify::focus::got, *this);
+            //todo foci
+            //else if (kb_focus_size) owner.SIGNAL(tier::preview, events::notify::focus::lost, *this);
         }
         auto clear_kb_focus()
         {

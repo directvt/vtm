@@ -472,7 +472,7 @@ namespace netxs::ui
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
                     utf8 = jet_left + utf8;
-                    owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
+                    owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                 }
                 else
                 {
@@ -480,7 +480,7 @@ namespace netxs::ui
                     if (property == ansi::OSC_TITLE)
                     {
                         utf8 = jet_left + utf8;
-                        owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
+                        owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                     }
                 }
             }
@@ -6454,7 +6454,7 @@ namespace netxs::ui
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
                 {
                     auto backup = This();
-                    this->base::riseup<tier::release>(e2::form::quit, backup);
+                    this->RISEUP(tier::release, e2::form::quit, backup);
                     oneoff.reset();
                 };
             };
@@ -6976,15 +6976,15 @@ namespace netxs::ui
         {
             static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions.
 
-            ptycon.cleanup();
             onerun.reset();
             if (!ptycon && !oneoff)
             {
+                ptycon.cleanup();
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)
                 {
                     if (unique != timer)
                     {
-                        this->base::riseup<tier::request>(e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
+                        this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
                         auto initsz = target->panel;
                         ptycon.start(initsz);
                         unique = timer;
@@ -7004,8 +7004,8 @@ namespace netxs::ui
         {
             auto size = winsz.less(dot_11, target->panel, std::max(dot_11, winsz));
             auto warp = rect{ dot_00, size} - rect{ dot_00, target->panel };
-            base::riseup<tier::preview>(e2::form::layout::swarp, warp);
-            base::riseup<tier::preview>(e2::form::prop::window::size, winsz);
+            RISEUP(tier::preview, e2::form::layout::swarp, warp);
+            RISEUP(tier::preview, e2::form::prop::window::size, winsz);
         }
         bool linux_console{};
        ~term(){ active = faux; }
@@ -7049,7 +7049,7 @@ namespace netxs::ui
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 //todo revise, see dtvt
-                this->base::riseup<tier::release>(e2::form::quit, item);
+                this->RISEUP(tier::release, e2::form::quit, item);
             };
             SUBMIT(tier::preview, e2::coor::set, new_coor)
             {
@@ -7074,7 +7074,7 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
-                this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
+                this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
                 if (gear.pressed && config.resetonkey
                 && (gear.cluster.size() || !gear.kbmod()))
@@ -7170,7 +7170,7 @@ namespace netxs::ui
                 auto& console = *target;
                 if (status.update(console))
                 {
-                    this->base::riseup<tier::preview>(e2::form::prop::ui::footer, status.data);
+                    this->RISEUP(tier::preview, e2::form::prop::ui::footer, status.data);
                 }
 
                 auto view = parent_canvas.view();
@@ -7290,7 +7290,7 @@ namespace netxs::ui
                 {
                     auto& gear = *gear_ptr;
                     if (gear.captured(owner.id)) gear.setfree(true);
-                    parent_ptr->riseup<tier::release>(e2::form::maximize, gear);
+                    parent_ptr->RISEUP(tier::release, e2::form::maximize, gear);
                 }
             };
             void handle(s11n::xs::mouse_event         lock)
@@ -7319,7 +7319,7 @@ namespace netxs::ui
             {
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
                 {
-                    owner.base::template riseup<tier::preview>(e2::form::layout::expose, owner);
+                    owner.RISEUP(tier::preview, e2::form::layout::expose, owner);
                 });
             }
             void handle(s11n::xs::set_clipboard       lock)
@@ -7379,7 +7379,7 @@ namespace netxs::ui
                 netxs::events::enqueue(owner.This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
                 {
                     //todo use window_id
-                    owner.base::template riseup<tier::preview>(e2::form::prop::ui::header, header);
+                    owner.RISEUP(tier::preview, e2::form::prop::ui::header, header);
                 });
             }
             void handle(s11n::xs::form_footer         lock)
@@ -7388,7 +7388,7 @@ namespace netxs::ui
                 netxs::events::enqueue(owner.This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
                 {
                     //todo use window_id
-                    owner.base::template riseup<tier::preview>(e2::form::prop::ui::footer, footer);
+                    owner.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
                 });
             }
             void handle(s11n::xs::warping             lock)
@@ -7397,7 +7397,7 @@ namespace netxs::ui
                 netxs::events::enqueue(owner.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
                 {
                     //todo use window_id
-                    owner.base::riseup<tier::release>(e2::form::layout::swarp, warp);
+                    owner.RISEUP(tier::release, e2::form::layout::swarp, warp);
                 });
             }
             void handle(s11n::xs::vt_command          lock)
@@ -7579,7 +7579,7 @@ namespace netxs::ui
                 SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
                 {
                     auto backup = This();
-                    this->base::riseup<tier::release>(e2::form::quit, backup);
+                    this->RISEUP(tier::release, e2::form::quit, backup);
                     oneoff.reset();
                 };
             }
@@ -7603,7 +7603,7 @@ namespace netxs::ui
                     canvas.swap(splash);
                 }
                 auto lock = netxs::events::sync{};
-                this->base::riseup<tier::release>(e2::config::plugins::sizer::alive, faux);
+                this->RISEUP(tier::release, e2::config::plugins::sizer::alive, faux);
             }
         }
 
@@ -7626,8 +7626,8 @@ namespace netxs::ui
                     {
                         auto header = e2::form::prop::ui::header.param();
                         auto footer = e2::form::prop::ui::footer.param();
-                        this->riseup<tier::request>(e2::form::prop::ui::header, header);
-                        this->riseup<tier::request>(e2::form::prop::ui::footer, footer);
+                        this->RISEUP(tier::request, e2::form::prop::ui::header, header);
+                        this->RISEUP(tier::request, e2::form::prop::ui::footer, footer);
                         stream.s11n::form_header.send(*this, 0, header);
                         stream.s11n::form_footer.send(*this, 0, footer);
                         procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
@@ -7679,7 +7679,7 @@ namespace netxs::ui
             SUBMIT(tier::anycast, e2::form::quit, item)
             {
                 if (ptycon) ptycon.stop();
-                else        this->base::riseup<tier::release>(e2::form::quit, item);
+                else        this->RISEUP(tier::release, e2::form::quit, item);
             };
             SUBMIT(tier::general, e2::conio::quit, msg)
             {

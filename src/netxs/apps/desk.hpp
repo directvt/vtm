@@ -120,7 +120,7 @@ namespace netxs::app::desk
                     boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                     {
                         auto current_default = e2::data::changed.param();
-                        boss.template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
+                        boss.RISEUP(tier::request, e2::data::changed, current_default);
                         boss.SIGNAL(tier::anycast, events::ui::selected, current_default);
                     };
                 });

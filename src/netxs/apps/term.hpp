@@ -317,14 +317,14 @@ namespace netxs::app::term
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                    boss.RISEUP(tier::release, e2::form::quit, boss.This());
                 });
             }
             static void TerminalMaximize(ui::pads& boss, menu::item& item)
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                    boss.RISEUP(tier::release, e2::form::maximize, gear);
                 });
             }
             static void TerminalRestart(ui::pads& boss, menu::item& item)
@@ -662,7 +662,7 @@ namespace netxs::app::term
                                             {
                                                 gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
                                                 {
-                                                    boss.template riseup<tier::release>(e2::form::maximize, gear);
+                                                    boss.RISEUP(tier::release, e2::form::maximize, gear);
                                                 });
                                             }
                                         }

@@ -346,6 +346,7 @@ namespace netxs::events
                                 static constexpr auto index()               { return events::number<id>;                  }
     };
 
+    #define RISEUP(        level, event,          ...) base::template riseup<level>(event, __VA_ARGS__)
     #define SUBMIT(        level, event,        param) bell::template submit<level, decltype( event )>()        = [&] (typename decltype( event )::type &&  param)
     #define SUBMIT_BYVAL(  level, event,        param) bell::template submit<level, decltype( event )>()        = [=] (typename decltype( event )::type &&  param) mutable
     #define SUBMIT_T(      level, event, token, param) bell::template submit<level, decltype( event )>( token ) = [&] (typename decltype( event )::type &&  param)

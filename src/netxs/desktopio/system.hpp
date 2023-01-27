@@ -1404,7 +1404,7 @@ namespace netxs::os
                                                    PIPE_WAIT,                // blocking mode
                                                    PIPE_UNLIMITED_INSTANCES, // max. instances
                                                    os::pipebuf,              // output buffer size
-                                                    os::pipebuf,              // input buffer size
+                                                   os::pipebuf,              // input buffer size
                                                    0,                        // client time-out
                                                    NULL);                    // DACL (pipe_acl)
                             // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);

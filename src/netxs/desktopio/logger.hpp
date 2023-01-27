@@ -11,11 +11,12 @@
 // User defined formatter example:
 // netxs::logger::custom( [](auto& p, auto& v)
 // {
-//      return netxs::current_short_date_time_with_ms() + "  " + utf::concat(p, text("."), text("> ")) + v + '\n';
+//      return utf::concat(datetime::now(), ' ', p, '.', "> ", v, '\n');
 // });
 //
 // Automatic prompt changing example:
-// void proc(...) {
+// auto proc(...)
+// {
 //      AUTO_PROMPT;                                // auto prompt
 //      ...code...
 //      {
@@ -23,9 +24,9 @@
 //          ...code...
 //      }
 //      ...code...
-//      Z("log message: ", some_data);              // prompted output
+//      log("log message: ", some_data);            // prompted output
 //      ...code...
-//      Z("log message: ", some_data, !true);       // promptless output
+//      log("log message: ", some_data, !true);     // promptless output
 //      ...code...
 // }
 
@@ -242,12 +243,6 @@ namespace netxs
 
 namespace
 {
-    template<class ...Args>
-    void Z(Args&&... args)
-    {
-        netxs::logger::feed(std::forward<Args>(args)...);
-    }
-
     template<class ...Args>
     void log(Args&&... args)
     {

@@ -3235,7 +3235,7 @@ namespace netxs::ui
         {
             if (_move_grip(new_val))
             {
-                base::template riseup<TIER>(EVENT{}, cur_val);
+                RISEUP(TIER, EVENT{}, cur_val);
             }
         }
         void giveup(hids& gear)
@@ -3262,7 +3262,7 @@ namespace netxs::ui
             SUBMIT(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
-            base::template riseup<TIER>(EVENT{}, cur_val);
+            RISEUP(TIER, EVENT{}, cur_val);
 
             limit.set(twod{ utf::length(caption) + (pad + 2) * 2,
                            10 });

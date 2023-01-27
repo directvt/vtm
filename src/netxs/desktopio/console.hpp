@@ -354,7 +354,6 @@ namespace netxs::events::userland
                     EVENT_XS( render    , bool           ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
                     EVENT_XS( attach    , sptr<ui::base> ), // order to attach a child, arg is a parent base_sptr.
                     EVENT_XS( detach    , sptr<ui::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
-                    EVENT_XS( unfocus   , sptr<ui::base> ), // order to unset focus on the specified object, arg is a object sptr.
                     EVENT_XS( swap      , sptr<ui::base> ), // order to replace existing client. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor    ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf  , ui::proc       ), // exec functor on behalf (see gate).
@@ -502,7 +501,6 @@ namespace netxs::events::userland
                     {
                         EVENT_XS( got     , input::hids        ), // release: got  keyboard focus.
                         EVENT_XS( lost    , input::hids        ), // release: lost keyboard focus.
-                        EVENT_XS( handover, ui::gear_id_list_t ), // request: Handover all available foci.
                         EVENT_XS( enlist  , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
                         EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
@@ -1174,13 +1172,13 @@ namespace netxs::ui
             deface(square);
         }
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
-        template<bool FORCED = faux>
+        template<bool Forced = faux>
         void reflow()
         {
             auto parent_ptr = parent();
-            if (parent_ptr && (!visual_root || (FORCED && (kind() != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
+            if (parent_ptr && (!visual_root || (Forced && (kind() != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
             {
-                parent_ptr->reflow<FORCED>();
+                parent_ptr->reflow<Forced>();
             }
             else
             {
@@ -3312,6 +3310,8 @@ namespace netxs::ui
                   skill::memo;
 
             subs kb_subs{};
+            //todo foci
+            //std::list<id_t> saved;
 
         public:
             keybd(base&&) = delete;
@@ -3373,6 +3373,23 @@ namespace netxs::ui
                     }
                 };
             }
+            //todo foci
+            // pro::keybd: Set focus root.
+            //void master()
+            //{
+            //    boss.SUBMIT_T(tier::release, hids::events::upevent::kboffer, kb_subs, gear)
+            //    {
+            //        log("restore");
+            //        //if (boss.root()) // Restore focused state.
+            //        {
+            //            boss.SIGNAL(tier::anycast, hids::events::upevent::kboffer, gear);
+            //        }
+            //        if (gear.focus_changed())
+            //        {
+            //            boss.bell::expire<tier::release>();
+            //        }
+            //    };
+            //};
             // pro::keybd: Subscribe on keybd offers.
             void accept(bool value)
             {
@@ -3384,6 +3401,8 @@ namespace netxs::ui
                         if (!gear.focus_changed())
                         {
                             gear.set_kb_focus(boss.This());
+                            //todo foci
+                            //boss.SIGNAL(tier::anycast, hids::events::upevent::kbannul, gear); // Drop saved foci.
                             boss.bell::expire<tier::release>();
                         }
                     };
@@ -3391,6 +3410,38 @@ namespace netxs::ui
                     {
                         gear.remove_from_kb_focus(boss.This());
                     };
+
+                    ////todo foci
+                    //boss.SUBMIT_T(tier::anycast, hids::events::upevent::kboffer, kb_subs, gear) //todo no upevent used
+                    //{
+                    //    log("restore in place boss-id=", boss.id, " gear_id=", gear.id, " saved_size=", saved.size());
+                    //    for (auto gear_id : saved) // Restore saved focus.
+                    //    {
+                    //        if (gear_id == gear.id)
+                    //        {
+                    //            log(" good ");
+                    //            auto state = gear.state();
+                    //            gear.kb_focus_changed = faux;
+                    //            gear.force_group_focus = true;
+                    //            gear.combine_focus = faux;
+                    //            boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    //            gear.state(state);
+                    //        }
+                    //    }
+                    //};
+                    //boss.SUBMIT_T(tier::preview, hids::events::notify::keybd::lost, kb_subs, gear) //todo no upevent used
+                    //{
+                    //    log("save boss.id=", boss.id, " gear_id=", gear.id);
+                    //    saved.push_back(gear.id);
+                    //};
+                    //boss.SUBMIT_T(tier::anycast, hids::events::upevent::kbannul, kb_subs, gear) //todo no upevent used
+                    //{
+                    //    if (gear.force_group_focus = faux)
+                    //    {
+                    //        log("wipe ", boss.id);
+                    //        saved.remove_if([&](auto&& gear_id) { return gear_id == gear.id; });
+                    //    }
+                    //};
                 }
                 else
                 {
@@ -3946,9 +3997,9 @@ namespace netxs::ui
                     {
                         auto reserv = lims;
                         lims.fixed_size(new_size);
-                        boss.base::template riseup<tier::release>(e2::form::prop::fixedsize, true, true); //todo unify - Inform ui::fork to adjust ratio.
+                        boss.RISEUP(tier::release, e2::form::prop::fixedsize, true, true); //todo unify - Inform ui::fork to adjust ratio.
                         boss.base::template reflow<true>();
-                        boss.base::template riseup<tier::release>(e2::form::prop::fixedsize, faux, true);
+                        boss.RISEUP(tier::release, e2::form::prop::fixedsize, faux, true);
                         lims = reserv;
                     };
                 }
@@ -4172,25 +4223,6 @@ namespace netxs::ui
                 {
                     if (find(gear_test.first)) gear_test.second++;
                 };
-                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::handover, memo, gear_id_list)
-                {
-                    if (pool.size())
-                    {
-                        auto This = boss.This();
-                        auto head = gear_id_list.end();
-                        gear_id_list.insert(head, pool.begin(), pool.end());
-                        auto tail = gear_id_list.end();
-                        while (head != tail)
-                        {
-                            auto gear_id = *head++;
-                            if (auto gate_ptr = bell::getref(gear_id))
-                            {
-                                gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, This);
-                            }
-                        }
-                        boss.base::deface();
-                    }
-                };
                 boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::check, memo, state)
                 {
                     state = !pool.empty();
@@ -4198,23 +4230,22 @@ namespace netxs::ui
                 boss.SUBMIT_T(tier::anycast, e2::form::highlight::set, memo, state)
                 {
                     state = !pool.empty();
-                    boss.template riseup<tier::preview>(e2::form::highlight::any, state);
+                    boss.RISEUP(tier::preview, e2::form::highlight::any, state);
                 };
                 boss.SUBMIT_T(tier::anycast, e2::form::upon::started, memo, root)
                 {
                     auto state = !pool.empty();
-                    boss.template riseup<tier::preview>(e2::form::highlight::any, state);
+                    boss.RISEUP(tier::preview, e2::form::highlight::any, state);
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
-                    boss.template riseup<tier::preview>(e2::form::highlight::any, true);
+                    boss.RISEUP(tier::preview, e2::form::highlight::any, true);
                     boss.SIGNAL(tier::anycast, e2::form::highlight::any, true);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
                 {
-                    assert(!pool.empty());
                     if (!pool.empty())
                     {
                         auto head = pool.begin();
@@ -4229,7 +4260,7 @@ namespace netxs::ui
 
                     if (pool.empty())
                     {
-                        boss.template riseup<tier::preview>(e2::form::highlight::any, faux);
+                        boss.RISEUP(tier::preview, e2::form::highlight::any, faux);
                         boss.SIGNAL(tier::anycast, e2::form::highlight::any, faux);
                     }
                 };
@@ -4357,11 +4388,11 @@ namespace netxs::ui
                             auto object = e2::form::proceed::d_n_d::ask.param();
                             if (auto old_object = std::dynamic_pointer_cast<base>(bell::getref(under)))
                             {
-                                old_object->riseup<tier::release>(e2::form::proceed::d_n_d::abort, object);
+                                old_object->RISEUP(tier::release, e2::form::proceed::d_n_d::abort, object);
                             }
                             if (auto new_object = std::dynamic_pointer_cast<base>(bell::getref(new_under)))
                             {
-                                new_object->riseup<tier::release>(e2::form::proceed::d_n_d::ask, object);
+                                new_object->RISEUP(tier::release, e2::form::proceed::d_n_d::ask, object);
                             }
                             boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, object ? 0x80
                                                                                         : 0xFF); // Make it semi-transparent on success and opaque otherwise.

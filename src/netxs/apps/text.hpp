@@ -196,13 +196,13 @@ utility like ctags is used to locate the definitions.
                       boss.keybd.accept(true);
                       boss.SUBMIT(tier::anycast, e2::form::quit, item)
                       {
-                          boss.base::template riseup<tier::release>(e2::form::quit, item);
+                          boss.RISEUP(tier::release, e2::form::quit, item);
                       };
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;
                           auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");
-                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                          boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))

@@ -411,7 +411,7 @@ R"==(
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                                    boss.RISEUP(tier::release, e2::form::maximize, gear);
                                     gear.dismiss();
                                 };
                             })
@@ -466,7 +466,7 @@ R"==(
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                             {
-                                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                                boss.RISEUP(tier::release, e2::form::quit, boss.This());
                                 gear.dismiss();
                             };
                         })
@@ -616,7 +616,7 @@ R"==(
     {
         boss.SUBMIT(tier::anycast, e2::form::quit, item)
         {
-            boss.base::template riseup<tier::release>(e2::form::quit, item);
+            boss.RISEUP(tier::release, e2::form::quit, item);
         };
     };
     const auto closing_by_gesture = [](auto& boss)
@@ -624,13 +624,13 @@ R"==(
         boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
-            boss.base::template riseup<tier::release>(e2::form::quit, backup);
+            boss.RISEUP(tier::release, e2::form::quit, backup);
             gear.dismiss();
         };
         boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
-            boss.base::template riseup<tier::release>(e2::form::quit, backup);
+            boss.RISEUP(tier::release, e2::form::quit, backup);
             gear.dismiss();
         };
     };
@@ -646,13 +646,13 @@ R"==(
                 if (auto boss = shadow.lock())
                 {
                     log("app_limit: detached");
-                    boss->base::template riseup<tier::release>(e2::form::quit, boss);
+                    boss->RISEUP(tier::release, e2::form::quit, boss);
                 }
             }
         };
         boss->SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
         {
-            parent->base::riseup<tier::preview>(e2::form::prop::ui::header, title);
+            parent->RISEUP(tier::preview, e2::form::prop::ui::header, title);
         };
     };
     const auto scroll_bars = [](auto master)
@@ -729,7 +729,7 @@ R"==(
                 };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
-                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                    boss.RISEUP(tier::release, e2::form::maximize, gear);
                     gear.dismiss();
                 };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -804,7 +804,7 @@ R"==(
                         boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                         {
                             auto title = "error"s;
-                            boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                         };
                     });
                 auto msg = ui::post::ctor()

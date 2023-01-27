@@ -41,6 +41,11 @@ int main(int argc, char* argv[])
             errmsg = ansi::nil().add("show help message");
             break;
         }
+        else if (getopt.match("-v", "--version"))
+        {
+            log(DESKTOPIO_VER);
+            return 0;
+        }
         else if (getopt.match("--"))
         {
             break;
