@@ -194,11 +194,11 @@ utility like ctags is used to locate the definitions.
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
-                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      boss.LISTEN(tier::anycast, e2::form::quit, item)
                       {
                           boss.RISEUP(tier::release, e2::form::quit, item);
                       };
-                      boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                      boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;
                           auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");

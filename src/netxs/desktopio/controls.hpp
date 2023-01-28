@@ -52,7 +52,7 @@ namespace netxs::ui
         {
             if constexpr (requires(decltype(e2::form::proceed::detach)::type shadow) { This()->T::remove(shadow); })
             {
-                SUBMIT(tier::preview, e2::form::proceed::detach, shadow)
+                LISTEN(tier::preview, e2::form::proceed::detach, shadow)
                 {
                     This()->T::remove(shadow);
                 };
@@ -135,7 +135,7 @@ namespace netxs::ui
         auto depend(sptr master_ptr)
         {
             auto& master = *master_ptr;
-            master.SUBMIT(tier::release, e2::dtor, id, memomap[master.id])
+            master.LISTEN(tier::release, e2::dtor, id, memomap[master.id])
             {
                 auto backup = This();
                 memomap.erase(master.id);
@@ -167,7 +167,7 @@ namespace netxs::ui
             auto item_shadow = ptr::shadow(new_item);
             auto data_shadow = ptr::shadow(data_src_sptr);
             auto boss_shadow = ptr::shadow(backup);
-            data_src_sptr->SUBMIT(tier::release, Property{}, arg_new_value, memomap[data_src_sptr->id], (boss_shadow, data_shadow, item_shadow))
+            data_src_sptr->LISTEN(tier::release, Property{}, arg_new_value, memomap[data_src_sptr->id], (boss_shadow, data_shadow, item_shadow))
             {
                 if (auto boss_ptr = boss_shadow.lock())
                 if (auto data_src = data_shadow.lock())
@@ -196,7 +196,7 @@ namespace netxs::ui
         template<class BackendProp, class P>
         void publish_property(BackendProp, P setter)
         {
-            SUBMIT(tier::request, BackendProp{}, property_value, 0, (setter))
+            LISTEN(tier::request, BackendProp{}, property_value, 0, (setter))
             {
                 setter(property_value);
             };
@@ -210,7 +210,7 @@ namespace netxs::ui
             SIGNAL(tier::request, BackendProp{},  property_value);
             SIGNAL(tier::anycast, FrontendProp{}, property_value);
 
-            SUBMIT(tier::release, BackendProp{}, property_value)
+            LISTEN(tier::release, BackendProp{}, property_value)
             {
                 this->SIGNAL(tier::anycast, FrontendProp{}, property_value);
             };
@@ -321,15 +321,15 @@ namespace netxs::ui
               ratio{ 0xFFFF >> 1 },
               fixed{ faux }
         {
-            SUBMIT(tier::release, e2::form::prop::fixedsize, is_fixed) //todo unify -- See terminal window self resize
+            LISTEN(tier::release, e2::form::prop::fixedsize, is_fixed) //todo unify -- See terminal window self resize
             {
                 fixed = is_fixed;
             };
-            SUBMIT(tier::preview, e2::size::set, new_size)
+            LISTEN(tier::preview, e2::size::set, new_size)
             {
                 fork::size_preview(new_size);
             };
-            SUBMIT(tier::release, e2::size::any, new_size)
+            LISTEN(tier::release, e2::size::any, new_size)
             {
                 //size = new_size;
                 if (client_1)
@@ -347,7 +347,7 @@ namespace netxs::ui
                     splitter->SIGNAL(tier::release, e2::size::set, size3);
                 }
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto& basis = base::coor();
                 if (splitter) parent_canvas.render(splitter, basis);
@@ -507,7 +507,7 @@ namespace netxs::ui
             {
                 if (splitter) remove(splitter);
                 splitter = item_ptr;
-                splitter->SUBMIT(tier::preview, e2::form::upon::changed, delta)
+                splitter->LISTEN(tier::preview, e2::form::upon::changed, delta)
                 {
                     split += get_x(delta);
                     ratio = netxs::divround(MAX_RATIO * split, maxpos);
@@ -567,7 +567,7 @@ namespace netxs::ui
             : updown{ orientation == axis::Y },
               lineup{ attach_order }
         {
-            SUBMIT(tier::preview, e2::size::set, new_sz)
+            LISTEN(tier::preview, e2::size::set, new_sz)
             {
                 auto  height = si32{};
                 auto& y_size = updown ? new_sz.y : new_sz.x;
@@ -591,7 +591,7 @@ namespace netxs::ui
                 meter(); if (x_temp != x_size) meter();
                 y_size = height;
             };
-            SUBMIT(tier::release, e2::size::any, new_sz)
+            LISTEN(tier::release, e2::size::any, new_sz)
             {
                 auto& y_size = updown ? new_sz.y : new_sz.x;
                 auto& x_size = updown ? new_sz.x : new_sz.y;
@@ -627,7 +627,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto& basis = base::coor();
                 for (auto& client : subset)
@@ -709,7 +709,7 @@ namespace netxs::ui
         }
         cake()
         {
-            SUBMIT(tier::preview, e2::size::set, newsz)
+            LISTEN(tier::preview, e2::size::set, newsz)
             {
                 for (auto& client : subset)
                 {
@@ -719,7 +719,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::size::any, newsz)
+            LISTEN(tier::release, e2::size::any, newsz)
             {
                 for (auto& client : subset)
                 {
@@ -729,7 +729,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto& basis = base::coor();
                 for (auto& client : subset)
@@ -824,7 +824,7 @@ namespace netxs::ui
         }
         park()
         {
-            SUBMIT(tier::release, e2::size::any, newsz)
+            LISTEN(tier::release, e2::size::any, newsz)
             {
                 for (auto& client : subset)
                 {
@@ -838,7 +838,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto& basis = base::coor();
                 for (auto& client : subset)
@@ -926,7 +926,7 @@ namespace netxs::ui
         }
         veer()
         {
-            SUBMIT(tier::preview, e2::size::set, newsz)
+            LISTEN(tier::preview, e2::size::set, newsz)
             {
                 if (subset.size())
                 if (auto active = subset.back())
@@ -934,7 +934,7 @@ namespace netxs::ui
                     active->SIGNAL(tier::preview, e2::size::set, newsz);
                 }
             };
-            SUBMIT(tier::release, e2::size::any, newsz)
+            LISTEN(tier::release, e2::size::any, newsz)
             {
                 if (subset.size())
                 if (auto active = subset.back())
@@ -942,7 +942,7 @@ namespace netxs::ui
                     active->SIGNAL(tier::release, e2::size::set, newsz);
                 }
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (subset.size())
                 if (auto active = subset.back())
@@ -1164,12 +1164,12 @@ namespace netxs::ui
             : flow{ width },
               beyond{ scroll_beyond }
         {
-            SUBMIT(tier::preview, e2::size::set, size)
+            LISTEN(tier::preview, e2::size::set, size)
             {
                 recalc(size);
                 size.y = width.y;
             };
-            SUBMIT(tier::release, e2::size::any, size)
+            LISTEN(tier::release, e2::size::any, size)
             {
                 //if (width != size)
                 //{
@@ -1178,7 +1178,7 @@ namespace netxs::ui
                 //}
                 width = size;
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 output(parent_canvas);
 
@@ -1281,12 +1281,12 @@ namespace netxs::ui
             : flow{ width },
               beyond{ scroll_beyond }
         {
-            SUBMIT(tier::preview, e2::size::set, size)
+            LISTEN(tier::preview, e2::size::set, size)
             {
                 recalc(size);
                 size.y = width.y;
             };
-            SUBMIT(tier::release, e2::size::any, size)
+            LISTEN(tier::release, e2::size::any, size)
             {
                 //if (width != size)
                 //{
@@ -1295,7 +1295,7 @@ namespace netxs::ui
                 //}
                 width = size;
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 output(parent_canvas);
 
@@ -1342,7 +1342,7 @@ namespace netxs::ui
         {
             if (master)
             {
-                master->SUBMIT(tier::release, upon::scroll::bycoor::any, master_scinfo, fasten)
+                master->LISTEN(tier::release, upon::scroll::bycoor::any, master_scinfo, fasten)
                 {
                     this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<Axis>, master_scinfo);
                 };
@@ -1368,7 +1368,7 @@ namespace netxs::ui
               strict{ xy(axes::ALL) },
               manual{ xy(axes::ALL) }
         {
-            SUBMIT(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
+            LISTEN(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
                 if (client)
                 {
@@ -1389,12 +1389,12 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::request, e2::form::upon::scroll::any, req_scinfo)
+            LISTEN(tier::request, e2::form::upon::scroll::any, req_scinfo)
             {
                 req_scinfo = scinfo;
             };
 
-            SUBMIT(tier::release, e2::size::any, new_size)
+            LISTEN(tier::release, e2::size::any, new_size)
             {
                 if (client)
                 {
@@ -1403,7 +1403,7 @@ namespace netxs::ui
             };
 
             using button = hids::events::mouse::button;
-            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 auto dt = gear.whldt > 0;
                 auto hz = permit == xy(axes::X_ONLY)
@@ -1412,7 +1412,7 @@ namespace netxs::ui
                 else    wheels<Y>(dt);
                 gear.dismiss();
             };
-            SUBMIT(tier::release, button::drag::start::right, gear)
+            LISTEN(tier::release, button::drag::start::right, gear)
             {
                 auto ds = gear.delta.get();
                 auto dx = ds.x;
@@ -1430,7 +1430,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, button::drag::pull::right, gear)
+            LISTEN(tier::release, button::drag::pull::right, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1440,21 +1440,21 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, button::drag::cancel::right, gear)
+            LISTEN(tier::release, button::drag::cancel::right, gear)
             {
                 if (gear.captured(bell::id))
                 {
                     giveup(gear);
                 }
             };
-            SUBMIT(tier::general, hids::events::halt, gear)
+            LISTEN(tier::general, hids::events::halt, gear)
             {
                 if (gear.captured(bell::id))
                 {
                     giveup(gear);
                 }
             };
-            SUBMIT(tier::release, button::drag::stop::right, gear)
+            LISTEN(tier::release, button::drag::stop::right, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1473,7 +1473,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, button::click::right, gear)
+            LISTEN(tier::release, button::click::right, gear)
             {
                 if (!gear.captured(bell::id))
                 {
@@ -1481,15 +1481,15 @@ namespace netxs::ui
                     if (manual[Y]) cancel<Y, true>();
                 }
             };
-            SUBMIT(tier::release, button::down::any, gear)
+            LISTEN(tier::release, button::down::any, gear)
             {
                 cutoff();
             };
-            SUBMIT(tier::release, e2::form::animate::reset, id)
+            LISTEN(tier::release, e2::form::animate::reset, id)
             {
                 cutoff();
             };
-            SUBMIT(tier::release, e2::form::animate::stop, id)
+            LISTEN(tier::release, e2::form::animate::stop, id)
             {
                 switch (id)
                 {
@@ -1499,7 +1499,7 @@ namespace netxs::ui
                 }
                 base::deface();
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (client)
                 {
@@ -1653,15 +1653,15 @@ namespace netxs::ui
             if (client) remove(client);
             client = item_ptr;
             tokens.clear();
-            item_ptr->SUBMIT(tier::preview, e2::coor::any, coor, tokens) // any - To check coor first of all.
+            item_ptr->LISTEN(tier::preview, e2::coor::any, coor, tokens) // any - To check coor first of all.
             {
                 scroll<true>(coor);
             };
-            item_ptr->SUBMIT(tier::release, e2::coor::any, coor, tokens)
+            item_ptr->LISTEN(tier::release, e2::coor::any, coor, tokens)
             {
                 scroll<faux>(coor);
             };
-            item_ptr->SUBMIT(tier::release, e2::size::any, size, tokens)
+            item_ptr->LISTEN(tier::release, e2::size::any, size, tokens)
             {
                 if (client)
                 {
@@ -1674,7 +1674,7 @@ namespace netxs::ui
                     }
                 }
             };
-            item_ptr->SUBMIT(tier::release, e2::form::upon::vtree::detached, p, tokens)
+            item_ptr->LISTEN(tier::release, e2::form::upon::vtree::detached, p, tokens)
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
@@ -1889,19 +1889,19 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT(tier::release, upon::scroll::bycoor::any, scinfo, memo)
+            boss->LISTEN(tier::release, upon::scroll::bycoor::any, scinfo, memo)
             {
                 calc.update(scinfo);
                 base::deface();
             };
 
-            SUBMIT(tier::release, e2::size::any, new_size)
+            LISTEN(tier::release, e2::size::any, new_size)
             {
                 calc.resize(new_size);
             };
 
             using button = hids::events::mouse::button;
-            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 if (gear.whldt)
                 {
@@ -1910,15 +1910,15 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::move, gear)
+            LISTEN(tier::release, hids::events::mouse::move, gear)
             {
                 calc.cursor_pos = gear.mouse::coord[Axis];
             };
-            SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+            LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
                 gear.dismiss(); // Do not pass double clicks outside.
             };
-            SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(button::down::left)
@@ -1945,7 +1945,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::up::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::up::any, gear)
             {
                 if (on_pager && gear.captured(bell::id))
                 {
@@ -1960,7 +1960,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::up::right, gear)
+            LISTEN(tier::release, hids::events::mouse::button::up::right, gear)
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
@@ -1969,7 +1969,7 @@ namespace netxs::ui
                 }
             };
 
-            SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)
             {
                 if (on_pager)
                 {
@@ -1983,7 +1983,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear)
             {
                 if (on_pager)
                 {
@@ -2002,15 +2002,15 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
             {
                 giveup(gear);
             };
-            SUBMIT(tier::general, hids::events::halt, gear)
+            LISTEN(tier::general, hids::events::halt, gear)
             {
                 giveup(gear);
             };
-            SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear)
             {
                 if (on_pager)
                 {
@@ -2030,7 +2030,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::form::state::mouse, active)
+            LISTEN(tier::release, e2::form::state::mouse, active)
             {
                 auto apply = [&](auto active)
                 {
@@ -2046,7 +2046,7 @@ namespace netxs::ui
                 if (active) apply(activity::mouse_hover);
                 else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
             };
-            //SUBMIT(tier::release, hids::events::mouse::move, gear)
+            //LISTEN(tier::release, hids::events::mouse::move, gear)
             //{
             //	auto apply = [&](auto active)
             //	{
@@ -2061,7 +2061,7 @@ namespace netxs::ui
             //	apply(activity::mouse_hover);
             //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
             //};
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto region = parent_canvas.view();
                 auto handle = region;
@@ -2275,19 +2275,19 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT(tier::release, upon::scroll::bycoor::any, scinfo, memo)
+            boss->LISTEN(tier::release, upon::scroll::bycoor::any, scinfo, memo)
             {
                 calc.update(scinfo);
                 base::deface();
             };
 
-            SUBMIT(tier::release, e2::size::any, new_size)
+            LISTEN(tier::release, e2::size::any, new_size)
             {
                 calc.resize(new_size);
             };
 
             using bttn = hids::events::mouse::button;
-            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 if (gear.whldt)
                 {
@@ -2296,15 +2296,15 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::move, gear)
+            LISTEN(tier::release, hids::events::mouse::move, gear)
             {
                 calc.cursor_pos = gear.mouse::coord[Axis];
             };
-            SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+            LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
                 gear.dismiss(); // Do not pass double clicks outside.
             };
-            SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(bttn::down::left)
@@ -2331,7 +2331,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::up::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::up::any, gear)
             {
                 if (on_pager && gear.captured(bell::id))
                 {
@@ -2346,7 +2346,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::up::right, gear)
+            LISTEN(tier::release, hids::events::mouse::button::up::right, gear)
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
@@ -2355,7 +2355,7 @@ namespace netxs::ui
                 }
             };
 
-            SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)
             {
                 if (on_pager)
                 {
@@ -2369,7 +2369,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear)
             {
                 if (on_pager)
                 {
@@ -2388,15 +2388,15 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
             {
                 giveup(gear);
             };
-            SUBMIT(tier::general, hids::events::halt, gear)
+            LISTEN(tier::general, hids::events::halt, gear)
             {
                 giveup(gear);
             };
-            SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear)
             {
                 if (on_pager)
                 {
@@ -2416,7 +2416,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::form::state::mouse, active)
+            LISTEN(tier::release, e2::form::state::mouse, active)
             {
                 auto apply = [&](auto active)
                 {
@@ -2432,7 +2432,7 @@ namespace netxs::ui
                 if (active) apply(activity::mouse_hover);
                 else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
             };
-            //SUBMIT(tier::release, hids::events::mouse::move, gear)
+            //LISTEN(tier::release, hids::events::mouse::move, gear)
             //{
             //	auto apply = [&](auto active)
             //	{
@@ -2447,7 +2447,7 @@ namespace netxs::ui
             //	apply(activity::mouse_hover);
             //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
             //};
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto region = parent_canvas.view();
                 auto object = parent_canvas.full();
@@ -2654,19 +2654,19 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT(tier::release, upon::scroll::bycoor::any, scinfo, memo)
+            boss->LISTEN(tier::release, upon::scroll::bycoor::any, scinfo, memo)
             {
                 calc.update(scinfo);
                 base::deface();
             };
 
-            SUBMIT(tier::release, e2::size::any, new_size)
+            LISTEN(tier::release, e2::size::any, new_size)
             {
                 calc.resize(new_size);
             };
 
             using bttn = hids::events::mouse::button;
-            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 if (gear.whldt)
                 {
@@ -2675,15 +2675,15 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::move, gear)
+            LISTEN(tier::release, hids::events::mouse::move, gear)
             {
                 calc.cursor_pos = gear.mouse::coord[Axis];
             };
-            SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+            LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
                 gear.dismiss(); // Do not pass double clicks outside.
             };
-            SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(bttn::down::left)
@@ -2710,7 +2710,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::up::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::up::any, gear)
             {
                 if (on_pager && gear.captured(bell::id))
                 {
@@ -2725,7 +2725,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::up::right, gear)
+            LISTEN(tier::release, hids::events::mouse::button::up::right, gear)
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
@@ -2734,7 +2734,7 @@ namespace netxs::ui
                 }
             };
 
-            SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)
             {
                 if (on_pager)
                 {
@@ -2748,7 +2748,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear)
             {
                 if (on_pager)
                 {
@@ -2767,15 +2767,15 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
             {
                 giveup(gear);
             };
-            SUBMIT(tier::general, hids::events::halt, gear)
+            LISTEN(tier::general, hids::events::halt, gear)
             {
                 giveup(gear);
             };
-            SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
+            LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear)
             {
                 if (on_pager)
                 {
@@ -2795,7 +2795,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::form::state::mouse, active)
+            LISTEN(tier::release, e2::form::state::mouse, active)
             {
                 auto apply = [&](auto active)
                 {
@@ -2811,7 +2811,7 @@ namespace netxs::ui
                 if (active) apply(activity::mouse_hover);
                 else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
             };
-            //SUBMIT(tier::release, hids::events::mouse::move, gear)
+            //LISTEN(tier::release, hids::events::mouse::move, gear)
             //{
             //	auto apply = [&](auto active)
             //	{
@@ -2826,7 +2826,7 @@ namespace netxs::ui
             //	apply(activity::mouse_hover);
             //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
             //};
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto region = parent_canvas.view();
                 auto object = parent_canvas.full();
@@ -2894,7 +2894,7 @@ namespace netxs::ui
             : padding{ padding_value },
               margins{ margins_value }
         {
-            SUBMIT(tier::preview, e2::size::set, new_size)
+            LISTEN(tier::preview, e2::size::set, new_size)
             {
                 if (client)
                 {
@@ -2906,7 +2906,7 @@ namespace netxs::ui
                     //new_size = std::clamp(new_size, lims.min, lims.max);
                 }
             };
-            SUBMIT(tier::release, e2::size::any, new_size)
+            LISTEN(tier::release, e2::size::any, new_size)
             {
                 if (client)
                 {
@@ -2916,7 +2916,7 @@ namespace netxs::ui
                     client->SIGNAL(tier::release, e2::coor::set, client_coor);
                 }
             };
-            SUBMIT(tier::release, e2::render::prerender, parent_canvas)
+            LISTEN(tier::release, e2::render::prerender, parent_canvas)
             {
                 auto view = parent_canvas.view();
                 parent_canvas.view(view + margins);
@@ -2991,11 +2991,11 @@ namespace netxs::ui
               unln{ underline  }
         {
             recalc();
-            SUBMIT(tier::release, e2::data::text, label_text)
+            LISTEN(tier::release, e2::data::text, label_text)
             {
                 set(label_text);
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 parent_canvas.cup(dot_00);
                 parent_canvas.output(name);
@@ -3112,9 +3112,9 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            SUBMIT(tier::release, e2::size::any, new_sz) { canvas.size(new_sz); };
-            SUBMIT(tier::release, e2::coor::any, new_xy) { canvas.move(new_xy); };
-            SUBMIT(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
+            LISTEN(tier::release, e2::size::any, new_sz) { canvas.size(new_sz); };
+            LISTEN(tier::release, e2::coor::any, new_xy) { canvas.move(new_xy); };
+            LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             sfx_len = utf::length(sfx_str);
 
@@ -3124,16 +3124,16 @@ namespace netxs::ui
 
             set_pen(0);
 
-            SUBMIT(tier::preview, e2::size::set, size)
+            LISTEN(tier::preview, e2::size::set, size)
             {
                 size = box_len; // Suppress resize.
             };
-            SUBMIT(tier::release, e2::form::state::mouse, active)
+            LISTEN(tier::release, e2::form::state::mouse, active)
             {
                 set_pen(active ? 80 : 0);
                 recalc();
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (base::ruined())
                 {
@@ -3257,9 +3257,9 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            SUBMIT(tier::release, e2::size::any, new_sz) { canvas.size(new_sz); };
-            SUBMIT(tier::release, e2::coor::any, new_xy) { canvas.move(new_xy); };
-            SUBMIT(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
+            LISTEN(tier::release, e2::size::any, new_sz) { canvas.size(new_sz); };
+            LISTEN(tier::release, e2::coor::any, new_xy) { canvas.move(new_xy); };
+            LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
             RISEUP(Tier, Event{}, cur_val);
@@ -3278,7 +3278,7 @@ namespace netxs::ui
             topic[max_id].locus.chx(pad);
             topic[min_id].locus.chx(pad);
 
-            SUBMIT(tier::general, e2::form::global::lucidity, alpha)
+            LISTEN(tier::general, e2::form::global::lucidity, alpha)
             {
                 if (alpha >= 0 && alpha < 256)
                 {
@@ -3286,19 +3286,19 @@ namespace netxs::ui
                     base::deface();
                 }
             };
-            SUBMIT(tier::general, Event{}, cur_val)
+            LISTEN(tier::general, Event{}, cur_val)
             {
                 if (cur_val >= min_val)
                 {
                     _move_grip(cur_val);
                 }
             };
-            SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+            LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 grip_ctl = base::create<stem_rate_grip>(grip_suffix);
                 grip_ctl->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
 
-                grip_ctl->SUBMIT(tier::release, hids::events::mouse::button::drag::start::left, gear)
+                grip_ctl->LISTEN(tier::release, hids::events::mouse::button::drag::start::left, gear)
                 {
                     if (gear.capture(grip_ctl->id))
                     {
@@ -3306,7 +3306,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->SUBMIT(tier::release, hids::events::mouse::button::drag::pull::left, gear)
+                grip_ctl->LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear)
                 {
                     if (gear.captured(grip_ctl->id))
                     {
@@ -3315,15 +3315,15 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::left, gear)
+                grip_ctl->LISTEN(tier::release, hids::events::mouse::button::drag::cancel::left, gear)
                 {
                     giveup(gear);
                 };
-                grip_ctl->SUBMIT(tier::general, hids::events::halt, gear)
+                grip_ctl->LISTEN(tier::general, hids::events::halt, gear)
                 {
                     giveup(gear);
                 };
-                grip_ctl->SUBMIT(tier::release, hids::events::mouse::button::drag::stop::left, gear)
+                grip_ctl->LISTEN(tier::release, hids::events::mouse::button::drag::stop::left, gear)
                 {
                     if (gear.captured(grip_ctl->id))
                     {
@@ -3337,39 +3337,39 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->SUBMIT(tier::release, hids::events::mouse::scroll::up, gear)
+                grip_ctl->LISTEN(tier::release, hids::events::mouse::scroll::up, gear)
                 {
                     move_grip(cur_val - 1);
                     gear.dismiss();
                 };
-                grip_ctl->SUBMIT(tier::release, hids::events::mouse::scroll::down, gear)
+                grip_ctl->LISTEN(tier::release, hids::events::mouse::scroll::down, gear)
                 {
                     move_grip(cur_val + 1);
                     gear.dismiss();
                 };
                 recalc();
             };
-            SUBMIT(tier::release, e2::size::any, size)
+            LISTEN(tier::release, e2::size::any, size)
             {
                 recalc();
             };
-            SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+            LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
             {
                 base::color(canvas.mark().fgc(), (tint)((++bgclr) % 16));
                 base::deface();
                 gear.dismiss();
             };
-            SUBMIT(tier::release, hids::events::mouse::scroll::up, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::up, gear)
             {
                 move_grip(cur_val - 10);
                 gear.dismiss();
             };
-            SUBMIT(tier::release, hids::events::mouse::scroll::down, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::down, gear)
             {
                 move_grip(cur_val + 10);
                 gear.dismiss();
             };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (base::ruined())
                 {

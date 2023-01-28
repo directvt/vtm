@@ -353,21 +353,21 @@ namespace netxs::events
     #define RISEUP(        level, event,   ...              ) base::template riseup<level>(event, __VA_ARGS__)
     #define SIGNAL(        level, event, param              ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
     #define SIGNAL_GLOBAL(        event, param              ) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
-    #define SUBMIT_GLOBAL(        event, param, token       ) bell::template submit_global( event, token ) = [&]                  (typename decltype( event )::type&& param)
-    #define SUBMIT_S_BYREF(level, event, param              ) bell::template submit<level>( event )        = [&]                  (typename decltype( event )::type&& param)
-    #define SUBMIT_T_BYREF(level, event, param, token       ) bell::template submit<level>( event, token ) = [&]                  (typename decltype( event )::type&& param)
-    #define SUBMIT_T_BYVAL(level, event, param, token, byval) bell::template submit<level>( event, token ) = [&, ARG_EVAL byval ] (typename decltype( event )::type&& param) mutable
-    #define SUBMIT_X_BYREF(...) ARG_EVAL(GET_LAST(__VA_ARGS__, SUBMIT_T_BYVAL, SUBMIT_T_BYREF, SUBMIT_S_BYREF))
+    #define LISTEN_GLOBAL(        event, param, token       ) bell::template submit_global( event, token ) = [&]                  (typename decltype( event )::type&& param)
+    #define LISTEN_S_BYREF(level, event, param              ) bell::template submit<level>( event )        = [&]                  (typename decltype( event )::type&& param)
+    #define LISTEN_T_BYREF(level, event, param, token       ) bell::template submit<level>( event, token ) = [&]                  (typename decltype( event )::type&& param)
+    #define LISTEN_T_BYVAL(level, event, param, token, byval) bell::template submit<level>( event, token ) = [&, ARG_EVAL byval ] (typename decltype( event )::type&& param) mutable
+    #define LISTEN_X_BYREF(...) ARG_EVAL(GET_LAST(__VA_ARGS__, LISTEN_T_BYVAL, LISTEN_T_BYREF, LISTEN_S_BYREF))
 
     #if defined(_WIN32)
-        #define SUBMIT(...) ARG_EVAL(SUBMIT_X_BYREF(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))
+        #define LISTEN(...) ARG_EVAL(LISTEN_X_BYREF(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))
     #else
-        #define SUBMIT(...) SUBMIT_X_BYREF(__VA_ARGS__)(__VA_ARGS__)
+        #define LISTEN(...) LISTEN_X_BYREF(__VA_ARGS__)(__VA_ARGS__)
     #endif
 
     //todo deprecated?
-    #define SUBMIT_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
-    #define SUBMIT_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
+    #define LISTEN_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
+    #define LISTEN_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
 
     #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
@@ -586,7 +586,7 @@ namespace netxs::events
 
         bell()
         {
-            SUBMIT_GLOBAL(userland::root::cleanup, counter, tracker)
+            LISTEN_GLOBAL(userland::root::cleanup, counter, tracker)
             {
                 counter.obj_count++;
                 preview.cleanup(counter.ref_count, counter.del_count);

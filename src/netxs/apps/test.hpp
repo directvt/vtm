@@ -424,7 +424,7 @@ namespace netxs::app::test
                 ->invoke([](auto& boss)
                 {
                     boss.keybd.accept(true);
-                    boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                    boss.LISTEN(tier::anycast, e2::form::quit, item)
                     {
                         boss.RISEUP(tier::release, e2::form::quit, item);
                     };
@@ -442,7 +442,7 @@ namespace netxs::app::test
                                                 ->upload(topic)
                                                 ->invoke([&](auto& self)
                                                 {
-                                                    self.SUBMIT(tier::release, e2::postrender, canvas)
+                                                    self.LISTEN(tier::release, e2::postrender, canvas)
                                                     {
                                                         static auto counter = 0; counter++;
                                                         static auto textclr =  ansi::bgc(reddk).fgc(whitelt);
@@ -451,7 +451,7 @@ namespace netxs::app::test
                                                         self.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.full().coor.str() + " ";
                                                     };
                                                     //todo
-                                                    //self.SUBMIT(tier::general, e2::form::canvas, canvas_ptr)
+                                                    //self.LISTEN(tier::general, e2::form::canvas, canvas_ptr)
                                                     //{
                                                     //    self.content(test_topic_vars::dynamix1).lyric = self.content(test_topic_vars::dynamix2).lyric;
                                                     //    self.content(test_topic_vars::dynamix2).lyric = self.content(test_topic_vars::dynamix3).lyric;
