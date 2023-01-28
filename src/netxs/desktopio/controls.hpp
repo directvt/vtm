@@ -196,7 +196,7 @@ namespace netxs::ui
         template<class BackendProp, class P>
         void publish_property(BackendProp, P setter)
         {
-            LISTEN(tier::request, BackendProp{}, property_value, 0, (setter))
+            LISTEN(tier::request, BackendProp{}, property_value, -, (setter))
             {
                 setter(property_value);
             };
