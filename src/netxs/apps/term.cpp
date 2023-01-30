@@ -12,6 +12,9 @@ using namespace netxs;
 
 int main(int argc, char* argv[])
 {
+    auto defaults = 
+    #include "term.xml"
+
     auto vtmode = os::tty::vtmode();
     auto syslog = os::tty::logger(vtmode);
     auto banner = [&]{ log(DESKTOPIO_MYNAME); };
@@ -78,11 +81,11 @@ int main(int argc, char* argv[])
     }
     else if (cfonly)
     {
-        log("Running configuration:\n", app::shared::load::settings<true>(app::term::defaults, cfpath, os::dtvt::config()));
+        log("Running configuration:\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config()));
     }
     else
     {
-        auto config = app::shared::load::settings(app::term::defaults, cfpath, os::dtvt::config());
+        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
         auto result = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
 
         if (result) return 0;
