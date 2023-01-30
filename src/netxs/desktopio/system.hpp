@@ -2756,7 +2756,7 @@ namespace netxs::os
                 if (haspty(stdin_fd))
                 {
                     // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
-                    if (::PeekNamedPipe(stdin_fd, buffer.data(), buffer.size(), &length, NULL, NULL)
+                    if (::PeekNamedPipe(stdin_fd, buffer.data(), (DWORD)buffer.size(), &length, NULL, NULL)
                      && length)
                     {
                         state = buffer.size() == length && buffer.get_sz(cfsize);

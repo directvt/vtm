@@ -687,74 +687,6 @@ R"==(
                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
         return scroll_bars;
     };
-    const auto base_window = [](auto header, auto footer, auto menu_item_id)
-    {
-        return ui::cake::ctor()
-            ->template plugin<pro::d_n_d>()
-            ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
-            ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-            ->template plugin<pro::sizer>()
-            ->template plugin<pro::frame>()
-            ->template plugin<pro::light>()
-            ->template plugin<pro::align>()
-            ->invoke([&](auto& boss)
-            {
-                boss.keybd.active();
-                boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
-                boss.LISTEN(tier::preview, e2::form::proceed::d_n_d::drop, what, -, (menu_item_id))
-                {
-                    if (auto object = boss.pop_back())
-                    {
-                        auto target = what.object;
-                        what.menuid = menu_item_id;
-                        what.object = object;
-                        auto& title = boss.template plugins<pro::title>();
-                        what.header = title.header();
-                        what.footer = title.footer();
-                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
-                        boss.base::detach(); // The object kills itself.
-                    }
-                };
-                boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                {
-                    boss.RISEUP(tier::release, e2::form::maximize, gear);
-                    gear.dismiss();
-                };
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto area = boss.base::area();
-                    auto home = rect{ -dot_21, area.size + dot_21 * 2}; // Including resizer grips.
-                    if (!home.hittest(gear.coord))
-                    {
-                        auto center = area.coor + (area.size / 2);
-                        gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
-                        boss.base::deface();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::proceed::detach, backup)
-                {
-                    boss.mouse.reset();
-                    boss.base::detach(); // The object kills itself.
-                };
-                boss.LISTEN(tier::release, e2::form::quit, nested_item)
-                {
-                    boss.mouse.reset();
-                    if (nested_item) boss.base::detach(); // The object kills itself.
-                };
-                boss.LISTEN(tier::release, e2::dtor, p)
-                {
-                    auto start = datetime::now();
-                    auto counter = e2::cleanup.param();
-                    SIGNAL_GLOBAL(e2::cleanup, counter);
-                    auto stop = datetime::now() - start;
-                    log("host: garbage collection",
-                    "\n\ttime ", utf::format(stop.count()), "ns",
-                    "\n\tobjs ", counter.obj_count,
-                    "\n\trefs ", counter.ref_count,
-                    "\n\tdels ", counter.del_count);
-                };
-            });
-    };
 
     using builder_t = std::function<sptr<base>(text, text, xml::settings&, text)>;
 
@@ -826,39 +758,6 @@ R"==(
             }
             else return it->second;
         };
-        auto by = [](auto& world, auto& gear)
-        {
-            static auto insts_count = si32{ 0 };
-            auto& gate = gear.owner;
-            auto location = gear.slot;
-            if (gear.meta(hids::anyCtrl))
-            {
-                log("hall: area copied to clipboard ", location);
-                gate.SIGNAL(tier::release, e2::command::printscreen, gear);
-            }
-            else
-            {
-                auto what = e2::form::proceed::createat.param();
-                what.square = gear.slot;
-                what.forced = gear.slot_forced;
-                gate.SIGNAL(tier::request, e2::data::changed, what.menuid);
-                world.SIGNAL(tier::release, e2::form::proceed::createat, what);
-                if (auto& frame = what.object)
-                {
-                    insts_count++;
-                    frame->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
-                    {
-                        insts_count--;
-                        log("hall: detached: ", insts_count);
-                    };
-
-                    gear.clear_kb_focus(); // DirectVT app could have a group of focused.
-                    gear.kb_focus_changed = faux;
-                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                }
-            }
-        };
         auto go = [](auto& menuid)
         {
             auto& conf_list = app::shared::get::configs();
@@ -870,52 +769,7 @@ R"==(
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
             return std::pair{ object, config };
         };
-        auto at = [](auto& world, auto& what)
-        {
-            auto [object, config] = app::shared::create::go(what.menuid);
-
-            auto window = app::shared::base_window(config.title, config.footer, what.menuid);
-            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
-            else                                window->extend(what.square);
-            window->attach(object);
-            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
-            world.branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world.This());
-
-            what.object = window;
-        };
-        auto from = [](auto& world, auto& what)
-        {
-            auto& conf_list = app::shared::get::configs();
-            auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
-
-            window->extend(what.square);
-            window->attach(what.object);
-            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
-            world.branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world.This());
-
-            what.object = window;
-        };
     }
-    auto activate = [](auto world_ptr, xml::settings& config)
-    {
-        auto& world = *world_ptr;
-        world.LISTEN(tier::release, e2::form::proceed::createby, gear)
-        {
-            create::by(world, gear);
-        };
-        world.LISTEN(tier::release, e2::form::proceed::createat, what)
-        {
-            create::at(world, what);
-        };
-        world.LISTEN(tier::release, e2::form::proceed::createfrom, what)
-        {
-            create::from(world, what);
-        };
-        world.autorun(config);
-    };
 
     namespace load
     {

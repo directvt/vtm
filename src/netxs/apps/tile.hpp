@@ -198,9 +198,7 @@ namespace netxs::app::tile
                                     {
                                         gear.countdown--;
                                         // Removing multifocus - The only one can be maximized if several are selected.
-                                        gear.force_group_focus = faux;
-                                        gear.kb_focus_changed = faux;
-                                        boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                        gear.kb_offer_11(boss);
                                         boss.RISEUP(tier::release, e2::form::maximize, gear);
                                         //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
                                     }
@@ -318,23 +316,15 @@ namespace netxs::app::tile
                                 auto world_ptr = e2::config::whereami.param();
                                 SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                                 world_ptr->SIGNAL(tier::release, e2::form::proceed::createfrom, what);
+                                
+                                gear.kb_offer_9(what.object); // Pass focus.
+                                gear.annul_kb_focus(master_ptr); // Remove focus.
 
-                                // Pass focus.
-                                auto& object = *what.object;
-                                //todo unify
-                                gear.kb_focus_changed = faux;
-                                gear.force_group_focus = true;
-                                gear.combine_focus = true;
-                                object.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                                gear.combine_focus = faux;
-                                gear.force_group_focus = faux;
-
-                                // Remove focus.
-                                master.SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
                                 // Destroy placeholder.
                                 master.RISEUP(tier::release, e2::form::quit, master_ptr);
 
                                 // Handover mouse input.
+                                auto& object = *what.object;
                                 master.SIGNAL(tier::release, hids::events::notify::mouse::leave, gear);
                                 object.SIGNAL(tier::release, hids::events::notify::mouse::enter, gear);
                                 gear.pass<tier::release>(what.object, dot_00);
@@ -380,7 +370,7 @@ namespace netxs::app::tile
                     if (auto ptr = bell::getref(gear_id))
                     if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                     {
-                        gear_ptr->offer_kb_focus(item_ptr);
+                        gear_ptr->kb_offer_4(item_ptr);
                     }
                 }
             }
@@ -554,18 +544,9 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::anycast, app::tile::events::ui::select, gear)
                     {
-                        auto& item = *boss.back();
-                        if (item.base::kind() != 1)
-                        {
-                            //todo unify
-                            gear.force_group_focus = true;
-                            gear.kb_focus_changed = faux;
-                            gear.combine_focus = true;
-                            item.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                            gear.combine_focus = faux;
-                            gear.force_group_focus = faux;
-                        }
-                        else item.SIGNAL(tier::release, hids::events::upevent::kbannul, gear); // Exclude grips.
+                        auto item_ptr = boss.back();
+                        if (item_ptr->base::kind() != 1) gear.kb_offer_9(item_ptr);
+                        else                             gear.annul_kb_focus(item_ptr); // Exclude grips.
                     };
                     boss.LISTEN(tier::release, e2::form::maximize, gear, -, (oneoff = subs{}))
                     {
@@ -587,14 +568,7 @@ namespace netxs::app::tile
                             if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
                             {
                                 // Pass the focus to the maximized window.
-                                //todo unify
-                                gear.force_group_focus = faux;
-                                gear.kb_focus_changed = faux;
-                                gear.combine_focus = true;
-                                boss.back()->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                                gear.combine_focus = faux;
-                                gear.force_group_focus = faux;
-
+                                gear.kb_offer_15(boss.back());
                                 auto fullscreen_item = boss.pop_back();
                                 if (fullscreen_item)
                                 {
@@ -631,7 +605,7 @@ namespace netxs::app::tile
                             auto empty_1 = empty_slot(empty_slot);
                             auto empty_2 = empty_slot(empty_slot);
                             auto curitem = boss.pop_back(); // In order to preserve all foci.
-                            gear.offer_kb_focus(empty_2);
+                            gear.kb_offer_4(empty_2);
                             gear.annul_kb_focus(curitem);
                             if (boss.empty())
                             {
@@ -691,37 +665,26 @@ namespace netxs::app::tile
                         static auto insts_count = 0;
                         if (boss.count() == 1) // Create new apps at the empty slots only.
                         {
-                            if (gear.meta(hids::anyCtrl))
+                            auto& gate = gear.owner;
+                            auto current_default = e2::data::changed.param();
+                            gate.SIGNAL(tier::request, e2::data::changed, current_default);
+
+                            auto [object, config] = app::shared::create::go(current_default);
+
+                            auto app = app_window(config.title, "", object, current_default);
+                            gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
+                            boss.attach(app);
+
+                            insts_count++; //todo unify, demo limits
+                            object->LISTEN(tier::release, e2::dtor, id)
                             {
-                                //todo ...
-                            }
-                            else
-                            {
-                                auto& gate = gear.owner;
-                                auto current_default = e2::data::changed.param();
-                                gate.SIGNAL(tier::request, e2::data::changed, current_default);
+                                insts_count--;
+                                log("tile: inst: detached: ", insts_count, " id=", id);
+                            };
 
-                                auto [object, config] = app::shared::create::go(current_default);
-
-                                auto app = app_window(config.title, "", object, current_default);
-                                gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
-                                boss.attach(app);
-
-                                //todo unify, demo limits
-                                {
-                                    insts_count++;
-                                    object->LISTEN(tier::release, e2::dtor, id)
-                                    {
-                                        insts_count--;
-                                        log("tile: inst: detached: ", insts_count, " id=", id);
-                                    };
-                                }
-                                app->SIGNAL(tier::anycast, e2::form::upon::started, app);
-
-                                //todo unify
-                                gear.kb_focus_changed = faux;
-                                object->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                            }
+                            app->SIGNAL(tier::anycast, e2::form::upon::started, app);
+                            if (gear.meta(hids::anyCtrl)) gear.kb_offer_4(app);
+                            else                          gear.kb_offer_10(app);
                         }
                     };
                     boss.LISTEN(tier::release, events::backup, empty_slot_list)

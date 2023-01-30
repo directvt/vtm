@@ -329,12 +329,7 @@ namespace netxs::ui
                     owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
                     if (gear_test.second == 0)
                     {
-                        auto state = gear.state();
-                        gear.kb_focus_changed = faux;
-                        gear.force_group_focus = true;
-                        gear.combine_focus = true;
-                        owner.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                        gear.state(state);
+                        gear.kb_offer_9(owner.This());
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }
@@ -346,10 +341,8 @@ namespace netxs::ui
                     owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
                     if (gear_test.second == 0)
                     {
-                        auto state = gear.state();
-                        gear.kb_focus_changed = faux;
-                        owner.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                        gear.state(state);
+                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_2(owner);
+                        else                          gear.kb_offer_7(owner);
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }
@@ -6599,12 +6592,7 @@ namespace netxs::ui
             auto data = gear.get_clip_data();
             if (data.utf8.size())
             {
-                //todo unify (hids)
-                auto state = gear.state();
-                gear.combine_focus = true; // Preserve all selected panes.
-                gear.offer_kb_focus(this->This());
-                gear.state(state);
-
+                gear.kb_offer_9(this->This());
                 //todo respect bracketed paste mode
                 follow[axis::X] = true;
                 if (data.kind == clip::richtext)
@@ -6631,12 +6619,8 @@ namespace netxs::ui
         {
             auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
                                                            : static_cast<clip::mime>(selmod);
-            //todo unify (hids)
-            auto state = gear.state();
-            gear.combine_focus = true; // Preserve all selected panes.
-            gear.offer_kb_focus(this->This());
+            gear.kb_offer_9(this->This());
             gear.set_clip_data(clip{ target->panel, data, mimetype });
-            gear.state(state);
         }
         auto copy(hids& gear)
         {
@@ -6691,12 +6675,7 @@ namespace netxs::ui
                                                    : text{};
             if (utf8.size())
             {
-                //todo unify (hids)
-                auto state = gear.state();
-                gear.combine_focus = true; // Preserve all selected panes.
-                gear.offer_kb_focus(this->This());
-                gear.state(state);
-
+                gear.kb_offer_9(this->This());
                 follow[axis::X] = true;
                 data_out(utf8);
                 gear.dismiss();
@@ -7353,13 +7332,7 @@ namespace netxs::ui
                 if (auto ptr = bell::getref(f.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    auto& gear = *gear_ptr;
-                    //todo unify (hids)
-                    auto state = gear.state();
-                    gear.force_group_focus = f.force_group_focus;
-                    gear.combine_focus = true; // dtvt app is always a group of focused.
-                    gear.set_kb_focus(owner.This());
-                    gear.state(state);
+                    gear_ptr->kb_offer_18(owner.This(), f.force_group_focus);
                 }
             }
             void handle(s11n::xs::off_focus           lock)
@@ -7369,8 +7342,7 @@ namespace netxs::ui
                 if (auto ptr = bell::getref(f.gear_id))
                 if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
                 {
-                    auto& gear = *gear_ptr;
-                    gear.remove_from_kb_focus(owner.This());
+                    gear_ptr->remove_from_kb_focus(owner.This());
                 }
             }
             void handle(s11n::xs::form_header         lock)

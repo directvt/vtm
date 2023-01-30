@@ -12,7 +12,7 @@
 // Enable to show all terminal input (keyboard/mouse etc).
 //#define KEYLOG
 
-#include "netxs/apps.hpp"
+#include "vtm.hpp"
 
 using namespace netxs;
 using namespace netxs::ui;
@@ -252,7 +252,7 @@ int main(int argc, char* argv[])
         config.cd("/config/appearance/defaults/");
         auto ground = ui::base::create<ui::hall>(server, config);
         auto thread = os::process::pool{};
-        app::shared::activate(ground, config);
+        ground->autorun(config);
 
         log("main: listening socket ", server,
           "\n      user: ", userid,
