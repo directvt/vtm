@@ -122,7 +122,11 @@ namespace netxs::events
     {
         virtual ~handler() { }
     };
-    using hook = sptr<handler>;
+    struct hook : sptr<handler>
+    {
+        using sptr<handler>::sptr;
+        auto& operator - (si32) { return *this; }
+    };
 
     template<execution_order Order = execution_order::forward>
     struct reactor
@@ -325,6 +329,7 @@ namespace netxs::events
         std::vector<hook> tokens;
 
     public:
+        auto& operator - (si32)    { return *this;                                                           }
         operator bool () const     { return tokens.size();                                                   }
         void  admit(hook&& t)      {        tokens.push_back(std::forward<hook>(t));                         }
         hook& extra()              { return tokens.emplace_back();                                           }
@@ -353,21 +358,21 @@ namespace netxs::events
     #define RISEUP(        level, event,   ...              ) base::template riseup<level>(event, __VA_ARGS__)
     #define SIGNAL(        level, event, param              ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
     #define SIGNAL_GLOBAL(        event, param              ) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
-    #define SUBMIT_GLOBAL(        event, param, token       ) bell::template submit_global( event, token ) = [&]                  (typename decltype( event )::type&& param)
-    #define SUBMIT_S_BYREF(level, event, param              ) bell::template submit<level>( event )        = [&]                  (typename decltype( event )::type&& param)
-    #define SUBMIT_T_BYREF(level, event, param, token       ) bell::template submit<level>( event, token ) = [&]                  (typename decltype( event )::type&& param)
-    #define SUBMIT_T_BYVAL(level, event, param, token, byval) bell::template submit<level>( event, token ) = [&, ARG_EVAL byval ] (typename decltype( event )::type&& param) mutable
-    #define SUBMIT_X_BYREF(...) ARG_EVAL(GET_LAST(__VA_ARGS__, SUBMIT_T_BYVAL, SUBMIT_T_BYREF, SUBMIT_S_BYREF))
+    #define LISTEN_GLOBAL(        event, param, token       ) bell::template submit_global( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
+    #define LISTEN_S_BYREF(level, event, param              ) bell::template submit<level>( event )           = [&]                  (typename decltype( event )::type&& param)
+    #define LISTEN_T_BYREF(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
+    #define LISTEN_T_BYVAL(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL byval ] (typename decltype( event )::type&& param) mutable
+    #define LISTEN_X_BYREF(...) ARG_EVAL(GET_LAST(__VA_ARGS__, LISTEN_T_BYVAL, LISTEN_T_BYREF, LISTEN_S_BYREF))
 
     #if defined(_WIN32)
-        #define SUBMIT(...) ARG_EVAL(SUBMIT_X_BYREF(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))
+        #define LISTEN(...) ARG_EVAL(LISTEN_X_BYREF(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))
     #else
-        #define SUBMIT(...) SUBMIT_X_BYREF(__VA_ARGS__)(__VA_ARGS__)
+        #define LISTEN(...) LISTEN_X_BYREF(__VA_ARGS__)(__VA_ARGS__)
     #endif
 
     //todo deprecated?
-    #define SUBMIT_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
-    #define SUBMIT_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
+    #define LISTEN_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
+    #define LISTEN_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
 
     #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
@@ -512,7 +517,7 @@ namespace netxs::events
         template<tier Tier, class Event> auto submit2(typename Event::type & p, subs& tokens) { return submit_helper2_token<Tier, Event>(*this, p, tokens.extra()); }
 
         template<tier Tier, class Event> auto submit(Event)               { return submit_helper      <Tier, Event>(*this);                 }
-        template<tier Tier, class Event> auto submit(Event, int)          { return submit_helper      <Tier, Event>(*this);                 }
+        template<tier Tier, class Event> auto submit(Event, si32)         { return submit_helper      <Tier, Event>(*this);                 }
         template<tier Tier, class Event> auto submit(Event, hook& token)  { return submit_helper_token<Tier, Event>(*this, token);          }
         template<tier Tier, class Event> auto submit(Event, subs& tokens) { return submit_helper_token<Tier, Event>(*this, tokens.extra()); }
         template<tier Tier, class Event>
@@ -586,7 +591,7 @@ namespace netxs::events
 
         bell()
         {
-            SUBMIT_GLOBAL(userland::root::cleanup, counter, tracker)
+            LISTEN_GLOBAL(userland::root::cleanup, counter, tracker)
             {
                 counter.obj_count++;
                 preview.cleanup(counter.ref_count, counter.del_count);

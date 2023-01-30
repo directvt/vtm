@@ -93,7 +93,7 @@ namespace netxs::ui
             cell_highlight(base& boss)
                 : skill{ boss }
             {
-                boss.SUBMIT(tier::release, e2::postrender, parent_canvas, memo)
+                boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
                 {
                     auto full = parent_canvas.full();
                     auto view = parent_canvas.view();
@@ -120,7 +120,7 @@ namespace netxs::ui
                         }
                     });
                 };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear, memo)
+                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
@@ -130,7 +130,7 @@ namespace netxs::ui
                     }
                     recalc();
                 };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear, memo)
+                boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear, memo)
                 {
                     auto& item = items.take(gear);
                     auto area = boss.size();
@@ -140,16 +140,16 @@ namespace netxs::ui
                     recalc();
                     gear.dismiss();
                 };
-                boss.SUBMIT(tier::general, hids::events::die, gear, memo)
+                boss.LISTEN(tier::general, hids::events::die, gear, memo)
                 {
                     recalc();
                     boss.deface();
                 };
-                boss.SUBMIT(tier::release, hids::events::notify::mouse::enter, gear, memo)
+                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
                 {
                     items.add(gear);
                 };
-                boss.SUBMIT(tier::release, hids::events::notify::mouse::leave, gear, memo)
+                boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
@@ -199,19 +199,19 @@ namespace netxs::ui
             void engage()
             {
                 boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
-                boss.SUBMIT(tier::release, hids::events::mouse::move, gear, memo)
+                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
                     boss.base::deface();
                 };
-                boss.SUBMIT(tier::release, e2::form::drag::start::_<Button>, gear, memo)
+                boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
                     if (items.take(gear).grab(gear.coord, gear.meta(hids::anyCtrl)))
                     {
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
+                boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
                 {
                     if (items.take(gear).drag(gear.coord))
                     {
@@ -219,12 +219,12 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
+                boss.LISTEN(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
                 {
                     items.take(gear).drop();
                     recalc();
                 };
-                boss.SUBMIT(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
+                boss.LISTEN(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
                 {
                     items.take(gear).drop();
                     recalc();
@@ -333,11 +333,11 @@ namespace netxs::app::calc
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
-                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      boss.LISTEN(tier::anycast, e2::form::quit, item)
                       {
                           boss.RISEUP(tier::release, e2::form::quit, item);
                       };
-                      boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                      boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;
                           auto title = ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods");
@@ -383,7 +383,7 @@ namespace netxs::app::calc
                                                      .fgc(blacklt).add(")"))
                                                      ->invoke([&](ui::post& boss)
                                                      {
-                                                         grid->SUBMIT(tier::release, e2::data::text, data)
+                                                         grid->LISTEN(tier::release, e2::data::text, data)
                                                          {
                                                             boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                          };

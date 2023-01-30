@@ -29,7 +29,7 @@ namespace netxs::app::shared
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
             auto stobe_state = true;
-            strob->SUBMIT(tier::general, e2::timer::any, now, 0, (strob_shadow, stobe_state))
+            strob->LISTEN(tier::general, e2::timer::any, now, -, (strob_shadow, stobe_state))
             {
                 stobe_state = !stobe_state;
                 if (auto strob = strob_shadow.lock())
@@ -53,7 +53,7 @@ namespace netxs::app::shared
                         boss.keybd.accept(true);
                         closing_by_gesture(boss);
                         closing_on_quit(boss);
-                        boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
+                        boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
                         {
                             auto deed = boss.bell::template protos<tier::anycast>();
                                  if (deed == e2::form::prop::colors::bg.id) boss.base::color(boss.base::color().fgc(), clr);
@@ -74,7 +74,7 @@ namespace netxs::app::shared
                       boss.keybd.accept(true);
                       closing_by_gesture(boss);
                       closing_on_quit(boss);
-                      boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                      boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           auto title = ansi::add("Empty Instance \nid: ", parent->id);
                           boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
@@ -90,7 +90,7 @@ namespace netxs::app::shared
             window->invoke([&](auto& boss)
                     {
                         //todo reimplement (tiling/window)
-                        //boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                        //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                         //{
                         //    auto outer = e2::config::plugins::sizer::outer.param();
                         //    boss.RISEUP(tier::request, e2::config::plugins::sizer::outer, outer);
@@ -104,7 +104,7 @@ namespace netxs::app::shared
                         //    }
                         //};
                         closing_on_quit(boss);
-                        boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas)
+                        boss.LISTEN(tier::release, e2::render::prerender, parent_canvas)
                         {
                             auto title_fg_color = rgba{ 0xFFffffff };
                             auto area = parent_canvas.full();
@@ -113,7 +113,7 @@ namespace netxs::app::shared
                             auto fill = [&](cell& c) { c.fusefull(mark); };
                             parent_canvas.cage(area, dot_21, fill);
                         };
-                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent_ptr)
+                        boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
                         {
                             auto& parent = *parent_ptr;
                             closing_by_gesture(parent);
@@ -134,7 +134,7 @@ namespace netxs::app::shared
                             boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner);
                             boss.RISEUP(tier::release, e2::config::plugins::align, faux);
                             boss.RISEUP(tier::preview, e2::form::prop::zorder, Z_order::backmost);
-                            parent.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+                            parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                             {
                                 auto old_title = e2::form::prop::ui::header.param();
                                 boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title);
@@ -324,62 +324,62 @@ namespace netxs::app::shared
                                       ->invoke([&](auto& boss)
                                       {
                                             //todo unify: Same as in app::term (term.hpp).
-                                            boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
+                                            boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
                                             {
                                                 boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::data::in, data)
+                                            boss.LISTEN(tier::anycast, app::term::events::data::in, data)
                                             {
                                                 boss.data_in(data);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::data::out, data)
+                                            boss.LISTEN(tier::anycast, app::term::events::data::out, data)
                                             {
                                                 boss.data_out(data);
                                             };
                                             //todo add color picker to the menu
-                                            boss.SUBMIT(tier::anycast, app::term::events::preview::colors::bg, bg)
+                                            boss.LISTEN(tier::anycast, app::term::events::preview::colors::bg, bg)
                                             {
                                                 boss.set_bg_color(bg);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::preview::colors::fg, fg)
+                                            boss.LISTEN(tier::anycast, app::term::events::preview::colors::fg, fg)
                                             {
                                                 boss.set_fg_color(fg);
                                             };
-                                            boss.SUBMIT(tier::anycast, e2::form::prop::colors::any, clr)
+                                            boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
                                             {
                                                 auto deed = boss.bell::template protos<tier::anycast>();
                                                      if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::bg, clr);
                                                 else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::fg, clr);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::preview::selection::mode, selmod)
+                                            boss.LISTEN(tier::anycast, app::term::events::preview::selection::mode, selmod)
                                             {
                                                 boss.set_selmod(selmod);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::preview::selection::box, selalt)
+                                            boss.LISTEN(tier::anycast, app::term::events::preview::selection::box, selalt)
                                             {
                                                 boss.set_selalt(selalt);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::preview::wrapln, wrapln)
+                                            boss.LISTEN(tier::anycast, app::term::events::preview::wrapln, wrapln)
                                             {
                                                 boss.set_wrapln(wrapln);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::preview::align, align)
+                                            boss.LISTEN(tier::anycast, app::term::events::preview::align, align)
                                             {
                                                 boss.set_align(align);
                                             };
-                                            boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                                            boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                                             {
                                                 boss.start();
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::search::forward, gear)
+                                            boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
                                             {
                                                 boss.search(gear, feed::fwd);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::search::reverse, gear)
+                                            boss.LISTEN(tier::anycast, app::term::events::search::reverse, gear)
                                             {
                                                 boss.search(gear, feed::rev);
                                             };
-                                            boss.SUBMIT(tier::anycast, app::term::events::data::prnscrn, gear)
+                                            boss.LISTEN(tier::anycast, app::term::events::data::prnscrn, gear)
                                             {
                                                 boss.prnscrn(gear);
                                             };
@@ -402,7 +402,7 @@ namespace netxs::app::shared
                     auto type = text{ data.size() > 0 ? data[0] : view{} };
                     auto name = text{ data.size() > 1 ? data[1] : view{} };
                     auto args = text{ data.size() > 2 ? data[2] : view{} };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear, 0, (type, name, args))
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (type, name, args))
                     {
                         //todo revise/unify
                         auto world_ptr = e2::config::whereami.param();
@@ -463,7 +463,7 @@ namespace netxs::app::shared
                 ->plugin<pro::focus>()
                 ->invoke([](auto& boss)
                 {
-                    boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
                         boss.start();
                     };

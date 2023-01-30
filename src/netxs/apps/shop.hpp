@@ -203,7 +203,7 @@ namespace netxs::app::shop
                   ->invoke([](auto& boss)
                   {
                         boss.keybd.accept(true);
-                        boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                        boss.LISTEN(tier::anycast, e2::form::quit, item)
                         {
                             boss.RISEUP(tier::release, e2::form::quit, item);
                         };

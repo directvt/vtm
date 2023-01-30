@@ -515,93 +515,52 @@ namespace netxs::os
         };
 
         template<class Size_t>
-        auto recv(fd_t fd, char* buff, Size_t size)
+        auto recv(fd_t fd, char* buffer, Size_t size)
         {
             #if defined(_WIN32)
-
                 auto count = DWORD{};
-                auto fSuccess = ::ReadFile( fd,       // pipe handle
-                                            buff,     // buffer to receive reply
-                                    (DWORD) size,     // size of buffer
-                                           &count,    // number of bytes read
-                                            nullptr); // not overlapped
-                if (!fSuccess) count = 0;
-
+                ::ReadFile(fd, buffer, (DWORD)size, &count, nullptr);
             #else
-
-                auto count = ::read(fd, buff, size);
-
+                auto count = ::read(fd, buffer, size);
             #endif
-
-            return count > 0 ? qiew{ buff, count }
+            return count > 0 ? qiew{ buffer, count }
                              : qiew{}; // An empty result is always an error condition.
         }
-        template<bool IsTTY = true, class Size_t>
-        auto send(fd_t fd, char const* buff, Size_t size)
+        template<class Size_t>
+        auto send(fd_t fd, char const* buffer, Size_t size)
         {
-            while (size)
+            while (size > 0)
             {
                 #if defined(_WIN32)
-
                     auto count = DWORD{};
-                    auto fSuccess = ::WriteFile( fd,       // pipe handle
-                                                 buff,     // message
-                                         (DWORD) size,     // message length
-                                                &count,    // bytes written
-                                                 nullptr); // not overlapped
-
+                    ::WriteFile(fd, buffer, (DWORD)size, &count, nullptr);
                 #else
-                    // Mac OS X does not support the flag MSG_NOSIGNAL
-                    // See GH#182, https://lists.apple.com/archives/macnetworkprog/2002/Dec/msg00091.html
-                    #if defined(__APPLE__)
-                        #define NO_SIGSEND SO_NOSIGPIPE
-                    #else
-                        #define NO_SIGSEND MSG_NOSIGNAL
-                    #endif
-
-                    auto count = IsTTY ? ::write(fd, buff, size)              // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
-                                       : ::send (fd, buff, size, NO_SIGSEND); // ::send() does not work with ::open_pty() and ::pipe() (Errno 88 - it is not a socket)
-
-                    #undef NO_SIGSEND
-                    //  send(2) does not work with file descriptors, only sockets.
-                    // write(2) works with fds as well as sockets.
-
+                    auto count = ::write(fd, buffer, size);
                 #endif
-
-                if (count != size)
+                if (count == size) return true;
+                if (count > 0)
                 {
-                    if (count > 0)
-                    {
-                        //todo stackoverflow in dtvt mode
-                        //log("send: partial writing: socket=", fd,
-                        //    " total=", size, ", written=", count);
-                        buff += count;
-                        size -= count;
-                    }
-                    else
-                    {
-                        //todo stackoverflow in dtvt mode
-                        //log("send: aborted write to socket=", fd, " count=", count, " size=", size, " IsTTY=", IsTTY ?"true":"faux");
-                        return faux;
-                    }
+                    buffer += count;
+                    size -= count;
                 }
-                else return true;
+                else break;
             }
             return faux;
         }
-        template<bool IsTTY = true, class T, class Size_t>
-        auto send(fd_t fd, T* buff, Size_t size)
+        template<class T, class Size_t>
+        auto send(fd_t fd, T* buffer, Size_t size)
         {
-            return io::send<IsTTY, Size_t>(fd, (char const*)buff, size);
+            return io::send(fd, (char const*)buffer, size);
         }
-        template<bool IsTTY = true>
-        auto send(fd_t fd, view buff)
+        template<class View>
+        auto send(fd_t fd, View&& buffer)
         {
-            return io::send<IsTTY>(fd, buff.data(), buff.size());
+            return io::send(fd, buffer.data(), buffer.size());
         }
-        auto send(view buff)
+        template<class View>
+        auto send(View&& buffer)
         {
-            return io::send(STDOUT_FD, buff);
+            return io::send(STDOUT_FD, std::forward<View>(buffer));
         }
         template<class ...Args>
         auto recv(file& handle, Args&&... args)
@@ -724,13 +683,12 @@ namespace netxs::os
             #else
 
                 fd_t h[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
-                char x = 1;
 
                 operator auto () { return h[0]; }
                 fire()           { ok(::pipe(h), "pipe[2] creation failed"); }
                ~fire()           { for (auto& f : h) io::close(f); }
-                void reset()     { os::io::send(h[1], &x, sizeof(x)); }
-                void flush()     { os::io::recv(h[0], &x, sizeof(x)); }
+                void reset()     { static auto c = ' '; io::send(h[1], &c, sizeof(c)); }
+                void flush()     { static auto c = ' '; io::recv(h[0], &c, sizeof(c)); }
 
             #endif
             void bell() { reset(); }
@@ -1023,7 +981,7 @@ namespace netxs::os
                 {
                     yield.clipbuf(size, utf8, clip::textonly);
                 }
-                os::io::send<true>(STDOUT_FD, yield);
+                io::send(STDOUT_FD, yield);
                 success = true;
 
                 #if defined(__ANDROID__)
@@ -1175,11 +1133,11 @@ namespace netxs::os
 
             virtual bool send(view buff)
             {
-                return os::io::send(handle.w, buff);
+                return io::send(handle.w, buff);
             }
             virtual qiew recv(char* buff, size_t size)
             {
-                return os::io::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
+                return io::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
             }
             virtual qiew recv() // It's not thread safe!
             {
@@ -1451,15 +1409,11 @@ namespace netxs::os
                         log("meet: signal fired");
                         signal.flush();
                     };
-                    os::io::select(handle.r, h_proc,
-                                   signal  , f_proc);
+                    io::select(handle.r, h_proc,
+                               signal  , f_proc);
 
                 #endif
                 return client;
-            }
-            bool send(view buff) override
-            {
-                return os::io::send<faux>(handle.w, buff);
             }
             void stop() override
             {
@@ -2216,7 +2170,7 @@ namespace netxs::os
             static auto logs = directvt::binary::logs_t{};
             //todo view -> text
             logs.set(os::process::id.first, os::process::id.second, text{ data });
-            logs.send([&](auto& block){ os::io::send(STDOUT_FD, block); });
+            logs.send([&](auto& block){ io::send(STDOUT_FD, block); });
         }
         void syslog(view data)
         {
@@ -2559,7 +2513,7 @@ namespace netxs::os
                     proc_pid = procsinf.dwProcessId;
                     waitexit = std::thread([&]
                     {
-                        os::io::select(prochndl, []{ log("vtty: child process terminated"); });
+                        io::select(prochndl, []{ log("vtty: child process terminated"); });
                         if (srv_hndl != INVALID_FD)
                         {
                             auto exit_code = wait_child();
@@ -2784,7 +2738,7 @@ namespace netxs::os
         void send(fd_t m_pipe_w, view config)
         {
             auto buffer = directvt::binary::marker{ config.size() };
-            os::io::send<true>(m_pipe_w, buffer.data, buffer.size);
+            io::send(m_pipe_w, buffer);
         }
         auto peek(fd_t stdin_fd)
         {
@@ -2802,20 +2756,20 @@ namespace netxs::os
                 if (haspty(stdin_fd))
                 {
                     // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
-                    if (::PeekNamedPipe(stdin_fd, &buffer, sizeof(buffer), &length, NULL, NULL)
+                    if (::PeekNamedPipe(stdin_fd, buffer.data(), buffer.size(), &length, NULL, NULL)
                      && length)
                     {
-                        state = buffer.size == length && buffer.get_sz(cfsize);
+                        state = buffer.size() == length && buffer.get_sz(cfsize);
                         if (state)
                         {
-                            os::io::recv(stdin_fd, buffer.data, buffer.size);
+                            io::recv(stdin_fd, buffer.data(), buffer.size());
                         }
                     }
                 }
                 else
                 {
-                    length = (DWORD)os::io::recv(stdin_fd, (char*)&buffer, sizeof(buffer)).size();
-                    state = buffer.size == length && buffer.get_sz(cfsize);
+                    length = (DWORD)io::recv(stdin_fd, buffer.data(), buffer.size()).size();
+                    state = buffer.size() == length && buffer.get_sz(cfsize);
                 }
 
             #else
@@ -2825,11 +2779,11 @@ namespace netxs::os
                     get(stdin_fd, [&]
                     {
                         auto buffer = directvt::binary::marker{};
-                        auto header = os::io::recv(stdin_fd, buffer.data, buffer.size);
+                        auto header = io::recv(stdin_fd, buffer.data(), buffer.size());
                         auto length = header.length();
                         if (length)
                         {
-                            state = buffer.size == length && buffer.get_sz(cfsize);
+                            state = buffer.size() == length && buffer.get_sz(cfsize);
                             if (!state)
                             {
                                 start = header; //todo use it when the reading thread starts
@@ -2837,8 +2791,8 @@ namespace netxs::os
                         }
                     });
                 };
-                haspty(stdin_fd) ? proc([&](auto ...args){ return os::io::select<true>(args...); })
-                                 : proc([&](auto ...args){ return os::io::select<faux>(args...); });
+                haspty(stdin_fd) ? proc([&](auto ...args){ return io::select<true>(args...); })
+                                 : proc([&](auto ...args){ return io::select<faux>(args...); });
 
             #endif
             if (cfsize)
@@ -2847,7 +2801,7 @@ namespace netxs::os
                 auto buffer = setup.data();
                 while (cfsize)
                 {
-                    if (auto crop = os::io::recv(stdin_fd, buffer, cfsize))
+                    if (auto crop = io::recv(stdin_fd, buffer, cfsize))
                     {
                         cfsize -= crop.size();
                         buffer += crop.size();
@@ -3507,7 +3461,7 @@ namespace netxs::os
                 if (legacy_mouse)
                 {
                     log(" tty: compatibility mode");
-                    auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
+                    auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50"sv;
                     auto mouse_device = "/dev/input/mice";
                     auto mouse_fallback1 = "/dev/input/mice.vtm";
                     auto mouse_fallback2 = "/dev/input/mice_vtm"; //todo deprecated
@@ -3516,10 +3470,10 @@ namespace netxs::os
                     if (fd == -1) log(" tty: error opening ", mouse_device, " and ", mouse_fallback1, ", error ", errno, errno == 13 ? " - permission denied" : "");
                     if (fd == -1) fd = ::open(mouse_fallback2, O_RDWR);
                     if (fd == -1) log(" tty: error opening ", mouse_device, " and ", mouse_fallback2, ", error ", errno, errno == 13 ? " - permission denied" : "");
-                    else if (os::io::send(fd, imps2_init_string, sizeof(imps2_init_string)))
+                    else if (io::send(fd, imps2_init_string))
                     {
                         char ack;
-                        os::io::recv(fd, &ack, sizeof(ack));
+                        io::recv(fd, &ack, sizeof(ack));
                         micefd = fd;
                         auto tty_word = tty_name.find("tty", 0);
                         if (tty_word != text::npos)
@@ -3779,7 +3733,7 @@ namespace netxs::os
 
                 auto h_proc = [&]
                 {
-                    auto data = os::io::recv(STDIN_FD, buffer.data(), buffer.size());
+                    auto data = io::recv(STDIN_FD, buffer.data(), buffer.size());
                     if (micefd != INVALID_FD)
                     {
                         auto kb_state = get_kb_state();
@@ -3795,7 +3749,7 @@ namespace netxs::os
                 };
                 auto m_proc = [&]
                 {
-                    auto data = os::io::recv(micefd, buffer.data(), buffer.size());
+                    auto data = io::recv(micefd, buffer.data(), buffer.size());
                     auto size = data.size();
                     if (size == 4 /* ImPS/2 */
                      || size == 3 /* PS/2 compatibility mode */)
@@ -3831,14 +3785,14 @@ namespace netxs::os
                 {
                     if (micefd != INVALID_FD)
                     {
-                        os::io::select(STDIN_FD, h_proc,
-                                       micefd,   m_proc,
-                                       alarm,    f_proc);
+                        io::select(STDIN_FD, h_proc,
+                                   micefd,   m_proc,
+                                   alarm,    f_proc);
                     }
                     else
                     {
-                        os::io::select(STDIN_FD, h_proc,
-                                       alarm,    f_proc);
+                        io::select(STDIN_FD, h_proc,
+                                   alarm,    f_proc);
                     }
                 }
 
@@ -4050,13 +4004,13 @@ namespace netxs::os
             vtend.vmouse(faux);
             #endif
 
-            os::io::send(STDOUT_FD, vtrun);
+            io::send(STDOUT_FD, vtrun);
 
             auto input = std::thread{ [&]{ reader(mode); } };
             auto clips = std::thread{ [&]{ clipbd(mode); } }; //todo move to os::clipboard::proxy (globals())
             while (auto yield = ipcio.recv())
             {
-                if (proxy(yield) && !os::io::send(STDOUT_FD, yield)) break;
+                if (proxy(yield) && !io::send(STDOUT_FD, yield)) break;
             }
 
             ipcio.shut();
@@ -4064,7 +4018,7 @@ namespace netxs::os
             clips.join();
             input.join();
 
-            os::io::send(STDOUT_FD, vtend);
+            io::send(STDOUT_FD, vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
     };

@@ -69,7 +69,7 @@ namespace netxs::app::tile
 
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
 
-            boss.SUBMIT(tier::release, e2::size::any, newsz, memo)
+            boss.LISTEN(tier::release, e2::size::any, newsz, memo)
             {
                 if (client)
                 {
@@ -79,7 +79,7 @@ namespace netxs::app::tile
                     client->base::resize(new_size);
                 }
             };
-            boss.SUBMIT(tier::release, events::enlist, object, memo)
+            boss.LISTEN(tier::release, events::enlist, object, memo)
             {
                 if (!client) return;
                 auto label = [](auto data_src_sptr, auto header)
@@ -94,7 +94,7 @@ namespace netxs::app::tile
                         ->invoke([&](auto& boss)
                         {
                             auto data_shadow = ptr::shadow(data_src_sptr);
-                            boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
+                            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
@@ -102,18 +102,18 @@ namespace netxs::app::tile
                                     data_ptr->SIGNAL(tier::anycast, e2::form::highlight::set, state);
                                 }
                             };
-                            data_src_sptr->SUBMIT(tier::preview, e2::form::highlight::any, state, boss.tracker)
+                            data_src_sptr->LISTEN(tier::preview, e2::form::highlight::any, state, boss.tracker)
                             {
                                 auto highlight_color = skin::color(tone::highlight);
                                 auto c3 = highlight_color;
                                 auto x3 = cell{ c3 }.alpha(0x00);
                                 boss.color(state ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                             };
-                            data_src_sptr->SUBMIT(tier::release, events::delist, object, boss.tracker)
+                            data_src_sptr->LISTEN(tier::release, events::delist, object, boss.tracker)
                             {
                                 boss.detach(); // Destroy itself.
                             };
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::any, gear, boss.tracker, (data_shadow))
+                            boss.LISTEN(tier::release, hids::events::mouse::button::any, gear, boss.tracker, (data_shadow))
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
@@ -122,7 +122,7 @@ namespace netxs::app::tile
                                     gear.dismiss();
                                 }
                             };
-                            boss.SUBMIT(tier::release, e2::form::state::mouse, active, boss.tracker, (data_shadow))
+                            boss.LISTEN(tier::release, e2::form::state::mouse, active, boss.tracker, (data_shadow))
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
@@ -133,7 +133,7 @@ namespace netxs::app::tile
                 };
                 client->attach_element(e2::form::prop::ui::header, object, label);
             };
-            boss.SUBMIT(tier::release, e2::render::any, parent_canvas, memo)
+            boss.LISTEN(tier::release, e2::render::any, parent_canvas, memo)
             {
                 //todo magic numbers
                 if (depth < 4 && client)
@@ -147,7 +147,7 @@ namespace netxs::app::tile
                     parent_canvas.core::view(canvas_view);
                 }
             };
-            boss.SUBMIT(tier::anycast, e2::form::upon::started, root, memo)
+            boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
             {
                 client->clear();
                 depth = 0;
@@ -170,10 +170,10 @@ namespace netxs::app::tile
     {
         auto anycasting = [](auto& boss)
         {
-            boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 auto parent_memo = ptr::shared(subs{});
-                parent->SUBMIT(tier::anycast, app::tile::events::ui::any, gear, *parent_memo)
+                parent->LISTEN(tier::anycast, app::tile::events::ui::any, gear, *parent_memo)
                 {
                     auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
                     boss.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
@@ -227,18 +227,18 @@ namespace netxs::app::tile
                         }
                     }
                 };
-                boss.SUBMIT(tier::release, e2::form::upon::vtree::detached, parent, *parent_memo, (parent_memo))
+                boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent, *parent_memo, (parent_memo))
                 {
                     parent_memo.reset();
                 };
                 // Forward keybd events.
                 //todo foci
-                //parent->SUBMIT(tier::anycast, hids::events::upevent::kboffer, gear, *parent_memo)
+                //parent->LISTEN(tier::anycast, hids::events::upevent::kboffer, gear, *parent_memo)
                 //{
                 //    log("forward kboffer");
                 //    boss.SIGNAL(tier::anycast, hids::events::upevent::kboffer, gear);
                 //};
-                //parent->SUBMIT(tier::anycast, hids::events::upevent::kbannul, gear, *parent_memo)
+                //parent->LISTEN(tier::anycast, hids::events::upevent::kbannul, gear, *parent_memo)
                 //{
                 //    log("forward kbannul");
                 //    boss.SIGNAL(tier::anycast, hids::events::upevent::kbannul, gear);
@@ -247,17 +247,17 @@ namespace netxs::app::tile
         };
         auto mouse_subs = [](auto& boss)
         {
-            boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+            boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
                 boss.RISEUP(tier::release, e2::form::maximize, gear);
                 gear.dismiss();
             };
-            //boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+            //boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
             //{
             //    boss.RISEUP(tier::release, e2::form::quit, boss.This());
             //    gear.dismiss();
             //};
-            //boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+            //boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
             //{
             //    boss.RISEUP(tier::release, e2::form::quit, boss.This());
             //    gear.dismiss();
@@ -281,7 +281,7 @@ namespace netxs::app::tile
 
                         auto master_shadow = ptr::shadow(boss.This());
                         auto branch_shadow = ptr::shadow(branch);
-                        boss.SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear, 0, (branch_shadow, master_shadow, menu_item_id))
+                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (branch_shadow, master_shadow, menu_item_id))
                         {
                             if (auto branch_ptr = branch_shadow.lock())
                             if (branch_ptr->area().hittest(gear.coord))
@@ -341,7 +341,7 @@ namespace netxs::app::tile
                             }
                         };
 
-                        boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                        boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                         {
                             boss.RISEUP(tier::release, events::enlist, boss.This()); //todo "template" keyword is required by gcc
                         };
@@ -353,9 +353,9 @@ namespace netxs::app::tile
                         ->invoke([&](auto& boss)
                         {
                             auto shadow = ptr::shadow(boss.This());
-                            boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent, 0, (shadow))
+                            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (shadow))
                             {
-                                parent->SUBMIT(tier::preview, e2::form::prop::ui::header, newtext, 0, (shadow))
+                                parent->LISTEN(tier::preview, e2::form::prop::ui::header, newtext, -, (shadow))
                                 {
                                     if (auto boss_ptr = shadow.lock())
                                     {
@@ -363,7 +363,7 @@ namespace netxs::app::tile
                                         boss_ptr->parent()->SIGNAL(tier::release, e2::form::prop::ui::header, newtext);
                                     }
                                 };
-                                parent->SUBMIT(tier::request, e2::form::prop::ui::header, curtext, 0, (shadow))
+                                parent->LISTEN(tier::request, e2::form::prop::ui::header, curtext, -, (shadow))
                                 {
                                     if (auto boss_ptr = shadow.lock()) curtext = boss_ptr->get_source();
                                 };
@@ -394,9 +394,9 @@ namespace netxs::app::tile
                 ->invoke([&](auto& boss)
                 {
                     mouse_subs(boss);
-                    boss.SUBMIT(tier::release, app::tile::events::ui::swap    , gear) { boss.swap();       };
-                    boss.SUBMIT(tier::release, app::tile::events::ui::rotate  , gear) { boss.rotate();     };
-                    boss.SUBMIT(tier::release, app::tile::events::ui::equalize, gear) { boss.config(1, 1); };
+                    boss.LISTEN(tier::release, app::tile::events::ui::swap    , gear) { boss.swap();       };
+                    boss.LISTEN(tier::release, app::tile::events::ui::rotate  , gear) { boss.rotate();     };
+                    boss.LISTEN(tier::release, app::tile::events::ui::equalize, gear) { boss.config(1, 1); };
                 });
                 auto grip = node->attach(slot::_I,
                                 ui::mock::ctor()
@@ -429,7 +429,7 @@ namespace netxs::app::tile
                     boss.keybd.accept(true);
                     anycasting(boss);
                     mouse_subs(boss);
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                     {
                         boss.RISEUP(tier::release, e2::form::proceed::createby, gear);
                         gear.dismiss();
@@ -447,11 +447,11 @@ namespace netxs::app::tile
                 ->invoke([&](auto& boss)
                 {
                     auto shadow = ptr::shadow(boss.This());
-                    boss.SUBMIT(tier::release, e2::config::plugins::sizer::alive, state)
+                    boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
                         // Block rising up this event: DTVT object fires this event on exit.
                     };
-                    boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::abort, target)
+                    boss.LISTEN(tier::release, e2::form::proceed::d_n_d::abort, target)
                     {
                         auto menu_black = skin::color(tone::menu_black);
                         auto cC = menu_black;
@@ -463,7 +463,7 @@ namespace netxs::app::tile
                             boss.deface();
                         }
                     };
-                    boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::ask, target)
+                    boss.LISTEN(tier::release, e2::form::proceed::d_n_d::ask, target)
                     {
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
@@ -480,7 +480,7 @@ namespace netxs::app::tile
                             boss.deface();
                         }
                     };
-                    boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::drop, what)
+                    boss.LISTEN(tier::release, e2::form::proceed::d_n_d::drop, what)
                     {
                         auto menu_black = skin::color(tone::menu_black);
                         auto cC = menu_black;
@@ -494,7 +494,7 @@ namespace netxs::app::tile
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);
                         }
                     };
-                    boss.SUBMIT(tier::release, e2::form::proceed::swap, item_ptr)
+                    boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)
                     {
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
@@ -512,11 +512,11 @@ namespace netxs::app::tile
                         }
                         else log("tile: empty_slot swap: defective structure, count=", count);
                     };
-                    boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
                         //todo revise, possible parent subscription leaks when reattached
                         auto parent_memo = std::make_shared<subs>();
-                        parent->SUBMIT(tier::request, e2::form::proceed::swap, item_ptr, *parent_memo)
+                        parent->LISTEN(tier::request, e2::form::proceed::swap, item_ptr, *parent_memo)
                         {
                             if (item_ptr != boss.This()) // It wasn't me. It was the one-armed man.
                             {
@@ -536,12 +536,12 @@ namespace netxs::app::tile
                                 }
                             }
                         };
-                        boss.SUBMIT(tier::request /*swap specific*/, e2::form::upon::vtree::detached, parent, *parent_memo, (parent_memo))
+                        boss.LISTEN(tier::request /*swap specific*/, e2::form::upon::vtree::detached, parent, *parent_memo, (parent_memo))
                         {
                             parent_memo.reset();
                         };
                     };
-                    boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
                         if (auto item_ptr = boss.back())
                         {
@@ -552,7 +552,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.SUBMIT(tier::anycast, app::tile::events::ui::select, gear)
+                    boss.LISTEN(tier::anycast, app::tile::events::ui::select, gear)
                     {
                         auto& item = *boss.back();
                         if (item.base::kind() != 1)
@@ -567,7 +567,7 @@ namespace netxs::app::tile
                         }
                         else item.SIGNAL(tier::release, hids::events::upevent::kbannul, gear); // Exclude grips.
                     };
-                    boss.SUBMIT(tier::release, e2::form::maximize, gear, 0, (oneoff = subs{}))
+                    boss.LISTEN(tier::release, e2::form::maximize, gear, -, (oneoff = subs{}))
                     {
                         auto count = boss.count();
                         if (count > 2) // It is a root.
@@ -598,7 +598,7 @@ namespace netxs::app::tile
                                 auto fullscreen_item = boss.pop_back();
                                 if (fullscreen_item)
                                 {
-                                    fullscreen_item->SUBMIT(tier::release, e2::form::restore, item_ptr, oneoff)
+                                    fullscreen_item->LISTEN(tier::release, e2::form::restore, item_ptr, oneoff)
                                     {
                                         if (item_ptr)
                                         {
@@ -607,7 +607,7 @@ namespace netxs::app::tile
                                         }
                                         oneoff.reset();
                                     };
-                                    fullscreen_item->SUBMIT(tier::release, e2::dtor, item_ptr, oneoff)
+                                    fullscreen_item->LISTEN(tier::release, e2::dtor, item_ptr, oneoff)
                                     {
                                         oneoff.reset();
                                     };
@@ -617,7 +617,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.SUBMIT(tier::release, app::tile::events::ui::split::any, gear)
+                    boss.LISTEN(tier::release, app::tile::events::ui::split::any, gear)
                     {
                         if (auto deed = boss.bell::template protos<tier::release>())
                         {
@@ -643,7 +643,7 @@ namespace netxs::app::tile
                             boss.attach(newnode);
                         }
                     };
-                    boss.SUBMIT(tier::release, e2::form::quit, nested_item_ptr)
+                    boss.LISTEN(tier::release, e2::form::quit, nested_item_ptr)
                     {
                         if (nested_item_ptr)
                         {
@@ -686,7 +686,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.SUBMIT(tier::release, e2::form::proceed::createby, gear)
+                    boss.LISTEN(tier::release, e2::form::proceed::createby, gear)
                     {
                         static auto insts_count = 0;
                         if (boss.count() == 1) // Create new apps at the empty slots only.
@@ -710,7 +710,7 @@ namespace netxs::app::tile
                                 //todo unify, demo limits
                                 {
                                     insts_count++;
-                                    object->SUBMIT(tier::release, e2::dtor, id)
+                                    object->LISTEN(tier::release, e2::dtor, id)
                                     {
                                         insts_count--;
                                         log("tile: inst: detached: ", insts_count, " id=", id);
@@ -724,7 +724,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.SUBMIT(tier::release, events::backup, empty_slot_list)
+                    boss.LISTEN(tier::release, events::backup, empty_slot_list)
                     {
                         if (boss.count())
                         if (auto item_ptr = boss.back())
@@ -814,7 +814,7 @@ namespace netxs::app::tile
                     auto oneoff = ptr::shared(hook{});
                     auto& conf_list = app::shared::get::configs();
                     auto objs_config_ptr = &conf_list;
-                    boss.SUBMIT(tier::anycast, e2::form::upon::created, gear, *oneoff, (objs_config_ptr, oneoff))
+                    boss.LISTEN(tier::anycast, e2::form::upon::created, gear, *oneoff, (objs_config_ptr, oneoff))
                     {
                         auto& gate = gear.owner;
                         auto& objs_config = *objs_config_ptr;
@@ -844,7 +844,7 @@ namespace netxs::app::tile
                         { std::make_shared<menu::item>(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "  ┐└  ", .notes = " Maximize/restore active pane " } }}),
                         [](ui::pads& boss, auto& item)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
                                 gear.countdown = 1;
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::toggle, gear);
@@ -854,7 +854,7 @@ namespace netxs::app::tile
                         { std::make_shared<menu::item>(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "  +  ", .notes = " Create and run a new app in active panes " } }}),
                         [](ui::pads& boss, auto& item)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::create, gear);
                                 gear.dismiss(true);
@@ -863,7 +863,7 @@ namespace netxs::app::tile
                         { std::make_shared<menu::item>(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " ::: ", .notes = " Select all panes " } }}),
                         [](ui::pads& boss, auto& item)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::select, gear);
                                 gear.dismiss(true);
@@ -872,7 +872,7 @@ namespace netxs::app::tile
                         { std::make_shared<menu::item>(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "  │  ", .notes = " Split active panes horizontally " } }}),
                         [](ui::pads& boss, auto& item)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::split::hz, gear);
                                 gear.dismiss(true);
@@ -881,7 +881,7 @@ namespace netxs::app::tile
                         { std::make_shared<menu::item>(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " ── ", .notes = " Split active panes vertically " } }}),
                         [](ui::pads& boss, auto& item)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::split::vt, gear);
                                 gear.dismiss(true);
@@ -890,7 +890,7 @@ namespace netxs::app::tile
                         { std::make_shared<menu::item>(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "  ┌┘  ", .notes = " Change split orientation " } }}),
                         [](ui::pads& boss, auto& item)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::rotate, gear);
                                 gear.dismiss(true);
@@ -899,7 +899,7 @@ namespace netxs::app::tile
                         { std::make_shared<menu::item>(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " <-> ", .notes = " Swap two or more panes " } }}),
                         [](ui::pads& boss, auto& item)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::swap, gear);
                                 gear.dismiss(true);
@@ -908,7 +908,7 @@ namespace netxs::app::tile
                         { std::make_shared<menu::item>(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " >|< ", .notes = " Equalize split ratio " } }}),
                         [](ui::pads& boss, auto& item)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::equalize, gear);
                                 gear.dismiss(true);
@@ -917,7 +917,7 @@ namespace netxs::app::tile
                         { std::make_shared<menu::item>(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "  ×  ", .notes = " Close active app or remove pane if there is no running app " } }}),
                         [](ui::pads& boss, auto& item)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::close, gear);
                                 gear.dismiss(true);
@@ -929,7 +929,7 @@ namespace netxs::app::tile
                   ->invoke([](auto& boss)
                   {
                       boss.keybd.active();
-                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      boss.LISTEN(tier::anycast, e2::form::quit, item)
                       {
                           boss.RISEUP(tier::release, e2::form::quit, item);
                       };
@@ -941,7 +941,7 @@ namespace netxs::app::tile
             cover->invoke([&](auto& boss)
             {
                 auto bar = cell{ "▀"sv }.link(menu_id);
-                boss.SUBMIT(tier::release, e2::render::any, parent_canvas, 0, (bar))
+                boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar))
                 {
                     auto menu_white = skin::color(tone::menu_white);
                     auto fgc = menu_white.bgc();
@@ -959,7 +959,7 @@ namespace netxs::app::tile
             object->attach(slot::_2, parse_data(parse_data, param))
                 ->invoke([&](auto& boss)
                 {
-                    boss.SUBMIT(tier::release, e2::form::proceed::attach, fullscreen_item)
+                    boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item)
                     {
                         if (boss.count() > 2)
                         {
@@ -974,7 +974,7 @@ namespace netxs::app::tile
                         }
                         else log("tile: fullscreen_item is empty");
                     };
-                    boss.SUBMIT(tier::anycast, app::tile::events::ui::any, gear)
+                    boss.LISTEN(tier::anycast, app::tile::events::ui::any, gear)
                     {
                         if (auto deed = boss.bell::template protos<tier::anycast>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
                         {
@@ -1049,7 +1049,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.SUBMIT(tier::release, hids::events::upevent::kboffer, gear)
+                    boss.LISTEN(tier::release, hids::events::upevent::kboffer, gear)
                     {
                         // Set focus to all panes.
                         boss.SIGNAL(tier::anycast, app::tile::events::ui::select, gear);
@@ -1059,11 +1059,11 @@ namespace netxs::app::tile
                         //log("kb offer");
                     };
                     //todo foci
-                    //boss.SUBMIT(tier::release, e2::form::state::keybd::lost, gear)
+                    //boss.LISTEN(tier::release, e2::form::state::keybd::lost, gear)
                     //{
                     //    //log("kb lost");
                     //};
-                    //boss.SUBMIT(tier::release, e2::form::state::keybd::got, gear)
+                    //boss.LISTEN(tier::release, e2::form::state::keybd::got, gear)
                     //{
                     //    //log("kb got");
                     //};

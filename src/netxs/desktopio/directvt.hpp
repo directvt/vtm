@@ -18,36 +18,33 @@ namespace netxs::directvt
         { };
         #pragma pack(push,1)
         static constexpr auto initial = char{ '\xFF' };
-        union marker
+        struct marker
         {
-            struct mask
-            {
-                using sz_t = le_t<size_t>;
-                char mark_FF;
-                sz_t cfgsize;
-                char mark_FE;
-            };
-            static constexpr auto size = sizeof(mask);
-            char data[size];
-            mask pack;
+            using sz_t = le_t<size_t>;
+            char mark_FF;
+            sz_t cfgsize;
+            char mark_FE;
+
             marker()
             { }
-            marker(size_t cfgsize)
+            marker(size_t config_size)
             {
-                pack.mark_FF = initial;
-                pack.cfgsize.set(cfgsize);
-                pack.mark_FE = initial - 1;
+                mark_FF = initial;
+                cfgsize.set(config_size);
+                mark_FE = initial - 1;
             }
-            auto get_sz(size_t& cfgsize)
+            auto get_sz(size_t& config_size)
             {
-                if (pack.mark_FF == initial
-                 && pack.mark_FE == initial - 1)
+                if (mark_FF == initial
+                 && mark_FE == initial - 1)
                 {
-                    cfgsize = pack.cfgsize.get();
+                    config_size = cfgsize.get();
                     return true;
                 }
                 else return faux;
             }
+            auto data() { return reinterpret_cast<char*>(this); }
+            auto size() { return sizeof(*this); }
         };
         #pragma pack(pop)
         struct stream

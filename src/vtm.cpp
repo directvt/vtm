@@ -265,8 +265,8 @@ int main(int argc, char* argv[])
                 thread.run([&, stream](auto session_id)
                 {
                     auto tokens = subs{};
-                    SUBMIT_GLOBAL(e2::conio::quit, utf8, tokens) { stream->shut(); };
-                    SUBMIT_GLOBAL(e2::conio::logs, utf8, tokens) { stream->send(utf8); };
+                    LISTEN_GLOBAL(e2::conio::quit, utf8, tokens) { stream->shut(); };
+                    LISTEN_GLOBAL(e2::conio::logs, utf8, tokens) { stream->send(utf8); };
                     log("logs: monitor ", stream, " connected");
                     stream->recv();
                     log("logs: monitor ", stream, " disconnected");
