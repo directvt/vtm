@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::config)
     {
-        log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::dtvt::config()));
+        log("Running configuration:\n", app::shared::load::settings<true>(app::vtm::defaults, cfpath, os::dtvt::config()));
     }
     else if (whoami == type::logger)
     {
@@ -161,7 +161,7 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::runapp)
     {
-        auto config = app::shared::load::settings(cfpath, os::dtvt::config());
+        auto config = app::shared::load::settings(app::vtm::defaults, cfpath, os::dtvt::config());
         auto shadow = params;
         utf::to_low(shadow);
              if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
@@ -190,7 +190,7 @@ int main(int argc, char* argv[])
         auto userid = os::env::user();
         auto usernm = os::env::get("USER");
         auto hostip = os::env::get("SSH_CLIENT");
-        auto config = app::shared::load::settings(cfpath, os::dtvt::config());
+        auto config = app::shared::load::settings(app::vtm::defaults, cfpath, os::dtvt::config());
         auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
 
         if (whoami == type::client)
@@ -250,7 +250,7 @@ int main(int argc, char* argv[])
         using e2 = netxs::ui::e2;
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::conio::logs, utf8); });
         config.cd("/config/appearance/defaults/");
-        auto ground = ui::base::create<ui::hall>(server, config);
+        auto ground = ui::base::create<app::vtm::hall>(server, config);
         auto thread = os::process::pool{};
         ground->autorun(config);
 

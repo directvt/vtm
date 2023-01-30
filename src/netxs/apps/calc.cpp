@@ -78,11 +78,11 @@ int main(int argc, char* argv[])
     }
     else if (cfonly)
     {
-        log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::dtvt::config()));
+        log("Running configuration:\n", app::shared::load::settings<true>(app::calc::defaults, cfpath, os::dtvt::config()));
     }
     else
     {
-        auto config = app::shared::load::settings(cfpath, os::dtvt::config());
+        auto config = app::shared::load::settings(app::calc::defaults, cfpath, os::dtvt::config());
         auto result = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
 
         if (result) return 0;

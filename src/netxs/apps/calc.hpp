@@ -234,9 +234,88 @@ namespace netxs::ui
     }
 }
 
-// calc: Spreadsheet calculatpor.
+// calc: Spreadsheet calculator.
 namespace netxs::app::calc
 {
+    static constexpr auto defaults = R"==(
+<config>
+    <appearance>
+        <defaults>
+            <fps      = 60   />
+            <bordersz = 1,1  />
+            <brighter = 60   />
+            <kb_focus = 60   />
+            <shadower = 180  />
+            <shadow   = 180  />
+            <lucidity = 0xff /> <!-- not implemented -->
+            <selector = 48   />
+            <highlight  fgc=purewhite bgc=bluelt      />
+            <warning    fgc=whitelt   bgc=yellowdk    />
+            <danger     fgc=whitelt   bgc=redlt       />
+            <action     fgc=whitelt   bgc=greenlt     />
+            <label      fgc=blackdk   bgc=whitedk     />
+            <inactive   fgc=blacklt   bgc=transparent />
+            <menu_white fgc=whitelt   bgc=0x80404040  />
+            <menu_black fgc=blackdk   bgc=0x80404040  />
+            <fader duration=0ms fast=0ms/>  <!-- Fader animation config. -->
+        </defaults>
+        <runapp>    <!-- Override defaults. -->
+            <brighter=0/>
+        </runapp>
+    </appearance>
+    <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
+        <blackdk   = 0xFF101010 /> <!-- Color reference literals. -->
+        <reddk     = 0xFF1f0fc4 />
+        <greendk   = 0xFF0ea112 />
+        <yellowdk  = 0xFF009cc0 />
+        <bluedk    = 0xFFdb3700 />
+        <magentadk = 0xFF981787 />
+        <cyandk    = 0xFFdd963b />
+        <whitedk   = 0xFFbbbbbb />
+        <blacklt   = 0xFF757575 />
+        <redlt     = 0xFF5648e6 />
+        <greenlt   = 0xFF0cc615 />
+        <yellowlt  = 0xFFa5f1f8 />
+        <bluelt    = 0xFFff783a />
+        <magentalt = 0xFF9e00b3 />
+        <cyanlt    = 0xFFd6d660 />
+        <whitelt   = 0xFFf3f3f3 />
+        <pureblack = 0xFF000000 />
+        <purewhite = 0xFFffffff />
+        <nocolor   = 0x00000000 />
+        <transparent = nocolor  />
+    </set>
+    <client>
+        <background fgc=whitedk bgc=0xFF000000>  <!-- Desktop background color. -->
+            <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
+        </background>
+        <clipboard>
+            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
+                <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
+                <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
+                <shadow=7  />  <!-- Preview shadow strength (0-10). -->
+            </preview>
+        </clipboard>
+        <viewport coor=0,0/>
+        <mouse dblclick=500ms/>
+        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite/>
+        <glowfx=true/>                      <!-- Show glow effect around selected item. -->
+        <debug overlay=faux toggle="🐞"/>  <!-- Display console debug info. -->
+        <regions enabled=faux/>             <!-- Highlight UI objects boundaries. -->
+    </client>
+    <defapp>
+        <menu>
+            <autohide=faux/>
+            <enabled="on"/>
+            <slim=true/>
+        </menu>
+    </defapp>
+    <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </calc>
+</config>
+)==";
+
     using events = ::netxs::events::userland::calc;
 
     namespace
