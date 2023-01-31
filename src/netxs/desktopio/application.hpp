@@ -3,8 +3,6 @@
 
 #pragma once
 
-#define APPS_DEL_TIMEOUT 1s
-
 #include "controls.hpp"
 #include "xml.hpp"
 
@@ -19,6 +17,9 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
+    static const auto version = "v0.9.8r";
+    static const auto desktopio = "desktopio";
+    static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
     static const auto env_config = "$VTM_CONFIG"s;
 

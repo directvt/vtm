@@ -7,6 +7,9 @@
 
 namespace netxs::app::vtm
 {
+    static constexpr auto id = "vtm";
+    static constexpr auto desc = " vtm:";
+
     struct menuitem_t
     {
         text       id{};

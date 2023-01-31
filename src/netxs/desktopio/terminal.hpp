@@ -7107,17 +7107,16 @@ namespace netxs::ui
 
                 #endif
 
-                #if defined(KEYLOG)
-                    auto d = std::stringstream{};
-                    auto v = view{ data };
-                    log("key strokes raw: ", utf::debase(v));
-                    while (v.size())
-                    {
-                        d << (int)v.front() << " ";
-                        v.remove_prefix(1);
-                    }
-                    log("key strokes bin: ", d.str());
-                #endif
+                //todo Terminal Developer Mode
+                //auto d = std::stringstream{};
+                //auto v = view{ data };
+                //log("key strokes raw: ", utf::debase(v));
+                //while (v.size())
+                //{
+                //    d << (int)v.front() << " ";
+                //    v.remove_prefix(1);
+                //}
+                //log("key strokes bin: ", d.str());
             };
             LISTEN(tier::general, e2::timer::tick, timestamp)
             {
@@ -7445,17 +7444,6 @@ namespace netxs::ui
                 };
                 owner.LISTEN(tier::release, hids::events::keybd::any, gear, token)
                 {
-                    #if defined(KEYLOG)
-                        auto d = std::stringstream{};
-                        auto v = view{ gear.cluster };
-                        log("dtvt: key strokes raw: ", utf::debase(v));
-                        while (v.size())
-                        {
-                            d << (int)v.front() << " ";
-                            v.remove_prefix(1);
-                        }
-                        log("dtvt: key strokes bin: ", d.str());
-                    #endif
                     s11n::syskeybd.send(owner, gear.id,
                                                gear.ctlstate,
                                                gear.winctrl,

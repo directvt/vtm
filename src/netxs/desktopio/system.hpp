@@ -1708,6 +1708,7 @@ namespace netxs::os
             return std::pair{ id, datetime::now() };
         }
         static auto id = process::getid();
+        static auto arg0 = text{};
 
         struct args
         {
@@ -1731,6 +1732,7 @@ namespace netxs::os
         public:
             args(int argc, char** argv)
             {
+                process::arg0 = text{ *argv };
                 auto head = argv + 1;
                 auto tail = argv + argc;
                 while (head != tail)
@@ -1967,8 +1969,8 @@ namespace netxs::os
             #endif
             if (result.empty())
             {
-                os::fail("can't get current module file path, fallback to '", DESKTOPIO_MYPATH, "`");
-                result = DESKTOPIO_MYPATH;
+                os::fail("can't get current module file path, fallback to '", process::arg0, "`");
+                result = process::arg0;
             }
             if constexpr (NameOnly)
             {
@@ -3513,10 +3515,6 @@ namespace netxs::os
                 {
                     total += accum;
                     auto strv = view{ total };
-
-                    //#if defined(KEYLOG)
-                    //    log("link: input data (", total.size(), " bytes):\n", utf::debase(total));
-                    //#endif
 
                     //#ifndef PROD
                     //if (close)

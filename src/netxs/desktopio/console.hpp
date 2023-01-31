@@ -2938,11 +2938,6 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::conio::keybd, k, memo)
                 {
                     shadow();
-
-                    #if defined(KEYLOG)
-                        log("debug fired ", utf::debase(k.cluster));
-                    #endif
-
                     status[prop::last_event   ].set(stress) = "keybd";
                     status[prop::key_pressed  ].set(stress) = k.pressed ? "pressed" : "idle";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
@@ -3220,11 +3215,6 @@ namespace netxs::ui
             {
                 boss.LISTEN(tier::preview, hids::events::keybd::any, gear, memo)
                 {
-                    #if defined(KEYLOG)
-                        log("keybd fired virtcode: ", gear.virtcod,
-                                          " chars: ", utf::debase(gear.cluster),
-                                           " meta: ", gear.meta());
-                    #endif
                     boss.SIGNAL(tier::release, hids::events::keybd::any, gear);
                 };
             };
