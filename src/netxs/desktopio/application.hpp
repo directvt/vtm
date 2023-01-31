@@ -21,8 +21,6 @@ namespace netxs::app::shared
 {
     static const auto usr_config = "~/.config/vtm/settings.xml";
     static const auto env_config = "$VTM_CONFIG"s;
-    static constexpr auto path_autorun  = "config/menu/autorun";
-    static constexpr auto path_hotkeys  = "config/hotkeys";
 
     namespace menu
     {

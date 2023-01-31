@@ -180,8 +180,8 @@ namespace netxs::app::desk
                                          //{
                                          //   if (auto data_src = data_src_shadow.lock())
                                          //   {
-                                         //       sptr<registry_t> registry_ptr;
-                                         //       data_src->SIGNAL(tier::request, e2::bindings::list::apps, registry_ptr);
+                                         //       sptr<vtm::registry_t> registry_ptr;
+                                         //       data_src->SIGNAL(tier::request, vtm::hall::bindings::list::apps, registry_ptr);
                                          //       auto& app_list = (*registry_ptr)[inst_id];
                                          //       if (app_list.size())
                                          //       {
@@ -392,7 +392,7 @@ namespace netxs::app::desk
                                 {
                                     auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_ONLY))
                                                                   ->colors(0x00, 0x00); //todo mouse events passthrough
-                                    auto apps = tasks_scrl->attach_element(e2::bindings::list::apps, world_ptr, apps_template);
+                                    auto apps = tasks_scrl->attach_element(vtm::hall::bindings::list::apps, world_ptr, apps_template);
                                 }
                             }
                             {
@@ -413,7 +413,7 @@ namespace netxs::app::desk
                                                                ->plugin<pro::limit>();
                                 if (world_ptr)
                                 {
-                                    auto users = userlist_area->attach_element(e2::bindings::list::users, world_ptr, branch_template);
+                                    auto users = userlist_area->attach_element(vtm::hall::bindings::list::users, world_ptr, branch_template);
                                 }
                                 bttn_pads->invoke([&](auto& boss)
                                 {

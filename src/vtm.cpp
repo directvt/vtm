@@ -254,7 +254,7 @@ int main(int argc, char* argv[])
         using e2 = netxs::ui::e2;
         auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::conio::logs, utf8); });
         config.cd("/config/appearance/defaults/");
-        auto ground = ui::base::create<app::vtm::hall>(server, config);
+        auto ground = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
         auto thread = os::process::pool{};
         ground->autorun(config);
 

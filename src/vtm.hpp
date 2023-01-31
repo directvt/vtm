@@ -7,10 +7,75 @@
 
 namespace netxs::app::vtm
 {
+    struct menuitem_t
+    {
+        text       id{};
+        text    alias{};
+        bool   hidden{};
+        text    label{};
+        text    notes{};
+        text    title{};
+        text   footer{};
+        rgba      bgc{};
+        rgba      fgc{};
+        twod  winsize{};
+        twod  wincoor{};
+        bool slimmenu{};
+        bool splitter{};
+        text   hotkey{};
+        text      cwd{};
+        text     type{};
+        text    param{};
+        text    patch{};
+        xml::settings settings;
+    };
+
+    using links_t = std::unordered_map<text, menuitem_t>;
+    using registry_t = generics::imap<text, std::pair<bool, std::list<sptr<base>>>>;
+
+    static constexpr auto attr_id       = "id";
+    static constexpr auto attr_alias    = "alias";
+    static constexpr auto attr_hidden   = "hidden";
+    static constexpr auto attr_label    = "label";
+    static constexpr auto attr_notes    = "notes";
+    static constexpr auto attr_title    = "title";
+    static constexpr auto attr_footer   = "footer";
+    static constexpr auto attr_bgc      = "bgc";
+    static constexpr auto attr_fgc      = "fgc";
+    static constexpr auto attr_winsize  = "winsize";
+    static constexpr auto attr_wincoor  = "wincoor";
+    static constexpr auto attr_focused  = "focused";
+    static constexpr auto attr_slimmenu = "slimmenu";
+    static constexpr auto attr_hotkey   = "hotkey";
+    static constexpr auto attr_type     = "type";
+    static constexpr auto attr_cwd      = "cwd";
+    static constexpr auto attr_param    = "param";
+    static constexpr auto attr_splitter = "splitter";
+    static constexpr auto attr_config   = "config";
+
+    static constexpr auto path_item     = "/config/menu/item";
+    static constexpr auto path_autorun  = "/config/menu/autorun/item";
+
     // vtm: Desktopio Workspace.
-    class hall
+    struct hall
         : public host
     {
+        struct bindings
+        {
+            EVENTPACK( bindings, ui::e2::extra )
+            {
+                GROUP_XS( list, si32 ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
+
+                SUBSET_XS( list )
+                {
+                    EVENT_XS( users, sptr<std::list<sptr<ui::base>>> ), // list of connected users.
+                    EVENT_XS( apps , sptr<registry_t>                ), // list of running apps.
+                    EVENT_XS( links, sptr<links_t>                   ), // list of registered apps.
+                };
+            };
+        };
+
+    private:
         class node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
         {
             struct ward
@@ -338,8 +403,8 @@ namespace netxs::app::vtm
         {
             auto world_ptr = e2::config::whereami.param();
             SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-            auto conf_list_ptr = e2::bindings::list::links.param();
-            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
+            auto conf_list_ptr = hall::bindings::list::links.param();
+            world_ptr->SIGNAL(tier::request, hall::bindings::list::links, conf_list_ptr);
             auto& conf_list = *conf_list_ptr;
             return conf_list;
         }
@@ -356,7 +421,7 @@ namespace netxs::app::vtm
         }
 
     protected:
-        hall(xipc server_pipe, xml::settings& config)
+        hall(xipc server_pipe, xml::settings& config, text defailt_id)
             : host{ server_pipe, config }
         {
             auto current_module_file = os::process::binary();
@@ -368,7 +433,7 @@ namespace netxs::app::vtm
             {
                 .hidden   = faux,
                 .slimmenu = faux,
-                .type     = "shell" //todo app::shell::id,
+                .type     = defailt_id,
             };
             auto base_window = [](auto header, auto footer, auto menuid)
             {
@@ -570,15 +635,15 @@ namespace netxs::app::vtm
                 auto region = items.expose(inst.bell::id);
                 host::denote(region);
             };
-            LISTEN(tier::request, e2::bindings::list::users, usr_list_ptr)
+            LISTEN(tier::request, hall::bindings::list::users, usr_list_ptr)
             {
                 usr_list_ptr = regis.usr_ptr;
             };
-            LISTEN(tier::request, e2::bindings::list::apps, app_list_ptr)
+            LISTEN(tier::request, hall::bindings::list::apps, app_list_ptr)
             {
                 app_list_ptr = regis.app_ptr;
             };
-            LISTEN(tier::request, e2::bindings::list::links, list_ptr)
+            LISTEN(tier::request, hall::bindings::list::links, list_ptr)
             {
                 list_ptr = regis.lnk_ptr;
             };
@@ -735,7 +800,7 @@ namespace netxs::app::vtm
             stat = fixed;
             list.push_back(item);
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-            SIGNAL(tier::release, e2::bindings::list::apps, regis.app_ptr);
+            SIGNAL(tier::release, hall::bindings::list::apps, regis.app_ptr);
         }
         // hall: Create a new user of the specified subtype and invite him to the scene.
         template<class S, class ...Args>
@@ -745,7 +810,7 @@ namespace netxs::app::vtm
             auto user = host::invite<S>(std::forward<Args>(args)...);
             users.append(user);
             regis.usr.push_back(user);
-            SIGNAL(tier::release, e2::bindings::list::users, regis.usr_ptr);
+            SIGNAL(tier::release, hall::bindings::list::users, regis.usr_ptr);
             return user;
         }
     };

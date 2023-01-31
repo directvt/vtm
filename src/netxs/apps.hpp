@@ -468,10 +468,10 @@ namespace netxs::app::shared
                             gear.slot.size = viewport.size * 3 / 4;
                             gear.slot_forced = faux;
 
-                            auto menu_list_ptr = e2::bindings::list::apps.param();
-                            auto conf_list_ptr = e2::bindings::list::links.param();
-                            world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
-                            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
+                            auto menu_list_ptr = vtm::hall::bindings::list::apps.param();
+                            auto conf_list_ptr = vtm::hall::bindings::list::links.param();
+                            world_ptr->SIGNAL(tier::request, vtm::hall::bindings::list::apps, menu_list_ptr);
+                            world_ptr->SIGNAL(tier::request, vtm::hall::bindings::list::links, conf_list_ptr);
                             auto& menu_list = *menu_list_ptr;
                             auto& conf_list = *conf_list_ptr;
 

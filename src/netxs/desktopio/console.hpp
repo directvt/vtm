@@ -42,61 +42,14 @@ namespace netxs::ui
         bool forced{};
         sptr object{};
     };
-    struct menuitem_t
-    {
-        text       id{};
-        text    alias{};
-        bool   hidden{};
-        text    label{};
-        text    notes{};
-        text    title{};
-        text   footer{};
-        rgba      bgc{};
-        rgba      fgc{};
-        twod  winsize{};
-        twod  wincoor{};
-        bool slimmenu{};
-        bool splitter{};
-        text   hotkey{};
-        text      cwd{};
-        text     type{};
-        text    param{};
-        text    patch{};
-        xml::settings settings;
-    };
 
     using namespace netxs::input;
-    using registry_t = generics::imap<text, std::pair<bool, std::list<sptr<base>>>>;
-    using links_t = std::unordered_map<text, menuitem_t>;
     using focus_test_t = std::pair<id_t, si32>;
     using gear_id_list_t = std::list<id_t>;
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
     using s11n = directvt::binary::s11n;
     using os::tty::xipc;
-
-    static constexpr auto attr_id       = "id";
-    static constexpr auto attr_alias    = "alias";
-    static constexpr auto attr_hidden   = "hidden";
-    static constexpr auto attr_label    = "label";
-    static constexpr auto attr_notes    = "notes";
-    static constexpr auto attr_title    = "title";
-    static constexpr auto attr_footer   = "footer";
-    static constexpr auto attr_bgc      = "bgc";
-    static constexpr auto attr_fgc      = "fgc";
-    static constexpr auto attr_winsize  = "winsize";
-    static constexpr auto attr_wincoor  = "wincoor";
-    static constexpr auto attr_focused  = "focused";
-    static constexpr auto attr_slimmenu = "slimmenu";
-    static constexpr auto attr_hotkey   = "hotkey";
-    static constexpr auto attr_type     = "type";
-    static constexpr auto attr_cwd      = "cwd";
-    static constexpr auto attr_param    = "param";
-    static constexpr auto attr_splitter = "splitter";
-    static constexpr auto attr_config   = "config";
-
-    static constexpr auto path_item     = "/config/menu/item";
-    static constexpr auto path_autorun  = "/config/menu/autorun/item";
 }
 
 namespace netxs::events::userland
@@ -113,6 +66,7 @@ namespace netxs::events::userland
             EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
             EVENT_XS( depth     , si32           ), // request: Determine the depth of the hierarchy.
             EVENT_XS( shutdown  , const view     ), // general: Server shutdown.
+            EVENT_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , si32           ),
@@ -122,7 +76,6 @@ namespace netxs::events::userland
             GROUP_XS( data      , si32           ),
             GROUP_XS( config    , si32           ), // set/notify/get/global_set configuration data.
             GROUP_XS( command   , si32           ), // exec UI command.
-            GROUP_XS( bindings  , sptr<ui::base> ), // Dynamic Data Bindings.
 
             SUBSET_XS( timer )
             {
@@ -139,18 +92,6 @@ namespace netxs::events::userland
             SUBSET_XS( coor ) // preview any: checking by pro::limit.
             {
                 EVENT_XS( set, twod ), // preview: checking by object; release: apply to object; request: request object coor.
-            };
-            //todo move to vtm.hpp
-            SUBSET_XS( bindings )
-            {
-                GROUP_XS( list, si32 ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
-
-                SUBSET_XS( list )
-                {
-                    EVENT_XS( users, sptr<std::list<sptr<ui::base>>> ), // list of connected users.
-                    EVENT_XS( apps , sptr<ui::registry_t>            ), // list of running apps.
-                    EVENT_XS( links, sptr<ui::links_t>               ), // list of registered apps.
-                };
             };
             SUBSET_XS( config )
             {
@@ -4849,7 +4790,7 @@ namespace netxs::ui
         }
     };
 
-    // console: Client's gate.
+    // console: Client gate.
     class gate
         : public base
     {
