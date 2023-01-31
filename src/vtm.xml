@@ -127,6 +127,9 @@ R"==(
                 <repeat_delay   = 500ms /> <!-- Repeat delay.                                        -->
                 <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
             </timings>
+            <limits>
+                <window size=2000x1000 />  <!-- Max window size -->
+            </limits>
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0/>

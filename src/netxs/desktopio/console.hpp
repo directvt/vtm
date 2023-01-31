@@ -428,8 +428,6 @@ namespace netxs::ui
 {
     using e2 = netxs::events::userland::e2;
 
-    static constexpr auto max_value = twod{ 2000, 1000 }; //todo unify
-
     //todo OMG!, make it in another way.
     class skin
     {
@@ -495,6 +493,9 @@ namespace netxs::ui
         span repeat_rate;
         span fader_time;
         span fader_fast;
+
+        twod min_value = dot_00;
+        twod max_value = twod{ 2000, 1000 }; //todo unify
 
         static auto& globals()
         {
@@ -3825,15 +3826,13 @@ namespace netxs::ui
         class limit
             : public skill
         {
-            static constexpr auto min_value = dot_00;
-
             using skill::boss,
                   skill::memo;
 
             struct lims_t
             {
-                twod min = min_value;
-                twod max = max_value;
+                twod min = skin::globals().min_value;
+                twod max = skin::globals().max_value;
                 void fixed_size(twod const& m)
                 {
                     min = max = std::clamp(m, min, max);;
@@ -3878,8 +3877,8 @@ namespace netxs::ui
             void set(twod const& min_size, twod const& max_size = -dot_11, bool forced_clamp = faux)
             {
                 sure = forced_clamp;
-                lims.min = min_size.less(dot_00, min_value, min_size);
-                lims.max = max_size.less(dot_00, max_value, max_size);
+                lims.min = min_size.less(dot_00, skin::globals().min_value, min_size);
+                lims.max = max_size.less(dot_00, skin::globals().max_value, max_size);
             }
             // pro::limit: Set resize limits (min, max). Preserve current value if specified arg less than 0.
             void set(lims_t const& new_limits, bool forced_clamp = faux)
@@ -4377,6 +4376,7 @@ namespace netxs::ui
             g.repeat_rate    = config.take("timings/repeat_rate"   , span{ 30ms  });
             g.fader_time     = config.take("timings/fader/duration", span{ 150ms });
             g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
+            g.max_value      = config.take("limits/window/size"    , twod{ 2000, 1000  });
 
             hertz = config.take("fps");
             if (hertz <= 0) hertz = 60;
