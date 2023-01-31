@@ -192,7 +192,7 @@ namespace netxs::ui
                 def_selalt =             config.take("selection/rect",       faux);
                 def_cur_on =             config.take("cursor/show",          true);
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
-                def_period =             config.take("cursor/blink",         span{ BLINK_PERIOD });
+                def_period =             config.take("cursor/blink",         span{ skin::globals().blink_period });
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
@@ -6723,7 +6723,7 @@ namespace netxs::ui
             if (delta)
             {
                 auto path = delta;
-                auto time = SWITCHING_TIME;
+                auto time = skin::globals().switching;
                 auto init = 0;
                 auto func = constlinearAtoB<twod>(path, time, init);
                 dynamo.actify(func, [&](twod& step)

@@ -110,7 +110,23 @@ R"==(
             <inactive   fgc=blacklt   bgc=transparent />
             <menu_white fgc=whitelt   bgc=0x80404040  />
             <menu_black fgc=blackdk   bgc=0x80404040  />
-            <fader duration=0ms fast=0ms/>  <!-- Fader animation config. -->
+            <timings>
+                <fader duration=0ms fast=0ms/>  <!-- Fader animation config. -->
+                <spd            = 10    /> <!-- Auto-scroll initial speed component ΔR.              -->
+                <pls            = 167   /> <!-- Auto-scroll initial speed component ΔT.              -->
+                <ccl            = 120   /> <!-- Auto-scroll duration in ms.                          -->
+                <spd_accel      = 1     /> <!-- Auto-scroll speed accelation.                        -->
+                <ccl_accel      = 30    /> <!-- Auto-scroll additional duration in ms.               -->
+                <spd_max        = 100   /> <!-- Auto-scroll max speed.                               -->
+                <ccl_max        = 1000  /> <!-- Auto-scroll max duration in ms                       -->
+                <deceleration   = 2s    /> <!-- Object state stopping duration in s.                 -->
+                <switching      = 200   /> <!-- Object state switching duration in ms.               -->
+                <blink_period   = 400ms /> <!-- Period in ms between the blink states of the cursor. -->
+                <menu_timeout   = 250ms /> <!-- Taskbar collaplse timeout.                           -->
+                <active_timeout = 1s    /> <!-- Timeout off the active object.                       -->
+                <repeat_delay   = 500ms /> <!-- Repeat delay.                                        -->
+                <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
+            </timings>
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0/>

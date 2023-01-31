@@ -1326,9 +1326,18 @@ namespace netxs::ui
         rack scinfo; // rail: Scroll info.
         sptr client; // rail: Client instance.
 
-        si32 speed{ SPD  }; // rail: Text auto-scroll initial speed component ΔR.
-        si32 pulse{ PLS  }; // rail: Text auto-scroll initial speed component ΔT.
-        si32 cycle{ CCL  }; // rail: Text auto-scroll duration in ms.
+        si32 spd       = skin::globals().spd;
+        si32 pls       = skin::globals().pls;
+        si32 ccl       = skin::globals().ccl;
+        si32 spd_accel = skin::globals().spd_accel;
+        si32 ccl_accel = skin::globals().ccl_accel;
+        si32 spd_max   = skin::globals().spd_max;
+        si32 ccl_max   = skin::globals().ccl_max;
+        si32 switching = skin::globals().switching;
+
+        si32 speed{ spd  }; // rail: Text auto-scroll initial speed component ΔR.
+        si32 pulse{ pls  }; // rail: Text auto-scroll initial speed component ΔT.
+        si32 cycle{ ccl  }; // rail: Text auto-scroll duration in ms.
         bool steer{ faux }; // rail: Text scroll vertical direction.
 
         static constexpr auto xy(axes AXES)
@@ -1461,7 +1470,7 @@ namespace netxs::ui
                     auto  v0 = gear.delta.avg();
                     auto& speed = v0.dS;
                     auto  cycle = datetime::round<si32>(v0.dT);
-                    auto  limit = datetime::round<si32>(STOPPING_TIME);
+                    auto  limit = datetime::round<si32>(skin::globals().deceleration);
                     auto  start = 0;
 
                     if (permit[X]) actify<X>(quadratic{ speed.x, cycle, limit, start });
@@ -1525,16 +1534,16 @@ namespace netxs::ui
         {
             if (robot.active(Axis) && (steer == dir))
             {
-                speed += SPD_ACCEL;
-                cycle += CCL_ACCEL;
-                speed = std::min(speed, SPD_MAX);
-                cycle = std::min(cycle, CCL_MAX);
+                speed += spd_accel;
+                cycle += ccl_accel;
+                speed = std::min(speed, spd_max);
+                cycle = std::min(cycle, ccl_max);
             }
             else
             {
                 steer = dir;
-                speed = SPD;
-                cycle = CCL;
+                speed = spd;
+                cycle = ccl;
                 //todo at least one line should be
                 //move<Axis>(dir ? 1 : -1);
             }
@@ -1587,7 +1596,7 @@ namespace netxs::ui
                 auto bound = std::min(base::size()[Axis] - block.size[Axis], 0);
                 auto newxy = std::clamp(coord, bound, 0);
                 auto route = newxy - coord;
-                auto tempo = SWITCHING_TIME;
+                auto tempo = switching;
                 auto start = 0;
                 auto fader = constlinearAtoB<si32>(route, tempo, start);
                 keepon<Axis>(fader);
@@ -1931,11 +1940,11 @@ namespace netxs::ui
                         pager_repeat();
                         gear.dismiss();
 
-                        timer.actify(activity::pager_first, REPEAT_DELAY, [&](auto p)
+                        timer.actify(activity::pager_first, skin::globals().repeat_delay, [&](auto p)
                         {
                             if (pager_repeat())
                             {
-                                timer.actify(activity::pager_next, REPEAT_RATE, [&](auto d)
+                                timer.actify(activity::pager_next, skin::globals().repeat_rate, [&](auto d)
                                 {
                                     return pager_repeat(); // Repeat until on_pager.
                                 });
@@ -2044,7 +2053,7 @@ namespace netxs::ui
                 timer.pacify(activity::mouse_leave);
 
                 if (active) apply(activity::mouse_hover);
-                else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
+                else timer.actify(activity::mouse_leave, skin::globals().active_timeout, apply);
             };
             //LISTEN(tier::release, hids::events::mouse::move, gear)
             //{
@@ -2059,7 +2068,7 @@ namespace netxs::ui
             //
             //	timer.pacify(activity::mouse_leave);
             //	apply(activity::mouse_hover);
-            //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
+            //	timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
             //};
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -2317,11 +2326,11 @@ namespace netxs::ui
                         pager_repeat();
                         gear.dismiss();
 
-                        timer.actify(activity::pager_first, REPEAT_DELAY, [&](auto p)
+                        timer.actify(activity::pager_first, skin::globals().repeat_delay, [&](auto p)
                         {
                             if (pager_repeat())
                             {
-                                timer.actify(activity::pager_next, REPEAT_RATE, [&](auto d)
+                                timer.actify(activity::pager_next, skin::globals().repeat_rate, [&](auto d)
                                 {
                                     return pager_repeat(); // Repeat until on_pager.
                                 });
@@ -2430,7 +2439,7 @@ namespace netxs::ui
                 timer.pacify(activity::mouse_leave);
 
                 if (active) apply(activity::mouse_hover);
-                else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
+                else timer.actify(activity::mouse_leave, skin::globals().active_timeout, apply);
             };
             //LISTEN(tier::release, hids::events::mouse::move, gear)
             //{
@@ -2445,7 +2454,7 @@ namespace netxs::ui
             //
             //	timer.pacify(activity::mouse_leave);
             //	apply(activity::mouse_hover);
-            //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
+            //	timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
             //};
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -2696,11 +2705,11 @@ namespace netxs::ui
                         pager_repeat();
                         gear.dismiss();
 
-                        timer.actify(activity::pager_first, REPEAT_DELAY, [&](auto p)
+                        timer.actify(activity::pager_first, skin::globals().repeat_delay, [&](auto p)
                         {
                             if (pager_repeat())
                             {
-                                timer.actify(activity::pager_next, REPEAT_RATE, [&](auto d)
+                                timer.actify(activity::pager_next, skin::globals().repeat_rate, [&](auto d)
                                 {
                                     return pager_repeat(); // Repeat until on_pager.
                                 });
@@ -2809,7 +2818,7 @@ namespace netxs::ui
                 timer.pacify(activity::mouse_leave);
 
                 if (active) apply(activity::mouse_hover);
-                else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
+                else timer.actify(activity::mouse_leave, skin::globals().active_timeout, apply);
             };
             //LISTEN(tier::release, hids::events::mouse::move, gear)
             //{
@@ -2824,7 +2833,7 @@ namespace netxs::ui
             //
             //	timer.pacify(activity::mouse_leave);
             //	apply(activity::mouse_hover);
-            //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
+            //	timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
             //};
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

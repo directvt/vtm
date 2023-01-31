@@ -117,10 +117,10 @@ namespace netxs::app::term
                     if (gear.capture(boss.id))
                     {
                         proc(boss, item, gear);
-                        tick.actify(0, REPEAT_DELAY, [&, proc](auto p)
+                        tick.actify(0, skin::globals().repeat_delay, [&, proc](auto p)
                         {
                             proc(boss, item, gear);
-                            tick.actify(1, REPEAT_RATE, [&, proc](auto d)
+                            tick.actify(1, skin::globals().repeat_rate, [&, proc](auto d)
                             {
                                 proc(boss, item, gear);
                                 return true; // Repeat forever.

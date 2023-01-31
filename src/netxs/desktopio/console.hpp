@@ -8,24 +8,6 @@
 
 #include <typeindex>
 
-#define SPD            10   // console: Auto-scroll initial speed component ΔR.
-#define PLS            167  // console: Auto-scroll initial speed component ΔT.
-#define CCL            120  // console: Auto-scroll duration in ms.
-#define SPD_ACCEL      1    // console: Auto-scroll speed accelation.
-#define CCL_ACCEL      30   // console: Auto-scroll additional duration in ms.
-#define SPD_MAX        100  // console: Auto-scroll max speed.
-#define CCL_MAX        1000 // console: Auto-scroll max duration in ms.
-
-#define STOPPING_TIME  2s    // console: Object state stopping duration in s.
-#define SWITCHING_TIME 200   // console: Object state switching duration in ms.
-#define BLINK_PERIOD   400ms // console: Period in ms between the blink states of the cursor.
-
-#define MENU_TIMEOUT   250ms // console: Taskbar collaplse timeout.
-
-#define ACTIVE_TIMEOUT 1s    // console: Timeout off the active object.
-#define REPEAT_DELAY   500ms // console: Repeat delay.
-#define REPEAT_RATE    30ms  // console: Repeat rate.
-
 namespace netxs::ui
 {
     class face;
@@ -497,45 +479,58 @@ namespace netxs::ui
         cell menu_white;
         cell menu_black;
 
+        si32 spd;
+        si32 pls;
+        si32 ccl;
+        si32 spd_accel;
+        si32 ccl_accel;
+        si32 spd_max;
+        si32 ccl_max;
+        si32 switching;
+        span deceleration;
+        span blink_period;
+        span menu_timeout;
+        span active_timeout;
+        span repeat_delay;
+        span repeat_rate;
         span fader_time;
         span fader_fast;
 
-        template<class V>
-        struct _globals
+        static auto& globals()
         {
-            static skin global; //extn link: skin: shared gradients.
-        };
-
+            static skin _globals;
+            return _globals;
+        }
         static void setup(tone::prop parameter, uint8_t value)
         {
-            auto& global = _globals<void>::global;
+            auto& g = globals();
             switch (parameter)
             {
                 case tone::prop::kb_focus:
-                    global.kb_colors.bgc(tint::bluelt).bga(value)
-                                    .fgc(tint::bluelt).fga(value);
-                    global.kb_grades.recalc(global.kb_colors);
+                    g.kb_colors.bgc(tint::bluelt).bga(value)
+                               .fgc(tint::bluelt).fga(value);
+                    g.kb_grades.recalc(g.kb_colors);
                     break;
                 case tone::prop::brighter:
-                    global.hi_colors.bgc(rgba(0xFF, 0xFF, 0xFF, value))
-                                    .fgc(rgba(0xFF, 0xFF, 0xFF, value)).alpha(value);
-                    global.hi_grades.recalc(global.hi_colors);
+                    g.hi_colors.bgc(rgba(0xFF, 0xFF, 0xFF, value))
+                               .fgc(rgba(0xFF, 0xFF, 0xFF, value)).alpha(value);
+                    g.hi_grades.recalc(g.hi_colors);
                     break;
                 case tone::prop::shadower:
-                    global.lo_colors.bgc(rgba(0x20, 0x20, 0x20, value)).bga(value);
-                    global.lo_grades.recalc(global.lo_colors);
+                    g.lo_colors.bgc(rgba(0x20, 0x20, 0x20, value)).bga(value);
+                    g.lo_grades.recalc(g.lo_colors);
                     break;
                 case tone::prop::shadow:
-                    global.sh_colors.bgc(rgba(0x20, 0x20, 0x20, value)).bga(value);
-                    global.sh_grades.recalc(global.sh_colors);
+                    g.sh_colors.bgc(rgba(0x20, 0x20, 0x20, value)).bga(value);
+                    g.sh_grades.recalc(g.sh_colors);
                     break;
                 case tone::prop::selector:
-                    global.sl_colors.txt(whitespace)
+                    g.sl_colors.txt(whitespace)
                         .bgc(rgba(0xFF, 0xFF, 0xFF, value)).bga(value);
-                    global.sl_grades.recalc(global.sl_colors);
+                    g.sl_grades.recalc(g.sl_colors);
                     break;
                 case tone::prop::lucidity:
-                    global.opaque = value;
+                    g.opaque = value;
                     break;
                 default:
                     break;
@@ -543,36 +538,26 @@ namespace netxs::ui
         }
         static void setup(tone::prop parameter, twod const& size)
         {
-            auto& global = _globals<void>::global;
+            auto& g = globals();
             switch (parameter)
             {
-                case tone::prop::bordersz: global.border = size; break;
-                default: break;
-            }
-        }
-        static void setup(tone::prop parameter, span const& p)
-        {
-            auto& global = _globals<void>::global;
-            switch (parameter)
-            {
-                case tone::prop::fader:     global.fader_time = p; break;
-                case tone::prop::fastfader: global.fader_fast = p; break;
+                case tone::prop::bordersz: g.border = size; break;
                 default: break;
             }
         }
         static void setup(tone::prop parameter, cell const& color)
         {
-            auto& global = _globals<void>::global;
+            auto& g = globals();
             switch (parameter)
             {
-                case tone::prop::highlight:  global.highlight  = color; break;
-                case tone::prop::warning:    global.warning    = color; break;
-                case tone::prop::danger:     global.danger     = color; break;
-                case tone::prop::action:     global.action     = color; break;
-                case tone::prop::label:      global.label      = color; break;
-                case tone::prop::inactive:   global.inactive   = color; break;
-                case tone::prop::menu_white: global.menu_white = color; break;
-                case tone::prop::menu_black: global.menu_black = color; break;
+                case tone::prop::highlight:  g.highlight  = color; break;
+                case tone::prop::warning:    g.warning    = color; break;
+                case tone::prop::danger:     g.danger     = color; break;
+                case tone::prop::action:     g.action     = color; break;
+                case tone::prop::label:      g.label      = color; break;
+                case tone::prop::inactive:   g.inactive   = color; break;
+                case tone::prop::menu_white: g.menu_white = color; break;
+                case tone::prop::menu_black: g.menu_black = color; break;
                 default: break;
             }
         }
@@ -580,66 +565,52 @@ namespace netxs::ui
         // skin:: Return global brighter/shadower color (cell).
         static cell const& color(si32 property)
         {
-            auto& global = _globals<void>::global;
+            auto& g = globals();
             switch (property)
             {
-                case tone::prop::kb_focus:   return global.kb_colors;
-                case tone::prop::brighter:   return global.hi_colors;
-                case tone::prop::shadower:   return global.lo_colors;
-                case tone::prop::shadow:     return global.sh_colors;
-                case tone::prop::selector:   return global.sl_colors;
-                case tone::prop::highlight:  return global.highlight;
-                case tone::prop::warning:    return global.warning;
-                case tone::prop::danger:     return global.danger;
-                case tone::prop::action:     return global.action;
-                case tone::prop::label:      return global.label;
-                case tone::prop::inactive:   return global.inactive;
-                case tone::prop::menu_white: return global.menu_white;
-                case tone::prop::menu_black: return global.menu_black;
-                default:                     return global.hi_colors;
+                case tone::prop::kb_focus:   return g.kb_colors;
+                case tone::prop::brighter:   return g.hi_colors;
+                case tone::prop::shadower:   return g.lo_colors;
+                case tone::prop::shadow:     return g.sh_colors;
+                case tone::prop::selector:   return g.sl_colors;
+                case tone::prop::highlight:  return g.highlight;
+                case tone::prop::warning:    return g.warning;
+                case tone::prop::danger:     return g.danger;
+                case tone::prop::action:     return g.action;
+                case tone::prop::label:      return g.label;
+                case tone::prop::inactive:   return g.inactive;
+                case tone::prop::menu_white: return g.menu_white;
+                case tone::prop::menu_black: return g.menu_black;
+                default:                     return g.hi_colors;
             }
         }
         // skin:: Return global gradient for brighter/shadower.
         static poly const& grade(si32 property)
         {
-            auto& global = _globals<void>::global;
+            auto& g = globals();
             switch (property)
             {
-                case tone::prop::kb_focus: return global.kb_grades;
-                case tone::prop::brighter: return global.hi_grades;
-                case tone::prop::shadower: return global.lo_grades;
-                case tone::prop::shadow:   return global.sh_grades;
-                case tone::prop::selector: return global.sl_grades;
-                default:                   return global.hi_grades;
-            }
-        }
-        // skin:: Return global gradient for brighter/shadower.
-        static span& timeout(si32 property)
-        {
-            auto& global = _globals<void>::global;
-            switch (property)
-            {
-                case tone::prop::fader:     return global.fader_time;
-                case tone::prop::fastfader: return global.fader_fast;
-                default:                    return global.fader_time;
+                case tone::prop::kb_focus: return g.kb_grades;
+                case tone::prop::brighter: return g.hi_grades;
+                case tone::prop::shadower: return g.lo_grades;
+                case tone::prop::shadow:   return g.sh_grades;
+                case tone::prop::selector: return g.sl_grades;
+                default:                   return g.hi_grades;
             }
         }
         // skin:: Return global border size.
         static twod const& border_size()
         {
-            auto& global = _globals<void>::global;
-            return global.border;
+            auto& g = globals();
+            return g.border;
         }
         // skin:: Return global transparency.
         static si32 const& shady()
         {
-            auto& global = _globals<void>::global;
-            return global.opaque;
+            auto& g = globals();
+            return g.opaque;
         }
     };
-
-    template<class V>
-    skin skin::_globals<V>::global;
 
     // console: Textographical canvas.
     class face
@@ -2256,7 +2227,7 @@ namespace netxs::ui
                 auto  newpos = target - screen.size / 2;;
 
                 auto path = newpos - oldpos;
-                auto time = SWITCHING_TIME;
+                auto time = skin::globals().switching;
                 auto init = 0;
                 auto func = constlinearAtoB<twod>(path, time, init);
 
@@ -2557,7 +2528,7 @@ namespace netxs::ui
 
         public:
             caret(base&&) = delete;
-            caret(base& boss, bool visible = faux, bool abox = faux, twod position = dot_00, span freq = BLINK_PERIOD)
+            caret(base& boss, bool visible = faux, bool abox = faux, twod position = dot_00, span freq = skin::globals().blink_period)
                 : skill{ boss },
                    live{ faux },
                    done{ faux },
@@ -2610,7 +2581,7 @@ namespace netxs::ui
                 }
             }
             // pro::caret: Set blink period.
-            void blink_period(span const& new_step = BLINK_PERIOD)
+            void blink_period(span const& new_step = skin::globals().blink_period)
             {
                 auto changed = (step == span::zero()) != (new_step == span::zero());
                 step = new_step;
@@ -4388,8 +4359,25 @@ namespace netxs::ui
             skin::setup(tone::inactive  , config.take("inactive"  , cell{}));
             skin::setup(tone::menu_white, config.take("menu_white", cell{}));
             skin::setup(tone::menu_black, config.take("menu_black", cell{}));
-            skin::setup(tone::fader     , config.take("fader/duration", span{ 150ms }));
-            skin::setup(tone::fastfader , config.take("fader/fast"    , span{ 0ms }));
+            using namespace std::chrono;
+            auto& g = skin::globals();
+            g.spd            = config.take("timings/spd"           , 10  );
+            g.pls            = config.take("timings/pls"           , 167 );
+            g.spd_accel      = config.take("timings/spd_accel"     , 1   );
+            g.spd_max        = config.take("timings/spd_max"       , 100 );
+            g.ccl            = config.take("timings/ccl"           , 120 );
+            g.ccl_accel      = config.take("timings/ccl_accel"     , 30  );
+            g.ccl_max        = config.take("timings/ccl_max"       , 1   );
+            g.switching      = config.take("timings/switching"     , 200 );
+            g.deceleration   = config.take("timings/deceleration"  , span{ 2s    });
+            g.blink_period   = config.take("timings/blink_period"  , span{ 400ms });
+            g.menu_timeout   = config.take("timings/menu_timeout"  , span{ 250ms });
+            g.active_timeout = config.take("timings/active_timeout", span{ 1s    });
+            g.repeat_delay   = config.take("timings/repeat_delay"  , span{ 500ms });
+            g.repeat_rate    = config.take("timings/repeat_rate"   , span{ 30ms  });
+            g.fader_time     = config.take("timings/fader/duration", span{ 150ms });
+            g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
+
             hertz = config.take("fps");
             if (hertz <= 0) hertz = 60;
 
@@ -5354,7 +5342,7 @@ namespace netxs::ui
                     auto oldpos = viewport.coor + (viewport.size / 2);
 
                     auto path = oldpos - newpos;
-                    auto time = SWITCHING_TIME;
+                    auto time = skin::globals().switching;
                     auto init = 0;
                     auto func = constlinearAtoB<twod>(path, time, init);
 

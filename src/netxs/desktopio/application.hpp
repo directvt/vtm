@@ -108,7 +108,7 @@ namespace netxs::app::shared
                 auto menulist = menuarea->attach(slot::_1, ui::fork::ctor());
 
                     menulist->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
-                            ->plugin<pro::fader>(x3, c3, skin::timeout(tone::fader))
+                            ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
                             ->plugin<pro::notes>(" Maximize/restore window ")
                             ->invoke([&](ui::pads& boss)
                             {
@@ -129,7 +129,7 @@ namespace netxs::app::shared
 
                     auto scrl_grip = scrlarea->attach(scroll_hint);
 
-                auto fader = skin::timeout(tone::fader);
+                auto fader = skin::globals().fader_time;
                 for (auto& body : menu_items)
                 {
                     auto& item_ptr = std::get<0>(body);

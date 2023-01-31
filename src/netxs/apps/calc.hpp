@@ -347,7 +347,7 @@ namespace netxs::app::calc
                           boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
-            auto fader = skin::timeout(tone::fader);
+            auto fader = skin::globals().fader_time;
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
