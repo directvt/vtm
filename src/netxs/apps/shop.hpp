@@ -28,6 +28,9 @@ namespace netxs::events::userland
 // shop: Desktopio App Store.
 namespace netxs::app::shop
 {
+    static constexpr auto id = "gems";
+    static constexpr auto desc = "Desktopio App Manager (DEMO)";
+
     using events = netxs::events::userland::shop;
 
     namespace
@@ -235,5 +238,5 @@ namespace netxs::app::shop
         };
     };
 
-    app::shared::initialize builder{ "gems", build };
+    app::shared::initialize builder{ app::shop::id, build };
 }

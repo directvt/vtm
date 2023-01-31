@@ -44,15 +44,6 @@ namespace netxs::ui
     };
     struct menuitem_t
     {
-        static constexpr auto type_ANSIVT   = "ansivt";
-        static constexpr auto type_DirectVT = "directvt";
-        static constexpr auto type_SHELL    = "shell";
-        static constexpr auto type_Group    = "group";
-        static constexpr auto type_Region   = "region";
-        static constexpr auto type_Desk     = "desk";
-        static constexpr auto type_Fone     = "fone";
-        static constexpr auto type_Headless = "headless";
-
         text       id{};
         text    alias{};
         bool   hidden{};
@@ -149,6 +140,7 @@ namespace netxs::events::userland
             {
                 EVENT_XS( set, twod ), // preview: checking by object; release: apply to object; request: request object coor.
             };
+            //todo move to vtm.hpp
             SUBSET_XS( bindings )
             {
                 GROUP_XS( list, si32 ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.

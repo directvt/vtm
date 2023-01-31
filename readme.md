@@ -249,7 +249,7 @@ Configuration precedence (descending priority):<br>
 1. Command line options `vtm -c path/to/settings.xml`<br>
 2. Environment variable `VTM_CONFIG=path/to/settings.xml`<br>
 3. Hardcoded location `~/.config/vtm/settings.xml`<br>
-4. Predefined configuration at application.hpp(~line:28)
+4. Predefined configuration, see `./src/vtm.xml`
 
 # Settings
 

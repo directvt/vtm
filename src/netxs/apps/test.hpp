@@ -28,6 +28,9 @@ namespace netxs::events::userland
 // test: Test window.
 namespace netxs::app::test
 {
+    static constexpr auto id = "test";
+    static constexpr auto desc = "Desktopio App Testing (DEMO)";
+
     using events = netxs::events::userland::test;
 
     namespace
@@ -478,5 +481,5 @@ namespace netxs::app::test
         };
     }
 
-    app::shared::initialize builder{ "test", build };
+    app::shared::initialize builder{ app::test::id, build };
 }

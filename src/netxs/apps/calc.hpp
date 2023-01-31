@@ -237,6 +237,9 @@ namespace netxs::ui
 // calc: Spreadsheet calculator.
 namespace netxs::app::calc
 {
+    static constexpr auto id = "calc";
+    static constexpr auto desc = "Desktopio Spreadsheet (DEMO)";
+
     using events = ::netxs::events::userland::calc;
 
     namespace
@@ -417,5 +420,5 @@ namespace netxs::app::calc
         };
     }
 
-    app::shared::initialize builder{ "calc", build };
+    app::shared::initialize builder{ app::calc::id, build };
 }

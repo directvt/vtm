@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "netxs/apps.hpp"
+#include "netxs/desktopio/application.hpp"
 
 namespace netxs::app::vtm
 {
@@ -333,6 +333,28 @@ namespace netxs::app::vtm
         depo regis; // hall: Actors registry.
         idls taken; // hall: Focused objects for the last user.
 
+    public:
+        static auto& configs()
+        {
+            auto world_ptr = e2::config::whereami.param();
+            SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+            auto conf_list_ptr = e2::bindings::list::links.param();
+            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
+            auto& conf_list = *conf_list_ptr;
+            return conf_list;
+        }
+        static auto newapp(auto& menuid)
+        {
+            auto& conf_list = vtm::hall::configs();
+            auto& config = conf_list[menuid];
+            auto& creator = app::shared::create::builder(config.type);
+            auto object = creator(config.cwd, config.param, config.settings, config.patch);
+            if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
+            if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
+            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+            return std::pair{ object, config };
+        }
+
     protected:
         hall(xipc server_pipe, xml::settings& config)
             : host{ server_pipe, config }
@@ -346,7 +368,7 @@ namespace netxs::app::vtm
             {
                 .hidden   = faux,
                 .slimmenu = faux,
-                .type     = menuitem_t::type_SHELL,
+                .type     = "shell" //todo app::shell::id,
             };
             auto base_window = [](auto header, auto footer, auto menuid)
             {
@@ -618,7 +640,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, e2::form::proceed::createat, what)
             {
-                auto [object, config] = app::shared::create::go(what.menuid);
+                auto [object, config] = vtm::hall::newapp(what.menuid);
                 auto window = base_window(config.title, config.footer, what.menuid);
                 if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
                 else                                window->extend(what.square);
@@ -630,12 +652,12 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, e2::form::proceed::createfrom, what)
             {
-                auto& conf_list = app::shared::get::configs();
+                auto& conf_list = vtm::hall::configs();
                 auto& config = conf_list[what.menuid];
                 auto window = base_window(what.header, what.footer, what.menuid);
                 window->extend(what.square);
                 window->attach(what.object);
-                log("hall: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
+                log("hall: attach type=", utf::debase(config.type), " menuid=", utf::debase(what.menuid));
                 this->branch(what.menuid, window, !config.hidden);
                 window->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
                 what.object = window;

@@ -22,6 +22,9 @@ namespace netxs::events::userland
 // desk: Sidebar menu.
 namespace netxs::app::desk
 {
+    static constexpr auto id = "desk";
+    static constexpr auto desc = "Taskbar menu";
+
     using events = ::netxs::events::userland::desk;
 
     namespace
@@ -123,7 +126,7 @@ namespace netxs::app::desk
                     };
                 });
 
-            auto& conf_list = app::shared::get::configs();
+            auto& conf_list = vtm::hall::configs();
             auto def_note = text{" Menu item:                           \n"
                                  "   Left click to start a new instance \n"
                                  "   Right click to set default app     "};
@@ -478,5 +481,5 @@ namespace netxs::app::desk
         };
     }
 
-    app::shared::initialize builder{ "desk", build };
+    app::shared::initialize builder{ app::desk::id, build };
 }

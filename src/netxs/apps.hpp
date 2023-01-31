@@ -11,6 +11,56 @@
 #include "apps/test.hpp"
 #include "apps/desk.hpp"
 
+namespace netxs::app::strobe
+{
+    static constexpr auto id = "strobe";
+    static constexpr auto desc = "strobe";
+}
+namespace netxs::app::settings
+{
+    static constexpr auto id = "settings";
+    static constexpr auto desc = "Desktopio Settings";
+}
+namespace netxs::app::truecolor
+{
+    static constexpr auto id = "truecolor";
+    static constexpr auto desc = "Desktopio ANSI Art";
+}
+namespace netxs::app::headless
+{
+    static constexpr auto id = "headless";
+    static constexpr auto desc = "Desktopio Headless Terminal";
+}
+namespace netxs::app::empty
+{
+    static constexpr auto id = "empty";
+    static constexpr auto desc = "empty";
+}
+namespace netxs::app::ansivt
+{
+    static constexpr auto id = "ansivt";
+    static constexpr auto desc = "ansivt";
+}
+namespace netxs::app::directvt
+{
+    static constexpr auto id = "directvt";
+    static constexpr auto desc = "directvt";
+}
+namespace netxs::app::shell
+{
+    static constexpr auto id = "shell";
+    static constexpr auto desc = "shell";
+}
+namespace netxs::app::region
+{
+    static constexpr auto id = "region";
+    static constexpr auto desc = "region";
+}
+namespace netxs::app::fone
+{
+    static constexpr auto id = "fone";
+    static constexpr auto desc = "fone";
+}
 namespace netxs::app::shared
 {
     namespace
@@ -508,15 +558,15 @@ namespace netxs::app::shared
             return build_DirectVT(cwd, args, config, patch);
         };
 
-        app::shared::initialize builder_Strobe       { "strobe"                 , build_Strobe     };
-        app::shared::initialize builder_Settings     { "settings"               , build_Settings   };
-        app::shared::initialize builder_Empty        { "empty"                  , build_Empty      };
-        app::shared::initialize builder_Truecolor    { "truecolor"              , build_Truecolor  };
-        app::shared::initialize builder_Headless     { menuitem_t::type_Headless, build_Headless   };
-        app::shared::initialize builder_Fone         { menuitem_t::type_Fone    , build_Fone       };
-        app::shared::initialize builder_Region       { menuitem_t::type_Region  , build_Region     };
-        app::shared::initialize builder_DirectVT     { menuitem_t::type_DirectVT, build_DirectVT   };
-        app::shared::initialize builder_ANSIVT       { menuitem_t::type_ANSIVT  , build_ANSIVT     };
-        app::shared::initialize builder_SHELL        { menuitem_t::type_SHELL   , build_SHELL      };
+        app::shared::initialize builder_Strobe    { app::strobe::id   , build_Strobe     };
+        app::shared::initialize builder_Settings  { app::settings::id , build_Settings   };
+        app::shared::initialize builder_Empty     { app::empty::id    , build_Empty      };
+        app::shared::initialize builder_Truecolor { app::truecolor::id, build_Truecolor  };
+        app::shared::initialize builder_Headless  { app::headless::id , build_Headless   };
+        app::shared::initialize builder_Fone      { app::fone::id     , build_Fone       };
+        app::shared::initialize builder_Region    { app::region::id   , build_Region     };
+        app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
+        app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };
+        app::shared::initialize builder_SHELL     { app::shell::id    , build_SHELL      };
     }
 }

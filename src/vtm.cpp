@@ -13,6 +13,7 @@
 //#define KEYLOG
 
 #include "vtm.hpp"
+#include "netxs/apps.hpp"
 
 using namespace netxs;
 using namespace netxs::ui;
@@ -167,14 +168,14 @@ int main(int argc, char* argv[])
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
         auto shadow = params;
         utf::to_low(shadow);
-             if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
-        else if (shadow.starts_with("calc"))       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
-        else if (shadow.starts_with("gems"))       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
-        else if (shadow.starts_with("test"))       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
-        else if (shadow.starts_with("term"))       log("Desktopio Terminal "           DESKTOPIO_VER);
-        else if (shadow.starts_with("truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
-        else if (shadow.starts_with("headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);
-        else if (shadow.starts_with("settings"))   log("Desktopio Settings "           DESKTOPIO_VER);
+             if (shadow.starts_with(app::term::id))      log(app::term::desc,      ' ', DESKTOPIO_VER);
+        else if (shadow.starts_with(app::calc::id))      log(app::calc::desc,      ' ', DESKTOPIO_VER);
+        else if (shadow.starts_with(app::shop::id))      log(app::shop::desc,      ' ', DESKTOPIO_VER);
+        else if (shadow.starts_with(app::test::id))      log(app::test::desc,      ' ', DESKTOPIO_VER);
+        else if (shadow.starts_with(app::textancy::id))  log(app::textancy::desc,  ' ', DESKTOPIO_VER);
+        else if (shadow.starts_with(app::headless::id))  log(app::headless::desc,  ' ', DESKTOPIO_VER);
+        else if (shadow.starts_with(app::settings::id))  log(app::settings::desc,  ' ', DESKTOPIO_VER);
+        else if (shadow.starts_with(app::truecolor::id)) log(app::truecolor::desc, ' ', DESKTOPIO_VER);
         else
         {
             params = DESKTOPIO_DEFAPP + " "s + params;
@@ -291,8 +292,8 @@ int main(int argc, char* argv[])
                 {
                     log("user: new gate for ", client);
                     auto patch = ""s;
-                    auto deskmenu = app::shared::create::builder(ui::menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
-                    auto bkground = app::shared::create::builder(ui::menuitem_t::type_Fone)("", "gems;About;", config, patch);
+                    auto deskmenu = app::shared::create::builder(app::desk::id)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
+                    auto bkground = app::shared::create::builder(app::fone::id)("", "gems;About;", config, patch);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }

@@ -13,7 +13,6 @@
 namespace netxs::app
 {
     namespace fs = std::filesystem;
-
     using namespace std::placeholders;
     using namespace netxs::ui;
 }
@@ -22,7 +21,6 @@ namespace netxs::app::shared
 {
     static const auto usr_config = "~/.config/vtm/settings.xml";
     static const auto env_config = "$VTM_CONFIG"s;
-
     static constexpr auto path_autorun  = "config/menu/autorun";
     static constexpr auto path_hotkeys  = "config/hotkeys";
 
@@ -287,12 +285,6 @@ namespace netxs::app::shared
         };
     }
 
-    //static si32 max_count = 20;// 50;
-    static si32 max_vtm = 3;
-    static si32 vtm_count = 0;
-    static si32 tile_count = 0;
-    //constexpr auto del_timeout = 1s;
-
     enum class app_type
     {
         simple,
@@ -330,27 +322,6 @@ namespace netxs::app::shared
             auto backup = boss.This();
             boss.RISEUP(tier::release, e2::form::quit, backup);
             gear.dismiss();
-        };
-    };
-    const auto app_limit = [](auto boss, text title)
-    {
-        log("app_limit: max count reached");
-        auto timeout = datetime::now() + APPS_DEL_TIMEOUT;
-        auto shadow = ptr::shadow(boss);
-        boss->LISTEN(tier::general, e2::timer::any, timestamp, -, (shadow))
-        {
-            if (timestamp > timeout)
-            {
-                if (auto boss = shadow.lock())
-                {
-                    log("app_limit: detached");
-                    boss->RISEUP(tier::release, e2::form::quit, boss);
-                }
-            }
-        };
-        boss->LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (title))
-        {
-            parent->RISEUP(tier::preview, e2::form::prop::ui::header, title);
         };
     };
     const auto scroll_bars = [](auto master)
@@ -404,15 +375,6 @@ namespace netxs::app::shared
             static auto creator = std::map<text, builder_t>{};
             return creator;
         }
-        auto& configs()
-        {
-            auto world_ptr = e2::config::whereami.param();
-            SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-            auto conf_list_ptr = e2::bindings::list::links.param();
-            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
-            auto& conf_list = *conf_list_ptr;
-            return conf_list;
-        }
     }
     namespace create
     {
@@ -456,7 +418,7 @@ namespace netxs::app::shared
                       ->attach(placeholder);
                 return window;
             };
-            auto& map = get::creator();
+            auto& map = app::shared::get::creator();
             const auto it = map.find(app_typename);
             if (it == map.end())
             {
@@ -465,19 +427,7 @@ namespace netxs::app::shared
             }
             else return it->second;
         };
-        auto go = [](auto& menuid)
-        {
-            auto& conf_list = app::shared::get::configs();
-            auto& config = conf_list[menuid];
-            auto& creator = app::shared::create::builder(config.type);
-            auto object = creator(config.cwd, config.param, config.settings, config.patch);
-            if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
-            if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
-            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
-            return std::pair{ object, config };
-        };
     }
-
     namespace load
     {
         template<bool Print = faux>
@@ -553,15 +503,6 @@ namespace netxs::app::shared
             return conf;
         }
     }
-
-    struct initialize
-    {
-        initialize(view app_typename, builder_t builder)
-        {
-            app::shared::get::creator()[text{ app_typename }] = builder;
-        }
-    };
-
     auto start(text app_name, text log_title, si32 vtmode, xml::settings& config)
     {
         auto direct = !!(vtmode & os::vt::direct);
@@ -605,4 +546,13 @@ namespace netxs::app::shared
         }
         return true;
     }
+
+    struct initialize
+    {
+        initialize(text app_typename, builder_t builder)
+        {
+            auto& map = app::shared::get::creator();
+            map[app_typename] = builder;
+        }
+    };
 }

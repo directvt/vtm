@@ -46,6 +46,9 @@ namespace netxs::events::userland
 // tile: Tiling window manager.
 namespace netxs::app::tile
 {
+    static constexpr auto id = "group";
+    static constexpr auto desc = "Tiling Window Manager";
+
     using events = netxs::events::userland::tile;
 
     // tile: Right-side item list.
@@ -261,7 +264,7 @@ namespace netxs::app::tile
             //    gear.dismiss();
             //};
         };
-        auto app_window = [](view header, view footer, auto branch, auto menu_item_id)
+        auto app_window = [](view header, view footer, auto branch, auto menuid)
         {
             return ui::fork::ctor(axis::Y)
                     ->plugin<pro::title>(""/*not used here*/, footer, true, faux, true)
@@ -279,7 +282,7 @@ namespace netxs::app::tile
 
                         auto master_shadow = ptr::shadow(boss.This());
                         auto branch_shadow = ptr::shadow(branch);
-                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (branch_shadow, master_shadow, menu_item_id))
+                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (branch_shadow, master_shadow, menuid))
                         {
                             if (auto branch_ptr = branch_shadow.lock())
                             if (branch_ptr->area().hittest(gear.coord))
@@ -297,10 +300,10 @@ namespace netxs::app::tile
 
                                 // Take current title.
                                 auto what = e2::form::proceed::createfrom.param();
-                                what.menuid = menu_item_id;
+                                what.menuid = menuid;
                                 master.SIGNAL(tier::request, e2::form::prop::ui::header, what.header);
                                 master.SIGNAL(tier::request, e2::form::prop::ui::footer, what.footer);
-                                if (what.header.empty()) what.header = menu_item_id;
+                                if (what.header.empty()) what.header = menuid;
 
                                 // Take coor and detach from the tiling wm.
                                 gear.coord -= branch.base::coor(); // Localize mouse coor.
@@ -669,7 +672,7 @@ namespace netxs::app::tile
                             auto current_default = e2::data::changed.param();
                             gate.SIGNAL(tier::request, e2::data::changed, current_default);
 
-                            auto [object, config] = app::shared::create::go(current_default);
+                            auto [object, config] = vtm::hall::newapp(current_default);
 
                             auto app = app_window(config.title, "", object, current_default);
                             gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
@@ -755,7 +758,7 @@ namespace netxs::app::tile
                 utf::trim_front(utf8, " ,");
                 if (utf8.size() && utf8.front() == ')') utf8.remove_prefix(1); // pop ')';
 
-                auto [object, config] = app::shared::create::go(app_id);
+                auto [object, config] = vtm::hall::newapp(app_id);
                 auto inst = app_window(config.title, config.footer, object, app_id);
                 place->attach(inst);
             }
@@ -775,20 +778,20 @@ namespace netxs::app::tile
                     //todo foci
                     //boss.keybd.master();
                     auto oneoff = ptr::shared(hook{});
-                    auto& conf_list = app::shared::get::configs();
+                    auto& conf_list = vtm::hall::configs();
                     auto objs_config_ptr = &conf_list;
                     boss.LISTEN(tier::anycast, e2::form::upon::created, gear, *oneoff, (objs_config_ptr, oneoff))
                     {
                         auto& gate = gear.owner;
                         auto& objs_config = *objs_config_ptr;
-                        auto menu_item_id = e2::data::changed.param();
-                        gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
+                        auto menuid = e2::data::changed.param();
+                        gate.SIGNAL(tier::request, e2::data::changed, menuid);
                         //todo unify
-                        auto& config = objs_config[menu_item_id];
-                        if (config.type == menuitem_t::type_Group) // Reset the currently selected application to the previous one.
+                        auto& config = objs_config[menuid];
+                        if (config.type == app::tile::id) // Reset the currently selected application to the previous one.
                         {
-                            gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
-                            gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
+                            gate.SIGNAL(tier::preview, e2::data::changed, menuid); // Get previous default;
+                            gate.SIGNAL(tier::release, e2::data::changed, menuid); // Set current  default;
                         }
                         oneoff.reset();
                     };
@@ -1035,5 +1038,5 @@ namespace netxs::app::tile
         };
     }
 
-    app::shared::initialize builder{ menuitem_t::type_Group, build_inst };
+    app::shared::initialize builder{ app::tile::id, build_inst };
 }

@@ -73,10 +73,12 @@ namespace netxs::events::userland
         };
     };
 }
-
 // term: Terminal Emulator.
 namespace netxs::app::term
 {
+    static constexpr auto id = "term";
+    static constexpr auto desc = "Desktopio Terminal";
+
     using events = netxs::events::userland::term;
     using mime = clip::mime;
 
@@ -791,5 +793,5 @@ namespace netxs::app::term
         };
     }
 
-    app::shared::initialize builder{ "term", build };
+    app::shared::initialize builder{ app::term::id, build };
 }
