@@ -12,7 +12,6 @@
     #pragma clang diagnostic ignored "-Wunused-function"
 #endif
 
-#include "logger.hpp"
 #include "input.hpp"
 
 #include <type_traits>

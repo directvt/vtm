@@ -247,10 +247,6 @@ namespace netxs::events::userland
 
 namespace netxs::input
 {
-    using netxs::events::bell;
-    using netxs::events::subs;
-    using netxs::events::tier;
-    using netxs::events::hook;
     using netxs::ansi::clip;
     using sysmouse = directvt::binary::sysmouse_t;
     using syskeybd = directvt::binary::syskeybd_t;

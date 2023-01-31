@@ -631,3 +631,10 @@ namespace netxs::events
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;
 }
+namespace netxs
+{
+    using netxs::events::bell;
+    using netxs::events::subs;
+    using netxs::events::tier;
+    using netxs::events::hook;
+}

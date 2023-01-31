@@ -2,6 +2,7 @@
 // Licensed under the MIT license.
 
 #include "ansivt.hpp"
+#include "logger.hpp"
 
 #pragma once
 

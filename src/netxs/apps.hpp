@@ -443,7 +443,7 @@ namespace netxs::app::shared
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
             auto x8 = cell{ c8 }.alpha(0x00);
             return ui::park::ctor()
-                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(app::vtm::desc, ' ', app::shared::version)
+                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(utf::concat(app::vtm::desc, ' ', app::shared::version))
                 ->template plugin<pro::fader>(x8, c8, 0ms))
                 ->template plugin<pro::notes>(" About Environment ")
                 ->invoke([&](auto& boss)

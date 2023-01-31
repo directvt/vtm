@@ -4,7 +4,6 @@
 #pragma once
 
 #include "directvt.hpp"
-#include "logger.hpp"
 
 namespace netxs::ui
 {

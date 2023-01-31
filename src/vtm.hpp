@@ -402,6 +402,7 @@ namespace netxs::app::vtm
         idls taken; // hall: Focused objects for the last user.
 
     public:
+        //todo use events
         static auto& configs()
         {
             auto world_ptr = e2::config::whereami.param();
@@ -411,6 +412,7 @@ namespace netxs::app::vtm
             auto& conf_list = *conf_list_ptr;
             return conf_list;
         }
+        //todo use events
         static auto newapp(auto& menuid)
         {
             auto& conf_list = vtm::hall::configs();
@@ -795,7 +797,7 @@ namespace netxs::app::vtm
         }
         // hall: Attach a new item to the scene.
         template<class S>
-        auto branch(text const& class_id, sptr<S> item, bool fixed = true)
+        void branch(text const& class_id, sptr<S> item, bool fixed = true)
         {
             items.append(item);
             item->base::root(true); //todo move it to the window creator (main)

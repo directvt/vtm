@@ -5,7 +5,6 @@
 #include "netxs/apps.hpp"
 
 using namespace netxs;
-using namespace netxs::ui;
 
 enum class type
 {

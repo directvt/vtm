@@ -14,6 +14,7 @@
 #include <condition_variable>
 #include <deque>
 #include <thread>
+#include <functional>
 
 #ifndef faux
     #define faux (false)
