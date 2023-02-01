@@ -77,10 +77,10 @@ namespace netxs::events::userland
             };
             SUBSET_XS( config )
             {
-                EVENT_XS( whereami , sptr<ui::base> ), // request: pointer to world object.
-                EVENT_XS( fps      , si32           ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
-                GROUP_XS( caret    , span           ), // any kind of intervals property.
-                GROUP_XS( plugins  , si32           ),
+                EVENT_XS( creator, sptr<ui::base> ), // request: pointer to world object.
+                EVENT_XS( fps    , si32           ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
+                GROUP_XS( caret  , span           ), // any kind of intervals property.
+                GROUP_XS( plugins, si32           ),
 
                 SUBSET_XS( caret )
                 {
@@ -4379,7 +4379,12 @@ namespace netxs::ui
                 edges.clear();
                 SIGNAL_GLOBAL(e2::nextframe, damaged);
             };
-            LISTEN(tier::general, e2::config::whereami, world_ptr, token)
+            //todo deprecated
+            LISTEN(tier::general, e2::config::creator, world_ptr, token)
+            {
+                world_ptr = base::This();
+            };
+            LISTEN(tier::request, e2::config::creator, world_ptr, token)
             {
                 world_ptr = base::This();
             };

@@ -405,8 +405,8 @@ namespace netxs::app::vtm
         //todo use events
         static auto& configs()
         {
-            auto world_ptr = e2::config::whereami.param();
-            SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+            auto world_ptr = e2::config::creator.param();
+            SIGNAL_GLOBAL(e2::config::creator, world_ptr);
             auto conf_list_ptr = hall::bindings::list::links.param();
             world_ptr->SIGNAL(tier::request, hall::bindings::list::links, conf_list_ptr);
             auto& conf_list = *conf_list_ptr;
@@ -417,6 +417,16 @@ namespace netxs::app::vtm
         {
             auto& conf_list = vtm::hall::configs();
             auto& config = conf_list[menuid];
+            auto& creator = app::shared::create::builder(config.type);
+            auto object = creator(config.cwd, config.param, config.settings, config.patch);
+            if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
+            if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
+            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+            return std::pair{ object, config };
+        }
+        auto _newapp(auto& menuid)
+        {
+            auto& config = regis.lnk[menuid];
             auto& creator = app::shared::create::builder(config.type);
             auto object = creator(config.cwd, config.param, config.settings, config.patch);
             if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
@@ -710,7 +720,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, e2::form::proceed::createat, what)
             {
-                auto [object, config] = vtm::hall::newapp(what.menuid);
+                auto [object, config] = _newapp(what.menuid);
                 auto window = base_window(config.title, config.footer, what.menuid);
                 if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
                 else                                window->extend(what.square);
@@ -722,8 +732,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, e2::form::proceed::createfrom, what)
             {
-                auto& conf_list = vtm::hall::configs();
-                auto& config = conf_list[what.menuid];
+                auto& config = regis.lnk[what.menuid];
                 auto window = base_window(what.header, what.footer, what.menuid);
                 window->extend(what.square);
                 window->attach(what.object);

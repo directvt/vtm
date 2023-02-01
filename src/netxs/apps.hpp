@@ -454,9 +454,8 @@ namespace netxs::app::shared
                     auto args = text{ data.size() > 2 ? data[2] : view{} };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (type, name, args))
                     {
-                        //todo revise/unify
-                        auto world_ptr = e2::config::whereami.param();
-                        SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+                        auto world_ptr = e2::config::creator.param();
+                        boss.RISEUP(tier::request, e2::config::creator, world_ptr);
                         if (world_ptr)
                         {
                             static auto offset = dot_00;

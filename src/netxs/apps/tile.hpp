@@ -288,6 +288,7 @@ namespace netxs::app::tile
                             if (branch_ptr->area().hittest(gear.coord))
                             if (auto master_ptr = master_shadow.lock())
                             {
+                                //todo master == boss
                                 auto& master = *master_ptr;
                                 auto& branch = *branch_ptr;
 
@@ -305,6 +306,10 @@ namespace netxs::app::tile
                                 master.SIGNAL(tier::request, e2::form::prop::ui::footer, what.footer);
                                 if (what.header.empty()) what.header = menuid;
 
+                                // Find creator.
+                                auto world_ptr = e2::config::creator.param();
+                                master.RISEUP(tier::request, e2::config::creator, world_ptr);
+
                                 // Take coor and detach from the tiling wm.
                                 gear.coord -= branch.base::coor(); // Localize mouse coor.
                                 what.square.size = branch.base::size();
@@ -316,8 +321,6 @@ namespace netxs::app::tile
                                 branch.moveto(dot_00);
 
                                 // Attach to the world.
-                                auto world_ptr = e2::config::whereami.param();
-                                SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                                 world_ptr->SIGNAL(tier::release, e2::form::proceed::createfrom, what);
                                 
                                 gear.kb_offer_9(what.object); // Pass focus.
