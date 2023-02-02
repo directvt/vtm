@@ -1,3 +1,5 @@
 /.vs
 /.vscode
 /src/build
+/build
+/src/.vs
