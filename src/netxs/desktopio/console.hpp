@@ -3,11 +3,19 @@
 
 #pragma once
 
-#include "system.hpp"
+#include "richtext.hpp"
+#include "events.hpp"
 #include "xml.hpp"
 
 #include <typeindex>
 
+namespace netxs::input
+{
+    struct hids;
+    using sysmouse = directvt::binary::sysmouse_t;
+    using syskeybd = directvt::binary::syskeybd_t;
+    using sysfocus = directvt::binary::sysfocus_t;
+}
 namespace netxs::ui
 {
     class face;
@@ -31,7 +39,6 @@ namespace netxs::ui
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
     using s11n = directvt::binary::s11n;
-    using os::tty::xipc;
 }
 
 namespace netxs::events::userland
@@ -937,11 +944,11 @@ namespace netxs::ui
         rect square;
         bool invalid = true; // base: Should the object be redrawn.
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
-        hook kb_token;
         hook cascade_token;
         si32 object_kind = {};
 
     public:
+        hook kb_token;
         static constexpr auto reflow_root = si32{ -1 }; //todo unify
 
         //todo replace "side" with "dent<si32>"
@@ -1112,7 +1119,7 @@ namespace netxs::ui
             detach();
         }
         // base: Recursively calculate global coordinate.
-        void global(twod& coor) override
+        void global(twod& coor)
         {
             coor -= square.coor;
             if (auto parent_ptr = parent())
@@ -1221,25 +1228,6 @@ namespace netxs::ui
                 // Propagate form events up to the visual branch ends (children).
                 // Exec after all subscriptions.
                 //todo implement via e2::cascade
-
-                //todo kb
-                parent_ptr->LISTEN(tier::release, hids::events::upevent::any, gear, kb_token)
-                {
-                    if (auto parent_ptr = parent_shadow.lock())
-                    {
-                        if (gear.focus_changed()) //todo unify, upevent::kbannul using it
-                        {
-                            parent_ptr->bell::expire<tier::release>();
-                        }
-                        else
-                        {
-                            if (auto deed = parent_ptr->bell::protos<tier::release>())
-                            {
-                                this->bell::signal<tier::release>(deed, gear);
-                            }
-                        }
-                    }
-                };
             };
             LISTEN(tier::release, e2::form::upon::vtree::any, parent_ptr)
             {
@@ -1251,17 +1239,6 @@ namespace netxs::ui
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive
             };
 
-            // base: Propagate form events down to the visual branch. Executed last.
-            LISTEN(tier::release, hids::events::notify::any, gear)
-            {
-                if (auto parent_ptr = parent_shadow.lock())
-                {
-                    if (auto deed = this->bell::protos<tier::release>())
-                    {
-                        parent_ptr->bell::signal<tier::release>(deed, gear);
-                    }
-                }
-            };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (base::brush.wdt())
@@ -1271,6 +1248,13 @@ namespace netxs::ui
             };
         }
     };
+}
+
+#include "system.hpp"
+
+namespace netxs::ui
+{
+    using os::tty::xipc;
 
     // console: Client properties.
     class conf
@@ -3336,6 +3320,36 @@ namespace netxs::ui
             {
                 auto brush = boss.base::color();
                 boss.base::color(brush.link(boss.bell::id));
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
+                {
+                    //todo kb
+                    parent_ptr->LISTEN(tier::release, hids::events::upevent::any, gear, boss.kb_token)
+                    {
+                        if (auto parent_ptr = boss.parent())
+                        {
+                            if (gear.focus_changed()) //todo unify, upevent::kbannul using it
+                            {
+                                parent_ptr->bell::expire<tier::release>();
+                            }
+                            else
+                            {
+                                if (auto deed = parent_ptr->bell::protos<tier::release>())
+                                {
+                                    boss.bell::signal<tier::release>(deed, gear);
+                                }
+                            }
+                        }
+                    };
+                };
+                // pro::mouse: Propagate form events down to the visual branch. Executed last.
+                boss.LISTEN(tier::release, hids::events::notify::any, gear)
+                {
+                    if (auto parent_ptr = boss.parent())
+                    if (auto deed = boss.bell::protos<tier::release>())
+                    {
+                        parent_ptr->bell::signal<tier::release>(deed, gear);
+                    }
+                };
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, hids::events::mouse::any, gear, memo)
                 {
@@ -4247,11 +4261,11 @@ namespace netxs::ui
                         if (under != new_under)
                         {
                             auto object = e2::form::proceed::d_n_d::ask.param();
-                            if (auto old_object = std::dynamic_pointer_cast<base>(bell::getref(under)))
+                            if (auto old_object = bell::getref<base>(under))
                             {
                                 old_object->RISEUP(tier::release, e2::form::proceed::d_n_d::abort, object);
                             }
-                            if (auto new_object = std::dynamic_pointer_cast<base>(bell::getref(new_under)))
+                            if (auto new_object = bell::getref<base>(new_under))
                             {
                                 new_object->RISEUP(tier::release, e2::form::proceed::d_n_d::ask, object);
                             }

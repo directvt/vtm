@@ -6127,8 +6127,7 @@ namespace netxs::ui
             SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates); // Take all foci.
             for (auto gate_id : gates) // Signal them to set the clipboard data.
             {
-                if (auto ptr = bell::getref(gate_id))
-                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto gear_ptr = bell::getref<hids>(gate_id))
                 {
                     auto pos = data.find(';');
                     if (pos != text::npos)
@@ -7241,8 +7240,7 @@ namespace netxs::ui
                 {
                     for (auto& tooltip : tooltips)
                     {
-                        if (auto ptr = bell::getref(tooltip.gear_id))
-                        if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                        if (auto gear_ptr = bell::getref<hids>(tooltip.gear_id))
                         {
                             gear_ptr->set_tooltip(0, tooltip.tip_text);
                         }
@@ -7262,8 +7260,7 @@ namespace netxs::ui
             {
                 auto& m = lock.thing;
                 auto lock_ui = events::sync{};
-                if (auto ptr = bell::getref(m.gear_id))
-                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto gear_ptr = bell::getref<hids>(m.gear_id))
                 if (auto parent_ptr = owner.base::parent())
                 {
                     auto& gear = *gear_ptr;
@@ -7275,8 +7272,7 @@ namespace netxs::ui
             {
                 auto& m = lock.thing;
                 auto lock_ui = events::sync{};
-                if (auto ptr = bell::getref(m.gear_id))
-                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto gear_ptr = bell::getref<hids>(m.gear_id))
                 if (auto parent_ptr = owner.base::parent())
                 {
                     auto& gear = *gear_ptr;
@@ -7304,8 +7300,7 @@ namespace netxs::ui
             {
                 auto& c = lock.thing;
                 auto lock_ui = events::sync{};
-                if (auto ptr = bell::getref(c.gear_id))
-                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                 {
                     gear_ptr->set_clip_data(clip{ c.clip_prev_size, c.clipdata, static_cast<clip::mime>(c.mimetype) });
                 }
@@ -7315,8 +7310,7 @@ namespace netxs::ui
                 auto& c = lock.thing;
                 auto lock_ui = events::sync{};
                 //todo use gear.raw_clip_data
-                if (auto ptr = bell::getref(c.gear_id))
-                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                 {
                     auto data = gear_ptr->get_clip_data();
                     s11n::clipdata.send(owner, c.gear_id, data.utf8, data.kind);
@@ -7328,8 +7322,7 @@ namespace netxs::ui
             {
                 auto& f = lock.thing;
                 auto lock_ui = events::sync{};
-                if (auto ptr = bell::getref(f.gear_id))
-                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto gear_ptr = bell::getref<hids>(f.gear_id))
                 {
                     gear_ptr->kb_offer_18(owner.This(), f.force_group_focus);
                 }
@@ -7338,8 +7331,7 @@ namespace netxs::ui
             {
                 auto& f = lock.thing;
                 auto lock_ui = events::sync{};
-                if (auto ptr = bell::getref(f.gear_id))
-                if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                if (auto gear_ptr = bell::getref<hids>(f.gear_id))
                 {
                     gear_ptr->remove_from_kb_focus(owner.This());
                 }

@@ -63,11 +63,12 @@ namespace netxs::app::vtm
     struct hall
         : public host
     {
-        struct bindings
+        struct events
         {
-            EVENTPACK( bindings, ui::e2::extra )
+            EVENTPACK( events, ui::e2::extra )
             {
-                GROUP_XS( list, si32 ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
+                EVENT_XS( newapp , si32 ),
+                GROUP_XS( list   , si32 ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
 
                 SUBSET_XS( list )
                 {
@@ -407,8 +408,8 @@ namespace netxs::app::vtm
         {
             auto world_ptr = e2::config::creator.param();
             SIGNAL_GLOBAL(e2::config::creator, world_ptr);
-            auto conf_list_ptr = hall::bindings::list::links.param();
-            world_ptr->SIGNAL(tier::request, hall::bindings::list::links, conf_list_ptr);
+            auto conf_list_ptr = hall::events::list::links.param();
+            world_ptr->SIGNAL(tier::request, hall::events::list::links, conf_list_ptr);
             auto& conf_list = *conf_list_ptr;
             return conf_list;
         }
@@ -627,8 +628,7 @@ namespace netxs::app::vtm
                     item_ptr->SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gear_id_list);
                     for (auto gear_id : gear_id_list)
                     {
-                        if (auto ptr = bell::getref(gear_id))
-                        if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                        if (auto gear_ptr = bell::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
                             gear.annul_kb_focus(item_ptr);
@@ -650,15 +650,15 @@ namespace netxs::app::vtm
                 auto region = items.expose(inst.bell::id);
                 host::denote(region);
             };
-            LISTEN(tier::request, hall::bindings::list::users, usr_list_ptr)
+            LISTEN(tier::request, hall::events::list::users, usr_list_ptr)
             {
                 usr_list_ptr = regis.usr_ptr;
             };
-            LISTEN(tier::request, hall::bindings::list::apps, app_list_ptr)
+            LISTEN(tier::request, hall::events::list::apps, app_list_ptr)
             {
                 app_list_ptr = regis.app_ptr;
             };
-            LISTEN(tier::request, hall::bindings::list::links, list_ptr)
+            LISTEN(tier::request, hall::events::list::links, list_ptr)
             {
                 list_ptr = regis.lnk_ptr;
             };
@@ -746,7 +746,7 @@ namespace netxs::app::vtm
     public:
        ~hall()
         {
-            auto lock = events::sync{};
+            auto lock = netxs::events::sync{};
             regis.reset();
             items.reset();
         }
@@ -784,7 +784,7 @@ namespace netxs::app::vtm
                 {
                     for (auto id : active)
                     {
-                        if (auto window_ptr = bell::getref(id))
+                        if (auto window_ptr = bell::getref<base>(id))
                         {
                             gear.kb_offer_4(window_ptr);
                         }
@@ -814,17 +814,17 @@ namespace netxs::app::vtm
             stat = fixed;
             list.push_back(item);
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-            SIGNAL(tier::release, hall::bindings::list::apps, regis.app_ptr);
+            SIGNAL(tier::release, hall::events::list::apps, regis.app_ptr);
         }
         // hall: Create a new user of the specified subtype and invite him to the scene.
         template<class S, class ...Args>
         auto invite(Args&&... args)
         {
-            auto lock = events::sync{};
+            auto lock = netxs::events::sync{};
             auto user = host::invite<S>(std::forward<Args>(args)...);
             users.append(user);
             regis.usr.push_back(user);
-            SIGNAL(tier::release, hall::bindings::list::users, regis.usr_ptr);
+            SIGNAL(tier::release, hall::events::list::users, regis.usr_ptr);
             return user;
         }
     };

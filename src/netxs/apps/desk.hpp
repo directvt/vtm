@@ -40,74 +40,73 @@ namespace netxs::app::desk
             auto fastfader = skin::globals().fader_fast;
             auto fader = skin::globals().fader_time;
             auto item_area = ui::pads::ctor(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
-                    ->plugin<pro::fader>(x4, c4, fastfader)
-                    ->plugin<pro::notes>(" Running instance:                          \n"
-                                         "   Left click to go to running instance     \n"
-                                         "   Right click to pull the running instance ")
-                    ->invoke([&](auto& boss)
+                ->plugin<pro::fader>(x4, c4, fastfader)
+                ->plugin<pro::notes>(" Running instance:                          \n"
+                                     "   Left click to go to running instance     \n"
+                                     "   Right click to pull the running instance ")
+                ->invoke([&](auto& boss)
+                {
+                    auto data_src_shadow = ptr::shadow(data_src);
+                    auto boss_ptr_shadow = ptr::shadow(boss.This());
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (data_src_shadow))
                     {
-                        auto data_src_shadow = ptr::shadow(data_src);
-                        auto boss_ptr_shadow = ptr::shadow(boss.This());
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (data_src_shadow))
+                        if (auto data_src = data_src_shadow.lock())
                         {
-                            if (auto data_src = data_src_shadow.lock())
-                            {
-                                auto& inst = *data_src;
-                                inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                                auto& area = inst.base::area();
-                                auto center = area.coor + (area.size / 2);
-                                gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
-                                gear.pass_kb_focus(inst);
-                                gear.dismiss();
-                            }
-                        };
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (data_src_shadow))
+                            auto& inst = *data_src;
+                            inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
+                            auto& area = inst.base::area();
+                            auto center = area.coor + (area.size / 2);
+                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
+                            gear.pass_kb_focus(inst);
+                            gear.dismiss();
+                        }
+                    };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (data_src_shadow))
+                    {
+                        if (auto data_src = data_src_shadow.lock())
                         {
-                            if (auto data_src = data_src_shadow.lock())
-                            {
-                                auto& inst = *data_src;
-                                inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                                auto viewport = e2::form::prop::viewport.param();
-                                boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                                auto center = gear.area().coor + viewport.coor + (viewport.size / 2);
-                                inst.SIGNAL(tier::preview, e2::form::layout::appear, center); // Pull window.
-                                gear.pass_kb_focus(inst);
-                                gear.dismiss();
-                            }
-                        };
-                        boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (data_src_shadow))
+                            auto& inst = *data_src;
+                            inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
+                            auto viewport = e2::form::prop::viewport.param();
+                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                            auto center = gear.area().coor + viewport.coor + (viewport.size / 2);
+                            inst.SIGNAL(tier::preview, e2::form::layout::appear, center); // Pull window.
+                            gear.pass_kb_focus(inst);
+                            gear.dismiss();
+                        }
+                    };
+                    boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (data_src_shadow))
+                    {
+                        if (auto data_src = data_src_shadow.lock())
                         {
-                            if (auto data_src = data_src_shadow.lock())
-                            {
-                                data_src->SIGNAL(tier::release, e2::form::highlight::any, !!hits);
-                            }
-                        };
-                    });
-                auto label_area = item_area->attach(ui::fork::ctor());
-                    auto mark_app = label_area->attach(slot::_1, ui::fork::ctor());
-                        auto mark = mark_app->attach(slot::_1, ui::pads::ctor(dent{ 2,1,0,0 }, dent{ 0,0,0,0 }))
-                                            ->attach(ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣"), faux));
-                        auto app_label = mark_app->attach(slot::_2,
-                                    ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left), true, true));
-                    auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }))
-                                                    ->template plugin<pro::fader>(x5, c5, fader)
-                                                    ->template plugin<pro::notes>(" Close instance ")
-                                                    ->invoke([&](auto& boss)
-                                                    {
-                                                        auto data_src_shadow = ptr::shadow(data_src);
-                                                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (data_src_shadow))
-                                                        {
-                                                            if (auto data_src = data_src_shadow.lock())
-                                                            {
-                                                                data_src->SIGNAL(tier::anycast, e2::form::quit, data_src);
-                                                                gear.dismiss();
-                                                            }
-                                                        };
-                                                    });
-                        auto app_close = app_close_area->attach(ui::item::ctor("  ×  ", faux));
+                            data_src->SIGNAL(tier::release, e2::form::highlight::any, !!hits);
+                        }
+                    };
+                });
+            auto label_area = item_area->attach(ui::fork::ctor());
+            auto mark_app = label_area->attach(slot::_1, ui::fork::ctor());
+            auto mark = mark_app->attach(slot::_1, ui::pads::ctor(dent{ 2,1,0,0 }, dent{ 0,0,0,0 }))
+                ->attach(ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣"), faux));
+            auto app_label = mark_app->attach(slot::_2, ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left), true, true));
+            auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }))
+                ->template plugin<pro::fader>(x5, c5, fader)
+                ->template plugin<pro::notes>(" Close instance ")
+                ->invoke([&](auto& boss)
+                {
+                    auto data_src_shadow = ptr::shadow(data_src);
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (data_src_shadow))
+                    {
+                        if (auto data_src = data_src_shadow.lock())
+                        {
+                            data_src->SIGNAL(tier::anycast, e2::form::quit, data_src);
+                            gear.dismiss();
+                        }
+                    };
+                });
+            auto app_close = app_close_area->attach(ui::item::ctor("  ×  ", faux));
             return item_area;
         };
-        auto apps_template = [](auto& data_src, auto& apps_map)
+        auto apps_template = [](auto& data_src, auto& apps_map_ptr)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto inactive_color  = skin::color(tone::inactive);
@@ -126,11 +125,15 @@ namespace netxs::app::desk
                     };
                 });
 
-            auto& conf_list = vtm::hall::configs();
             auto def_note = text{" Menu item:                           \n"
                                  "   Left click to start a new instance \n"
                                  "   Right click to set default app     "};
-            for (auto const& [class_id, stat_inst_ptr_list] : *apps_map)
+            auto conf_list_ptr = vtm::hall::events::list::links.param();
+            data_src->RISEUP(tier::request, vtm::hall::events::list::links, conf_list_ptr);
+            if (!conf_list_ptr || !apps_map_ptr) return apps;
+            auto& conf_list = *conf_list_ptr;
+            auto& apps_map = *apps_map_ptr;
+            for (auto const& [class_id, stat_inst_ptr_list] : apps_map)
             {
                 auto& [state, inst_ptr_list] = stat_inst_ptr_list;
                 auto inst_id = class_id;
@@ -140,88 +143,88 @@ namespace netxs::app::desk
                 if (conf.splitter)
                 {
                     auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
-                                         ->attach(ui::item::ctor(obj_desc, true, faux, true))
-                                         ->colors(cA.fgc(), cA.bgc())
-                                         ->template plugin<pro::notes>(obj_note);
+                        ->attach(ui::item::ctor(obj_desc, true, faux, true))
+                        ->colors(cA.fgc(), cA.bgc())
+                        ->template plugin<pro::notes>(obj_note);
                     continue;
                 }
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
-                                     ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast)
-                                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
-                                     ->invoke([&](auto& boss)
-                                     {
-                                         boss.mouse.take_all_events(faux);
-                                         //auto boss_shadow = ptr::shadow(boss.This());
-                                         //auto data_src_shadow = ptr::shadow(data_src);
-                                         boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (inst_id))
-                                         {
-                                            boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
-                                         };
-                                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (inst_id))
-                                         {
-                                            boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
-                                            static auto offset = dot_00;
-                                            auto viewport = e2::form::prop::viewport.param();
-                                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                                            viewport.coor += gear.area().coor;;
-                                            offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                                            gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
-                                            gear.slot.size = viewport.size * 3 / 4;
-                                            gear.slot_forced = faux;
-                                            boss.RISEUP(tier::release, e2::form::proceed::createby, gear);
-                                            gear.dismiss();
-                                         };
-                                         //auto& world = *data_src;
-                                         //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, -, (inst_id))
-                                         //{
-                                         //   //if (auto data_src = data_src_shadow.lock())
-                                         //   {
-                                         //       sptr<vtm::registry_t> registry_ptr;
-                                         //       //data_src->SIGNAL(tier::request, vtm::hall::bindings::list::apps, registry_ptr);
-                                         //       world.SIGNAL(tier::request, vtm::hall::bindings::list::apps, registry_ptr);
-                                         //       auto& app_list = (*registry_ptr)[inst_id];
-                                         //       if (app_list.size())
-                                         //       {
-                                         //           auto deed = boss.bell::protos<tier::release>();
-                                         //           if (deed == hids::events::mouse::scroll::down.id) // Rotate list forward.
-                                         //           {
-                                         //               app_list.push_back(app_list.front());
-                                         //               app_list.pop_front();
-                                         //           }
-                                         //           else // Rotate list backward.
-                                         //           {
-                                         //               app_list.push_front(app_list.back());
-                                         //               app_list.pop_back();
-                                         //           }
-                                         //           // Expose window.
-                                         //           auto& inst = *app_list.back();
-                                         //           inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                                         //           auto& area = inst.base::area();
-                                         //           auto center = area.coor + (area.size / 2);
-                                         //           gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
-                                         //           gear.pass_kb_focus(inst);
-                                         //           gear.dismiss();
-                                         //       }
-                                         //   }
-                                         //};
-                                     });
+                    ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast)
+                    ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
+                    ->invoke([&](auto& boss)
+                    {
+                        boss.mouse.take_all_events(faux);
+                        //auto boss_shadow = ptr::shadow(boss.This());
+                        //auto data_src_shadow = ptr::shadow(data_src);
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (inst_id))
+                        {
+                            boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
+                        };
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (inst_id))
+                        {
+                            boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
+                            static auto offset = dot_00;
+                            auto viewport = e2::form::prop::viewport.param();
+                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                            viewport.coor += gear.area().coor;;
+                            offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                            gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                            gear.slot.size = viewport.size * 3 / 4;
+                            gear.slot_forced = faux;
+                            boss.RISEUP(tier::release, e2::form::proceed::createby, gear);
+                            gear.dismiss();
+                        };
+                        //auto& world = *data_src;
+                        //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, -, (inst_id))
+                        //{
+                        //   //if (auto data_src = data_src_shadow.lock())
+                        //   {
+                        //       sptr<vtm::registry_t> registry_ptr;
+                        //       //data_src->SIGNAL(tier::request, vtm::hall::events::list::apps, registry_ptr);
+                        //       world.SIGNAL(tier::request, vtm::hall::events::list::apps, registry_ptr);
+                        //       auto& app_list = (*registry_ptr)[inst_id];
+                        //       if (app_list.size())
+                        //       {
+                        //           auto deed = boss.bell::protos<tier::release>();
+                        //           if (deed == hids::events::mouse::scroll::down.id) // Rotate list forward.
+                        //           {
+                        //               app_list.push_back(app_list.front());
+                        //               app_list.pop_front();
+                        //           }
+                        //           else // Rotate list backward.
+                        //           {
+                        //               app_list.push_front(app_list.back());
+                        //               app_list.pop_back();
+                        //           }
+                        //           // Expose window.
+                        //           auto& inst = *app_list.back();
+                        //           inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
+                        //           auto& area = inst.base::area();
+                        //           auto center = area.coor + (area.size / 2);
+                        //           gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
+                        //           gear.pass_kb_focus(inst);
+                        //           gear.dismiss();
+                        //       }
+                        //   }
+                        //};
+                    });
                 if (!state) item_area->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info.
                 auto block = item_area->attach(ui::fork::ctor(axis::Y));
-                    auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }));
-                        auto head = head_area->attach(ui::item::ctor(obj_desc, true))
-                            ->invoke([&](auto& boss)
-                            {
-                                auto boss_shadow = ptr::shadow(boss.This());
-                                boss.LISTEN(tier::anycast, events::ui::selected, data, -, (inst_id, obj_desc))
-                                {
-                                    auto selected = inst_id == data;
-                                    boss.set(ansi::fgx(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
-                                    boss.deface();
-                                };
-                            });
-                    auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
-                    auto insts = list_pads->attach(ui::list::ctor())
-                                          ->attach_collection(e2::form::prop::ui::header, inst_ptr_list, app_template);
+                auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }));
+                auto head = head_area->attach(ui::item::ctor(obj_desc, true))
+                    ->invoke([&](auto& boss)
+                    {
+                        auto boss_shadow = ptr::shadow(boss.This());
+                        boss.LISTEN(tier::anycast, events::ui::selected, data, -, (inst_id, obj_desc))
+                        {
+                            auto selected = inst_id == data;
+                            boss.set(ansi::fgx(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
+                            boss.deface();
+                        };
+                    });
+                auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
+                auto insts = list_pads->attach(ui::list::ctor())
+                    ->attach_collection(e2::form::prop::ui::header, inst_ptr_list, app_template);
             }
             return apps;
         };
@@ -392,7 +395,7 @@ namespace netxs::app::desk
                             boss.RISEUP(tier::request, e2::config::creator, world_ptr);
                             if (world_ptr)
                             {
-                                auto apps = boss.attach_element(vtm::hall::bindings::list::apps, world_ptr, apps_template);
+                                auto apps = boss.attach_element(vtm::hall::events::list::apps, world_ptr, apps_template);
                             }
                         };
                     });
@@ -418,7 +421,7 @@ namespace netxs::app::desk
                             boss.RISEUP(tier::request, e2::config::creator, world_ptr);
                             if (world_ptr)
                             {
-                                auto users = boss.attach_element(vtm::hall::bindings::list::users, world_ptr, branch_template);
+                                auto users = boss.attach_element(vtm::hall::events::list::users, world_ptr, branch_template);
                             }
                         };
                     });

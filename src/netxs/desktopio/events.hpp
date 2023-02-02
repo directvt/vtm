@@ -272,10 +272,16 @@ namespace netxs::events
         static std::map<id_t, wptr<T>> store;
 
         // indexer: Return shared_ptr of the object by its id.
+        template<class TT = T>
         static auto getref(id_t id)
         {
             auto lock = sync{};
-            return netxs::get_or(store, id, empty).lock();
+            if (auto item_ptr = netxs::get_or(store, id, empty).lock())
+            if (auto real_ptr = std::dynamic_pointer_cast<TT>(item_ptr))
+            {
+                return real_ptr;
+            }
+            return sptr<TT>{};
         }
         // indexer: Create a new object of the specified subtype and return its shared_ptr.
         template<class TT, class ...Args>
@@ -384,7 +390,7 @@ namespace netxs::events
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
                                     private: static constexpr auto _dummy = { 777
 
-    class bell;
+    struct bell;
     using ftor = std::function<bool(sptr<bell>)>;
 
     struct ref_count_t
@@ -413,9 +419,8 @@ namespace netxs::events
     }
 
     // events: Event x-mitter.
-    class bell : public indexer<bell>
+    struct bell : public indexer<bell>
     {
-    public:
         static constexpr auto noid = std::numeric_limits<id_t>::max();
         subs tracker;
 
@@ -591,7 +596,7 @@ namespace netxs::events
 
         bell()
         {
-            LISTEN_GLOBAL(userland::root::cleanup, counter, tracker)
+            LISTEN(tier::general, userland::root::cleanup, counter)
             {
                 counter.obj_count++;
                 preview.cleanup(counter.ref_count, counter.del_count);
@@ -600,9 +605,10 @@ namespace netxs::events
                 anycast.cleanup(counter.ref_count, counter.del_count);
             };
         }
-       ~bell() { SIGNAL(tier::release, userland::root::dtor, id); }
-
-        virtual void global(twod& coor) { } // bell: Recursively calculate global coordinate.
+       ~bell()
+        {
+            SIGNAL(tier::release, userland::root::dtor, id);
+        }
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
 

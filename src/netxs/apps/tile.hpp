@@ -373,8 +373,7 @@ namespace netxs::app::tile
             {
                 for (auto gear_id : gear_id_list)
                 {
-                    if (auto ptr = bell::getref(gear_id))
-                    if (auto gear_ptr = std::dynamic_pointer_cast<hids>(ptr))
+                    if (auto gear_ptr = bell::getref<hids>(gear_id))
                     {
                         gear_ptr->kb_offer_4(item_ptr);
                     }
@@ -781,16 +780,15 @@ namespace netxs::app::tile
                     //todo foci
                     //boss.keybd.master();
                     auto oneoff = ptr::shared(hook{});
-                    auto& conf_list = vtm::hall::configs();
-                    auto objs_config_ptr = &conf_list;
-                    boss.LISTEN(tier::anycast, e2::form::upon::created, gear, *oneoff, (objs_config_ptr, oneoff))
+                    boss.LISTEN(tier::anycast, e2::form::upon::created, gear, *oneoff, (oneoff))
                     {
                         auto& gate = gear.owner;
-                        auto& objs_config = *objs_config_ptr;
                         auto menuid = e2::data::changed.param();
                         gate.SIGNAL(tier::request, e2::data::changed, menuid);
-                        //todo unify
-                        auto& config = objs_config[menuid];
+                        auto conf_list_ptr = vtm::hall::events::list::links.param();
+                        gate.RISEUP(tier::request, vtm::hall::events::list::links, conf_list_ptr);
+                        auto& conf_list = *conf_list_ptr;
+                        auto& config = conf_list[menuid];
                         if (config.type == app::tile::id) // Reset the currently selected application to the previous one.
                         {
                             gate.SIGNAL(tier::preview, e2::data::changed, menuid); // Get previous default;
