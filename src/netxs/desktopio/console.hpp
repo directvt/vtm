@@ -436,44 +436,13 @@ namespace netxs::ui
     using e2 = netxs::events::userland::e2;
 
     //todo OMG!, make it in another way.
-    class skin
+    struct skin
     {
-        //todo revise
-    public:
-        //#define PROP_LIST                       \
-        //X(brighter , "Highlighter modificator") \
-        //X(shadower , "Darklighter modificator") \
-        //X(shadow   , "Light Darklighter modificator") \
-        //X(lucidity , "Global transparency")     \
-        //X(selector , "Selection overlay")       \
-        //X(bordersz , "Border size")
-        //
-        //#define X(a, b) a,
-        //enum prop { PROP_LIST count };
-        //#undef X
-        //
-        //#define X(a, b) b,
-        //text description[prop::count] = { PROP_LIST };
-        //#undef X
-        //#undef PROP_LIST
-
-        cell kb_colors;
-        poly kb_grades;
-
-        cell hi_colors;
-        poly hi_grades;
-
-        cell lo_colors;
-        poly lo_grades;
-
-        cell sh_colors;
-        poly sh_grades;
-
-        cell sl_colors;
-        poly sl_grades;
-
-        twod border = dot_11;
-        si32 opaque = 0xFF;
+        poly kb_focus;
+        poly brighter;
+        poly shadower;
+        poly shadow;
+        poly selector;
 
         cell highlight;
         cell warning;
@@ -483,6 +452,9 @@ namespace netxs::ui
         cell inactive;
         cell menu_white;
         cell menu_black;
+
+        twod bordersz = dot_11;
+        si32 lucidity = 0xFF;
 
         si32 spd;
         si32 pls;
@@ -509,78 +481,17 @@ namespace netxs::ui
             static skin _globals;
             return _globals;
         }
-        static void setup(tone::prop parameter, uint8_t value)
-        {
-            auto& g = globals();
-            switch (parameter)
-            {
-                case tone::prop::kb_focus:
-                    g.kb_colors.bgc(tint::bluelt).bga(value)
-                               .fgc(tint::bluelt).fga(value);
-                    g.kb_grades.recalc(g.kb_colors);
-                    break;
-                case tone::prop::brighter:
-                    g.hi_colors.bgc(rgba(0xFF, 0xFF, 0xFF, value))
-                               .fgc(rgba(0xFF, 0xFF, 0xFF, value)).alpha(value);
-                    g.hi_grades.recalc(g.hi_colors);
-                    break;
-                case tone::prop::shadower:
-                    g.lo_colors.bgc(rgba(0x20, 0x20, 0x20, value)).bga(value);
-                    g.lo_grades.recalc(g.lo_colors);
-                    break;
-                case tone::prop::shadow:
-                    g.sh_colors.bgc(rgba(0x20, 0x20, 0x20, value)).bga(value);
-                    g.sh_grades.recalc(g.sh_colors);
-                    break;
-                case tone::prop::selector:
-                    g.sl_colors.txt(whitespace)
-                        .bgc(rgba(0xFF, 0xFF, 0xFF, value)).bga(value);
-                    g.sl_grades.recalc(g.sl_colors);
-                    break;
-                case tone::prop::lucidity:
-                    g.opaque = value;
-                    break;
-                default:
-                    break;
-            }
-        }
-        static void setup(tone::prop parameter, twod const& size)
-        {
-            auto& g = globals();
-            switch (parameter)
-            {
-                case tone::prop::bordersz: g.border = size; break;
-                default: break;
-            }
-        }
-        static void setup(tone::prop parameter, cell const& color)
-        {
-            auto& g = globals();
-            switch (parameter)
-            {
-                case tone::prop::highlight:  g.highlight  = color; break;
-                case tone::prop::warning:    g.warning    = color; break;
-                case tone::prop::danger:     g.danger     = color; break;
-                case tone::prop::action:     g.action     = color; break;
-                case tone::prop::label:      g.label      = color; break;
-                case tone::prop::inactive:   g.inactive   = color; break;
-                case tone::prop::menu_white: g.menu_white = color; break;
-                case tone::prop::menu_black: g.menu_black = color; break;
-                default: break;
-            }
-        }
-
         // skin:: Return global brighter/shadower color (cell).
         static cell const& color(si32 property)
         {
             auto& g = globals();
             switch (property)
             {
-                case tone::prop::kb_focus:   return g.kb_colors;
-                case tone::prop::brighter:   return g.hi_colors;
-                case tone::prop::shadower:   return g.lo_colors;
-                case tone::prop::shadow:     return g.sh_colors;
-                case tone::prop::selector:   return g.sl_colors;
+                case tone::prop::kb_focus:   return g.kb_focus;
+                case tone::prop::brighter:   return g.brighter;
+                case tone::prop::shadower:   return g.shadower;
+                case tone::prop::shadow:     return g.shadow;
+                case tone::prop::selector:   return g.selector;
                 case tone::prop::highlight:  return g.highlight;
                 case tone::prop::warning:    return g.warning;
                 case tone::prop::danger:     return g.danger;
@@ -589,7 +500,7 @@ namespace netxs::ui
                 case tone::prop::inactive:   return g.inactive;
                 case tone::prop::menu_white: return g.menu_white;
                 case tone::prop::menu_black: return g.menu_black;
-                default:                     return g.hi_colors;
+                default:                     return g.brighter;
             }
         }
         // skin:: Return global gradient for brighter/shadower.
@@ -598,25 +509,13 @@ namespace netxs::ui
             auto& g = globals();
             switch (property)
             {
-                case tone::prop::kb_focus: return g.kb_grades;
-                case tone::prop::brighter: return g.hi_grades;
-                case tone::prop::shadower: return g.lo_grades;
-                case tone::prop::shadow:   return g.sh_grades;
-                case tone::prop::selector: return g.sl_grades;
-                default:                   return g.hi_grades;
+                case tone::prop::kb_focus: return g.kb_focus;
+                case tone::prop::brighter: return g.brighter;
+                case tone::prop::shadower: return g.shadower;
+                case tone::prop::shadow:   return g.shadow;
+                case tone::prop::selector: return g.selector;
+                default:                   return g.brighter;
             }
-        }
-        // skin:: Return global border size.
-        static twod const& border_size()
-        {
-            auto& g = globals();
-            return g.border;
-        }
-        // skin:: Return global transparency.
-        static si32 const& shady()
-        {
-            auto& g = globals();
-            return g.opaque;
         }
     };
 
@@ -1398,9 +1297,9 @@ namespace netxs::ui
                 std::vector<sock> items; // sock: Registered hids.
                 hook              token; // sock: Hids dtor submission.
 
-                socks()
+                socks(base& boss)
                 {
-                    LISTEN_GLOBAL(hids::events::die, gear, token)
+                    boss.LISTEN(tier::general, hids::events::die, gear, token)
                     {
                         del(gear);
                     };
@@ -1572,6 +1471,7 @@ namespace netxs::ui
             sizer(base&&) = delete;
             sizer(base& boss, dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
                 : skill{ boss          },
+                  items{ boss          },
                   outer{ outer_rect    },
                   inner{ inner_rect    },
                   width{ outer - inner },
@@ -1705,6 +1605,7 @@ namespace netxs::ui
             mover(base&&) = delete;
             mover(base& boss, sptr<base> subject)
                 : skill{ boss },
+                  items{ boss },
                   dest_shadow{ subject }
             {
                 boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
@@ -1792,6 +1693,7 @@ namespace netxs::ui
             track(base&&) = delete;
             track(base& boss)
                 : skill{ boss },
+                  items{ boss },
                   alive{ true }
             {
                 boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
@@ -4347,23 +4249,23 @@ namespace netxs::ui
             : synch{ bell::router<tier::general>(), e2::timer::tick.id },
               joint{ server_pipe }
         {
-            skin::setup(tone::brighter  , config.take("brighter"));//120);
-            skin::setup(tone::kb_focus  , config.take("kb_focus"));//60
-            skin::setup(tone::shadower  , config.take("shadower"));//180);//60);//40);// 20);
-            skin::setup(tone::shadow    , config.take("shadow"  ));//180);//5);
-            skin::setup(tone::lucidity  , config.take("lucidity"));//255);
-            skin::setup(tone::selector  , config.take("selector"));//48);
-            skin::setup(tone::bordersz  , config.take("bordersz"  , dot_11));//dot_11);
-            skin::setup(tone::highlight , config.take("highlight" , cell{}));
-            skin::setup(tone::warning   , config.take("warning"   , cell{}));
-            skin::setup(tone::danger    , config.take("danger"    , cell{}));
-            skin::setup(tone::action    , config.take("action"    , cell{}));
-            skin::setup(tone::label     , config.take("label"     , cell{}));
-            skin::setup(tone::inactive  , config.take("inactive"  , cell{}));
-            skin::setup(tone::menu_white, config.take("menu_white", cell{}));
-            skin::setup(tone::menu_black, config.take("menu_black", cell{}));
             using namespace std::chrono;
             auto& g = skin::globals();
+            g.brighter       = config.take("brighter", cell{});//120);
+            g.kb_focus       = config.take("kb_focus", cell{});//60
+            g.shadower       = config.take("shadower", cell{});//180);//60);//40);// 20);
+            g.shadow         = config.take("shadow"  , cell{});//180);//5);
+            g.selector       = config.take("selector", cell{});//48);
+            g.highlight      = config.take("highlight"             , cell{});
+            g.warning        = config.take("warning"               , cell{});
+            g.danger         = config.take("danger"                , cell{});
+            g.action         = config.take("action"                , cell{});
+            g.label          = config.take("label"                 , cell{});
+            g.inactive       = config.take("inactive"              , cell{});
+            g.menu_white     = config.take("menu_white"            , cell{});
+            g.menu_black     = config.take("menu_black"            , cell{});
+            g.lucidity       = config.take("lucidity");
+            g.bordersz       = config.take("bordersz"              , dot_11);
             g.spd            = config.take("timings/spd"           , 10  );
             g.pls            = config.take("timings/pls"           , 167 );
             g.spd_accel      = config.take("timings/spd_accel"     , 1   );
@@ -4391,7 +4293,7 @@ namespace netxs::ui
             {
                 auto damaged = !edges.empty();
                 edges.clear();
-                SIGNAL_GLOBAL(e2::nextframe, damaged);
+                this->SIGNAL(tier::general, e2::nextframe, damaged);
             };
             //todo deprecated
             LISTEN(tier::general, e2::config::creator, world_ptr, token)
@@ -4442,7 +4344,7 @@ namespace netxs::ui
         // host: Initiate redrawing.
         virtual void redraw(face& canvas)
         {
-            SIGNAL_GLOBAL(e2::shutdown, "host: rendering is not provided");
+            SIGNAL(tier::general, e2::shutdown, "host: rendering is not provided");
         }
         // host: Mark dirty region.
         void denote(rect const& updateregion)
@@ -5233,7 +5135,7 @@ namespace netxs::ui
                     };
                     LISTEN(tier::release, e2::config::fps, fps, token)
                     {
-                        if (fps > 0) SIGNAL_GLOBAL(e2::config::fps, fps);
+                        if (fps > 0) this->SIGNAL(tier::general, e2::config::fps, fps);
                     };
                     LISTEN(tier::preview, e2::config::fps, fps, token)
                     {

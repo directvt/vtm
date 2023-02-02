@@ -91,7 +91,8 @@ namespace netxs::ui
         public:
             cell_highlight(base&&) = delete;
             cell_highlight(base& boss)
-                : skill{ boss }
+                : skill{ boss },
+                  items{ boss }
             {
                 boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
                 {
@@ -318,8 +319,8 @@ namespace netxs::app::calc
         };
         auto build = [](text cwd, text arg, xml::settings& config, text patch)
         {
-            auto highlight_color = skin::color(tone::highlight);
-            auto label_color     = skin::color(tone::label);
+            auto highlight_color = skin::globals().highlight;
+            auto label_color     = skin::globals().label;
             auto c3 = highlight_color;
             auto x3 = cell{ c3 }.alpha(0x00);
             auto c7 = label_color;

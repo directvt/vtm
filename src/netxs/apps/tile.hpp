@@ -760,6 +760,7 @@ namespace netxs::app::tile
                 utf::trim_front(utf8, " ,");
                 if (utf8.size() && utf8.front() == ')') utf8.remove_prefix(1); // pop ')';
 
+                //todo subscribe on upon::created
                 auto [object, config] = vtm::hall::newapp(app_id);
                 auto inst = app_window(config.title, config.footer, object, app_id);
                 place->attach(inst);

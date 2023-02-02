@@ -907,7 +907,7 @@ namespace netxs::input
             mouse::load_button_state(0);
             mouse::m.buttons = {};
             take_mouse_focus(owner);
-            SIGNAL_GLOBAL(events::halt, *this);
+            SIGNAL(tier::general, events::halt, *this);
             disabled = true;
         }
         void okay(base& boss)
@@ -1303,8 +1303,8 @@ namespace netxs::input
             auto lock = netxs::events::sync{};
             mouse_leave(mouse::hover, mouse::start);
             clear_kb_focus();
-            SIGNAL_GLOBAL(events::halt, *this);
-            SIGNAL_GLOBAL(events::die, *this);
+            SIGNAL(tier::general, events::halt, *this);
+            SIGNAL(tier::general, events::die, *this);
         }
     };
 }

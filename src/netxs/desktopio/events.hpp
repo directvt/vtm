@@ -363,8 +363,6 @@ namespace netxs::events
 
     #define RISEUP(        level, event,   ...              ) base::template riseup<level>(event, __VA_ARGS__)
     #define SIGNAL(        level, event, param              ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
-    #define SIGNAL_GLOBAL(        event, param              ) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
-    #define LISTEN_GLOBAL(        event, param, token       ) bell::template submit_global( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
     #define LISTEN_S_BYREF(level, event, param              ) bell::template submit<level>( event )           = [&]                  (typename decltype( event )::type&& param)
     #define LISTEN_T_BYREF(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
     #define LISTEN_T_BYVAL(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL byval ] (typename decltype( event )::type&& param) mutable
@@ -379,6 +377,8 @@ namespace netxs::events
     //todo deprecated?
     #define LISTEN_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
     #define LISTEN_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
+    #define SIGNAL_GLOBAL(        event, param              ) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
+    //#define LISTEN_GLOBAL(        event, param, token       ) bell::template submit_global( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
 
     #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
@@ -561,9 +561,10 @@ namespace netxs::events
                 return root->release.notify(userland::root::cascade.id, proc);
             }
         }
-        template<class Event> static auto submit_global(Event, hook& token)   { return submit_helper_token_global<Event>(token); }
-        template<class Event> static auto submit_global(Event, subs& tokens)  { return submit_helper_token_global<Event>(tokens.extra()); }
+        //todo deprecated
         template<class F>     static auto signal_global(hint event, F&& data) { return _globals<void>::general.notify(event, std::forward<F>(data)); }
+        //template<class Event> static auto submit_global(Event, hook& token)   { return submit_helper_token_global<Event>(token); }
+        //template<class Event> static auto submit_global(Event, subs& tokens)  { return submit_helper_token_global<Event>(tokens.extra()); }
         // bell: Return initial event of the current event execution branch.
         template<tier Tier>
         auto protos()

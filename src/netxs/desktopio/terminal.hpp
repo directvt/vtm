@@ -6443,9 +6443,8 @@ namespace netxs::ui
             auto close_proc = [&]
             {
                 log("term: submit for destruction on next frame/tick");
-                LISTEN_GLOBAL(e2::timer::any, t, oneoff)
+                LISTEN(tier::general, e2::timer::any, t, oneoff, (backup = This()))
                 {
-                    auto backup = This();
                     this->RISEUP(tier::release, e2::form::quit, backup);
                     oneoff.reset();
                 };
@@ -6456,7 +6455,7 @@ namespace netxs::ui
                     .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
                     .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                 ondata(error);
-                this->LISTEN(tier::release, hids::events::keybd::any, gear, onerun)
+                LISTEN(tier::release, hids::events::keybd::any, gear, onerun)
                 {
                     if (gear.pressed && gear.cluster.size())
                     {
@@ -6473,7 +6472,7 @@ namespace netxs::ui
                 auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
                     .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
                 ondata(error);
-                LISTEN_GLOBAL(e2::timer::any, t, onerun)
+                LISTEN(tier::general, e2::timer::any, t, onerun)
                 {
                     start();
                 };
@@ -6958,7 +6957,7 @@ namespace netxs::ui
             if (!ptycon && !oneoff)
             {
                 ptycon.cleanup();
-                LISTEN_GLOBAL(e2::timer::any, timer, oneoff)
+                LISTEN(tier::general, e2::timer::any, timer, oneoff)
                 {
                     if (unique != timer)
                     {
@@ -7372,7 +7371,7 @@ namespace netxs::ui
             {
                 netxs::events::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& boss) mutable
                 {
-                    SIGNAL_GLOBAL(e2::config::fps, fps);
+                    boss.SIGNAL(tier::general, e2::config::fps, fps);
                 });
             }
             void handle(s11n::xs::logs                lock)
@@ -7528,9 +7527,8 @@ namespace netxs::ui
                 active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
                 else      log("dtvt: exit code 0");
-                LISTEN_GLOBAL(e2::timer::any, t, oneoff)
+                LISTEN(tier::general, e2::timer::any, t, oneoff, (backup = This()))
                 {
-                    auto backup = This();
                     this->RISEUP(tier::release, e2::form::quit, backup);
                     oneoff.reset();
                 };
@@ -7572,7 +7570,7 @@ namespace netxs::ui
 
             if (!ptycon && !oneoff)
             {
-                LISTEN_GLOBAL(e2::timer::any, timer, oneoff)
+                LISTEN(tier::general, e2::timer::any, timer, oneoff)
                 {
                     if (unique != timer)
                     {

@@ -506,7 +506,7 @@ namespace netxs::app::vtm
                         {
                             auto start = datetime::now();
                             auto counter = e2::cleanup.param();
-                            SIGNAL_GLOBAL(e2::cleanup, counter);
+                            boss.SIGNAL(tier::general, e2::cleanup, counter);
                             auto stop = datetime::now() - start;
                             log("hall: garbage collection",
                             "\n\ttime ", utf::format(stop.count()), "ns",
@@ -593,12 +593,12 @@ namespace netxs::app::vtm
             {
                 if (alpha == -1)
                 {
-                    alpha = skin::shady();
+                    alpha = skin::globals().lucidity;
                 }
                 else
                 {
                     alpha = std::clamp(alpha, 0, 255);
-                    skin::setup(tone::lucidity, alpha);
+                    skin::globals().lucidity = alpha;
                     this->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
                 }
             };

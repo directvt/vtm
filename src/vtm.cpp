@@ -240,9 +240,9 @@ int main(int argc, char* argv[])
             return 1;
         }
         using e2 = netxs::ui::e2;
-        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::conio::logs, utf8); });
         config.cd("/config/appearance/defaults/");
         auto ground = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
+        auto srvlog = syslog.tee<events::try_sync>([&](auto utf8) { ground->SIGNAL(tier::general, e2::conio::logs, utf8); });
         auto thread = os::process::pool{};
         ground->autorun(config);
 
@@ -257,8 +257,8 @@ int main(int argc, char* argv[])
                 thread.run([&, stream](auto session_id)
                 {
                     auto tokens = subs{};
-                    LISTEN_GLOBAL(e2::conio::quit, utf8, tokens) { stream->shut(); };
-                    LISTEN_GLOBAL(e2::conio::logs, utf8, tokens) { stream->send(utf8); };
+                    ground->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { stream->shut(); };
+                    ground->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { stream->send(utf8); };
                     log("logs: monitor ", stream, " connected");
                     stream->recv();
                     log("logs: monitor ", stream, " disconnected");
@@ -287,7 +287,7 @@ int main(int argc, char* argv[])
                 }
             });
         }
-        SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
+        ground->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
         ground->shutdown();
         logger->stop();
         stdlog.join();

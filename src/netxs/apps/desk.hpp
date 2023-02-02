@@ -31,8 +31,8 @@ namespace netxs::app::desk
     {
         auto app_template = [](auto& data_src, auto const& utf8)
         {
-            auto danger_color    = skin::color(tone::danger);
-            auto highlight_color = skin::color(tone::highlight);
+            auto danger_color    = skin::globals().danger;
+            auto highlight_color = skin::globals().highlight;
             auto c4 = cell{}.bgc(highlight_color.bgc());
             auto x4 = cell{ c4 }.bga(0x00);
             auto c5 = danger_color;
@@ -108,8 +108,8 @@ namespace netxs::app::desk
         };
         auto apps_template = [](auto& data_src, auto& apps_map_ptr)
         {
-            auto highlight_color = skin::color(tone::highlight);
-            auto inactive_color  = skin::color(tone::inactive);
+            auto highlight_color = skin::globals().highlight;
+            auto inactive_color  = skin::globals().inactive;
             auto c3 = highlight_color;
             auto x3 = cell{ c3 }.alpha(0x00);
             auto cA = inactive_color;
@@ -231,11 +231,11 @@ namespace netxs::app::desk
 
         auto build = [](text cwd, text v, xml::settings& config, text patch)
         {
-            auto highlight_color = skin::color(tone::highlight);
-            auto action_color    = skin::color(tone::action);
-            auto inactive_color  = skin::color(tone::inactive);
-            auto warning_color = skin::color(tone::warning);
-            auto danger_color  = skin::color(tone::danger);
+            auto highlight_color = skin::globals().highlight;
+            auto action_color    = skin::globals().action;
+            auto inactive_color  = skin::globals().inactive;
+            auto warning_color   = skin::globals().warning;
+            auto danger_color    = skin::globals().danger;
             auto cA = inactive_color;
             auto c3 = highlight_color;
             auto x3 = cell{ c3 }.alpha(0x00);
@@ -470,7 +470,7 @@ namespace netxs::app::desk
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            SIGNAL_GLOBAL(e2::shutdown, "desk: server shutdown");
+                            boss.SIGNAL(tier::general, e2::shutdown, "desk: server shutdown");
                         };
                     });
                 auto shutdown_area = shutdown_park->attach(snap::tail, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));

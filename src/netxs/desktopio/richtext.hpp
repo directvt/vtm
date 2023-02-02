@@ -12,12 +12,13 @@ namespace netxs::ui
 
     class poly
     {
+        cell basis;
         cell grade[256];
 
     public:
         poly() = default;
-
         poly(cell const& basis)
+            : basis{ basis }
         {
             recalc(basis);
         }
@@ -34,7 +35,8 @@ namespace netxs::ui
             }
         }
 
-        cell const& operator [] (uint8_t k) const
+        operator auto& () const { return basis; }
+        auto& operator [] (uint8_t k) const
         {
             return grade[k];
         }
@@ -2009,9 +2011,7 @@ namespace netxs::ui
         X(brighter  , "Highlighter modificator")       \
         X(shadower  , "Darklighter modificator")       \
         X(shadow    , "Light Darklighter modificator") \
-        X(lucidity  , "Global transparency")           \
         X(selector  , "Selection overlay")             \
-        X(bordersz  , "Border size")                   \
         X(highlight , "Hilighted item color")          \
         X(warning   , "Warning color")                 \
         X(danger    , "Danger color")                  \
