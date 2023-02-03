@@ -33,6 +33,16 @@ namespace netxs::app::vtm
         xml::settings settings;
     };
 
+    struct newitem_t
+    {
+        using sptr = sptr<base>;
+
+        text menuid; //  IN: .
+        text header; // OUT: .
+        text footer; // OUT: .
+        sptr object; // OUT: .
+    };
+
     using links_t = std::unordered_map<text, menuitem_t>;
     using registry_t = generics::imap<text, std::pair<bool, std::list<sptr<base>>>>;
 
@@ -59,26 +69,27 @@ namespace netxs::app::vtm
     static constexpr auto path_item     = "/config/menu/item";
     static constexpr auto path_autorun  = "/config/menu/autorun/item";
 
+    struct events
+    {
+        EVENTPACK( events, ui::e2::extra )
+        {
+            EVENT_XS( attached, sptr<base> ), // anycast: inform that the object tree is attached to the world
+            EVENT_XS( newapp  , newitem_t  ), // request: create new object using specified meniid
+            GROUP_XS( list    , si32       ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
+
+            SUBSET_XS( list )
+            {
+                EVENT_XS( users, sptr<std::list<sptr<ui::base>>> ), // list of connected users.
+                EVENT_XS( apps , sptr<registry_t>                ), // list of running apps.
+                EVENT_XS( links, sptr<links_t>                   ), // list of registered apps.
+            };
+        };
+    };
+
     // vtm: Desktopio Workspace.
     struct hall
         : public host
     {
-        struct events
-        {
-            EVENTPACK( events, ui::e2::extra )
-            {
-                EVENT_XS( newapp , si32 ),
-                GROUP_XS( list   , si32 ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
-
-                SUBSET_XS( list )
-                {
-                    EVENT_XS( users, sptr<std::list<sptr<ui::base>>> ), // list of connected users.
-                    EVENT_XS( apps , sptr<registry_t>                ), // list of running apps.
-                    EVENT_XS( links, sptr<links_t>                   ), // list of registered apps.
-                };
-            };
-        };
-
     private:
         class node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
         {
@@ -402,30 +413,7 @@ namespace netxs::app::vtm
         depo regis; // hall: Actors registry.
         idls taken; // hall: Focused objects for the last user.
 
-    public:
-        //todo use events
-        static auto& configs()
-        {
-            auto world_ptr = e2::config::creator.param();
-            SIGNAL_GLOBAL(e2::config::creator, world_ptr);
-            auto conf_list_ptr = hall::events::list::links.param();
-            world_ptr->SIGNAL(tier::request, hall::events::list::links, conf_list_ptr);
-            auto& conf_list = *conf_list_ptr;
-            return conf_list;
-        }
-        //todo use events
-        static auto newapp(auto& menuid)
-        {
-            auto& conf_list = vtm::hall::configs();
-            auto& config = conf_list[menuid];
-            auto& creator = app::shared::create::builder(config.type);
-            auto object = creator(config.cwd, config.param, config.settings, config.patch);
-            if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
-            if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
-            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
-            return std::pair{ object, config };
-        }
-        auto _newapp(auto& menuid)
+        auto newapp(auto& menuid)
         {
             auto& config = regis.lnk[menuid];
             auto& creator = app::shared::create::builder(config.type);
@@ -589,6 +577,13 @@ namespace netxs::app::vtm
                 conf_list.emplace(std::move(id), std::move(conf_rec));
             }
 
+            LISTEN(tier::request, vtm::events::newapp, newwhat)
+            {
+                auto [object, config] = newapp(newwhat.menuid);
+                newwhat.header = config.title;
+                newwhat.footer = config.footer;
+                newwhat.object = object;
+            };
             LISTEN(tier::general, e2::form::global::lucidity, alpha)
             {
                 if (alpha == -1)
@@ -650,15 +645,15 @@ namespace netxs::app::vtm
                 auto region = items.expose(inst.bell::id);
                 host::denote(region);
             };
-            LISTEN(tier::request, hall::events::list::users, usr_list_ptr)
+            LISTEN(tier::request, vtm::events::list::users, usr_list_ptr)
             {
                 usr_list_ptr = regis.usr_ptr;
             };
-            LISTEN(tier::request, hall::events::list::apps, app_list_ptr)
+            LISTEN(tier::request, vtm::events::list::apps, app_list_ptr)
             {
                 app_list_ptr = regis.app_ptr;
             };
-            LISTEN(tier::request, hall::events::list::links, list_ptr)
+            LISTEN(tier::request, vtm::events::list::links, list_ptr)
             {
                 list_ptr = regis.lnk_ptr;
             };
@@ -687,6 +682,7 @@ namespace netxs::app::vtm
             {
                 taken[gear.id] = gear.clear_kb_focus();
             };
+            //todo release -> request
             LISTEN(tier::release, e2::form::proceed::createby, gear)
             {
                 static auto insts_count = si32{ 0 };
@@ -718,9 +714,10 @@ namespace netxs::app::vtm
                     }
                 }
             };
+            //todo release -> request
             LISTEN(tier::release, e2::form::proceed::createat, what)
             {
-                auto [object, config] = _newapp(what.menuid);
+                auto [object, config] = newapp(what.menuid);
                 auto window = base_window(config.title, config.footer, what.menuid);
                 if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
                 else                                window->extend(what.square);
@@ -730,6 +727,7 @@ namespace netxs::app::vtm
                 window->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
                 what.object = window;
             };
+            //todo release -> request
             LISTEN(tier::release, e2::form::proceed::createfrom, what)
             {
                 auto& config = regis.lnk[what.menuid];
@@ -814,7 +812,8 @@ namespace netxs::app::vtm
             stat = fixed;
             list.push_back(item);
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-            SIGNAL(tier::release, hall::events::list::apps, regis.app_ptr);
+            item->SIGNAL(tier::anycast, vtm::events::attached, base::This());
+            SIGNAL(tier::release, vtm::events::list::apps, regis.app_ptr);
         }
         // hall: Create a new user of the specified subtype and invite him to the scene.
         template<class S, class ...Args>
@@ -824,7 +823,7 @@ namespace netxs::app::vtm
             auto user = host::invite<S>(std::forward<Args>(args)...);
             users.append(user);
             regis.usr.push_back(user);
-            SIGNAL(tier::release, hall::events::list::users, regis.usr_ptr);
+            SIGNAL(tier::release, vtm::events::list::users, regis.usr_ptr);
             return user;
         }
     };

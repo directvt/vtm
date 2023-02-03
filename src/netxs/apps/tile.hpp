@@ -264,8 +264,12 @@ namespace netxs::app::tile
             //    gear.dismiss();
             //};
         };
-        auto app_window = [](view header, view footer, auto branch, auto menuid)
+        auto app_window = [](auto& config)
         {
+            auto& header = config.header;
+            auto& footer = config.footer;
+            auto& branch = config.object;
+            auto& menuid = config.menuid;
             return ui::fork::ctor(axis::Y)
                     ->plugin<pro::title>(""/*not used here*/, footer, true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
@@ -336,7 +340,6 @@ namespace netxs::app::tile
                                 gear.pass<tier::release>(what.object, dot_00);
                             }
                         };
-
                         boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                         {
                             boss.RISEUP(tier::release, events::enlist, boss.This()); //todo "template" keyword is required by gcc
@@ -441,7 +444,6 @@ namespace netxs::app::tile
             return ui::veer::ctor()
                 ->invoke([&](auto& boss)
                 {
-                    auto shadow = ptr::shadow(boss.This());
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
                         // Block rising up this event: DTVT object fires this event on exit.
@@ -484,7 +486,7 @@ namespace netxs::app::tile
                         {
                             //todo unify
                             boss.back()->color(cC.fgc(), cC.bgc());
-                            auto app = app_window(what.header, what.footer, what.object, what.menuid);
+                            auto app = app_window(what);
                             boss.attach(app);
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);
                         }
@@ -673,15 +675,14 @@ namespace netxs::app::tile
                             auto& gate = gear.owner;
                             auto current_default = e2::data::changed.param();
                             gate.SIGNAL(tier::request, e2::data::changed, current_default);
-
-                            auto [object, config] = vtm::hall::newapp(current_default);
-
-                            auto app = app_window(config.title, "", object, current_default);
+                            auto config = vtm::events::newapp.param({ .menuid = current_default });
+                            gate.RISEUP(tier::request, vtm::events::newapp, config);
+                            auto app = app_window(config);
                             gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                             boss.attach(app);
 
                             insts_count++; //todo unify, demo limits
-                            object->LISTEN(tier::release, e2::dtor, id)
+                            config.object->LISTEN(tier::release, e2::dtor, id)
                             {
                                 insts_count--;
                                 log("tile: inst: detached: ", insts_count, " id=", id);
@@ -702,10 +703,7 @@ namespace netxs::app::tile
                         }
                     };
                 })
-                ->branch
-                (
-                    empty_pane()
-                );
+                ->branch(empty_pane());
         };
         auto parse_data = [](auto&& parse_data, view& utf8) -> sptr<ui::veer>
         {
@@ -754,16 +752,22 @@ namespace netxs::app::tile
             else  // Add application.
             {
                 utf::trim_front(utf8, " ");
-                auto app_id = text{ utf::get_tail(utf8, " ,)") };
-                if (app_id.empty()) return place;
+                auto menuid = text{ utf::get_tail(utf8, " ,)") };
+                if (menuid.empty()) return place;
 
                 utf::trim_front(utf8, " ,");
                 if (utf8.size() && utf8.front() == ')') utf8.remove_prefix(1); // pop ')';
 
-                //todo subscribe on upon::created
-                auto [object, config] = vtm::hall::newapp(app_id);
-                auto inst = app_window(config.title, config.footer, object, app_id);
-                place->attach(inst);
+                auto oneoff = ptr::shared(hook{});
+                place->LISTEN(tier::anycast, vtm::events::attached, world_ptr, *oneoff, (oneoff, menuid, place))
+                {
+                    auto newwhat = vtm::events::newapp.param({ .menuid = menuid });
+                    world_ptr->SIGNAL(tier::request, vtm::events::newapp, newwhat);
+                    auto inst = app_window(newwhat);
+                    place->attach(inst);
+                    inst->SIGNAL(tier::anycast, vtm::events::attached, world_ptr);
+                    oneoff.reset();
+                };
             }
             return place;
         };
@@ -786,8 +790,8 @@ namespace netxs::app::tile
                         auto& gate = gear.owner;
                         auto menuid = e2::data::changed.param();
                         gate.SIGNAL(tier::request, e2::data::changed, menuid);
-                        auto conf_list_ptr = vtm::hall::events::list::links.param();
-                        gate.RISEUP(tier::request, vtm::hall::events::list::links, conf_list_ptr);
+                        auto conf_list_ptr = vtm::events::list::links.param();
+                        gate.RISEUP(tier::request, vtm::events::list::links, conf_list_ptr);
                         auto& conf_list = *conf_list_ptr;
                         auto& config = conf_list[menuid];
                         if (config.type == app::tile::id) // Reset the currently selected application to the previous one.

@@ -353,6 +353,7 @@ namespace netxs::events
         static constexpr auto id = Event_id;
         template<class ...Args> constexpr type_clue(Args&&...) { }
         template<class ...Args> static constexpr auto param(Args&&... args) { return type{ std::forward<Args>(args)... }; }
+                                static constexpr auto param(type&&    arg ) { return std::move(arg);                      }
         template<auto N>        static constexpr auto group()               { return events::subset<id, N>;               }
                                 static constexpr auto index()               { return events::number<id>;                  }
     };
@@ -405,7 +406,7 @@ namespace netxs::events
     {
         struct root
         {
-            static constexpr auto root_event = type_clue<root, void, 0>{};
+            static constexpr auto root_event = type_clue<root, si32, 0>{};
             EVENTPACK( root, root_event )
             {
                 EVENT_XS( dtor   , const id_t ),

@@ -1906,7 +1906,7 @@ struct consrv
                 {
                     datasize = 0;
                 }
-                log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", utf::debase<faux, faux>(crop));
+                log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", ansi::inv(true).add(utf::debase<faux, faux>(crop)).nil());
                 scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
             }
             else

@@ -7385,9 +7385,9 @@ namespace netxs::ui
                                                                 : ansi::add("      ", owner.procid, ": ");
                     utf::divide(utf8, '\n', [&](auto line)
                     {
-                        output.add(prompt, line);
+                        output.add(prompt, line, '\n');
                     });
-                    log(output);
+                    log(output, faux);
                 }
             }
 
