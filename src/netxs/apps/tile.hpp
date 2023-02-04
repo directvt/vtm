@@ -264,10 +264,10 @@ namespace netxs::app::tile
             //    gear.dismiss();
             //};
         };
-        auto app_window = [](auto& link)
+        auto app_window = [](auto& what)
         {
             return ui::fork::ctor(axis::Y)
-                    ->template plugin<pro::title>(""/*not used here*/, link.footer, true, faux, true)
+                    ->template plugin<pro::title>(""/*not used here*/, what.footer, true, faux, true)
                     ->template plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
                     ->template plugin<pro::light>()
                     ->isroot(true)
@@ -278,11 +278,11 @@ namespace netxs::app::tile
                         anycasting(boss);
                         mouse_subs(boss);
 
-                        if (link.applet->size() != dot_00) boss.resize(link.applet->size() + dot_01/*approx title height*/);
+                        if (what.applet->size() != dot_00) boss.resize(what.applet->size() + dot_01/*approx title height*/);
 
                         auto master_shadow = ptr::shadow(boss.This());
-                        auto applet_shadow = ptr::shadow(link.applet);
-                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, master_shadow, menuid = link.menuid))
+                        auto applet_shadow = ptr::shadow(what.applet);
+                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, master_shadow, menuid = what.menuid))
                         {
                             if (auto master_ptr = master_shadow.lock())
                             if (auto applet_ptr = applet_shadow.lock())
@@ -342,7 +342,7 @@ namespace netxs::app::tile
                     //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
                     ->branch(slot::_1,
                         ui::post_fx::ctor()
-                        ->upload(link.header)
+                        ->upload(what.header)
                         ->invoke([&](auto& boss)
                         {
                             auto shadow = ptr::shadow(boss.This());
@@ -362,7 +362,7 @@ namespace netxs::app::tile
                                 };
                             };
                         }))
-                    ->branch(slot::_2, link.applet);
+                    ->branch(slot::_2, what.applet);
         };
         auto pass_focus = [](auto& gear_id_list, auto item_ptr)
         {
@@ -765,7 +765,7 @@ namespace netxs::app::tile
             }
             return slot;
         };
-        auto build_inst = [](text cwd, view param, xml::settings& config, text patch) -> sptr<base>
+        auto build_inst = [](text cwd, view param, xmls& config, text patch) -> sptr<base>
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -784,8 +784,8 @@ namespace netxs::app::tile
                         auto& gate = gear.owner;
                         auto menuid = e2::data::changed.param();
                         gate.SIGNAL(tier::request, e2::data::changed, menuid);
-                        auto conf_list_ptr = vtm::events::list::links.param();
-                        gate.RISEUP(tier::request, vtm::events::list::links, conf_list_ptr);
+                        auto conf_list_ptr = vtm::events::list::menu.param();
+                        gate.RISEUP(tier::request, vtm::events::list::menu, conf_list_ptr);
                         auto& conf_list = *conf_list_ptr;
                         auto& config = conf_list[menuid];
                         if (config.type == app::tile::id) // Reset the currently selected application to the previous one.

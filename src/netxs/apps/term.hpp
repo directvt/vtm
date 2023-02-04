@@ -169,7 +169,7 @@ namespace netxs::app::term
         };
     }
 
-    const auto terminal_menu = [](xml::settings& config)
+    const auto terminal_menu = [](xmls& config)
     {
         auto highlight_color = skin::color(tone::highlight);
         auto c3 = highlight_color;
@@ -619,7 +619,7 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;

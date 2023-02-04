@@ -128,8 +128,8 @@ namespace netxs::app::desk
             auto def_note = text{" Menu item:                           \n"
                                  "   Left click to start a new instance \n"
                                  "   Right click to set default app     "};
-            auto conf_list_ptr = vtm::events::list::links.param();
-            data_src->RISEUP(tier::request, vtm::events::list::links, conf_list_ptr);
+            auto conf_list_ptr = vtm::events::list::menu.param();
+            data_src->RISEUP(tier::request, vtm::events::list::menu, conf_list_ptr);
             if (!conf_list_ptr || !apps_map_ptr) return apps;
             auto& conf_list = *conf_list_ptr;
             auto& apps_map = *apps_map_ptr;
@@ -179,7 +179,7 @@ namespace netxs::app::desk
                         //{
                         //   //if (auto data_src = data_src_shadow.lock())
                         //   {
-                        //       sptr<vtm::registry_t> registry_ptr;
+                        //       sptr<vtm::apps> registry_ptr;
                         //       //data_src->SIGNAL(tier::request, vtm::events::list::apps, registry_ptr);
                         //       world.SIGNAL(tier::request, vtm::events::list::apps, registry_ptr);
                         //       auto& app_list = (*registry_ptr)[inst_id];
@@ -229,7 +229,7 @@ namespace netxs::app::desk
             return apps;
         };
 
-        auto build = [](text cwd, text v, xml::settings& config, text patch)
+        auto build = [](text cwd, text v, xmls& config, text patch)
         {
             auto highlight_color = skin::globals().highlight;
             auto action_color    = skin::globals().action;
@@ -421,7 +421,7 @@ namespace netxs::app::desk
                             boss.RISEUP(tier::request, e2::config::creator, world_ptr);
                             if (world_ptr)
                             {
-                                auto users = boss.attach_element(vtm::events::list::users, world_ptr, branch_template);
+                                auto users = boss.attach_element(vtm::events::list::usrs, world_ptr, branch_template);
                             }
                         };
                     });

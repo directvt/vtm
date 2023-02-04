@@ -10,7 +10,7 @@ namespace netxs::app::vtm
     static constexpr auto id = "vtm";
     static constexpr auto desc = " vtm:";
 
-    struct menuitem
+    struct spec
     {
         text   menuid{};
         text    alias{};
@@ -32,7 +32,7 @@ namespace netxs::app::vtm
         text    patch{};
     };
 
-    struct baseitem
+    struct link
     {
         using sptr = netxs::sptr<base>;
         text menuid{};
@@ -43,8 +43,9 @@ namespace netxs::app::vtm
         sptr applet{};
     };
 
-    using links_t = std::unordered_map<text, menuitem>;
-    using registry_t = generics::imap<text, std::pair<bool, std::list<sptr<base>>>>;
+    using menu = std::unordered_map<text, spec>;
+    using usrs = std::list<sptr<base>>;
+    using apps = generics::imap<text, std::pair<bool, usrs>>;
 
     static constexpr auto attr_id       = "id";
     static constexpr auto attr_alias    = "alias";
@@ -73,23 +74,23 @@ namespace netxs::app::vtm
     {
         EVENTPACK( events, ui::e2::extra )
         {
-            EVENT_XS( newapp  , baseitem       ), // request: create new object using specified meniid
-            EVENT_XS( handoff , baseitem       ), // general: attach spcified intance and return sptr<base>.
-            EVENT_XS( attached, sptr<base>     ), // anycast: inform that the object tree is attached to the world
-            GROUP_XS( list    , si32           ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
-            GROUP_XS( d_n_d   , sptr<ui::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+            EVENT_XS( newapp  , link       ), // request: create new object using specified meniid
+            EVENT_XS( handoff , link       ), // general: attach spcified intance and return sptr<base>.
+            EVENT_XS( attached, sptr<base> ), // anycast: inform that the object tree is attached to the world
+            GROUP_XS( d_n_d   , sptr<base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+            GROUP_XS( list    , si32       ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
 
             SUBSET_XS( list )
             {
-                EVENT_XS( users, sptr<std::list<sptr<ui::base>>> ), // list of connected users.
-                EVENT_XS( apps , sptr<registry_t>                ), // list of running apps.
-                EVENT_XS( links, sptr<links_t>                   ), // list of registered apps.
+                EVENT_XS( usrs, sptr<vtm::usrs> ), // list of connected users.
+                EVENT_XS( apps, sptr<vtm::apps> ), // list of running apps.
+                EVENT_XS( menu, sptr<vtm::menu> ), // list of registered apps.
             };
             SUBSET_XS(d_n_d)
             {
-                EVENT_XS(ask  , sptr<ui::base>),
-                EVENT_XS(drop , baseitem      ),
-                EVENT_XS(abort, sptr<ui::base>),
+                EVENT_XS( ask  , sptr<base> ),
+                EVENT_XS( abort, sptr<base> ),
+                EVENT_XS( drop , link       ),
             };
         };
     };
@@ -464,15 +465,15 @@ namespace netxs::app::vtm
         };
         struct depo // hall: Helper-class. Actors registry.
         {
-            sptr<registry_t>            app_ptr = ptr::shared(registry_t{});
-            sptr<std::list<sptr<base>>> usr_ptr = ptr::shared(std::list<sptr<base>>{});
-            sptr<links_t>               lnk_ptr = ptr::shared(links_t{});
-            registry_t&                 app = *app_ptr;
-            std::list<sptr<base>>&      usr = *usr_ptr;
-            links_t&                    lnk = *lnk_ptr;
-            xml::settings&              settings;
+            sptr<apps> app_ptr = ptr::shared(apps{});
+            sptr<usrs> usr_ptr = ptr::shared(usrs{});
+            sptr<menu> lnk_ptr = ptr::shared(menu{});
+            apps&      app = *app_ptr;
+            usrs&      usr = *usr_ptr;
+            menu&      lnk = *lnk_ptr;
+            xmls&      settings;
 
-            depo(xml::settings& settings)
+            depo(xmls& settings)
                 : settings{ settings }
             { }
 
@@ -522,7 +523,7 @@ namespace netxs::app::vtm
         depo regis; // hall: Actors registry.
         idls taken; // hall: Focused objects for the last user.
 
-        auto window(baseitem& what)
+        auto window(link& what)
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
@@ -587,22 +588,11 @@ namespace netxs::app::vtm
                     };
                 });
         }
-        auto& runapp(baseitem& what)
+        auto create(link& what)
         {
-            auto& setup = regis.lnk[what.menuid];
-            auto& maker = app::shared::builder(setup.type);
-            what.applet = maker(setup.cwd, setup.param, regis.settings, setup.patch);
-            what.header = setup.title;
-            what.footer = setup.footer;
-            if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
-            if (setup.fgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   setup.fgc);
-            if (setup.slimmenu) what.applet->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, setup.slimmenu);
-            return setup;
-        }
-        auto create(baseitem& what)
-        {
-            auto& cfg = runapp(what);
+            SIGNAL(tier::request, vtm::events::newapp, what);
             auto slot = window(what);
+            auto& cfg = regis.lnk[what.menuid];
             if (cfg.winsize && !what.forced) slot->extend({ what.square.coor, cfg.winsize });
             else                             slot->extend(what.square);
             slot->attach(what.applet);
@@ -613,16 +603,16 @@ namespace netxs::app::vtm
         }
 
     protected:
-        hall(xipc server_pipe, xml::settings& config, text defailt_id)
+        hall(xipc server_pipe, xmls& config, text defailt_id)
             : host{ server_pipe, config },
               regis{ config }
         {
             auto current_module_file = os::process::binary();
             auto& menu_list = *regis.app_ptr;
             auto& conf_list = *regis.lnk_ptr;
-            auto  free_list = std::list<std::pair<text, menuitem>>{};
+            auto  free_list = std::list<std::pair<text, spec>>{};
             auto  temp_list = free_list;
-            auto dflt_rec = menuitem
+            auto dflt_rec = spec
             {
                 .hidden   = faux,
                 .slimmenu = faux,
@@ -645,7 +635,7 @@ namespace netxs::app::vtm
             for (auto item_ptr : config.list(path_item))
             {
                 auto& item = *item_ptr;
-                auto conf_rec = menuitem{};
+                auto conf_rec = spec{};
                 //todo autogen id if absent
                 conf_rec.splitter = item.take(attr_splitter, faux);
                 conf_rec.menuid   = item.take(attr_id,       ""s );
@@ -702,7 +692,14 @@ namespace netxs::app::vtm
 
             LISTEN(tier::request, vtm::events::newapp, what)
             {
-                runapp(what);
+                auto& setup = regis.lnk[what.menuid];
+                auto& maker = app::shared::builder(setup.type);
+                what.applet = maker(setup.cwd, setup.param, regis.settings, setup.patch);
+                what.header = setup.title;
+                what.footer = setup.footer;
+                if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
+                if (setup.fgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   setup.fgc);
+                if (setup.slimmenu) what.applet->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, setup.slimmenu);
             };
             LISTEN(tier::general, e2::form::global::lucidity, alpha)
             {
@@ -765,7 +762,7 @@ namespace netxs::app::vtm
                 auto region = items.expose(inst.bell::id);
                 host::denote(region);
             };
-            LISTEN(tier::request, vtm::events::list::users, usr_list_ptr)
+            LISTEN(tier::request, vtm::events::list::usrs, usr_list_ptr)
             {
                 usr_list_ptr = regis.usr_ptr;
             };
@@ -773,7 +770,7 @@ namespace netxs::app::vtm
             {
                 app_list_ptr = regis.app_ptr;
             };
-            LISTEN(tier::request, vtm::events::list::links, list_ptr)
+            LISTEN(tier::request, vtm::events::list::menu, list_ptr)
             {
                 list_ptr = regis.lnk_ptr;
             };
@@ -814,7 +811,7 @@ namespace netxs::app::vtm
                 }
                 else
                 {
-                    auto what = baseitem{ .square = gear.slot, .forced = gear.slot_forced };
+                    auto what = link{ .square = gear.slot, .forced = gear.slot_forced };
                     gate.SIGNAL(tier::request, e2::data::changed, what.menuid);
                     if (auto window = create(what))
                     {
@@ -852,9 +849,9 @@ namespace netxs::app::vtm
         }
 
         // hall: Autorun apps from config.
-        void autorun(xml::settings& config)
+        void autorun(xmls& config)
         {
-            auto what = baseitem{};
+            auto what = link{};
             auto& active = taken[id_t{}];
             for (auto app_ptr : config.list(path_autorun))
             {
@@ -925,7 +922,7 @@ namespace netxs::app::vtm
             auto user = host::invite<S>(std::forward<Args>(args)...);
             users.append(user);
             regis.usr.push_back(user);
-            SIGNAL(tier::release, vtm::events::list::users, regis.usr_ptr);
+            SIGNAL(tier::release, vtm::events::list::usrs, regis.usr_ptr);
             return user;
         }
     };

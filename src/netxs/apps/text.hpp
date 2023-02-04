@@ -185,7 +185,7 @@ utility like ctags is used to locate the definitions.
 
 )";
 
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
 

@@ -164,7 +164,7 @@ namespace netxs::ui
             si32 def_none_f;
             si32 def_find_f;
 
-            termconfig(xml::settings& config)
+            termconfig(xmls& config)
             {
                 static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
                     {{ "auto",    commands::atexit::smart   },
@@ -6986,7 +6986,7 @@ namespace netxs::ui
         }
         bool linux_console{};
        ~term(){ active = faux; }
-        term(text cwd, text cmd, xml::settings& xml_config)
+        term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
               altbuf{ *this },

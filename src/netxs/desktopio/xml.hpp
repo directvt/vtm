@@ -1313,3 +1313,7 @@ namespace netxs::xml
             { "center", bias::center }};
     }
 }
+namespace netxs
+{
+    using xmls = xml::settings;
+}

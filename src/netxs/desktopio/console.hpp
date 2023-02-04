@@ -1191,7 +1191,7 @@ namespace netxs::ui
         }
 
         conf() = default;
-        conf(si32 mode, xml::settings& config)
+        conf(si32 mode, xmls& config)
             : session_id{ 0 },
               legacy_mode{ mode }
         {
@@ -1201,7 +1201,7 @@ namespace netxs::ui
             is_standalone_app = true;
             title             = "";
         }
-        conf(xipc peer, si32 session_id, xml::settings& config)
+        conf(xipc peer, si32 session_id, xmls& config)
             : session_id{ session_id }
         {
             auto init = directvt::binary::startdata_t{};
@@ -4127,7 +4127,7 @@ namespace netxs::ui
         xipc joint;
 
     public:
-        host(xipc server_pipe, xml::settings& config)
+        host(xipc server_pipe, xmls& config)
             : synch{ bell::router<tier::general>(), e2::timer::tick.id },
               joint{ server_pipe }
         {

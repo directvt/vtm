@@ -88,7 +88,7 @@ namespace netxs::app::shared
         using link = std::tuple<netxs::sptr<item>, std::function<void(ui::pads&, item&)>>;
         using list = std::list<link>;
 
-        const auto create = [](xml::settings& config, list menu_items) // Menu bar (shrinkable on right-click).
+        const auto create = [](xmls& config, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -267,7 +267,7 @@ namespace netxs::app::shared
 
             return std::tuple{ slot1, border, menu_block };
         };
-        const auto demo = [](xml::settings& config)
+        const auto demo = [](xmls& config)
         {
             auto items = list
             {
@@ -364,7 +364,7 @@ namespace netxs::app::shared
         return scroll_bars;
     };
 
-    using builder_t = std::function<sptr<base>(text, text, xml::settings&, text)>;
+    using builder_t = std::function<sptr<base>(text, text, xmls&, text)>;
 
     namespace
     {
@@ -377,7 +377,7 @@ namespace netxs::app::shared
     auto& builder(text app_typename)
     {
         static builder_t empty =
-        [&](text, text, xml::settings&, text) -> sptr<base>
+        [&](text, text, xmls&, text) -> sptr<base>
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()
@@ -428,7 +428,7 @@ namespace netxs::app::shared
         template<bool Print = faux>
         auto settings(view defaults, view cli_config_path, view patch)
         {
-            auto conf = xml::settings{ defaults };
+            auto conf = xmls{ defaults };
             auto pads = "      ";
             auto load = [&](view shadow)
             {
@@ -498,7 +498,7 @@ namespace netxs::app::shared
             return conf;
         }
     }
-    auto start(text app_name, text log_title, si32 vtmode, xml::settings& config)
+    auto start(text app_name, text log_title, si32 vtmode, xmls& config)
     {
         auto direct = !!(vtmode & os::vt::direct);
         if (!direct) os::logging::start(log_title);
