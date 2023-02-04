@@ -497,7 +497,7 @@ namespace netxs::app::shared
                             if (auto gate = boss.parent())
                             {
                                 gate->SIGNAL(tier::release, e2::data::changed, name);
-                                world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
+                                world_ptr->SIGNAL(tier::request, e2::form::proceed::createby, gear);
                                 gate->SIGNAL(tier::release, e2::data::changed, current_default);
                             }
                             gear.dismiss();

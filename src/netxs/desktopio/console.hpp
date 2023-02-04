@@ -22,17 +22,6 @@ namespace netxs::ui
     class base;
     class link;
 
-    struct create_t
-    {
-        using sptr = netxs::sptr<base>;
-        text menuid{};
-        text header{};
-        text footer{};
-        rect square{};
-        bool forced{};
-        sptr object{};
-    };
-
     using namespace netxs::input;
     using focus_test_t = std::pair<id_t, si32>;
     using gear_id_list_t = std::list<id_t>;
@@ -269,8 +258,6 @@ namespace netxs::events::userland
                 SUBSET_XS( proceed )
                 {
                     EVENT_XS( create    , rect           ), // return coordinates of the new object placeholder.
-                    EVENT_XS( createat  , ui::create_t   ), // general: create an intance at the specified location and return sptr<base>.
-                    EVENT_XS( createfrom, ui::create_t   ), // general: attach spcified intance and return sptr<base>.
                     EVENT_XS( createby  , input::hids    ), // return gear with coordinates of the new object placeholder gear::slot.
                     EVENT_XS( destroy   , ui::base       ), // ??? bool return reference to the parent.
                     EVENT_XS( render    , bool           ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
@@ -279,7 +266,6 @@ namespace netxs::events::userland
                     EVENT_XS( swap      , sptr<ui::base> ), // order to replace existing client. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor    ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf  , ui::proc       ), // exec functor on behalf (see gate).
-                    GROUP_XS( d_n_d     , sptr<ui::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
                     GROUP_XS( autofocus , input::hids    ), // release: restore the last foci state.
                     //EVENT_XS( focus      , sptr<ui::base>     ), // order to set focus to the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , si32               ), // order to output the targets, arg is a frame number.
@@ -287,12 +273,6 @@ namespace netxs::events::userland
                     //EVENT_XS( draw       , face               ), // ????  order to render itself to the canvas.
                     //EVENT_XS( checkin    , face_sptr          ), // order to register an output client canvas.
 
-                    SUBSET_XS(d_n_d)
-                    {
-                        EVENT_XS(ask  , sptr<ui::base>),
-                        EVENT_XS(drop , ui::create_t  ),
-                        EVENT_XS(abort, sptr<ui::base>),
-                    };
                     SUBSET_XS(autofocus)
                     {
                         EVENT_XS(take, input::hids),
@@ -2282,8 +2262,9 @@ namespace netxs::ui
                     if (data.slot)
                     {
                         gear.slot = data.slot;
+                        gear.slot.coor += boss.base::coor();
                         gear.slot_forced = true;
-                        boss.SIGNAL(tier::preview, e2::form::proceed::createby, gear);
+                        boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                     }
                     slots.erase(gear.id);
                     gear.dismiss();
@@ -4082,105 +4063,6 @@ namespace netxs::ui
             }
         };
 
-        // pro: Drag&drop functionality.
-        class d_n_d
-            : public skill
-        {
-            using wptr = netxs::wptr<base>;
-            using skill::boss,
-                  skill::memo;
-
-            id_t under;
-            bool drags;
-            twod coord;
-            wptr cover;
-
-            void proceed(bool keep)
-            {
-                drags = faux;
-                boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
-                if (auto dest_ptr = cover.lock())
-                {
-                    auto& dest = *dest_ptr;
-                    if (keep)
-                    {
-                        auto what = e2::form::proceed::d_n_d::drop.param();
-                        boss.SIGNAL(tier::preview, e2::form::proceed::d_n_d::drop, what); // Take core.
-                        dest.SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what); // Pass core.
-                        boss.base::detach(); // The object kills itself.
-                    }
-                    else dest.SIGNAL(tier::release, e2::form::proceed::d_n_d::abort, boss.This());
-                }
-                cover.reset();
-                under = {};
-            }
-
-        public:
-            d_n_d(base&&) = delete;
-            d_n_d(base& boss)
-                : skill{ boss },
-                  drags{ faux },
-                  under{      }
-            {
-                boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, memo)
-                {
-                    if (boss.size().inside(gear.coord)
-                    && !gear.kbmod())
-                    {
-                        drags = true;
-                        coord = gear.coord;
-                        under = {};
-                    }
-                };
-                boss.LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear, memo)
-                {
-                    if (!drags) return;
-                    if (gear.kbmod()) proceed(faux);
-                    else              coord = gear.coord - gear.delta.get();
-                };
-                boss.LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear, memo)
-                {
-                    if (!drags) return;
-                    if (gear.kbmod()) proceed(faux);
-                    else              proceed(true);
-                };
-                boss.LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear, memo)
-                {
-                    if (!drags) return;
-                    if (gear.kbmod()) proceed(faux);
-                    else              proceed(true);
-                };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
-                {
-                    if (!drags) return;
-                    auto full = parent_canvas.face::full();
-                    auto size = parent_canvas.core::size();
-                    auto coor = full.coor + coord;
-                    if (size.inside(coor))
-                    {
-                        auto& c = parent_canvas[coor];
-                        auto new_under = c.link();
-                        if (under != new_under)
-                        {
-                            auto object = e2::form::proceed::d_n_d::ask.param();
-                            if (auto old_object = bell::getref<base>(under))
-                            {
-                                old_object->RISEUP(tier::release, e2::form::proceed::d_n_d::abort, object);
-                            }
-                            if (auto new_object = bell::getref<base>(new_under))
-                            {
-                                new_object->RISEUP(tier::release, e2::form::proceed::d_n_d::ask, object);
-                            }
-                            boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, object ? 0x80
-                                                                                        : 0xFF); // Make it semi-transparent on success and opaque otherwise.
-                            cover = object;
-                            under = new_under;
-                        }
-                    }
-                };
-            }
-        };
-
         // pro: Drag&roll.
         class glide
             : public skill
@@ -5287,12 +5169,6 @@ namespace netxs::ui
             {
                 region.coor += base::coor();
                 world.SIGNAL(tier::release, e2::form::proceed::create, region);
-            };
-            //todo revise
-            LISTEN(tier::preview, e2::form::proceed::createby, gear)
-            {
-                gear.slot.coor += base::coor();
-                world.SIGNAL(tier::release, e2::form::proceed::createby, gear);
             };
             LISTEN(tier::release, e2::form::proceed::onbehalf, proc)
             {

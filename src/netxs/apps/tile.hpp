@@ -189,7 +189,7 @@ namespace netxs::app::tile
                             {
                                 case app::tile::events::ui::create.id:
                                     gear.force_group_focus = true;
-                                    boss.RISEUP(tier::release, e2::form::proceed::createby, gear);
+                                    boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                                     gear.force_group_focus = faux;
                                     break;
                                 case app::tile::events::ui::close.id:
@@ -304,8 +304,7 @@ namespace netxs::app::tile
                                 master.SIGNAL(tier::release, e2::form::restore, e2::form::restore.param());
 
                                 // Take current title.
-                                auto what = e2::form::proceed::createfrom.param();
-                                what.menuid = menuid;
+                                auto what = vtm::events::handoff.param({ .menuid = menuid });
                                 master.SIGNAL(tier::request, e2::form::prop::ui::header, what.header);
                                 master.SIGNAL(tier::request, e2::form::prop::ui::footer, what.footer);
                                 if (what.header.empty()) what.header = menuid;
@@ -325,7 +324,7 @@ namespace netxs::app::tile
                                 branch.moveto(dot_00);
 
                                 // Attach to the world.
-                                world_ptr->SIGNAL(tier::release, e2::form::proceed::createfrom, what);
+                                world_ptr->SIGNAL(tier::request, vtm::events::handoff, what);
                                 
                                 gear.kb_offer_9(what.object); // Pass focus.
                                 gear.annul_kb_focus(master_ptr); // Remove focus.
@@ -429,7 +428,7 @@ namespace netxs::app::tile
                     mouse_subs(boss);
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                     {
-                        boss.RISEUP(tier::release, e2::form::proceed::createby, gear);
+                        boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                         gear.dismiss();
                     };
                 })
@@ -448,7 +447,7 @@ namespace netxs::app::tile
                     {
                         // Block rising up this event: DTVT object fires this event on exit.
                     };
-                    boss.LISTEN(tier::release, e2::form::proceed::d_n_d::abort, target)
+                    boss.LISTEN(tier::release, vtm::events::d_n_d::abort, target)
                     {
                         auto menu_black = skin::color(tone::menu_black);
                         auto cC = menu_black;
@@ -460,7 +459,7 @@ namespace netxs::app::tile
                             boss.deface();
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::proceed::d_n_d::ask, target)
+                    boss.LISTEN(tier::release, vtm::events::d_n_d::ask, target)
                     {
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
@@ -477,7 +476,7 @@ namespace netxs::app::tile
                             boss.deface();
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::proceed::d_n_d::drop, what)
+                    boss.LISTEN(tier::release, vtm::events::d_n_d::drop, what)
                     {
                         auto menu_black = skin::color(tone::menu_black);
                         auto cC = menu_black;
@@ -667,7 +666,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::proceed::createby, gear)
+                    boss.LISTEN(tier::request, e2::form::proceed::createby, gear)
                     {
                         static auto insts_count = 0;
                         if (boss.count() == 1) // Create new apps at the empty slots only.

@@ -171,7 +171,7 @@ namespace netxs::app::desk
                             gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
                             gear.slot.size = viewport.size * 3 / 4;
                             gear.slot_forced = faux;
-                            boss.RISEUP(tier::release, e2::form::proceed::createby, gear);
+                            boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                             gear.dismiss();
                         };
                         //auto& world = *data_src;

@@ -36,11 +36,12 @@ namespace netxs::app::vtm
     struct newitem_t
     {
         using sptr = sptr<base>;
-
-        text menuid; //  IN: .
-        text header; // OUT: .
-        text footer; // OUT: .
-        sptr object; // OUT: .
+        text menuid{};
+        text header{};
+        text footer{};
+        rect square{};
+        bool forced{};
+        sptr object{};
     };
 
     using links_t = std::unordered_map<text, menuitem_t>;
@@ -73,9 +74,11 @@ namespace netxs::app::vtm
     {
         EVENTPACK( events, ui::e2::extra )
         {
-            EVENT_XS( attached, sptr<base> ), // anycast: inform that the object tree is attached to the world
-            EVENT_XS( newapp  , newitem_t  ), // request: create new object using specified meniid
-            GROUP_XS( list    , si32       ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
+            EVENT_XS( newapp  , newitem_t      ), // request: create new object using specified meniid
+            EVENT_XS( handoff , newitem_t      ), // general: attach spcified intance and return sptr<base>.
+            EVENT_XS( attached, sptr<base>     ), // anycast: inform that the object tree is attached to the world
+            GROUP_XS( list    , si32           ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
+            GROUP_XS( d_n_d   , sptr<ui::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
 
             SUBSET_XS( list )
             {
@@ -83,8 +86,116 @@ namespace netxs::app::vtm
                 EVENT_XS( apps , sptr<registry_t>                ), // list of running apps.
                 EVENT_XS( links, sptr<links_t>                   ), // list of registered apps.
             };
+            SUBSET_XS(d_n_d)
+            {
+                EVENT_XS(ask  , sptr<ui::base>),
+                EVENT_XS(drop , newitem_t     ),
+                EVENT_XS(abort, sptr<ui::base>),
+            };
         };
     };
+
+    namespace pro
+    {
+        using namespace netxs::ui::pro;
+        // pro: Drag&drop functionality.
+        class d_n_d
+            : public skill
+        {
+            using wptr = netxs::wptr<base>;
+            using skill::boss,
+                  skill::memo;
+
+            id_t under;
+            bool drags;
+            twod coord;
+            wptr cover;
+
+            void proceed(bool keep)
+            {
+                drags = faux;
+                boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
+                if (auto dest_ptr = cover.lock())
+                {
+                    auto& dest = *dest_ptr;
+                    if (keep)
+                    {
+                        auto what = vtm::events::d_n_d::drop.param();
+                        boss.SIGNAL(tier::preview, vtm::events::d_n_d::drop, what); // Take core.
+                        dest.SIGNAL(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
+                        boss.base::detach(); // The object kills itself.
+                    }
+                    else dest.SIGNAL(tier::release, vtm::events::d_n_d::abort, boss.This());
+                }
+                cover.reset();
+                under = {};
+            }
+
+        public:
+            d_n_d(base&&) = delete;
+            d_n_d(base& boss)
+                : skill{ boss },
+                  drags{ faux },
+                  under{      }
+            {
+                boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, memo)
+                {
+                    if (boss.size().inside(gear.coord) && !gear.kbmod())
+                    {
+                        drags = true;
+                        coord = gear.coord;
+                        under = {};
+                    }
+                };
+                boss.LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear, memo)
+                {
+                    if (!drags) return;
+                    if (gear.kbmod()) proceed(faux);
+                    else              coord = gear.coord - gear.delta.get();
+                };
+                boss.LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear, memo)
+                {
+                    if (!drags) return;
+                    if (gear.kbmod()) proceed(faux);
+                    else              proceed(true);
+                };
+                boss.LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear, memo)
+                {
+                    if (!drags) return;
+                    if (gear.kbmod()) proceed(faux);
+                    else              proceed(true);
+                };
+                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
+                {
+                    if (!drags) return;
+                    auto full = parent_canvas.face::full();
+                    auto size = parent_canvas.core::size();
+                    auto coor = full.coor + coord;
+                    if (size.inside(coor))
+                    {
+                        auto& c = parent_canvas[coor];
+                        auto new_under = c.link();
+                        if (under != new_under)
+                        {
+                            auto object = vtm::events::d_n_d::ask.param();
+                            if (auto old_object = bell::getref<base>(under))
+                            {
+                                old_object->RISEUP(tier::release, vtm::events::d_n_d::abort, object);
+                            }
+                            if (auto new_object = bell::getref<base>(new_under))
+                            {
+                                new_object->RISEUP(tier::release, vtm::events::d_n_d::ask, object);
+                            }
+                            boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, object ? 0x80
+                                                                                        : 0xFF); // Make it semi-transparent on success and opaque otherwise.
+                            cover = object;
+                            under = new_under;
+                        }
+                    }
+                };
+            }
+        };
+    }
 
     // vtm: Desktopio Workspace.
     struct hall
@@ -413,7 +524,75 @@ namespace netxs::app::vtm
         depo regis; // hall: Actors registry.
         idls taken; // hall: Focused objects for the last user.
 
-        auto newapp(auto& menuid)
+        auto base_window(newitem_t& what)
+        {
+            auto& header = what.header;
+            auto& footer = what.footer;
+            auto& menuid = what.menuid;
+            return ui::cake::ctor()
+                ->template plugin<pro::d_n_d>()
+                ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
+                ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+                ->template plugin<pro::sizer>()
+                ->template plugin<pro::frame>()
+                ->template plugin<pro::light>()
+                ->template plugin<pro::align>()
+                ->invoke([&](auto& boss)
+                {
+                    boss.keybd.active();
+                    boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
+                    boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid))
+                    {
+                        if (auto object = boss.pop_back())
+                        {
+                            auto& title = boss.template plugins<pro::title>();
+                            what.header = title.header();
+                            what.footer = title.footer();
+                            what.object = object;
+                            what.menuid = menuid;
+                        }
+                    };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                    {
+                        boss.RISEUP(tier::release, e2::form::maximize, gear);
+                        gear.dismiss();
+                    };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        auto area = boss.base::area();
+                        auto home = rect{ -dot_21, area.size + dot_21 * 2}; // Including resizer grips.
+                        if (!home.hittest(gear.coord))
+                        {
+                            auto center = area.coor + (area.size / 2);
+                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
+                            boss.base::deface();
+                        }
+                    };
+                    boss.LISTEN(tier::release, e2::form::proceed::detach, backup)
+                    {
+                        boss.mouse.reset();
+                        boss.base::detach(); // The object kills itself.
+                    };
+                    boss.LISTEN(tier::release, e2::form::quit, nested_item)
+                    {
+                        boss.mouse.reset();
+                        if (nested_item) boss.base::detach(); // The object kills itself.
+                    };
+                    boss.LISTEN(tier::release, e2::dtor, p)
+                    {
+                        auto start = datetime::now();
+                        auto counter = e2::cleanup.param();
+                        boss.SIGNAL(tier::general, e2::cleanup, counter);
+                        auto stop = datetime::now() - start;
+                        log("hall: garbage collection",
+                        "\n\ttime ", utf::format(stop.count()), "ns",
+                        "\n\tobjs ", counter.obj_count,
+                        "\n\trefs ", counter.ref_count,
+                        "\n\tdels ", counter.del_count);
+                    };
+                });
+        }
+        auto newapp(text const& menuid)
         {
             auto& config = regis.lnk[menuid];
             auto& creator = app::shared::create::builder(config.type);
@@ -422,6 +601,20 @@ namespace netxs::app::vtm
             if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
             if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
             return std::pair{ object, config };
+        }
+        auto createat(newitem_t& what)
+        {
+            auto [object, config] = newapp(what.menuid);
+            what.header = config.title;
+            what.footer = config.footer;
+            auto window = base_window(what);
+            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
+            else                                window->extend(what.square);
+            window->attach(object);
+            log("hall: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
+            this->branch(what.menuid, window, !config.hidden);
+            window->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
+            what.object = window;
         }
 
     protected:
@@ -438,71 +631,6 @@ namespace netxs::app::vtm
                 .hidden   = faux,
                 .slimmenu = faux,
                 .type     = defailt_id,
-            };
-            auto base_window = [](auto header, auto footer, auto menuid)
-            {
-                return ui::cake::ctor()
-                    ->template plugin<pro::d_n_d>()
-                    ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
-                    ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-                    ->template plugin<pro::sizer>()
-                    ->template plugin<pro::frame>()
-                    ->template plugin<pro::light>()
-                    ->template plugin<pro::align>()
-                    ->invoke([&](auto& boss)
-                    {
-                        boss.keybd.active();
-                        boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
-                        boss.LISTEN(tier::preview, e2::form::proceed::d_n_d::drop, what, -, (menuid))
-                        {
-                            if (auto object = boss.pop_back())
-                            {
-                                auto& title = boss.template plugins<pro::title>();
-                                what.header = title.header();
-                                what.footer = title.footer();
-                                what.object = object;
-                                what.menuid = menuid;
-                            }
-                        };
-                        boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                        {
-                            boss.RISEUP(tier::release, e2::form::maximize, gear);
-                            gear.dismiss();
-                        };
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                        {
-                            auto area = boss.base::area();
-                            auto home = rect{ -dot_21, area.size + dot_21 * 2}; // Including resizer grips.
-                            if (!home.hittest(gear.coord))
-                            {
-                                auto center = area.coor + (area.size / 2);
-                                gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
-                                boss.base::deface();
-                            }
-                        };
-                        boss.LISTEN(tier::release, e2::form::proceed::detach, backup)
-                        {
-                            boss.mouse.reset();
-                            boss.base::detach(); // The object kills itself.
-                        };
-                        boss.LISTEN(tier::release, e2::form::quit, nested_item)
-                        {
-                            boss.mouse.reset();
-                            if (nested_item) boss.base::detach(); // The object kills itself.
-                        };
-                        boss.LISTEN(tier::release, e2::dtor, p)
-                        {
-                            auto start = datetime::now();
-                            auto counter = e2::cleanup.param();
-                            boss.SIGNAL(tier::general, e2::cleanup, counter);
-                            auto stop = datetime::now() - start;
-                            log("hall: garbage collection",
-                            "\n\ttime ", utf::format(stop.count()), "ns",
-                            "\n\tobjs ", counter.obj_count,
-                            "\n\trefs ", counter.ref_count,
-                            "\n\tdels ", counter.del_count);
-                        };
-                    });
             };
             auto find = [&](auto const& id) -> auto&
             {
@@ -682,8 +810,7 @@ namespace netxs::app::vtm
             {
                 taken[gear.id] = gear.clear_kb_focus();
             };
-            //todo release -> request
-            LISTEN(tier::release, e2::form::proceed::createby, gear)
+            LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
                 static auto insts_count = si32{ 0 };
                 auto& gate = gear.owner;
@@ -695,43 +822,27 @@ namespace netxs::app::vtm
                 }
                 else
                 {
-                    auto what = e2::form::proceed::createat.param();
-                    what.square = gear.slot;
-                    what.forced = gear.slot_forced;
+                    auto what = newitem_t{ .square = gear.slot, .forced = gear.slot_forced };
                     gate.SIGNAL(tier::request, e2::data::changed, what.menuid);
-                    this->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                    if (auto& frame = what.object)
+                    createat(what);
+                    if (auto& window = what.object)
                     {
                         insts_count++;
-                        frame->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
+                        window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
                         {
                             insts_count--;
                             log("hall: detached: ", insts_count);
                         };
                         gear.clear_kb_focus(); // DirectVT app could have a group of focused.
-                        gear.kb_offer_10(frame);
-                        frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                        gear.kb_offer_10(window);
+                        window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     }
                 }
             };
-            //todo release -> request
-            LISTEN(tier::release, e2::form::proceed::createat, what)
-            {
-                auto [object, config] = newapp(what.menuid);
-                auto window = base_window(config.title, config.footer, what.menuid);
-                if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
-                else                                window->extend(what.square);
-                window->attach(object);
-                log("hall: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
-                this->branch(what.menuid, window, !config.hidden);
-                window->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
-                what.object = window;
-            };
-            //todo release -> request
-            LISTEN(tier::release, e2::form::proceed::createfrom, what)
+            LISTEN(tier::request, vtm::events::handoff, what)
             {
                 auto& config = regis.lnk[what.menuid];
-                auto window = base_window(what.header, what.footer, what.menuid);
+                auto window = base_window(what);
                 window->extend(what.square);
                 window->attach(what.object);
                 log("hall: attach type=", utf::debase(config.type), " menuid=", utf::debase(what.menuid));
@@ -752,7 +863,7 @@ namespace netxs::app::vtm
         // hall: Autorun apps from config.
         void autorun(xml::settings& config)
         {
-            auto what = e2::form::proceed::createat.param();
+            auto what = newitem_t{};
             auto& active = taken[id_t{}];
             for (auto app_ptr : config.list(path_autorun))
             {
@@ -766,7 +877,7 @@ namespace netxs::app::vtm
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
-                        SIGNAL(tier::release, e2::form::proceed::createat, what);
+                        createat(what);
                         if (focused) active.push_back(what.object->id);
                     }
                     else log("hall: Unexpected empty app id in autorun configuration");
