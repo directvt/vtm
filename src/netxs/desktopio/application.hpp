@@ -366,7 +366,7 @@ namespace netxs::app::shared
 
     using builder_t = std::function<sptr<base>(text, text, xml::settings&, text)>;
 
-    namespace get
+    namespace
     {
         auto& creator()
         {
@@ -374,58 +374,55 @@ namespace netxs::app::shared
             return creator;
         }
     }
-    namespace create
+    auto& builder(text app_typename)
     {
-        auto& builder(text app_typename)
+        static builder_t empty =
+        [&](text, text, xml::settings&, text) -> sptr<base>
         {
-            static builder_t empty =
-            [&](text, text, xml::settings&, text) -> sptr<base>
-            {
-                auto window = ui::cake::ctor()
-                    ->plugin<pro::focus>()
-                    ->invoke([&](auto& boss)
+            auto window = ui::cake::ctor()
+                ->plugin<pro::focus>()
+                ->invoke([&](auto& boss)
+                {
+                    boss.keybd.accept(true);
+                    closing_on_quit(boss);
+                    closing_by_gesture(boss);
+                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
-                        boss.keybd.accept(true);
-                        closing_on_quit(boss);
-                        closing_by_gesture(boss);
-                        boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
-                        {
-                            auto title = "error"s;
-                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
-                        };
-                    });
-                auto msg = ui::post::ctor()
-                    ->colors(whitelt, rgba{ 0x7F404040 })
-                    ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                    + "\n\nUnsupported application type\n\n"
-                    + ansi::nil().wrp(wrap::on)
-                    + "Only the following application types are supported\n\n"
-                    + ansi::nil().wrp(wrap::off).fgc(whitedk)
-                    + "   type = DirectVT \n"
-                      "   type = ANSIVT   \n"
-                      "   type = SHELL    \n"
-                      "   type = Group    \n"
-                      "   type = Region   \n\n"
-                    + ansi::nil().wrp(wrap::on).fgc(whitelt)
-                    + "apps: See logs for details."
-                    );
-                auto placeholder = ui::park::ctor()
-                    ->colors(whitelt, rgba{ 0x7F404040 })
-                    ->attach(snap::stretch, snap::stretch, msg);
-                window->attach(ui::rail::ctor())
-                      ->attach(placeholder);
-                return window;
-            };
-            auto& map = app::shared::get::creator();
-            const auto it = map.find(app_typename);
-            if (it == map.end())
-            {
-                log("apps: unknown app type - '", app_typename, "'");
-                return empty;
-            }
-            else return it->second;
+                        auto title = "error"s;
+                        boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
+                    };
+                });
+            auto msg = ui::post::ctor()
+                ->colors(whitelt, rgba{ 0x7F404040 })
+                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                + "\n\nUnsupported application type\n\n"
+                + ansi::nil().wrp(wrap::on)
+                + "Only the following application types are supported\n\n"
+                + ansi::nil().wrp(wrap::off).fgc(whitedk)
+                + "   type = DirectVT \n"
+                  "   type = ANSIVT   \n"
+                  "   type = SHELL    \n"
+                  "   type = Group    \n"
+                  "   type = Region   \n\n"
+                + ansi::nil().wrp(wrap::on).fgc(whitelt)
+                + "apps: See logs for details."
+                );
+            auto placeholder = ui::park::ctor()
+                ->colors(whitelt, rgba{ 0x7F404040 })
+                ->attach(snap::stretch, snap::stretch, msg);
+            window->attach(ui::rail::ctor())
+                  ->attach(placeholder);
+            return window;
         };
-    }
+        auto& map = creator();
+        const auto it = map.find(app_typename);
+        if (it == map.end())
+        {
+            log("apps: unknown app type - '", app_typename, "'");
+            return empty;
+        }
+        else return it->second;
+    };
     namespace load
     {
         template<bool Print = faux>
@@ -518,7 +515,7 @@ namespace netxs::app::shared
             auto ground = base::create<host>(uplink, config);
             auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
+            auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
             auto window = ground->template invite<gate>(vtmode, config);
             window->launch(uplink, applet);
             window.reset();
@@ -549,7 +546,7 @@ namespace netxs::app::shared
     {
         initialize(text app_typename, builder_t builder)
         {
-            auto& map = app::shared::get::creator();
+            auto& map = creator();
             map[app_typename] = builder;
         }
     };

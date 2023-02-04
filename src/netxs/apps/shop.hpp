@@ -80,9 +80,8 @@ namespace netxs::app::shop
                 appstore_head =
                 ansi::nil().eol().mgl(2).mgr(2)
                 .bld(faux).fgc(whitelt).jet(bias::left).wrp(wrap::on).add(
-                "Terminal Application Distribution Platform that allows "
-                "users to browse and download applications developed with "
-                "Desktopio Framework.\n\n");
+                "Desktopio Application Distribution Platform that allows "
+                "users to browse and download software.\n\n");
 
                 auto textancy_text = ansi::nil().add(
                 "Hello World!😎\n"

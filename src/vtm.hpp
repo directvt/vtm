@@ -10,9 +10,9 @@ namespace netxs::app::vtm
     static constexpr auto id = "vtm";
     static constexpr auto desc = " vtm:";
 
-    struct menuitem_t
+    struct menuitem
     {
-        text       id{};
+        text   menuid{};
         text    alias{};
         bool   hidden{};
         text    label{};
@@ -30,10 +30,9 @@ namespace netxs::app::vtm
         text     type{};
         text    param{};
         text    patch{};
-        xml::settings settings;
     };
 
-    struct newitem_t
+    struct baseitem
     {
         using sptr = sptr<base>;
         text menuid{};
@@ -44,7 +43,7 @@ namespace netxs::app::vtm
         sptr object{};
     };
 
-    using links_t = std::unordered_map<text, menuitem_t>;
+    using links_t = std::unordered_map<text, menuitem>;
     using registry_t = generics::imap<text, std::pair<bool, std::list<sptr<base>>>>;
 
     static constexpr auto attr_id       = "id";
@@ -74,8 +73,8 @@ namespace netxs::app::vtm
     {
         EVENTPACK( events, ui::e2::extra )
         {
-            EVENT_XS( newapp  , newitem_t      ), // request: create new object using specified meniid
-            EVENT_XS( handoff , newitem_t      ), // general: attach spcified intance and return sptr<base>.
+            EVENT_XS( newapp  , baseitem       ), // request: create new object using specified meniid
+            EVENT_XS( handoff , baseitem       ), // general: attach spcified intance and return sptr<base>.
             EVENT_XS( attached, sptr<base>     ), // anycast: inform that the object tree is attached to the world
             GROUP_XS( list    , si32           ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
             GROUP_XS( d_n_d   , sptr<ui::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
@@ -89,7 +88,7 @@ namespace netxs::app::vtm
             SUBSET_XS(d_n_d)
             {
                 EVENT_XS(ask  , sptr<ui::base>),
-                EVENT_XS(drop , newitem_t     ),
+                EVENT_XS(drop , baseitem      ),
                 EVENT_XS(abort, sptr<ui::base>),
             };
         };
@@ -202,7 +201,7 @@ namespace netxs::app::vtm
         : public host
     {
     private:
-        class node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
+        struct node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
         {
             struct ward
             {
@@ -264,8 +263,6 @@ namespace netxs::app::vtm
             using sptr = netxs::sptr<base>;
 
             ward header;
-
-        public:
             rect region;
             sptr object;
             id_t obj_id;
@@ -351,8 +348,7 @@ namespace netxs::app::vtm
                 object->SIGNAL(tier::release, e2::postrender, canvas);
             }
         };
-
-        class list // hall: Helper-class. List of objects that can be reordered, etc.
+        struct list // hall: Helper-class. List of objects that can be reordered, etc.
         {
             std::list<sptr<node>> items;
 
@@ -367,7 +363,6 @@ namespace netxs::app::vtm
                 return tail;
             }
 
-        public:
             operator bool () { return items.size(); }
             auto size()      { return items.size(); }
             auto back()      { return items.back()->object; }
@@ -467,16 +462,19 @@ namespace netxs::app::vtm
                 return items.back();
             }
         };
-
-        class depo // hall: Helper-class. Actors registry.
+        struct depo // hall: Helper-class. Actors registry.
         {
-        public:
-            sptr<registry_t>            app_ptr = std::make_shared<registry_t>();
-            sptr<std::list<sptr<base>>> usr_ptr = std::make_shared<std::list<sptr<base>>>();
-            sptr<links_t>               lnk_ptr = std::make_shared<links_t>();
+            sptr<registry_t>            app_ptr = ptr::shared(registry_t{});
+            sptr<std::list<sptr<base>>> usr_ptr = ptr::shared(std::list<sptr<base>>{});
+            sptr<links_t>               lnk_ptr = ptr::shared(links_t{});
             registry_t&                 app = *app_ptr;
             std::list<sptr<base>>&      usr = *usr_ptr;
             links_t&                    lnk = *lnk_ptr;
+            xml::settings&              settings;
+
+            depo(xml::settings& settings)
+                : settings{ settings }
+            { }
 
             auto remove(sptr<base> item_ptr)
             {
@@ -524,7 +522,7 @@ namespace netxs::app::vtm
         depo regis; // hall: Actors registry.
         idls taken; // hall: Focused objects for the last user.
 
-        auto base_window(newitem_t& what)
+        auto base_window(baseitem& what)
         {
             auto& header = what.header;
             auto& footer = what.footer;
@@ -592,41 +590,42 @@ namespace netxs::app::vtm
                     };
                 });
         }
-        auto newapp(text const& menuid)
+        auto& runapp(baseitem& what)
         {
-            auto& config = regis.lnk[menuid];
-            auto& creator = app::shared::create::builder(config.type);
-            auto object = creator(config.cwd, config.param, config.settings, config.patch);
-            if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
-            if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
-            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
-            return std::pair{ object, config };
-        }
-        auto createat(newitem_t& what)
-        {
-            auto [object, config] = newapp(what.menuid);
+            auto& config = regis.lnk[what.menuid];
+            auto& creator = app::shared::builder(config.type);
+            what.object = creator(config.cwd, config.param, regis.settings, config.patch);
             what.header = config.title;
             what.footer = config.footer;
+            if (config.bgc     ) what.object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
+            if (config.fgc     ) what.object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
+            if (config.slimmenu) what.object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
+            return config;
+        }
+        auto create(baseitem& what)
+        {
+            auto& config = runapp(what);
             auto window = base_window(what);
             if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
             else                                window->extend(what.square);
-            window->attach(object);
+            window->attach(what.object);
             log("hall: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
             this->branch(what.menuid, window, !config.hidden);
             window->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
-            what.object = window;
+            return window;
         }
 
     protected:
         hall(xipc server_pipe, xml::settings& config, text defailt_id)
-            : host{ server_pipe, config }
+            : host{ server_pipe, config },
+              regis{ config }
         {
             auto current_module_file = os::process::binary();
             auto& menu_list = *regis.app_ptr;
             auto& conf_list = *regis.lnk_ptr;
-            auto  free_list = std::list<std::pair<text, menuitem_t>>{};
+            auto  free_list = std::list<std::pair<text, menuitem>>{};
             auto  temp_list = free_list;
-            auto dflt_rec = menuitem_t
+            auto dflt_rec = menuitem
             {
                 .hidden   = faux,
                 .slimmenu = faux,
@@ -649,21 +648,21 @@ namespace netxs::app::vtm
             for (auto item_ptr : config.list(path_item))
             {
                 auto& item = *item_ptr;
-                auto conf_rec = menuitem_t{};
+                auto conf_rec = menuitem{};
                 //todo autogen id if absent
                 conf_rec.splitter = item.take(attr_splitter, faux);
-                conf_rec.id       = item.take(attr_id,       ""s );
+                conf_rec.menuid   = item.take(attr_id,       ""s );
                 if (conf_rec.splitter)
                 {
-                    conf_rec.id = "splitter_" + std::to_string(splitter_count++);
+                    conf_rec.menuid = "splitter_" + std::to_string(splitter_count++);
                 }
-                else if (conf_rec.id.empty())
+                else if (conf_rec.menuid.empty())
                 {
                     log("hall: attribute '", utf::debase(attr_id), "' is missing, skip item");
                     continue;
                 }
                 auto label        = item.take(attr_label, ""s);
-                conf_rec.label    = label.empty() ? conf_rec.id : label;
+                conf_rec.label    = label.empty() ? conf_rec.menuid : label;
                 conf_rec.alias    = item.take(attr_alias, ""s);
                 auto& fallback = conf_rec.alias.empty() ? dflt_rec
                                                         : find(conf_rec.alias);
@@ -680,10 +679,9 @@ namespace netxs::app::vtm
                 conf_rec.cwd      = item.take(attr_cwd,      fallback.cwd     );
                 conf_rec.param    = item.take(attr_param,    fallback.param   );
                 conf_rec.type     = item.take(attr_type,     fallback.type    );
-                conf_rec.settings = config;
-                auto patches      = item.list("config");
-                if (patches.size()) conf_rec.patch = patches.front()->snapshot();
-                if (conf_rec.title.empty()) conf_rec.title = conf_rec.id + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
+                auto patch        = item.list(attr_config);
+                if (patch.size()) conf_rec.patch = patch.front()->snapshot();
+                if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
 
                 utf::to_low(conf_rec.type);
                 utf::change(conf_rec.title,  "$0", current_module_file);
@@ -692,8 +690,8 @@ namespace netxs::app::vtm
                 utf::change(conf_rec.notes,  "$0", current_module_file);
                 utf::change(conf_rec.param,  "$0", current_module_file);
 
-                if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
-                else                 free_list.emplace_back(std::move(conf_rec.id), std::move(conf_rec));
+                if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
+                else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
             }
             for (auto& [id, conf_rec] : free_list)
             {
@@ -705,12 +703,9 @@ namespace netxs::app::vtm
                 conf_list.emplace(std::move(id), std::move(conf_rec));
             }
 
-            LISTEN(tier::request, vtm::events::newapp, newwhat)
+            LISTEN(tier::request, vtm::events::newapp, what)
             {
-                auto [object, config] = newapp(newwhat.menuid);
-                newwhat.header = config.title;
-                newwhat.footer = config.footer;
-                newwhat.object = object;
+                runapp(what);
             };
             LISTEN(tier::general, e2::form::global::lucidity, alpha)
             {
@@ -822,10 +817,9 @@ namespace netxs::app::vtm
                 }
                 else
                 {
-                    auto what = newitem_t{ .square = gear.slot, .forced = gear.slot_forced };
+                    auto what = baseitem{ .square = gear.slot, .forced = gear.slot_forced };
                     gate.SIGNAL(tier::request, e2::data::changed, what.menuid);
-                    createat(what);
-                    if (auto& window = what.object)
+                    if (auto window = create(what))
                     {
                         insts_count++;
                         window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
@@ -863,7 +857,7 @@ namespace netxs::app::vtm
         // hall: Autorun apps from config.
         void autorun(xml::settings& config)
         {
-            auto what = newitem_t{};
+            auto what = baseitem{};
             auto& active = taken[id_t{}];
             for (auto app_ptr : config.list(path_autorun))
             {
@@ -877,8 +871,8 @@ namespace netxs::app::vtm
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
-                        createat(what);
-                        if (focused) active.push_back(what.object->id);
+                        auto window = create(what);
+                        if (focused) active.push_back(window->id);
                     }
                     else log("hall: Unexpected empty app id in autorun configuration");
                 }

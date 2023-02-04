@@ -449,59 +449,51 @@ namespace netxs::app::shared
                 ->invoke([&](auto& boss)
                 {
                     auto data = utf::divide(param, ";");
-                    auto type = text{ data.size() > 0 ? data[0] : view{} };
-                    auto name = text{ data.size() > 1 ? data[1] : view{} };
-                    auto args = text{ data.size() > 2 ? data[2] : view{} };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (type, name, args))
+                    auto aptype = text{ data.size() > 0 ? data[0] : view{} };
+                    auto menuid = text{ data.size() > 1 ? data[1] : view{} };
+                    auto params = text{ data.size() > 2 ? data[2] : view{} };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (aptype, menuid, params))
                     {
-                        auto world_ptr = e2::config::creator.param();
-                        boss.RISEUP(tier::request, e2::config::creator, world_ptr);
-                        if (world_ptr)
+                        static auto offset = dot_00;
+                        auto& gate = gear.owner;
+                        auto viewport = e2::form::prop::viewport.param();
+                        boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                        viewport.coor += gear.area().coor;
+                        offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                        gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                        gear.slot.size = viewport.size * 3 / 4;
+                        gear.slot_forced = faux;
+
+                        auto menu_list_ptr = vtm::events::list::apps.param();
+                        auto conf_list_ptr = vtm::events::list::links.param();
+                        gate.RISEUP(tier::request, vtm::events::list::apps, menu_list_ptr);
+                        gate.RISEUP(tier::request, vtm::events::list::links, conf_list_ptr);
+                        auto& menu_list = *menu_list_ptr;
+                        auto& conf_list = *conf_list_ptr;
+
+                        if (conf_list.contains(menuid) && !conf_list[menuid].hidden) // Check for id availability.
                         {
-                            static auto offset = dot_00;
-                            auto viewport = e2::form::prop::viewport.param();
-                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                            viewport.coor += gear.area().coor;
-                            offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                            gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
-                            gear.slot.size = viewport.size * 3 / 4;
-                            gear.slot_forced = faux;
-
-                            auto menu_list_ptr = vtm::events::list::apps.param();
-                            auto conf_list_ptr = vtm::events::list::links.param();
-                            world_ptr->SIGNAL(tier::request, vtm::events::list::apps, menu_list_ptr);
-                            world_ptr->SIGNAL(tier::request, vtm::events::list::links, conf_list_ptr);
-                            auto& menu_list = *menu_list_ptr;
-                            auto& conf_list = *conf_list_ptr;
-
-                            if (conf_list.contains(name) && !conf_list[name].hidden) // Check for id availability.
-                            {
-                                auto i = 1;
-                                auto test = text{};
-                                do   test = name + " (" + std::to_string(++i) + ")";
-                                while (conf_list.contains(test) && !conf_list[name].hidden);
-                                std::swap(test, name);
-                            }
-                            auto& m = conf_list[name];
-                            m.type = type;
-                            m.label = name;
-                            m.title = name; // Use the same title as the menu label.
-                            m.param = args;
-                            m.hidden = true;
-                            m.settings = config; //todo it is dangerous
-                            menu_list[name];
-
-                            auto current_default = e2::data::changed.param();
-                            boss.RISEUP(tier::request, e2::data::changed, current_default);
-
-                            if (auto gate = boss.parent())
-                            {
-                                gate->SIGNAL(tier::release, e2::data::changed, name);
-                                world_ptr->SIGNAL(tier::request, e2::form::proceed::createby, gear);
-                                gate->SIGNAL(tier::release, e2::data::changed, current_default);
-                            }
-                            gear.dismiss();
+                            auto i = 1;
+                            auto testid = text{};
+                            do testid = menuid + " (" + std::to_string(++i) + ")";
+                            while (conf_list.contains(testid) && !conf_list[menuid].hidden);
+                            std::swap(testid, menuid);
                         }
+                        auto& m = conf_list[menuid];
+                        m.type = aptype;
+                        m.label = menuid;
+                        m.title = menuid; // Use the same title as the menu label.
+                        m.param = params;
+                        m.hidden = true;
+                        //m.settings = config; //todo it is dangerous
+                        menu_list[menuid];
+
+                        auto lastid = e2::data::changed.param();
+                        gate.SIGNAL(tier::request, e2::data::changed, lastid);
+                        gate.SIGNAL(tier::release, e2::data::changed, menuid);
+                        gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
+                        gate.SIGNAL(tier::release, e2::data::changed, lastid);
+                        gear.dismiss();
                     };
                 });
         };
