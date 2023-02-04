@@ -264,16 +264,12 @@ namespace netxs::app::tile
             //    gear.dismiss();
             //};
         };
-        auto app_window = [](auto& config)
+        auto app_window = [](auto& link)
         {
-            auto& header = config.header;
-            auto& footer = config.footer;
-            auto& branch = config.object;
-            auto& menuid = config.menuid;
             return ui::fork::ctor(axis::Y)
-                    ->plugin<pro::title>(""/*not used here*/, footer, true, faux, true)
-                    ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
-                    ->plugin<pro::light>()
+                    ->template plugin<pro::title>(""/*not used here*/, link.footer, true, faux, true)
+                    ->template plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
+                    ->template plugin<pro::light>()
                     ->isroot(true)
                     ->active()
                     ->invoke([&](auto& boss)
@@ -282,19 +278,19 @@ namespace netxs::app::tile
                         anycasting(boss);
                         mouse_subs(boss);
 
-                        if (branch->size() != dot_00) boss.resize(branch->size() + dot_01/*approx title height*/);
+                        if (link.applet->size() != dot_00) boss.resize(link.applet->size() + dot_01/*approx title height*/);
 
                         auto master_shadow = ptr::shadow(boss.This());
-                        auto branch_shadow = ptr::shadow(branch);
-                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (branch_shadow, master_shadow, menuid))
+                        auto applet_shadow = ptr::shadow(link.applet);
+                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, master_shadow, menuid = link.menuid))
                         {
-                            if (auto branch_ptr = branch_shadow.lock())
-                            if (branch_ptr->area().hittest(gear.coord))
                             if (auto master_ptr = master_shadow.lock())
+                            if (auto applet_ptr = applet_shadow.lock())
+                            if (applet_ptr->area().hittest(gear.coord))
                             {
                                 //todo master == boss
                                 auto& master = *master_ptr;
-                                auto& branch = *branch_ptr;
+                                auto& applet = *applet_ptr;
 
                                 auto deed = master.bell::template protos<tier::release>();
                                 if (deed != hids::events::mouse::button::drag::start::left.id
@@ -314,29 +310,28 @@ namespace netxs::app::tile
                                 master.RISEUP(tier::request, e2::config::creator, world_ptr);
 
                                 // Take coor and detach from the tiling wm.
-                                gear.coord -= branch.base::coor(); // Localize mouse coor.
-                                what.square.size = branch.base::size();
-                                branch.global(what.square.coor);
+                                gear.coord -= applet.base::coor(); // Localize mouse coor.
+                                what.square.size = applet.base::size();
+                                applet.global(what.square.coor);
                                 what.square.coor = -what.square.coor;
                                 what.forced = true;
-                                what.object = branch_ptr;
-                                master.SIGNAL(tier::preview, e2::form::proceed::detach, branch_ptr);
-                                branch.moveto(dot_00);
+                                what.applet = applet_ptr;
+                                master.SIGNAL(tier::preview, e2::form::proceed::detach, applet_ptr);
+                                applet.moveto(dot_00);
 
                                 // Attach to the world.
                                 world_ptr->SIGNAL(tier::request, vtm::events::handoff, what);
                                 
-                                gear.kb_offer_9(what.object); // Pass focus.
+                                gear.kb_offer_9(what.applet); // Pass focus.
                                 gear.annul_kb_focus(master_ptr); // Remove focus.
 
                                 // Destroy placeholder.
                                 master.RISEUP(tier::release, e2::form::quit, master_ptr);
 
                                 // Handover mouse input.
-                                auto& object = *what.object;
                                 master.SIGNAL(tier::release, hids::events::notify::mouse::leave, gear);
-                                object.SIGNAL(tier::release, hids::events::notify::mouse::enter, gear);
-                                gear.pass<tier::release>(what.object, dot_00);
+                                applet.SIGNAL(tier::release, hids::events::notify::mouse::enter, gear);
+                                gear.pass<tier::release>(what.applet, dot_00);
                             }
                         };
                         boss.LISTEN(tier::anycast, e2::form::upon::started, root)
@@ -347,7 +342,7 @@ namespace netxs::app::tile
                     //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
                     ->branch(slot::_1,
                         ui::post_fx::ctor()
-                        ->upload(header)
+                        ->upload(link.header)
                         ->invoke([&](auto& boss)
                         {
                             auto shadow = ptr::shadow(boss.This());
@@ -367,7 +362,7 @@ namespace netxs::app::tile
                                 };
                             };
                         }))
-                    ->branch(slot::_2, branch);
+                    ->branch(slot::_2, link.applet);
         };
         auto pass_focus = [](auto& gear_id_list, auto item_ptr)
         {
@@ -681,7 +676,7 @@ namespace netxs::app::tile
                             boss.attach(app);
 
                             insts_count++; //todo unify, demo limits
-                            config.object->LISTEN(tier::release, e2::dtor, id)
+                            config.applet->LISTEN(tier::release, e2::dtor, id)
                             {
                                 insts_count--;
                                 log("tile: inst: detached: ", insts_count, " id=", id);
@@ -706,9 +701,9 @@ namespace netxs::app::tile
         };
         auto parse_data = [](auto&& parse_data, view& utf8) -> sptr<ui::veer>
         {
-            auto place = empty_slot(empty_slot);
+            auto slot = empty_slot(empty_slot);
             utf::trim_front(utf8, ", ");
-            if (utf8.empty()) return place;
+            if (utf8.empty()) return slot;
             auto tag = utf8.front();
             if ((tag == 'h' || tag == 'v') && utf8.find('(') < utf8.find(','))
             {
@@ -721,7 +716,7 @@ namespace netxs::app::tile
                 if (auto v = utf::to_int(utf8)) // Left side ratio
                 {
                     s1 = std::abs(v.value());
-                    if (utf8.empty() || utf8.front() != ':') return place;
+                    if (utf8.empty() || utf8.front() != ':') return slot;
                     utf8.remove_prefix(1);
                     if (auto v = utf::to_int(utf8)) // Right side ratio
                     {
@@ -737,14 +732,14 @@ namespace netxs::app::tile
                             }
                         }
                     }
-                    else return place;
+                    else return slot;
                 }
-                if (utf8.empty() || utf8.front() != '(') return place;
+                if (utf8.empty() || utf8.front() != '(') return slot;
                 utf8.remove_prefix(1);
                 auto node = built_node(tag, s1, s2, w);
-                auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8));
-                auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8));
-                place->attach(node);
+                auto slot1 = node->attach(ui::slot::_1, parse_data(parse_data, utf8));
+                auto slot2 = node->attach(ui::slot::_2, parse_data(parse_data, utf8));
+                slot->attach(node);
 
                 utf::trim_front(utf8, ") ");
             }
@@ -752,23 +747,23 @@ namespace netxs::app::tile
             {
                 utf::trim_front(utf8, " ");
                 auto menuid = text{ utf::get_tail(utf8, " ,)") };
-                if (menuid.empty()) return place;
+                if (menuid.empty()) return slot;
 
                 utf::trim_front(utf8, " ,");
                 if (utf8.size() && utf8.front() == ')') utf8.remove_prefix(1); // pop ')';
 
                 auto oneoff = ptr::shared(hook{});
-                place->LISTEN(tier::anycast, vtm::events::attached, world_ptr, *oneoff, (oneoff, menuid, place))
+                slot->LISTEN(tier::anycast, vtm::events::attached, world_ptr, *oneoff, (oneoff, menuid, slot))
                 {
-                    auto newwhat = vtm::events::newapp.param({ .menuid = menuid });
-                    world_ptr->SIGNAL(tier::request, vtm::events::newapp, newwhat);
-                    auto inst = app_window(newwhat);
-                    place->attach(inst);
+                    auto what = vtm::events::newapp.param({ .menuid = menuid });
+                    world_ptr->SIGNAL(tier::request, vtm::events::newapp, what);
+                    auto inst = app_window(what);
+                    slot->attach(inst);
                     inst->SIGNAL(tier::anycast, vtm::events::attached, world_ptr);
                     oneoff.reset();
                 };
             }
-            return place;
+            return slot;
         };
         auto build_inst = [](text cwd, view param, xml::settings& config, text patch) -> sptr<base>
         {

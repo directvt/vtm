@@ -34,13 +34,13 @@ namespace netxs::app::vtm
 
     struct baseitem
     {
-        using sptr = sptr<base>;
+        using sptr = netxs::sptr<base>;
         text menuid{};
         text header{};
         text footer{};
         rect square{};
         bool forced{};
-        sptr object{};
+        sptr applet{};
     };
 
     using links_t = std::unordered_map<text, menuitem>;
@@ -522,31 +522,28 @@ namespace netxs::app::vtm
         depo regis; // hall: Actors registry.
         idls taken; // hall: Focused objects for the last user.
 
-        auto base_window(baseitem& what)
+        auto window(baseitem& what)
         {
-            auto& header = what.header;
-            auto& footer = what.footer;
-            auto& menuid = what.menuid;
             return ui::cake::ctor()
-                ->template plugin<pro::d_n_d>()
-                ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
-                ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-                ->template plugin<pro::sizer>()
-                ->template plugin<pro::frame>()
-                ->template plugin<pro::light>()
-                ->template plugin<pro::align>()
+                ->plugin<pro::d_n_d>()
+                ->plugin<pro::title>(what.header, what.footer) //todo "template": gcc complains on ubuntu 18.04
+                ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+                ->plugin<pro::sizer>()
+                ->plugin<pro::frame>()
+                ->plugin<pro::light>()
+                ->plugin<pro::align>()
                 ->invoke([&](auto& boss)
                 {
                     boss.keybd.active();
                     boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
-                    boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid))
+                    boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
                     {
-                        if (auto object = boss.pop_back())
+                        if (auto applet = boss.pop_back())
                         {
                             auto& title = boss.template plugins<pro::title>();
                             what.header = title.header();
                             what.footer = title.footer();
-                            what.object = object;
+                            what.applet = applet;
                             what.menuid = menuid;
                         }
                     };
@@ -592,27 +589,27 @@ namespace netxs::app::vtm
         }
         auto& runapp(baseitem& what)
         {
-            auto& config = regis.lnk[what.menuid];
-            auto& creator = app::shared::builder(config.type);
-            what.object = creator(config.cwd, config.param, regis.settings, config.patch);
-            what.header = config.title;
-            what.footer = config.footer;
-            if (config.bgc     ) what.object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
-            if (config.fgc     ) what.object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
-            if (config.slimmenu) what.object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
-            return config;
+            auto& setup = regis.lnk[what.menuid];
+            auto& maker = app::shared::builder(setup.type);
+            what.applet = maker(setup.cwd, setup.param, regis.settings, setup.patch);
+            what.header = setup.title;
+            what.footer = setup.footer;
+            if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
+            if (setup.fgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   setup.fgc);
+            if (setup.slimmenu) what.applet->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, setup.slimmenu);
+            return setup;
         }
         auto create(baseitem& what)
         {
-            auto& config = runapp(what);
-            auto window = base_window(what);
-            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
-            else                                window->extend(what.square);
-            window->attach(what.object);
-            log("hall: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
-            this->branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
-            return window;
+            auto& cfg = runapp(what);
+            auto slot = window(what);
+            if (cfg.winsize && !what.forced) slot->extend({ what.square.coor, cfg.winsize });
+            else                             slot->extend(what.square);
+            slot->attach(what.applet);
+            log("hall: app type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
+            this->branch(what.menuid, slot, !cfg.hidden);
+            slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
+            return slot;
         }
 
     protected:
@@ -835,14 +832,14 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, vtm::events::handoff, what)
             {
-                auto& config = regis.lnk[what.menuid];
-                auto window = base_window(what);
-                window->extend(what.square);
-                window->attach(what.object);
-                log("hall: attach type=", utf::debase(config.type), " menuid=", utf::debase(what.menuid));
-                this->branch(what.menuid, window, !config.hidden);
-                window->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
-                what.object = window;
+                auto& cfg = regis.lnk[what.menuid];
+                auto slot = window(what);
+                slot->extend(what.square);
+                slot->attach(what.applet);
+                log("hall: attach type=", utf::debase(cfg.type), " menuid=", utf::debase(what.menuid));
+                this->branch(what.menuid, slot, !cfg.hidden);
+                slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
+                what.applet = slot;
             };
         }
 
