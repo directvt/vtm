@@ -236,7 +236,7 @@ namespace netxs::ui
         void  minmax(twod const& p)  { boundary |= p;        } // flow: Register twod.
         void  minmax(rect const& r)  { boundary |= r;        } // flow: Register rect.
 
-        // flow: Sync parapgraph style.
+        // flow: Sync paragraph style.
         template<class T>
         auto sync(T const& block)
         {
