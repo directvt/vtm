@@ -814,6 +814,13 @@ namespace netxs::generics
         auto    size() const { return forward.size();                             }
         auto&   back()       { return storage[std::prev(forward.end()) ->second]; }
         auto&  front()       { return storage[          forward.begin()->second]; }
+        void clear()
+        {
+            counter = {};
+            storage.clear();
+            reverse.clear();
+            forward.clear();
+        }
         //todo implement erase and friends
         // ...
         template<class K>

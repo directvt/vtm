@@ -202,7 +202,7 @@ namespace netxs::app::vtm
         : public host
     {
     private:
-        struct node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
+        struct node // hall: Adapter for the object that going to be attached to the world.
         {
             struct ward
             {
@@ -349,7 +349,7 @@ namespace netxs::app::vtm
                 object->SIGNAL(tier::release, e2::postrender, canvas);
             }
         };
-        struct list // hall: Helper-class. List of objects that can be reordered, etc.
+        struct list // hall: List of objects that can be reordered, etc.
         {
             std::list<sptr<node>> items;
 
@@ -463,25 +463,19 @@ namespace netxs::app::vtm
                 return items.back();
             }
         };
-        struct depo // hall: Helper-class. Actors registry.
+        struct depo // hall: Actors registry.
         {
-            sptr<apps> app_ptr = ptr::shared(apps{});
-            sptr<usrs> usr_ptr = ptr::shared(usrs{});
-            sptr<menu> lnk_ptr = ptr::shared(menu{});
-            apps&      app = *app_ptr;
-            usrs&      usr = *usr_ptr;
-            menu&      lnk = *lnk_ptr;
-            xmls&      settings;
-
-            depo(xmls& settings)
-                : settings{ settings }
-            { }
+            sptr<vtm::apps> apps_ptr = ptr::shared(vtm::apps{});
+            sptr<vtm::usrs> usrs_ptr = ptr::shared(vtm::usrs{});
+            sptr<vtm::menu> menu_ptr = ptr::shared(vtm::menu{});
+            vtm::apps& apps = *apps_ptr;
+            vtm::usrs& usrs = *usrs_ptr;
+            vtm::menu& menu = *menu_ptr;
 
             auto remove(sptr<base> item_ptr)
             {
                 auto found = faux;
-                // Remove from active app registry.
-                for (auto& [class_id, fxd_app_list] : app)
+                for (auto& [class_id, fxd_app_list] : apps) // Remove app.
                 {
                     auto& [fixed, app_list] = fxd_app_list;
                     auto head = app_list.begin();
@@ -492,19 +486,19 @@ namespace netxs::app::vtm
                         app_list.erase(iter);
                         if (app_list.empty() && !fixed)
                         {
-                            app.erase(class_id);
+                            apps.erase(class_id);
                         }
                         found = true;
                         break;
                     }
                 }
                 { // Remove user.
-                    auto head = usr.begin();
-                    auto tail = usr.end();
+                    auto head = usrs.begin();
+                    auto tail = usrs.end();
                     auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
                     if (iter != tail)
                     {
-                        usr.erase(iter);
+                        usrs.erase(iter);
                         found = true;
                     }
                 }
@@ -512,7 +506,7 @@ namespace netxs::app::vtm
             }
             void reset()
             {
-                app_ptr.reset();
+                apps.clear();
             }
         };
 
@@ -520,7 +514,7 @@ namespace netxs::app::vtm
 
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
-        depo regis; // hall: Actors registry.
+        depo dbase; // hall: Actors registry.
         idls taken; // hall: Focused objects for the last user.
 
         auto window(link& what)
@@ -592,7 +586,7 @@ namespace netxs::app::vtm
         {
             SIGNAL(tier::request, vtm::events::newapp, what);
             auto slot = window(what);
-            auto& cfg = regis.lnk[what.menuid];
+            auto& cfg = dbase.menu[what.menuid];
             if (cfg.winsize && !what.forced) slot->extend({ what.square.coor, cfg.winsize });
             else                             slot->extend(what.square);
             slot->attach(what.applet);
@@ -603,24 +597,23 @@ namespace netxs::app::vtm
         }
 
     protected:
-        hall(xipc server_pipe, xmls& config, text defailt_id)
-            : host{ server_pipe, config },
-              regis{ config }
+        hall(xipc server, xmls& config, text defapp)
+            : host{ server, config }
         {
             auto current_module_file = os::process::binary();
-            auto& menu_list = *regis.app_ptr;
-            auto& conf_list = *regis.lnk_ptr;
+            auto& apps_list = dbase.apps;
+            auto& menu_list = dbase.menu;
             auto  free_list = std::list<std::pair<text, spec>>{};
             auto  temp_list = free_list;
-            auto dflt_rec = spec
+            auto  dflt_spec = spec
             {
                 .hidden   = faux,
                 .slimmenu = faux,
-                .type     = defailt_id,
+                .type     = defapp,
             };
-            auto find = [&](auto const& id) -> auto&
+            auto find = [&](auto const& menuid) -> auto&
             {
-                auto test = [&](auto& p) { return p.first == id; };
+                auto test = [&](auto& p) { return p.first == menuid; };
 
                 auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
                 if (iter_free != free_list.end()) return iter_free->second;
@@ -628,11 +621,11 @@ namespace netxs::app::vtm
                 auto iter_temp = std::find_if(temp_list.begin(), temp_list.end(), test);
                 if (iter_temp != temp_list.end()) return iter_temp->second;
 
-                return dflt_rec;
+                return dflt_spec;
             };
 
             auto splitter_count = 0;
-            for (auto item_ptr : config.list(path_item))
+            for (auto item_ptr : host::config.list(path_item))
             {
                 auto& item = *item_ptr;
                 auto conf_rec = spec{};
@@ -651,7 +644,7 @@ namespace netxs::app::vtm
                 auto label        = item.take(attr_label, ""s);
                 conf_rec.label    = label.empty() ? conf_rec.menuid : label;
                 conf_rec.alias    = item.take(attr_alias, ""s);
-                auto& fallback = conf_rec.alias.empty() ? dflt_rec
+                auto& fallback = conf_rec.alias.empty() ? dflt_spec
                                                         : find(conf_rec.alias);
                 conf_rec.hidden   = item.take(attr_hidden,   fallback.hidden  );
                 conf_rec.notes    = item.take(attr_notes,    fallback.notes   );
@@ -680,21 +673,21 @@ namespace netxs::app::vtm
                 if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
             }
-            for (auto& [id, conf_rec] : free_list)
+            for (auto& [menuid, conf_rec] : free_list)
             {
-                menu_list[id];
-                conf_list.emplace(std::move(id), std::move(conf_rec));
+                apps_list[menuid];
+                menu_list.emplace(std::move(menuid), std::move(conf_rec));
             }
-            for (auto& [id, conf_rec] : temp_list)
+            for (auto& [menuid, conf_rec] : temp_list)
             {
-                conf_list.emplace(std::move(id), std::move(conf_rec));
+                menu_list.emplace(std::move(menuid), std::move(conf_rec));
             }
 
             LISTEN(tier::request, vtm::events::newapp, what)
             {
-                auto& setup = regis.lnk[what.menuid];
+                auto& setup = dbase.menu[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
-                what.applet = maker(setup.cwd, setup.param, regis.settings, setup.patch);
+                what.applet = maker(setup.cwd, setup.param, host::config, setup.patch);
                 what.header = setup.title;
                 what.footer = setup.footer;
                 if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
@@ -716,7 +709,8 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, e2::form::proceed::detach, item_ptr)
             {
-                if (regis.usr.size() == 1) // Save all foci for the last user.
+                //todo only if the last user detaches
+                if (dbase.usrs.size() == 1) // Save all foci for the last user.
                 {
                     auto& active = taken[id_t{}];
                     auto proc = e2::form::proceed::functor.param([&](sptr<base> focused_item_ptr)
@@ -728,7 +722,7 @@ namespace netxs::app::vtm
                 auto& inst = *item_ptr;
                 host::denote(items.remove(inst.id));
                 host::denote(users.remove(inst.id));
-                if (regis.remove(item_ptr))
+                if (dbase.remove(item_ptr))
                 {
                     inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, This());
                 }
@@ -762,17 +756,17 @@ namespace netxs::app::vtm
                 auto region = items.expose(inst.bell::id);
                 host::denote(region);
             };
-            LISTEN(tier::request, vtm::events::list::usrs, usr_list_ptr)
+            LISTEN(tier::request, vtm::events::list::usrs, usrs_ptr)
             {
-                usr_list_ptr = regis.usr_ptr;
+                usrs_ptr = dbase.usrs_ptr;
             };
-            LISTEN(tier::request, vtm::events::list::apps, app_list_ptr)
+            LISTEN(tier::request, vtm::events::list::apps, apps_ptr)
             {
-                app_list_ptr = regis.app_ptr;
+                apps_ptr = dbase.apps_ptr;
             };
-            LISTEN(tier::request, vtm::events::list::menu, list_ptr)
+            LISTEN(tier::request, vtm::events::list::menu, menu_ptr)
             {
-                list_ptr = regis.lnk_ptr;
+                menu_ptr = dbase.menu_ptr;
             };
             //todo unify
             LISTEN(tier::request, e2::form::layout::gonext, next)
@@ -829,7 +823,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, vtm::events::handoff, what)
             {
-                auto& cfg = regis.lnk[what.menuid];
+                auto& cfg = dbase.menu[what.menuid];
                 auto slot = window(what);
                 slot->extend(what.square);
                 slot->attach(what.applet);
@@ -844,16 +838,16 @@ namespace netxs::app::vtm
        ~hall()
         {
             auto lock = netxs::events::sync{};
-            regis.reset();
+            dbase.reset();
             items.reset();
         }
 
         // hall: Autorun apps from config.
-        void autorun(xmls& config)
+        void autorun()
         {
             auto what = link{};
             auto& active = taken[id_t{}];
-            for (auto app_ptr : config.list(path_autorun))
+            for (auto app_ptr : host::config.list(path_autorun))
             {
                 auto& app = *app_ptr;
                 if (!app.fake)
@@ -903,16 +897,16 @@ namespace netxs::app::vtm
         }
         // hall: Attach a new item to the scene.
         template<class S>
-        void branch(text const& class_id, sptr<S> item, bool fixed = true)
+        void branch(text const& menuid, sptr<S> item, bool fixed = true)
         {
             items.append(item);
             item->base::root(true); //todo move it to the window creator (main)
-            auto& [stat, list] = regis.app[class_id];
+            auto& [stat, list] = dbase.apps[menuid];
             stat = fixed;
             list.push_back(item);
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             item->SIGNAL(tier::anycast, vtm::events::attached, base::This());
-            SIGNAL(tier::release, vtm::events::list::apps, regis.app_ptr);
+            SIGNAL(tier::release, vtm::events::list::apps, dbase.apps_ptr);
         }
         // hall: Create a new user of the specified subtype and invite him to the scene.
         template<class S, class ...Args>
@@ -921,8 +915,8 @@ namespace netxs::app::vtm
             auto lock = netxs::events::sync{};
             auto user = host::invite<S>(std::forward<Args>(args)...);
             users.append(user);
-            regis.usr.push_back(user);
-            SIGNAL(tier::release, vtm::events::list::usrs, regis.usr_ptr);
+            dbase.usrs.push_back(user);
+            SIGNAL(tier::release, vtm::events::list::usrs, dbase.usrs_ptr);
             return user;
         }
     };

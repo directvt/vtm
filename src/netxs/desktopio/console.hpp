@@ -1136,9 +1136,8 @@ namespace netxs::ui
     using os::tty::xipc;
 
     // console: Client properties.
-    class conf
+    struct conf
     {
-    public:
         text ip;
         text port;
         text fullname;
@@ -1169,8 +1168,7 @@ namespace netxs::ui
         bool simple; // conf: Isn't it a directvt app.
         bool is_standalone_app; // conf: .
 
-        template<class T>
-        void read(T&& config)
+        void read(xmls& config)
         {
             config.cd("/config/client/");
             clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
@@ -4114,22 +4112,26 @@ namespace netxs::ui
     class host
         : public base
     {
+    protected:
         using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
 
         pro::keybd keybd{*this }; // host: Keyboard controller.
         pro::mouse mouse{*this }; // host: Mouse controller.
 
-        subs token; // host: Subscription tokens.
-        tick synch; // host: Frame rate synchronizator.
-        si32 hertz; // host: Frame rate value.
-        list edges; // host: Wrecked regions list.
-        xipc joint;
+        subs tokens; // host: Subscription tokens.
+        tick quartz; // host: Frame rate synchronizator.
+        si32 maxfps; // host: Frame rate value.
+        list debris; // host: Wrecked regions.
+        xipc server; // host: Server pipe end.
+        //todo ref
+        xmls& config; // host: Running configuration.
 
     public:
-        host(xipc server_pipe, xmls& config)
-            : synch{ bell::router<tier::general>(), e2::timer::tick.id },
-              joint{ server_pipe }
+        host(xipc server, xmls& config)
+            : quartz{ bell::router<tier::general>(), e2::timer::tick.id },
+              server{ server },
+              config{ config }
         {
             using namespace std::chrono;
             auto& g = skin::globals();
@@ -4166,47 +4168,47 @@ namespace netxs::ui
             g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
             g.max_value      = config.take("limits/window/size"    , twod{ 2000, 1000  });
 
-            hertz = config.take("fps");
-            if (hertz <= 0) hertz = 60;
+            maxfps = config.take("fps");
+            if (maxfps <= 0) maxfps = 60;
 
             keybd.accept(true); // Subscribe on keybd offers.
 
-            LISTEN(tier::general, e2::timer::any, timestamp, token)
+            LISTEN(tier::general, e2::timer::any, timestamp, tokens)
             {
-                auto damaged = !edges.empty();
-                edges.clear();
+                auto damaged = !debris.empty();
+                debris.clear();
                 this->SIGNAL(tier::general, e2::nextframe, damaged);
             };
             //todo deprecated
-            LISTEN(tier::general, e2::config::creator, world_ptr, token)
+            LISTEN(tier::general, e2::config::creator, world_ptr, tokens)
             {
                 world_ptr = base::This();
             };
-            LISTEN(tier::request, e2::config::creator, world_ptr, token)
+            LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
             {
                 world_ptr = base::This();
             };
-            LISTEN(tier::general, e2::config::fps, fps, token)
+            LISTEN(tier::general, e2::config::fps, fps, tokens)
             {
                 if (fps > 0)
                 {
-                    hertz = fps;
-                    synch.ignite(hertz);
+                    maxfps = fps;
+                    quartz.ignite(maxfps);
                 }
                 else if (fps == -1)
                 {
-                    fps = hertz;
+                    fps = maxfps;
                 }
                 else
                 {
-                    synch.cancel();
+                    quartz.cancel();
                 }
             };
-            LISTEN(tier::general, e2::cleanup, counter, token)
+            LISTEN(tier::general, e2::cleanup, counter, tokens)
             {
                 this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
             };
-            LISTEN(tier::general, hids::events::halt, gear, token)
+            LISTEN(tier::general, hids::events::halt, gear, tokens)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4214,14 +4216,14 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            LISTEN(tier::general, e2::shutdown, msg, token)
+            LISTEN(tier::general, e2::shutdown, msg, tokens)
             {
                 //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
                 log("host: shutdown: ", msg);
-                joint->stop();
+                server->stop();
             };
-            synch.ignite(hertz);
-            log("host: started at ", hertz, "fps");
+            quartz.ignite(maxfps);
+            log("host: started at ", maxfps, "fps");
         }
         // host: Initiate redrawing.
         virtual void redraw(face& canvas)
@@ -4233,7 +4235,7 @@ namespace netxs::ui
         {
             if (updateregion)
             {
-                edges.push_back(updateregion);
+                debris.push_back(updateregion);
             }
         }
         void deface(rect const& region) override
@@ -4246,7 +4248,7 @@ namespace netxs::ui
         auto invite(Args&&... args)
         {
             auto lock = events::sync{};
-            auto root = base::create<S>(*this, std::forward<Args>(args)...);
+            auto root = base::create<S>(*this, std::forward<Args>(args)..., host::config);
             //stuff = root;
             root->base::root(true);
             root->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());

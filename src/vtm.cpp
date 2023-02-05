@@ -244,7 +244,7 @@ int main(int argc, char* argv[])
         auto ground = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
         auto srvlog = syslog.tee<events::try_sync>([&](auto utf8) { ground->SIGNAL(tier::general, e2::conio::logs, utf8); });
         auto thread = os::process::pool{};
-        ground->autorun(config);
+        ground->autorun();
 
         log("main: listening socket ", server,
           "\n      user: ", userid,
@@ -276,7 +276,7 @@ int main(int argc, char* argv[])
 
             thread.run([&, client](auto session_id)
             {
-                if (auto window = ground->invite<ui::gate>(client, session_id, config))
+                if (auto window = ground->invite<ui::gate>(client, session_id))
                 {
                     log("user: new gate for ", client);
                     auto patch = ""s;
