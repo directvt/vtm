@@ -6442,6 +6442,7 @@ namespace netxs::ui
             log("term: exit code 0x", utf::to_hex(code));
             auto close_proc = [&]
             {
+                //todo app zone not control
                 log("term: submit for destruction on next frame/tick");
                 LISTEN(tier::general, e2::timer::any, t, oneoff, (backup = This()))
                 {
@@ -7023,6 +7024,7 @@ namespace netxs::ui
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
+            //todo app zone not control
             LISTEN(tier::anycast, e2::form::quit, item)
             {
                 //todo revise, see dtvt
@@ -7513,10 +7515,8 @@ namespace netxs::ui
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
         {
-            if (active) // ui::form::std::from_shared is destroyed prior the ptycon which is still running.
+            if (active)
             {
-                //todo bug
-                auto backup = This(); // To avoid calling the destructor during deserialization (it causes deadlock when using events::sync{} inside the sync()).
                 stream.s11n::sync(data);
             }
         }
@@ -7528,6 +7528,7 @@ namespace netxs::ui
                 active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
                 else      log("dtvt: exit code 0");
+                //todo app zone not control
                 LISTEN(tier::general, e2::timer::any, t, oneoff, (backup = This()))
                 {
                     this->RISEUP(tier::release, e2::form::quit, backup);
@@ -7553,8 +7554,7 @@ namespace netxs::ui
                     splash.output(note);
                     canvas.swap(splash);
                 }
-                auto lock = netxs::events::sync{};
-                this->RISEUP(tier::release, e2::config::plugins::sizer::alive, faux);
+                this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux);
             }
         }
 
@@ -7567,7 +7567,7 @@ namespace netxs::ui
         // dtvt: Start a new process.
         void start()
         {
-            static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions.
+            static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions - one tick one app.
 
             if (!ptycon && !oneoff)
             {
@@ -7627,6 +7627,7 @@ namespace netxs::ui
                 if (value == -1) value = opaque;
                 else             opaque = value;
             };
+            //todo app zone not control
             LISTEN(tier::anycast, e2::form::quit, item)
             {
                 if (ptycon) ptycon.stop();

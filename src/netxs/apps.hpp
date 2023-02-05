@@ -508,6 +508,10 @@ namespace netxs::app::shared
                     {
                         boss.start();
                     };
+                    boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
+                    {
+                        boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
+                    };
                 });
         };
         auto build_ANSIVT        = [](text cwd, text param, xmls& config, text patch)

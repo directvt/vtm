@@ -957,6 +957,8 @@ namespace netxs::ansi
     static auto clipbuf(Args&&... data) { return esc{}.clipbuf(std::forward<Args>(data)...); } // ansi: Set clipboard.
     template<class ...Args>
     static auto add(Args&&... data)   { return esc{}.add(std::forward<Args>(data)...); } // ansi: Add text.
+    template<class ...Args>
+    static auto err(Args&&... data)   { return esc{}.fgc(redlt).add(std::forward<Args>(data)...).nil(); } // ansi: Add error message.
     static auto cup(twod const& n)    { return esc{}.cup(n);        } // ansi: 0-Based caret position.
     static auto cuu(si32 n)           { return esc{}.cuu(n);        } // ansi: Caret up.
     static auto cud(si32 n)           { return esc{}.cud(n);        } // ansi: Caret down.

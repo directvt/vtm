@@ -530,11 +530,7 @@ namespace netxs::app::shared
         }
         else
         {
-            //todo Clang 11.0.1 doesn't get it
-            //auto [client, server] = os::ipc::xlink();
-            auto xlinks = os::ipc::xlink();
-            auto client = xlinks.first;
-            auto server = xlinks.second;
+            auto [client, server] = os::ipc::xlink();
             auto thread = std::thread{ [&]{ os::tty::splice(client, vtmode); }};
             runapp(server);
             thread.join();

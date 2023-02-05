@@ -1155,7 +1155,7 @@ namespace netxs::xml
             auto test = !!homelist.size();
             if (!test)
             {
-                log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + homepath);
+                log(" xml:" + ansi::err(" xml path not found: ") + homepath);
             }
             return test;
         }

@@ -135,7 +135,7 @@ namespace netxs::os
     template<class ...Args>
     auto fail(Args&&... msg)
     {
-        log("  os: ", ansi::fgc(tint::redlt), msg..., " (", os::error(), ") ", ansi::nil());
+        log("  os: ", ansi::err(msg..., " (", os::error(), ") "));
     };
     template<class T>
     auto ok(T error_condition, text msg = {})
