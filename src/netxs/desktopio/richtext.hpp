@@ -236,13 +236,17 @@ namespace netxs::ui
         void  minmax(twod const& p)  { boundary |= p;        } // flow: Register twod.
         void  minmax(rect const& r)  { boundary |= r;        } // flow: Register rect.
 
+        // flow: Sync parapgraph style.
+        template<class T>
+        auto sync(T const& block)
+        {
+            combine(runstyle, block.style);
+        }
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
         template<bool Split, class T, class P = noop>
         void compose(T const& block, P print = P())
         {
-            combine(runstyle, block.style);
-
             auto block_size = block.size();
             textsize = getlen(block_size);
             if (textsize)
@@ -300,6 +304,7 @@ namespace netxs::ui
         template<bool UseLocus = true, class T, class P = noop>
         auto print(T const& block, core& canvas, P printfx = P())
         {
+            sync(block);
             auto coor = std::invoke_result_t<decltype(&flow::cp), flow>{};
 
             if constexpr (UseLocus) coor = forward(block);
@@ -311,6 +316,7 @@ namespace netxs::ui
         template<bool UseLocus = true, class T>
         auto print(T const& block)
         {
+            sync(block);
             auto coor = std::invoke_result_t<decltype(&flow::cp), flow>{};
 
             if constexpr (UseLocus) coor = forward(block);

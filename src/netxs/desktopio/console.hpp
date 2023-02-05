@@ -525,6 +525,7 @@ namespace netxs::ui
         template<class T, class P>
         void output_proxy(T const& block, twod const& coord, P proxy)
         {
+            flow::sync(block);
             flow::ac(coord);
             flow::compose<true>(block, proxy);
         }
@@ -532,6 +533,7 @@ namespace netxs::ui
         template<class T, class P = noop>
         void output(T const& block, twod const& coord, P printfx = P())
         {
+            flow::sync(block);
             flow::ac(coord);
             flow::go(block, *this, printfx);
         }
