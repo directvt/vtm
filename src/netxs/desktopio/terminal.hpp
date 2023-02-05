@@ -7515,6 +7515,7 @@ namespace netxs::ui
         {
             if (active) // ui::form::std::from_shared is destroyed prior the ptycon which is still running.
             {
+                //todo bug
                 auto backup = This(); // To avoid calling the destructor during deserialization (it causes deadlock when using events::sync{} inside the sync()).
                 stream.s11n::sync(data);
             }
