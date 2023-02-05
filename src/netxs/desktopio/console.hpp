@@ -2398,7 +2398,7 @@ namespace netxs::ui
                 : skill{ boss },
                    live{ faux },
                    done{ faux },
-                   down{ faux },
+                   down{ true },
                    form{ abox },
                    body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
                    step{ freq }
