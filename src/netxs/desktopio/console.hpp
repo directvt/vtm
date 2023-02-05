@@ -4121,14 +4121,13 @@ namespace netxs::ui
 
         subs tokens; // host: Subscription tokens.
         tick quartz; // host: Frame rate synchronizator.
-        si32 maxfps; // host: Frame rate value.
+        si32 maxfps; // host: Frame rate.
         list debris; // host: Wrecked regions.
         xipc server; // host: Server pipe end.
-        //todo ref
-        xmls& config; // host: Running configuration.
+        xmls config; // host: Running configuration.
 
     public:
-        host(xipc server, xmls& config)
+        host(xipc server, xmls config )
             : quartz{ bell::router<tier::general>(), e2::timer::tick.id },
               server{ server },
               config{ config }
@@ -4220,7 +4219,7 @@ namespace netxs::ui
             {
                 //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
                 log("host: shutdown: ", msg);
-                server->stop();
+                host::server->stop();
             };
             quartz.ignite(maxfps);
             log("host: started at ", maxfps, "fps");

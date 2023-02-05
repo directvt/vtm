@@ -1127,11 +1127,9 @@ namespace netxs::xml
         text backpath; // settings: Fallback path.
 
         settings() = default;
+        settings(settings const&) = default;
         settings(view utf8_xml)
             : document{ std::make_shared<xml::document>(utf8_xml, "") }
-        { }
-        settings(settings const& s)
-            : document{ s.document }
         { }
 
         auto cd(text gotopath, view fallback = {})
