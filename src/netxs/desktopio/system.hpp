@@ -2362,10 +2362,8 @@ namespace netxs::os
                 }
                 if (waitexit.joinable())
                 {
-                    auto id = waitexit.get_id();
-                    log("vtty: id: ", id, " child process waiter thread joining");
+                    log("vtty: id: ", waitexit.get_id(), " child process waiter thread joining");
                     waitexit.join();
-                    log("vtty: id: ", id, " child process waiter thread joined");
                 }
                 auto guard = std::lock_guard{ writemtx };
                 termlink = {};
@@ -2835,21 +2833,7 @@ namespace netxs::os
            ~vtty()
             {
                 log("dtvt: dtor started");
-                if (termlink)
-                {
-                    stop();
-                }
-                if (stdwrite.joinable())
-                {
-                    writesyn.notify_one();
-                    log("dtvt: id: ", stdwrite.get_id(), " writing thread joining");
-                    stdwrite.join();
-                }
-                if (stdinput.joinable())
-                {
-                    log("dtvt: id: ", stdinput.get_id(), " reading thread joining");
-                    stdinput.join();
-                }
+                stop();
                 log("dtvt: dtor complete");
             }
 
@@ -3017,12 +3001,6 @@ namespace netxs::os
 
                 return proc_pid;
             }
-            void stop()
-            {
-                //todo wait_child()?
-                termlink.shut();
-                writesyn.notify_one();
-            }
             auto wait_child()
             {
                 //auto guard = std::lock_guard{ writemtx };
@@ -3077,14 +3055,41 @@ namespace netxs::os
                 log("dtvt: child waiting complete");
                 return exit_code;
             }
+            void cleanup()
+            {
+                if (stdwrite.joinable())
+                {
+                    writesyn.notify_one();
+                    log("dtvt: id: ", stdwrite.get_id(), " writing thread joining");
+                    stdwrite.join();
+                }
+                if (stdinput.joinable())
+                {
+                    log("dtvt: id: ", stdinput.get_id(), " reading thread joining");
+                    stdinput.join();
+                }
+                auto guard = std::lock_guard{ writemtx };
+                termlink = {};
+                writebuf = {};
+            }
+            void stop()
+            {
+                if (termlink)
+                {
+                    wait_child();
+                }
+                cleanup();
+            }
             void read_socket_thread()
             {
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
-
                 directvt::binary::stream::reading_loop(termlink, receiver);
-
-                preclose(0); //todo send msg from the client app
-                shutdown(wait_child());
+                if (termlink)
+                {
+                    preclose(0); //todo send msg from the client app
+                    auto exit_code = wait_child();
+                    shutdown(exit_code);
+                }
                 log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
             }
             void send_socket_thread()

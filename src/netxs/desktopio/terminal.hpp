@@ -6442,13 +6442,7 @@ namespace netxs::ui
             log("term: exit code 0x", utf::to_hex(code));
             auto close_proc = [&]
             {
-                //todo app zone not control
-                log("term: submit for destruction on next frame/tick");
-                LISTEN(tier::general, e2::timer::any, t, oneoff, (backup = This()))
-                {
-                    this->RISEUP(tier::release, e2::form::quit, backup);
-                    oneoff.reset();
-                };
+                this->SIGNAL(tier::preview, e2::form::quit, This());
             };
             auto chose_proc = [&]
             {
@@ -6977,6 +6971,11 @@ namespace netxs::ui
             ondata("\n");
             start();
         }
+        void stop()
+        {
+            active = faux;
+            ptycon.stop();
+        }
         // term: Resize terminal window.
         void window_resize(twod winsz)
         {
@@ -6985,8 +6984,14 @@ namespace netxs::ui
             RISEUP(tier::preview, e2::form::layout::swarp, warp);
             RISEUP(tier::preview, e2::form::prop::window::size, winsz);
         }
+
+        //todo
         bool linux_console{};
-       ~term(){ active = faux; }
+
+       ~term()
+        {
+            stop();
+        }
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
@@ -7024,12 +7029,6 @@ namespace netxs::ui
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
-            //todo app zone not control
-            LISTEN(tier::anycast, e2::form::quit, item)
-            {
-                //todo revise, see dtvt
-                this->RISEUP(tier::release, e2::form::quit, item);
-            };
             LISTEN(tier::preview, e2::coor::set, new_coor)
             {
                 follow[axis::Y] = target->set_slide(new_coor.y);
@@ -7528,12 +7527,7 @@ namespace netxs::ui
                 active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
                 else      log("dtvt: exit code 0");
-                //todo app zone not control
-                LISTEN(tier::general, e2::timer::any, t, oneoff, (backup = This()))
-                {
-                    this->RISEUP(tier::release, e2::form::quit, backup);
-                    oneoff.reset();
-                };
+                this->SIGNAL(tier::preview, e2::form::quit, This());
             }
         }
         // dtvt: Preclose callback handler.
@@ -7591,6 +7585,11 @@ namespace netxs::ui
                 };
             }
         }
+        void stop()
+        {
+            active = faux;
+            if (ptycon) ptycon.stop();
+        }
         template<bool Forced = faux>
         void pty_resize(twod const& new_size)
         {
@@ -7602,7 +7601,7 @@ namespace netxs::ui
 
        ~dtvt()
         {
-            active = faux;
+            stop();
         }
         dtvt(text cwd, text cmd, text cfg)
             : stream{*this },
@@ -7626,17 +7625,6 @@ namespace netxs::ui
             {
                 if (value == -1) value = opaque;
                 else             opaque = value;
-            };
-            //todo app zone not control
-            LISTEN(tier::anycast, e2::form::quit, item)
-            {
-                if (ptycon) ptycon.stop();
-                else        this->RISEUP(tier::release, e2::form::quit, item);
-            };
-            LISTEN(tier::general, e2::conio::quit, msg)
-            {
-                active = faux;
-                if (ptycon) ptycon.stop();
             };
             LISTEN(tier::release, e2::coor::any, coor)
             {

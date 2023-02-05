@@ -512,6 +512,21 @@ namespace netxs::app::shared
                     {
                         boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
                     };
+                    boss.LISTEN(tier::preview, e2::form::quit, boss_ptr)
+                    {
+                        auto oneoff = ptr::shared(hook{});
+                        boss.LISTEN(tier::general, e2::timer::any, t, *oneoff, (oneoff))
+                        {
+                            auto backup = boss.This();
+                            boss.SIGNAL(tier::anycast, e2::form::quit, backup);
+                            oneoff.reset();
+                        };
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::quit, item)
+                    {
+                        boss.stop();
+                        boss.RISEUP(tier::release, e2::form::quit, item);
+                    };
                 });
         };
         auto build_ANSIVT        = [](text cwd, text param, xmls& config, text patch)
