@@ -531,7 +531,7 @@ namespace netxs::app::shared
         else
         {
             auto [client, server] = os::ipc::xlink();
-            auto thread = std::thread{ [&, &client = client]{ os::tty::splice(client, vtmode); }}; //todo clang 15.0.0 still disallows capturing structured bindings
+            auto thread = std::thread{ [&, &client = client]{ os::tty::splice(client, vtmode); }}; //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
             runapp(server);
             thread.join();
         }

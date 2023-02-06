@@ -693,7 +693,7 @@ namespace netxs::app::term
 
             auto [slot1, cover, menu_data] = terminal_menu(config);
             auto menu = object->attach(slot::_1, slot1);
-            cover->invoke([&, &slot1 = slot1](auto& boss) //todo clang 15.0.0 still disallows capturing structured bindings
+            cover->invoke([&, &slot1 = slot1](auto& boss) //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
             {
                 boss.colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
                 boss.LISTEN(tier::anycast, app::term::events::release::colors::bg, bg)
