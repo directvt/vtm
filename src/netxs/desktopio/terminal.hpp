@@ -6390,31 +6390,24 @@ namespace netxs::ui
         template<class P>
         void update(P proc)
         {
-            while (active)
+            bell::trysync(active, [&]
             {
-                auto guard = netxs::events::try_sync{};
-                if (guard)
+                if (config.resetonout) follow[axis::Y] = true;
+                if (follow[axis::Y])
                 {
-                    if (config.resetonout) follow[axis::Y] = true;
-                    if (follow[axis::Y])
-                    {
-                        proc();
-                    }
-                    else
-                    {
-                        auto last_basis = target->get_basis();
-                        auto last_slide = target->get_slide();
-                        proc();
-                        auto next_basis = target->get_basis();
-                        follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
-                                       || (next_basis <= last_slide && last_slide <= last_basis);
-                    }
-
-                    unsync = true;
-                    break;
+                    proc();
                 }
-                else std::this_thread::yield();
-            }
+                else
+                {
+                    auto last_basis = target->get_basis();
+                    auto last_slide = target->get_slide();
+                    proc();
+                    auto next_basis = target->get_basis();
+                    follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
+                                   || (next_basis <= last_slide && last_slide <= last_basis);
+                }
+                unsync = true;
+            });
         }
         // term: Proceed terminal input.
         void ondata(view data, bufferbase* target)
@@ -6439,49 +6432,52 @@ namespace netxs::ui
         // term: Shutdown callback handler.
         void onexit(si32 code, view msg = {})
         {
-            log("term: exit code 0x", utf::to_hex(code));
-            auto close_proc = [&]
+            bell::trysync(active, [&]
             {
-                this->SIGNAL(tier::preview, e2::form::quit, This());
-            };
-            auto chose_proc = [&]
-            {
-                auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                    .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
-                    .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
-                ondata(error);
-                LISTEN(tier::release, hids::events::keybd::any, gear, onerun)
+                log("term: exit code 0x", utf::to_hex(code));
+                auto close_proc = [&]
                 {
-                    if (gear.pressed && gear.cluster.size())
+                    SIGNAL(tier::preview, e2::form::quit, This());
+                };
+                auto chose_proc = [&]
+                {
+                    auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
+                        .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
+                        .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
+                    ondata(error);
+                    LISTEN(tier::release, hids::events::keybd::any, gear, onerun)
                     {
-                        switch (gear.cluster.front())
+                        if (gear.pressed && gear.cluster.size())
                         {
-                            case ansi::C0_ESC: onexit(0); break;
-                            case ansi::C0_CR:  start();   break;
+                            switch (gear.cluster.front())
+                            {
+                                case ansi::C0_ESC: onexit(0); break;
+                                case ansi::C0_CR:  start();   break;
+                            }
                         }
-                    }
+                    };
                 };
-            };
-            auto start_proc = [&]
-            {
-                auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                    .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
-                ondata(error);
-                LISTEN(tier::general, e2::timer::any, t, onerun)
+                auto start_proc = [&]
                 {
-                    start();
+                    auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
+                        .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
+                    ondata(error);
+                    LISTEN(tier::general, e2::timer::any, t, onerun)
+                    {
+                        start();
+                    };
                 };
-            };
-            switch (config.def_atexit)
-            {
-                case commands::atexit::smart: code ? chose_proc()
-                                                   : close_proc(); break;
-                case commands::atexit::retry: code ? start_proc()
-                                                   : close_proc(); break;
-                case commands::atexit::ask:          chose_proc(); break;
-                case commands::atexit::close:        close_proc(); break;
-                case commands::atexit::restart:      start_proc(); break;
-            }
+                switch (config.def_atexit)
+                {
+                    case commands::atexit::smart: code ? chose_proc()
+                                                       : close_proc(); break;
+                    case commands::atexit::retry: code ? start_proc()
+                                                       : close_proc(); break;
+                    case commands::atexit::ask:          chose_proc(); break;
+                    case commands::atexit::close:        close_proc(); break;
+                    case commands::atexit::restart:      start_proc(); break;
+                }
+            });
         }
         // term: Reset to defaults.
         void setdef()
@@ -7519,37 +7515,37 @@ namespace netxs::ui
                 stream.s11n::sync(data);
             }
         }
+        // dtvt: Preclose callback handler.
+        void atexit(si32 code)
+        {
+            {
+                auto lock = stream.bitmap.freeze();
+                auto& canvas = lock.thing.image;
+                auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
+                    .add("              \n",
+                         "  Closing...  \n",
+                         "              \n") };
+                canvas.copy(splash);
+                splash.output(note);
+                splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                splash.output(note);
+                canvas.swap(splash);
+            }
+            bell::trysync(active, [&]
+            {
+                SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux);
+            });
+        }
         // dtvt: Shutdown callback handler.
         void onexit(si32 code)
         {
-            if (active)
+            bell::trysync(active, [&]
             {
                 active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
                 else      log("dtvt: exit code 0");
-                this->SIGNAL(tier::preview, e2::form::quit, This());
-            }
-        }
-        // dtvt: Preclose callback handler.
-        void atexit(si32 code)
-        {
-            if (active)
-            {
-                {
-                    auto lock = stream.bitmap.freeze();
-                    auto& canvas = lock.thing.image;
-                    auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
-                        .add("              \n",
-                             "  Closing...  \n",
-                             "              \n") };
-                    canvas.copy(splash);
-                    splash.output(note);
-                    splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-                    splash.output(note);
-                    canvas.swap(splash);
-                }
-                this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux);
-            }
+                SIGNAL(tier::preview, e2::form::quit, This());
+            });
         }
 
     public:

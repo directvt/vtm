@@ -595,6 +595,20 @@ namespace netxs::events
             else if constexpr (Tier == tier::release) return release.stop();
             else                                      return anycast.stop();
         }
+        // bell: Sync with UI thread.
+        template<class P>
+        void trysync(bool& active, P proc)
+        {
+            while (active)
+            {
+                if (auto guard = netxs::events::try_sync{})
+                {
+                    proc();
+                    break;
+                }
+                std::this_thread::yield();
+            }            
+        }
 
         bell()
         {
