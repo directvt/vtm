@@ -783,7 +783,7 @@ namespace netxs::generics
         struct iter
         {
             using it_t = decltype(IMAP{}.forward.begin());
-            using type = typename std::iterator_traits<it_t>::difference_type; //todo "typename" keyword is required by FreeBSD clang 11.0.1
+            using type = typename std::iterator_traits<it_t>::difference_type; //todo "typename" keyword is required by clang 13.0.0
 
             IMAP& buff;
             it_t  addr;

@@ -120,8 +120,8 @@ namespace netxs::app::tile
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    auto deed = boss.bell::template protos<tier::release>(); //todo "template" keyword is required by FreeBSD clang 11.0.1
-                                    data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc
+                                    auto deed = boss.bell::template protos<tier::release>(); //todo clang 13.0.0 requires template
+                                    data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc version 10.4.0
                                     gear.dismiss();
                                 }
                             };
@@ -183,7 +183,7 @@ namespace netxs::app::tile
                     if (gear_test.second)
                     {
                         if (auto parent = boss.parent())
-                        if (auto deed = parent->bell::template protos<tier::anycast>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
+                        if (auto deed = parent->bell::template protos<tier::anycast>()) //todo "template" keyword is required by clang 13.0.0
                         {
                             switch (deed)
                             {
@@ -942,7 +942,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::anycast, app::tile::events::ui::any, gear)
                     {
-                        if (auto deed = boss.bell::template protos<tier::anycast>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
+                        if (auto deed = boss.bell::template protos<tier::anycast>()) //todo "template" keyword is required by clang 13.0.0
                         {
                             if (boss.count() > 2 && deed != app::tile::events::ui::toggle.id) // Restore the window before any action if maximized.
                             {

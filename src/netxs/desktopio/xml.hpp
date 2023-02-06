@@ -1267,7 +1267,7 @@ namespace netxs::xml
                             }
                             else if (count) // It is a list.
                             {
-                                //todo Clang 11.0.1 don't get it.
+                                //todo Clang 13.0.0 don't get it.
                                 //auto rewrite = sub_list.end() != std::ranges::find_if(sub_list, [](auto& a){ return a->base; });
                                 auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
                                 document->join(path + "/" + sub_name, sub_list, rewrite);

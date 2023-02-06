@@ -1626,7 +1626,7 @@ namespace netxs::utf
             utf8 = view{};
             return utf8;
         }
-        //todo Clang 11.0.1 doesn't get it
+        //todo Clang 13.0.0 doesn't get it
         //auto crop = view{ coor, stop };
         auto crop = view{ &(*coor), (size_t)(stop - coor) };
 
@@ -1650,7 +1650,7 @@ namespace netxs::utf
             utf8 = view{};
             return utf8;
         }
-        //todo Clang 11.0.1 doesn't get it
+        //todo Clang 13.0.0 doesn't get it
         //auto crop = view{ head, stop + 1 };
         auto crop = view{ &(*head), (size_t)(stop + 1 - head) };
         utf8.remove_prefix(crop.size());
@@ -1676,7 +1676,7 @@ namespace netxs::utf
                 return crop;
             }
         }
-        //todo Clang 11.0.1 doesn't get it
+        //todo Clang 13.0.0 doesn't get it
         //auto str = view{ head, stop };
         auto str = view{ &(*head), (size_t)(stop - head) };
         utf8.remove_prefix(std::distance(head, stop));
