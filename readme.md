@@ -242,8 +242,8 @@ No arguments               | Run client (auto start server)
 ` -d \| --daemon `         | Run server in background
 ` -s \| --server `         | Run server in interactive mode
 ` -r \| --runapp [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
-` -v \| --version `        | Show version and exit.
-` -? \| -h \| --help `     | Show usage message.
+` -v \| --version `        | Show version and exit
+` -? \| -h \| --help `     | Show usage message
 
 Configuration precedence (descending priority):<br>
 1. Command line options `vtm -c path/to/settings.xml`<br>
