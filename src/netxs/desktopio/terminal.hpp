@@ -6437,7 +6437,7 @@ namespace netxs::ui
                 log("term: exit code 0x", utf::to_hex(code));
                 auto close_proc = [&]
                 {
-                    SIGNAL(tier::preview, e2::form::quit, This());
+                    this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
                 };
                 auto chose_proc = [&]
                 {
@@ -6445,7 +6445,7 @@ namespace netxs::ui
                         .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
                         .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                     ondata(error);
-                    LISTEN(tier::release, hids::events::keybd::any, gear, onerun)
+                    this->LISTEN(tier::release, hids::events::keybd::any, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.pressed && gear.cluster.size())
                         {
@@ -6462,7 +6462,7 @@ namespace netxs::ui
                     auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
                         .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
                     ondata(error);
-                    LISTEN(tier::general, e2::timer::any, t, onerun)
+                    this->LISTEN(tier::general, e2::timer::any, t, onerun) //todo VS2019 requires `this`
                     {
                         start();
                     };
@@ -7533,7 +7533,7 @@ namespace netxs::ui
             }
             bell::trysync(active, [&]
             {
-                SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux);
+                this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
             });
         }
         // dtvt: Shutdown callback handler.
@@ -7544,7 +7544,7 @@ namespace netxs::ui
                 active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
                 else      log("dtvt: exit code 0");
-                SIGNAL(tier::preview, e2::form::quit, This());
+                this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
             });
         }
 
