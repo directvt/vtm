@@ -537,12 +537,12 @@ Note: The following configuration sections are not implemented yet
         <defaults>
             <fps      = 60   />
             <bordersz = 1,1  />
-            <brighter = 60   />
-            <kb_focus = 60   />
-            <shadower = 180  />
-            <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
-            <selector = 48   />
+            <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
+            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
+            <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
+            <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
+            <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
             <highlight  fgc=purewhite bgc=bluelt      />
             <warning    fgc=whitelt   bgc=yellowdk    />
             <danger     fgc=whitelt   bgc=redlt       />
