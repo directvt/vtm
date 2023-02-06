@@ -7,11 +7,6 @@
     #define __BSD__
 #endif
 
-#if defined(__clang__) || defined(__APPLE__)
-    #pragma clang diagnostic ignored "-Wunused-variable"
-    #pragma clang diagnostic ignored "-Wunused-function"
-#endif
-
 #include "input.hpp"
 
 #include <type_traits>

@@ -3,6 +3,11 @@
 
 #pragma once
 
+#if defined(__clang__) || defined(__APPLE__)
+    #pragma clang diagnostic ignored "-Wunused-variable"
+    #pragma clang diagnostic ignored "-Wunused-function"
+#endif
+
 #include "controls.hpp"
 
 #include <fstream>
