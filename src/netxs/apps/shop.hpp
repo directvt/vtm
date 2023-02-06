@@ -28,6 +28,9 @@ namespace netxs::events::userland
 // shop: Desktopio App Store.
 namespace netxs::app::shop
 {
+    static constexpr auto id = "gems";
+    static constexpr auto desc = "Desktopio App Manager (DEMO)";
+
     using events = netxs::events::userland::shop;
 
     namespace
@@ -77,9 +80,8 @@ namespace netxs::app::shop
                 appstore_head =
                 ansi::nil().eol().mgl(2).mgr(2)
                 .bld(faux).fgc(whitelt).jet(bias::left).wrp(wrap::on).add(
-                "Terminal Application Distribution Platform that allows "
-                "users to browse and download applications developed with "
-                "Desktopio Framework.\n\n");
+                "Desktopio Application Distribution Platform that allows "
+                "users to browse and download software.\n\n");
 
                 auto textancy_text = ansi::nil().add(
                 "Hello World!😎\n"
@@ -187,7 +189,7 @@ namespace netxs::app::shop
             return std::tuple{ appstore_head, appstore_body, desktopio_body };
         };
 
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto c3 = highlight_color;
@@ -235,5 +237,5 @@ namespace netxs::app::shop
         };
     };
 
-    app::shared::initialize builder{ "gems", build };
+    app::shared::initialize builder{ app::shop::id, build };
 }

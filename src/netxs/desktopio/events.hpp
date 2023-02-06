@@ -272,10 +272,16 @@ namespace netxs::events
         static std::map<id_t, wptr<T>> store;
 
         // indexer: Return shared_ptr of the object by its id.
+        template<class TT = T>
         static auto getref(id_t id)
         {
             auto lock = sync{};
-            return netxs::get_or(store, id, empty).lock();
+            if (auto item_ptr = netxs::get_or(store, id, empty).lock())
+            if (auto real_ptr = std::dynamic_pointer_cast<TT>(item_ptr))
+            {
+                return real_ptr;
+            }
+            return sptr<TT>{};
         }
         // indexer: Create a new object of the specified subtype and return its shared_ptr.
         template<class TT, class ...Args>
@@ -347,6 +353,7 @@ namespace netxs::events
         static constexpr auto id = Event_id;
         template<class ...Args> constexpr type_clue(Args&&...) { }
         template<class ...Args> static constexpr auto param(Args&&... args) { return type{ std::forward<Args>(args)... }; }
+                                static constexpr auto param(type&&    arg ) { return std::move(arg);                      }
         template<auto N>        static constexpr auto group()               { return events::subset<id, N>;               }
                                 static constexpr auto index()               { return events::number<id>;                  }
     };
@@ -357,8 +364,6 @@ namespace netxs::events
 
     #define RISEUP(        level, event,   ...              ) base::template riseup<level>(event, __VA_ARGS__)
     #define SIGNAL(        level, event, param              ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
-    #define SIGNAL_GLOBAL(        event, param              ) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
-    #define LISTEN_GLOBAL(        event, param, token       ) bell::template submit_global( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
     #define LISTEN_S_BYREF(level, event, param              ) bell::template submit<level>( event )           = [&]                  (typename decltype( event )::type&& param)
     #define LISTEN_T_BYREF(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
     #define LISTEN_T_BYVAL(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL byval ] (typename decltype( event )::type&& param) mutable
@@ -371,20 +376,22 @@ namespace netxs::events
     #endif
 
     //todo deprecated?
-    #define LISTEN_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
-    #define LISTEN_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
+    //#define LISTEN_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
+    //#define LISTEN_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
+    //#define SIGNAL_GLOBAL(        event, param              ) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
+    //#define LISTEN_GLOBAL(        event, param, token       ) bell::template submit_global( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
 
     #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
-                                    public: static constexpr auto any = type_clue<_group_type, decltype(base)::type, decltype(base)::id>
-    #define  EVENT_XS( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
+                                    public: static constexpr auto any = netxs::events::type_clue<_group_type, decltype(base)::type, decltype(base)::id>
+    #define  EVENT_XS( name, type ) }; static constexpr auto name = netxs::events::type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
     #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
     #define SUBSET_XS( name )       }; class name { EVENTPACK( name, _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
                                     private: static constexpr auto _dummy = { 777
 
-    class bell;
+    struct bell;
     using ftor = std::function<bool(sptr<bell>)>;
 
     struct ref_count_t
@@ -399,7 +406,7 @@ namespace netxs::events
     {
         struct root
         {
-            static constexpr auto root_event = type_clue<root, void, 0>{};
+            static constexpr auto root_event = type_clue<root, si32, 0>{};
             EVENTPACK( root, root_event )
             {
                 EVENT_XS( dtor   , const id_t ),
@@ -413,9 +420,8 @@ namespace netxs::events
     }
 
     // events: Event x-mitter.
-    class bell : public indexer<bell>
+    struct bell : public indexer<bell>
     {
-    public:
         static constexpr auto noid = std::numeric_limits<id_t>::max();
         subs tracker;
 
@@ -556,9 +562,10 @@ namespace netxs::events
                 return root->release.notify(userland::root::cascade.id, proc);
             }
         }
-        template<class Event> static auto submit_global(Event, hook& token)   { return submit_helper_token_global<Event>(token); }
-        template<class Event> static auto submit_global(Event, subs& tokens)  { return submit_helper_token_global<Event>(tokens.extra()); }
-        template<class F>     static auto signal_global(hint event, F&& data) { return _globals<void>::general.notify(event, std::forward<F>(data)); }
+        //todo deprecated
+        //template<class F>     static auto signal_global(hint event, F&& data) { return _globals<void>::general.notify(event, std::forward<F>(data)); }
+        //template<class Event> static auto submit_global(Event, hook& token)   { return submit_helper_token_global<Event>(token); }
+        //template<class Event> static auto submit_global(Event, subs& tokens)  { return submit_helper_token_global<Event>(tokens.extra()); }
         // bell: Return initial event of the current event execution branch.
         template<tier Tier>
         auto protos()
@@ -588,10 +595,24 @@ namespace netxs::events
             else if constexpr (Tier == tier::release) return release.stop();
             else                                      return anycast.stop();
         }
+        // bell: Sync with UI thread.
+        template<class P>
+        void trysync(bool& active, P proc)
+        {
+            while (active)
+            {
+                if (auto guard = netxs::events::try_sync{})
+                {
+                    proc();
+                    break;
+                }
+                std::this_thread::yield();
+            }            
+        }
 
         bell()
         {
-            LISTEN_GLOBAL(userland::root::cleanup, counter, tracker)
+            LISTEN(tier::general, userland::root::cleanup, counter)
             {
                 counter.obj_count++;
                 preview.cleanup(counter.ref_count, counter.del_count);
@@ -600,9 +621,10 @@ namespace netxs::events
                 anycast.cleanup(counter.ref_count, counter.del_count);
             };
         }
-       ~bell() { SIGNAL(tier::release, userland::root::dtor, id); }
-
-        virtual void global(twod& coor) { } // bell: Recursively calculate global coordinate.
+       ~bell()
+        {
+            SIGNAL(tier::release, userland::root::dtor, id);
+        }
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
 
@@ -630,4 +652,11 @@ namespace netxs::events
     }
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;
+}
+namespace netxs
+{
+    using netxs::events::bell;
+    using netxs::events::subs;
+    using netxs::events::tier;
+    using netxs::events::hook;
 }

@@ -91,7 +91,8 @@ namespace netxs::ui
         public:
             cell_highlight(base&&) = delete;
             cell_highlight(base& boss)
-                : skill{ boss }
+                : skill{ boss },
+                  items{ boss }
             {
                 boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
                 {
@@ -234,9 +235,12 @@ namespace netxs::ui
     }
 }
 
-// calc: Spreadsheet calculatpor.
+// calc: Spreadsheet calculator.
 namespace netxs::app::calc
 {
+    static constexpr auto id = "calc";
+    static constexpr auto desc = "Desktopio Spreadsheet (DEMO)";
+
     using events = ::netxs::events::userland::calc;
 
     namespace
@@ -313,10 +317,10 @@ namespace netxs::app::calc
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
         };
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
-            auto highlight_color = skin::color(tone::highlight);
-            auto label_color     = skin::color(tone::label);
+            auto highlight_color = skin::globals().highlight;
+            auto label_color     = skin::globals().label;
             auto c3 = highlight_color;
             auto x3 = cell{ c3 }.alpha(0x00);
             auto c7 = label_color;
@@ -344,7 +348,7 @@ namespace netxs::app::calc
                           boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
-            auto fader = skin::timeout(tone::fader);
+            auto fader = skin::globals().fader_time;
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
@@ -417,5 +421,5 @@ namespace netxs::app::calc
         };
     }
 
-    app::shared::initialize builder{ "calc", build };
+    app::shared::initialize builder{ app::calc::id, build };
 }

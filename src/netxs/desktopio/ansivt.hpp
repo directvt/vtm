@@ -957,6 +957,8 @@ namespace netxs::ansi
     static auto clipbuf(Args&&... data) { return esc{}.clipbuf(std::forward<Args>(data)...); } // ansi: Set clipboard.
     template<class ...Args>
     static auto add(Args&&... data)   { return esc{}.add(std::forward<Args>(data)...); } // ansi: Add text.
+    template<class ...Args>
+    static auto err(Args&&... data)   { return esc{}.fgc(redlt).add(std::forward<Args>(data)...).nil(); } // ansi: Add error message.
     static auto cup(twod const& n)    { return esc{}.cup(n);        } // ansi: 0-Based caret position.
     static auto cuu(si32 n)           { return esc{}.cuu(n);        } // ansi: Caret up.
     static auto cud(si32 n)           { return esc{}.cud(n);        } // ansi: Caret down.
@@ -1893,7 +1895,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo Clang 13.0.0 doesn't get it // preserve ESC at the end
                             utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                             return utf8;
                         }
@@ -1909,7 +1911,7 @@ namespace netxs::ansi
                             {
                                 if (tail - step < 8)
                                 {
-                                    //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
+                                    //utf8 = { head, prev }; //todo Clang 13.0.0 doesn't get it // preserve ESC at the end
                                     utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                                 }
                                 else
@@ -1931,7 +1933,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo Clang 13.0.0 doesn't get it // preserve ESC at the end
                             utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                             return utf8;
                         }
@@ -1956,7 +1958,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo Clang 13.0.0 doesn't get it // preserve ESC at the end
                             utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                             return utf8;
                         }
@@ -1975,7 +1977,7 @@ namespace netxs::ansi
                     {
                         if (++next == tail)
                         {
-                            //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo Clang 13.0.0 doesn't get it // preserve ESC at the end
                             utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                         }
                     }
@@ -2013,7 +2015,7 @@ namespace netxs::ansi
                 }
                 else
                 {
-                    //utf8 = { head, prev }; //todo Clang 11.0.1 doesn't get it // preserve ESC at the end
+                    //utf8 = { head, prev }; //todo Clang 13.0.0 doesn't get it // preserve ESC at the end
                     utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                     return utf8;
                 }

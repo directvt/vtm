@@ -1,0 +1,193 @@
+R"==(
+<config>
+    <appearance>
+        <defaults>
+            <fps      = 60   />
+            <bordersz = 1,1  />
+            <brighter = 60   />
+            <kb_focus = 60   />
+            <shadower = 180  />
+            <shadow   = 180  />
+            <lucidity = 0xff /> <!-- not implemented -->
+            <selector = 48   />
+            <highlight  fgc=purewhite bgc=bluelt      />
+            <warning    fgc=whitelt   bgc=yellowdk    />
+            <danger     fgc=whitelt   bgc=redlt       />
+            <action     fgc=whitelt   bgc=greenlt     />
+            <label      fgc=blackdk   bgc=whitedk     />
+            <inactive   fgc=blacklt   bgc=transparent />
+            <menu_white fgc=whitelt   bgc=0x80404040  />
+            <menu_black fgc=blackdk   bgc=0x80404040  />
+            <timings>
+                <fader duration=0ms fast=0ms/>  <!-- Fader animation config. -->
+                <spd            = 10    /> <!-- Auto-scroll initial speed component ΔR.              -->
+                <pls            = 167   /> <!-- Auto-scroll initial speed component ΔT.              -->
+                <ccl            = 120   /> <!-- Auto-scroll duration in ms.                          -->
+                <spd_accel      = 1     /> <!-- Auto-scroll speed accelation.                        -->
+                <ccl_accel      = 30    /> <!-- Auto-scroll additional duration in ms.               -->
+                <spd_max        = 100   /> <!-- Auto-scroll max speed.                               -->
+                <ccl_max        = 1000  /> <!-- Auto-scroll max duration in ms                       -->
+                <deceleration   = 2s    /> <!-- Object state stopping duration in s.                 -->
+                <switching      = 200   /> <!-- Object state switching duration in ms.               -->
+                <blink_period   = 400ms /> <!-- Period in ms between the blink states of the cursor. -->
+                <menu_timeout   = 250ms /> <!-- Taskbar collaplse timeout.                           -->
+                <active_timeout = 1s    /> <!-- Timeout off the active object.                       -->
+                <repeat_delay   = 500ms /> <!-- Repeat delay.                                        -->
+                <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
+            </timings>
+        </defaults>
+        <runapp>    <!-- Override defaults. -->
+            <brighter=0/>
+        </runapp>
+    </appearance>
+    <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
+        <blackdk   = 0xFF101010 /> <!-- Color reference literals. -->
+        <reddk     = 0xFF1f0fc4 />
+        <greendk   = 0xFF0ea112 />
+        <yellowdk  = 0xFF009cc0 />
+        <bluedk    = 0xFFdb3700 />
+        <magentadk = 0xFF981787 />
+        <cyandk    = 0xFFdd963b />
+        <whitedk   = 0xFFbbbbbb />
+        <blacklt   = 0xFF757575 />
+        <redlt     = 0xFF5648e6 />
+        <greenlt   = 0xFF0cc615 />
+        <yellowlt  = 0xFFa5f1f8 />
+        <bluelt    = 0xFFff783a />
+        <magentalt = 0xFF9e00b3 />
+        <cyanlt    = 0xFFd6d660 />
+        <whitelt   = 0xFFf3f3f3 />
+        <pureblack = 0xFF000000 />
+        <purewhite = 0xFFffffff />
+        <nocolor   = 0x00000000 />
+        <transparent = nocolor  />
+    </set>
+    <client>
+        <background fgc=whitedk bgc=0xFF000000>  <!-- Desktop background color. -->
+            <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
+        </background>
+        <clipboard>
+            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
+                <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
+                <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
+                <shadow=7  />  <!-- Preview shadow strength (0-10). -->
+            </preview>
+        </clipboard>
+        <viewport coor=0,0/>
+        <mouse dblclick=500ms/>
+        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite/>
+        <glowfx=true/>                      <!-- Show glow effect around selected item. -->
+        <debug overlay=faux toggle="🐞"/>  <!-- Display console debug info. -->
+        <regions enabled=faux/>             <!-- Highlight UI objects boundaries. -->
+    </client>
+    <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
+        <scrollback>
+            <size=20000    />   <!-- Scrollback buffer length. -->
+            <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
+            <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
+            <wrap="on"     />   <!-- Lines wrapping mode. -->
+            <reset onkey="on" onoutput="off"/>   <!-- Scrollback viewport reset triggers. -->
+        </scrollback>
+        <color>
+            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
+            <color1  = reddk      />
+            <color2  = greendk    />
+            <color3  = yellowdk   />
+            <color4  = bluedk     />
+            <color5  = magentadk  />
+            <color6  = cyandk     />
+            <color7  = whitedk    />
+            <color8  = blacklt    />
+            <color9  = redlt      />
+            <color10 = greenlt    />
+            <color11 = yellowlt   />
+            <color12 = bluelt     />
+            <color13 = magentalt  />
+            <color14 = cyanlt     />
+            <color15 = whitelt    />
+            <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+            <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
+            <selection>
+                <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
+                <protected fx=color bgc=bluelt fgc=whitelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
+                <ansi fx=xlight bgc=bluelt fgc=whitelt/>
+                <rich fx=xlight bgc=bluelt fgc=whitelt/>
+                <html fx=xlight bgc=bluelt fgc=whitelt/>
+                <none fx=color bgc=blacklt fgc=whitedk/>  <!-- Inactive selection color. -->
+            </selection>
+        </color>
+        <fields>
+            <lucent=0xC0/> <!-- Fields transparency level. -->
+            <size=0/>      <!-- Left/right field size (for hz scrolling UX). -->
+        </fields>
+        <tablen=8/>   <!-- Tab length. -->
+        <cursor>
+            <style="underline"/> <!-- block | underline -->
+            <blink=400ms/>       <!-- blink period -->
+            <show=true/>
+        </cursor>
+        <menu item*>  <!-- Use asterisk to drop previous/existing item list. -->
+            <autohide=true/>  <!-- If true, show menu only on hover. -->
+            <enabled=1/>
+            <slim=1/>
+            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                <notes>
+                    " Wrapping text lines on/off      \n"
+                    " - applied to selection if it is "
+                </notes>
+            </item>
+            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
+                <label data="rich">
+                    "\e[38:2:109:231:237m""R"
+                    "\e[38:2:109:237:186m""T"
+                    "\e[38:2:60:255:60m"  "F"
+                    "\e[38:2:189:255:53m" "-"
+                    "\e[38:2:255:255:49m" "s"
+                    "\e[38:2:255:189:79m" "t"
+                    "\e[38:2:255:114:94m" "y"
+                    "\e[38:2:255:60:157m" "l"
+                    "\e[38:2:255:49:214m" "e" "\e[m"
+                </label>
+                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
+                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+            </item>
+            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                <label="\e[38:2:0:255:0m<\e[m"/>
+                <notes>
+                    " Previous match                    \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label=">" action=TerminalFindNext>
+                <label="\e[38:2:0:255:0m>\e[m"/>
+                <notes>
+                    " Next match                        \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
+            <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <!-- <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/> -->
+        </menu>
+        <selection>
+            <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
+            <rect=faux/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
+        </selection>
+        <atexit = auto/>  <!-- auto:    Stay open and ask if exit code != 0. (default)
+                               ask:     Stay open and ask.
+                               close:   Always close.
+                               restart: Restart session.
+                               retry:   Restart session if exit code != 0. -->
+        <hotkeys key*>    <!-- not implemented -->
+            <key="Alt+RightArrow" action=FindNext/>
+            <key="Alt+LeftArrow"  action=FindPrev/>
+        </hotkeys>
+    </term>
+</config>
+)==";

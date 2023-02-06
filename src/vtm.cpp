@@ -1,21 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.8r"
-#define DESKTOPIO_MYNAME " vtm: " DESKTOPIO_VER
-#define DESKTOPIO_PREFIX "desktopio_"
-#define DESKTOPIO_LOGGER "_log"
-#define DESKTOPIO_MYPATH "vtm"
-#define DESKTOPIO_DEFAPP "Term"
-#define DESKTOPIO_APPINF "Desktopio Terminal " DESKTOPIO_VER
-
-// Enable to show all terminal input (keyboard/mouse etc).
-//#define KEYLOG
-
+#include "vtm.hpp"
 #include "netxs/apps.hpp"
 
 using namespace netxs;
-using namespace netxs::ui;
 
 enum class type
 {
@@ -29,9 +18,12 @@ enum class type
 
 int main(int argc, char* argv[])
 {
+    auto defaults = 
+    #include "vtm.xml"
+
     auto vtmode = os::tty::vtmode();
     auto syslog = os::tty::logger(vtmode);
-    auto banner = [&]{ log(DESKTOPIO_MYNAME); };
+    auto banner = [&]{ log(app::vtm::desc, ' ', app::shared::version); };
     auto whoami = type::client;
     auto params = text{};
     auto cfpath = text{};
@@ -43,7 +35,7 @@ int main(int argc, char* argv[])
         if (getopt.match("-r", "--runapp"))
         {
             whoami = type::runapp;
-            params = getopt ? getopt.rest() : text{ DESKTOPIO_DEFAPP };
+            params = getopt ? getopt.rest() : text{ app::term::id };
         }
         else if (getopt.match("-s", "--server"))
         {
@@ -90,7 +82,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-v", "--version"))
         {
-            log(DESKTOPIO_VER);
+            log(app::shared::version);
             return 0;
         }
         else if (getopt.match("--"))
@@ -140,12 +132,12 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::config)
     {
-        log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::dtvt::config()));
+        log("Running configuration:\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config()));
     }
     else if (whoami == type::logger)
     {
         auto userid = os::env::user();
-        auto prefix = (vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe) + DESKTOPIO_LOGGER;
+        auto prefix = (vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe) + app::shared::logsuffix;
         log("main: waiting for server...");
         while (true)
         {
@@ -161,24 +153,24 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::runapp)
     {
-        auto config = app::shared::load::settings(cfpath, os::dtvt::config());
+        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
         auto shadow = params;
         utf::to_low(shadow);
-             if (shadow.starts_with("text"))       log("Desktopio Text Editor (DEMO) " DESKTOPIO_VER);
-        else if (shadow.starts_with("calc"))       log("Desktopio Spreadsheet (DEMO) " DESKTOPIO_VER);
-        else if (shadow.starts_with("gems"))       log("Desktopio App Manager (DEMO) " DESKTOPIO_VER);
-        else if (shadow.starts_with("test"))       log("Desktopio App Testing (DEMO) " DESKTOPIO_VER);
-        else if (shadow.starts_with("term"))       log("Desktopio Terminal "           DESKTOPIO_VER);
-        else if (shadow.starts_with("truecolor"))  log("Desktopio ANSI Art "           DESKTOPIO_VER);
-        else if (shadow.starts_with("headless"))   log("Desktopio Headless Terminal "  DESKTOPIO_VER);
-        else if (shadow.starts_with("settings"))   log("Desktopio Settings "           DESKTOPIO_VER);
+             if (shadow.starts_with(app::term::id))      log(app::term::desc,      ' ', app::shared::version);
+        else if (shadow.starts_with(app::calc::id))      log(app::calc::desc,      ' ', app::shared::version);
+        else if (shadow.starts_with(app::shop::id))      log(app::shop::desc,      ' ', app::shared::version);
+        else if (shadow.starts_with(app::test::id))      log(app::test::desc,      ' ', app::shared::version);
+        else if (shadow.starts_with(app::textancy::id))  log(app::textancy::desc,  ' ', app::shared::version);
+        else if (shadow.starts_with(app::headless::id))  log(app::headless::desc,  ' ', app::shared::version);
+        else if (shadow.starts_with(app::settings::id))  log(app::settings::desc,  ' ', app::shared::version);
+        else if (shadow.starts_with(app::truecolor::id)) log(app::truecolor::desc, ' ', app::shared::version);
         else
         {
-            params = DESKTOPIO_DEFAPP + " "s + params;
-            log(DESKTOPIO_APPINF);
+            params = app::term::id + " "s + params;
+            log(app::term::desc, ' ', app::shared::version);
         }
 
-        auto success = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
+        auto success = app::shared::start(params, app::vtm::id, vtmode, config);
         if (!success)
         {
             os::fail("console initialization error");
@@ -190,8 +182,8 @@ int main(int argc, char* argv[])
         auto userid = os::env::user();
         auto usernm = os::env::get("USER");
         auto hostip = os::env::get("SSH_CLIENT");
-        auto config = app::shared::load::settings(cfpath, os::dtvt::config());
-        auto prefix = vtpipe.empty() ? utf::concat(DESKTOPIO_PREFIX, userid) : vtpipe;
+        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
+        auto prefix = vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe;
 
         if (whoami == type::client)
         {
@@ -205,7 +197,7 @@ int main(int argc, char* argv[])
             if (client)
             {
                 auto direct = !!(vtmode & os::vt::direct);
-                if (!direct) os::logging::start(DESKTOPIO_MYPATH);
+                if (!direct) os::logging::start(app::vtm::id);
                 auto init = directvt::binary::startdata_t{};
                 init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
                 init.send([&](auto& data){ client->send(data); });
@@ -241,18 +233,18 @@ int main(int argc, char* argv[])
             os::fail("can't start desktopio server");
             return 1;
         }
-        auto logger = os::ipc::socket::open<os::server>(prefix + DESKTOPIO_LOGGER);
+        auto logger = os::ipc::socket::open<os::server>(prefix + app::shared::logsuffix);
         if (!logger)
         {
             os::fail("can't start desktopio logger");
             return 1;
         }
         using e2 = netxs::ui::e2;
-        auto srvlog = syslog.tee<events::try_sync>([](auto utf8) { SIGNAL_GLOBAL(e2::conio::logs, utf8); });
         config.cd("/config/appearance/defaults/");
-        auto ground = ui::base::create<ui::hall>(server, config);
+        auto ground = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
+        auto srvlog = syslog.tee<events::try_sync>([&](auto utf8) { ground->SIGNAL(tier::general, e2::conio::logs, utf8); });
         auto thread = os::process::pool{};
-        app::shared::activate(ground, config);
+        ground->autorun();
 
         log("main: listening socket ", server,
           "\n      user: ", userid,
@@ -265,8 +257,8 @@ int main(int argc, char* argv[])
                 thread.run([&, stream](auto session_id)
                 {
                     auto tokens = subs{};
-                    LISTEN_GLOBAL(e2::conio::quit, utf8, tokens) { stream->shut(); };
-                    LISTEN_GLOBAL(e2::conio::logs, utf8, tokens) { stream->send(utf8); };
+                    ground->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { stream->shut(); };
+                    ground->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { stream->send(utf8); };
                     log("logs: monitor ", stream, " connected");
                     stream->recv();
                     log("logs: monitor ", stream, " disconnected");
@@ -284,18 +276,18 @@ int main(int argc, char* argv[])
 
             thread.run([&, client](auto session_id)
             {
-                if (auto window = ground->invite<ui::gate>(client, session_id, config))
+                if (auto window = ground->invite<ui::gate>(client, session_id))
                 {
                     log("user: new gate for ", client);
                     auto patch = ""s;
-                    auto deskmenu = app::shared::create::builder(ui::menuitem_t::type_Desk)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
-                    auto bkground = app::shared::create::builder(ui::menuitem_t::type_Fone)("", "gems;About;", config, patch);
+                    auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
+                    auto bkground = app::shared::builder(app::fone::id)("", "gems;About;", config, patch);
                     window->launch(client, deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }
             });
         }
-        SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
+        ground->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
         ground->shutdown();
         logger->stop();
         stdlog.join();

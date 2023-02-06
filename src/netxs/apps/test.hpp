@@ -28,6 +28,9 @@ namespace netxs::events::userland
 // test: Test window.
 namespace netxs::app::test
 {
+    static constexpr auto id = "test";
+    static constexpr auto desc = "Desktopio App Testing (DEMO)";
+
     using events = netxs::events::userland::test;
 
     namespace
@@ -413,7 +416,7 @@ namespace netxs::app::test
 
             return topic;
         };
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
             auto topic = get_text();
             auto window = ui::cake::ctor()
@@ -478,5 +481,5 @@ namespace netxs::app::test
         };
     }
 
-    app::shared::initialize builder{ "test", build };
+    app::shared::initialize builder{ app::test::id, build };
 }

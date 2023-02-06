@@ -645,8 +645,12 @@ namespace netxs
             }
             void set(view const& utf8)
             {
-                auto cluster = utf::letter(utf8);
-                set(cluster.text, cluster.attr.ucwidth);
+                if (utf8.empty()) token = 0;
+                else
+                {
+                    auto cluster = utf::letter(utf8);
+                    set(cluster.text, cluster.attr.ucwidth);
+                }
             }
             template<svga Mode = svga::truecolor>
             view get() const

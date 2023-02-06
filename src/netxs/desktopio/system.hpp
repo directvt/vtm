@@ -7,12 +7,6 @@
     #define __BSD__
 #endif
 
-#if defined(__clang__) || defined(__APPLE__)
-    #pragma clang diagnostic ignored "-Wunused-variable"
-    #pragma clang diagnostic ignored "-Wunused-function"
-#endif
-
-#include "logger.hpp"
 #include "input.hpp"
 
 #include <type_traits>
@@ -136,7 +130,7 @@ namespace netxs::os
     template<class ...Args>
     auto fail(Args&&... msg)
     {
-        log("  os: ", ansi::fgc(tint::redlt), msg..., " (", os::error(), ") ", ansi::nil());
+        log("  os: ", ansi::err(msg..., " (", os::error(), ") "));
     };
     template<class T>
     auto ok(T error_condition, text msg = {})
@@ -1708,6 +1702,7 @@ namespace netxs::os
             return std::pair{ id, datetime::now() };
         }
         static auto id = process::getid();
+        static auto arg0 = text{};
 
         struct args
         {
@@ -1731,6 +1726,7 @@ namespace netxs::os
         public:
             args(int argc, char** argv)
             {
+                process::arg0 = text{ *argv };
                 auto head = argv + 1;
                 auto tail = argv + argc;
                 while (head != tail)
@@ -1967,8 +1963,8 @@ namespace netxs::os
             #endif
             if (result.empty())
             {
-                os::fail("can't get current module file path, fallback to '", DESKTOPIO_MYPATH, "`");
-                result = DESKTOPIO_MYPATH;
+                os::fail("can't get current module file path, fallback to '", process::arg0, "`");
+                result = process::arg0;
             }
             if constexpr (NameOnly)
             {
@@ -2361,10 +2357,8 @@ namespace netxs::os
                 }
                 if (waitexit.joinable())
                 {
-                    auto id = waitexit.get_id();
-                    log("vtty: id: ", id, " child process waiter thread joining");
+                    log("vtty: id: ", waitexit.get_id(), " child process waiter thread joining");
                     waitexit.join();
-                    log("vtty: id: ", id, " child process waiter thread joined");
                 }
                 auto guard = std::lock_guard{ writemtx };
                 termlink = {};
@@ -2756,7 +2750,7 @@ namespace netxs::os
                 if (haspty(stdin_fd))
                 {
                     // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
-                    if (::PeekNamedPipe(stdin_fd, buffer.data(), buffer.size(), &length, NULL, NULL)
+                    if (::PeekNamedPipe(stdin_fd, buffer.data(), (DWORD)buffer.size(), &length, NULL, NULL)
                      && length)
                     {
                         state = buffer.size() == length && buffer.get_sz(cfsize);
@@ -2834,21 +2828,7 @@ namespace netxs::os
            ~vtty()
             {
                 log("dtvt: dtor started");
-                if (termlink)
-                {
-                    stop();
-                }
-                if (stdwrite.joinable())
-                {
-                    writesyn.notify_one();
-                    log("dtvt: id: ", stdwrite.get_id(), " writing thread joining");
-                    stdwrite.join();
-                }
-                if (stdinput.joinable())
-                {
-                    log("dtvt: id: ", stdinput.get_id(), " reading thread joining");
-                    stdinput.join();
-                }
+                stop();
                 log("dtvt: dtor complete");
             }
 
@@ -3016,12 +2996,6 @@ namespace netxs::os
 
                 return proc_pid;
             }
-            void stop()
-            {
-                //todo wait_child()?
-                termlink.shut();
-                writesyn.notify_one();
-            }
             auto wait_child()
             {
                 //auto guard = std::lock_guard{ writemtx };
@@ -3076,14 +3050,41 @@ namespace netxs::os
                 log("dtvt: child waiting complete");
                 return exit_code;
             }
+            void cleanup()
+            {
+                if (stdwrite.joinable())
+                {
+                    writesyn.notify_one();
+                    log("dtvt: id: ", stdwrite.get_id(), " writing thread joining");
+                    stdwrite.join();
+                }
+                if (stdinput.joinable())
+                {
+                    log("dtvt: id: ", stdinput.get_id(), " reading thread joining");
+                    stdinput.join();
+                }
+                auto guard = std::lock_guard{ writemtx };
+                termlink = {};
+                writebuf = {};
+            }
+            void stop()
+            {
+                if (termlink)
+                {
+                    wait_child();
+                }
+                cleanup();
+            }
             void read_socket_thread()
             {
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
-
                 directvt::binary::stream::reading_loop(termlink, receiver);
-
-                preclose(0); //todo send msg from the client app
-                shutdown(wait_child());
+                if (termlink)
+                {
+                    preclose(0); //todo send msg from the client app
+                    auto exit_code = wait_child();
+                    shutdown(exit_code);
+                }
                 log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
             }
             void send_socket_thread()
@@ -3513,10 +3514,6 @@ namespace netxs::os
                 {
                     total += accum;
                     auto strv = view{ total };
-
-                    //#if defined(KEYLOG)
-                    //    log("link: input data (", total.size(), " bytes):\n", utf::debase(total));
-                    //#endif
 
                     //#ifndef PROD
                     //if (close)

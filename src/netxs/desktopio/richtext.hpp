@@ -4,7 +4,6 @@
 #pragma once
 
 #include "directvt.hpp"
-#include "logger.hpp"
 
 namespace netxs::ui
 {
@@ -13,12 +12,13 @@ namespace netxs::ui
 
     class poly
     {
+        cell basis;
         cell grade[256];
 
     public:
         poly() = default;
-
         poly(cell const& basis)
+            : basis{ basis }
         {
             recalc(basis);
         }
@@ -35,7 +35,8 @@ namespace netxs::ui
             }
         }
 
-        cell const& operator [] (uint8_t k) const
+        operator auto& () const { return basis; }
+        auto& operator [] (uint8_t k) const
         {
             return grade[k];
         }
@@ -235,13 +236,17 @@ namespace netxs::ui
         void  minmax(twod const& p)  { boundary |= p;        } // flow: Register twod.
         void  minmax(rect const& r)  { boundary |= r;        } // flow: Register rect.
 
+        // flow: Sync paragraph style.
+        template<class T>
+        auto sync(T const& block)
+        {
+            combine(runstyle, block.style);
+        }
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
         template<bool Split, class T, class P = noop>
         void compose(T const& block, P print = P())
         {
-            combine(runstyle, block.style);
-
             auto block_size = block.size();
             textsize = getlen(block_size);
             if (textsize)
@@ -299,6 +304,7 @@ namespace netxs::ui
         template<bool UseLocus = true, class T, class P = noop>
         auto print(T const& block, core& canvas, P printfx = P())
         {
+            sync(block);
             auto coor = std::invoke_result_t<decltype(&flow::cp), flow>{};
 
             if constexpr (UseLocus) coor = forward(block);
@@ -310,6 +316,7 @@ namespace netxs::ui
         template<bool UseLocus = true, class T>
         auto print(T const& block)
         {
+            sync(block);
             auto coor = std::invoke_result_t<decltype(&flow::cp), flow>{};
 
             if constexpr (UseLocus) coor = forward(block);
@@ -2006,15 +2013,11 @@ namespace netxs::ui
     public:
 
         #define PROP_LIST                              \
-        X(fader     , "UI fader duration")             \
-        X(fastfader , "UI fast fader duration")        \
         X(kb_focus  , "Keyboard focus indicator")      \
         X(brighter  , "Highlighter modificator")       \
         X(shadower  , "Darklighter modificator")       \
         X(shadow    , "Light Darklighter modificator") \
-        X(lucidity  , "Global transparency")           \
         X(selector  , "Selection overlay")             \
-        X(bordersz  , "Border size")                   \
         X(highlight , "Hilighted item color")          \
         X(warning   , "Warning color")                 \
         X(danger    , "Danger color")                  \

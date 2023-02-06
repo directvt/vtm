@@ -11,11 +11,61 @@
 #include "apps/test.hpp"
 #include "apps/desk.hpp"
 
+namespace netxs::app::strobe
+{
+    static constexpr auto id = "strobe";
+    static constexpr auto desc = "strobe";
+}
+namespace netxs::app::settings
+{
+    static constexpr auto id = "settings";
+    static constexpr auto desc = "Desktopio Settings";
+}
+namespace netxs::app::truecolor
+{
+    static constexpr auto id = "truecolor";
+    static constexpr auto desc = "Desktopio ANSI Art";
+}
+namespace netxs::app::headless
+{
+    static constexpr auto id = "headless";
+    static constexpr auto desc = "Desktopio Headless Terminal";
+}
+namespace netxs::app::empty
+{
+    static constexpr auto id = "empty";
+    static constexpr auto desc = "empty";
+}
+namespace netxs::app::ansivt
+{
+    static constexpr auto id = "ansivt";
+    static constexpr auto desc = "ansivt";
+}
+namespace netxs::app::directvt
+{
+    static constexpr auto id = "directvt";
+    static constexpr auto desc = "directvt";
+}
+namespace netxs::app::shell
+{
+    static constexpr auto id = "shell";
+    static constexpr auto desc = "shell";
+}
+namespace netxs::app::region
+{
+    static constexpr auto id = "region";
+    static constexpr auto desc = "region";
+}
+namespace netxs::app::fone
+{
+    static constexpr auto id = "fone";
+    static constexpr auto desc = "fone";
+}
 namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text cwd, text v,     xml::settings& config, text patch)
+        auto build_Strobe        = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
@@ -40,7 +90,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text cwd, text v,     xml::settings& config, text patch)
+        auto build_Settings      = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -62,7 +112,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text cwd, text v,     xml::settings& config, text patch)
+        auto build_Empty         = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -84,7 +134,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_Region        = [](text cwd, text v,     xml::settings& config, text patch)
+        auto build_Region        = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -160,7 +210,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Truecolor     = [](text cwd, text v,     xml::settings& config, text patch)
+        auto build_Truecolor     = [](text cwd, text v,     xmls& config, text patch)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -293,7 +343,7 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_Headless      = [](text cwd, text param, xml::settings& config, text patch)
+        auto build_Headless      = [](text cwd, text param, xmls& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -387,76 +437,67 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Fone          = [](text cwd, text param, xml::settings& config, text patch)
+        auto build_Fone          = [](text cwd, text param, xmls& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
             auto x8 = cell{ c8 }.alpha(0x00);
             return ui::park::ctor()
-                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(DESKTOPIO_MYNAME)
+                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(utf::concat(app::vtm::desc, ' ', app::shared::version))
                 ->template plugin<pro::fader>(x8, c8, 0ms))
                 ->template plugin<pro::notes>(" About Environment ")
                 ->invoke([&](auto& boss)
                 {
                     auto data = utf::divide(param, ";");
-                    auto type = text{ data.size() > 0 ? data[0] : view{} };
-                    auto name = text{ data.size() > 1 ? data[1] : view{} };
-                    auto args = text{ data.size() > 2 ? data[2] : view{} };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (type, name, args))
+                    auto aptype = text{ data.size() > 0 ? data[0] : view{} };
+                    auto menuid = text{ data.size() > 1 ? data[1] : view{} };
+                    auto params = text{ data.size() > 2 ? data[2] : view{} };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (aptype, menuid, params))
                     {
-                        //todo revise/unify
-                        auto world_ptr = e2::config::whereami.param();
-                        SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-                        if (world_ptr)
+                        static auto offset = dot_00;
+                        auto& gate = gear.owner;
+                        auto viewport = e2::form::prop::viewport.param();
+                        boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                        viewport.coor += gear.area().coor;
+                        offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                        gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                        gear.slot.size = viewport.size * 3 / 4;
+                        gear.slot_forced = faux;
+
+                        auto menu_list_ptr = vtm::events::list::apps.param();
+                        auto conf_list_ptr = vtm::events::list::menu.param();
+                        gate.RISEUP(tier::request, vtm::events::list::apps, menu_list_ptr);
+                        gate.RISEUP(tier::request, vtm::events::list::menu, conf_list_ptr);
+                        auto& menu_list = *menu_list_ptr;
+                        auto& conf_list = *conf_list_ptr;
+
+                        if (conf_list.contains(menuid) && !conf_list[menuid].hidden) // Check for id availability.
                         {
-                            static auto offset = dot_00;
-                            auto viewport = e2::form::prop::viewport.param();
-                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                            viewport.coor += gear.area().coor;
-                            offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                            gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
-                            gear.slot.size = viewport.size * 3 / 4;
-                            gear.slot_forced = faux;
-
-                            auto menu_list_ptr = e2::bindings::list::apps.param();
-                            auto conf_list_ptr = e2::bindings::list::links.param();
-                            world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
-                            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
-                            auto& menu_list = *menu_list_ptr;
-                            auto& conf_list = *conf_list_ptr;
-
-                            if (conf_list.contains(name) && !conf_list[name].hidden) // Check for id availability.
-                            {
-                                auto i = 1;
-                                auto test = text{};
-                                do   test = name + " (" + std::to_string(++i) + ")";
-                                while (conf_list.contains(test) && !conf_list[name].hidden);
-                                std::swap(test, name);
-                            }
-                            auto& m = conf_list[name];
-                            m.type = type;
-                            m.label = name;
-                            m.title = name; // Use the same title as the menu label.
-                            m.param = args;
-                            m.hidden = true;
-                            m.settings = config; //todo it is dangerous
-                            menu_list[name];
-
-                            auto current_default = e2::data::changed.param();
-                            boss.RISEUP(tier::request, e2::data::changed, current_default);
-
-                            if (auto gate = boss.parent())
-                            {
-                                gate->SIGNAL(tier::release, e2::data::changed, name);
-                                world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
-                                gate->SIGNAL(tier::release, e2::data::changed, current_default);
-                            }
-                            gear.dismiss();
+                            auto i = 1;
+                            auto testid = text{};
+                            do testid = menuid + " (" + std::to_string(++i) + ")";
+                            while (conf_list.contains(testid) && !conf_list[menuid].hidden);
+                            std::swap(testid, menuid);
                         }
+                        auto& m = conf_list[menuid];
+                        m.type = aptype;
+                        m.label = menuid;
+                        m.title = menuid; // Use the same title as the menu label.
+                        m.param = params;
+                        m.hidden = true;
+                        //m.settings = config; //todo it is dangerous
+                        menu_list[menuid];
+
+                        auto lastid = e2::data::changed.param();
+                        gate.SIGNAL(tier::request, e2::data::changed, lastid);
+                        gate.SIGNAL(tier::release, e2::data::changed, menuid);
+                        gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
+                        gate.SIGNAL(tier::release, e2::data::changed, lastid);
+                        gear.dismiss();
                     };
                 });
         };
-        auto build_DirectVT      = [](text cwd, text param, xml::settings& config, text patch)
+        auto build_DirectVT      = [](text cwd, text param, xmls& config, text patch)
         {
             return ui::dtvt::ctor(cwd, param, patch)
                 ->plugin<pro::limit>(dot_11)
@@ -467,9 +508,28 @@ namespace netxs::app::shared
                     {
                         boss.start();
                     };
+                    boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
+                    {
+                        boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
+                    };
+                    boss.LISTEN(tier::preview, e2::form::quit, boss_ptr)
+                    {
+                        auto oneoff = ptr::shared(hook{});
+                        boss.LISTEN(tier::general, e2::timer::any, t, *oneoff, (oneoff))
+                        {
+                            auto backup = boss.This();
+                            boss.SIGNAL(tier::anycast, e2::form::quit, backup);
+                            oneoff.reset();
+                        };
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::quit, item)
+                    {
+                        boss.stop();
+                        boss.RISEUP(tier::release, e2::form::quit, item);
+                    };
                 });
         };
-        auto build_ANSIVT        = [](text cwd, text param, xml::settings& config, text patch)
+        auto build_ANSIVT        = [](text cwd, text param, xmls& config, text patch)
         {
             if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
 
@@ -481,7 +541,7 @@ namespace netxs::app::shared
 
             return build_DirectVT(cwd, args, config, patch);
         };
-        auto build_SHELL         = [](text cwd, text param, xml::settings& config, text patch)
+        auto build_SHELL         = [](text cwd, text param, xmls& config, text patch)
         {
             auto args = os::process::binary();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
@@ -508,15 +568,15 @@ namespace netxs::app::shared
             return build_DirectVT(cwd, args, config, patch);
         };
 
-        app::shared::initialize builder_Strobe       { "strobe"                 , build_Strobe     };
-        app::shared::initialize builder_Settings     { "settings"               , build_Settings   };
-        app::shared::initialize builder_Empty        { "empty"                  , build_Empty      };
-        app::shared::initialize builder_Truecolor    { "truecolor"              , build_Truecolor  };
-        app::shared::initialize builder_Headless     { menuitem_t::type_Headless, build_Headless   };
-        app::shared::initialize builder_Fone         { menuitem_t::type_Fone    , build_Fone       };
-        app::shared::initialize builder_Region       { menuitem_t::type_Region  , build_Region     };
-        app::shared::initialize builder_DirectVT     { menuitem_t::type_DirectVT, build_DirectVT   };
-        app::shared::initialize builder_ANSIVT       { menuitem_t::type_ANSIVT  , build_ANSIVT     };
-        app::shared::initialize builder_SHELL        { menuitem_t::type_SHELL   , build_SHELL      };
+        app::shared::initialize builder_Strobe    { app::strobe::id   , build_Strobe     };
+        app::shared::initialize builder_Settings  { app::settings::id , build_Settings   };
+        app::shared::initialize builder_Empty     { app::empty::id    , build_Empty      };
+        app::shared::initialize builder_Truecolor { app::truecolor::id, build_Truecolor  };
+        app::shared::initialize builder_Headless  { app::headless::id , build_Headless   };
+        app::shared::initialize builder_Fone      { app::fone::id     , build_Fone       };
+        app::shared::initialize builder_Region    { app::region::id   , build_Region     };
+        app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
+        app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };
+        app::shared::initialize builder_SHELL     { app::shell::id    , build_SHELL      };
     }
 }

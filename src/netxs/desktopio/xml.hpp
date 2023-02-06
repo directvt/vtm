@@ -1127,11 +1127,9 @@ namespace netxs::xml
         text backpath; // settings: Fallback path.
 
         settings() = default;
+        settings(settings const&) = default;
         settings(view utf8_xml)
             : document{ std::make_shared<xml::document>(utf8_xml, "") }
-        { }
-        settings(settings const& s)
-            : document{ s.document }
         { }
 
         auto cd(text gotopath, view fallback = {})
@@ -1157,11 +1155,11 @@ namespace netxs::xml
             auto test = !!homelist.size();
             if (!test)
             {
-                log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + homepath);
+                log(" xml:" + ansi::err(" xml path not found: ") + homepath);
             }
             return test;
         }
-        template<class T = si32>
+        template<bool Quiet = faux, class T = si32>
         auto take(text frompath, T defval = {})
         {
             if (frompath.empty()) return defval;
@@ -1183,10 +1181,10 @@ namespace netxs::xml
                 else frompath = homepath + "/" + frompath;
             }
             if (tempbuff.size()) crop = tempbuff.back()->value();
-            else                 log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + frompath);
+            else if constexpr (!Quiet) log(" xml:" + ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + frompath);
             tempbuff.clear();
             if (auto result = xml::take<T>(crop)) return result.value();
-            if (crop.size())                      return take("/config/set/" + crop, defval);
+            if (crop.size())                      return take<Quiet>("/config/set/" + crop, defval);
             else                                  return defval;
         }
         template<class T>
@@ -1203,9 +1201,15 @@ namespace netxs::xml
             if (frompath.empty()) return defval;
             auto fgc_path = frompath + '/' + "fgc";
             auto bgc_path = frompath + '/' + "bgc";
-            auto crop = cell{};
-            crop.fgc(take(fgc_path, defval.fgc()));
-            crop.bgc(take(bgc_path, defval.bgc()));
+            auto txt_path = frompath + '/' + "txt";
+            auto fba_path = frompath + '/' + "alpha";
+            auto crop = cell{ defval.txt() };
+            crop.fgc(take<true>(fgc_path, defval.fgc()));
+            crop.bgc(take<true>(bgc_path, defval.bgc()));
+            auto t = take<true>(txt_path, ""s);
+            auto a = take<true>(fba_path, -1);
+            if (t.size()) crop.txt(t);
+            if (a != -1)  crop.alpha(std::clamp(a, 0, 255));
             return crop;
         }
         template<bool WithTemplate = faux>
@@ -1263,7 +1267,7 @@ namespace netxs::xml
                             }
                             else if (count) // It is a list.
                             {
-                                //todo Clang 11.0.1 don't get it.
+                                //todo Clang 13.0.0 don't get it.
                                 //auto rewrite = sub_list.end() != std::ranges::find_if(sub_list, [](auto& a){ return a->base; });
                                 auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
                                 document->join(path + "/" + sub_name, sub_list, rewrite);
@@ -1306,4 +1310,8 @@ namespace netxs::xml
             { "right",  bias::right  },
             { "center", bias::center }};
     }
+}
+namespace netxs
+{
+    using xmls = xml::settings;
 }

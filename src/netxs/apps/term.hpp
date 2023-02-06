@@ -73,10 +73,12 @@ namespace netxs::events::userland
         };
     };
 }
-
 // term: Terminal Emulator.
 namespace netxs::app::term
 {
+    static constexpr auto id = "term";
+    static constexpr auto desc = "Desktopio Terminal";
+
     using events = netxs::events::userland::term;
     using mime = clip::mime;
 
@@ -115,10 +117,10 @@ namespace netxs::app::term
                     if (gear.capture(boss.id))
                     {
                         proc(boss, item, gear);
-                        tick.actify(0, REPEAT_DELAY, [&, proc](auto p)
+                        tick.actify(0, skin::globals().repeat_delay, [&, proc](auto p)
                         {
                             proc(boss, item, gear);
-                            tick.actify(1, REPEAT_RATE, [&, proc](auto d)
+                            tick.actify(1, skin::globals().repeat_rate, [&, proc](auto d)
                             {
                                 proc(boss, item, gear);
                                 return true; // Repeat forever.
@@ -167,7 +169,7 @@ namespace netxs::app::term
         };
     }
 
-    const auto terminal_menu = [](xml::settings& config)
+    const auto terminal_menu = [](xmls& config)
     {
         auto highlight_color = skin::color(tone::highlight);
         auto c3 = highlight_color;
@@ -595,7 +597,7 @@ namespace netxs::app::term
             }
             if (item.views.empty())
             {
-                log("term: drop menu item without label");
+                log(ansi::err("term: menu item without label"));
                 continue;
             }
             auto setup = [route](ui::pads& boss, menu::item& item)
@@ -617,7 +619,7 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -638,64 +640,62 @@ namespace netxs::app::term
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB.fgc(), cB.bgc());
             auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                    auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                        auto scroll = layers->attach(ui::rail::ctor());
-                            auto min_size = twod{ 12,1 }; // mc crashes when window is too small
-                            auto max_size = -dot_11;
-                            auto forced_clamp = faux;
-                            auto forced_resize = true;
-                            scroll->plugin<pro::limit>(min_size, max_size, forced_clamp, forced_resize)
-                                  ->invoke([](auto& boss)
-                                  {
-                                    boss.LISTEN(tier::preview, e2::form::prop::window::size, new_size)
-                                    {
-                                        // Axis x/y (see XTWINOPS):
-                                        //   -1 -- preserve
-                                        //    0 -- maximize (toggle)
-                                        if (new_size == dot_00) // Toggle maximize/restore terminal window (only if it is focused by someone).
-                                        {
-                                            auto gates = e2::form::state::keybd::enlist.param();
-                                            boss.SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
-                                            if (gates.size())
-                                            if (auto gate_ptr = bell::getref(gates.back()))
-                                            {
-                                                gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
-                                                {
-                                                    boss.RISEUP(tier::release, e2::form::maximize, gear);
-                                                });
-                                            }
-                                        }
-                                        else
-                                        {
-                                            auto size = boss.size();
-                                            new_size = new_size.less(dot_11, size, std::max(dot_11, new_size));
-                                            boss.SIGNAL(tier::release, e2::form::prop::window::size, new_size);
-                                        }
-                                    };
-                                  });
+            auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
+                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+            auto scroll = layers->attach(ui::rail::ctor());
+            auto min_size = twod{ 12,1 }; // mc crashes when window is too small
+            auto max_size = -dot_11;
+            auto forced_clamp = faux;
+            auto forced_resize = true;
+            scroll->plugin<pro::limit>(min_size, max_size, forced_clamp, forced_resize)
+                ->invoke([](auto& boss)
+                {
+                    boss.LISTEN(tier::preview, e2::form::prop::window::size, new_size)
+                    {
+                        // Axis x/y (see XTWINOPS):
+                        //   -1 -- preserve
+                        //    0 -- maximize (toggle)
+                        if (new_size == dot_00) // Toggle maximize/restore terminal window (only if it is focused by someone).
+                        {
+                            auto gates = e2::form::state::keybd::enlist.param();
+                            boss.SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
+                            if (gates.size())
+                            if (auto gate_ptr = bell::getref(gates.back()))
+                            {
+                                gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
+                                {
+                                    boss.RISEUP(tier::release, e2::form::maximize, gear);
+                                });
+                            }
+                        }
+                        else
+                        {
+                            auto size = boss.size();
+                            new_size = new_size.less(dot_11, size, std::max(dot_11, new_size));
+                            boss.SIGNAL(tier::release, e2::form::prop::window::size, new_size);
+                        }
+                    };
+                });
 
-                            auto shell = os::env::shell() + " -i";
-                            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config));
-
-                            auto scroll_bars = layers->attach(ui::fork::ctor());
-                                auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                                auto hz = term_stat_area->attach(slot::_2, ui::grip_fx2<axis::X>::ctor(scroll))
-                                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                                        ->invoke([&](auto& boss)
-                                                        {
-                                                            boss.LISTEN(tier::anycast, app::term::events::release::colors::bg, bg)
-                                                            {
-                                                                boss.color(boss.color().bgc(bg).txt(""));
-                                                            };
-                                                        });
+            auto shell = os::env::shell() + " -i";
+            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config));
+            auto scroll_bars = layers->attach(ui::fork::ctor());
+            auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
+            auto hz = term_stat_area->attach(slot::_2, ui::grip_fx2<axis::X>::ctor(scroll))
+                ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                ->invoke([&](auto& boss)
+                {
+                    boss.LISTEN(tier::anycast, app::term::events::release::colors::bg, bg)
+                    {
+                        boss.color(boss.color().bgc(bg).txt(""));
+                    };
+                });
 
             auto [slot1, cover, menu_data] = terminal_menu(config);
             auto menu = object->attach(slot::_1, slot1);
-            auto menu_id = slot1->id;
-            cover->invoke([&](auto& boss)
+            cover->invoke([&, &slot1 = slot1](auto& boss) //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
             {
-                boss.colors(cell{ cB }.inv(true).txt("▀"sv).link(menu_id));
+                boss.colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
                 boss.LISTEN(tier::anycast, app::term::events::release::colors::bg, bg)
                 {
                     boss.color(boss.color().fgc(bg));
@@ -711,6 +711,21 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
                 ->invoke([](auto& boss)
                 {
+                    boss.LISTEN(tier::preview, e2::form::quit, boss_ptr)
+                    {
+                        auto oneoff = ptr::shared(hook{});
+                        boss.LISTEN(tier::general, e2::timer::any, t, *oneoff, (oneoff))
+                        {
+                            auto backup = boss.This();
+                            boss.SIGNAL(tier::anycast, e2::form::quit, backup);
+                            oneoff.reset();
+                        };
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::quit, item)
+                    {
+                        boss.stop();
+                        boss.RISEUP(tier::release, e2::form::quit, item);
+                    };
                     boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
                     {
                         boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
@@ -791,5 +806,5 @@ namespace netxs::app::term
         };
     }
 
-    app::shared::initialize builder{ "term", build };
+    app::shared::initialize builder{ app::term::id, build };
 }

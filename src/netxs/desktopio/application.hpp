@@ -3,321 +3,29 @@
 
 #pragma once
 
-#define APPS_DEL_TIMEOUT 1s
+#if defined(__clang__) || defined(__APPLE__)
+    #pragma clang diagnostic ignored "-Wunused-variable"
+    #pragma clang diagnostic ignored "-Wunused-function"
+#endif
 
 #include "controls.hpp"
-#include "xml.hpp"
 
 #include <fstream>
 
 namespace netxs::app
 {
     namespace fs = std::filesystem;
-
     using namespace std::placeholders;
     using namespace netxs::ui;
 }
 
 namespace netxs::app::shared
 {
-    static constexpr auto default_config = R"==(
-<config>
-    <menu selected=Term>  <!-- Set selected using menu item id. -->
-        <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
-                       Using an asterisk with the parameter name of the first element in the list without any other nested attributes
-                       indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
-        <item splitter label="apps">
-            <notes>
-                " Default applications group                         \n"
-                " It can be configured in ~/.config/vtm/settings.xml "
-            </notes>
-        </item>
-        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0/>
-)=="
-#if defined(_WIN32)
-R"==(
-        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term">
-)=="
-#else
-R"==(
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
-)=="
-#endif
-R"==(
-            <hotkeys key*>    <!-- not implemented -->
-                <key="Ctrl+'t'" action=Start/>
-            </hotkeys>
-            <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
-                <term>
-                    <scrollback>
-                        <size=40000/>   <!-- Scrollback buffer length. -->
-                        <wrap="on"/>    <!-- Lines wrapping mode. -->
-                    </scrollback>
-                    <cursor>
-                        <style="underline"/> <!-- block | underline  -->
-                    </cursor>
-                    <menu>
-                        <autohide = on/>  <!--  If true, show menu only on hover. -->
-                        <slim = true/>
-                    </menu>
-                    <selection>
-                        <mode = text/> <!-- text | ansi | rich | html | protected | none -->
-                    </selection>
-                    <hotkeys key*>    <!-- not implemented -->
-                        <key="Alt+RightArrow" action=TerminalFindNext/>
-                        <key="Alt+LeftArrow"  action=TerminalFindPrev/>
-                        <key="Ctrl+'z'"       action=TerminalQuit/>
-                    </hotkeys>
-                </term>
-            </config>
-        </item>
-)=="
-#if defined(_WIN32)
-R"==(
-        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run PowerShell "/>
-        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
-)=="
-#endif
-R"==(
-        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)"    notes=" run Tiling Window Manager with two terminals attached "/>
-        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                              notes=" set desktop region "/>
-        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"      notes=" run Settings " winsize=50,15/>
-        <item id=Logs       label=Logs         type=DirectVT title="Logs"                  param="$0 -q -r term $0 -m" notes=" run Logs ">
-            <config>
-                <term>
-                    <scrollback>
-                        <size=5000/>
-                        <wrap="off"/>
-                    </scrollback>
-                    <menu>
-                        <autohide = on/>
-                        <slim = true/>
-                    </menu>
-                    <selection>
-                        <mode = text/> <!-- text | ansi | rich | html | protected | none -->
-                    </selection>
-                </term>
-            </config>
-        </item>
-        <autorun item*>  <!-- Autorun of specified menu items -->
-            <!--  <item* id=Term winsize=80,25/> --> <!-- Set defaults for the list -->
-            <!--  <item focused wincoor=8,3/> -->
-            <!--  <item wincoor=92,30/> -->
-            <!--  <item wincoor=8,30 focused/> -->
-        </autorun>
-        <width>    <!-- Taskbar menu width. -->
-            <folded=4/>
-            <expanded=31/>
-        </width>
-    </menu>
-    <hotkeys key*>    <!-- not implemented -->
-        <key="Ctrl+PgUp" action=PrevWindow/>
-        <key="Ctrl+PgDn" action=NextWindow/>
-    </hotkeys>
-    <appearance>
-        <defaults>
-            <fps      = 60   />
-            <bordersz = 1,1  />
-            <brighter = 60   />
-            <kb_focus = 60   />
-            <shadower = 180  />
-            <shadow   = 180  />
-            <lucidity = 0xff /> <!-- not implemented -->
-            <selector = 48   />
-            <highlight  fgc=purewhite bgc=bluelt      />
-            <warning    fgc=whitelt   bgc=yellowdk    />
-            <danger     fgc=whitelt   bgc=redlt       />
-            <action     fgc=whitelt   bgc=greenlt     />
-            <label      fgc=blackdk   bgc=whitedk     />
-            <inactive   fgc=blacklt   bgc=transparent />
-            <menu_white fgc=whitelt   bgc=0x80404040  />
-            <menu_black fgc=blackdk   bgc=0x80404040  />
-            <fader duration=0ms fast=0ms/>  <!-- Fader animation config. -->
-        </defaults>
-        <runapp>    <!-- Override defaults. -->
-            <brighter=0/>
-        </runapp>
-    </appearance>
-    <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
-        <blackdk   = 0xFF101010 /> <!-- Color reference literals. -->
-        <reddk     = 0xFF1f0fc4 />
-        <greendk   = 0xFF0ea112 />
-        <yellowdk  = 0xFF009cc0 />
-        <bluedk    = 0xFFdb3700 />
-        <magentadk = 0xFF981787 />
-        <cyandk    = 0xFFdd963b />
-        <whitedk   = 0xFFbbbbbb />
-        <blacklt   = 0xFF757575 />
-        <redlt     = 0xFF5648e6 />
-        <greenlt   = 0xFF0cc615 />
-        <yellowlt  = 0xFFa5f1f8 />
-        <bluelt    = 0xFFff783a />
-        <magentalt = 0xFF9e00b3 />
-        <cyanlt    = 0xFFd6d660 />
-        <whitelt   = 0xFFf3f3f3 />
-        <pureblack = 0xFF000000 />
-        <purewhite = 0xFFffffff />
-        <nocolor   = 0x00000000 />
-        <transparent = nocolor  />
-    </set>
-    <client>
-        <background fgc=whitedk bgc=0xFF000000>  <!-- Desktop background color. -->
-            <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
-        </background>
-        <clipboard>
-            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
-                <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
-                <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
-                <shadow=7  />  <!-- Preview shadow strength (0-10). -->
-            </preview>
-        </clipboard>
-        <viewport coor=0,0/>
-        <mouse dblclick=500ms/>
-        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite/>
-        <glowfx=true/>                      <!-- Show glow effect around selected item. -->
-        <debug overlay=faux toggle="🐞"/>  <!-- Display console debug info. -->
-        <regions enabled=faux/>             <!-- Highlight UI objects boundaries. -->
-    </client>
-    <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
-        <scrollback>
-            <size=20000    />   <!-- Scrollback buffer length. -->
-            <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
-            <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
-            <wrap="on"     />   <!-- Lines wrapping mode. -->
-            <reset onkey="on" onoutput="off"/>   <!-- Scrollback viewport reset triggers. -->
-        </scrollback>
-        <color>
-            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
-            <color1  = reddk      />
-            <color2  = greendk    />
-            <color3  = yellowdk   />
-            <color4  = bluedk     />
-            <color5  = magentadk  />
-            <color6  = cyandk     />
-            <color7  = whitedk    />
-            <color8  = blacklt    />
-            <color9  = redlt      />
-            <color10 = greenlt    />
-            <color11 = yellowlt   />
-            <color12 = bluelt     />
-            <color13 = magentalt  />
-            <color14 = cyanlt     />
-            <color15 = whitelt    />
-            <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-            <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
-            <selection>
-                <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx=color bgc=bluelt fgc=whitelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
-                <ansi fx=xlight bgc=bluelt fgc=whitelt/>
-                <rich fx=xlight bgc=bluelt fgc=whitelt/>
-                <html fx=xlight bgc=bluelt fgc=whitelt/>
-                <none fx=color bgc=blacklt fgc=whitedk/>  <!-- Inactive selection color. -->
-            </selection>
-        </color>
-        <fields>
-            <lucent=0xC0/> <!-- Fields transparency level. -->
-            <size=0/>      <!-- Left/right field size (for hz scrolling UX). -->
-        </fields>
-        <tablen=8/>   <!-- Tab length. -->
-        <cursor>
-            <style="underline"/> <!-- block | underline -->
-            <blink=400ms/>       <!-- blink period -->
-            <show=true/>
-        </cursor>
-        <menu item*>  <!-- Use asterisk to drop previous/existing item list. -->
-            <autohide=true/>  <!-- If true, show menu only on hover. -->
-            <enabled=1/>
-            <slim=1/>
-            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
-                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
-                <notes>
-                    " Wrapping text lines on/off      \n"
-                    " - applied to selection if it is "
-                </notes>
-            </item>
-            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
-                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
-                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                <label data="rich">
-                    "\e[38:2:109:231:237m""R"
-                    "\e[38:2:109:237:186m""T"
-                    "\e[38:2:60:255:60m"  "F"
-                    "\e[38:2:189:255:53m" "-"
-                    "\e[38:2:255:255:49m" "s"
-                    "\e[38:2:255:189:79m" "t"
-                    "\e[38:2:255:114:94m" "y"
-                    "\e[38:2:255:60:157m" "l"
-                    "\e[38:2:255:49:214m" "e" "\e[m"
-                </label>
-                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
-                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
-            </item>
-            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-                <label="\e[38:2:0:255:0m<\e[m"/>
-                <notes>
-                    " Previous match                    \n"
-                    " - using clipboard if no selection \n"
-                    " - page up if no clipboard data    "
-                </notes>
-            </item>
-            <item label=">" action=TerminalFindNext>
-                <label="\e[38:2:0:255:0m>\e[m"/>
-                <notes>
-                    " Next match                        \n"
-                    " - using clipboard if no selection \n"
-                    " - page up if no clipboard data    "
-                </notes>
-            </item>
-            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
-            <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
-            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
-            <!-- <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/> -->
-        </menu>
-        <selection>
-            <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
-            <rect=faux/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
-        </selection>
-        <atexit = auto/>  <!-- auto:    Stay open and ask if exit code != 0. (default)
-                               ask:     Stay open and ask.
-                               close:   Always close.
-                               restart: Restart session.
-                               retry:   Restart session if exit code != 0. -->
-        <hotkeys key*>    <!-- not implemented -->
-            <key="Alt+RightArrow" action=FindNext/>
-            <key="Alt+LeftArrow"  action=FindPrev/>
-        </hotkeys>
-    </term>
-    <defapp>
-        <menu>
-            <autohide=faux/>
-            <enabled="on"/>
-            <slim=true/>
-        </menu>
-    </defapp>
-    <tile>
-        <menu>
-            <autohide=true/>
-            <enabled="on"/>
-            <slim=1/>
-        </menu>
-    </tile>
-    <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
-        <!-- not implemented -->
-    </text>
-    <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
-        <!-- not implemented -->
-    </calc>
-    <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
-        <!-- not implemented -->
-    </settings>
-</config>
-)==";
-
+    static const auto version = "v0.9.8s";
+    static const auto desktopio = "desktopio";
+    static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
     static const auto env_config = "$VTM_CONFIG"s;
-
-    static constexpr auto path_autorun  = "config/menu/autorun";
-    static constexpr auto path_hotkeys  = "config/hotkeys";
 
     namespace menu
     {
@@ -385,7 +93,7 @@ R"==(
         using link = std::tuple<netxs::sptr<item>, std::function<void(ui::pads&, item&)>>;
         using list = std::list<link>;
 
-        const auto create = [](xml::settings& config, list menu_items) // Menu bar (shrinkable on right-click).
+        const auto create = [](xmls& config, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -405,7 +113,7 @@ R"==(
                 auto menulist = menuarea->attach(slot::_1, ui::fork::ctor());
 
                     menulist->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
-                            ->plugin<pro::fader>(x3, c3, skin::timeout(tone::fader))
+                            ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
                             ->plugin<pro::notes>(" Maximize/restore window ")
                             ->invoke([&](ui::pads& boss)
                             {
@@ -426,7 +134,7 @@ R"==(
 
                     auto scrl_grip = scrlarea->attach(scroll_hint);
 
-                auto fader = skin::timeout(tone::fader);
+                auto fader = skin::globals().fader_time;
                 for (auto& body : menu_items)
                 {
                     auto& item_ptr = std::get<0>(body);
@@ -564,7 +272,7 @@ R"==(
 
             return std::tuple{ slot1, border, menu_block };
         };
-        const auto demo = [](xml::settings& config)
+        const auto demo = [](xmls& config)
         {
             auto items = list
             {
@@ -579,12 +287,6 @@ R"==(
             return menu;
         };
     }
-
-    //static si32 max_count = 20;// 50;
-    static si32 max_vtm = 3;
-    static si32 vtm_count = 0;
-    static si32 tile_count = 0;
-    //constexpr auto del_timeout = 1s;
 
     enum class app_type
     {
@@ -623,27 +325,6 @@ R"==(
             auto backup = boss.This();
             boss.RISEUP(tier::release, e2::form::quit, backup);
             gear.dismiss();
-        };
-    };
-    const auto app_limit = [](auto boss, text title)
-    {
-        log("app_limit: max count reached");
-        auto timeout = datetime::now() + APPS_DEL_TIMEOUT;
-        auto shadow = ptr::shadow(boss);
-        boss->LISTEN(tier::general, e2::timer::any, timestamp, -, (shadow))
-        {
-            if (timestamp > timeout)
-            {
-                if (auto boss = shadow.lock())
-                {
-                    log("app_limit: detached");
-                    boss->RISEUP(tier::release, e2::form::quit, boss);
-                }
-            }
-        };
-        boss->LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (title))
-        {
-            parent->RISEUP(tier::preview, e2::form::prop::ui::header, title);
         };
     };
     const auto scroll_bars = [](auto master)
@@ -687,242 +368,72 @@ R"==(
                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
         return scroll_bars;
     };
-    const auto base_window = [](auto header, auto footer, auto menu_item_id)
-    {
-        return ui::cake::ctor()
-            ->template plugin<pro::d_n_d>()
-            ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
-            ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-            ->template plugin<pro::sizer>()
-            ->template plugin<pro::frame>()
-            ->template plugin<pro::light>()
-            ->template plugin<pro::align>()
-            ->invoke([&](auto& boss)
-            {
-                boss.keybd.active();
-                boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
-                boss.LISTEN(tier::preview, e2::form::proceed::d_n_d::drop, what, -, (menu_item_id))
-                {
-                    if (auto object = boss.pop_back())
-                    {
-                        auto target = what.object;
-                        what.menuid = menu_item_id;
-                        what.object = object;
-                        auto& title = boss.template plugins<pro::title>();
-                        what.header = title.header();
-                        what.footer = title.footer();
-                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
-                        boss.base::detach(); // The object kills itself.
-                    }
-                };
-                boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                {
-                    boss.RISEUP(tier::release, e2::form::maximize, gear);
-                    gear.dismiss();
-                };
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto area = boss.base::area();
-                    auto home = rect{ -dot_21, area.size + dot_21 * 2}; // Including resizer grips.
-                    if (!home.hittest(gear.coord))
-                    {
-                        auto center = area.coor + (area.size / 2);
-                        gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
-                        boss.base::deface();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::proceed::detach, backup)
-                {
-                    boss.mouse.reset();
-                    boss.base::detach(); // The object kills itself.
-                };
-                boss.LISTEN(tier::release, e2::form::quit, nested_item)
-                {
-                    boss.mouse.reset();
-                    if (nested_item) boss.base::detach(); // The object kills itself.
-                };
-                boss.LISTEN(tier::release, e2::dtor, p)
-                {
-                    auto start = datetime::now();
-                    auto counter = e2::cleanup.param();
-                    SIGNAL_GLOBAL(e2::cleanup, counter);
-                    auto stop = datetime::now() - start;
-                    log("host: garbage collection",
-                    "\n\ttime ", utf::format(stop.count()), "ns",
-                    "\n\tobjs ", counter.obj_count,
-                    "\n\trefs ", counter.ref_count,
-                    "\n\tdels ", counter.del_count);
-                };
-            });
-    };
 
-    using builder_t = std::function<sptr<base>(text, text, xml::settings&, text)>;
+    using builder_t = std::function<sptr<base>(text, text, xmls&, text)>;
 
-    namespace get
+    namespace
     {
         auto& creator()
         {
             static auto creator = std::map<text, builder_t>{};
             return creator;
         }
-        auto& configs()
-        {
-            auto world_ptr = e2::config::whereami.param();
-            SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-            auto conf_list_ptr = e2::bindings::list::links.param();
-            world_ptr->SIGNAL(tier::request, e2::bindings::list::links, conf_list_ptr);
-            auto& conf_list = *conf_list_ptr;
-            return conf_list;
-        }
     }
-    namespace create
+    auto& builder(text app_typename)
     {
-        auto& builder(text app_typename)
+        static builder_t empty =
+        [&](text, text, xmls&, text) -> sptr<base>
         {
-            static builder_t empty =
-            [&](text, text, xml::settings&, text) -> sptr<base>
-            {
-                auto window = ui::cake::ctor()
-                    ->plugin<pro::focus>()
-                    ->invoke([&](auto& boss)
-                    {
-                        boss.keybd.accept(true);
-                        closing_on_quit(boss);
-                        closing_by_gesture(boss);
-                        boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
-                        {
-                            auto title = "error"s;
-                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
-                        };
-                    });
-                auto msg = ui::post::ctor()
-                    ->colors(whitelt, rgba{ 0x7F404040 })
-                    ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                    + "\n\nUnsupported application type\n\n"
-                    + ansi::nil().wrp(wrap::on)
-                    + "Only the following application types are supported\n\n"
-                    + ansi::nil().wrp(wrap::off).fgc(whitedk)
-                    + "   type = DirectVT \n"
-                      "   type = ANSIVT   \n"
-                      "   type = SHELL    \n"
-                      "   type = Group    \n"
-                      "   type = Region   \n\n"
-                    + ansi::nil().wrp(wrap::on).fgc(whitelt)
-                    + "apps: See logs for details."
-                    );
-                auto placeholder = ui::park::ctor()
-                    ->colors(whitelt, rgba{ 0x7F404040 })
-                    ->attach(snap::stretch, snap::stretch, msg);
-                window->attach(ui::rail::ctor())
-                      ->attach(placeholder);
-                return window;
-            };
-            auto& map = get::creator();
-            const auto it = map.find(app_typename);
-            if (it == map.end())
-            {
-                log("apps: unknown app type - '", app_typename, "'");
-                return empty;
-            }
-            else return it->second;
-        };
-        auto by = [](auto& world, auto& gear)
-        {
-            static auto insts_count = si32{ 0 };
-            auto& gate = gear.owner;
-            auto location = gear.slot;
-            if (gear.meta(hids::anyCtrl))
-            {
-                log("hall: area copied to clipboard ", location);
-                gate.SIGNAL(tier::release, e2::command::printscreen, gear);
-            }
-            else
-            {
-                auto what = e2::form::proceed::createat.param();
-                what.square = gear.slot;
-                what.forced = gear.slot_forced;
-                gate.SIGNAL(tier::request, e2::data::changed, what.menuid);
-                world.SIGNAL(tier::release, e2::form::proceed::createat, what);
-                if (auto& frame = what.object)
+            auto window = ui::cake::ctor()
+                ->plugin<pro::focus>()
+                ->invoke([&](auto& boss)
                 {
-                    insts_count++;
-                    frame->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
+                    boss.keybd.accept(true);
+                    closing_on_quit(boss);
+                    closing_by_gesture(boss);
+                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
-                        insts_count--;
-                        log("hall: detached: ", insts_count);
+                        auto title = "error"s;
+                        boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                     };
-
-                    gear.clear_kb_focus(); // DirectVT app could have a group of focused.
-                    gear.kb_focus_changed = faux;
-                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                    frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                }
-            }
+                });
+            auto msg = ui::post::ctor()
+                ->colors(whitelt, rgba{ 0x7F404040 })
+                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                + "\n\nUnsupported application type\n\n"
+                + ansi::nil().wrp(wrap::on)
+                + "Only the following application types are supported\n\n"
+                + ansi::nil().wrp(wrap::off).fgc(whitedk)
+                + "   type = DirectVT \n"
+                  "   type = ANSIVT   \n"
+                  "   type = SHELL    \n"
+                  "   type = Group    \n"
+                  "   type = Region   \n\n"
+                + ansi::nil().wrp(wrap::on).fgc(whitelt)
+                + "apps: See logs for details."
+                );
+            auto placeholder = ui::park::ctor()
+                ->colors(whitelt, rgba{ 0x7F404040 })
+                ->attach(snap::stretch, snap::stretch, msg);
+            window->attach(ui::rail::ctor())
+                  ->attach(placeholder);
+            return window;
         };
-        auto go = [](auto& menuid)
+        auto& map = creator();
+        const auto it = map.find(app_typename);
+        if (it == map.end())
         {
-            auto& conf_list = app::shared::get::configs();
-            auto& config = conf_list[menuid];
-            auto& creator = app::shared::create::builder(config.type);
-            auto object = creator(config.cwd, config.param, config.settings, config.patch);
-            if (config.bgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   config.bgc);
-            if (config.fgc     ) object->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   config.fgc);
-            if (config.slimmenu) object->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, config.slimmenu);
-            return std::pair{ object, config };
-        };
-        auto at = [](auto& world, auto& what)
-        {
-            auto [object, config] = app::shared::create::go(what.menuid);
-
-            auto window = app::shared::base_window(config.title, config.footer, what.menuid);
-            if (config.winsize && !what.forced) window->extend({what.square.coor, config.winsize });
-            else                                window->extend(what.square);
-            window->attach(object);
-            log("apps: app type: ", utf::debase(config.type), ", menu item id: ", utf::debase(what.menuid));
-            world.branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world.This());
-
-            what.object = window;
-        };
-        auto from = [](auto& world, auto& what)
-        {
-            auto& conf_list = app::shared::get::configs();
-            auto& config = conf_list[what.menuid];
-            auto  window = app::shared::base_window(what.header, what.footer, what.menuid);
-
-            window->extend(what.square);
-            window->attach(what.object);
-            log("apps: attach type=", utf::debase(config.type), " menu_item_id=", utf::debase(what.menuid));
-            world.branch(what.menuid, window, !config.hidden);
-            window->SIGNAL(tier::anycast, e2::form::upon::started, world.This());
-
-            what.object = window;
-        };
-    }
-    auto activate = [](auto world_ptr, xml::settings& config)
-    {
-        auto& world = *world_ptr;
-        world.LISTEN(tier::release, e2::form::proceed::createby, gear)
-        {
-            create::by(world, gear);
-        };
-        world.LISTEN(tier::release, e2::form::proceed::createat, what)
-        {
-            create::at(world, what);
-        };
-        world.LISTEN(tier::release, e2::form::proceed::createfrom, what)
-        {
-            create::from(world, what);
-        };
-        world.autorun(config);
+            log("apps: unknown app type - '", app_typename, "'");
+            return empty;
+        }
+        else return it->second;
     };
-
     namespace load
     {
         template<bool Print = faux>
-        auto settings(view cli_config_path, view patch)
+        auto settings(view defaults, view cli_config_path, view patch)
         {
-            auto conf = xml::settings{ default_config };
+            auto conf = xmls{ defaults };
             auto pads = "      ";
             auto load = [&](view shadow)
             {
@@ -992,16 +503,7 @@ R"==(
             return conf;
         }
     }
-
-    struct initialize
-    {
-        initialize(view app_typename, builder_t builder)
-        {
-            app::shared::get::creator()[text{ app_typename }] = builder;
-        }
-    };
-
-    auto start(text app_name, text log_title, si32 vtmode, xml::settings& config)
+    auto start(text app_name, text log_title, si32 vtmode, xmls& config)
     {
         auto direct = !!(vtmode & os::vt::direct);
         if (!direct) os::logging::start(log_title);
@@ -1018,8 +520,8 @@ R"==(
             auto ground = base::create<host>(uplink, config);
             auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::create::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            auto window = ground->template invite<gate>(vtmode, config);
+            auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
+            auto window = ground->template invite<gate>(vtmode);
             window->launch(uplink, applet);
             window.reset();
             applet.reset();
@@ -1033,15 +535,20 @@ R"==(
         }
         else
         {
-            //todo Clang 11.0.1 doesn't get it
-            //auto [client, server] = os::ipc::xlink();
-            auto xlinks = os::ipc::xlink();
-            auto client = xlinks.first;
-            auto server = xlinks.second;
-            auto thread = std::thread{ [&]{ os::tty::splice(client, vtmode); }};
+            auto [client, server] = os::ipc::xlink();
+            auto thread = std::thread{ [&, &client = client]{ os::tty::splice(client, vtmode); }}; //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
             runapp(server);
             thread.join();
         }
         return true;
     }
+
+    struct initialize
+    {
+        initialize(text app_typename, builder_t builder)
+        {
+            auto& map = creator();
+            map[app_typename] = builder;
+        }
+    };
 }

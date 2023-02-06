@@ -242,14 +242,14 @@ No arguments               | Run client (auto start server)
 ` -d \| --daemon `         | Run server in background
 ` -s \| --server `         | Run server in interactive mode
 ` -r \| --runapp [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
-` -v \| --version `        | Show version and exit.
-` -? \| -h \| --help `     | Show usage message.
+` -v \| --version `        | Show version and exit
+` -? \| -h \| --help `     | Show usage message
 
 Configuration precedence (descending priority):<br>
 1. Command line options `vtm -c path/to/settings.xml`<br>
 2. Environment variable `VTM_CONFIG=path/to/settings.xml`<br>
 3. Hardcoded location `~/.config/vtm/settings.xml`<br>
-4. Predefined configuration at application.hpp(~line:28)
+4. Predefined configuration, see `./src/vtm.xml`
 
 # Settings
 
@@ -537,12 +537,12 @@ Note: The following configuration sections are not implemented yet
         <defaults>
             <fps      = 60   />
             <bordersz = 1,1  />
-            <brighter = 60   />
-            <kb_focus = 60   />
-            <shadower = 180  />
-            <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
-            <selector = 48   />
+            <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
+            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
+            <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
+            <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
+            <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
             <highlight  fgc=purewhite bgc=bluelt      />
             <warning    fgc=whitelt   bgc=yellowdk    />
             <danger     fgc=whitelt   bgc=redlt       />
@@ -551,7 +551,23 @@ Note: The following configuration sections are not implemented yet
             <inactive   fgc=blacklt   bgc=transparent />
             <menu_white fgc=whitelt   bgc=0x80404040  />
             <menu_black fgc=blackdk   bgc=0x80404040  />
-            <fader duration=0ms fast=0ms />  <!-- Fader animation config. -->
+            <timings>
+                <fader duration=0ms fast=0ms/>  <!-- Fader animation config. -->
+                <spd            = 10    /> <!-- Auto-scroll initial speed component ΔR.              -->
+                <pls            = 167   /> <!-- Auto-scroll initial speed component ΔT.              -->
+                <ccl            = 120   /> <!-- Auto-scroll duration in ms.                          -->
+                <spd_accel      = 1     /> <!-- Auto-scroll speed accelation.                        -->
+                <ccl_accel      = 30    /> <!-- Auto-scroll additional duration in ms.               -->
+                <spd_max        = 100   /> <!-- Auto-scroll max speed.                               -->
+                <ccl_max        = 1000  /> <!-- Auto-scroll max duration in ms                       -->
+                <deceleration   = 2s    /> <!-- Object state stopping duration in s.                 -->
+                <switching      = 200   /> <!-- Object state switching duration in ms.               -->
+                <blink_period   = 400ms /> <!-- Period in ms between the blink states of the cursor. -->
+                <menu_timeout   = 250ms /> <!-- Taskbar collaplse timeout.                           -->
+                <active_timeout = 1s    /> <!-- Timeout off the active object.                       -->
+                <repeat_delay   = 500ms /> <!-- Repeat delay.                                        -->
+                <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
+            </timings>
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0 />

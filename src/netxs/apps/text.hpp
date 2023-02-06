@@ -28,6 +28,9 @@ namespace netxs::events::userland
 // text: Text editor.
 namespace netxs::app::textancy
 {
+    static constexpr auto id = "text";
+    static constexpr auto desc = "Desktopio Text Editor (DEMO)";
+
     using events = netxs::events::userland::textancy;
 
     namespace
@@ -182,7 +185,7 @@ utility like ctags is used to locate the definitions.
 
 )";
 
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
 
@@ -229,5 +232,5 @@ utility like ctags is used to locate the definitions.
         };
     }
 
-    app::shared::initialize builder{ "text", build };
+    app::shared::initialize builder{ app::textancy::id, build };
 }

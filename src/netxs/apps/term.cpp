@@ -1,25 +1,23 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DESKTOPIO_VER "v0.9.8r"
-#define DESKTOPIO_MYNAME "Desktopio Terminal " DESKTOPIO_VER
-#define DESKTOPIO_MYPATH "vtm/term"
-#define DESKTOPIO_DEFAPP "Term"
-
 #include "term.hpp"
 
 using namespace netxs;
 
 int main(int argc, char* argv[])
 {
+    auto defaults = 
+    #include "term.xml"
+
     auto vtmode = os::tty::vtmode();
     auto syslog = os::tty::logger(vtmode);
-    auto banner = [&]{ log(DESKTOPIO_MYNAME); };
+    auto banner = [&]{ log(app::term::desc, ' ', app::shared::version); };
     auto cfonly = faux;
     auto cfpath = text{};
     auto errmsg = text{};
     auto getopt = os::process::args{ argc, argv };
-    auto params = DESKTOPIO_DEFAPP + " "s + getopt.rest();
+    auto params = app::term::id + " "s + getopt.rest();
     getopt.reset();
     while (getopt)
     {
@@ -43,7 +41,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-v", "--version"))
         {
-            log(DESKTOPIO_VER);
+            log(app::shared::version);
             return 0;
         }
         else if (getopt.match("--"))
@@ -78,12 +76,12 @@ int main(int argc, char* argv[])
     }
     else if (cfonly)
     {
-        log("Running configuration:\n", app::shared::load::settings<true>(cfpath, os::dtvt::config()));
+        log("Running configuration:\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config()));
     }
     else
     {
-        auto config = app::shared::load::settings(cfpath, os::dtvt::config());
-        auto result = app::shared::start(params, DESKTOPIO_MYPATH, vtmode, config);
+        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
+        auto result = app::shared::start(params, app::term::id, vtmode, config);
 
         if (result) return 0;
         else
