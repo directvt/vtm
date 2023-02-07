@@ -1144,118 +1144,121 @@ namespace netxs::ui
 {
     using pipe = os::ipc::stdcon;
 
-    // console: Client properties.
-    //todo make it as pro::props (after topgear)
-    struct conf
-    {
-        text ip;
-        text port;
-        text fullname;
-        text region;
-        text name;
-        text os_user_id;
-        text title;
-        text selected;
-        twod coor;
-        span clip_preview_time;
-        cell clip_preview_clrs;
-        byte clip_preview_alfa;
-        bool clip_preview_show;
-        twod clip_preview_size;
-        si32 clip_preview_glow;
-        cell background_color;
-        face background_image;
-        si32 legacy_mode;
-        si32 session_id;
-        span dblclick_timeout; // conf: Double click timeout.
-        span tooltip_timeout; // conf: Timeout for tooltip.
-        cell tooltip_colors; // conf: Tooltip rendering colors.
-        bool tooltip_enabled; // conf: Enable tooltips.
-        bool glow_fx; // conf: Enable glow effect in main menu.
-        bool debug_overlay; // conf: Enable to show debug overlay.
-        text debug_toggle; // conf: Debug toggle shortcut.
-        bool show_regions; // conf: Highlight region ownership.
-        bool simple; // conf: Isn't it a directvt app.
-        bool is_standalone_app; // conf: .
-
-        void read(xmls& config)
-        {
-            config.cd("/config/client/");
-            clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
-            clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
-            clip_preview_alfa = config.take("clipboard/preview/alpha", 0xFF);
-            clip_preview_glow = config.take("clipboard/preview/shadow", 7);
-            clip_preview_show = config.take("clipboard/preview/enabled", true);
-            clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
-            coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
-            dblclick_timeout  = config.take("mouse/dblclick",  span{ 500ms });
-            tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
-            tooltip_timeout   = config.take("tooltip/timeout", span{ 500ms });
-            tooltip_enabled   = config.take("tooltip/enabled", true);
-            debug_overlay     = config.take("debug/overlay", faux);
-            debug_toggle      = config.take("debug/toggle", "🐞"s);
-            show_regions      = config.take("regions/enabled", faux);
-            clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
-        }
-
-        conf() = default;
-        conf(pipe& peer, si32 mode, bool, xmls& config)
-            : session_id{ 0 },
-              legacy_mode{ mode }
-        {
-            read(config);
-            simple            = !(legacy_mode & os::vt::direct);
-            glow_fx           = faux;
-            is_standalone_app = true;
-            title             = "";
-        }
-        conf(pipe& peer, si32 session_id, xmls& config)
-            : session_id{ session_id }
-        {
-            auto init = directvt::binary::startdata_t{};
-            if (!init.load([&](auto... args){ return peer.recv(args...); }))
-            {
-                log("conf: init data corrupted");
-            }
-            config.fuse(init.conf);
-            init.user = "[" + init.user + ":" + std::to_string(session_id) + "]";
-            auto c_info = utf::divide(init.ip, " ");
-            ip                = c_info.size() > 0 ? c_info[0] : text{};
-            port              = c_info.size() > 1 ? c_info[1] : text{};
-            legacy_mode       = init.mode;
-            os_user_id        = init.user;
-            fullname          = init.name;
-            name              = init.user;
-            title             = init.user;
-            selected          = config.take("/config/menu/selected", ""s);
-            read(config);
-            background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
-                                      .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
-            auto utf8_tile = config.take("background/tile", ""s);
-            if (utf8_tile.size())
-            {
-                auto block = page{ utf8_tile };
-                background_image.size(block.limits());
-                background_image.output(block);
-            }
-            glow_fx           = config.take("glowfx", true);
-            simple            = faux;
-            is_standalone_app = faux;
-        }
-
-        friend auto& operator << (std::ostream& s, conf const& c)
-        {
-            return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
-                     << "\n\tregion: " << c.region
-                     << "\n\t  name: " << c.fullname
-                     << "\n\t  user: " << c.os_user_id
-                     << "\n\t  mode: " << os::vt::str(c.legacy_mode);
-        }
-    };
-
     // console: Template modules for the base class behavior extension.
     namespace pro
     {
+        //todo revise
+        // pro: Application properties.
+        struct props
+        {
+            text ip;
+            text port;
+            text fullname;
+            text region;
+            text name;
+            text os_user_id;
+            text title;
+            text selected;
+            twod coor;
+            span clip_preview_time;
+            cell clip_preview_clrs;
+            byte clip_preview_alfa;
+            bool clip_preview_show;
+            twod clip_preview_size;
+            si32 clip_preview_glow;
+            cell background_color;
+            face background_image;
+            si32 legacy_mode;
+            si32 session_id;
+            span dblclick_timeout; // conf: Double click timeout.
+            span tooltip_timeout; // conf: Timeout for tooltip.
+            cell tooltip_colors; // conf: Tooltip rendering colors.
+            bool tooltip_enabled; // conf: Enable tooltips.
+            bool glow_fx; // conf: Enable glow effect in main menu.
+            bool debug_overlay; // conf: Enable to show debug overlay.
+            text debug_toggle; // conf: Debug toggle shortcut.
+            bool show_regions; // conf: Highlight region ownership.
+            bool simple; // conf: Isn't it a directvt app.
+            bool is_standalone_app; // conf: .
+
+            void read(xmls& config)
+            {
+                config.cd("/config/client/");
+                clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
+                clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
+                clip_preview_alfa = config.take("clipboard/preview/alpha", 0xFF);
+                clip_preview_glow = config.take("clipboard/preview/shadow", 7);
+                clip_preview_show = config.take("clipboard/preview/enabled", true);
+                clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
+                coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
+                dblclick_timeout  = config.take("mouse/dblclick",  span{ 500ms });
+                tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
+                tooltip_timeout   = config.take("tooltip/timeout", span{ 500ms });
+                tooltip_enabled   = config.take("tooltip/enabled", true);
+                debug_overlay     = config.take("debug/overlay", faux);
+                debug_toggle      = config.take("debug/toggle", "🐞"s);
+                show_regions      = config.take("regions/enabled", faux);
+                clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
+            }
+
+            template<class T>
+            props(T& boss)
+            {
+                auto& config = boss.config;
+                if (boss.isvtm)
+                {
+                    session_id = boss.session_id;
+                    auto init = directvt::binary::startdata_t{};
+                    if (!init.load([&](auto... args){ return boss.canal.recv(args...); }))
+                    {
+                        log("conf: init data corrupted");
+                    }
+                    config.fuse(init.conf);
+                    init.user = "[" + init.user + ":" + std::to_string(session_id) + "]";
+                    auto c_info = utf::divide(init.ip, " ");
+                    ip                = c_info.size() > 0 ? c_info[0] : text{};
+                    port              = c_info.size() > 1 ? c_info[1] : text{};
+                    legacy_mode       = init.mode;
+                    os_user_id        = init.user;
+                    fullname          = init.name;
+                    name              = init.user;
+                    title             = init.user;
+                    selected          = config.take("/config/menu/selected", ""s);
+                    read(config);
+                    background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
+                                              .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
+                    auto utf8_tile = config.take("background/tile", ""s);
+                    if (utf8_tile.size())
+                    {
+                        auto block = page{ utf8_tile };
+                        background_image.size(block.limits());
+                        background_image.output(block);
+                    }
+                    glow_fx           = config.take("glowfx", true);
+                    simple            = faux;
+                    is_standalone_app = faux;
+                }
+                else
+                {
+                    legacy_mode = boss.session_id;
+                    read(config);
+                    simple            = !(legacy_mode & os::vt::direct);
+                    glow_fx           = faux;
+                    is_standalone_app = true;
+                    title             = "";
+                }
+            }
+
+            friend auto& operator << (std::ostream& s, props const& c)
+            {
+                return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
+                         << "\n\tregion: " << c.region
+                         << "\n\t  name: " << c.fullname
+                         << "\n\t  user: " << c.os_user_id
+                         << "\n\t  mode: " << os::vt::str(c.legacy_mode);
+            }
+        };
+
         // pro: Base class for plugins.
         struct skill
         {
@@ -3387,13 +3390,13 @@ namespace netxs::ui
             struct topgear
                 : public hids
             {
-                conf& props;
+                pro::props& props;
                 clip clip_rawdata{}; // topgear: Clipboard data.
                 face clip_preview{}; // topgear: Clipboard preview render.
                 bool not_directvt{}; // topgear: Is it the top level gear (not directvt).
 
                 template<class ...Args>
-                topgear(conf& props, bool not_directvt, Args&&... args)
+                topgear(pro::props& props, bool not_directvt, Args&&... args)
                     : hids{ std::forward<Args>(args)... },
                       props{ props },
                       not_directvt{ not_directvt }
@@ -3479,7 +3482,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            conf& props;
+            pro::props& props;
 
             template<class T>
             void forward(T& device)
@@ -4578,8 +4581,11 @@ namespace netxs::ui
     {
     public:
         pipe& canal;
-        conf props; // gate: Client properties.
+        si32 session_id; //todo if isvtm session_id=vtmode
+        bool isvtm;
+        xmls& config;
 
+        pro::props props{*this }; // gate: Application properties.
         pro::keybd keybd{*this }; // gate: Keyboard controller.
         pro::mouse mouse{*this }; // gate: Mouse controller.
         pro::robot robot{*this }; // gate: Animation controller.
@@ -5096,10 +5102,12 @@ namespace netxs::ui
         }
 
     protected:
-        template<class ...Args>
-        gate(sptr<pipe> uplink, Args&&... args)
+        //todo revise
+        gate(sptr<pipe> uplink, si32 session_id, bool isvtm, xmls& config)
             : canal{ *uplink },
-              props{ canal, std::forward<Args>(args)... }
+              session_id{ session_id },
+              isvtm{ isvtm },
+              config{ config }
         {
             limit.set(dot_11);
             //todo unify
