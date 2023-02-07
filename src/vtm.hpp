@@ -791,7 +791,8 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, e2::form::proceed::autofocus::lost, gear)
             {
-                taken[gear.id] = gear.clear_kb_focus();
+                taken[gear.id] = gear.get_kb_focus();
+                gear.clear_kb_focus();
             };
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {

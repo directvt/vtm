@@ -1133,4 +1133,39 @@ namespace netxs::ui
             };
         }
     };
+
+    // console: Fullduplex channel base.
+    struct pipe
+    {
+        using flux = std::ostream;
+        using xipc = std::shared_ptr<pipe>;
+
+        bool active; // pipe: Is connected.
+
+        pipe(bool active)
+            : active{ active }
+        { }
+        virtual ~pipe()
+        { }
+        operator bool () { return active; }
+
+        virtual bool send(view buff) =0;
+        virtual qiew recv(char* buff, size_t size) = 0;
+        virtual qiew recv() = 0;
+        virtual void shut() = 0;
+        virtual void stop() = 0;
+        virtual flux& show(flux& s) const = 0;
+        void output(view data)
+        {
+            send(data);
+        }
+        friend auto& operator << (flux& s, pipe const& sock)
+        {
+            return sock.show(s << "{ xipc: ") << " }";
+        }
+        friend auto& operator << (flux& s, xipc const& sock)
+        {
+            return s << *sock;
+        }
+    };
 }

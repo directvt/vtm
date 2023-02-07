@@ -8,8 +8,6 @@
 
 namespace netxs::ui
 {
-    using pipe = os::ipc::stdcon;
-
     // console: Template modules for the base class behavior extension.
     namespace pro
     {
