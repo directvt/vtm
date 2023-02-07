@@ -7,8 +7,6 @@
     #define __BSD__
 #endif
 
-#include "input.hpp"
-
 #include <type_traits>
 #include <iostream>
 #include <filesystem>
@@ -77,6 +75,9 @@ namespace netxs::os
     using page = ui::page;
     using para = ui::para;
     using rich = ui::rich;
+    using s11n = ui::s11n;
+    using pipe = ui::pipe;
+    using xipc = ui::pipe::xipc;
 
     enum role { client, server };
 
@@ -1089,31 +1090,26 @@ namespace netxs::os
             }
         };
 
-        struct stdcon
+        struct stdcon : pipe
         {
-            using flux = std::ostream;
             using file = io::file;
-            using xipc = std::shared_ptr<stdcon>;
 
-            bool active; // ipc::stdcon: Is connected.
             file handle; // ipc::stdcon: IO descriptor.
             text buffer; // ipc::stdcon: Receive buffer.
 
             stdcon()
-                : active{ faux },
+                : pipe{ faux },
                   buffer(os::pipebuf, 0)
             { }
             stdcon(file&& fd)
-                : active{ true },
+                : pipe{ true },
                   handle{ std::move(fd) },
                   buffer(os::pipebuf, 0)
             { }
             stdcon(fd_t r, fd_t w)
-                : active{ true },
+                : pipe{ true },
                   handle{ r, w },
                   buffer(os::pipebuf, 0)
-            { }
-            virtual ~stdcon()
             { }
 
             void operator = (stdcon&& p)
@@ -1123,44 +1119,31 @@ namespace netxs::os
                 active = p.active;
                 p.active = faux;
             }
-            operator bool () { return active; }
 
-            virtual bool send(view buff)
+            virtual bool send(view buff) override
             {
                 return io::send(handle.w, buff);
             }
-            virtual qiew recv(char* buff, size_t size)
+            virtual qiew recv(char* buff, size_t size) override
             {
                 return io::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
             }
-            virtual qiew recv() // It's not thread safe!
+            virtual qiew recv()  override // It's not thread safe!
             {
                 return recv(buffer.data(), buffer.size());
             }
-            virtual void shut()
+            virtual void shut() override
             {
                 active = faux;
                 handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
             }
-            virtual void stop()
+            virtual void stop() override
             {
                 shut();
             }
-            virtual flux& show(flux& s) const
+            virtual flux& show(flux& s) const override
             {
                 return s << handle;
-            }
-            friend auto& operator << (flux& s, ipc::stdcon const& sock)
-            {
-                return sock.show(s << "{ xipc: ") << " }";
-            }
-            friend auto& operator << (std::ostream& s, xipc const& sock)
-            {
-                return s << *sock;
-            }
-            void output(view data)
-            {
-                send(data);
             }
         };
 
@@ -3114,18 +3097,16 @@ namespace netxs::os
 
     namespace tty
     {
-        using xipc = ipc::stdcon::xipc;
-
         auto& globals()
         {
             struct
             {
-                xipc                   ipcio; // globals: STDIN/OUT.
-                conmode                state; // globals: Saved console mode to restore at exit.
-                testy<twod>            winsz; // globals: Current console window size.
-                directvt::binary::s11n wired; // globals: Serialization buffers.
-                si32                   kbmod; // globals: Keyboard modifiers state.
-                io::fire               alarm; // globals: IO interrupter.
+                xipc        ipcio; // globals: STDIN/OUT.
+                conmode     state; // globals: Saved console mode to restore at exit.
+                testy<twod> winsz; // globals: Current console window size.
+                s11n        wired; // globals: Serialization buffers.
+                si32        kbmod; // globals: Keyboard modifiers state.
+                io::fire    alarm; // globals: IO interrupter.
             }
             static vars;
             return vars;

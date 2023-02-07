@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.8s";
+    static const auto version = "v0.9.8t";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -521,8 +521,8 @@ namespace netxs::app::shared
             auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            auto window = ground->template invite<gate>(vtmode);
-            window->launch(uplink, applet);
+            auto window = ground->template invite<gate>(uplink, vtmode, faux);
+            window->launch(applet);
             window.reset();
             applet.reset();
             ground->shutdown();

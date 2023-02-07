@@ -3,7 +3,7 @@
 
 #pragma once
 
-namespace netxs::input { struct hids; }
+#include "baseui.hpp"
 
 namespace netxs::events::userland
 {
@@ -246,6 +246,8 @@ namespace netxs::input
 {
     using netxs::ansi::clip;
     using netxs::ui::base;
+    using netxs::ui::face;
+    using netxs::ui::page;
 
     // console: Mouse tracker.
     struct mouse
@@ -677,9 +679,117 @@ namespace netxs::input
         bool kb_focus_set = faux;
         si32 countdown = 0;
 
-        virtual bool clear_clip_data()                                                      = 0;
-        virtual void set_clip_data(clip const& data, bool forward = true) = 0;
-        virtual clip get_clip_data()                                                        = 0;
+        clip clip_rawdata{}; // hids: Clipboard data.
+        face clip_preview{}; // hids: Clipboard preview render.
+        bool not_directvt{}; // hids: Is it the top level gear (not directvt).
+        si32& clip_shadow_size;
+        cell& clip_preview_clrs;
+        byte& clip_preview_alfa;
+
+        template<class T>
+        hids(T& props, bool not_directvt, base& owner, core const& idmap)
+            : relay{ 0 },
+            owner{ owner },
+            idmap{ idmap },
+            alive{ faux },
+            tooltip_timeout{   props.tooltip_timeout },
+            simple_instance{   props.simple },
+            clip_shadow_size{  props.clip_preview_glow },
+            clip_preview_clrs{ props.clip_preview_clrs },
+            clip_preview_alfa{ props.clip_preview_alfa },
+            not_directvt{ not_directvt }
+        {
+            mouse::prime = dot_mx;
+            mouse::coord = dot_mx;
+            mouse::delay = props.dblclick_timeout;
+        }
+        ~hids()
+        {
+            auto lock = netxs::events::sync{};
+            mouse_leave(mouse::hover, mouse::start);
+            clear_kb_focus();
+            SIGNAL(tier::general, events::halt, *this);
+            SIGNAL(tier::general, events::die, *this);
+        }
+
+        // hids: Whether event processing is complete.
+        operator bool() const
+        {
+            return alive;
+        }
+
+        auto clear_clip_data()
+        {
+            auto not_empty = !!clip_rawdata.utf8.size();
+            clip_rawdata.clear();
+            owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+            if (not_directvt)
+            {
+                clip_preview.size(clip_rawdata.size);
+            }
+            return not_empty;
+        }
+        void set_clip_data(clip const& data, bool forward = true)
+        {
+            clip_rawdata.set(data);
+            if (not_directvt)
+            {
+                auto draw_shadow = [&](auto& block, auto size)
+                {
+                    clip_preview.mark(cell{});
+                    clip_preview.wipe();
+                    clip_preview.size(dot_21 * size * 2 + clip_rawdata.size);
+                    auto full = rect{ dot_21 * size + dot_21, clip_rawdata.size };
+                    while (size--)
+                    {
+                        clip_preview.reset();
+                        clip_preview.full(full);
+                        clip_preview.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                        clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
+                    }
+                    full.coor -= dot_21;
+                    clip_preview.reset();
+                    clip_preview.full(full);
+                };
+                if (clip_rawdata.kind == clip::safetext)
+                {
+                    auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
+                    auto block = page{ blank };
+                    clip_rawdata.size = block.current().size();
+                    if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
+                    else
+                    {
+                        clip_preview.size(clip_rawdata.size);
+                        clip_preview.wipe();
+                    }
+                    clip_preview.output(block);
+                }
+                else
+                {
+                    auto block = page{ clip_rawdata.utf8 };
+                    if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
+                    else
+                    {
+                        clip_preview.size(clip_rawdata.size);
+                        clip_preview.wipe();
+                    }
+                    clip_preview.mark(cell{});
+                    if (clip_rawdata.kind == clip::textonly) clip_preview.output(block, cell::shaders::color(  clip_preview_clrs));
+                    else                                     clip_preview.output(block, cell::shaders::xlucent(clip_preview_alfa));
+                }
+            }
+            if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+            mouse::delta.set(); // Update time stamp.
+        }
+        auto get_clip_data()
+        {
+            auto data = clip{};
+            owner.SIGNAL(tier::release, hids::events::clipbrd::get, *this);
+            if (not_directvt) data.utf8 = clip_rawdata.utf8;
+            else              data.utf8 = std::move(clip_rawdata.utf8);
+            data.kind = clip_rawdata.kind;
+            return data;
+        }
 
         auto tooltip_enabled()
         {
@@ -1105,23 +1215,32 @@ namespace netxs::input
             //todo foci
             //else if (kb_focus_size) owner.SIGNAL(tier::preview, events::notify::focus::lost, *this);
         }
-        auto clear_kb_focus()
+        auto get_kb_focus()
+        {
+            auto list = std::list<id_t>{};
+            for (auto& shadow : kb_focus)
+            {
+                if (auto item = shadow.lock())
+                {
+                    list.push_back(item->id);
+                }
+            }
+            return list;
+        }
+        void clear_kb_focus()
         {
             //todo kb
-            auto last = std::list<id_t>{};
             auto iter = kb_focus.begin();
             while (iter != kb_focus.end())
             {
                 if (auto next = iter->lock())
                 {
-                    last.push_back(next->id);
                     next->SIGNAL(tier::release, events::notify::keybd::lost, *this);
                 }
                 iter++;
                 kb_focus.erase(std::prev(iter));
             }
             if (kb_focus.empty()) owner.SIGNAL(tier::preview, events::notify::focus::lost, *this);
-            return last;
         }
         bool focus_changed()
         {
@@ -1280,31 +1399,6 @@ namespace netxs::input
                 }
             }
             return textline;
-        }
-        // hids: Whether event processing is complete.
-        operator bool() const
-        {
-            return alive;
-        }
-        hids(base& owner, core const& idmap, span& dblclick_timeout, span& tooltip_timeout, bool& simple_instance)
-            : relay{ 0 },
-            owner{ owner },
-            idmap{ idmap },
-            alive{ faux },
-            tooltip_timeout{ tooltip_timeout },
-            simple_instance{ simple_instance }
-        {
-            mouse::prime = dot_mx;
-            mouse::coord = dot_mx;
-            mouse::delay = dblclick_timeout;
-        }
-        ~hids()
-        {
-            auto lock = netxs::events::sync{};
-            mouse_leave(mouse::hover, mouse::start);
-            clear_kb_focus();
-            SIGNAL(tier::general, events::halt, *this);
-            SIGNAL(tier::general, events::die, *this);
         }
     };
 }

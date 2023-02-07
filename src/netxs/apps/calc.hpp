@@ -193,7 +193,7 @@ namespace netxs::ui
                 }
                 else data = " =SUM(" + ansi::itc(true).fgc(reddk).add("select cells by dragging").itc(faux).fgc(blacklt).add(")");
                 log("calc: DATA ", data, ansi::nil());
-                boss.SIGNAL(tier::release, e2::data::text, data);
+                boss.SIGNAL(tier::release, e2::data::utf8, data);
             }
             // pro::cell_highlight: Configuring the mouse button to operate.
             template<hids::buttons Button>
@@ -387,7 +387,7 @@ namespace netxs::app::calc
                                                      .fgc(blacklt).add(")"))
                                                      ->invoke([&](ui::post& boss)
                                                      {
-                                                         grid->LISTEN(tier::release, e2::data::text, data)
+                                                         grid->LISTEN(tier::release, e2::data::utf8, data)
                                                          {
                                                             boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                          };

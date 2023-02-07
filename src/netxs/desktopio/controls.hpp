@@ -3000,7 +3000,7 @@ namespace netxs::ui
               unln{ underline  }
         {
             recalc();
-            LISTEN(tier::release, e2::data::text, label_text)
+            LISTEN(tier::release, e2::data::utf8, label_text)
             {
                 set(label_text);
             };

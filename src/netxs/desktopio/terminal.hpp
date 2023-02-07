@@ -7226,8 +7226,10 @@ namespace netxs::ui
                     list.thing.sendby(owner);
                 }
                 lock.unlock();
-                auto lock_ui = events::sync{}; // Breaks host::edges without ui lock.
-                owner.base::deface();
+                netxs::events::enqueue(owner.This(), [&](auto& boss) mutable
+                {
+                    owner.base::deface();
+                });
             }
             void handle(s11n::xs::tooltips            lock)
             {
@@ -7250,40 +7252,47 @@ namespace netxs::ui
                     cell::gc_set_data(jgc.token, jgc.cluster);
                     log("new gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                 }
-                //todo full strike to redraw with new clusters
+                netxs::events::enqueue(owner.This(), [&](auto& boss) mutable
+                {
+                    owner.base::deface();
+                });
             }
             void handle(s11n::xs::maximize            lock)
             {
                 auto& m = lock.thing;
-                auto lock_ui = events::sync{};
-                if (auto gear_ptr = bell::getref<hids>(m.gear_id))
-                if (auto parent_ptr = owner.base::parent())
+                owner.trysync(owner.active, [&]
                 {
-                    auto& gear = *gear_ptr;
-                    if (gear.captured(owner.id)) gear.setfree(true);
-                    parent_ptr->RISEUP(tier::release, e2::form::maximize, gear);
-                }
+                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        auto& gear = *gear_ptr;
+                        if (gear.captured(owner.id)) gear.setfree(true);
+                        parent_ptr->RISEUP(tier::release, e2::form::maximize, gear);
+                    }
+                });
             };
             void handle(s11n::xs::mouse_event         lock)
             {
                 auto& m = lock.thing;
-                auto lock_ui = events::sync{};
-                if (auto gear_ptr = bell::getref<hids>(m.gear_id))
-                if (auto parent_ptr = owner.base::parent())
+                owner.trysync(owner.active, [&]
                 {
-                    auto& gear = *gear_ptr;
-                    if (gear.captured(owner.id)) gear.setfree(true);
-                    gear.replay(m.cause, m.coord + owner.base::coor(), m.delta, m.buttons);
-                    gear.pass<tier::release>(parent_ptr, owner.base::coor());
-                    if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
+                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
                     {
-                        auto basis = e2::coor::set.param();
-                        gear.owner.SIGNAL(tier::request, e2::coor::set, basis);
-                        owner.global(basis);
-                        gear.coord -= basis; // Restore gate mouse position.
-                        gear.owner.bell::template signal<tier::release>(m.cause, gear);
+                        auto& gear = *gear_ptr;
+                        if (gear.captured(owner.id)) gear.setfree(true);
+                        gear.replay(m.cause, m.coord + owner.base::coor(), m.delta, m.buttons);
+                        gear.pass<tier::release>(parent_ptr, owner.base::coor());
+                        if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
+                        {
+                            auto basis = e2::coor::set.param();
+                            gear.owner.SIGNAL(tier::request, e2::coor::set, basis);
+                            owner.global(basis);
+                            gear.coord -= basis; // Restore gate mouse position.
+                            gear.owner.bell::template signal<tier::release>(m.cause, gear);
+                        }
                     }
-                }
+                });
             }
             void handle(s11n::xs::expose              lock)
             {
@@ -7295,42 +7304,50 @@ namespace netxs::ui
             void handle(s11n::xs::set_clipboard       lock)
             {
                 auto& c = lock.thing;
-                auto lock_ui = events::sync{};
-                if (auto gear_ptr = bell::getref<hids>(c.gear_id))
+                owner.trysync(owner.active, [&]
                 {
-                    gear_ptr->set_clip_data(clip{ c.clip_prev_size, c.clipdata, static_cast<clip::mime>(c.mimetype) });
-                }
+                    if (auto gear_ptr = bell::getref<hids>(c.gear_id))
+                    {
+                        gear_ptr->set_clip_data(clip{ c.clip_prev_size, c.clipdata, static_cast<clip::mime>(c.mimetype) });
+                    }
+                });
             }
             void handle(s11n::xs::request_clipboard   lock)
             {
                 auto& c = lock.thing;
-                auto lock_ui = events::sync{};
-                //todo use gear.raw_clip_data
-                if (auto gear_ptr = bell::getref<hids>(c.gear_id))
+                owner.trysync(owner.active, [&]
                 {
-                    auto data = gear_ptr->get_clip_data();
-                    s11n::clipdata.send(owner, c.gear_id, data.utf8, data.kind);
-                    return;
-                }
-                s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
+                    //todo use gear.raw_clip_data
+                    if (auto gear_ptr = bell::getref<hids>(c.gear_id))
+                    {
+                        auto data = gear_ptr->get_clip_data();
+                        s11n::clipdata.send(owner, c.gear_id, data.utf8, data.kind);
+                        return;
+                    }
+                    s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
+                });
             }
             void handle(s11n::xs::set_focus           lock)
             {
                 auto& f = lock.thing;
-                auto lock_ui = events::sync{};
-                if (auto gear_ptr = bell::getref<hids>(f.gear_id))
+                owner.trysync(owner.active, [&]
                 {
-                    gear_ptr->kb_offer_18(owner.This(), f.force_group_focus);
-                }
+                    if (auto gear_ptr = bell::getref<hids>(f.gear_id))
+                    {
+                        gear_ptr->kb_offer_18(owner.This(), f.force_group_focus);
+                    }
+                });
             }
             void handle(s11n::xs::off_focus           lock)
             {
                 auto& f = lock.thing;
-                auto lock_ui = events::sync{};
-                if (auto gear_ptr = bell::getref<hids>(f.gear_id))
+                owner.trysync(owner.active, [&]
                 {
-                    gear_ptr->remove_from_kb_focus(owner.This());
-                }
+                    if (auto gear_ptr = bell::getref<hids>(f.gear_id))
+                    {
+                        gear_ptr->remove_from_kb_focus(owner.This());
+                    }
+                });
             }
             void handle(s11n::xs::form_header         lock)
             {

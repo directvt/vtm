@@ -91,7 +91,7 @@ namespace netxs::app::term
             if (boss.client)
             {
                 auto& item = *boss.client;
-                item.SIGNAL(tier::release, e2::data::text,              look.label);
+                item.SIGNAL(tier::release, e2::data::utf8,              look.label);
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip, look.notes);
                 item.reflow();
             }
