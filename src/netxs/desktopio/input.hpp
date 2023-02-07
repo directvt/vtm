@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "baseui.hpp"
+
 namespace netxs::input { struct hids; }
 
 namespace netxs::events::userland
