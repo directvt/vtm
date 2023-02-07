@@ -597,7 +597,7 @@ namespace netxs::app::vtm
         }
 
     protected:
-        hall(xipc server, xmls config, text defapp)
+        hall(sptr<pipe> server, xmls& config, text defapp)
             : host{ server, config }
         {
             auto current_module_file = os::process::binary();

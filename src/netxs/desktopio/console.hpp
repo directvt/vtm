@@ -1077,6 +1077,11 @@ namespace netxs::ui
                 }
             }
         }
+        // base: Initiate redrawing.
+        virtual void redraw(face& canvas)
+        {
+            SIGNAL(tier::general, e2::shutdown, "base: rendering is not provided");
+        }
 
     protected:
         virtual ~base() = default;
@@ -1131,13 +1136,16 @@ namespace netxs::ui
     };
 }
 
+#include "input.hpp"
+
 #include "system.hpp"
 
 namespace netxs::ui
 {
-    using os::tty::xipc;
+    using pipe = os::ipc::stdcon;
 
     // console: Client properties.
+    //todo make it as pro::props (after topgear)
     struct conf
     {
         text ip;
@@ -1191,7 +1199,7 @@ namespace netxs::ui
         }
 
         conf() = default;
-        conf(si32 mode, xmls& config)
+        conf(pipe& peer, si32 mode, bool, xmls& config)
             : session_id{ 0 },
               legacy_mode{ mode }
         {
@@ -1201,11 +1209,11 @@ namespace netxs::ui
             is_standalone_app = true;
             title             = "";
         }
-        conf(xipc peer, si32 session_id, xmls& config)
+        conf(pipe& peer, si32 session_id, xmls& config)
             : session_id{ session_id }
         {
             auto init = directvt::binary::startdata_t{};
-            if (!init.load([&](auto... args){ return peer->recv(args...); }))
+            if (!init.load([&](auto... args){ return peer.recv(args...); }))
             {
                 log("conf: init data corrupted");
             }
@@ -4125,16 +4133,15 @@ namespace netxs::ui
         tick quartz; // host: Frame rate synchronizator.
         si32 maxfps; // host: Frame rate.
         list debris; // host: Wrecked regions.
-        xipc server; // host: Server pipe end.
         xmls config; // host: Running configuration.
 
     public:
-        host(xipc server, xmls config )
+        host(sptr<pipe> server, xmls config )
             : quartz{ bell::router<tier::general>(), e2::timer::tick.id },
-              server{ server },
               config{ config }
         {
             using namespace std::chrono;
+            auto& canal = *server;
             auto& g = skin::globals();
             g.brighter       = config.take("brighter", cell{});//120);
             g.kb_focus       = config.take("kb_focus", cell{});//60
@@ -4221,15 +4228,10 @@ namespace netxs::ui
             {
                 //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
                 log("host: shutdown: ", msg);
-                host::server->stop();
+                canal.stop();
             };
             quartz.ignite(maxfps);
             log("host: started at ", maxfps, "fps");
-        }
-        // host: Initiate redrawing.
-        virtual void redraw(face& canvas)
-        {
-            SIGNAL(tier::general, e2::shutdown, "host: rendering is not provided");
         }
         // host: Mark dirty region.
         void denote(rect const& updateregion)
@@ -4249,7 +4251,7 @@ namespace netxs::ui
         auto invite(Args&&... args)
         {
             auto lock = events::sync{};
-            auto root = base::create<S>(*this, std::forward<Args>(args)..., host::config);
+            auto root = base::create<S>(std::forward<Args>(args)..., host::config);
             //stuff = root;
             root->base::root(true);
             root->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
@@ -4271,9 +4273,6 @@ namespace netxs::ui
     class link
         : public s11n
     {
-        using sptr = netxs::sptr<bell>;
-        using ipc  = os::ipc::stdcon;
-
     public:
         struct relay_t
         {
@@ -4309,8 +4308,8 @@ namespace netxs::ui
             }
         };
 
-        ipc&     canal; // link: Data highway.
-        sptr     owner; // link: Link owner.
+        pipe&    canal; // link: Data highway.
+        base&    owner; // link: Link owner.
         relay_t  relay; // link: Clipboard relay.
 
     public:
@@ -4337,7 +4336,7 @@ namespace netxs::ui
             return received;
         }
 
-        link(ipc& canal, sptr owner)
+        link(pipe& canal, base& owner)
             : s11n{ *this },
              canal{ canal },
              owner{ owner }
@@ -4347,7 +4346,7 @@ namespace netxs::ui
         template<tier Tier = tier::release, class E, class T>
         void notify(E, T&& data)
         {
-            netxs::events::enqueue(owner, [d = data](auto& boss) mutable
+            netxs::events::enqueue(owner.This(), [d = data](auto& boss) mutable
             {
                 //boss.SIGNAL(Tier, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
                 boss.bell::template signal<Tier>(E::id, static_cast<typename E::type &&>(d));
@@ -4461,7 +4460,6 @@ namespace netxs::ui
         using work = std::thread;
         using lock = std::mutex;
         using cond = std::condition_variable_any;
-        using ipc  = os::ipc::stdcon;
 
         struct stat
         {
@@ -4480,7 +4478,7 @@ namespace netxs::ui
 
         // diff: Render current buffer to the screen.
         template<class Bitmap>
-        void render(ipc& canal)
+        void render(pipe& canal)
         {
             log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
             auto start = time{};
@@ -4546,7 +4544,7 @@ namespace netxs::ui
             return faux;
         }
 
-        diff(ipc& canal, svga vtmode)
+        diff(pipe& canal, svga vtmode)
             : alive{ true },
               ready{ faux },
               abort{ faux }
@@ -4579,6 +4577,7 @@ namespace netxs::ui
         : public base
     {
     public:
+        pipe& canal;
         conf props; // gate: Client properties.
 
         pro::keybd keybd{*this }; // gate: Keyboard controller.
@@ -4591,9 +4590,6 @@ namespace netxs::ui
         pro::debug debug{*this }; // gate: Debug telemetry controller.
         pro::limit limit{*this }; // gate: Limit size to dot_11.
 
-        using sptr = netxs::sptr<base>;
-
-        host& world;
         bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
@@ -4701,12 +4697,12 @@ namespace netxs::ui
             if (result) base::strike();
         }
 
-        sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
-        sptr background; // gate: Local UI background.
+        sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
+        sptr<base> background; // gate: Local UI background.
 
         // gate: Attach a new item.
         template<class T>
-        auto attach(netxs::sptr<T> item)
+        auto attach(sptr<T> item)
         {
             uibar = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
@@ -4720,14 +4716,14 @@ namespace netxs::ui
         }
         // gate: Attach background object.
         template<class T>
-        auto ground(netxs::sptr<T> item)
+        auto ground(sptr<T> item)
         {
             background = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
         // Main loop.
-        void launch(xipc termio, sptr deskmenu_ptr, sptr bkground = {})
+        void launch(sptr<base> deskmenu_ptr, sptr<base> bkground = {})
         {
             auto lock = events::unique_lock();
 
@@ -4746,8 +4742,8 @@ namespace netxs::ui
                 SIGNAL(tier::preview, e2::form::prop::ui::header, conf_usr_name);
                 base::moveby(props.coor);
 
-                auto& canal = *termio;
-                auto  conio = link{ canal, This() }; // gate: Terminal IO.
+                auto& world = *base::parent();
+                auto  conio = link{ canal, *this  }; // gate: Terminal IO.
                 auto  paint = diff{ canal, vtmode }; // gate: Rendering loop.
                 auto  token = subs{};                // gate: Subscription tokens.
 
@@ -5101,9 +5097,9 @@ namespace netxs::ui
 
     protected:
         template<class ...Args>
-        gate(host& world, Args&&... args)
-            : props{ std::forward<Args>(args)... },
-              world{ world }
+        gate(sptr<pipe> uplink, Args&&... args)
+            : canal{ *uplink },
+              props{ canal, std::forward<Args>(args)... }
         {
             limit.set(dot_11);
             //todo unify
@@ -5171,7 +5167,7 @@ namespace netxs::ui
             LISTEN(tier::preview, e2::form::proceed::create, region)
             {
                 region.coor += base::coor();
-                world.SIGNAL(tier::release, e2::form::proceed::create, region);
+                this->RISEUP(tier::release, e2::form::proceed::create, region);
             };
             LISTEN(tier::release, e2::form::proceed::onbehalf, proc)
             {
@@ -5200,8 +5196,8 @@ namespace netxs::ui
                     if (pgup || pgdn)
                     {
                         auto item_ptr = e2::form::layout::goprev.param();
-                        if (pgdn) world.SIGNAL(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
-                        else      world.SIGNAL(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
+                        if (pgdn) this->RISEUP(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
+                        else      this->RISEUP(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
 
                         if (item_ptr)
                         {

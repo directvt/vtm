@@ -282,7 +282,7 @@ int main(int argc, char* argv[])
                     auto patch = ""s;
                     auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
                     auto bkground = app::shared::builder(app::fone::id)("", "gems;About;", config, patch);
-                    window->launch(client, deskmenu, bkground);
+                    window->launch(deskmenu, bkground);
                     log("user: ", client, " logged out");
                 }
             });

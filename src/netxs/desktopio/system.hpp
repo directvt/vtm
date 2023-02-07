@@ -7,8 +7,6 @@
     #define __BSD__
 #endif
 
-#include "input.hpp"
-
 #include <type_traits>
 #include <iostream>
 #include <filesystem>

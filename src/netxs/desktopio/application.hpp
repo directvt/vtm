@@ -521,8 +521,8 @@ namespace netxs::app::shared
             auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            auto window = ground->template invite<gate>(vtmode);
-            window->launch(uplink, applet);
+            auto window = ground->template invite<gate>(uplink, vtmode, faux);
+            window->launch(applet);
             window.reset();
             applet.reset();
             ground->shutdown();
