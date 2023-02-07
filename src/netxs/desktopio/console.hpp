@@ -2253,97 +2253,7 @@ namespace netxs::ui
         class input
             : public skill
         {
-            struct topgear
-                : public hids
-            {
-                pro::props& props;
-                clip clip_rawdata{}; // topgear: Clipboard data.
-                face clip_preview{}; // topgear: Clipboard preview render.
-                bool not_directvt{}; // topgear: Is it the top level gear (not directvt).
-
-                template<class ...Args>
-                topgear(pro::props& props, bool not_directvt, Args&&... args)
-                    : hids{ std::forward<Args>(args)... },
-                      props{ props },
-                      not_directvt{ not_directvt }
-                { }
-
-                bool clear_clip_data() override
-                {
-                    auto not_empty = !!clip_rawdata.utf8.size();
-                    clip_rawdata.clear();
-                    owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
-                    if (not_directvt)
-                    {
-                        clip_preview.size(clip_rawdata.size);
-                    }
-                    return not_empty;
-                }
-                void set_clip_data(clip const& data, bool forward = true) override
-                {
-                    clip_rawdata.set(data);
-                    if (not_directvt)
-                    {
-                        auto clip_shadow_size = props.clip_preview_glow;
-                        auto draw_shadow = [&](auto& block)
-                        {
-                            clip_preview.mark(cell{});
-                            clip_preview.wipe();
-                            clip_preview.size(dot_21 * clip_shadow_size * 2 + clip_rawdata.size);
-                            auto full = rect{ dot_21 * clip_shadow_size + dot_21, clip_rawdata.size };
-                            while (clip_shadow_size--)
-                            {
-                                clip_preview.reset();
-                                clip_preview.full(full);
-                                clip_preview.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                                clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
-                            }
-                            full.coor -= dot_21;
-                            clip_preview.reset();
-                            clip_preview.full(full);
-                        };
-                        if (clip_rawdata.kind == clip::safetext)
-                        {
-                            auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
-                            auto block = page{ blank };
-                            clip_rawdata.size = block.current().size();
-                            if (clip_shadow_size) draw_shadow(block);
-                            else
-                            {
-                                clip_preview.size(clip_rawdata.size);
-                                clip_preview.wipe();
-                            }
-                            clip_preview.output(block);
-                        }
-                        else
-                        {
-                            auto block = page{ clip_rawdata.utf8 };
-                            if (clip_shadow_size) draw_shadow(block);
-                            else
-                            {
-                                clip_preview.size(clip_rawdata.size);
-                                clip_preview.wipe();
-                            }
-                            clip_preview.mark(cell{});
-                            if (clip_rawdata.kind == clip::textonly) clip_preview.output(block, cell::shaders::color(  props.clip_preview_clrs));
-                            else                                     clip_preview.output(block, cell::shaders::xlucent(props.clip_preview_alfa));
-                        }
-                    }
-                    if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
-                    mouse::delta.set(); // Update time stamp.
-                }
-                clip get_clip_data() override
-                {
-                    auto data = clip{};
-                    owner.SIGNAL(tier::release, hids::events::clipbrd::get, *this);
-                    if (not_directvt) data.utf8 = clip_rawdata.utf8;
-                    else              data.utf8 = std::move(clip_rawdata.utf8);
-                    data.kind = clip_rawdata.kind;
-                    return data;
-                }
-            };
-
-            using depo = std::unordered_map<id_t, sptr<topgear>>;
+            using depo = std::unordered_map<id_t, sptr<hids>>;
             using lock = std::recursive_mutex;
             using skill::boss,
                   skill::memo;
@@ -2356,7 +2266,7 @@ namespace netxs::ui
                 auto gear_it = gears.find(device.gear_id);
                 if (gear_it == gears.end())
                 {
-                    gear_it = gears.emplace(device.gear_id, bell::create<topgear>(props, device.gear_id == 0, boss, xmap, props.dblclick_timeout, props.tooltip_timeout, props.simple)).first;
+                    gear_it = gears.emplace(device.gear_id, bell::create<hids>(props, device.gear_id == 0, boss, xmap)).first;
                 }
                 auto& [_id, gear_ptr] = *gear_it;
                 gear_ptr->hids::take(device);
@@ -2373,7 +2283,7 @@ namespace netxs::ui
             input(T& boss)
                 : skill{ boss       },
                   props{ boss.props },
-                  gears{{ id_t{}, bell::create<topgear>(props, true, boss, xmap, props.dblclick_timeout, props.tooltip_timeout, props.simple) }}
+                  gears{{ id_t{}, bell::create<hids>(props, true, boss, xmap) }}
             {
                 xmap.link(boss.bell::id);
                 xmap.move(boss.base::coor());
@@ -2444,13 +2354,13 @@ namespace netxs::ui
                 {
                     if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
                 }
-                return std::pair{ id_t{}, sptr<topgear>{} };
+                return std::pair{ id_t{}, sptr<hids>{} };
             }
             auto set_clip_data(clip const& clipdata)
             {
                 if (gears.empty())
                 {
-                    gears.emplace(0, bell::create<topgear>(props, true, boss, xmap, props.dblclick_timeout, props.tooltip_timeout, props.simple));
+                    gears.emplace(0, bell::create<hids>(props, true, boss, xmap));
                 }
                 for (auto& [id, gear_ptr] : gears)
                 {
