@@ -814,37 +814,33 @@ namespace netxs::generics
         auto    size() const { return forward.size();                             }
         auto&   back()       { return storage[std::prev(forward.end()) ->second]; }
         auto&  front()       { return storage[          forward.begin()->second]; }
-        void clear()
+        void   clear()
         {
             counter = {};
             storage.clear();
             reverse.clear();
             forward.clear();
         }
-        //todo implement erase and friends
-        // ...
         template<class K>
         auto erase(K&& key )
         {
-            auto test = si32{ 0 };
-            auto iter = storage.find(std::forward<K>(key));
-            if (iter != storage.end())
+            auto storage_it = storage.find(std::forward<K>(key));
+            if (storage_it != storage.end())
             {
-                test++;
-                auto& my_key = iter->first;
-                auto counter_it = reverse.find(my_key);
-                auto number = counter_it->second;
-                reverse.erase(counter_it);
-                forward.erase(number);
-                storage.erase(iter);
+                auto& key_value = storage_it->first;
+                auto reverse_it = reverse.find(key_value);
+                auto forward_it = reverse_it->second;
+                reverse.erase(reverse_it);
+                forward.erase(forward_it);
+                storage.erase(storage_it);
+                return true;
             }
-            return test;
+            return faux;
         }
         template<class K>
         auto contains(K&& key )
         {
-            auto iter = storage.find(std::forward<K>(key));
-            return iter != storage.end();
+            return storage.contains(std::forward<K>(key));
         }
         template<class K>
         auto& at(K&& key)
@@ -857,7 +853,6 @@ namespace netxs::generics
                 reverse[new_key] = counter;
                 counter++;
             }
-
             return iter->second;
         }
         template<class K>
