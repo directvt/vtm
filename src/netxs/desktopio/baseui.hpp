@@ -114,11 +114,11 @@ namespace netxs::events::userland
             SUBSET_XS( data )
             {
                 //todo revise (see app::desk)
-                EVENT_XS( changed, netxs::text       ), // release/preview/request: current menu item id(text).
-                EVENT_XS( request, si32              ),
-                EVENT_XS( disable, si32              ),
-                EVENT_XS( flush  , si32              ),
-                EVENT_XS( text   , const netxs::text ), // signaling with a text string, release only.
+                EVENT_XS( changed, text       ), // release/preview/request: current menu item id(text).
+                EVENT_XS( request, si32       ),
+                EVENT_XS( disable, si32       ),
+                EVENT_XS( flush  , si32       ),
+                EVENT_XS( utf8   , const text ), // signaling with a text string, release only.
             };
             SUBSET_XS( command )
             {

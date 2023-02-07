@@ -75,6 +75,7 @@ namespace netxs::os
     using page = ui::page;
     using para = ui::para;
     using rich = ui::rich;
+    using s11n = ui::s11n;
     using pipe = ui::pipe;
     using xipc = ui::pipe::xipc;
 
@@ -3100,12 +3101,12 @@ namespace netxs::os
         {
             struct
             {
-                xipc                   ipcio; // globals: STDIN/OUT.
-                conmode                state; // globals: Saved console mode to restore at exit.
-                testy<twod>            winsz; // globals: Current console window size.
-                directvt::binary::s11n wired; // globals: Serialization buffers.
-                si32                   kbmod; // globals: Keyboard modifiers state.
-                io::fire               alarm; // globals: IO interrupter.
+                xipc        ipcio; // globals: STDIN/OUT.
+                conmode     state; // globals: Saved console mode to restore at exit.
+                testy<twod> winsz; // globals: Current console window size.
+                s11n        wired; // globals: Serialization buffers.
+                si32        kbmod; // globals: Keyboard modifiers state.
+                io::fire    alarm; // globals: IO interrupter.
             }
             static vars;
             return vars;
