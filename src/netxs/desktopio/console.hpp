@@ -11,118 +11,6 @@ namespace netxs::ui
     // console: Template modules for the base class behavior extension.
     namespace pro
     {
-        //todo revise
-        // pro: Application properties.
-        struct props
-        {
-            text ip;
-            text port;
-            text fullname;
-            text region;
-            text name;
-            text os_user_id;
-            text title;
-            text selected;
-            twod coor;
-            span clip_preview_time;
-            cell clip_preview_clrs;
-            byte clip_preview_alfa;
-            bool clip_preview_show;
-            twod clip_preview_size;
-            si32 clip_preview_glow;
-            cell background_color;
-            face background_image;
-            si32 legacy_mode;
-            si32 session_id;
-            span dblclick_timeout; // conf: Double click timeout.
-            span tooltip_timeout; // conf: Timeout for tooltip.
-            cell tooltip_colors; // conf: Tooltip rendering colors.
-            bool tooltip_enabled; // conf: Enable tooltips.
-            bool glow_fx; // conf: Enable glow effect in main menu.
-            bool debug_overlay; // conf: Enable to show debug overlay.
-            text debug_toggle; // conf: Debug toggle shortcut.
-            bool show_regions; // conf: Highlight region ownership.
-            bool simple; // conf: Isn't it a directvt app.
-            bool is_standalone_app; // conf: .
-
-            void read(xmls& config)
-            {
-                config.cd("/config/client/");
-                clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
-                clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
-                clip_preview_alfa = config.take("clipboard/preview/alpha", 0xFF);
-                clip_preview_glow = config.take("clipboard/preview/shadow", 7);
-                clip_preview_show = config.take("clipboard/preview/enabled", true);
-                clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
-                coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
-                dblclick_timeout  = config.take("mouse/dblclick",  span{ 500ms });
-                tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
-                tooltip_timeout   = config.take("tooltip/timeout", span{ 500ms });
-                tooltip_enabled   = config.take("tooltip/enabled", true);
-                debug_overlay     = config.take("debug/overlay", faux);
-                debug_toggle      = config.take("debug/toggle", "🐞"s);
-                show_regions      = config.take("regions/enabled", faux);
-                clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
-            }
-
-            template<class T>
-            props(T& boss)
-            {
-                auto& config = boss.config;
-                if (boss.isvtm)
-                {
-                    session_id = boss.session_id;
-                    auto init = directvt::binary::startdata_t{};
-                    if (!init.load([&](auto... args){ return boss.canal.recv(args...); }))
-                    {
-                        log("conf: init data corrupted");
-                    }
-                    config.fuse(init.conf);
-                    init.user = "[" + init.user + ":" + std::to_string(session_id) + "]";
-                    auto c_info = utf::divide(init.ip, " ");
-                    ip                = c_info.size() > 0 ? c_info[0] : text{};
-                    port              = c_info.size() > 1 ? c_info[1] : text{};
-                    legacy_mode       = init.mode;
-                    os_user_id        = init.user;
-                    fullname          = init.name;
-                    name              = init.user;
-                    title             = init.user;
-                    selected          = config.take("/config/menu/selected", ""s);
-                    read(config);
-                    background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
-                                              .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
-                    auto utf8_tile = config.take("background/tile", ""s);
-                    if (utf8_tile.size())
-                    {
-                        auto block = page{ utf8_tile };
-                        background_image.size(block.limits());
-                        background_image.output(block);
-                    }
-                    glow_fx           = config.take("glowfx", true);
-                    simple            = faux;
-                    is_standalone_app = faux;
-                }
-                else
-                {
-                    legacy_mode = boss.session_id;
-                    read(config);
-                    simple            = !(legacy_mode & os::vt::direct);
-                    glow_fx           = faux;
-                    is_standalone_app = true;
-                    title             = "";
-                }
-            }
-
-            friend auto& operator << (std::ostream& s, props const& c)
-            {
-                return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
-                         << "\n\tregion: " << c.region
-                         << "\n\t  name: " << c.fullname
-                         << "\n\t  user: " << c.os_user_id
-                         << "\n\t  mode: " << os::vt::str(c.legacy_mode);
-            }
-        };
-
         // pro: Base class for plugins.
         struct skill
         {
@@ -1495,219 +1383,6 @@ namespace netxs::ui
             }
         };
 
-        // pro: Textify the telemetry data for debugging purpose.
-        class debug
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            #define PROP_LIST                     \
-            X(total_size   , "total sent"       ) \
-            X(proceed_ns   , "rendering time"   ) \
-            X(render_ns    , "stdout time"      ) \
-            X(frame_size   , "frame size"       ) \
-            X(frame_rate   , "frame rate"       ) \
-            X(focused      , "focus"            ) \
-            X(win_size     , "win size"         ) \
-            X(key_code     , "key virt"         ) \
-            X(key_scancode , "key scan"         ) \
-            X(key_character, "key char"         ) \
-            X(key_pressed  , "key push"         ) \
-            X(ctrl_state   , "controls"         ) \
-            X(mouse_pos    , "mouse coord"      ) \
-            X(mouse_wheeldt, "wheel delta"      ) \
-            X(mouse_hzwheel, "H wheel"          ) \
-            X(mouse_vtwheel, "V wheel"          ) \
-            X(mouse_btn_1  , "left button"      ) \
-            X(mouse_btn_2  , "right button"     ) \
-            X(mouse_btn_3  , "middle button"    ) \
-            X(mouse_btn_4  , "4th button"       ) \
-            X(mouse_btn_5  , "5th button"       ) \
-            X(mouse_btn_6  , "left+right combo" ) \
-            X(last_event   , "event"            )
-
-            #define X(a, b) a,
-            enum prop { PROP_LIST count };
-            #undef X
-
-            #define X(a, b) b,
-            text description[prop::count] = { PROP_LIST };
-            #undef X
-            #undef PROP_LIST
-
-            cell alerts;
-            cell stress;
-            page status;
-            ansi::esc coder;
-
-            struct
-            {
-                span render = span::zero();
-                span output = span::zero();
-                si32 frsize = 0;
-                si64 totals = 0;
-                si32 number = 0;    // info: Current frame number
-                //bool   onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
-            }
-            track; // debug: Textify the telemetry data for debugging purpose.
-
-            void shadow()
-            {
-                for (auto i = 0; i < prop::count; i++)
-                {
-                    status[i].ease();
-                }
-            }
-
-        public:
-            bool bypass = faux;
-
-            debug(base&&) = delete;
-            debug(base& boss) : skill{ boss }
-            { }
-
-            operator bool () const { return memo.count(); }
-
-            void update(bool focus_state)
-            {
-                shadow();
-                status[prop::last_event].set(stress) = "focus";
-                status[prop::focused].set(stress) = focus_state ? "active" : "lost";
-            }
-            void update(twod const& new_size)
-            {
-                shadow();
-                status[prop::last_event].set(stress) = "size";
-
-                status[prop::win_size].set(stress) =
-                    std::to_string(new_size.x) + " x " +
-                    std::to_string(new_size.y);
-            }
-            void update(span const& watch, si32 delta)
-            {
-                track.output = watch;
-                track.frsize = delta;
-                track.totals+= delta;
-            }
-            void update(time const& timestamp)
-            {
-                track.render = datetime::now() - timestamp;
-            }
-            void output(face& canvas)
-            {
-                status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
-                    utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
-
-                status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
-                    utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
-
-                status[prop::frame_size].set(stress) =
-                    utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
-
-                status[prop::total_size].set(stress) =
-                    utf::format(track.totals) + " bytes";
-
-                track.number++;
-                canvas.output(status);
-            }
-            void stop()
-            {
-                track = {};
-                memo.clear();
-            }
-            void start()
-            {
-                //todo use skin
-                stress = cell{}.fgc(whitelt);
-                alerts = cell{}.fgc(rgba{ 0xFFd0d0FFu });
-
-                status.style.wrp(wrap::on).jet(bias::left).rlf(feed::rev).mgl(4);
-                status.current().locus.cup(dot_00).cnl(2);
-
-                auto maxlen = 0_sz;
-                for (auto& desc : description)
-                {
-                    maxlen = std::max(maxlen, desc.size());
-                }
-                auto attr = si32{ 0 };
-                for (auto& desc : description)
-                {
-                    status += coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
-                    coder.clear();
-                }
-
-                boss.LISTEN(tier::general, e2::config::fps, fps, memo)
-                {
-                    status[prop::frame_rate].set(stress) = std::to_string(fps);
-                    boss.base::strike();
-                };
-                {
-                    auto fps = e2::config::fps.param(-1);
-                    boss.SIGNAL(tier::general, e2::config::fps, fps);
-                }
-                boss.LISTEN(tier::release, e2::conio::focus, focusstate, memo)
-                {
-                    update(focusstate.enabled);
-                    boss.base::strike();
-                };
-                boss.LISTEN(tier::release, e2::size::any, newsize, memo)
-                {
-                    update(newsize);
-                };
-
-                boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
-                {
-                    if (bypass) return;
-                    shadow();
-                    status[prop::last_event].set(stress) = "mouse";
-                    status[prop::mouse_pos ].set(stress) =
-                        (m.coordxy.x < 10000 ? std::to_string(m.coordxy.x) : "-") + " : " +
-                        (m.coordxy.y < 10000 ? std::to_string(m.coordxy.y) : "-") ;
-
-                    auto m_buttons = std::bitset<8>(m.buttons);
-                    for (auto i = 0; i < hids::numofbuttons; i++)
-                    {
-                        auto& state = status[prop::mouse_btn_1 + i].set(stress);
-                        state = m_buttons[i] ? "pressed" : "idle   ";
-                    }
-
-                    status[prop::mouse_wheeldt].set(stress) = m.wheeldt ? std::to_string(m.wheeldt) :  " -- "s;
-                    status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
-                    status[prop::mouse_vtwheel].set(stress) = m.wheeled ? "active" : "idle  ";
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
-                };
-                boss.LISTEN(tier::release, e2::conio::keybd, k, memo)
-                {
-                    shadow();
-                    status[prop::last_event   ].set(stress) = "keybd";
-                    status[prop::key_pressed  ].set(stress) = k.pressed ? "pressed" : "idle";
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
-                    status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
-                    status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );
-
-                    if (k.cluster.length())
-                    {
-                        auto t = k.cluster;
-                        for (auto i = 0; i < 0x20; i++)
-                        {
-                            utf::change(t, text{ (char)i }, "^" + utf::to_utf_from_code(i + 0x40));
-                        }
-                        utf::change(t, text{ (char)0x7f }, "\\x7F");
-                        utf::change(t, text{ (char)0x20 }, "\\x20");
-                        status[prop::key_character].set(stress) = t;
-                    }
-                };
-
-                boss.LISTEN(tier::release, e2::conio::error, e, memo)
-                {
-                    shadow();
-                    status[prop::last_event].set(stress) = "error";
-                    throw;
-                };
-            }
-        };
-
         // pro: Provides functionality for the title support.
         class title
             : public skill
@@ -1858,15 +1533,14 @@ namespace netxs::ui
             }
         };
 
-        // pro: Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
+        // pro: Deprecated. Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
         class guard
             : public skill
         {
             using skill::boss,
                   skill::memo;
 
-            static constexpr auto QUIT_MSG = e2::conio::quit;
-            static constexpr auto ESC_THRESHOLD = si32{ 500 }; // guard: Double escape threshold in ms.
+            static constexpr auto threshold = 500ms; // guard: Double escape threshold.
 
             bool wait; // guard: Ready to close.
             time stop; // guard: Timeout for single Esc.
@@ -1882,10 +1556,9 @@ namespace netxs::ui
                 {
                     if ((wait = pre_close))
                     {
-                        stop = datetime::now() + std::chrono::milliseconds(ESC_THRESHOLD);
+                        stop = datetime::now() + threshold;
                     }
                 };
-
                 // Double escape catcher.
                 boss.LISTEN(tier::general, e2::timer::any, timestamp, memo)
                 {
@@ -1893,23 +1566,21 @@ namespace netxs::ui
                     {
                         wait = faux;
                         auto shadow = boss.This();
-                        boss.SIGNAL(tier::release, QUIT_MSG, desc);
+                        boss.SIGNAL(tier::release, e2::conio::quit, desc);
                         memo.clear();
                     }
                 };
             }
         };
 
-        // pro: Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
+        // pro: Deprecated. Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
         class watch
             : public skill
         {
             using skill::boss,
                   skill::memo;
 
-            static constexpr auto EXCUSE_MSG = hids::events::mouse::any;
-            static constexpr auto QUIT_MSG   = e2::shutdown;
-            static constexpr auto LIMIT = 60 * 10; //todo unify // watch: Idle timeout in seconds.
+            static constexpr auto limit = 600s; //todo unify // watch: Idle timeout in seconds.
 
             hook pong; // watch: Alibi subsciption token.
             hook ping; // watch: Zombie check countdown token.
@@ -1920,19 +1591,19 @@ namespace netxs::ui
             watch(base&&) = delete;
             watch(base& boss) : skill{ boss }
             {
-                stop = datetime::now() + std::chrono::seconds(LIMIT);
+                stop = datetime::now() + limit;
 
                 // No mouse events watchdog.
-                boss.LISTEN(tier::preview, EXCUSE_MSG, something, pong)
+                boss.LISTEN(tier::preview, hids::events::mouse::any, something, pong)
                 {
-                    stop = datetime::now() + std::chrono::seconds(LIMIT);
+                    stop = datetime::now() + limit;
                 };
                 boss.LISTEN(tier::general, e2::timer::any, something, ping)
                 {
                     if (datetime::now() > stop)
                     {
                         auto shadow = boss.This();
-                        boss.SIGNAL(tier::general, QUIT_MSG, desc);
+                        boss.SIGNAL(tier::general, e2::shutdown, desc);
                         ping.reset();
                         memo.clear();
                     }
@@ -2243,127 +1914,6 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
-                }
-            }
-        };
-
-        // pro: Provides functionality related to keyboard interaction.
-        class input
-            : public skill
-        {
-            using depo = std::unordered_map<id_t, sptr<hids>>;
-            using lock = std::recursive_mutex;
-            using skill::boss,
-                  skill::memo;
-
-            pro::props& props;
-
-            template<class T>
-            void forward(T& device)
-            {
-                auto gear_it = gears.find(device.gear_id);
-                if (gear_it == gears.end())
-                {
-                    gear_it = gears.emplace(device.gear_id, bell::create<hids>(props, device.gear_id == 0, boss, xmap)).first;
-                }
-                auto& [_id, gear_ptr] = *gear_it;
-                gear_ptr->hids::take(device);
-                boss.strike();
-            }
-
-        public:
-            face xmap;
-            lock sync;
-            depo gears;
-
-            input(base&&) = delete;
-            template<class T>
-            input(T& boss)
-                : skill{ boss       },
-                  props{ boss.props },
-                  gears{{ id_t{}, bell::create<hids>(props, true, boss, xmap) }}
-            {
-                xmap.link(boss.bell::id);
-                xmap.move(boss.base::coor());
-                xmap.size(boss.base::size());
-                boss.LISTEN(tier::release, e2::command::printscreen, gear, memo)
-                {
-                    auto data = ansi::esc{};
-                    data.s11n(xmap, gear.slot);
-                    if (data.length())
-                    {
-                        gear.set_clip_data(clip{ gear.slot.size, data, clip::ansitext });
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::prop::brush, brush, memo)
-                {
-                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.mark(brush);
-                };
-                boss.LISTEN(tier::release, e2::size::any, newsize, memo)
-                {
-                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.size(newsize);
-                };
-                boss.LISTEN(tier::release, e2::coor::any, newcoor, memo)
-                {
-                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.move(newcoor);
-                };
-                boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
-                {
-                    if (m.enabled != hids::stat::ok)
-                    {
-                        auto gear_it = gears.find(m.gear_id);
-                        if (gear_it != gears.end())
-                        {
-                            switch (m.enabled)
-                            {
-                                case hids::stat::ok:   break;
-                                case hids::stat::halt: gear_it->second->deactivate(); break;
-                                case hids::stat::die:  gears.erase(gear_it);          break;
-                            }
-                        }
-                        boss.strike();
-                    }
-                    else forward(m);
-                };
-                boss.LISTEN(tier::release, e2::conio::keybd, k, memo)
-                {
-                    forward(k);
-                };
-                boss.LISTEN(tier::release, e2::conio::focus, f, memo)
-                {
-                    forward(f);
-                };
-            }
-            void fire(hint event_id)
-            {
-                for (auto& [id, gear_ptr] : gears)
-                {
-                    auto& gear = *gear_ptr;
-                    gear.fire_fast();
-                    gear.fire(event_id);
-                }
-            }
-            auto get_foreign_gear_id(id_t gear_id)
-            {
-                for (auto& [foreign_id, gear_ptr] : gears)
-                {
-                    if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
-                }
-                return std::pair{ id_t{}, sptr<hids>{} };
-            }
-            auto set_clip_data(clip const& clipdata)
-            {
-                if (gears.empty())
-                {
-                    gears.emplace(0, bell::create<hids>(props, true, boss, xmap));
-                }
-                for (auto& [id, gear_ptr] : gears)
-                {
-                    auto& gear = *gear_ptr;
-                    gear.set_clip_data(clipdata, faux);
                 }
             }
         };
@@ -3353,28 +2903,462 @@ namespace netxs::ui
     class gate
         : public base
     {
-    public:
-        pipe& canal;
-        si32 session_id; //todo if isvtm session_id=vtmode
-        bool isvtm;
-        xmls& config;
+        // gate: Application properties.
+        struct props
+        {
+            //todo revise
+            text ip;
+            text port;
+            text fullname;
+            text region;
+            text name;
+            text os_user_id;
+            text title;
+            text selected;
+            twod coor;
+            span clip_preview_time;
+            cell clip_preview_clrs;
+            byte clip_preview_alfa;
+            bool clip_preview_show;
+            twod clip_preview_size;
+            si32 clip_preview_glow;
+            cell background_color;
+            face background_image;
+            si32 legacy_mode;
+            si32 session_id;
+            span dblclick_timeout; // conf: Double click timeout.
+            span tooltip_timeout; // conf: Timeout for tooltip.
+            cell tooltip_colors; // conf: Tooltip rendering colors.
+            bool tooltip_enabled; // conf: Enable tooltips.
+            bool glow_fx; // conf: Enable glow effect in main menu.
+            bool debug_overlay; // conf: Enable to show debug overlay.
+            text debug_toggle; // conf: Debug toggle shortcut.
+            bool show_regions; // conf: Highlight region ownership.
+            bool simple; // conf: Isn't it a directvt app.
+            bool is_standalone_app; // conf: .
 
-        pro::props props{*this }; // gate: Application properties.
+            void read(xmls& config)
+            {
+                config.cd("/config/client/");
+                clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
+                clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
+                clip_preview_alfa = config.take("clipboard/preview/alpha", 0xFF);
+                clip_preview_glow = config.take("clipboard/preview/shadow", 7);
+                clip_preview_show = config.take("clipboard/preview/enabled", true);
+                clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
+                coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
+                dblclick_timeout  = config.take("mouse/dblclick",  span{ 500ms });
+                tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
+                tooltip_timeout   = config.take("tooltip/timeout", span{ 500ms });
+                tooltip_enabled   = config.take("tooltip/enabled", true);
+                debug_overlay     = config.take("debug/overlay", faux);
+                debug_toggle      = config.take("debug/toggle", "🐞"s);
+                show_regions      = config.take("regions/enabled", faux);
+                clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
+            }
+
+            props(pipe& canal, bool isvtm, si32 session_id, xmls& config)
+            {
+                if (isvtm)
+                {
+                    this->session_id = session_id;
+                    auto init = directvt::binary::startdata_t{};
+                    if (!init.load([&](auto... args){ return canal.recv(args...); }))
+                    {
+                        log("conf: init data corrupted");
+                    }
+                    config.fuse(init.conf);
+                    init.user = "[" + init.user + ":" + std::to_string(session_id) + "]";
+                    auto c_info = utf::divide(init.ip, " ");
+                    ip                = c_info.size() > 0 ? c_info[0] : text{};
+                    port              = c_info.size() > 1 ? c_info[1] : text{};
+                    legacy_mode       = init.mode;
+                    os_user_id        = init.user;
+                    fullname          = init.name;
+                    name              = init.user;
+                    title             = init.user;
+                    selected          = config.take("/config/menu/selected", ""s);
+                    read(config);
+                    background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
+                                              .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
+                    auto utf8_tile = config.take("background/tile", ""s);
+                    if (utf8_tile.size())
+                    {
+                        auto block = page{ utf8_tile };
+                        background_image.size(block.limits());
+                        background_image.output(block);
+                    }
+                    glow_fx           = config.take("glowfx", true);
+                    simple            = faux;
+                    is_standalone_app = faux;
+                }
+                else
+                {
+                    legacy_mode = session_id;
+                    read(config);
+                    simple            = !(legacy_mode & os::vt::direct);
+                    glow_fx           = faux;
+                    is_standalone_app = true;
+                    title             = "";
+                }
+            }
+
+            friend auto& operator << (std::ostream& s, props const& c)
+            {
+                return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
+                         << "\n\tregion: " << c.region
+                         << "\n\t  name: " << c.fullname
+                         << "\n\t  user: " << c.os_user_id
+                         << "\n\t  mode: " << os::vt::str(c.legacy_mode);
+            }
+        };
+
+        // gate: .
+        struct input
+        {
+            using depo = std::unordered_map<id_t, sptr<hids>>;
+            using lock = std::recursive_mutex;
+
+            template<class T>
+            void forward(T& device)
+            {
+                auto gear_it = gears.find(device.gear_id);
+                if (gear_it == gears.end())
+                {
+                    gear_it = gears.emplace(device.gear_id, bell::create<hids>(boss.props, device.gear_id == 0, boss, xmap)).first;
+                }
+                auto& [_id, gear_ptr] = *gear_it;
+                gear_ptr->hids::take(device);
+                boss.strike();
+            }
+
+            gate& boss;
+            subs  memo;
+            face  xmap;
+            lock  sync;
+            depo  gears;
+
+            input(base&&) = delete;
+            template<class T>
+            input(T& boss)
+                : boss{ boss },
+                  gears{{ id_t{}, bell::create<hids>(boss.props, true, boss, xmap) }}
+            {
+                xmap.link(boss.bell::id);
+                xmap.move(boss.base::coor());
+                xmap.size(boss.base::size());
+                boss.LISTEN(tier::release, e2::command::printscreen, gear, memo)
+                {
+                    auto data = ansi::esc{};
+                    data.s11n(xmap, gear.slot);
+                    if (data.length())
+                    {
+                        gear.set_clip_data(clip{ gear.slot.size, data, clip::ansitext });
+                    }
+                };
+                boss.LISTEN(tier::release, e2::form::prop::brush, brush, memo)
+                {
+                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
+                    xmap.mark(brush);
+                };
+                boss.LISTEN(tier::release, e2::size::any, newsize, memo)
+                {
+                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
+                    xmap.size(newsize);
+                };
+                boss.LISTEN(tier::release, e2::coor::any, newcoor, memo)
+                {
+                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
+                    xmap.move(newcoor);
+                };
+                boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
+                {
+                    if (m.enabled != hids::stat::ok)
+                    {
+                        auto gear_it = gears.find(m.gear_id);
+                        if (gear_it != gears.end())
+                        {
+                            switch (m.enabled)
+                            {
+                                case hids::stat::ok:   break;
+                                case hids::stat::halt: gear_it->second->deactivate(); break;
+                                case hids::stat::die:  gears.erase(gear_it);          break;
+                            }
+                        }
+                        boss.strike();
+                    }
+                    else forward(m);
+                };
+                boss.LISTEN(tier::release, e2::conio::keybd, k, memo)
+                {
+                    forward(k);
+                };
+                boss.LISTEN(tier::release, e2::conio::focus, f, memo)
+                {
+                    forward(f);
+                };
+            }
+            void fire(hint event_id)
+            {
+                for (auto& [id, gear_ptr] : gears)
+                {
+                    auto& gear = *gear_ptr;
+                    gear.fire_fast();
+                    gear.fire(event_id);
+                }
+            }
+            auto get_foreign_gear_id(id_t gear_id)
+            {
+                for (auto& [foreign_id, gear_ptr] : gears)
+                {
+                    if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
+                }
+                return std::pair{ id_t{}, sptr<hids>{} };
+            }
+            auto set_clip_data(clip const& clipdata)
+            {
+                if (gears.empty())
+                {
+                    gears.emplace(0, bell::create<hids>(boss.props, true, boss, xmap));
+                }
+                for (auto& [id, gear_ptr] : gears)
+                {
+                    auto& gear = *gear_ptr;
+                    gear.set_clip_data(clipdata, faux);
+                }
+            }
+        };
+
+        // gate: Realtime telemetry.
+        struct debug
+        {
+            #define PROP_LIST                     \
+            X(total_size   , "total sent"       ) \
+            X(proceed_ns   , "rendering time"   ) \
+            X(render_ns    , "stdout time"      ) \
+            X(frame_size   , "frame size"       ) \
+            X(frame_rate   , "frame rate"       ) \
+            X(focused      , "focus"            ) \
+            X(win_size     , "win size"         ) \
+            X(key_code     , "key virt"         ) \
+            X(key_scancode , "key scan"         ) \
+            X(key_character, "key char"         ) \
+            X(key_pressed  , "key push"         ) \
+            X(ctrl_state   , "controls"         ) \
+            X(mouse_pos    , "mouse coord"      ) \
+            X(mouse_wheeldt, "wheel delta"      ) \
+            X(mouse_hzwheel, "H wheel"          ) \
+            X(mouse_vtwheel, "V wheel"          ) \
+            X(mouse_btn_1  , "left button"      ) \
+            X(mouse_btn_2  , "right button"     ) \
+            X(mouse_btn_3  , "middle button"    ) \
+            X(mouse_btn_4  , "4th button"       ) \
+            X(mouse_btn_5  , "5th button"       ) \
+            X(mouse_btn_6  , "left+right combo" ) \
+            X(last_event   , "event"            )
+
+            #define X(a, b) a,
+            enum prop { PROP_LIST count };
+            #undef X
+
+            #define X(a, b) b,
+            text description[prop::count] = { PROP_LIST };
+            #undef X
+            #undef PROP_LIST
+
+            base& boss;
+            subs tokens;
+            cell alerts;
+            cell stress;
+            page status;
+            ansi::esc coder;
+            bool bypass = faux;
+
+            struct
+            {
+                span render = span::zero();
+                span output = span::zero();
+                si32 frsize = 0;
+                si64 totals = 0;
+                si32 number = 0;    // info: Current frame number
+                //bool   onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
+            }
+            track; // debug: Textify the telemetry data for debugging purpose.
+
+            void shadow()
+            {
+                for (auto i = 0; i < prop::count; i++)
+                {
+                    status[i].ease();
+                }
+            }
+
+            debug(base&&) = delete;
+            debug(base& boss)
+                : boss{ boss }
+            { }
+
+            operator bool () const { return tokens.count(); }
+
+            void update(bool focus_state)
+            {
+                shadow();
+                status[prop::last_event].set(stress) = "focus";
+                status[prop::focused].set(stress) = focus_state ? "active" : "lost";
+            }
+            void update(twod const& new_size)
+            {
+                shadow();
+                status[prop::last_event].set(stress) = "size";
+
+                status[prop::win_size].set(stress) =
+                    std::to_string(new_size.x) + " x " +
+                    std::to_string(new_size.y);
+            }
+            void update(span const& watch, si32 delta)
+            {
+                track.output = watch;
+                track.frsize = delta;
+                track.totals+= delta;
+            }
+            void update(time const& timestamp)
+            {
+                track.render = datetime::now() - timestamp;
+            }
+            void output(face& canvas)
+            {
+                status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
+                    utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
+
+                status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
+                    utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
+
+                status[prop::frame_size].set(stress) =
+                    utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
+
+                status[prop::total_size].set(stress) =
+                    utf::format(track.totals) + " bytes";
+
+                track.number++;
+                canvas.output(status);
+            }
+            void stop()
+            {
+                track = {};
+                tokens.clear();
+            }
+            void start()
+            {
+                //todo use skin
+                stress = cell{}.fgc(whitelt);
+                alerts = cell{}.fgc(rgba{ 0xFFd0d0FFu });
+
+                status.style.wrp(wrap::on).jet(bias::left).rlf(feed::rev).mgl(4);
+                status.current().locus.cup(dot_00).cnl(2);
+
+                auto maxlen = 0_sz;
+                for (auto& desc : description)
+                {
+                    maxlen = std::max(maxlen, desc.size());
+                }
+                auto attr = si32{ 0 };
+                for (auto& desc : description)
+                {
+                    status += coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
+                    coder.clear();
+                }
+
+                boss.LISTEN(tier::general, e2::config::fps, fps, tokens)
+                {
+                    status[prop::frame_rate].set(stress) = std::to_string(fps);
+                    boss.base::strike();
+                };
+                {
+                    auto fps = e2::config::fps.param(-1);
+                    boss.SIGNAL(tier::general, e2::config::fps, fps);
+                }
+                boss.LISTEN(tier::release, e2::conio::focus, focusstate, tokens)
+                {
+                    update(focusstate.enabled);
+                    boss.base::strike();
+                };
+                boss.LISTEN(tier::release, e2::size::any, newsize, tokens)
+                {
+                    update(newsize);
+                };
+
+                boss.LISTEN(tier::release, e2::conio::mouse, m, tokens)
+                {
+                    if (bypass) return;
+                    shadow();
+                    status[prop::last_event].set(stress) = "mouse";
+                    status[prop::mouse_pos ].set(stress) =
+                        (m.coordxy.x < 10000 ? std::to_string(m.coordxy.x) : "-") + " : " +
+                        (m.coordxy.y < 10000 ? std::to_string(m.coordxy.y) : "-") ;
+
+                    auto m_buttons = std::bitset<8>(m.buttons);
+                    for (auto i = 0; i < hids::numofbuttons; i++)
+                    {
+                        auto& state = status[prop::mouse_btn_1 + i].set(stress);
+                        state = m_buttons[i] ? "pressed" : "idle   ";
+                    }
+
+                    status[prop::mouse_wheeldt].set(stress) = m.wheeldt ? std::to_string(m.wheeldt) :  " -- "s;
+                    status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
+                    status[prop::mouse_vtwheel].set(stress) = m.wheeled ? "active" : "idle  ";
+                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
+                };
+                boss.LISTEN(tier::release, e2::conio::keybd, k, tokens)
+                {
+                    shadow();
+                    status[prop::last_event   ].set(stress) = "keybd";
+                    status[prop::key_pressed  ].set(stress) = k.pressed ? "pressed" : "idle";
+                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
+                    status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
+                    status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );
+
+                    if (k.cluster.length())
+                    {
+                        auto t = k.cluster;
+                        for (auto i = 0; i < 0x20; i++)
+                        {
+                            utf::change(t, text{ (char)i }, "^" + utf::to_utf_from_code(i + 0x40));
+                        }
+                        utf::change(t, text{ (char)0x7f }, "\\x7F");
+                        utf::change(t, text{ (char)0x20 }, "\\x20");
+                        status[prop::key_character].set(stress) = t;
+                    }
+                };
+
+                boss.LISTEN(tier::release, e2::conio::error, e, tokens)
+                {
+                    shadow();
+                    status[prop::last_event].set(stress) = "error";
+                    throw;
+                };
+            }
+        };
+
+    public:
         pro::keybd keybd{*this }; // gate: Keyboard controller.
         pro::mouse mouse{*this }; // gate: Mouse controller.
         pro::robot robot{*this }; // gate: Animation controller.
         pro::maker maker{*this }; // gate: Form generator.
         pro::title title{*this }; // gate: Window title/footer.
-        pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
-        pro::input input{*this }; // gate: Input event handler.
-        pro::debug debug{*this }; // gate: Debug telemetry controller.
         pro::limit limit{*this }; // gate: Limit size to dot_11.
 
+        pipe& canal;
         bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
         bool  fullscreen = faux; //gate: Fullscreen mode.
         si32  legacy = os::vt::clean;
+        props props; // gate: Application properties.
+        input input{*this }; // gate: Input event handler.
+        debug debug{*this }; // gate: Debug telemetry controller.
+
+        sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
+        sptr<base> background; // gate: Local UI background.
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -3476,9 +3460,6 @@ namespace netxs::ui
             }
             if (result) base::strike();
         }
-
-        sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
-        sptr<base> background; // gate: Local UI background.
 
         // gate: Attach a new item.
         template<class T>
@@ -3879,9 +3860,7 @@ namespace netxs::ui
         //todo revise
         gate(sptr<pipe> uplink, si32 session_id, bool isvtm, xmls& config)
             : canal{ *uplink },
-              session_id{ session_id },
-              isvtm{ isvtm },
-              config{ config }
+              props{ canal, isvtm, session_id, config }
         {
             limit.set(dot_11);
             //todo unify
