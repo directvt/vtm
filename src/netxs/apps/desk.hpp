@@ -3,13 +3,46 @@
 
 #pragma once
 
-namespace netxs::events::userland
+// desk: Sidebar menu.
+namespace netxs::app::desk
 {
-    struct desk
+    static constexpr auto id = "desk";
+    static constexpr auto desc = "Taskbar menu";
+
+    struct spec
     {
-        EVENTPACK( desk, netxs::events::userland::root::custom )
+        text   menuid{};
+        text    alias{};
+        bool   hidden{};
+        text    label{};
+        text    notes{};
+        text    title{};
+        text   footer{};
+        rgba      bgc{};
+        rgba      fgc{};
+        twod  winsize{};
+        twod  wincoor{};
+        bool slimmenu{};
+        bool splitter{};
+        text   hotkey{};
+        text      cwd{};
+        text     type{};
+        text    param{};
+        text    patch{};
+    };
+
+    using menu = std::unordered_map<text, spec>;
+    using usrs = std::list<sptr<base>>;
+    using apps = generics::imap<text, std::pair<bool, usrs>>;
+
+    struct events
+    {
+        EVENTPACK( events, netxs::events::userland::root::custom )
         {
-            GROUP_XS( ui, text ),
+            EVENT_XS( usrs, sptr<desk::usrs> ), // list of connected users.
+            EVENT_XS( apps, sptr<desk::apps> ), // list of running apps.
+            EVENT_XS( menu, sptr<desk::menu> ), // list of registered apps.
+            GROUP_XS( ui  , text             ),
 
             SUBSET_XS( ui )
             {
@@ -17,15 +50,6 @@ namespace netxs::events::userland
             };
         };
     };
-}
-
-// desk: Sidebar menu.
-namespace netxs::app::desk
-{
-    static constexpr auto id = "desk";
-    static constexpr auto desc = "Taskbar menu";
-
-    using events = ::netxs::events::userland::desk;
 
     namespace
     {
@@ -128,8 +152,8 @@ namespace netxs::app::desk
             auto def_note = text{" Menu item:                           \n"
                                  "   Left click to start a new instance \n"
                                  "   Right click to set default app     "};
-            auto conf_list_ptr = vtm::events::list::menu.param();
-            data_src->RISEUP(tier::request, vtm::events::list::menu, conf_list_ptr);
+            auto conf_list_ptr = desk::events::menu.param();
+            data_src->RISEUP(tier::request, desk::events::menu, conf_list_ptr);
             if (!conf_list_ptr || !apps_map_ptr) return apps;
             auto& conf_list = *conf_list_ptr;
             auto& apps_map = *apps_map_ptr;
@@ -179,9 +203,9 @@ namespace netxs::app::desk
                         //{
                         //   //if (auto data_src = data_src_shadow.lock())
                         //   {
-                        //       sptr<vtm::apps> registry_ptr;
-                        //       //data_src->SIGNAL(tier::request, vtm::events::list::apps, registry_ptr);
-                        //       world.SIGNAL(tier::request, vtm::events::list::apps, registry_ptr);
+                        //       sptr<desk::apps> registry_ptr;
+                        //       //data_src->SIGNAL(tier::request, desk::events::apps, registry_ptr);
+                        //       world.SIGNAL(tier::request, desk::events::apps, registry_ptr);
                         //       auto& app_list = (*registry_ptr)[inst_id];
                         //       if (app_list.size())
                         //       {
@@ -395,7 +419,7 @@ namespace netxs::app::desk
                             boss.RISEUP(tier::request, e2::config::creator, world_ptr);
                             if (world_ptr)
                             {
-                                auto apps = boss.attach_element(vtm::events::list::apps, world_ptr, apps_template);
+                                auto apps = boss.attach_element(desk::events::apps, world_ptr, apps_template);
                             }
                         };
                     });
@@ -421,7 +445,7 @@ namespace netxs::app::desk
                             boss.RISEUP(tier::request, e2::config::creator, world_ptr);
                             if (world_ptr)
                             {
-                                auto users = boss.attach_element(vtm::events::list::usrs, world_ptr, branch_template);
+                                auto users = boss.attach_element(desk::events::usrs, world_ptr, branch_template);
                             }
                         };
                     });

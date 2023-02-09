@@ -2445,157 +2445,6 @@ namespace netxs::ui
         };
     }
 
-    // console: World aether.
-    class host
-        : public base
-    {
-    protected:
-        using tick = datetime::quartz<events::reactor<>, hint>;
-        using list = std::vector<rect>;
-
-        pro::keybd keybd{*this }; // host: Keyboard controller.
-        pro::mouse mouse{*this }; // host: Mouse controller.
-
-        subs tokens; // host: Subscription tokens.
-        tick quartz; // host: Frame rate synchronizator.
-        si32 maxfps; // host: Frame rate.
-        list debris; // host: Wrecked regions.
-        xmls config; // host: Running configuration.
-
-    public:
-        host(sptr<pipe> server, xmls config )
-            : quartz{ bell::router<tier::general>(), e2::timer::tick.id },
-              config{ config }
-        {
-            using namespace std::chrono;
-            auto& canal = *server;
-            auto& g = skin::globals();
-            g.brighter       = config.take("brighter", cell{});//120);
-            g.kb_focus       = config.take("kb_focus", cell{});//60
-            g.shadower       = config.take("shadower", cell{});//180);//60);//40);// 20);
-            g.shadow         = config.take("shadow"  , cell{});//180);//5);
-            g.selector       = config.take("selector", cell{});//48);
-            g.highlight      = config.take("highlight"             , cell{});
-            g.warning        = config.take("warning"               , cell{});
-            g.danger         = config.take("danger"                , cell{});
-            g.action         = config.take("action"                , cell{});
-            g.label          = config.take("label"                 , cell{});
-            g.inactive       = config.take("inactive"              , cell{});
-            g.menu_white     = config.take("menu_white"            , cell{});
-            g.menu_black     = config.take("menu_black"            , cell{});
-            g.lucidity       = config.take("lucidity");
-            g.bordersz       = config.take("bordersz"              , dot_11);
-            g.spd            = config.take("timings/spd"           , 10  );
-            g.pls            = config.take("timings/pls"           , 167 );
-            g.spd_accel      = config.take("timings/spd_accel"     , 1   );
-            g.spd_max        = config.take("timings/spd_max"       , 100 );
-            g.ccl            = config.take("timings/ccl"           , 120 );
-            g.ccl_accel      = config.take("timings/ccl_accel"     , 30  );
-            g.ccl_max        = config.take("timings/ccl_max"       , 1   );
-            g.switching      = config.take("timings/switching"     , 200 );
-            g.deceleration   = config.take("timings/deceleration"  , span{ 2s    });
-            g.blink_period   = config.take("timings/blink_period"  , span{ 400ms });
-            g.menu_timeout   = config.take("timings/menu_timeout"  , span{ 250ms });
-            g.active_timeout = config.take("timings/active_timeout", span{ 1s    });
-            g.repeat_delay   = config.take("timings/repeat_delay"  , span{ 500ms });
-            g.repeat_rate    = config.take("timings/repeat_rate"   , span{ 30ms  });
-            g.fader_time     = config.take("timings/fader/duration", span{ 150ms });
-            g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
-            g.max_value      = config.take("limits/window/size"    , twod{ 2000, 1000  });
-
-            maxfps = config.take("fps");
-            if (maxfps <= 0) maxfps = 60;
-
-            keybd.accept(true); // Subscribe on keybd offers.
-
-            LISTEN(tier::general, e2::timer::any, timestamp, tokens)
-            {
-                auto damaged = !debris.empty();
-                debris.clear();
-                this->SIGNAL(tier::general, e2::nextframe, damaged);
-            };
-            //todo deprecated
-            LISTEN(tier::general, e2::config::creator, world_ptr, tokens)
-            {
-                world_ptr = base::This();
-            };
-            LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
-            {
-                world_ptr = base::This();
-            };
-            LISTEN(tier::general, e2::config::fps, fps, tokens)
-            {
-                if (fps > 0)
-                {
-                    maxfps = fps;
-                    quartz.ignite(maxfps);
-                }
-                else if (fps == -1)
-                {
-                    fps = maxfps;
-                }
-                else
-                {
-                    quartz.cancel();
-                }
-            };
-            LISTEN(tier::general, e2::cleanup, counter, tokens)
-            {
-                this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
-            };
-            LISTEN(tier::general, hids::events::halt, gear, tokens)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.setfree();
-                    gear.dismiss();
-                }
-            };
-            LISTEN(tier::general, e2::shutdown, msg, tokens)
-            {
-                //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
-                log("host: shutdown: ", msg);
-                canal.stop();
-            };
-            quartz.ignite(maxfps);
-            log("host: started at ", maxfps, "fps");
-        }
-        // host: Mark dirty region.
-        void denote(rect const& updateregion)
-        {
-            if (updateregion)
-            {
-                debris.push_back(updateregion);
-            }
-        }
-        void deface(rect const& region) override
-        {
-            base::deface(region);
-            denote(region);
-        }
-        // host: Create a new root of the specified subtype and attach it.
-        template<class S, class ...Args>
-        auto invite(Args&&... args)
-        {
-            auto lock = events::sync{};
-            auto root = base::create<S>(std::forward<Args>(args)..., host::config);
-            //stuff = root;
-            root->base::root(true);
-            root->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-
-            //todo unify
-            auto color = tone{ tone::brighter, tone::shadow};
-            root->SIGNAL(tier::preview, e2::form::state::color, color);
-            return root;
-        }
-        // host: Shutdown.
-        void shutdown()
-        {
-            auto lock = events::sync{};
-            mouse.reset();
-        }
-    };
-
     // console: TTY session manager.
     class link
         : public s11n
@@ -3484,7 +3333,7 @@ namespace netxs::ui
             return item;
         }
         // Main loop.
-        void launch(sptr<base> deskmenu_ptr, sptr<base> bkground = {})
+        void launch()
         {
             auto lock = events::unique_lock();
 
@@ -3708,21 +3557,21 @@ namespace netxs::ui
                     };
                 }
                 // Focus relay.
-                if (deskmenu_ptr)
+                if (uibar)
                 {
                     LISTEN(tier::release, hids::events::notify::focus::got, from_gear, token)
                     {
                         auto myid = from_gear.id;
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                         auto& gear = *gear_ptr;
-                        gear.kb_offer_4(deskmenu_ptr);
+                        gear.kb_offer_4(uibar);
                         if (gear.focus_changed()) gear.dismiss();
                     };
                     LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, token)
                     {
                         auto myid = from_gear.id;
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                        gear_ptr->kb_offer_10(deskmenu_ptr);
+                        gear_ptr->kb_offer_10(uibar);
                     };
                 }
 
@@ -3747,10 +3596,9 @@ namespace netxs::ui
                     }
                 };
 
-                if (deskmenu_ptr)
+                if (uibar)
                 {
-                    attach(deskmenu_ptr); // Our size could be changed here during attaching.
-                    deskmenu_ptr->LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, token)
+                    uibar->LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, token)
                     {
                         if (debug)
                         {
@@ -3763,10 +3611,6 @@ namespace netxs::ui
                             else                    debug.start();
                         }
                     };
-                }
-                if (bkground)
-                {
-                    ground(bkground);
                 }
 
                 if (direct) // Forward unhandled events outside.
@@ -3862,6 +3706,7 @@ namespace netxs::ui
             : canal{ *uplink },
               props{ canal, isvtm, session_id, config }
         {
+            base::root(true);
             limit.set(dot_11);
             //todo unify
             title.live = faux;
@@ -4013,6 +3858,152 @@ namespace netxs::ui
                     draw_mouse_pointer(parent_canvas);
                 }
             };
+        }
+    };
+
+    // console: World aether.
+    class host
+        : public base
+    {
+    protected:
+        using tick = datetime::quartz<events::reactor<>, hint>;
+        using list = std::vector<rect>;
+
+        pro::keybd keybd{*this }; // host: Keyboard controller.
+        pro::mouse mouse{*this }; // host: Mouse controller.
+
+        subs tokens; // host: Subscription tokens.
+        tick quartz; // host: Frame rate synchronizator.
+        si32 maxfps; // host: Frame rate.
+        list debris; // host: Wrecked regions.
+        xmls config; // host: Running configuration.
+
+    public:
+        host(sptr<pipe> server, xmls config )
+            : quartz{ bell::router<tier::general>(), e2::timer::tick.id },
+              config{ config }
+        {
+            using namespace std::chrono;
+            auto& canal = *server;
+            auto& g = skin::globals();
+            g.brighter       = config.take("brighter", cell{});//120);
+            g.kb_focus       = config.take("kb_focus", cell{});//60
+            g.shadower       = config.take("shadower", cell{});//180);//60);//40);// 20);
+            g.shadow         = config.take("shadow"  , cell{});//180);//5);
+            g.selector       = config.take("selector", cell{});//48);
+            g.highlight      = config.take("highlight"             , cell{});
+            g.warning        = config.take("warning"               , cell{});
+            g.danger         = config.take("danger"                , cell{});
+            g.action         = config.take("action"                , cell{});
+            g.label          = config.take("label"                 , cell{});
+            g.inactive       = config.take("inactive"              , cell{});
+            g.menu_white     = config.take("menu_white"            , cell{});
+            g.menu_black     = config.take("menu_black"            , cell{});
+            g.lucidity       = config.take("lucidity");
+            g.bordersz       = config.take("bordersz"              , dot_11);
+            g.spd            = config.take("timings/spd"           , 10  );
+            g.pls            = config.take("timings/pls"           , 167 );
+            g.spd_accel      = config.take("timings/spd_accel"     , 1   );
+            g.spd_max        = config.take("timings/spd_max"       , 100 );
+            g.ccl            = config.take("timings/ccl"           , 120 );
+            g.ccl_accel      = config.take("timings/ccl_accel"     , 30  );
+            g.ccl_max        = config.take("timings/ccl_max"       , 1   );
+            g.switching      = config.take("timings/switching"     , 200 );
+            g.deceleration   = config.take("timings/deceleration"  , span{ 2s    });
+            g.blink_period   = config.take("timings/blink_period"  , span{ 400ms });
+            g.menu_timeout   = config.take("timings/menu_timeout"  , span{ 250ms });
+            g.active_timeout = config.take("timings/active_timeout", span{ 1s    });
+            g.repeat_delay   = config.take("timings/repeat_delay"  , span{ 500ms });
+            g.repeat_rate    = config.take("timings/repeat_rate"   , span{ 30ms  });
+            g.fader_time     = config.take("timings/fader/duration", span{ 150ms });
+            g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
+            g.max_value      = config.take("limits/window/size"    , twod{ 2000, 1000  });
+
+            maxfps = config.take("fps");
+            if (maxfps <= 0) maxfps = 60;
+
+            keybd.accept(true); // Subscribe on keybd offers.
+
+            LISTEN(tier::general, e2::timer::any, timestamp, tokens)
+            {
+                auto damaged = !debris.empty();
+                debris.clear();
+                this->SIGNAL(tier::general, e2::nextframe, damaged);
+            };
+            //todo deprecated
+            LISTEN(tier::general, e2::config::creator, world_ptr, tokens)
+            {
+                world_ptr = base::This();
+            };
+            LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
+            {
+                world_ptr = base::This();
+            };
+            LISTEN(tier::general, e2::config::fps, fps, tokens)
+            {
+                if (fps > 0)
+                {
+                    maxfps = fps;
+                    quartz.ignite(maxfps);
+                }
+                else if (fps == -1)
+                {
+                    fps = maxfps;
+                }
+                else
+                {
+                    quartz.cancel();
+                }
+            };
+            LISTEN(tier::general, e2::cleanup, counter, tokens)
+            {
+                this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
+            };
+            LISTEN(tier::general, hids::events::halt, gear, tokens)
+            {
+                if (gear.captured(bell::id))
+                {
+                    gear.setfree();
+                    gear.dismiss();
+                }
+            };
+            LISTEN(tier::general, e2::shutdown, msg, tokens)
+            {
+                //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
+                log("host: shutdown: ", msg);
+                canal.stop();
+            };
+            quartz.ignite(maxfps);
+            log("host: started at ", maxfps, "fps");
+        }
+        // host: Mark dirty region.
+        void denote(rect const& updateregion)
+        {
+            if (updateregion)
+            {
+                debris.push_back(updateregion);
+            }
+        }
+        void deface(rect const& region) override
+        {
+            base::deface(region);
+            denote(region);
+        }
+        // host: Create a new root of the specified subtype and attach it.
+        auto invite(sptr<pipe> uplink, si32 vtmode)
+        {
+            auto lock = events::sync{};
+            auto user = base::create<gate>(uplink, vtmode, faux, host::config);
+            //stuff = root;
+            user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+            //todo attach/own to host
+            return user;
+        }
+        // host: Shutdown.
+        void shutdown()
+        {
+            auto lock = events::sync{};
+            mouse.reset();
         }
     };
 }

@@ -4,33 +4,80 @@
 #pragma once
 
 #include "netxs/desktopio/application.hpp"
+#include "netxs/apps/desk.hpp"
+
+namespace netxs::app::fone
+{
+    static constexpr auto id = "fone";
+    static constexpr auto desc = " vtm:";
+
+    auto build = [](text cwd, text param, xmls& config, text patch)
+    {
+        auto highlight_color = skin::color(tone::highlight);
+        auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
+        auto x8 = cell{ c8 }.alpha(0x00);
+        return ui::park::ctor()
+            ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(utf::concat(app::fone::desc, ' ', app::shared::version))
+            ->template plugin<pro::fader>(x8, c8, 0ms))
+            ->template plugin<pro::notes>(" About Environment ")
+            ->invoke([&](auto& boss)
+            {
+                auto data = utf::divide(param, ";");
+                auto aptype = text{ data.size() > 0 ? data[0] : view{} };
+                auto menuid = text{ data.size() > 1 ? data[1] : view{} };
+                auto params = text{ data.size() > 2 ? data[2] : view{} };
+                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (aptype, menuid, params))
+                {
+                    static auto offset = dot_00;
+                    auto& gate = gear.owner;
+                    auto viewport = e2::form::prop::viewport.param();
+                    boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                    viewport.coor += gear.area().coor;
+                    offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                    gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                    gear.slot.size = viewport.size * 3 / 4;
+                    gear.slot_forced = faux;
+
+                    auto menu_list_ptr = desk::events::apps.param();
+                    auto conf_list_ptr = desk::events::menu.param();
+                    gate.RISEUP(tier::request, desk::events::apps, menu_list_ptr);
+                    gate.RISEUP(tier::request, desk::events::menu, conf_list_ptr);
+                    auto& menu_list = *menu_list_ptr;
+                    auto& conf_list = *conf_list_ptr;
+
+                    if (conf_list.contains(menuid) && !conf_list[menuid].hidden) // Check for id availability.
+                    {
+                        auto i = 1;
+                        auto testid = text{};
+                        do testid = menuid + " (" + std::to_string(++i) + ")";
+                        while (conf_list.contains(testid) && !conf_list[menuid].hidden);
+                        std::swap(testid, menuid);
+                    }
+                    auto& m = conf_list[menuid];
+                    m.type = aptype;
+                    m.label = menuid;
+                    m.title = menuid; // Use the same title as the menu label.
+                    m.param = params;
+                    m.hidden = true;
+                    menu_list[menuid];
+
+                    auto lastid = e2::data::changed.param();
+                    gate.SIGNAL(tier::request, e2::data::changed, lastid);
+                    gate.SIGNAL(tier::release, e2::data::changed, menuid);
+                    gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
+                    gate.SIGNAL(tier::release, e2::data::changed, lastid);
+                    gear.dismiss();
+                };
+            });
+    };
+
+    app::shared::initialize builder{ app::fone::id, build };
+}
 
 namespace netxs::app::vtm
 {
     static constexpr auto id = "vtm";
     static constexpr auto desc = " vtm:";
-
-    struct spec
-    {
-        text   menuid{};
-        text    alias{};
-        bool   hidden{};
-        text    label{};
-        text    notes{};
-        text    title{};
-        text   footer{};
-        rgba      bgc{};
-        rgba      fgc{};
-        twod  winsize{};
-        twod  wincoor{};
-        bool slimmenu{};
-        bool splitter{};
-        text   hotkey{};
-        text      cwd{};
-        text     type{};
-        text    param{};
-        text    patch{};
-    };
 
     struct link
     {
@@ -42,10 +89,6 @@ namespace netxs::app::vtm
         bool forced{};
         sptr applet{};
     };
-
-    using menu = std::unordered_map<text, spec>;
-    using usrs = std::list<sptr<base>>;
-    using apps = generics::imap<text, std::pair<bool, usrs>>;
 
     static constexpr auto attr_id       = "id";
     static constexpr auto attr_alias    = "alias";
@@ -72,20 +115,13 @@ namespace netxs::app::vtm
 
     struct events
     {
-        EVENTPACK( events, ui::e2::extra )
+        EVENTPACK( events, ui::e2::extra::slot0 )
         {
             EVENT_XS( newapp  , link       ), // request: create new object using specified meniid
             EVENT_XS( handoff , link       ), // general: attach spcified intance and return sptr<base>.
             EVENT_XS( attached, sptr<base> ), // anycast: inform that the object tree is attached to the world
             GROUP_XS( d_n_d   , sptr<base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
-            GROUP_XS( list    , si32       ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
 
-            SUBSET_XS( list )
-            {
-                EVENT_XS( usrs, sptr<vtm::usrs> ), // list of connected users.
-                EVENT_XS( apps, sptr<vtm::apps> ), // list of running apps.
-                EVENT_XS( menu, sptr<vtm::menu> ), // list of registered apps.
-            };
             SUBSET_XS(d_n_d)
             {
                 EVENT_XS( ask  , sptr<base> ),
@@ -221,7 +257,7 @@ namespace netxs::app::vtm
                 bool usable = faux;
                 bool highlighted = faux;
                 si32 active = 0;
-                tone color;
+                tone color = { tone::brighter, tone::shadower };
 
                 operator bool ()
                 {
@@ -465,13 +501,17 @@ namespace netxs::app::vtm
         };
         struct depo // hall: Actors registry.
         {
-            sptr<vtm::apps> apps_ptr = ptr::shared(vtm::apps{});
-            sptr<vtm::usrs> usrs_ptr = ptr::shared(vtm::usrs{});
-            sptr<vtm::menu> menu_ptr = ptr::shared(vtm::menu{});
-            vtm::apps& apps = *apps_ptr;
-            vtm::usrs& usrs = *usrs_ptr;
-            vtm::menu& menu = *menu_ptr;
+            sptr<desk::apps> apps_ptr = ptr::shared(desk::apps{});
+            sptr<desk::usrs> usrs_ptr = ptr::shared(desk::usrs{});
+            sptr<desk::menu> menu_ptr = ptr::shared(desk::menu{});
+            desk::apps& apps = *apps_ptr;
+            desk::usrs& usrs = *usrs_ptr;
+            desk::menu& menu = *menu_ptr;
 
+            void append(sptr<base> user)
+            {
+                usrs.push_back(user);
+            }
             auto remove(sptr<base> item_ptr)
             {
                 auto found = faux;
@@ -603,9 +643,9 @@ namespace netxs::app::vtm
             auto current_module_file = os::process::binary();
             auto& apps_list = dbase.apps;
             auto& menu_list = dbase.menu;
-            auto  free_list = std::list<std::pair<text, spec>>{};
+            auto  free_list = std::list<std::pair<text, desk::spec>>{};
             auto  temp_list = free_list;
-            auto  dflt_spec = spec
+            auto  dflt_spec = desk::spec
             {
                 .hidden   = faux,
                 .slimmenu = faux,
@@ -628,7 +668,7 @@ namespace netxs::app::vtm
             for (auto item_ptr : host::config.list(path_item))
             {
                 auto& item = *item_ptr;
-                auto conf_rec = spec{};
+                auto conf_rec = desk::spec{};
                 //todo autogen id if absent
                 conf_rec.splitter = item.take(attr_splitter, faux);
                 conf_rec.menuid   = item.take(attr_id,       ""s );
@@ -756,15 +796,15 @@ namespace netxs::app::vtm
                 auto region = items.expose(inst.bell::id);
                 host::denote(region);
             };
-            LISTEN(tier::request, vtm::events::list::usrs, usrs_ptr)
+            LISTEN(tier::request, desk::events::usrs, usrs_ptr)
             {
                 usrs_ptr = dbase.usrs_ptr;
             };
-            LISTEN(tier::request, vtm::events::list::apps, apps_ptr)
+            LISTEN(tier::request, desk::events::apps, apps_ptr)
             {
                 apps_ptr = dbase.apps_ptr;
             };
-            LISTEN(tier::request, vtm::events::list::menu, menu_ptr)
+            LISTEN(tier::request, desk::events::menu, menu_ptr)
             {
                 menu_ptr = dbase.menu_ptr;
             };
@@ -907,18 +947,25 @@ namespace netxs::app::vtm
             list.push_back(item);
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             item->SIGNAL(tier::anycast, vtm::events::attached, base::This());
-            SIGNAL(tier::release, vtm::events::list::apps, dbase.apps_ptr);
+            SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
-        // hall: Create a new user of the specified subtype and invite him to the scene.
-        template<class S, class ...Args>
-        auto invite(Args&&... args)
+        // hall: Create a new user gate.
+        auto invite(sptr<pipe> client, si32 session_id)
         {
-            auto lock = netxs::events::sync{};
-            auto user = host::invite<S>(std::forward<Args>(args)...);
+            auto lock = netxs::events::unique_lock();
+            auto user = base::create<ui::gate>(client, session_id, true, host::config);
             users.append(user);
-            dbase.usrs.push_back(user);
-            SIGNAL(tier::release, vtm::events::list::usrs, dbase.usrs_ptr);
-            return user;
+            dbase.append(user);
+            user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+            SIGNAL(tier::release, desk::events::usrs, dbase.usrs_ptr);
+            //todo make it configurable
+            auto patch = ""s;
+            auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
+            auto bkground = app::shared::builder(app::fone::id)("", "gems;About;", config, patch);
+            user->attach(deskmenu);
+            user->ground(bkground);
+            lock.unlock();
+            user->launch();
         }
     };
 }

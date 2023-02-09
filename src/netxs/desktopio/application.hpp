@@ -517,15 +517,16 @@ namespace netxs::app::shared
         auto runapp = [&](auto uplink)
         {
             auto patch = ""s;
-            auto ground = base::create<host>(uplink, config);
+            auto domain = base::create<host>(uplink, config);
             auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            auto window = ground->template invite<gate>(uplink, vtmode, faux);
-            window->launch(applet);
+            auto window = domain->invite(uplink, vtmode);
+            window->attach(applet);
+            window->launch();
             window.reset();
             applet.reset();
-            ground->shutdown();
+            domain->shutdown();
         };
 
         if (direct)

@@ -784,8 +784,8 @@ namespace netxs::app::tile
                         auto& gate = gear.owner;
                         auto menuid = e2::data::changed.param();
                         gate.SIGNAL(tier::request, e2::data::changed, menuid);
-                        auto conf_list_ptr = vtm::events::list::menu.param();
-                        gate.RISEUP(tier::request, vtm::events::list::menu, conf_list_ptr);
+                        auto conf_list_ptr = desk::events::menu.param();
+                        gate.RISEUP(tier::request, desk::events::menu, conf_list_ptr);
                         auto& conf_list = *conf_list_ptr;
                         auto& config = conf_list[menuid];
                         if (config.type == app::tile::id) // Reset the currently selected application to the previous one.

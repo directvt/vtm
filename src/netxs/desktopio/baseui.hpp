@@ -43,7 +43,7 @@ namespace netxs::events::userland
             EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
             EVENT_XS( depth     , si32           ), // request: Determine the depth of the hierarchy.
             EVENT_XS( shutdown  , const view     ), // general: Server shutdown.
-            EVENT_XS( extra     , si32           ), // Event extension slot.
+            GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , si32           ),
@@ -54,6 +54,13 @@ namespace netxs::events::userland
             GROUP_XS( config    , si32           ), // set/notify/get/global_set configuration data.
             GROUP_XS( command   , si32           ), // exec UI command.
 
+            SUBSET_XS( extra )
+            {
+                EVENT_XS( slot0, si32 ),
+                EVENT_XS( slot1, si32 ),
+                EVENT_XS( slot2, si32 ),
+                EVENT_XS( slot3, si32 ),
+            };
             SUBSET_XS( timer )
             {
                 EVENT_XS( tick, time ), // relaese: execute before e2::timer::any (rendering)

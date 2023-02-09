@@ -241,10 +241,10 @@ int main(int argc, char* argv[])
         }
         using e2 = netxs::ui::e2;
         config.cd("/config/appearance/defaults/");
-        auto ground = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
-        auto srvlog = syslog.tee<events::try_sync>([&](auto utf8) { ground->SIGNAL(tier::general, e2::conio::logs, utf8); });
+        auto domain = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
+        auto srvlog = syslog.tee<events::try_sync>([&](auto utf8) { domain->SIGNAL(tier::general, e2::conio::logs, utf8); });
         auto thread = os::process::pool{};
-        ground->autorun();
+        domain->autorun();
 
         log("main: listening socket ", server,
           "\n      user: ", userid,
@@ -256,10 +256,10 @@ int main(int argc, char* argv[])
             {
                 thread.run([&, stream](auto session_id)
                 {
-                    auto tokens = subs{};
-                    ground->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { stream->shut(); };
-                    ground->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { stream->send(utf8); };
                     log("logs: monitor ", stream, " connected");
+                    auto tokens = subs{};
+                    domain->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { stream->shut(); };
+                    domain->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { stream->send(utf8); };
                     stream->recv();
                     log("logs: monitor ", stream, " disconnected");
                 });
@@ -273,22 +273,15 @@ int main(int argc, char* argv[])
                 os::fail("foreign users are not allowed to the session");
                 continue;
             }
-
             thread.run([&, client](auto session_id)
             {
-                if (auto window = ground->invite<ui::gate>(client, session_id, true))
-                {
-                    log("user: new gate for ", client);
-                    auto patch = ""s;
-                    auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
-                    auto bkground = app::shared::builder(app::fone::id)("", "gems;About;", config, patch);
-                    window->launch(deskmenu, bkground);
-                    log("user: ", client, " logged out");
-                }
+                log("user: new gate for ", client);
+                domain->invite(client, session_id);
+                log("user: ", client, " logged out");
             });
         }
-        ground->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
-        ground->shutdown();
+        domain->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
+        domain->shutdown();
         logger->stop();
         stdlog.join();
     }
