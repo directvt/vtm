@@ -8,7 +8,7 @@
 
 namespace netxs::ui
 {
-    // console: Template modules for the base class behavior extension.
+    // console: Base class behavior extensions.
     namespace pro
     {
         // pro: Base class for plugins.
@@ -2445,7 +2445,7 @@ namespace netxs::ui
         };
     }
 
-    // console: TTY session manager.
+    // console: Data decoder.
     class link
         : public s11n
     {
@@ -2630,7 +2630,7 @@ namespace netxs::ui
         }
     };
 
-    // console: Bitmap changes analyzer.
+    // console: Bitmap forwarder.
     class diff
     {
         using work = std::thread;
