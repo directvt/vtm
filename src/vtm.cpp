@@ -268,17 +268,16 @@ int main(int argc, char* argv[])
 
         while (auto client = server->meet())
         {
-            if (!client->cred(userid))
+            if (client->auth(userid))
             {
-                os::fail("foreign users are not allowed to the session");
-                continue;
+                thread.run([&, client](auto session_id)
+                {
+                    log("user: new gate for ", client);
+                    domain->invite(client, session_id);
+                    log("user: ", client, " logged out");
+                });
             }
-            thread.run([&, client](auto session_id)
-            {
-                log("user: new gate for ", client);
-                domain->invite(client, session_id);
-                log("user: ", client, " logged out");
-            });
+            else os::fail("foreign users are not allowed to the session");
         }
         domain->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
         domain->shutdown();

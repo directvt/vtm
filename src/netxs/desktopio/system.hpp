@@ -1258,7 +1258,7 @@ namespace netxs::os
             }
 
             template<class T>
-            auto cred(T id) const // Check peer cred.
+            auto auth(T id) const // Check peer cred.
             {
                 #if defined(_WIN32)
 
