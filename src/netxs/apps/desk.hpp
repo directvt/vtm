@@ -252,6 +252,65 @@ namespace netxs::app::desk
             }
             return apps;
         };
+        auto background = [](text param)
+        {
+            auto highlight_color = skin::color(tone::highlight);
+            auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
+            auto x8 = cell{ c8 }.alpha(0x00);
+            return ui::park::ctor()
+                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(utf::concat(app::shared::version))
+                ->plugin<pro::fader>(x8, c8, 0ms))
+                ->plugin<pro::notes>(" About ")
+                ->invoke([&](auto& boss)
+                {
+                    auto data = utf::divide(param, ";");
+                    auto aptype = text{ data.size() > 0 ? data[0] : view{} };
+                    auto menuid = text{ data.size() > 1 ? data[1] : view{} };
+                    auto params = text{ data.size() > 2 ? data[2] : view{} };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (aptype, menuid, params))
+                    {
+                        static auto offset = dot_00;
+                        auto& gate = gear.owner;
+                        auto viewport = e2::form::prop::viewport.param();
+                        boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                        viewport.coor += gear.area().coor;
+                        offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                        gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                        gear.slot.size = viewport.size * 3 / 4;
+                        gear.slot_forced = faux;
+
+                        auto menu_list_ptr = desk::events::apps.param();
+                        auto conf_list_ptr = desk::events::menu.param();
+                        gate.RISEUP(tier::request, desk::events::apps, menu_list_ptr);
+                        gate.RISEUP(tier::request, desk::events::menu, conf_list_ptr);
+                        auto& menu_list = *menu_list_ptr;
+                        auto& conf_list = *conf_list_ptr;
+
+                        if (conf_list.contains(menuid) && !conf_list[menuid].hidden) // Check for id availability.
+                        {
+                            auto i = 1;
+                            auto testid = text{};
+                            do testid = menuid + " (" + std::to_string(++i) + ")";
+                            while (conf_list.contains(testid) && !conf_list[menuid].hidden);
+                            std::swap(testid, menuid);
+                        }
+                        auto& m = conf_list[menuid];
+                        m.type = aptype;
+                        m.label = menuid;
+                        m.title = menuid; // Use the same title as the menu label.
+                        m.param = params;
+                        m.hidden = true;
+                        menu_list[menuid];
+
+                        auto lastid = e2::data::changed.param();
+                        gate.SIGNAL(tier::request, e2::data::changed, lastid);
+                        gate.SIGNAL(tier::release, e2::data::changed, menuid);
+                        gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
+                        gate.SIGNAL(tier::release, e2::data::changed, lastid);
+                        gear.dismiss();
+                    };
+                });
+        };
 
         auto build = [](text cwd, text v, xmls& config, text patch)
         {
@@ -314,10 +373,12 @@ namespace netxs::app::desk
 
                 window->invoke([uibar_max_size, uibar_min_size, menu_selected](auto& boss) mutable
                 {
+                    auto ground = background("gems;About;");
                     auto current_default  = text{ menu_selected };
                     auto previous_default = text{ menu_selected };
-                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (current_default, previous_default, tokens = subs{}))
+                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (ground, current_default, previous_default, tokens = subs{}))
                     {
+                        ground->SIGNAL(tier::release, e2::form::upon::vtree::attached, parent);
                         parent->SIGNAL(tier::anycast, events::ui::selected, current_default);
                         parent->LISTEN(tier::request, e2::data::changed, data, tokens)
                         {
@@ -345,6 +406,17 @@ namespace netxs::app::desk
                             current_default.clear();
                             previous_default.clear();
                             tokens.clear();
+                        };
+                        parent->LISTEN(tier::release, e2::size::any, newsz, tokens)
+                        {
+                            ground->base::resize(newsz);
+                        };
+                        parent->LISTEN(tier::release, e2::render::prerender, parent_canvas, tokens, (parent_id = parent->id))
+                        {
+                            if (parent_id == parent_canvas.mark().link())
+                            {
+                                parent_canvas.render(ground);
+                            }
                         };
                     };
                 });

@@ -3206,8 +3206,7 @@ namespace netxs::ui
         input input{*this }; // gate: Input event handler.
         debug debug{*this }; // gate: Debug telemetry controller.
 
-        sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
-        sptr<base> background; // gate: Local UI background.
+        sptr<base> applet; // gate: Local UI overlay, UI bar/taskbar/sidebar.
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -3314,7 +3313,7 @@ namespace netxs::ui
         template<class T>
         auto attach(sptr<T> item)
         {
-            uibar = item;
+            applet = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
@@ -3323,14 +3322,6 @@ namespace netxs::ui
         auto attach(Args&&... args)
         {
             return attach(base::create<T>(std::forward<Args>(args)...));
-        }
-        // gate: Attach background object.
-        template<class T>
-        auto ground(sptr<T> item)
-        {
-            background = item;
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
         }
         // Main loop.
         void launch()
@@ -3346,7 +3337,7 @@ namespace netxs::ui
                 input.xmap.cmode = vtmode;
                 auto direct = vtmode == svga::dtvt;
                 if (props.debug_overlay) debug.start();
-                color(props.background_color.fgc(), props.background_color.bgc());
+                input.xmap.mark(props.background_color.txt(whitespace).link(bell::id));
                 auto conf_usr_name = props.name;
                 SIGNAL(tier::release, e2::form::prop::name, conf_usr_name);
                 SIGNAL(tier::preview, e2::form::prop::ui::header, conf_usr_name);
@@ -3372,18 +3363,14 @@ namespace netxs::ui
                                 //todo cache background
                                 canvas.tile(props.background_image, cell::shaders::fuse);
                             }
-                            if (background) // Render active wallpaper.
-                            {
-                                canvas.render(background);
-                            }
 
                             world.redraw(canvas); // Put the rest of the world on my canvas.
                         }
-                        if (uibar && !fullscreen) // Render main menu/application.
+                        if (applet && !fullscreen) // Render main menu/application.
                         {
                             //todo too hacky, unify
-                            if (props.glow_fx) canvas.render(uibar, base::coor()); // Render the main menu twice to achieve the glow effect.
-                                               canvas.render(uibar, base::coor());
+                            if (props.glow_fx) canvas.render(applet, base::coor()); // Render the main menu twice to achieve the glow effect.
+                                               canvas.render(applet, base::coor());
                         }
                         if (legacy & os::vt::mouse) // Render our mouse pointer.
                         {
@@ -3454,8 +3441,7 @@ namespace netxs::ui
                 };
                 LISTEN(tier::release, e2::size::any, newsz, token)
                 {
-                    if (uibar) uibar->base::resize(newsz);
-                    if (background) background->base::resize(newsz);
+                    if (applet) applet->base::resize(newsz);
                 };
                 LISTEN(tier::release, e2::conio::unknown, unkstate, token)
                 {
@@ -3557,21 +3543,21 @@ namespace netxs::ui
                     };
                 }
                 // Focus relay.
-                if (uibar)
+                if (applet)
                 {
                     LISTEN(tier::release, hids::events::notify::focus::got, from_gear, token)
                     {
                         auto myid = from_gear.id;
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                         auto& gear = *gear_ptr;
-                        gear.kb_offer_4(uibar);
+                        gear.kb_offer_4(applet);
                         if (gear.focus_changed()) gear.dismiss();
                     };
                     LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, token)
                     {
                         auto myid = from_gear.id;
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                        gear_ptr->kb_offer_10(uibar);
+                        gear_ptr->kb_offer_10(applet);
                     };
                 }
 
@@ -3596,9 +3582,9 @@ namespace netxs::ui
                     }
                 };
 
-                if (uibar)
+                if (applet)
                 {
-                    uibar->LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, token)
+                    applet->LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, token)
                     {
                         if (debug)
                         {
@@ -3826,8 +3812,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-
-            LISTEN(tier::release, e2::render::prerender, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (parent_canvas.cmode != svga::vga16) // Don't show shadow in poor color environment.
                 if (&parent_canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
@@ -3839,7 +3824,6 @@ namespace netxs::ui
                     mark.bga(mark.bga() / 2);
                     parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
                 }
-                this->bell::expire<tier::release>(); // In order to disable base::render for gate.
             };
             LISTEN(tier::release, e2::postrender, parent_canvas)
             {

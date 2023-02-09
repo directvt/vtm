@@ -6,74 +6,6 @@
 #include "netxs/desktopio/application.hpp"
 #include "netxs/apps/desk.hpp"
 
-namespace netxs::app::fone
-{
-    static constexpr auto id = "fone";
-    static constexpr auto desc = " vtm:";
-
-    auto build = [](text cwd, text param, xmls& config, text patch)
-    {
-        auto highlight_color = skin::color(tone::highlight);
-        auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
-        auto x8 = cell{ c8 }.alpha(0x00);
-        return ui::park::ctor()
-            ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(utf::concat(app::fone::desc, ' ', app::shared::version))
-            ->template plugin<pro::fader>(x8, c8, 0ms))
-            ->template plugin<pro::notes>(" About Environment ")
-            ->invoke([&](auto& boss)
-            {
-                auto data = utf::divide(param, ";");
-                auto aptype = text{ data.size() > 0 ? data[0] : view{} };
-                auto menuid = text{ data.size() > 1 ? data[1] : view{} };
-                auto params = text{ data.size() > 2 ? data[2] : view{} };
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (aptype, menuid, params))
-                {
-                    static auto offset = dot_00;
-                    auto& gate = gear.owner;
-                    auto viewport = e2::form::prop::viewport.param();
-                    boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                    viewport.coor += gear.area().coor;
-                    offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                    gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
-                    gear.slot.size = viewport.size * 3 / 4;
-                    gear.slot_forced = faux;
-
-                    auto menu_list_ptr = desk::events::apps.param();
-                    auto conf_list_ptr = desk::events::menu.param();
-                    gate.RISEUP(tier::request, desk::events::apps, menu_list_ptr);
-                    gate.RISEUP(tier::request, desk::events::menu, conf_list_ptr);
-                    auto& menu_list = *menu_list_ptr;
-                    auto& conf_list = *conf_list_ptr;
-
-                    if (conf_list.contains(menuid) && !conf_list[menuid].hidden) // Check for id availability.
-                    {
-                        auto i = 1;
-                        auto testid = text{};
-                        do testid = menuid + " (" + std::to_string(++i) + ")";
-                        while (conf_list.contains(testid) && !conf_list[menuid].hidden);
-                        std::swap(testid, menuid);
-                    }
-                    auto& m = conf_list[menuid];
-                    m.type = aptype;
-                    m.label = menuid;
-                    m.title = menuid; // Use the same title as the menu label.
-                    m.param = params;
-                    m.hidden = true;
-                    menu_list[menuid];
-
-                    auto lastid = e2::data::changed.param();
-                    gate.SIGNAL(tier::request, e2::data::changed, lastid);
-                    gate.SIGNAL(tier::release, e2::data::changed, menuid);
-                    gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
-                    gate.SIGNAL(tier::release, e2::data::changed, lastid);
-                    gear.dismiss();
-                };
-            });
-    };
-
-    app::shared::initialize builder{ app::fone::id, build };
-}
-
 namespace netxs::app::vtm
 {
     static constexpr auto id = "vtm";
@@ -410,6 +342,7 @@ namespace netxs::app::vtm
             //hall::list: Draw backpane for spectators.
             void prerender(face& canvas)
             {
+                if (size() > 1)
                 for (auto& item : items) item->fasten(canvas); // Draw strings.
                 for (auto& item : items) item->render<faux>(canvas); // Draw shadows without postrendering.
             }
@@ -932,9 +865,9 @@ namespace netxs::app::vtm
         }
         void redraw(face& canvas) override
         {
-            if (users.size() > 1) users.prerender (canvas); // Draw backpane for spectators.
-                                  items.render    (canvas); // Draw objects of the world.
-                                  users.postrender(canvas); // Draw spectator's mouse pointers.
+            users.prerender (canvas); // Draw backpane for spectators.
+            items.render    (canvas); // Draw objects of the world.
+            users.postrender(canvas); // Draw spectator's mouse pointers.
         }
         // hall: Attach a new item to the scene.
         template<class S>
@@ -961,9 +894,7 @@ namespace netxs::app::vtm
             //todo make it configurable
             auto patch = ""s;
             auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
-            auto bkground = app::shared::builder(app::fone::id)("", "gems;About;", config, patch);
             user->attach(deskmenu);
-            user->ground(bkground);
             lock.unlock();
             user->launch();
         }
