@@ -3395,205 +3395,9 @@ namespace netxs::ui
         // gate: Main loop.
         void launch()
         {
-            auto lock = events::unique_lock();
-
-                LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
-                {
-                    auto delta = base::resize(newsize);
-                    if (delta && direct)
-                    if (auto world_ptr = base::parent())
-                    {
-                        paint.cancel();
-                        rebuild_scene(*world_ptr, true);
-                    }
-                };
-                LISTEN(tier::release, e2::size::any, newsz, tokens)
-                {
-                    if (applet) applet->base::resize(newsz);
-                };
-                LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
-                {
-                    props.legacy_mode |= pointer ? os::vt::mouse : 0;
-                };
-                LISTEN(tier::release, e2::conio::clipdata, clipdata, tokens)
-                {
-                    if (!direct)
-                    {
-                        clipdata.size = base::size() / 2;
-                        input.set_clip_data(clipdata);
-                        base::deface();
-                    }
-                };
-                LISTEN(tier::release, e2::conio::error, errcode, tokens)
-                {
-                    auto msg = ansi::bgc(reddk).fgc(whitelt).add("\n\rgate: Term error: ", errcode, "\r\n");
-                    log("gate: error byemsg: ", msg);
-                    canal.shut();
-                };
-                LISTEN(tier::release, e2::conio::quit, msg, tokens)
-                {
-                    log("gate: ", msg);
-                    canal.shut();
-                    tokens.clear();
-                    mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-                    base::detach();
-                    paint.stop();
-                };
-                LISTEN(tier::preview, e2::conio::quit, msg, tokens)
-                {
-                    log("gate: ", msg);
-                    canal.shut();
-                };
-                LISTEN(tier::general, e2::conio::quit, msg, tokens)
-                {
-                    log("gate: global shutdown: ", msg);
-                    canal.shut();
-                };
-                LISTEN(tier::release, e2::form::quit, initiator, tokens)
-                {
-                    auto msg = ansi::add("gate: quit message from: ", initiator->id);
-                    canal.shut();
-                    this->SIGNAL(tier::general, e2::shutdown, msg);
-                };
-                LISTEN(tier::release, e2::form::prop::ui::footer, newfooter, tokens)
-                {
-                    if (direct)
-                    {
-                        auto window_id = 0;
-                        conio.form_footer.send(canal, window_id, newfooter);
-                    }
-                };
-                LISTEN(tier::release, e2::form::prop::ui::header, newheader, tokens)
-                {
-                    if (direct)
-                    {
-                        auto window_id = 0;
-                        conio.form_header.send(canal, window_id, newheader);
-                    }
-                    else
-                    {
-                        auto temp = text{};
-                        temp.reserve(newheader.length());
-                        para{ newheader }.lyric->utf8(temp);
-                        log("gate: title changed to '", temp, ansi::nil().add("'"));
-                        conio.output(ansi::header(temp));
-                    }
-                };
-                LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
-                {
-                    auto myid = from_gear.id;
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                    auto& gear = *gear_ptr;
-                    gear.kb_offer_4(applet);
-                    if (gear.focus_changed()) gear.dismiss();
-                };
-                LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
-                {
-                    auto myid = from_gear.id;
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                    gear_ptr->kb_offer_10(applet);
-                };
-                LISTEN(tier::release, hids::events::clipbrd::set, from_gear, tokens)
-                {
-                    auto myid = from_gear.id;
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                    auto& gear =*gear_ptr;
-                    auto& data = gear.clip_rawdata;
-                    if (direct) conio.set_clipboard.send(canal, ext_gear_id, data.size, data.utf8, data.kind);
-                    else        conio.output(ansi::clipbuf(                  data.size, data.utf8, data.kind));
-                };
-                LISTEN(tier::release, hids::events::clipbrd::get, from_gear, tokens)
-                {
-                    if (!direct) return;
-                    auto myid = from_gear.id;
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                    if (!conio.request_clip_data(ext_gear_id, gear_ptr->clip_rawdata))
-                    {
-                        log("gate: timeout: no clipboard data reply");
-                    }
-                };
-                LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, tokens)
-                {
-                    if (debug)
-                    {
-                        props.show_regions = true;
-                        debug.stop();
-                    }
-                    else
-                    {
-                        if (props.show_regions) props.show_regions = faux;
-                        else                    debug.start();
-                    }
-                    gear.dismiss();
-                };
-                if (props.tooltip_enabled)
-                {
-                    LISTEN(tier::general, e2::timer::any, now, tokens)
-                    {
-                        check_tooltips(now);
-                    };
-                }
-                if (direct) // Forward unhandled events outside.
-                {
-                    LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
-                    {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                        auto deed =this->bell::protos<tier::preview>();
-                        switch (deed)
-                        {
-                            case hids::events::notify::focus::got.id:  conio.set_focus.send(conio, ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus); break;
-                            case hids::events::notify::focus::lost.id: conio.off_focus.send(conio, ext_gear_id); break;
-                        }
-                    };
-                    LISTEN(tier::general, e2::conio::logs, utf8, tokens)
-                    {
-                        conio.logs.send(canal, os::process::id.first, os::process::id.second, text{ utf8 });
-                    };
-                    LISTEN(tier::release, e2::config::fps, fps, tokens)
-                    {
-                        if (fps > 0) this->SIGNAL(tier::general, e2::config::fps, fps);
-                    };
-                    LISTEN(tier::preview, e2::config::fps, fps, tokens)
-                    {
-                        conio.fps.send(conio, fps);
-                    };
-                    LISTEN(tier::preview, hids::events::mouse::button::click::any, gear, tokens)
-                    {
-                        conio.expose.send(conio);
-                    };
-                    LISTEN(tier::anycast, e2::form::layout::expose, item, tokens)
-                    {
-                        conio.expose.send(conio);
-                    };
-                    LISTEN(tier::preview, e2::form::layout::swarp, warp, tokens)
-                    {
-                        conio.warping.send(conio, 0, warp);
-                    };
-                    LISTEN(tier::release, e2::form::maximize, gear, tokens)
-                    {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        conio.maximize.send(conio, ext_gear_id);
-                    };
-                }
-                LISTEN(tier::anycast, e2::form::upon::started, item_ptr)
-                {
-                    if (props.debug_overlay) debug.start();
-                    base::moveby(props.coor);
-                    this->SIGNAL(tier::release, e2::form::prop::name, props.title);
-                    this->SIGNAL(tier::preview, e2::form::prop::ui::header, props.title);
-                };
-
-                SIGNAL(tier::anycast, e2::form::upon::started, This());
-
-            lock.unlock();
-
+            SIGNAL(tier::anycast, e2::form::upon::started, This());
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
-
-            lock.lock();
-
-                SIGNAL(tier::release, e2::conio::quit, "exit from a stream reading loop");
-
-            lock.unlock();
+            SIGNAL(tier::release, e2::conio::quit, "exit from a stream reading loop");
         }
 
     protected:
@@ -3802,6 +3606,192 @@ namespace netxs::ui
                     draw_mouse_pointer(parent_canvas);
                 }
             };
+            LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
+            {
+                auto delta = base::resize(newsize);
+                if (delta && direct)
+                if (auto world_ptr = base::parent())
+                {
+                    paint.cancel();
+                    rebuild_scene(*world_ptr, true);
+                }
+            };
+            LISTEN(tier::release, e2::size::any, newsz, tokens)
+            {
+                if (applet) applet->base::resize(newsz);
+            };
+            LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
+            {
+                props.legacy_mode |= pointer ? os::vt::mouse : 0;
+            };
+            LISTEN(tier::release, e2::conio::clipdata, clipdata, tokens)
+            {
+                if (!direct)
+                {
+                    clipdata.size = base::size() / 2;
+                    input.set_clip_data(clipdata);
+                    base::deface();
+                }
+            };
+            LISTEN(tier::release, e2::conio::error, errcode, tokens)
+            {
+                auto msg = ansi::bgc(reddk).fgc(whitelt).add("\n\rgate: Term error: ", errcode, "\r\n");
+                log("gate: error byemsg: ", msg);
+                canal.shut();
+            };
+            LISTEN(tier::release, e2::conio::quit, msg, tokens)
+            {
+                log("gate: ", msg);
+                canal.shut();
+                tokens.clear();
+                mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
+                base::detach();
+                paint.stop();
+            };
+            LISTEN(tier::preview, e2::conio::quit, msg, tokens)
+            {
+                log("gate: ", msg);
+                canal.shut();
+            };
+            LISTEN(tier::general, e2::conio::quit, msg, tokens)
+            {
+                log("gate: global shutdown: ", msg);
+                canal.shut();
+            };
+            LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
+            {
+                if (props.debug_overlay) debug.start();
+                base::moveby(props.coor);
+                this->SIGNAL(tier::release, e2::form::prop::name, props.title);
+                this->SIGNAL(tier::preview, e2::form::prop::ui::header, props.title);
+            };
+            //todo revise
+            LISTEN(tier::release, e2::form::quit, initiator, tokens)
+            {
+                auto msg = ansi::add("gate: quit message from: ", initiator->id);
+                canal.shut();
+                this->SIGNAL(tier::general, e2::shutdown, msg);
+            };
+            LISTEN(tier::release, e2::form::prop::ui::footer, newfooter, tokens)
+            {
+                if (direct)
+                {
+                    auto window_id = 0;
+                    conio.form_footer.send(canal, window_id, newfooter);
+                }
+            };
+            LISTEN(tier::release, e2::form::prop::ui::header, newheader, tokens)
+            {
+                if (direct)
+                {
+                    auto window_id = 0;
+                    conio.form_header.send(canal, window_id, newheader);
+                }
+                else
+                {
+                    auto temp = text{};
+                    temp.reserve(newheader.length());
+                    para{ newheader }.lyric->utf8(temp);
+                    log("gate: title changed to '", temp, ansi::nil().add("'"));
+                    conio.output(ansi::header(temp));
+                }
+            };
+            LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
+            {
+                auto myid = from_gear.id;
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                auto& gear = *gear_ptr;
+                gear.kb_offer_4(applet);
+                if (gear.focus_changed()) gear.dismiss();
+            };
+            LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
+            {
+                auto myid = from_gear.id;
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                gear_ptr->kb_offer_10(applet);
+            };
+            LISTEN(tier::release, hids::events::clipbrd::set, from_gear, tokens)
+            {
+                auto myid = from_gear.id;
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                auto& gear =*gear_ptr;
+                auto& data = gear.clip_rawdata;
+                if (direct) conio.set_clipboard.send(canal, ext_gear_id, data.size, data.utf8, data.kind);
+                else        conio.output(ansi::clipbuf(                  data.size, data.utf8, data.kind));
+            };
+            LISTEN(tier::release, hids::events::clipbrd::get, from_gear, tokens)
+            {
+                if (!direct) return;
+                auto myid = from_gear.id;
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                if (!conio.request_clip_data(ext_gear_id, gear_ptr->clip_rawdata))
+                {
+                    log("gate: timeout: no clipboard data reply");
+                }
+            };
+            LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, tokens)
+            {
+                if (debug)
+                {
+                    props.show_regions = true;
+                    debug.stop();
+                }
+                else
+                {
+                    if (props.show_regions) props.show_regions = faux;
+                    else                    debug.start();
+                }
+                gear.dismiss();
+            };
+            if (props.tooltip_enabled)
+            {
+                LISTEN(tier::general, e2::timer::any, now, tokens)
+                {
+                    check_tooltips(now);
+                };
+            }
+            if (direct) // Forward unhandled events outside.
+            {
+                LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
+                    auto deed =this->bell::protos<tier::preview>();
+                    switch (deed)
+                    {
+                        case hids::events::notify::focus::got.id:  conio.set_focus.send(conio, ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus); break;
+                        case hids::events::notify::focus::lost.id: conio.off_focus.send(conio, ext_gear_id); break;
+                    }
+                };
+                LISTEN(tier::general, e2::conio::logs, utf8, tokens)
+                {
+                    conio.logs.send(canal, os::process::id.first, os::process::id.second, text{ utf8 });
+                };
+                LISTEN(tier::release, e2::config::fps, fps, tokens)
+                {
+                    if (fps > 0) this->SIGNAL(tier::general, e2::config::fps, fps);
+                };
+                LISTEN(tier::preview, e2::config::fps, fps, tokens)
+                {
+                    conio.fps.send(conio, fps);
+                };
+                LISTEN(tier::preview, hids::events::mouse::button::click::any, gear, tokens)
+                {
+                    conio.expose.send(conio);
+                };
+                LISTEN(tier::anycast, e2::form::layout::expose, item, tokens)
+                {
+                    conio.expose.send(conio);
+                };
+                LISTEN(tier::preview, e2::form::layout::swarp, warp, tokens)
+                {
+                    conio.warping.send(conio, 0, warp);
+                };
+                LISTEN(tier::release, e2::form::maximize, gear, tokens)
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    conio.maximize.send(conio, ext_gear_id);
+                };
+            }
         }
     };
 
