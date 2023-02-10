@@ -553,7 +553,7 @@ namespace netxs::app::desk
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            gear.owner.SIGNAL(tier::release, e2::conio::quit, "taskbar: logout by button");
+                            gear.owner.SIGNAL(tier::preview, e2::conio::quit, "taskbar: logout by button");
                             gear.dismiss();
                         };
                     });

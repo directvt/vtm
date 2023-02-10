@@ -1566,7 +1566,7 @@ namespace netxs::ui
                     {
                         wait = faux;
                         auto shadow = boss.This();
-                        boss.SIGNAL(tier::release, e2::conio::quit, desc);
+                        boss.SIGNAL(tier::preview, e2::conio::quit, desc);
                         memo.clear();
                     }
                 };
@@ -3432,12 +3432,21 @@ namespace netxs::ui
                 };
                 LISTEN(tier::release, e2::conio::quit, msg, tokens)
                 {
-                    log("gate: quit byemsg: ", msg);
+                    log("gate: ", msg);
+                    canal.shut();
+                    tokens.clear();
+                    mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
+                    base::detach();
+                    paint.stop();
+                };
+                LISTEN(tier::preview, e2::conio::quit, msg, tokens)
+                {
+                    log("gate: ", msg);
                     canal.shut();
                 };
                 LISTEN(tier::general, e2::conio::quit, msg, tokens)
                 {
-                    log("gate: global shutdown byemsg: ", msg);
+                    log("gate: global shutdown: ", msg);
                     canal.shut();
                 };
                 LISTEN(tier::release, e2::form::quit, initiator, tokens)
@@ -3566,10 +3575,13 @@ namespace netxs::ui
                         conio.maximize.send(conio, ext_gear_id);
                     };
                 }
-                if (props.debug_overlay) debug.start();
-                base::moveby(props.coor);
-                SIGNAL(tier::release, e2::form::prop::name, props.title);
-                SIGNAL(tier::preview, e2::form::prop::ui::header, props.title);
+                LISTEN(tier::anycast, e2::form::upon::started, item_ptr)
+                {
+                    if (props.debug_overlay) debug.start();
+                    base::moveby(props.coor);
+                    this->SIGNAL(tier::release, e2::form::prop::name, props.title);
+                    this->SIGNAL(tier::preview, e2::form::prop::ui::header, props.title);
+                };
 
                 SIGNAL(tier::anycast, e2::form::upon::started, This());
 
@@ -3578,13 +3590,10 @@ namespace netxs::ui
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
 
             lock.lock();
-                log("link: signaling to close read channel ", canal);
-                SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
-                tokens.clear();
-                mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-                base::detach();
+
+                SIGNAL(tier::release, e2::conio::quit, "exit from a stream reading loop");
+
             lock.unlock();
-            paint.stop();
         }
 
     protected:
