@@ -3303,18 +3303,11 @@ namespace netxs::ui
         }
 
         // gate: Attach a new item.
-        template<class T>
-        auto attach(sptr<T> item)
+        auto attach(sptr<base> item)
         {
             applet = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
-        }
-        // gate: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach(base::create<T>(std::forward<Args>(args)...));
         }
         // gate: .
         void _rebuild_scene(bool damaged)
