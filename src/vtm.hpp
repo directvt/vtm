@@ -264,6 +264,7 @@ namespace netxs::app::vtm
             sptr object;
             id_t obj_id;
             si32 z_order = Z_order::plain;
+            subs tokens;
 
             node(sptr item)
                 : object{ item }
@@ -271,31 +272,31 @@ namespace netxs::app::vtm
                 auto& inst = *item;
                 obj_id = inst.bell::id;
 
-                inst.LISTEN(tier::release, e2::form::prop::zorder, order)
+                inst.LISTEN(tier::release, e2::form::prop::zorder, order, tokens)
                 {
                     z_order = order;
                 };
-                inst.LISTEN(tier::release, e2::size::any, size)
+                inst.LISTEN(tier::release, e2::size::any, size, tokens)
                 {
                     region.size = size;
                 };
-                inst.LISTEN(tier::release, e2::coor::any, coor)
+                inst.LISTEN(tier::release, e2::coor::any, coor, tokens)
                 {
                     region.coor = coor;
                 };
-                inst.LISTEN(tier::release, e2::form::state::mouse, state)
+                inst.LISTEN(tier::release, e2::form::state::mouse, state, tokens)
                 {
                     header.active = state;
                 };
-                inst.LISTEN(tier::release, e2::form::highlight::any, state)
+                inst.LISTEN(tier::release, e2::form::highlight::any, state, tokens)
                 {
                     header.highlighted = state;
                 };
-                inst.LISTEN(tier::release, e2::form::state::header, caption)
+                inst.LISTEN(tier::release, e2::form::state::header, caption, tokens)
                 {
                     header.set(caption);
                 };
-                inst.LISTEN(tier::release, e2::form::state::color, color)
+                inst.LISTEN(tier::release, e2::form::state::color, color, tokens)
                 {
                     header.color = color;
                 };
