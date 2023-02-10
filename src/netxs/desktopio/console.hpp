@@ -3420,7 +3420,16 @@ namespace netxs::ui
             input.xmap.cmode = vtmode;
             input.xmap.mark(props.background_color.txt(whitespace).link(bell::id));
 
-            if (!props.is_standalone_app)
+            if (props.is_standalone_app)
+            {
+                LISTEN(tier::release, e2::form::quit, initiator, tokens)
+                {
+                    auto msg = ansi::add("gate: quit message from: ", initiator->id);
+                    canal.shut();
+                    this->SIGNAL(tier::general, e2::shutdown, msg);
+                };
+            }
+            else
             {
                 //todo move it to the desk (dragging)
                 mouse.draggable<hids::buttons::leftright>(true);
@@ -3665,13 +3674,6 @@ namespace netxs::ui
                 this->SIGNAL(tier::release, e2::form::prop::name, props.title);
                 this->SIGNAL(tier::preview, e2::form::prop::ui::header, props.title);
             };
-            //todo revise
-            LISTEN(tier::release, e2::form::quit, initiator, tokens)
-            {
-                auto msg = ansi::add("gate: quit message from: ", initiator->id);
-                canal.shut();
-                this->SIGNAL(tier::general, e2::shutdown, msg);
-            };
             LISTEN(tier::release, e2::form::prop::ui::footer, newfooter, tokens)
             {
                 if (direct)
@@ -3904,7 +3906,6 @@ namespace netxs::ui
             };
             LISTEN(tier::general, e2::shutdown, msg, tokens)
             {
-                //todo revise, Deadlock with intensive logging (inside the std::cout.operator<<()).
                 log("host: shutdown: ", msg);
                 canal.stop();
             };
