@@ -3406,6 +3406,7 @@ namespace netxs::ui
             limit.set(dot_11);
             title.live = faux;
 
+            if (!isvtm)
             LISTEN(tier::release, e2::form::quit, initiator, tokens)
             {
                 auto msg = ansi::add("gate: quit message from: ", initiator->id);
