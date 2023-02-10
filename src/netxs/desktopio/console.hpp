@@ -2753,7 +2753,7 @@ namespace netxs::ui
         : public base
     {
         // gate: Application properties.
-        struct props
+        struct props_t
         {
             //todo revise
             text ip;
@@ -2783,6 +2783,7 @@ namespace netxs::ui
             text debug_toggle; // conf: Debug toggle shortcut.
             bool show_regions; // conf: Highlight region ownership.
             bool simple; // conf: .
+            svga vtmode; // conf: .
 
             void read(xmls& config)
             {
@@ -2804,7 +2805,7 @@ namespace netxs::ui
                 clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
             }
 
-            props(pipe& canal, bool isvtm, si32 session_id, xmls& config)
+            props_t(pipe& canal, bool isvtm, si32 session_id, xmls& config)
             {
                 if (isvtm)
                 {
@@ -2845,9 +2846,13 @@ namespace netxs::ui
                     glow_fx           = faux;
                     title             = "";
                 }
+                vtmode = legacy_mode & os::vt::vga16  ? svga::vga16
+                       : legacy_mode & os::vt::vga256 ? svga::vga256
+                       : legacy_mode & os::vt::direct ? svga::dtvt
+                                                      : svga::truecolor;                
             }
 
-            friend auto& operator << (std::ostream& s, props const& c)
+            friend auto& operator << (std::ostream& s, props_t const& c)
             {
                 return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
                          << "\n\tregion: " << c.region
@@ -2858,7 +2863,7 @@ namespace netxs::ui
         };
 
         // gate: .
-        struct input
+        struct input_t
         {
             using depo = std::unordered_map<id_t, sptr<hids>>;
             using lock = std::recursive_mutex;
@@ -2882,13 +2887,12 @@ namespace netxs::ui
             lock  sync;
             depo  gears;
 
-            input(base&&) = delete;
-            template<class T>
-            input(T& boss)
+            input_t(props_t& props, gate& boss)
                 : boss{ boss },
                   gears{{ id_t{}, bell::create<hids>(boss.props, true, boss, xmap) }}
             {
-                xmap.link(boss.bell::id);
+                xmap.cmode = props.vtmode;
+                xmap.mark(props.background_color.txt(whitespace).link(boss.bell::id));
                 xmap.move(boss.base::coor());
                 xmap.size(boss.base::size());
                 boss.LISTEN(tier::release, e2::command::printscreen, gear, memo)
@@ -2974,7 +2978,7 @@ namespace netxs::ui
         };
 
         // gate: Realtime telemetry.
-        struct debug
+        struct debug_t
         {
             #define PROP_LIST                     \
             X(total_size   , "total sent"       ) \
@@ -3037,8 +3041,7 @@ namespace netxs::ui
                 }
             }
 
-            debug(base&&) = delete;
-            debug(base& boss)
+            debug_t(base& boss)
                 : boss{ boss }
             { }
 
@@ -3191,10 +3194,9 @@ namespace netxs::ui
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
         bool  fullscreen = faux; //gate: Fullscreen mode.
-        props props; // gate: Application properties.
-        input input{*this }; // gate: Input event handler.
-        debug debug{*this }; // gate: Debug telemetry.
-        svga  vtmode; // gate: .
+        props_t props; // gate: Application properties.
+        input_t input; // gate: Input event handler.
+        debug_t debug; // gate: Debug telemetry.
         sptr<base> applet; // gate: .
         diff  paint; // gate: Render.
         subs  tokens; // gate: Subscription tokens.
@@ -3316,7 +3318,6 @@ namespace netxs::ui
             auto& canvas = input.xmap;
             if (damaged)
             {
-                auto direct = vtmode == svga::dtvt;
                 if (props.legacy_mode & os::vt::mouse) // Render our mouse pointer.
                 {
                     draw_mouse_pointer(canvas);
@@ -3395,20 +3396,15 @@ namespace netxs::ui
         gate(sptr<pipe> uplink, si32 session_id, bool isvtm, xmls& config)
             : canal{ *uplink },
               props{ canal, isvtm, session_id, config },
-              vtmode{ props.legacy_mode & os::vt::vga16  ? svga::vga16
-                    : props.legacy_mode & os::vt::vga256 ? svga::vga256
-                    : props.legacy_mode & os::vt::direct ? svga::dtvt
-                                                         : svga::truecolor },
-             paint{ canal, vtmode },
+              input{ props, *this },
+             paint{ canal, props.vtmode },
              conio{ canal, *this  },
-             direct{ vtmode == svga::dtvt }
+             debug{*this },
+             direct{ props.vtmode == svga::dtvt }
         {
             base::root(true);
             limit.set(dot_11);
-            //todo unify
             title.live = faux;
-            input.xmap.cmode = vtmode;
-            input.xmap.mark(props.background_color.txt(whitespace).link(bell::id));
 
             LISTEN(tier::release, e2::form::quit, initiator, tokens)
             {
