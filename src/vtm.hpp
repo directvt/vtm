@@ -165,6 +165,34 @@ namespace netxs::app::vtm
         };
     }
 
+    // vtm: User gate.
+    struct gate
+        : public ui::gate
+    {
+        using ui::gate::gate;
+        void rebuild_scene(base& world, bool damaged) override
+        {
+            auto& canvas = input.xmap;
+            if (damaged)
+            {
+                canvas.wipe(world.bell::id);
+                if (props.background_image.size())
+                {
+                    //todo cache background
+                    canvas.tile(props.background_image, cell::shaders::fuse);
+                }
+                world.redraw(canvas); // Put the rest of the world on my canvas.
+                if (applet && !fullscreen) // Render main menu/application.
+                {
+                    //todo too hacky, unify
+                    if (props.glow_fx) canvas.render(applet, base::coor()); // Render the main menu twice to achieve the glow effect.
+                                       canvas.render(applet, base::coor());
+                }
+            }
+            _rebuild_scene(damaged);
+        }
+    };
+
     // vtm: Desktopio Workspace.
     struct hall
         : public host
@@ -568,6 +596,16 @@ namespace netxs::app::vtm
             slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
             return slot;
         }
+        void nextframe(bool damaged) override
+        {
+            for (auto& u : users.items)
+            {
+                if (auto client = std::dynamic_pointer_cast<gate>(u->object))
+                {
+                    client->rebuild_scene(*this, damaged);
+                }
+            }
+        }
 
     protected:
         hall(sptr<pipe> server, xmls& config, text defapp)
@@ -886,7 +924,7 @@ namespace netxs::app::vtm
         auto invite(sptr<pipe> client, si32 session_id)
         {
             auto lock = netxs::events::unique_lock();
-            auto user = base::create<ui::gate>(client, session_id, true, host::config);
+            auto user = base::create<gate>(client, session_id, true, host::config);
             users.append(user);
             dbase.append(user);
             user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
