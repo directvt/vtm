@@ -2760,7 +2760,6 @@ namespace netxs::ui
             text port;
             text fullname;
             text region;
-            text name;
             text os_user_id;
             text title;
             text selected;
@@ -2824,7 +2823,6 @@ namespace netxs::ui
                     legacy_mode       = init.mode;
                     os_user_id        = init.user;
                     fullname          = init.name;
-                    name              = init.user;
                     title             = init.user;
                     selected          = config.take("/config/menu/selected", ""s);
                     read(config);
@@ -3399,11 +3397,6 @@ namespace netxs::ui
         {
             auto lock = events::unique_lock();
 
-                if (props.debug_overlay) debug.start();
-                SIGNAL(tier::release, e2::form::prop::name, props.name);
-                SIGNAL(tier::preview, e2::form::prop::ui::header, props.name);
-                base::moveby(props.coor);
-
                 LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
                 {
                     auto delta = base::resize(newsize);
@@ -3573,13 +3566,10 @@ namespace netxs::ui
                         conio.maximize.send(conio, ext_gear_id);
                     };
                 }
-                else
-                {
-                    if (props.title.size())
-                    {
-                        conio.output(ansi::header(props.title));
-                    }
-                }
+                if (props.debug_overlay) debug.start();
+                base::moveby(props.coor);
+                SIGNAL(tier::release, e2::form::prop::name, props.title);
+                SIGNAL(tier::preview, e2::form::prop::ui::header, props.title);
 
                 SIGNAL(tier::anycast, e2::form::upon::started, This());
 
@@ -3622,16 +3612,16 @@ namespace netxs::ui
                 //todo move it to the desk (dragging)
                 mouse.draggable<hids::buttons::leftright>(true);
                 mouse.draggable<hids::buttons::left>(true);
-                LISTEN(tier::release, e2::form::drag::start::any, gear)
+                LISTEN(tier::release, e2::form::drag::start::any, gear, tokens)
                 {
                     robot.pacify();
                 };
-                LISTEN(tier::release, e2::form::drag::pull::any, gear)
+                LISTEN(tier::release, e2::form::drag::pull::any, gear, tokens)
                 {
                     base::moveby(-gear.delta.get());
                     base::deface();
                 };
-                LISTEN(tier::release, e2::form::drag::stop::any, gear)
+                LISTEN(tier::release, e2::form::drag::stop::any, gear, tokens)
                 {
                     robot.pacify();
                     robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto& x)
@@ -3640,7 +3630,7 @@ namespace netxs::ui
                                     base::deface();
                                 });
                 };
-                LISTEN(tier::release, e2::form::layout::shift, newpos)
+                LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
                 {
                     auto viewport = e2::form::prop::viewport.param();
                     this->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
@@ -3666,7 +3656,7 @@ namespace netxs::ui
                 {
                     this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
                 };
-                LISTEN(tier::preview, hids::events::keybd::any, gear)
+                LISTEN(tier::preview, hids::events::keybd::any, gear, tokens)
                 {
                     //todo unify
                     auto& keystrokes = gear.keystrokes;
@@ -3728,35 +3718,35 @@ namespace netxs::ui
                     };
                 }
             }
-            LISTEN(tier::release, e2::form::prop::fullscreen, state)
+            LISTEN(tier::release, e2::form::prop::fullscreen, state, tokens)
             {
                 fullscreen = state;
             };
-            LISTEN(tier::release, e2::form::prop::name, user_name)
+            LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
             {
                 uname = uname_txt = user_name;
             };
-            LISTEN(tier::request, e2::form::prop::name, user_name)
+            LISTEN(tier::request, e2::form::prop::name, user_name, tokens)
             {
                 user_name = uname_txt;
             };
-            LISTEN(tier::request, e2::form::prop::viewport, viewport)
+            LISTEN(tier::request, e2::form::prop::viewport, viewport, tokens)
             {
                 this->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
                 viewport.coor += base::coor();
             };
             //todo unify creation (delete simple create wo gear)
-            LISTEN(tier::preview, e2::form::proceed::create, region)
+            LISTEN(tier::preview, e2::form::proceed::create, region, tokens)
             {
                 region.coor += base::coor();
                 this->RISEUP(tier::release, e2::form::proceed::create, region);
             };
-            LISTEN(tier::release, e2::form::proceed::onbehalf, proc)
+            LISTEN(tier::release, e2::form::proceed::onbehalf, proc, tokens)
             {
                 //todo hids
                 //proc(input.gear);
             };
-            LISTEN(tier::preview, hids::events::keybd::any, gear)
+            LISTEN(tier::preview, hids::events::keybd::any, gear, tokens)
             {
                 //todo unify
                 if (gear.keystrokes == props.debug_toggle)
@@ -3765,7 +3755,7 @@ namespace netxs::ui
                           : debug.start();
                 }
             };
-            LISTEN(tier::preview, hids::events::mouse::button::click::leftright, gear)
+            LISTEN(tier::preview, hids::events::mouse::button::click::leftright, gear, tokens)
             {
                 if (gear.clear_clip_data())
                 {
@@ -3773,7 +3763,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            LISTEN(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas, tokens)
             {
                 if (parent_canvas.cmode != svga::vga16) // Don't show shadow in poor color environment.
                 if (&parent_canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
@@ -3786,7 +3776,7 @@ namespace netxs::ui
                     parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
                 }
             };
-            LISTEN(tier::release, e2::postrender, parent_canvas)
+            LISTEN(tier::release, e2::postrender, parent_canvas, tokens)
             {
                 if (&parent_canvas != &input.xmap)
                 {
@@ -3940,7 +3930,6 @@ namespace netxs::ui
         {
             auto lock = events::sync{};
             client = base::create<gate>(uplink, vtmode, faux, host::config);
-            //stuff = root;
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             return client;
         }
