@@ -2783,7 +2783,6 @@ namespace netxs::ui
             text debug_toggle; // conf: Debug toggle shortcut.
             bool show_regions; // conf: Highlight region ownership.
             bool simple; // conf: .
-            bool is_standalone_app; // conf: .
 
             void read(xmls& config)
             {
@@ -2837,7 +2836,6 @@ namespace netxs::ui
                     }
                     glow_fx           = config.take("glowfx", true);
                     simple            = faux;
-                    is_standalone_app = faux;
                 }
                 else
                 {
@@ -2845,7 +2843,6 @@ namespace netxs::ui
                     read(config);
                     simple            = !(legacy_mode & os::vt::direct);
                     glow_fx           = faux;
-                    is_standalone_app = true;
                     title             = "";
                 }
             }
@@ -3420,126 +3417,12 @@ namespace netxs::ui
             input.xmap.cmode = vtmode;
             input.xmap.mark(props.background_color.txt(whitespace).link(bell::id));
 
-            if (props.is_standalone_app)
+            LISTEN(tier::release, e2::form::quit, initiator, tokens)
             {
-                LISTEN(tier::release, e2::form::quit, initiator, tokens)
-                {
-                    auto msg = ansi::add("gate: quit message from: ", initiator->id);
-                    canal.shut();
-                    this->SIGNAL(tier::general, e2::shutdown, msg);
-                };
-            }
-            else
-            {
-                //todo move it to the desk (dragging)
-                mouse.draggable<hids::buttons::leftright>(true);
-                mouse.draggable<hids::buttons::left>(true);
-                LISTEN(tier::release, e2::form::drag::start::any, gear, tokens)
-                {
-                    robot.pacify();
-                };
-                LISTEN(tier::release, e2::form::drag::pull::any, gear, tokens)
-                {
-                    base::moveby(-gear.delta.get());
-                    base::deface();
-                };
-                LISTEN(tier::release, e2::form::drag::stop::any, gear, tokens)
-                {
-                    robot.pacify();
-                    robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto& x)
-                                {
-                                    base::moveby(-x);
-                                    base::deface();
-                                });
-                };
-                LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
-                {
-                    auto viewport = e2::form::prop::viewport.param();
-                    this->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                    auto oldpos = viewport.coor + (viewport.size / 2);
-
-                    auto path = oldpos - newpos;
-                    auto time = skin::globals().switching;
-                    auto init = 0;
-                    auto func = constlinearAtoB<twod>(path, time, init);
-
-                    robot.pacify();
-                    robot.actify(func, [&](auto& x)
-                                       {
-                                        base::moveby(-x);
-                                        base::strike();
-                                       });
-                };
-                LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
-                {
-                    this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
-                };
-                LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
-                {
-                    this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
-                };
-                LISTEN(tier::preview, hids::events::keybd::any, gear, tokens)
-                {
-                    //todo unify
-                    auto& keystrokes = gear.keystrokes;
-                    auto pgup = keystrokes == "\033[5;5~"s
-                            || (keystrokes == "\033[5~"s && gear.meta(hids::anyCtrl));
-                    auto pgdn = keystrokes == "\033[6;5~"s
-                            || (keystrokes == "\033[6~"s && gear.meta(hids::anyCtrl));
-                    if (pgup || pgdn)
-                    {
-                        auto item_ptr = e2::form::layout::goprev.param();
-                        if (pgdn) this->RISEUP(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
-                        else      this->RISEUP(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
-
-                        if (item_ptr)
-                        {
-                            auto& item = *item_ptr;
-                            auto& area = item.area();
-                            auto center = area.coor + (area.size / 2);
-                            this->SIGNAL(tier::release, e2::form::layout::shift, center);
-                            gear.clear_kb_focus();
-                            gear.kb_offer_7(item);
-                        }
-                        gear.dismiss();
-                    }
-                };
-            }
-            if (direct)
-            {
-                if (props.is_standalone_app)
-                {
-                    LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens)
-                    {
-                        using button = hids::events::mouse::button;
-                        auto forward = faux;
-                        auto cause = gear.mouse::cause;//this->bell::protos<tier::release>();
-                        if (events::subevent(cause, button::click     ::any.id)
-                         || events::subevent(cause, button::dblclick  ::any.id)
-                         || events::subevent(cause, button::tplclick  ::any.id)
-                         || events::subevent(cause, button::drag::pull::any.id))
-                        {
-                            forward = true;
-                        }
-                        else if (events::subevent(cause, button::drag::start::any.id))
-                        {
-                            gear.capture(bell::id); // To avoid unhandled mouse pull processing.
-                            forward = true;
-                        }
-                        else if (events::subevent(cause, button::drag::cancel::any.id)
-                              || events::subevent(cause, button::drag::stop  ::any.id))
-                        {
-                            gear.setfree();
-                        }
-                        if (forward)
-                        {
-                            auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                            conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
-                            gear.dismiss();
-                        }
-                    };
-                }
-            }
+                auto msg = ansi::add("gate: quit message from: ", initiator->id);
+                canal.shut();
+                this->SIGNAL(tier::general, e2::shutdown, msg);
+            };
             LISTEN(tier::release, e2::form::prop::fullscreen, state, tokens)
             {
                 fullscreen = state;
@@ -3754,6 +3637,35 @@ namespace netxs::ui
             }
             if (direct) // Forward unhandled events outside.
             {
+                LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens)
+                {
+                    using button = hids::events::mouse::button;
+                    auto forward = faux;
+                    auto cause = gear.mouse::cause;//this->bell::protos<tier::release>();
+                    if (events::subevent(cause, button::click     ::any.id)
+                     || events::subevent(cause, button::dblclick  ::any.id)
+                     || events::subevent(cause, button::tplclick  ::any.id)
+                     || events::subevent(cause, button::drag::pull::any.id))
+                    {
+                        forward = true;
+                    }
+                    else if (events::subevent(cause, button::drag::start::any.id))
+                    {
+                        gear.capture(bell::id); // To avoid unhandled mouse pull processing.
+                        forward = true;
+                    }
+                    else if (events::subevent(cause, button::drag::cancel::any.id)
+                          || events::subevent(cause, button::drag::stop  ::any.id))
+                    {
+                        gear.setfree();
+                    }
+                    if (forward)
+                    {
+                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                        conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                        gear.dismiss();
+                    }
+                };
                 LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);

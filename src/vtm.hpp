@@ -169,7 +169,84 @@ namespace netxs::app::vtm
     struct gate
         : public ui::gate
     {
-        using ui::gate::gate;
+        gate(sptr<pipe> uplink, si32 session_id, bool isvtm, xmls& config)
+            : ui::gate{ uplink, session_id, isvtm, config }
+        {
+            //todo move it to the desk (dragging)
+            mouse.draggable<hids::buttons::leftright>(true);
+            mouse.draggable<hids::buttons::left>(true);
+            LISTEN(tier::release, e2::form::drag::start::any, gear, tokens)
+            {
+                robot.pacify();
+            };
+            LISTEN(tier::release, e2::form::drag::pull::any, gear, tokens)
+            {
+                base::moveby(-gear.delta.get());
+                base::deface();
+            };
+            LISTEN(tier::release, e2::form::drag::stop::any, gear, tokens)
+            {
+                robot.pacify();
+                robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto& x)
+                {
+                    base::moveby(-x);
+                    base::deface();
+                });
+            };
+            LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
+            {
+                auto viewport = e2::form::prop::viewport.param();
+                this->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                auto oldpos = viewport.coor + (viewport.size / 2);
+
+                auto path = oldpos - newpos;
+                auto time = skin::globals().switching;
+                auto init = 0;
+                auto func = constlinearAtoB<twod>(path, time, init);
+
+                robot.pacify();
+                robot.actify(func, [&](auto& x)
+                {
+                    base::moveby(-x);
+                    base::strike();
+                });
+            };
+            LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
+            {
+                this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
+            };
+            LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
+            {
+                this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
+            };
+            LISTEN(tier::preview, hids::events::keybd::any, gear, tokens)
+            {
+                //todo unify
+                auto& keystrokes = gear.keystrokes;
+                auto pgup = keystrokes == "\033[5;5~"s
+                        || (keystrokes == "\033[5~"s && gear.meta(hids::anyCtrl));
+                auto pgdn = keystrokes == "\033[6;5~"s
+                        || (keystrokes == "\033[6~"s && gear.meta(hids::anyCtrl));
+                if (pgup || pgdn)
+                {
+                    auto item_ptr = e2::form::layout::goprev.param();
+                    if (pgdn) this->RISEUP(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
+                    else      this->RISEUP(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
+
+                    if (item_ptr)
+                    {
+                        auto& item = *item_ptr;
+                        auto& area = item.area();
+                        auto center = area.coor + (area.size / 2);
+                        this->SIGNAL(tier::release, e2::form::layout::shift, center);
+                        gear.clear_kb_focus();
+                        gear.kb_offer_7(item);
+                    }
+                    gear.dismiss();
+                }
+            };
+        }
+
         void rebuild_scene(base& world, bool damaged) override
         {
             auto& canvas = input.xmap;
