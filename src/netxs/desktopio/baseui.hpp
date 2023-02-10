@@ -105,11 +105,10 @@ namespace netxs::events::userland
             };
             SUBSET_XS( conio )
             {
-                EVENT_XS( unknown , const si32      ), // release: return platform unknown event code.
-                EVENT_XS( error   , const si32      ), // release: return error code.
-                EVENT_XS( focus   , input::sysfocus ), // release: focus activity.
                 EVENT_XS( mouse   , input::sysmouse ), // release: mouse activity.
                 EVENT_XS( keybd   , input::syskeybd ), // release: keybd activity.
+                EVENT_XS( focus   , input::sysfocus ), // release: focus activity.
+                EVENT_XS( error   , const si32      ), // release: return error code.
                 EVENT_XS( winsz   , const twod      ), // release: order to update terminal primary overlay.
                 EVENT_XS( preclose, const bool      ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
                 EVENT_XS( quit    , const text      ), // release: quit, arg: text - bye msg.

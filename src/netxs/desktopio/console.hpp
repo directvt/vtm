@@ -2735,7 +2735,7 @@ namespace netxs::ui
                 else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(canal);
             });
         }
-       ~diff()
+        void stop()
         {
             auto id = paint.get_id();
             mutex.lock();
@@ -3201,12 +3201,14 @@ namespace netxs::ui
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
         bool  fullscreen = faux; //gate: Fullscreen mode.
-        si32  legacy = os::vt::clean;
         props props; // gate: Application properties.
         input input{*this }; // gate: Input event handler.
         debug debug{*this }; // gate: Debug telemetry controller.
-
+        svga  vtmode; // gate: .
         sptr<base> applet; // gate: Local UI overlay, UI bar/taskbar/sidebar.
+        diff  paint; // gate: Rendering loop.
+        subs  tokens; // gate: Subscription tokens.
+        link  conio; // gate: Data IO.
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -3328,12 +3330,6 @@ namespace netxs::ui
         {
             auto lock = events::unique_lock();
 
-                legacy |= props.legacy_mode;
-
-                auto vtmode = legacy & os::vt::vga16  ? svga::vga16
-                            : legacy & os::vt::vga256 ? svga::vga256
-                            : legacy & os::vt::direct ? svga::dtvt
-                                                      : svga::truecolor;
                 input.xmap.cmode = vtmode;
                 auto direct = vtmode == svga::dtvt;
                 if (props.debug_overlay) debug.start();
@@ -3344,9 +3340,6 @@ namespace netxs::ui
                 base::moveby(props.coor);
 
                 auto& world = *base::parent();
-                auto  conio = link{ canal, *this  }; // gate: Terminal IO.
-                auto  paint = diff{ canal, vtmode }; // gate: Rendering loop.
-                auto  token = subs{};                // gate: Subscription tokens.
 
                 auto rebuild_scene = [&](bool damaged)
                 {
@@ -3355,39 +3348,40 @@ namespace netxs::ui
                     auto& canvas = input.xmap;
                     if (damaged)
                     {
-                        canvas.wipe(world.bell::id);
-                        if (!props.is_standalone_app)
+                        if (props.is_standalone_app)
                         {
+                            canvas.render(applet, base::coor());
+                        }
+                        else
+                        {
+                            canvas.wipe(world.bell::id);
                             if (props.background_image.size())
                             {
                                 //todo cache background
                                 canvas.tile(props.background_image, cell::shaders::fuse);
                             }
-
                             world.redraw(canvas); // Put the rest of the world on my canvas.
+                            if (applet && !fullscreen) // Render main menu/application.
+                            {
+                                //todo too hacky, unify
+                                if (props.glow_fx) canvas.render(applet, base::coor()); // Render the main menu twice to achieve the glow effect.
+                                                   canvas.render(applet, base::coor());
+                            }
                         }
-                        if (applet && !fullscreen) // Render main menu/application.
-                        {
-                            //todo too hacky, unify
-                            if (props.glow_fx) canvas.render(applet, base::coor()); // Render the main menu twice to achieve the glow effect.
-                                               canvas.render(applet, base::coor());
-                        }
-                        if (legacy & os::vt::mouse) // Render our mouse pointer.
+
+                        if (props.legacy_mode & os::vt::mouse) // Render our mouse pointer.
                         {
                             draw_mouse_pointer(canvas);
                         }
-
                         if (!direct && props.clip_preview_show)
                         {
                             draw_clip_preview(canvas, stamp);
                         }
-
                         if (props.tooltip_enabled)
                         {
                             if (direct) send_tooltips(conio);
                             else        draw_tooltips(canvas);
                         }
-
                         if (debug)
                         {
                             debug.output(canvas);
@@ -3430,7 +3424,7 @@ namespace netxs::ui
                     }
                 };
                 // conio events.
-                LISTEN(tier::release, e2::conio::winsz, newsize, token)
+                LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
                 {
                     auto delta = base::resize(newsize);
                     if (delta && direct)
@@ -3439,18 +3433,15 @@ namespace netxs::ui
                         rebuild_scene(true);
                     }
                 };
-                LISTEN(tier::release, e2::size::any, newsz, token)
+                LISTEN(tier::release, e2::size::any, newsz, tokens)
                 {
                     if (applet) applet->base::resize(newsz);
                 };
-                LISTEN(tier::release, e2::conio::unknown, unkstate, token)
+                LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
                 {
+                    props.legacy_mode |= pointer ? os::vt::mouse : 0;
                 };
-                LISTEN(tier::release, e2::conio::pointer, pointer, token)
-                {
-                    legacy |= pointer ? os::vt::mouse : 0;
-                };
-                LISTEN(tier::release, e2::conio::clipdata, clipdata, token)
+                LISTEN(tier::release, e2::conio::clipdata, clipdata, tokens)
                 {
                     if (!direct)
                     {
@@ -3459,29 +3450,29 @@ namespace netxs::ui
                         base::deface();
                     }
                 };
-                LISTEN(tier::release, e2::conio::error, errcode, token)
+                LISTEN(tier::release, e2::conio::error, errcode, tokens)
                 {
                     auto msg = ansi::bgc(reddk).fgc(whitelt).add("\n\rgate: Term error: ", errcode, "\r\n");
                     log("gate: error byemsg: ", msg);
                     canal.shut();
                 };
-                LISTEN(tier::release, e2::conio::quit, msg, token)
+                LISTEN(tier::release, e2::conio::quit, msg, tokens)
                 {
                     log("gate: quit byemsg: ", msg);
                     canal.shut();
                 };
-                LISTEN(tier::general, e2::conio::quit, msg, token)
+                LISTEN(tier::general, e2::conio::quit, msg, tokens)
                 {
                     log("gate: global shutdown byemsg: ", msg);
                     canal.shut();
                 };
-                LISTEN(tier::release, e2::form::quit, initiator, token)
+                LISTEN(tier::release, e2::form::quit, initiator, tokens)
                 {
                     auto msg = ansi::add("gate: quit message from: ", initiator->id);
                     canal.shut();
                     this->SIGNAL(tier::general, e2::shutdown, msg);
                 };
-                LISTEN(tier::release, e2::form::prop::ui::footer, newfooter, token)
+                LISTEN(tier::release, e2::form::prop::ui::footer, newfooter, tokens)
                 {
                     if (direct)
                     {
@@ -3489,7 +3480,7 @@ namespace netxs::ui
                         conio.form_footer.send(canal, window_id, newfooter);
                     }
                 };
-                LISTEN(tier::release, e2::form::prop::ui::header, newheader, token)
+                LISTEN(tier::release, e2::form::prop::ui::header, newheader, tokens)
                 {
                     if (direct)
                     {
@@ -3505,14 +3496,14 @@ namespace netxs::ui
                         conio.output(ansi::header(temp));
                     }
                 };
-                LISTEN(tier::general, e2::nextframe, damaged, token)
+                LISTEN(tier::general, e2::nextframe, damaged, tokens)
                 {
                     rebuild_scene(damaged);
                 };
 
                 if (props.tooltip_enabled)
                 {
-                    LISTEN(tier::general, e2::timer::any, now, token)
+                    LISTEN(tier::general, e2::timer::any, now, tokens)
                     {
                         check_tooltips(now);
                     };
@@ -3520,18 +3511,18 @@ namespace netxs::ui
 
                 if (!props.is_standalone_app)
                 {
-                    LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)
+                    LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
                     {
                         world.SIGNAL(tier::release, e2::form::proceed::autofocus::take, gear);
                     };
-                    LISTEN(tier::release, hids::events::upevent::kbannul, gear, token)
+                    LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
                     {
                         world.SIGNAL(tier::release, e2::form::proceed::autofocus::lost, gear);
                     };
                 }
                 if (direct)
                 {
-                    LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, token)
+                    LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                         auto deed =this->bell::protos<tier::preview>();
@@ -3545,7 +3536,7 @@ namespace netxs::ui
                 // Focus relay.
                 if (applet)
                 {
-                    LISTEN(tier::release, hids::events::notify::focus::got, from_gear, token)
+                    LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
                     {
                         auto myid = from_gear.id;
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
@@ -3553,7 +3544,7 @@ namespace netxs::ui
                         gear.kb_offer_4(applet);
                         if (gear.focus_changed()) gear.dismiss();
                     };
-                    LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, token)
+                    LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
                     {
                         auto myid = from_gear.id;
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
@@ -3562,7 +3553,7 @@ namespace netxs::ui
                 }
 
                 // Clipboard relay.
-                LISTEN(tier::release, hids::events::clipbrd::set, from_gear, token)
+                LISTEN(tier::release, hids::events::clipbrd::set, from_gear, tokens)
                 {
                     auto myid = from_gear.id;
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
@@ -3571,7 +3562,7 @@ namespace netxs::ui
                     if (direct) conio.set_clipboard.send(canal, ext_gear_id, data.size, data.utf8, data.kind);
                     else        conio.output(ansi::clipbuf(                  data.size, data.utf8, data.kind));
                 };
-                LISTEN(tier::release, hids::events::clipbrd::get, from_gear, token)
+                LISTEN(tier::release, hids::events::clipbrd::get, from_gear, tokens)
                 {
                     if (!direct) return;
                     auto myid = from_gear.id;
@@ -3584,7 +3575,7 @@ namespace netxs::ui
 
                 if (applet)
                 {
-                    applet->LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, token)
+                    applet->LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, tokens)
                     {
                         if (debug)
                         {
@@ -3601,38 +3592,38 @@ namespace netxs::ui
 
                 if (direct) // Forward unhandled events outside.
                 {
-                    LISTEN(tier::general, e2::conio::logs, utf8, token)
+                    LISTEN(tier::general, e2::conio::logs, utf8, tokens)
                     {
                         conio.logs.send(canal, os::process::id.first, os::process::id.second, text{ utf8 });
                     };
-                    LISTEN(tier::release, e2::config::fps, fps, token)
+                    LISTEN(tier::release, e2::config::fps, fps, tokens)
                     {
                         if (fps > 0) this->SIGNAL(tier::general, e2::config::fps, fps);
                     };
-                    LISTEN(tier::preview, e2::config::fps, fps, token)
+                    LISTEN(tier::preview, e2::config::fps, fps, tokens)
                     {
                         conio.fps.send(conio, fps);
                     };
-                    LISTEN(tier::preview, hids::events::mouse::button::click::any, gear, token)
+                    LISTEN(tier::preview, hids::events::mouse::button::click::any, gear, tokens)
                     {
                         conio.expose.send(conio);
                     };
-                    LISTEN(tier::anycast, e2::form::layout::expose, item, token)
+                    LISTEN(tier::anycast, e2::form::layout::expose, item, tokens)
                     {
                         conio.expose.send(conio);
                     };
-                    LISTEN(tier::preview, e2::form::layout::swarp, warp, token)
+                    LISTEN(tier::preview, e2::form::layout::swarp, warp, tokens)
                     {
                         conio.warping.send(conio, 0, warp);
                     };
-                    LISTEN(tier::release, e2::form::maximize, gear, token)
+                    LISTEN(tier::release, e2::form::maximize, gear, tokens)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                         conio.maximize.send(conio, ext_gear_id);
                     };
                     if (props.is_standalone_app)
                     {
-                        LISTEN(tier::release, hids::events::mouse::button::any, gear, token)
+                        LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens)
                         {
                             using button = hids::events::mouse::button;
                             auto forward = faux;
@@ -3680,17 +3671,24 @@ namespace netxs::ui
             lock.lock();
                 log("link: signaling to close read channel ", canal);
                 SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
-                token.clear();
+                tokens.clear();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                 base::detach();
             lock.unlock();
+            paint.stop();
         }
 
     protected:
         //todo revise
         gate(sptr<pipe> uplink, si32 session_id, bool isvtm, xmls& config)
             : canal{ *uplink },
-              props{ canal, isvtm, session_id, config }
+              props{ canal, isvtm, session_id, config },
+              vtmode{ props.legacy_mode & os::vt::vga16  ? svga::vga16
+                    : props.legacy_mode & os::vt::vga256 ? svga::vga256
+                    : props.legacy_mode & os::vt::direct ? svga::dtvt
+                                                         : svga::truecolor },
+             paint{ canal, vtmode },
+             conio{ canal, *this  }
         {
             base::root(true);
             limit.set(dot_11);
