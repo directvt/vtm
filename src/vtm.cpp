@@ -267,13 +267,15 @@ int main(int argc, char* argv[])
             }
         }};
 
+        auto settings = config.utf8();
         while (auto client = server->meet())
         {
             if (client->auth(userid))
             {
-                thread.run([&, client](auto session_id)
+                thread.run([&, client, settings](auto session_id)
                 {
                     log("user: new gate for ", client);
+                    auto config = xmls{ settings };
                     packet.recvby(client);
                     config.fuse(packet.config);
                     domain->invite(client, config, session_id);
