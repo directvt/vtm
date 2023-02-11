@@ -928,7 +928,6 @@ namespace netxs::app::vtm
        ~hall()
         {
             auto lock = netxs::events::sync{};
-            tokens.reset();
             dbase.reset();
             items.reset();
         }

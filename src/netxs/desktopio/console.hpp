@@ -3289,11 +3289,10 @@ namespace netxs::ui
         }
 
         // gate: Attach a new item.
-        auto attach(sptr<base> item)
+        auto attach(sptr<base>& item)
         {
-            applet = item;
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            std::swap(applet, item);
+            applet->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
         }
         // gate: .
         void _rebuild_scene(bool damaged)
@@ -3693,12 +3692,12 @@ namespace netxs::ui
         pro::keybd keybd{*this }; // host: Keyboard controller.
         pro::mouse mouse{*this }; // host: Mouse controller.
 
-        subs tokens; // host: Subscription tokens.
         tick quartz; // host: Frame rate synchronizator.
         si32 maxfps; // host: Frame rate.
         list debris; // host: Wrecked regions.
         xmls config; // host: Running configuration.
         sptr<gate> client; // host: .
+        subs tokens; // host: Subscription tokens.
 
         virtual void nextframe(bool damaged)
         {
@@ -3811,18 +3810,23 @@ namespace netxs::ui
             denote(region);
         }
         // host: Create a new root of the specified subtype and attach it.
-        auto invite(sptr<pipe> uplink, si32 vtmode)
+        auto invite(sptr<pipe> uplink, sptr<base>& applet, si32 vtmode)
         {
-            auto lock = events::sync{};
-            client = base::create<gate>(uplink, vtmode, faux, host::config);
-            client->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-            return client;
+            {
+                auto lock = events::sync{};
+                client = base::create<gate>(uplink, vtmode, faux, host::config);
+                client->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+                client->attach(applet);
+            }
+            client->launch();
+            client.reset();
         }
         // host: Shutdown.
         void shutdown()
         {
             auto lock = events::sync{};
             mouse.reset();
+            tokens.reset();
         }
     };
 }

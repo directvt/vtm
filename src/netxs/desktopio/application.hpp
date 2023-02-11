@@ -521,12 +521,7 @@ namespace netxs::app::shared
             auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            auto window = domain->invite(uplink, vtmode);
-            window->attach(applet);
-            window->launch();
-            window.reset();
-            applet.reset();
-            domain->shutdown();
+            domain->invite(uplink, applet, vtmode);
         };
 
         if (direct)
