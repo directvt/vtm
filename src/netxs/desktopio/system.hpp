@@ -86,6 +86,11 @@ namespace netxs::os
 
     #if defined(_WIN32)
 
+        #if defined(_DEBUG)
+            #define APP_WAIT_TIMEOUT 1000000
+        #else
+            #define APP_WAIT_TIMEOUT 10000
+        #endif
         using sigt = DWORD;
         using pidt = DWORD;
         using fd_t = HANDLE;
@@ -2368,7 +2373,7 @@ namespace netxs::os
                     else if (code == STILL_ACTIVE)
                     {
                         log("vtty: child process still running");
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
+                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
                         if (!result || !::GetExitCodeProcess(prochndl, &code))
                         {
                             ::TerminateProcess(prochndl, 0);
@@ -3001,7 +3006,7 @@ namespace netxs::os
                         else if (code == STILL_ACTIVE)
                         {
                             log("dtvt: child process still running");
-                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
+                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
                             if (!result || !::GetExitCodeProcess(prochndl, &code))
                             {
                                 ::TerminateProcess(prochndl, 0);
