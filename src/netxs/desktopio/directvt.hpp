@@ -337,6 +337,12 @@ namespace netxs::directvt
                     stream::reset();
                 }
             }
+            // stream: .
+            template<bool Discard_empty = faux, class T>
+            void sendby(sptr<T> sender_ptr)
+            {
+                sendby<Discard_empty>(*sender_ptr);
+            }
             template<bool Discard_empty = faux, class P>
             void send(P output)
             {
@@ -590,6 +596,11 @@ namespace netxs::directvt
                 auto load(P recv)                                                 \
                 {                                                                 \
                     return stream::read_block(*this, recv);                       \
+                }                                                                 \
+                template<class T>                                                 \
+                auto recvby(sptr<T> link)                                         \
+                {                                                                 \
+                    return load([&](auto... args){ return link->recv(args...); });\
                 }                                                                 \
                 void wipe()                                                       \
                 {                                                                 \

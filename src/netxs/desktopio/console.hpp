@@ -2803,16 +2803,10 @@ namespace netxs::ui
 
             props_t(pipe& canal, bool isvtm, si32 session_id, xmls& config)
             {
+                read(config);
                 if (isvtm)
                 {
                     this->session_id = session_id;
-                    auto packet = directvt::binary::startdata_t{};
-                    if (!packet.load([&](auto... args){ return canal.recv(args...); }))
-                    {
-                        log("gate: init data corrupted");
-                    }
-                    config.fuse(packet.config);
-                    read(config);
                     auto userid = config.take("login/userid", "userid"s);
                     auto vtmode = config.take("login/vtmode", 0);
                     userid = "[" + userid + ":" + std::to_string(session_id) + "]";
@@ -2835,7 +2829,6 @@ namespace netxs::ui
                 else
                 {
                     legacy_mode = session_id;
-                    read(config);
                     simple            = !(legacy_mode & os::vt::direct);
                     glow_fx           = faux;
                     title             = "";

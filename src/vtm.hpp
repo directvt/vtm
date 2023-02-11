@@ -1000,10 +1000,10 @@ namespace netxs::app::vtm
             SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
-        auto invite(sptr<pipe> client, si32 session_id)
+        auto invite(sptr<pipe> client, xmls config, si32 session_id)
         {
             auto lock = netxs::events::unique_lock();
-            auto user = base::create<gate>(client, session_id, true, host::config);
+            auto user = base::create<gate>(client, session_id, true, config);
             users.append(user);
             dbase.append(user);
             user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
