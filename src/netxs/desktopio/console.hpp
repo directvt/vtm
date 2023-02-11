@@ -2756,10 +2756,6 @@ namespace netxs::ui
         struct props_t
         {
             //todo revise
-            //text ip;
-            //text port;
-            //text fullname;
-            //text region;
             text os_user_id;
             text title;
             text selected;
