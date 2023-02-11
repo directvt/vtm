@@ -485,7 +485,7 @@ namespace netxs::xml
                 }
                 return crop;
             }
-            void value(text& value)
+            void value(text value)
             {
                 if (body.size())
                 {
@@ -1219,6 +1219,19 @@ namespace netxs::xml
             if (frompath.front() == '/') return document->take<WithTemplate>(frompath);
             if (homelist.size())         return homelist.front()->list<WithTemplate>(frompath);
             else                         return vect{};
+        }
+        template<class T>
+        void set(view frompath, T&& value)
+        {
+            auto items = list(frompath);
+            if (items.empty())
+            {
+                //todo add new
+            }
+            else
+            {
+                items.front()->value(utf::concat(value));
+            }
         }
         auto utf8()
         {

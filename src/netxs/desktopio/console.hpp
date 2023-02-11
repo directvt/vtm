@@ -2756,10 +2756,10 @@ namespace netxs::ui
         struct props_t
         {
             //todo revise
-            text ip;
-            text port;
-            text fullname;
-            text region;
+            //text ip;
+            //text port;
+            //text fullname;
+            //text region;
             text os_user_id;
             text title;
             text selected;
@@ -2810,22 +2810,20 @@ namespace netxs::ui
                 if (isvtm)
                 {
                     this->session_id = session_id;
-                    auto init = directvt::binary::startdata_t{};
-                    if (!init.load([&](auto... args){ return canal.recv(args...); }))
+                    auto packet = directvt::binary::startdata_t{};
+                    if (!packet.load([&](auto... args){ return canal.recv(args...); }))
                     {
-                        log("conf: init data corrupted");
+                        log("gate: init data corrupted");
                     }
-                    config.fuse(init.conf);
-                    init.user = "[" + init.user + ":" + std::to_string(session_id) + "]";
-                    auto c_info = utf::divide(init.ip, " ");
-                    ip                = c_info.size() > 0 ? c_info[0] : text{};
-                    port              = c_info.size() > 1 ? c_info[1] : text{};
-                    legacy_mode       = init.mode;
-                    os_user_id        = init.user;
-                    fullname          = init.name;
-                    title             = init.user;
-                    selected          = config.take("/config/menu/selected", ""s);
+                    config.fuse(packet.config);
                     read(config);
+                    auto userid = config.take("login/userid", "userid"s);
+                    auto vtmode = config.take("login/vtmode", 0);
+                    userid = "[" + userid + ":" + std::to_string(session_id) + "]";
+                    legacy_mode       = vtmode;
+                    os_user_id        = userid;
+                    title             = userid;
+                    selected          = config.take("/config/menu/selected", ""s);
                     background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
                                               .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
                     auto utf8_tile = config.take("background/tile", ""s);
@@ -2854,11 +2852,8 @@ namespace netxs::ui
 
             friend auto& operator << (std::ostream& s, props_t const& c)
             {
-                return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
-                         << "\n\tregion: " << c.region
-                         << "\n\t  name: " << c.fullname
-                         << "\n\t  user: " << c.os_user_id
-                         << "\n\t  mode: " << os::vt::str(c.legacy_mode);
+                return s << "\n\tuser: " << c.os_user_id
+                         << "\n\tmode: " << os::vt::str(c.legacy_mode);
             }
         };
 
@@ -3406,7 +3401,6 @@ namespace netxs::ui
             limit.set(dot_11);
             title.live = faux;
 
-            if (!isvtm)
             LISTEN(tier::release, e2::form::quit, initiator, tokens)
             {
                 auto msg = ansi::add("gate: quit message from: ", initiator->id);

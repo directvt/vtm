@@ -180,8 +180,6 @@ int main(int argc, char* argv[])
     else
     {
         auto userid = os::env::user();
-        auto usernm = os::env::get("USER");
-        auto hostip = os::env::get("SSH_CLIENT");
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
         auto prefix = vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe;
 
@@ -198,9 +196,12 @@ int main(int argc, char* argv[])
             {
                 auto direct = !!(vtmode & os::vt::direct);
                 if (!direct) os::logging::start(app::vtm::id);
-                auto init = directvt::binary::startdata_t{};
-                init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
-                init.send([&](auto& data){ client->send(data); });
+                auto packet = directvt::binary::startdata_t{};
+                config.cd("/config/client/login/");
+                config.set("userid", userid);
+                config.set("vtmode", vtmode);
+                packet.set(config.utf8());
+                packet.send([&](auto& data){ client->send(data); });
 
                 if (direct) os::tty::direct(client);
                 else        os::tty::splice(client, vtmode);
