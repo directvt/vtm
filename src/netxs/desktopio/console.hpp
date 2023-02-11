@@ -3190,8 +3190,8 @@ namespace netxs::ui
         debug_t debug; // gate: Debug telemetry.
         sptr<base> applet; // gate: .
         diff  paint; // gate: Render.
-        subs  tokens; // gate: Subscription tokens.
         link  conio; // gate: Data IO.
+        subs  tokens; // gate: Subscription tokens.
         bool direct; // gate: .
 
         void draw_foreign_names(face& parent_canvas)
@@ -3515,7 +3515,7 @@ namespace netxs::ui
             {
                 log("gate: ", msg);
                 canal.shut();
-                tokens.clear();
+                tokens.reset();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                 base::detach();
                 paint.stop();
