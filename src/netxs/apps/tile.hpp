@@ -622,6 +622,7 @@ namespace netxs::app::tile
                     {
                         if (nested_item_ptr)
                         {
+                            boss.deface();
                             auto& item = *nested_item_ptr;
                             auto gear_id_list = e2::form::state::keybd::enlist.param();
                             item.SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gear_id_list);

@@ -158,10 +158,6 @@ R"==(
         <transparent = nocolor  />
     </set>
     <client>
-        <login>
-            <userid/>
-            <vtmode/>
-        </login>
         <background fgc=whitedk bgc=0xFF000000>  <!-- Desktop background color. -->
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>

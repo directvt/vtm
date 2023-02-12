@@ -2801,18 +2801,15 @@ namespace netxs::ui
                 clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
             }
 
-            props_t(pipe& canal, bool isvtm, si32 session_id, xmls& config)
+            props_t(pipe& canal, view userid, si32 mode, bool isvtm, si32 session_id, xmls& config)
             {
                 read(config);
+                legacy_mode = mode;
                 if (isvtm)
                 {
-                    this->session_id = session_id;
-                    auto userid = config.take("login/userid", "userid"s);
-                    auto vtmode = config.take("login/vtmode", 0);
-                    userid = "[" + userid + ":" + std::to_string(session_id) + "]";
-                    legacy_mode       = vtmode;
-                    os_user_id        = userid;
-                    title             = userid;
+                    this->session_id  = session_id;
+                    os_user_id        = utf::concat("[", userid, ":", session_id, "]");
+                    title             = os_user_id;
                     selected          = config.take("/config/menu/selected", ""s);
                     background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
                                               .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
@@ -2828,7 +2825,6 @@ namespace netxs::ui
                 }
                 else
                 {
-                    legacy_mode = session_id;
                     simple            = !(legacy_mode & os::vt::direct);
                     glow_fx           = faux;
                     title             = "";
@@ -3376,9 +3372,9 @@ namespace netxs::ui
 
     protected:
         //todo revise
-        gate(sptr<pipe> uplink, si32 session_id, bool isvtm, xmls& config)
+        gate(sptr<pipe> uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
-              props{ canal, isvtm, session_id, config },
+              props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
              paint{ canal, props.vtmode },
              conio{ canal, *this  },
@@ -3814,17 +3810,17 @@ namespace netxs::ui
         {
             {
                 auto lock = events::sync{};
-                client = base::create<gate>(uplink, vtmode, faux, host::config);
+                client = base::create<gate>(uplink, vtmode, host::config);
                 client->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
                 client->attach(applet);
             }
             client->launch();
-            client.reset();
         }
         // host: Shutdown.
         void shutdown()
         {
             auto lock = events::sync{};
+            client.reset();
             mouse.reset();
             tokens.reset();
         }

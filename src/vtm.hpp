@@ -169,8 +169,8 @@ namespace netxs::app::vtm
     struct gate
         : public ui::gate
     {
-        gate(sptr<pipe> uplink, si32 session_id, bool isvtm, xmls& config)
-            : ui::gate{ uplink, session_id, isvtm, config }
+        gate(sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
+            : ui::gate{ uplink, vtmode, config, userid, session_id, true }
         {
             //todo move it to the desk (dragging)
             mouse.draggable<hids::buttons::leftright>(true);
@@ -999,10 +999,10 @@ namespace netxs::app::vtm
             SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
-        auto invite(sptr<pipe> client, xmls config, si32 session_id)
+        auto invite(sptr<pipe> client, view userid, si32 vtmode, xmls config, si32 session_id)
         {
             auto lock = netxs::events::unique_lock();
-            auto user = base::create<gate>(client, session_id, true, config);
+            auto user = base::create<gate>(client, userid, vtmode, config, session_id);
             users.append(user);
             dbase.append(user);
             user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());

@@ -197,10 +197,7 @@ int main(int argc, char* argv[])
             {
                 auto direct = !!(vtmode & os::vt::direct);
                 if (!direct) os::logging::start(app::vtm::id);
-                config.cd("/config/client/login/");
-                config.set("userid", userid);
-                config.set("vtmode", vtmode);
-                packet.set(config.utf8());
+                packet.set(userid, vtmode, config.utf8());
                 packet.sendby(client);
 
                 if (direct) os::tty::direct(client);
@@ -278,7 +275,7 @@ int main(int argc, char* argv[])
                     auto config = xmls{ settings };
                     packet.recvby(client);
                     config.fuse(packet.config);
-                    domain->invite(client, config, session_id);
+                    domain->invite(client, packet.user, packet.mode, config, session_id);
                     log("user: ", client, " logged out");
                 });
             }

@@ -172,7 +172,11 @@ namespace netxs::app::shared
                         ->plugin<pro::notes>(" Close window ")
                         ->invoke([&](auto& boss)
                         {
+                            #if defined(_DEBUG)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::any, gear)
+                            #else
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            #endif
                             {
                                 boss.RISEUP(tier::release, e2::form::quit, boss.This());
                                 gear.dismiss();
@@ -522,6 +526,7 @@ namespace netxs::app::shared
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
             domain->invite(uplink, applet, vtmode);
+            domain->shutdown();
         };
 
         if (direct)

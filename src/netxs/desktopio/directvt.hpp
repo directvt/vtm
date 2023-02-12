@@ -680,7 +680,7 @@ namespace netxs::directvt
         STRUCT(bgc,               (rgba, color))
         STRUCT(fgc,               (rgba, color))
         STRUCT(slimmenu,          (bool, menusize))
-        STRUCT(startdata,         (text, config))
+        STRUCT(startdata,         (text, user) (si32, mode) (text, config))
         #undef STRUCT
         #undef STRUCT_LITE
         #define MACROGEN_UNDEF
