@@ -337,12 +337,6 @@ namespace netxs::directvt
                     stream::reset();
                 }
             }
-            // stream: .
-            template<bool Discard_empty = faux, class T>
-            void sendby(sptr<T> sender_ptr)
-            {
-                sendby<Discard_empty>(*sender_ptr);
-            }
             template<bool Discard_empty = faux, class P>
             void send(P output)
             {
@@ -475,6 +469,20 @@ namespace netxs::directvt
                 thing.template sendby<Discard_empty>(sender);
             }
             // wrapper .
+            template<bool Discard_empty = faux, class T, class ...Args>
+            void send(sptr<T> sender_ptr, Args&&... args)
+            {
+                send<Discard_empty>(*sender_ptr,std::forward<Args>(args)...);
+            }
+            // wrapper .
+            template<class T>
+            auto recv(sptr<T> link)
+            {
+                auto lock = freeze();
+                thing.load([&](auto... args){ return link->recv(args...); });
+                return thing;
+            }
+            // wrapper .
             template<class ...Args>
             auto operator () (Args&&... args)
             {
@@ -597,17 +605,11 @@ namespace netxs::directvt
                 {                                                                 \
                     return stream::read_block(*this, recv);                       \
                 }                                                                 \
-                template<class T>                                                 \
-                auto recvby(sptr<T> link)                                         \
-                {                                                                 \
-                    return load([&](auto... args){ return link->recv(args...); });\
-                }                                                                 \
                 void wipe()                                                       \
                 {                                                                 \
                     SEQ_WIPE(WRAP(struct_members))                                \
                     stream::reset();                                              \
                 }                                                                 \
-                                                                                  \
                 friend std::ostream& operator << (std::ostream& s,                \
                                                     CAT(struct_name, _t) const& o)\
                 {                                                                 \

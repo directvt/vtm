@@ -182,7 +182,6 @@ int main(int argc, char* argv[])
         auto userid = os::env::user();
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
         auto prefix = vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe;
-        auto packet = directvt::binary::startdata_t{};
 
         if (whoami == type::client)
         {
@@ -197,8 +196,7 @@ int main(int argc, char* argv[])
             {
                 auto direct = !!(vtmode & os::vt::direct);
                 if (!direct) os::logging::start(app::vtm::id);
-                packet.set(userid, vtmode, config.utf8());
-                packet.sendby(client);
+                os::tty::globals().wired.startdata.send(client, userid, vtmode, config.utf8());
 
                 if (direct) os::tty::direct(client);
                 else        os::tty::splice(client, vtmode);
@@ -273,7 +271,7 @@ int main(int argc, char* argv[])
                 {
                     log("user: new gate for ", client);
                     auto config = xmls{ settings };
-                    packet.recvby(client);
+                    auto packet = os::tty::globals().wired.startdata.recv(client);
                     config.fuse(packet.config);
                     domain->invite(client, packet.user, packet.mode, config, session_id);
                     log("user: ", client, " logged out");
