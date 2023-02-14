@@ -788,7 +788,7 @@ namespace netxs::os
 
                 uid_t id;
                 id = ::geteuid();
-                return id;
+                return utf::concat(id);
 
             #endif
         }
@@ -1262,8 +1262,7 @@ namespace netxs::os
                 #endif
             }
 
-            template<class T>
-            auto auth(T id) const // Check peer cred.
+            auto auth(view id) const // Check peer cred.
             {
                 #if defined(_WIN32)
 
@@ -1284,9 +1283,9 @@ namespace netxs::os
                         return faux;
                     }
 
-                    if (cred.uid && id != cred.uid)
+                    if (cred.uid && id != utf::concat(cred.uid))
                     {
-                        log("sock: other users are not allowed to the session, abort");
+                        fail("sock: foreign users are not allowed to the session");
                         return faux;
                     }
 
@@ -1305,9 +1304,9 @@ namespace netxs::os
                         return faux;
                     }
 
-                    if (euid && id != euid)
+                    if (euid && id != utf::concat(euid))
                     {
-                        log("sock: other users are not allowed to the session, abort");
+                        fail("sock: foreign users are not allowed to the session");
                         return faux;
                     }
 

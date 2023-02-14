@@ -682,7 +682,7 @@ namespace netxs::directvt
         STRUCT(bgc,               (rgba, color))
         STRUCT(fgc,               (rgba, color))
         STRUCT(slimmenu,          (bool, menusize))
-        STRUCT(startdata,         (text, user) (si32, mode) (text, config))
+        STRUCT(init,              (text, user) (si32, mode) (text, config))
         #undef STRUCT
         #undef STRUCT_LITE
         #define MACROGEN_UNDEF
@@ -950,7 +950,7 @@ namespace netxs::directvt
             X(bgc              ) /* Set background color.                         */\
             X(fgc              ) /* Set foreground color.                         */\
             X(slimmenu         ) /* Set window menu size.                         */\
-            X(startdata        ) /* Startup data.                                 */
+            X(init             ) /* Startup data.                                 */
             struct xs
             {
                 #define X(_object) using _object = binary::_object::access;

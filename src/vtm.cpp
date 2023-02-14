@@ -194,12 +194,16 @@ int main(int argc, char* argv[])
             });
             if (client)
             {
-                auto direct = !!(vtmode & os::vt::direct);
-                if (!direct) os::logging::start(app::vtm::id);
-                os::tty::globals().wired.startdata.send(client, userid, vtmode, config.utf8());
-
-                if (direct) os::tty::direct(client);
-                else        os::tty::splice(client, vtmode);
+                os::tty::globals().wired.init.send(client, userid, vtmode, config.utf8());;
+                if (vtmode & os::vt::direct)
+                {
+                    os::tty::direct(client);
+                }
+                else
+                {
+                    os::logging::start(app::vtm::id);
+                    os::tty::splice(client, vtmode);
+                }
                 return 0;
             }
             else if (whoami != type::server)
@@ -271,13 +275,12 @@ int main(int argc, char* argv[])
                 {
                     log("user: new gate for ", client);
                     auto config = xmls{ settings };
-                    auto packet = os::tty::globals().wired.startdata.recv(client);
+                    auto packet = os::tty::globals().wired.init.recv(client);
                     config.fuse(packet.config);
                     domain->invite(client, packet.user, packet.mode, config, session_id);
                     log("user: ", client, " logged out");
                 });
             }
-            else os::fail("foreign users are not allowed to the session");
         }
         domain->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
         domain->shutdown();
