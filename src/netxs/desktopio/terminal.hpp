@@ -7549,7 +7549,7 @@ namespace netxs::ui
                 splash.output(note);
                 canvas.swap(splash);
             }
-            bell::trysync(active, [&]
+            netxs::events::enqueue(This(), [&](auto& boss)
             {
                 //this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
                 this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
