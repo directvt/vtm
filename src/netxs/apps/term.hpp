@@ -711,20 +711,14 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
                 ->invoke([](auto& boss)
                 {
-                    boss.LISTEN(tier::preview, e2::form::quit, boss_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::quit, boss_ptr)
                     {
-                        auto oneoff = ptr::shared(hook{});
-                        boss.LISTEN(tier::general, e2::timer::any, t, *oneoff, (oneoff))
-                        {
-                            auto backup = boss.This();
-                            boss.SIGNAL(tier::anycast, e2::form::quit, backup);
-                            oneoff.reset();
-                        };
+                        boss.SIGNAL(tier::preview, e2::form::quit, boss_ptr);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::quit, item)
+                    boss.LISTEN(tier::preview, e2::form::quit, item_ptr)
                     {
                         boss.stop();
-                        boss.RISEUP(tier::release, e2::form::quit, item);
+                        boss.RISEUP(tier::release, e2::form::quit, item_ptr);
                     };
                     boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
                     {
