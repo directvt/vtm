@@ -3297,8 +3297,9 @@ namespace netxs::os
 
             #endif
         }
-        auto logger(si32 mode)
+        auto logger(si32 mode, bool wipe = faux)
         {
+            if (wipe) netxs::logger::wipe();
             auto direct = !!(mode & os::vt::direct);
             return direct ? netxs::logger([](auto data) { os::logging::stdlog(data); })
                           : netxs::logger([](auto data) { os::logging::syslog(data); });

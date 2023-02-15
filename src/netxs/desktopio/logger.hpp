@@ -230,6 +230,12 @@ namespace netxs
             });
             return inst;
         }
+        static void wipe()
+        {
+            auto sync = guard();
+            g::builder.clear();
+            g::buffer.clear();
+        }
     };
 
     template<class T> bool         logger::globals<T>::enabled{ true };

@@ -22,7 +22,6 @@ int main(int argc, char* argv[])
     #include "vtm.xml"
 
     auto vtmode = os::tty::vtmode();
-    auto syslog = os::tty::logger(vtmode);
     auto banner = [&]{ log(app::vtm::desc, ' ', app::shared::version); };
     auto whoami = type::client;
     auto params = text{};
@@ -60,7 +59,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-q", "--quiet"))
         {
-            syslog.enabled(faux);
+            netxs::logger::enabled(faux);
         }
         else if (getopt.match("-l", "--listconfig"))
         {
@@ -82,6 +81,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-v", "--version"))
         {
+            auto syslog = os::tty::logger(vtmode, true);
             log(app::shared::version);
             return 0;
         }
@@ -96,6 +96,7 @@ int main(int argc, char* argv[])
         }
     }
 
+    auto syslog = os::tty::logger(vtmode);
     banner();
     if (errmsg.size())
     {
