@@ -193,7 +193,7 @@ namespace netxs::app::tile
                                     gear.force_group_focus = faux;
                                     break;
                                 case app::tile::events::ui::close.id:
-                                    boss.RISEUP(tier::release, e2::form::quit, boss.This());
+                                    boss.RISEUP(tier::preview, e2::form::quit, boss.This());
                                     break;
                                 case app::tile::events::ui::toggle.id:
                                     if (boss.base::kind() == 0) // Only apps can be maximized.
@@ -372,7 +372,7 @@ namespace netxs::app::tile
                 {
                     if (auto gear_ptr = bell::getref<hids>(gear_id))
                     {
-                        gear_ptr->kb_offer_4(item_ptr);
+                        gear_ptr->kb_offer_9(item_ptr);
                     }
                 }
             }
@@ -505,11 +505,10 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
-                        //todo revise, possible parent subscription leaks when reattached
                         auto parent_memo = std::make_shared<subs>();
                         parent->LISTEN(tier::request, e2::form::proceed::swap, item_ptr, *parent_memo)
                         {
-                            if (item_ptr != boss.This()) // It wasn't me. It was the one-armed man.
+                            if (item_ptr != boss.This())
                             {
                                 auto count = boss.count();
                                 if (count == 1) // Only empty slot available.
@@ -618,6 +617,18 @@ namespace netxs::app::tile
                             boss.attach(newnode);
                         }
                     };
+                    boss.LISTEN(tier::anycast, e2::form::quit, nested_item_ptr)
+                    {
+                        boss.SIGNAL(tier::preview, e2::form::quit, nested_item_ptr);
+                    };
+                    boss.LISTEN(tier::preview, e2::form::quit, nested_item_ptr)
+                    {
+                        if (boss.count() > 1 && boss.back()->base::kind() == 0)
+                        {
+                            boss.back()->SIGNAL(tier::anycast, e2::form::quit, nested_item_ptr);
+                        }
+                        else boss.SIGNAL(tier::release, e2::form::quit, nested_item_ptr);
+                    };
                     boss.LISTEN(tier::release, e2::form::quit, nested_item_ptr)
                     {
                         if (nested_item_ptr)
@@ -632,7 +643,7 @@ namespace netxs::app::tile
                                 if (boss.back()->base::kind() == 0) // Only apps can be deleted.
                                 {
                                     auto item = boss.pop_back(); // Throw away.
-                                    pass_focus(gear_id_list, boss.This());
+                                    pass_focus(gear_id_list, boss.back());
                                 }
                             }
                             else if (count == 1) // Remove empty slot, reorganize.

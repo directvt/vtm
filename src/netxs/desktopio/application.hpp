@@ -178,7 +178,7 @@ namespace netxs::app::shared
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             #endif
                             {
-                                boss.RISEUP(tier::release, e2::form::quit, boss.This());
+                                boss.SIGNAL(tier::anycast, e2::form::quit, boss.This());
                                 gear.dismiss();
                             };
                         })

@@ -7523,6 +7523,7 @@ namespace netxs::ui
         os::pidt    procid; // dtvt: PTY child process id.
         testy<twod> termsz; // dtvt: PTY device window size.
         vtty        ptycon; // dtvt: PTY device. Should be destroyed first.
+        sptr        backup; // dtvt: Instance backup copy while the child process is active.
 
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
@@ -7550,18 +7551,18 @@ namespace netxs::ui
             }
             bell::trysync(active, [&]
             {
-                this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
+                //this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
+                this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
             });
         }
         // dtvt: Shutdown callback handler.
         void onexit(si32 code)
         {
-            bell::trysync(active, [&]
+            netxs::events::enqueue(This(), [&, code](auto& boss) mutable
             {
-                active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
                 else      log("dtvt: exit code 0");
-                this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                backup.reset(); // Call dtvt::dtor.
             });
         }
 
@@ -7593,15 +7594,16 @@ namespace netxs::ui
                                                                       [&](auto exit_reason) { onexit(exit_reason); });
                         pty_resize<true>(base::size());
                         unique = timer;
+                        backup = This(); // Released on exit.
                         oneoff.reset();
                     }
                 };
             }
         }
-        void stop()
+        void shut()
         {
             active = faux;
-            if (ptycon) ptycon.stop();
+            if (ptycon) ptycon.shut();
         }
         template<bool Forced = faux>
         void pty_resize(twod const& new_size)
@@ -7612,10 +7614,6 @@ namespace netxs::ui
             }
         }
 
-       ~dtvt()
-        {
-            stop();
-        }
         dtvt(text cwd, text cmd, text cfg)
             : stream{*this },
               active{ true },

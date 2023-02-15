@@ -2815,7 +2815,7 @@ namespace netxs::os
            ~vtty()
             {
                 log("dtvt: dtor started");
-                stop();
+                cleanup();
                 log("dtvt: dtor complete");
             }
 
@@ -2988,12 +2988,7 @@ namespace netxs::os
                 //auto guard = std::lock_guard{ writemtx };
                 auto exit_code = si32{};
                 log("dtvt: wait child process, tty=", termlink);
-                if (termlink)
-                {
-                    termlink.shut();
-                }
-
-                if (proc_pid != 0)
+                if (proc_pid)
                 {
                     #if defined(_WIN32)
 
@@ -3019,6 +3014,7 @@ namespace netxs::os
                     #else
 
                         int status;
+                        //todo wait APP_WAIT_TIMEOUT before kill
                         ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
                         ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                         if (WIFEXITED(status))
@@ -3033,6 +3029,7 @@ namespace netxs::os
                         }
 
                     #endif
+                    proc_pid = 0;
                 }
                 log("dtvt: child waiting complete");
                 return exit_code;
@@ -3054,24 +3051,20 @@ namespace netxs::os
                 termlink = {};
                 writebuf = {};
             }
-            void stop()
+            void shut()
             {
                 if (termlink)
                 {
-                    wait_child();
+                    termlink.shut();
                 }
-                cleanup();
             }
             void read_socket_thread()
             {
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
                 directvt::binary::stream::reading_loop(termlink, receiver);
-                if (termlink)
-                {
-                    preclose(0); //todo send msg from the client app
-                    auto exit_code = wait_child();
-                    shutdown(exit_code);
-                }
+                preclose(0);
+                auto exit_code = wait_child();
+                shutdown(exit_code);
                 log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
             }
             void send_socket_thread()

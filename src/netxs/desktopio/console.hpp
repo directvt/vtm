@@ -3502,11 +3502,11 @@ namespace netxs::ui
             LISTEN(tier::release, e2::conio::quit, msg, tokens)
             {
                 log("gate: ", msg);
+                paint.stop();
                 canal.shut();
-                tokens.reset();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                 base::detach();
-                paint.stop();
+                tokens.reset();
             };
             LISTEN(tier::preview, e2::conio::quit, msg, tokens)
             {

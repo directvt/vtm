@@ -458,8 +458,8 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::anycast, e2::form::quit, item)
                     {
-                        boss.stop();
-                        boss.RISEUP(tier::release, e2::form::quit, item);
+                        boss.shut();
+                        boss.RISEUP(tier::release, e2::form::quit, item); // Detach base window.
                     };
                 });
         };
