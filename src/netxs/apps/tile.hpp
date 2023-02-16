@@ -686,6 +686,10 @@ namespace netxs::app::tile
                             auto app = app_window(config);
                             gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                             boss.attach(app);
+                            if (auto world_ptr = gate.parent())
+                            {
+                                app->SIGNAL(tier::anycast, vtm::events::attached, world_ptr);
+                            }
 
                             insts_count++; //todo unify, demo limits
                             config.applet->LISTEN(tier::release, e2::dtor, id)
