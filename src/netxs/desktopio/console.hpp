@@ -2868,8 +2868,7 @@ namespace netxs::ui
             depo  gears;
 
             input_t(props_t& props, gate& boss)
-                : boss{ boss },
-                  gears{{ id_t{}, bell::create<hids>(boss.props, true, boss, xmap) }}
+                : boss{ boss }
             {
                 xmap.cmode = props.vtmode;
                 xmap.mark(props.background_color.txt(whitespace).link(boss.bell::id));
@@ -3553,6 +3552,7 @@ namespace netxs::ui
             {
                 auto myid = from_gear.id;
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                if (!gear_ptr) return;
                 auto& gear = *gear_ptr;
                 gear.kb_offer_4(applet);
                 if (gear.focus_changed()) gear.dismiss();
@@ -3561,12 +3561,13 @@ namespace netxs::ui
             {
                 auto myid = from_gear.id;
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                gear_ptr->kb_offer_10(applet);
+                if (gear_ptr) gear_ptr->kb_offer_10(applet);
             };
             LISTEN(tier::release, hids::events::clipbrd::set, from_gear, tokens)
             {
                 auto myid = from_gear.id;
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
                 auto& data = gear.clip_rawdata;
                 if (direct) conio.set_clipboard.send(canal, ext_gear_id, data.size, data.utf8, data.kind);
@@ -3577,7 +3578,7 @@ namespace netxs::ui
                 if (!direct) return;
                 auto myid = from_gear.id;
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                if (!conio.request_clip_data(ext_gear_id, gear_ptr->clip_rawdata))
+                if (gear_ptr && !conio.request_clip_data(ext_gear_id, gear_ptr->clip_rawdata))
                 {
                     log("gate: timeout: no clipboard data reply");
                 }
@@ -3633,13 +3634,14 @@ namespace netxs::ui
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
                         gear.dismiss();
                     }
                 };
                 LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
+                    if (!gear_ptr) return;
                     auto deed =this->bell::protos<tier::preview>();
                     switch (deed)
                     {
@@ -3674,7 +3676,7 @@ namespace netxs::ui
                 LISTEN(tier::release, e2::form::maximize, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    conio.maximize.send(conio, ext_gear_id);
+                    if (gear_ptr) conio.maximize.send(conio, ext_gear_id);
                 };
             }
         }
