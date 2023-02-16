@@ -9,7 +9,6 @@
 #include "apps/text.hpp"
 #include "apps/shop.hpp"
 #include "apps/test.hpp"
-#include "apps/desk.hpp"
 
 namespace netxs::app::strobe
 {
@@ -55,11 +54,6 @@ namespace netxs::app::region
 {
     static constexpr auto id = "region";
     static constexpr auto desc = "region";
-}
-namespace netxs::app::fone
-{
-    static constexpr auto id = "fone";
-    static constexpr auto desc = "fone";
 }
 namespace netxs::app::shared
 {
@@ -437,66 +431,6 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Fone          = [](text cwd, text param, xmls& config, text patch)
-        {
-            auto highlight_color = skin::color(tone::highlight);
-            auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
-            auto x8 = cell{ c8 }.alpha(0x00);
-            return ui::park::ctor()
-                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(utf::concat(app::vtm::desc, ' ', app::shared::version))
-                ->template plugin<pro::fader>(x8, c8, 0ms))
-                ->template plugin<pro::notes>(" About Environment ")
-                ->invoke([&](auto& boss)
-                {
-                    auto data = utf::divide(param, ";");
-                    auto aptype = text{ data.size() > 0 ? data[0] : view{} };
-                    auto menuid = text{ data.size() > 1 ? data[1] : view{} };
-                    auto params = text{ data.size() > 2 ? data[2] : view{} };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (aptype, menuid, params))
-                    {
-                        static auto offset = dot_00;
-                        auto& gate = gear.owner;
-                        auto viewport = e2::form::prop::viewport.param();
-                        boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                        viewport.coor += gear.area().coor;
-                        offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                        gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
-                        gear.slot.size = viewport.size * 3 / 4;
-                        gear.slot_forced = faux;
-
-                        auto menu_list_ptr = vtm::events::list::apps.param();
-                        auto conf_list_ptr = vtm::events::list::menu.param();
-                        gate.RISEUP(tier::request, vtm::events::list::apps, menu_list_ptr);
-                        gate.RISEUP(tier::request, vtm::events::list::menu, conf_list_ptr);
-                        auto& menu_list = *menu_list_ptr;
-                        auto& conf_list = *conf_list_ptr;
-
-                        if (conf_list.contains(menuid) && !conf_list[menuid].hidden) // Check for id availability.
-                        {
-                            auto i = 1;
-                            auto testid = text{};
-                            do testid = menuid + " (" + std::to_string(++i) + ")";
-                            while (conf_list.contains(testid) && !conf_list[menuid].hidden);
-                            std::swap(testid, menuid);
-                        }
-                        auto& m = conf_list[menuid];
-                        m.type = aptype;
-                        m.label = menuid;
-                        m.title = menuid; // Use the same title as the menu label.
-                        m.param = params;
-                        m.hidden = true;
-                        //m.settings = config; //todo it is dangerous
-                        menu_list[menuid];
-
-                        auto lastid = e2::data::changed.param();
-                        gate.SIGNAL(tier::request, e2::data::changed, lastid);
-                        gate.SIGNAL(tier::release, e2::data::changed, menuid);
-                        gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
-                        gate.SIGNAL(tier::release, e2::data::changed, lastid);
-                        gear.dismiss();
-                    };
-                });
-        };
         auto build_DirectVT      = [](text cwd, text param, xmls& config, text patch)
         {
             return ui::dtvt::ctor(cwd, param, patch)
@@ -512,20 +446,14 @@ namespace netxs::app::shared
                     {
                         boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
                     };
+                    boss.LISTEN(tier::anycast, e2::form::quit, boss_ptr)
+                    {
+                        boss.SIGNAL(tier::preview, e2::form::quit, boss_ptr);
+                    };
                     boss.LISTEN(tier::preview, e2::form::quit, boss_ptr)
                     {
-                        auto oneoff = ptr::shared(hook{});
-                        boss.LISTEN(tier::general, e2::timer::any, t, *oneoff, (oneoff))
-                        {
-                            auto backup = boss.This();
-                            boss.SIGNAL(tier::anycast, e2::form::quit, backup);
-                            oneoff.reset();
-                        };
-                    };
-                    boss.LISTEN(tier::anycast, e2::form::quit, item)
-                    {
-                        boss.stop();
-                        boss.RISEUP(tier::release, e2::form::quit, item);
+                        boss.shut();
+                        boss.RISEUP(tier::release, e2::form::quit, boss_ptr); // Detach base window.
                     };
                 });
         };
@@ -573,7 +501,6 @@ namespace netxs::app::shared
         app::shared::initialize builder_Empty     { app::empty::id    , build_Empty      };
         app::shared::initialize builder_Truecolor { app::truecolor::id, build_Truecolor  };
         app::shared::initialize builder_Headless  { app::headless::id , build_Headless   };
-        app::shared::initialize builder_Fone      { app::fone::id     , build_Fone       };
         app::shared::initialize builder_Region    { app::region::id   , build_Region     };
         app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
         app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };

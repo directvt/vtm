@@ -469,6 +469,20 @@ namespace netxs::directvt
                 thing.template sendby<Discard_empty>(sender);
             }
             // wrapper .
+            template<bool Discard_empty = faux, class T, class ...Args>
+            void send(sptr<T> sender_ptr, Args&&... args)
+            {
+                send<Discard_empty>(*sender_ptr,std::forward<Args>(args)...);
+            }
+            // wrapper .
+            template<class T>
+            auto recv(sptr<T> link)
+            {
+                auto lock = freeze();
+                thing.load([&](auto... args){ return link->recv(args...); });
+                return thing;
+            }
+            // wrapper .
             template<class ...Args>
             auto operator () (Args&&... args)
             {
@@ -596,7 +610,6 @@ namespace netxs::directvt
                     SEQ_WIPE(WRAP(struct_members))                                \
                     stream::reset();                                              \
                 }                                                                 \
-                                                                                  \
                 friend std::ostream& operator << (std::ostream& s,                \
                                                     CAT(struct_name, _t) const& o)\
                 {                                                                 \
@@ -669,7 +682,7 @@ namespace netxs::directvt
         STRUCT(bgc,               (rgba, color))
         STRUCT(fgc,               (rgba, color))
         STRUCT(slimmenu,          (bool, menusize))
-        STRUCT(startdata,         (text, ip) (text, name) (text, user) (si32, mode) (text, conf))
+        STRUCT(init,              (text, user) (si32, mode) (text, config))
         #undef STRUCT
         #undef STRUCT_LITE
         #define MACROGEN_UNDEF
@@ -937,7 +950,7 @@ namespace netxs::directvt
             X(bgc              ) /* Set background color.                         */\
             X(fgc              ) /* Set foreground color.                         */\
             X(slimmenu         ) /* Set window menu size.                         */\
-            X(startdata        ) /* Startup data.                                 */
+            X(init             ) /* Startup data.                                 */
             struct xs
             {
                 #define X(_object) using _object = binary::_object::access;

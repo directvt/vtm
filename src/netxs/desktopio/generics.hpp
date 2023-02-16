@@ -233,9 +233,8 @@ namespace netxs::generics
 
     // generics: Separate thread for executing deferred tasks.
     template<class T>
-    class jobs
+    struct jobs
     {
-    public:
         using token = T;
         using func = std::function<void(token&)>;
         using item = std::pair<token, func>;

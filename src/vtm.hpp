@@ -4,33 +4,12 @@
 #pragma once
 
 #include "netxs/desktopio/application.hpp"
+#include "netxs/apps/desk.hpp"
 
 namespace netxs::app::vtm
 {
     static constexpr auto id = "vtm";
     static constexpr auto desc = " vtm:";
-
-    struct spec
-    {
-        text   menuid{};
-        text    alias{};
-        bool   hidden{};
-        text    label{};
-        text    notes{};
-        text    title{};
-        text   footer{};
-        rgba      bgc{};
-        rgba      fgc{};
-        twod  winsize{};
-        twod  wincoor{};
-        bool slimmenu{};
-        bool splitter{};
-        text   hotkey{};
-        text      cwd{};
-        text     type{};
-        text    param{};
-        text    patch{};
-    };
 
     struct link
     {
@@ -42,10 +21,6 @@ namespace netxs::app::vtm
         bool forced{};
         sptr applet{};
     };
-
-    using menu = std::unordered_map<text, spec>;
-    using usrs = std::list<sptr<base>>;
-    using apps = generics::imap<text, std::pair<bool, usrs>>;
 
     static constexpr auto attr_id       = "id";
     static constexpr auto attr_alias    = "alias";
@@ -72,20 +47,13 @@ namespace netxs::app::vtm
 
     struct events
     {
-        EVENTPACK( events, ui::e2::extra )
+        EVENTPACK( events, ui::e2::extra::slot0 )
         {
             EVENT_XS( newapp  , link       ), // request: create new object using specified meniid
             EVENT_XS( handoff , link       ), // general: attach spcified intance and return sptr<base>.
             EVENT_XS( attached, sptr<base> ), // anycast: inform that the object tree is attached to the world
             GROUP_XS( d_n_d   , sptr<base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
-            GROUP_XS( list    , si32       ), // UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters, release only.
 
-            SUBSET_XS( list )
-            {
-                EVENT_XS( usrs, sptr<vtm::usrs> ), // list of connected users.
-                EVENT_XS( apps, sptr<vtm::apps> ), // list of running apps.
-                EVENT_XS( menu, sptr<vtm::menu> ), // list of registered apps.
-            };
             SUBSET_XS(d_n_d)
             {
                 EVENT_XS( ask  , sptr<base> ),
@@ -197,6 +165,111 @@ namespace netxs::app::vtm
         };
     }
 
+    // vtm: User gate.
+    struct gate
+        : public ui::gate
+    {
+        gate(sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
+            : ui::gate{ uplink, vtmode, config, userid, session_id, true }
+        {
+            //todo move it to the desk (dragging)
+            mouse.draggable<hids::buttons::leftright>(true);
+            mouse.draggable<hids::buttons::left>(true);
+            LISTEN(tier::release, e2::form::drag::start::any, gear, tokens)
+            {
+                robot.pacify();
+            };
+            LISTEN(tier::release, e2::form::drag::pull::any, gear, tokens)
+            {
+                base::moveby(-gear.delta.get());
+                base::deface();
+            };
+            LISTEN(tier::release, e2::form::drag::stop::any, gear, tokens)
+            {
+                robot.pacify();
+                robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto& x)
+                {
+                    base::moveby(-x);
+                    base::deface();
+                });
+            };
+            LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
+            {
+                auto viewport = e2::form::prop::viewport.param();
+                this->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                auto oldpos = viewport.coor + (viewport.size / 2);
+
+                auto path = oldpos - newpos;
+                auto time = skin::globals().switching;
+                auto init = 0;
+                auto func = constlinearAtoB<twod>(path, time, init);
+
+                robot.pacify();
+                robot.actify(func, [&](auto& x)
+                {
+                    base::moveby(-x);
+                    base::strike();
+                });
+            };
+            LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
+            {
+                this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
+            };
+            LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
+            {
+                this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
+            };
+            LISTEN(tier::preview, hids::events::keybd::any, gear, tokens)
+            {
+                //todo unify
+                auto& keystrokes = gear.keystrokes;
+                auto pgup = keystrokes == "\033[5;5~"s
+                        || (keystrokes == "\033[5~"s && gear.meta(hids::anyCtrl));
+                auto pgdn = keystrokes == "\033[6;5~"s
+                        || (keystrokes == "\033[6~"s && gear.meta(hids::anyCtrl));
+                if (pgup || pgdn)
+                {
+                    auto item_ptr = e2::form::layout::goprev.param();
+                    if (pgdn) this->RISEUP(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
+                    else      this->RISEUP(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
+
+                    if (item_ptr)
+                    {
+                        auto& item = *item_ptr;
+                        auto& area = item.area();
+                        auto center = area.coor + (area.size / 2);
+                        this->SIGNAL(tier::release, e2::form::layout::shift, center);
+                        gear.clear_kb_focus();
+                        gear.kb_offer_7(item);
+                    }
+                    gear.dismiss();
+                }
+            };
+        }
+
+        void rebuild_scene(base& world, bool damaged) override
+        {
+            auto& canvas = input.xmap;
+            if (damaged)
+            {
+                canvas.wipe(world.bell::id);
+                if (props.background_image.size())
+                {
+                    //todo cache background
+                    canvas.tile(props.background_image, cell::shaders::fuse);
+                }
+                world.redraw(canvas); // Put the rest of the world on my canvas.
+                if (applet && !fullscreen) // Render main menu/application.
+                {
+                    //todo too hacky, unify
+                    if (props.glow_fx) canvas.render(applet, base::coor()); // Render the main menu twice to achieve the glow effect.
+                                       canvas.render(applet, base::coor());
+                }
+            }
+            _rebuild_scene(damaged);
+        }
+    };
+
     // vtm: Desktopio Workspace.
     struct hall
         : public host
@@ -221,7 +294,7 @@ namespace netxs::app::vtm
                 bool usable = faux;
                 bool highlighted = faux;
                 si32 active = 0;
-                tone color;
+                tone color = { tone::brighter, tone::shadower };
 
                 operator bool ()
                 {
@@ -268,6 +341,7 @@ namespace netxs::app::vtm
             sptr object;
             id_t obj_id;
             si32 z_order = Z_order::plain;
+            subs tokens;
 
             node(sptr item)
                 : object{ item }
@@ -275,31 +349,31 @@ namespace netxs::app::vtm
                 auto& inst = *item;
                 obj_id = inst.bell::id;
 
-                inst.LISTEN(tier::release, e2::form::prop::zorder, order)
+                inst.LISTEN(tier::release, e2::form::prop::zorder, order, tokens)
                 {
                     z_order = order;
                 };
-                inst.LISTEN(tier::release, e2::size::any, size)
+                inst.LISTEN(tier::release, e2::size::any, size, tokens)
                 {
                     region.size = size;
                 };
-                inst.LISTEN(tier::release, e2::coor::any, coor)
+                inst.LISTEN(tier::release, e2::coor::any, coor, tokens)
                 {
                     region.coor = coor;
                 };
-                inst.LISTEN(tier::release, e2::form::state::mouse, state)
+                inst.LISTEN(tier::release, e2::form::state::mouse, state, tokens)
                 {
                     header.active = state;
                 };
-                inst.LISTEN(tier::release, e2::form::highlight::any, state)
+                inst.LISTEN(tier::release, e2::form::highlight::any, state, tokens)
                 {
                     header.highlighted = state;
                 };
-                inst.LISTEN(tier::release, e2::form::state::header, caption)
+                inst.LISTEN(tier::release, e2::form::state::header, caption, tokens)
                 {
                     header.set(caption);
                 };
-                inst.LISTEN(tier::release, e2::form::state::color, color)
+                inst.LISTEN(tier::release, e2::form::state::color, color, tokens)
                 {
                     header.color = color;
                 };
@@ -374,6 +448,7 @@ namespace netxs::app::vtm
             //hall::list: Draw backpane for spectators.
             void prerender(face& canvas)
             {
+                if (size() > 1)
                 for (auto& item : items) item->fasten(canvas); // Draw strings.
                 for (auto& item : items) item->render<faux>(canvas); // Draw shadows without postrendering.
             }
@@ -465,13 +540,17 @@ namespace netxs::app::vtm
         };
         struct depo // hall: Actors registry.
         {
-            sptr<vtm::apps> apps_ptr = ptr::shared(vtm::apps{});
-            sptr<vtm::usrs> usrs_ptr = ptr::shared(vtm::usrs{});
-            sptr<vtm::menu> menu_ptr = ptr::shared(vtm::menu{});
-            vtm::apps& apps = *apps_ptr;
-            vtm::usrs& usrs = *usrs_ptr;
-            vtm::menu& menu = *menu_ptr;
+            sptr<desk::apps> apps_ptr = ptr::shared(desk::apps{});
+            sptr<desk::usrs> usrs_ptr = ptr::shared(desk::usrs{});
+            sptr<desk::menu> menu_ptr = ptr::shared(desk::menu{});
+            desk::apps& apps = *apps_ptr;
+            desk::usrs& usrs = *usrs_ptr;
+            desk::menu& menu = *menu_ptr;
 
+            void append(sptr<base> user)
+            {
+                usrs.push_back(user);
+            }
             auto remove(sptr<base> item_ptr)
             {
                 auto found = faux;
@@ -595,6 +674,16 @@ namespace netxs::app::vtm
             slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
             return slot;
         }
+        void nextframe(bool damaged) override
+        {
+            for (auto& u : users.items)
+            {
+                if (auto client = std::dynamic_pointer_cast<gate>(u->object))
+                {
+                    client->rebuild_scene(*this, damaged);
+                }
+            }
+        }
 
     protected:
         hall(sptr<pipe> server, xmls& config, text defapp)
@@ -603,9 +692,9 @@ namespace netxs::app::vtm
             auto current_module_file = os::process::binary();
             auto& apps_list = dbase.apps;
             auto& menu_list = dbase.menu;
-            auto  free_list = std::list<std::pair<text, spec>>{};
+            auto  free_list = std::list<std::pair<text, desk::spec>>{};
             auto  temp_list = free_list;
-            auto  dflt_spec = spec
+            auto  dflt_spec = desk::spec
             {
                 .hidden   = faux,
                 .slimmenu = faux,
@@ -628,7 +717,7 @@ namespace netxs::app::vtm
             for (auto item_ptr : host::config.list(path_item))
             {
                 auto& item = *item_ptr;
-                auto conf_rec = spec{};
+                auto conf_rec = desk::spec{};
                 //todo autogen id if absent
                 conf_rec.splitter = item.take(attr_splitter, faux);
                 conf_rec.menuid   = item.take(attr_id,       ""s );
@@ -756,15 +845,15 @@ namespace netxs::app::vtm
                 auto region = items.expose(inst.bell::id);
                 host::denote(region);
             };
-            LISTEN(tier::request, vtm::events::list::usrs, usrs_ptr)
+            LISTEN(tier::request, desk::events::usrs, usrs_ptr)
             {
                 usrs_ptr = dbase.usrs_ptr;
             };
-            LISTEN(tier::request, vtm::events::list::apps, apps_ptr)
+            LISTEN(tier::request, desk::events::apps, apps_ptr)
             {
                 apps_ptr = dbase.apps_ptr;
             };
-            LISTEN(tier::request, vtm::events::list::menu, menu_ptr)
+            LISTEN(tier::request, desk::events::menu, menu_ptr)
             {
                 menu_ptr = dbase.menu_ptr;
             };
@@ -892,9 +981,9 @@ namespace netxs::app::vtm
         }
         void redraw(face& canvas) override
         {
-            if (users.size() > 1) users.prerender (canvas); // Draw backpane for spectators.
-                                  items.render    (canvas); // Draw objects of the world.
-                                  users.postrender(canvas); // Draw spectator's mouse pointers.
+            users.prerender (canvas); // Draw backpane for spectators.
+            items.render    (canvas); // Draw objects of the world.
+            users.postrender(canvas); // Draw spectator's mouse pointers.
         }
         // hall: Attach a new item to the scene.
         template<class S>
@@ -907,18 +996,23 @@ namespace netxs::app::vtm
             list.push_back(item);
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             item->SIGNAL(tier::anycast, vtm::events::attached, base::This());
-            SIGNAL(tier::release, vtm::events::list::apps, dbase.apps_ptr);
+            SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
-        // hall: Create a new user of the specified subtype and invite him to the scene.
-        template<class S, class ...Args>
-        auto invite(Args&&... args)
+        // hall: Create a new user gate.
+        auto invite(sptr<pipe> client, view userid, si32 vtmode, xmls config, si32 session_id)
         {
-            auto lock = netxs::events::sync{};
-            auto user = host::invite<S>(std::forward<Args>(args)...);
+            auto lock = netxs::events::unique_lock();
+            auto user = base::create<gate>(client, userid, vtmode, config, session_id);
             users.append(user);
-            dbase.usrs.push_back(user);
-            SIGNAL(tier::release, vtm::events::list::usrs, dbase.usrs_ptr);
-            return user;
+            dbase.append(user);
+            user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+            SIGNAL(tier::release, desk::events::usrs, dbase.usrs_ptr);
+            //todo make it configurable
+            auto patch = ""s;
+            auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
+            user->attach(deskmenu);
+            lock.unlock();
+            user->launch();
         }
     };
 }

@@ -86,6 +86,11 @@ namespace netxs::os
 
     #if defined(_WIN32)
 
+        #if defined(_DEBUG)
+            #define APP_WAIT_TIMEOUT 1000000
+        #else
+            #define APP_WAIT_TIMEOUT 10000
+        #endif
         using sigt = DWORD;
         using pidt = DWORD;
         using fd_t = HANDLE;
@@ -783,7 +788,7 @@ namespace netxs::os
 
                 uid_t id;
                 id = ::geteuid();
-                return id;
+                return utf::concat(id);
 
             #endif
         }
@@ -1257,8 +1262,7 @@ namespace netxs::os
                 #endif
             }
 
-            template<class T>
-            auto cred(T id) const // Check peer cred.
+            auto auth(view id) const // Check peer cred.
             {
                 #if defined(_WIN32)
 
@@ -1279,9 +1283,9 @@ namespace netxs::os
                         return faux;
                     }
 
-                    if (cred.uid && id != cred.uid)
+                    if (cred.uid && id != utf::concat(cred.uid))
                     {
-                        log("sock: other users are not allowed to the session, abort");
+                        fail("sock: foreign users are not allowed to the session");
                         return faux;
                     }
 
@@ -1300,9 +1304,9 @@ namespace netxs::os
                         return faux;
                     }
 
-                    if (euid && id != euid)
+                    if (euid && id != utf::concat(euid))
                     {
-                        log("sock: other users are not allowed to the session, abort");
+                        fail("sock: foreign users are not allowed to the session");
                         return faux;
                     }
 
@@ -2368,7 +2372,7 @@ namespace netxs::os
                     else if (code == STILL_ACTIVE)
                     {
                         log("vtty: child process still running");
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
+                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
                         if (!result || !::GetExitCodeProcess(prochndl, &code))
                         {
                             ::TerminateProcess(prochndl, 0);
@@ -2811,7 +2815,7 @@ namespace netxs::os
            ~vtty()
             {
                 log("dtvt: dtor started");
-                stop();
+                cleanup();
                 log("dtvt: dtor complete");
             }
 
@@ -2984,12 +2988,7 @@ namespace netxs::os
                 //auto guard = std::lock_guard{ writemtx };
                 auto exit_code = si32{};
                 log("dtvt: wait child process, tty=", termlink);
-                if (termlink)
-                {
-                    termlink.shut();
-                }
-
-                if (proc_pid != 0)
+                if (proc_pid)
                 {
                     #if defined(_WIN32)
 
@@ -3001,7 +3000,7 @@ namespace netxs::os
                         else if (code == STILL_ACTIVE)
                         {
                             log("dtvt: child process still running");
-                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, 10000 /*10 seconds*/);
+                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
                             if (!result || !::GetExitCodeProcess(prochndl, &code))
                             {
                                 ::TerminateProcess(prochndl, 0);
@@ -3015,6 +3014,7 @@ namespace netxs::os
                     #else
 
                         int status;
+                        //todo wait APP_WAIT_TIMEOUT before kill
                         ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
                         ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                         if (WIFEXITED(status))
@@ -3029,6 +3029,7 @@ namespace netxs::os
                         }
 
                     #endif
+                    proc_pid = 0;
                 }
                 log("dtvt: child waiting complete");
                 return exit_code;
@@ -3050,24 +3051,20 @@ namespace netxs::os
                 termlink = {};
                 writebuf = {};
             }
-            void stop()
+            void shut()
             {
                 if (termlink)
                 {
-                    wait_child();
+                    termlink.shut();
                 }
-                cleanup();
             }
             void read_socket_thread()
             {
                 log("dtvt: id: ", stdinput.get_id(), " reading thread started");
                 directvt::binary::stream::reading_loop(termlink, receiver);
-                if (termlink)
-                {
-                    preclose(0); //todo send msg from the client app
-                    auto exit_code = wait_child();
-                    shutdown(exit_code);
-                }
+                preclose(0);
+                auto exit_code = wait_child();
+                shutdown(exit_code);
                 log("dtvt: id: ", stdinput.get_id(), " reading thread ended");
             }
             void send_socket_thread()
@@ -3300,8 +3297,9 @@ namespace netxs::os
 
             #endif
         }
-        auto logger(si32 mode)
+        auto logger(si32 mode, bool wipe = faux)
         {
+            if (wipe) netxs::logger::wipe();
             auto direct = !!(mode & os::vt::direct);
             return direct ? netxs::logger([](auto data) { os::logging::stdlog(data); })
                           : netxs::logger([](auto data) { os::logging::syslog(data); });

@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.8t";
+    static const auto version = "v0.9.8u";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -172,9 +172,13 @@ namespace netxs::app::shared
                         ->plugin<pro::notes>(" Close window ")
                         ->invoke([&](auto& boss)
                         {
+                            #if defined(_DEBUG)
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::any, gear)
+                            #else
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            #endif
                             {
-                                boss.RISEUP(tier::release, e2::form::quit, boss.This());
+                                boss.SIGNAL(tier::anycast, e2::form::quit, boss.This());
                                 gear.dismiss();
                             };
                         })
@@ -517,15 +521,12 @@ namespace netxs::app::shared
         auto runapp = [&](auto uplink)
         {
             auto patch = ""s;
-            auto ground = base::create<host>(uplink, config);
+            auto domain = base::create<host>(uplink, config);
             auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            auto window = ground->template invite<gate>(uplink, vtmode, faux);
-            window->launch(applet);
-            window.reset();
-            applet.reset();
-            ground->shutdown();
+            domain->invite(uplink, applet, vtmode);
+            domain->shutdown();
         };
 
         if (direct)

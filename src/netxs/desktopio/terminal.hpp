@@ -6106,7 +6106,6 @@ namespace netxs::ui
         ansi::esc  w32key; // term: win32-input-mode forward buffer.
         text       cmdarg; // term: Startup command line arguments.
         text       curdir; // term: Current working directory.
-        hook       oneoff; // term: One-shot token for start and shutdown events.
         hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
@@ -6437,7 +6436,10 @@ namespace netxs::ui
                 log("term: exit code 0x", utf::to_hex(code));
                 auto close_proc = [&]
                 {
-                    this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                    netxs::events::enqueue(This(), [&](auto& boss)
+                    {
+                        this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                    });
                 };
                 auto chose_proc = [&]
                 {
@@ -6462,10 +6464,10 @@ namespace netxs::ui
                     auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
                         .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
                     ondata(error);
-                    this->LISTEN(tier::general, e2::timer::any, t, onerun) //todo VS2019 requires `this`
+                    netxs::events::enqueue(This(), [&](auto& boss)
                     {
                         start();
-                    };
+                    });
                 };
                 switch (config.def_atexit)
                 {
@@ -6942,23 +6944,16 @@ namespace netxs::ui
         }
         void start()
         {
-            static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions.
-
             onerun.reset();
-            if (!ptycon && !oneoff)
+            if (!ptycon)
             {
                 ptycon.cleanup();
-                LISTEN(tier::general, e2::timer::any, timer, oneoff)
+                netxs::events::enqueue(This(), [&](auto& boss)
                 {
-                    if (unique != timer)
-                    {
-                        this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
-                        auto initsz = target->panel;
-                        ptycon.start(initsz);
-                        unique = timer;
-                        oneoff.reset();
-                    }
-                };
+                    this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
+                    auto initsz = target->panel;
+                    ptycon.start(initsz);
+                });
             }
         }
         void restart()
@@ -7517,12 +7512,12 @@ namespace netxs::ui
         bool        active; // dtvt: Terminal lifetime.
         si32        nodata; // dtvt: Show splash "No signal".
         face        splash; // dtvt: "No signal" splash.
-        hook        oneoff; // dtvt: One-shot token for start and shutdown events.
         span        maxoff; // dtvt: Max delay before showing "No signal".
         byte        opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         os::pidt    procid; // dtvt: PTY child process id.
         testy<twod> termsz; // dtvt: PTY device window size.
         vtty        ptycon; // dtvt: PTY device. Should be destroyed first.
+        sptr        backup; // dtvt: Instance backup copy while the child process is active.
 
         // dtvt: Proceed DirectVT input.
         void ondata(view data)
@@ -7548,20 +7543,20 @@ namespace netxs::ui
                 splash.output(note);
                 canvas.swap(splash);
             }
-            bell::trysync(active, [&]
+            netxs::events::enqueue(This(), [&](auto& boss)
             {
-                this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
+                //this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
+                this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
             });
         }
         // dtvt: Shutdown callback handler.
         void onexit(si32 code)
         {
-            bell::trysync(active, [&]
+            netxs::events::enqueue(This(), [&, code](auto& boss) mutable
             {
-                active = faux;
                 if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
                 else      log("dtvt: exit code 0");
-                this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                backup.reset(); // Call dtvt::dtor.
             });
         }
 
@@ -7574,34 +7569,28 @@ namespace netxs::ui
         // dtvt: Start a new process.
         void start()
         {
-            static auto unique = e2::timer::tick.param(); // Eliminate concurrent start actions - one tick one app.
-
-            if (!ptycon && !oneoff)
+            if (!ptycon)
             {
-                LISTEN(tier::general, e2::timer::any, timer, oneoff)
+                netxs::events::enqueue(This(), [&](auto& boss)
                 {
-                    if (unique != timer)
-                    {
-                        auto header = e2::form::prop::ui::header.param();
-                        auto footer = e2::form::prop::ui::footer.param();
-                        this->RISEUP(tier::request, e2::form::prop::ui::header, header);
-                        this->RISEUP(tier::request, e2::form::prop::ui::footer, footer);
-                        stream.s11n::form_header.send(*this, 0, header);
-                        stream.s11n::form_footer.send(*this, 0, footer);
-                        procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                      [&](auto exit_reason) { atexit(exit_reason); },
-                                                                      [&](auto exit_reason) { onexit(exit_reason); });
-                        pty_resize<true>(base::size());
-                        unique = timer;
-                        oneoff.reset();
-                    }
-                };
+                    auto header = e2::form::prop::ui::header.param();
+                    auto footer = e2::form::prop::ui::footer.param();
+                    this->RISEUP(tier::request, e2::form::prop::ui::header, header);
+                    this->RISEUP(tier::request, e2::form::prop::ui::footer, footer);
+                    stream.s11n::form_header.send(*this, 0, header);
+                    stream.s11n::form_footer.send(*this, 0, footer);
+                    procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                  [&](auto exit_reason) { atexit(exit_reason); },
+                                                                  [&](auto exit_reason) { onexit(exit_reason); });
+                    pty_resize<true>(base::size());
+                    backup = This(); // Released on exit.
+                });
             }
         }
-        void stop()
+        void shut()
         {
             active = faux;
-            if (ptycon) ptycon.stop();
+            if (ptycon) ptycon.shut();
         }
         template<bool Forced = faux>
         void pty_resize(twod const& new_size)
@@ -7612,10 +7601,6 @@ namespace netxs::ui
             }
         }
 
-       ~dtvt()
-        {
-            stop();
-        }
         dtvt(text cwd, text cmd, text cfg)
             : stream{*this },
               active{ true },

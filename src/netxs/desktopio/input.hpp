@@ -621,6 +621,7 @@ namespace netxs::input
         ui16 virtcod = {};
         ui16 scancod = {};
         hint cause = netxs::events::userland::hids::keybd::any.id;
+        text keystrokes;
 
         void update(syskeybd& k)
         {
@@ -1105,6 +1106,7 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
+            keystrokes = interpret();
             owner.bell::template signal<tier::preview>(keybd::cause, *this);
             //todo kb
             auto iter = kb_focus.begin();
@@ -1334,7 +1336,7 @@ namespace netxs::input
             state(s);
         }
 
-        auto interpret()
+        text interpret()
         {
             auto textline = text{};
             auto ctrl = [&](auto pure, auto f, auto suffix)

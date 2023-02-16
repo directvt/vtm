@@ -22,7 +22,6 @@ int main(int argc, char* argv[])
     #include "vtm.xml"
 
     auto vtmode = os::tty::vtmode();
-    auto syslog = os::tty::logger(vtmode);
     auto banner = [&]{ log(app::vtm::desc, ' ', app::shared::version); };
     auto whoami = type::client;
     auto params = text{};
@@ -60,7 +59,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-q", "--quiet"))
         {
-            syslog.enabled(faux);
+            netxs::logger::enabled(faux);
         }
         else if (getopt.match("-l", "--listconfig"))
         {
@@ -82,6 +81,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-v", "--version"))
         {
+            auto syslog = os::tty::logger(vtmode, true);
             log(app::shared::version);
             return 0;
         }
@@ -96,6 +96,7 @@ int main(int argc, char* argv[])
         }
     }
 
+    auto syslog = os::tty::logger(vtmode);
     banner();
     if (errmsg.size())
     {
@@ -180,8 +181,6 @@ int main(int argc, char* argv[])
     else
     {
         auto userid = os::env::user();
-        auto usernm = os::env::get("USER");
-        auto hostip = os::env::get("SSH_CLIENT");
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
         auto prefix = vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe;
 
@@ -196,14 +195,16 @@ int main(int argc, char* argv[])
             });
             if (client)
             {
-                auto direct = !!(vtmode & os::vt::direct);
-                if (!direct) os::logging::start(app::vtm::id);
-                auto init = directvt::binary::startdata_t{};
-                init.set(hostip, usernm, utf::concat(userid), vtmode, config.utf8());
-                init.send([&](auto& data){ client->send(data); });
-
-                if (direct) os::tty::direct(client);
-                else        os::tty::splice(client, vtmode);
+                os::tty::globals().wired.init.send(client, userid, vtmode, config.utf8());;
+                if (vtmode & os::vt::direct)
+                {
+                    os::tty::direct(client);
+                }
+                else
+                {
+                    os::logging::start(app::vtm::id);
+                    os::tty::splice(client, vtmode);
+                }
                 return 0;
             }
             else if (whoami != type::server)
@@ -241,10 +242,10 @@ int main(int argc, char* argv[])
         }
         using e2 = netxs::ui::e2;
         config.cd("/config/appearance/defaults/");
-        auto ground = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
-        auto srvlog = syslog.tee<events::try_sync>([&](auto utf8) { ground->SIGNAL(tier::general, e2::conio::logs, utf8); });
+        auto domain = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
+        auto srvlog = syslog.tee<events::try_sync>([&](auto utf8) { domain->SIGNAL(tier::general, e2::conio::logs, utf8); });
         auto thread = os::process::pool{};
-        ground->autorun();
+        domain->autorun();
 
         log("main: listening socket ", server,
           "\n      user: ", userid,
@@ -256,39 +257,34 @@ int main(int argc, char* argv[])
             {
                 thread.run([&, stream](auto session_id)
                 {
-                    auto tokens = subs{};
-                    ground->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { stream->shut(); };
-                    ground->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { stream->send(utf8); };
                     log("logs: monitor ", stream, " connected");
+                    auto tokens = subs{};
+                    domain->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { stream->shut(); };
+                    domain->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { stream->send(utf8); };
                     stream->recv();
                     log("logs: monitor ", stream, " disconnected");
                 });
             }
         }};
 
+        auto settings = config.utf8();
         while (auto client = server->meet())
         {
-            if (!client->cred(userid))
+            if (client->auth(userid))
             {
-                os::fail("foreign users are not allowed to the session");
-                continue;
-            }
-
-            thread.run([&, client](auto session_id)
-            {
-                if (auto window = ground->invite<ui::gate>(client, session_id, true))
+                thread.run([&, client, settings](auto session_id)
                 {
                     log("user: new gate for ", client);
-                    auto patch = ""s;
-                    auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(window->id, ";", window->props.os_user_id, ";", window->props.selected), config, patch);
-                    auto bkground = app::shared::builder(app::fone::id)("", "gems;About;", config, patch);
-                    window->launch(deskmenu, bkground);
+                    auto config = xmls{ settings };
+                    auto packet = os::tty::globals().wired.init.recv(client);
+                    config.fuse(packet.config);
+                    domain->invite(client, packet.user, packet.mode, config, session_id);
                     log("user: ", client, " logged out");
-                }
-            });
+                });
+            }
         }
-        ground->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
-        ground->shutdown();
+        domain->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
+        domain->shutdown();
         logger->stop();
         stdlog.join();
     }
