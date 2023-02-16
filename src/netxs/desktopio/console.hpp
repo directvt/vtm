@@ -3605,11 +3605,14 @@ namespace netxs::ui
             }
             if (direct) // Forward unhandled events outside.
             {
-                LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens)
+                LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
                 {
                     using button = hids::events::mouse::button;
                     auto forward = faux;
-                    auto cause = gear.mouse::cause;//this->bell::protos<tier::release>();
+                    auto cause = gear.mouse::cause;
+                    if (isvtm && (gear.index == hids::leftright // Reserved for dragging nested vtm.
+                              ||  gear.index == hids::right)    // Reserved for creation inside nested vtm.
+                     && events::subevent(cause, button::drag::any.id)) return;
                     if (events::subevent(cause, button::click     ::any.id)
                      || events::subevent(cause, button::dblclick  ::any.id)
                      || events::subevent(cause, button::tplclick  ::any.id)
