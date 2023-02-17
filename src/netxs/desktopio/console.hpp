@@ -3364,7 +3364,10 @@ namespace netxs::ui
         // gate: Main loop.
         void launch()
         {
-            SIGNAL(tier::anycast, e2::form::upon::started, This());
+            netxs::events::enqueue(This(), [&](auto& boss)
+            {
+                this->SIGNAL(tier::anycast, e2::form::upon::started, This());
+            });
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
             SIGNAL(tier::release, e2::conio::quit, "exit from a stream reading loop");
         }
