@@ -18,8 +18,8 @@
     <text x="1000" y="140" transform="scale(.1)" text-anchor="end"
     >OpenBSD amd64</text>
     <text x="1230" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" text-anchor="start"
-    >v0.9.8u</text>
+    >v0.9.8v</text>
     <text x="1230" y="140" transform="scale(.1)" text-anchor="start"
-    >v0.9.8u</text>
+    >v0.9.8v</text>
   </g>
 </svg>
