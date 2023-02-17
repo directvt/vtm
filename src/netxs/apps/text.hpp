@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_TEXT_HPP
-#define NETXS_APP_TEXT_HPP
+#pragma once
 
 namespace netxs::events::userland
 {
@@ -29,6 +28,9 @@ namespace netxs::events::userland
 // text: Text editor.
 namespace netxs::app::textancy
 {
+    static constexpr auto id = "text";
+    static constexpr auto desc = "Desktopio Text Editor (DEMO)";
+
     using events = netxs::events::userland::textancy;
 
     namespace
@@ -183,7 +185,7 @@ utility like ctags is used to locate the definitions.
 
 )";
 
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
 
@@ -195,20 +197,20 @@ utility like ctags is used to locate the definitions.
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
-                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      boss.LISTEN(tier::anycast, e2::form::quit, item)
                       {
-                          boss.base::template riseup<tier::release>(e2::form::quit, item);
+                          boss.RISEUP(tier::release, e2::form::quit, item);
                       };
-                      boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                      boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;
                           auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");
-                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                          boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA05f1a00);
-                auto menu = object->attach(slot::_1, app::shared::main_menu(config));
+                auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
                 auto body_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto fields = body_area->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
                         auto layers = fields->attach(ui::cake::ctor());
@@ -230,7 +232,5 @@ utility like ctags is used to locate the definitions.
         };
     }
 
-    app::shared::initialize builder{ "text", build };
+    app::shared::initialize builder{ app::textancy::id, build };
 }
-
-#endif // NETXS_APP_TEXT_HPP

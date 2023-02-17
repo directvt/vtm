@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_SHOP_HPP
-#define NETXS_APP_SHOP_HPP
+#pragma once
 
 namespace netxs::events::userland
 {
@@ -29,6 +28,9 @@ namespace netxs::events::userland
 // shop: Desktopio App Store.
 namespace netxs::app::shop
 {
+    static constexpr auto id = "gems";
+    static constexpr auto desc = "Desktopio App Manager (DEMO)";
+
     using events = netxs::events::userland::shop;
 
     namespace
@@ -78,9 +80,8 @@ namespace netxs::app::shop
                 appstore_head =
                 ansi::nil().eol().mgl(2).mgr(2)
                 .bld(faux).fgc(whitelt).jet(bias::left).wrp(wrap::on).add(
-                "Terminal Application Distribution Platform that allows "
-                "users to browse and download applications developed with "
-                "Desktopio Framework.\n\n");
+                "Desktopio Application Distribution Platform that allows "
+                "users to browse and download software.\n\n");
 
                 auto textancy_text = ansi::nil().add(
                 "Hello World!😎\n"
@@ -129,10 +130,6 @@ namespace netxs::app::shop
 
                     item(ansi::fgc(0xFF00FFFF).add("Doom").fgc(), reddk, "4", "Free ", "Get",
                     "Doom II source port."),
-
-                    item("Logs", blackdk, "4096", "Free ", "Get",
-                    "Application for displaying debug trace. "
-                    "This is more efficient than writing to STDOUT."),
 
                     item("Clip", bluedk, "1", "Free ", "Get",
                     "Clipboard manager."),
@@ -192,7 +189,7 @@ namespace netxs::app::shop
             return std::tuple{ appstore_head, appstore_body, desktopio_body };
         };
 
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto c3 = highlight_color;
@@ -208,16 +205,16 @@ namespace netxs::app::shop
                   ->invoke([](auto& boss)
                   {
                         boss.keybd.accept(true);
-                        boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                        boss.LISTEN(tier::anycast, e2::form::quit, item)
                         {
-                            boss.base::template riseup<tier::release>(e2::form::quit, item);
+                            boss.RISEUP(tier::release, e2::form::quit, item);
                         };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
                     config.cd("/config/gems/", "/config/defapp/");
-                    auto [menu_block, cover, menu_data] = app::shared::custom_menu(config, {});
+                    auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                     menu_object->attach(slot::_1, menu_block);
                     menu_object->attach(slot::_2, ui::post::ctor())
                                ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
@@ -240,7 +237,5 @@ namespace netxs::app::shop
         };
     };
 
-    app::shared::initialize builder{ "gems", build };
+    app::shared::initialize builder{ app::shop::id, build };
 }
-
-#endif // NETXS_APP_SHOP_HPP

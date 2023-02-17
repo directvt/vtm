@@ -46,11 +46,12 @@ Build-time dependencies
  - `cmake` (https://github.com/netxs-group/vtm/issues/172#issuecomment-1340519942)
  - C++20 compiler
  - Minimal requirements to compile
-   - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `3GB` of RAM
-   - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `8GB` of RAM
+   - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `4GB` of RAM
+   - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `9GB` of RAM
 
 ```bash
-git clone https://github.com/netxs-group/vtm.git && cd ./vtm
+git clone https://github.com/netxs-group/vtm.git
+cd ./vtm
 cmake ./src -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 cmake --install .
@@ -71,6 +72,7 @@ Use `Developer Command Prompt` as a build environment
 ```cmd
 git clone https://github.com/netxs-group/vtm.git
 cd ./vtm
+chcp 65001
 cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019"
 cmake --build . --config Release
 cd Release
@@ -80,6 +82,7 @@ vtm
 ```cmd
 git clone https://github.com/netxs-group/vtm.git
 cd ./vtm
+chcp 65001
 cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 17 2022"
 cmake --build . --config Release
 cd Release
@@ -226,22 +229,27 @@ vtm
 
 # Command line Options `vtm(.exe)`
 
- `vtm [ -c <config_file> ] [ -l | -d | -s | -r [<app> [<args...>]] ]`
+ `vtm [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]`
 
-Option         | Description
----------------|-------------------------------------------------------
-No arguments   | Run client (auto start server)
-` -c <file> `  | Use specified configuration file
-` -l `         | Show configuration and exit
-` -d `         | Run server in background
-` -s `         | Run server in interactive mode
-` -r [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
+Option                     | Description
+---------------------------|-------------------------------------------------------
+No arguments               | Run client (auto start server)
+` -c \| --config <file> `  | Use specified configuration file
+` -p \| --pipe <pipe> `    | Set the pipe to connect to
+` -q \| --quiet `          | Disable logging
+` -l \| --listconfig `     | Show configuration and exit
+` -m \| --monitor `        | Monitor server log
+` -d \| --daemon `         | Run server in background
+` -s \| --server `         | Run server in interactive mode
+` -r \| --runapp [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
+` -v \| --version `        | Show version and exit
+` -? \| -h \| --help `     | Show usage message
 
-Configuration file location precedence (descending priority):<br>
+Configuration precedence (descending priority):<br>
 1. Command line options `vtm -c path/to/settings.xml`<br>
 2. Environment variable `VTM_CONFIG=path/to/settings.xml`<br>
 3. Hardcoded location `~/.config/vtm/settings.xml`<br>
-4. Use predefined configuration at apps.hpp(~line:28)
+4. Predefined configuration, see `./src/vtm.xml`
 
 # Settings
 
@@ -380,7 +388,7 @@ Top-level element `<config>` contains the following base objects
   - Single `<menu>` block - taskbar menu configuration.
     - Single `<selected>` object - the value of this attribute specifies which menu item id will be selected by default at the environment startup.
     - Set of `<item>` objects - a list of menu item definitions.
-    - Not implemented: Single `<autorun>` block - a list of menu item to run at the environment startup.
+    - Single `<autorun>` block - a list of menu item to run at the environment startup.
   - Not implemented: Single `<hotkeys>` block - a global hotkeys/shortcuts configuration.
 
 #### Application Configuration
@@ -446,14 +454,23 @@ The following configuration items have the same meaning
 
 Note: The following configuration sections are not implemented yet
 - config/menu/item/hotkeys
-- config/menu/autorun
 - config/hotkeys
 
-`~/.config/vtm/settings.xml`
+#### Minimal config (`~/.config/vtm/settings.xml`)
+
 ```xml
 <config>
-    <menu>
-        <selected=Term /> <!-- Set selected using menu item id. -->
+    <menu selected=Term item* autorun*>  <!-- Use asterisk to zeroize existing item and autorun records. -->
+        <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell by default -->
+    </menu>
+</config>
+```
+
+#### Typical config  (`~/.config/vtm/settings.xml`)
+
+```xml
+<config>
+    <menu selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested arguments
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
@@ -463,7 +480,7 @@ Note: The following configuration sections are not implemented yet
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no type=SHELL fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
+        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
         <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
@@ -482,7 +499,7 @@ Note: The following configuration sections are not implemented yet
                     <menu>
                         <autohide=off/>  <!--  If true/on, show menu only on hover. -->
                         <enabled="on"/>
-                        <slim=off/>
+                        <slim=1/>
                     </menu>
                 </term>
             </config>
@@ -494,15 +511,14 @@ Note: The following configuration sections are not implemented yet
         <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
         <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
-        <item id=Logs       label=Logs         type=DirectVT title="Logs Title"            param="$0 -r logs"       notes=" run Logs "/>
+        <item id=Logs       label=Logs         type=DirectVT title="Logs"            param="$0 -q -r term $0 -m" notes=" run Logs "/>
    <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
    <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
    <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
    <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
    <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
    <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
-        <autorun>  <!-- Autorun of specified menu items -->
-            <item*/>
+        <autorun item*>  <!-- Autorun of specified menu items -->
             <!--  <item* id=Term winsize=80,25 />               -->
             <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
             <!--  <item wincoor=92,31 />                        -->
@@ -513,21 +529,20 @@ Note: The following configuration sections are not implemented yet
             <expanded=31/>
         </width>
     </menu>
-    <hotkeys>    <!-- not implemented -->
-        <key*/>
-        <key="Ctrl+PgUp" action=prevWindow />
-        <key="Ctrl+PgDn" action=nextWindow />
+    <hotkeys key*>    <!-- not implemented -->
+        <key="Ctrl+PgUp" action=PrevWindow />
+        <key="Ctrl+PgDn" action=NextWindow />
     </hotkeys>
     <appearance>
         <defaults>
             <fps      = 60   />
             <bordersz = 1,1  />
-            <brighter = 60   />
-            <kb_focus = 60   />
-            <shadower = 180  />
-            <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
-            <selector = 48   />
+            <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
+            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
+            <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
+            <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
+            <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
             <highlight  fgc=purewhite bgc=bluelt      />
             <warning    fgc=whitelt   bgc=yellowdk    />
             <danger     fgc=whitelt   bgc=redlt       />
@@ -536,7 +551,23 @@ Note: The following configuration sections are not implemented yet
             <inactive   fgc=blacklt   bgc=transparent />
             <menu_white fgc=whitelt   bgc=0x80404040  />
             <menu_black fgc=blackdk   bgc=0x80404040  />
-            <fader duration=0ms fast=0ms />  <!-- Fader animation config. -->
+            <timings>
+                <fader duration=0ms fast=0ms/>  <!-- Fader animation config. -->
+                <spd            = 10    /> <!-- Auto-scroll initial speed component ΔR.              -->
+                <pls            = 167   /> <!-- Auto-scroll initial speed component ΔT.              -->
+                <ccl            = 120   /> <!-- Auto-scroll duration in ms.                          -->
+                <spd_accel      = 1     /> <!-- Auto-scroll speed accelation.                        -->
+                <ccl_accel      = 30    /> <!-- Auto-scroll additional duration in ms.               -->
+                <spd_max        = 100   /> <!-- Auto-scroll max speed.                               -->
+                <ccl_max        = 1000  /> <!-- Auto-scroll max duration in ms                       -->
+                <deceleration   = 2s    /> <!-- Object state stopping duration in s.                 -->
+                <switching      = 200   /> <!-- Object state switching duration in ms.               -->
+                <blink_period   = 400ms /> <!-- Period in ms between the blink states of the cursor. -->
+                <menu_timeout   = 250ms /> <!-- Taskbar collaplse timeout.                           -->
+                <active_timeout = 1s    /> <!-- Timeout off the active object.                       -->
+                <repeat_delay   = 500ms /> <!-- Repeat delay.                                        -->
+                <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
+            </timings>
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0 />
@@ -565,7 +596,15 @@ Note: The following configuration sections are not implemented yet
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF000000 />  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0xFF000000>  <!-- Desktop background color. -->
+            <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
+            <!-- Example of background with some gradients -->
+            <!-- <tile>
+                "\e[48;2;83;161;238m \e[48;2;78;179;241m \e[48;2;70;195;244m \e[48;2;60;207;246m \e[48;2;55;212;247m \e[48;2;55;212;247m \e[48;2;60;207;246m \e[48;2;70;195;244m \e[48;2;78;179;241m \e[48;2;83;161;238m \n"
+                "\e[48;2;82;171;239m \e[48;2;72;191;243m \e[48;2;55;212;247m \e[48;2;31;233;251m \e[m\e[48;2;0;255;255m \e[m\e[48;2;0;255;255m \e[48;2;31;233;251m \e[48;2;55;212;247m \e[48;2;72;191;243m \e[48;2;82;171;239m \n"
+                "\e[48;2;83;161;238m \e[48;2;78;179;241m \e[48;2;70;195;244m \e[48;2;60;207;246m \e[48;2;55;212;247m \e[48;2;55;212;247m \e[48;2;60;207;246m \e[48;2;70;195;244m \e[48;2;78;179;241m \e[48;2;83;161;238m \e[m"
+            </tile> -->
+        </background>
         <clipboard>
             <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0xFF />  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
@@ -606,14 +645,14 @@ Note: The following configuration sections are not implemented yet
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-            <match fx=selection bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | selection | contrast | invert | reverse -->
+            <match fx=color bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
-                <text fx=selection bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx=selection bgc=bluelt fgc=whitelt />
+                <text fx=color bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
+                <protected fx=color bgc=bluelt fgc=whitelt />  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
                 <ansi fx=xlight/>
                 <rich fx=xlight/>
                 <html fx=xlight/>
-                <none fx=selection bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
+                <none fx=color bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
             </selection>
         </color>
         <fields>
@@ -626,10 +665,58 @@ Note: The following configuration sections are not implemented yet
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
-        <menu>
-            <autohide=true/>  <!--  If true/on, show menu only on hover. -->
-            <enabled="on"/>
-            <slim=true />
+        <menu item*>
+            <autohide=true />  <!-- If true, show menu only on hover. -->
+            <enabled=1 />
+            <slim=1 />
+            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                <notes>
+                    " Wrapping text lines on/off      \n"
+                    " - applied to selection if it is "
+                </notes>
+            </item>
+            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
+                <label data="rich">
+                    "\e[38:2:109:231:237m""R"
+                    "\e[38:2:109:237:186m""T"
+                    "\e[38:2:60:255:60m"  "F"
+                    "\e[38:2:189:255:53m" "-"
+                    "\e[38:2:255:255:49m" "s"
+                    "\e[38:2:255:189:79m" "t"
+                    "\e[38:2:255:114:94m" "y"
+                    "\e[38:2:255:60:157m" "l"
+                    "\e[38:2:255:49:214m" "e" "\e[m"
+                </label>
+                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
+                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+            </item>
+            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                <label="\e[38:2:0:255:0m<\e[m"/>
+                <notes>
+                    " Previous match                    \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label=">" action=TerminalFindNext>
+                <label="\e[38:2:0:255:0m>\e[m"/>
+                <notes>
+                    " Next match                        \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
+            <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <item label="Top" action=TerminalViewportTop/> <!-- See Term app description below for details (readme.md). -->
+            <item label="End" action=TerminalViewportEnd/>
+            <item label="PgUp" type=Repeat action=TerminalViewportPageUp/>
+            <item label="PgDn" type=Repeat action=TerminalViewportPageDown/>
+            <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
@@ -639,17 +726,16 @@ Note: The following configuration sections are not implemented yet
                                close:   Always close.
                                restart: Restart session.
                                retry:   Restart session if exit code != 0. -->
-        <hotkeys>    <!-- not implemented -->
-            <key*/>
-            <key="Alt+RightArrow" action=findNext />
-            <key="Alt+LeftArrow"  action=findPrev />
+        <hotkeys key*>    <!-- not implemented -->
+            <key="Alt+RightArrow" action=TerminalFindNext />
+            <key="Alt+LeftArrow"  action=TerminalFindPrev />
         </hotkeys>
     </term>
     <defapp>
         <menu>
             <autohide=faux />  <!--  If true, show menu only on hover. -->
             <enabled="on"/>
-            <slim=faux />
+            <slim=true />
         </menu>
     </defapp>
     <tile>
@@ -665,9 +751,6 @@ Note: The following configuration sections are not implemented yet
     <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </calc>
-    <logs>      <!-- Base configuration for the Logs app. It can be overridden by param's subargs. -->
-        <!-- not implemented -->
-    </logs>
     <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </settings>
@@ -679,7 +762,6 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 # Built-in Applications
 
 - `▀▄ Term` Terminal emulator
-- `▀▄ Logs` Debug output console
 - `▀▄ View` Workspace navigation helper
 - `▀▄ Tile` Tiling window manager
 - `▀▄ Gems` Application manager (Demo)
@@ -709,8 +791,176 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
 
       Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets the background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
 
- - `▀▄ Logs`
-   - Debug output console.
+      ## Custom Menu Configuration
+      
+      Terminal window menu can be composed from scratch by specifying a list of menu items in the `/config/term/menu/` configuration file section.
+
+      Example
+      ```xml
+      <config>
+       <term>
+        <menu item*>
+            <autohide=true />  <!-- If true, show menu only on hover. -->
+            <enabled=1 />
+            <slim=1 />
+            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                <notes>
+                    " Wrapping text lines on/off      \n"
+                    " - applied to selection if it is "
+                </notes>
+            </item>
+            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
+                <label data="rich">
+                    "\e[38:2:109:231:237m""R"
+                    "\e[38:2:109:237:186m""T"
+                    "\e[38:2:60:255:60m"  "F"
+                    "\e[38:2:189:255:53m" "-"
+                    "\e[38:2:255:255:49m" "s"
+                    "\e[38:2:255:189:79m" "t"
+                    "\e[38:2:255:114:94m" "y"
+                    "\e[38:2:255:60:157m" "l"
+                    "\e[38:2:255:49:214m" "e" "\e[m"
+                </label>
+                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
+                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+            </item>
+            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                <label="\e[38:2:0:255:0m<\e[m"/>
+                <notes>
+                    " Previous match                    \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label=">" action=TerminalFindNext>
+                <label="\e[38:2:0:255:0m>\e[m"/>
+                <notes>
+                    " Next match                        \n"
+                    " - using clipboard if no selection \n"
+                    " - page up if no clipboard data    "
+                </notes>
+            </item>
+            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
+            <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <item label="Restart" type=Command action=TerminalRestart/>
+            <item label="Top" action=TerminalViewportTop/>
+            <item label="End" action=TerminalViewportEnd/>
+
+            <item label="PgLeft"    type=Repeat action=TerminalViewportPageLeft/>
+            <item label="PgRight"   type=Repeat action=TerminalViewportPageRight/>
+            <item label="CharLeft"  type=Repeat action=TerminalViewportCharLeft/>
+            <item label="CharRight" type=Repeat action=TerminalViewportCharRight/>
+
+            <item label="PgUp"   type=Repeat action=TerminalViewportPageUp/>
+            <item label="PgDn"   type=Repeat action=TerminalViewportPageDown/>
+            <item label="LineUp" type=Repeat action=TerminalViewportLineUp/>
+            <item label="LineDn" type=Repeat action=TerminalViewportLineDown/>
+
+            <item label="PrnScr" action=TerminalViewportCopy/>
+            <item label="Deselect" action=TerminalSelectionClear/>
+            
+            <item label="Line" type=Option action=TerminalSelectionRect data="false">
+                <label="Rect" data="true"/>
+            </item>
+            <item label="Copy" type=Repeat action=TerminalSelectionCopy/>
+            <item label="Paste" type=Repeat action=TerminalPaste/>
+            <item label="Undo" type=Command action=TerminalUndo/>
+            <item label="Redo" type=Command action=TerminalRedo/>
+            <item label="Quit" type=Command action=TerminalQuit/>
+            <item label="Maximize" type=Command action=TerminalMaximize/>
+
+            <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
+            <item label="Push Me" notes=" test " type=Repeat action=TerminalOutput data="pressed ">
+                <label="\e[37mPush Me\e[m"/>
+            </item>
+        </menu>
+       </term>
+      </config>
+      ```
+
+      ## Attributes for the `/config/term/menu/item` object
+
+       Attribute  | Description
+      ------------|----------------
+       type       | Menu item type. `type=Command` is used by default.
+       label      | Menu item label list. One or more textual representations selected by `data=` value.
+       notes      | Tooltip.
+       action     | The function name which called on item activation. Inherited by the label attribute.
+       data       | Textual parameter for function call. Inherited by the label attribute.
+       hotkey     | Keyboard shortcut for this menu item. Inherited by the label attribute (not implemented).
+
+      ## Attributes for the `/config/term/menu/item/label` sub-object
+
+       Attribute        | Description
+      ------------------|----------------
+       _internal_value_ | Label display variation `label="_internal_value_"`.
+       notes            | Tooltip. Inherited from item if not specified.
+       action           | The function name which called on item activation. Inherited from item if not specified.
+       data             | Textual parameter for function call. Inherited from item if not specified.
+       hotkey           | Keyboard shortcut for this menu item. Inherited from item if not specified (not implemented).
+
+      ### Attribute `type=`
+
+      Value     | Description
+      ----------|------------
+       Option   | Cyclically selects the next label in the list and exec the function specified by the `action=` with `data=` as its parameter.
+       Command  | Exec the function specified by the `action=` with `data=` as its parameter.
+       Repeat   | Selects the next label and exec the function specified by the `action=` with `data=` as its parameter repeatedly from the time it is pressed until it is released.
+
+      ### Attribute `action=`
+
+      `*` - Not implemented.
+
+       Value                        | Description
+      ------------------------------|------------
+       TerminalSelectionMode        | Set terminal text selection mode. The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
+       TerminalWrapMode             | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can have the following values `on`, `off`.
+       TerminalAlignMode            | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can have the following values `left`, `right`, `center`.
+       TerminalFindNext             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+       TerminalFindPrev             | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+       TerminalOutput               | Direct output the `data=` value to the terminal scrollback.
+       TerminalSendKey              | Simulating keypresses using the `data=` string.
+       TerminalQuit                 | Kill all runnning console apps and quit the built-in terminal.
+       TerminalRestart              | Kill all runnning console apps and restart current session.
+       TerminalMaximize             | Maximize/Restore built-in terminal window.
+       TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+       TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+       TerminalPaste                | Paste from clipboard.
+       TerminalSelectionCopy        | Сopy selection to clipboard.
+       TerminalSelectionRect        | Set linear(false) or rectangular(true) selection form using boolean value.
+       TerminalSelectionClear       | Deselect a selection.
+       TerminalViewportCopy         | Сopy viewport to clipboard.
+       TerminalViewportPageUp       | Scroll one page up.
+       TerminalViewportPageDown     | Scroll one page down.
+       TerminalViewportLineUp       | Scroll N lines up.
+       TerminalViewportLineDown     | Scroll N lines down.
+       TerminalViewportPageLeft     | Scroll one page to the left.
+       TerminalViewportPageRight    | Scroll one page to the right.
+       TerminalViewportColumnLeft   | Scroll N cells to the left.
+       TerminalViewportColumnRight  | Scroll N cells to the right.
+       TerminalViewportTop          | Scroll to the scrollback top.
+       TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport position).
+       *TerminalLogStart            | Start logging to file.
+       *TerminalLogPause            | Pause logging.
+       *TerminalLogStop             | Stop logging.
+       *TerminalLogAbort            | Abort logging.
+       *TerminalLogRestart          | Restart logging to file.
+       *TerminalVideoRecStart       | Start DirectVT(DTVT) video recording to file.
+       *TerminalVideoRecStop        | Stop DTVT-video recording.
+       *TerminalVideoRecPause       | Pause DTVT-video recording.
+       *TerminalVideoRecAbort       | Abort DTVT-video recording.
+       *TerminalVideoRecRestart     | Restart DTVT-video recording to file.
+       *TerminalVideoPlay           | Play DTVT-video from file.
+       *TerminalVideoPause          | Pause DTVT-video.
+       *TerminalVideoStop           | Stop DTVT-video.
+       *TerminalVideoForward        | Fast forward DTVT-video by N ms.
+       *TerminalVideoBackward       | Rewind DTVT-video by N ms.
+       *TerminalVideoHome           | Rewind DTVT-video to the beginning.
+       *TerminalVideoEnd            | Rewind DTVT-video to the end.
 
  - `▀▄ View`
    - Serves for quick navigation through the workspace using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
@@ -722,7 +972,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
      - `LeftClick` -- Set exclusive focus
      - `Ctrl+LeftClick`/`RightClick` -- Set/Unset group focus
      - `double LeftClick` -- Maxixmize/restore
-   - Configurable via settings (See configuration eexample above).
+   - Configurable via settings (See configuration example above).
 
 </p></details>
 

@@ -1,8 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_TEST_HPP
-#define NETXS_APP_TEST_HPP
+#pragma once
 
 namespace netxs::events::userland
 {
@@ -29,6 +28,9 @@ namespace netxs::events::userland
 // test: Test window.
 namespace netxs::app::test
 {
+    static constexpr auto id = "test";
+    static constexpr auto desc = "Desktopio App Testing (DEMO)";
+
     using events = netxs::events::userland::test;
 
     namespace
@@ -414,7 +416,7 @@ namespace netxs::app::test
 
             return topic;
         };
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
             auto topic = get_text();
             auto window = ui::cake::ctor()
@@ -425,15 +427,15 @@ namespace netxs::app::test
                 ->invoke([](auto& boss)
                 {
                     boss.keybd.accept(true);
-                    boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                    boss.LISTEN(tier::anycast, e2::form::quit, item)
                     {
-                        boss.base::template riseup<tier::release>(e2::form::quit, item);
+                        boss.RISEUP(tier::release, e2::form::quit, item);
                     };
                 });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))
                                  ->colors(whitelt, 0xA0db3700);
                 config.cd("/config/test/", "/config/defapp/");
-                auto [menu_block, cover, menu_data] = app::shared::custom_menu(config, {});
+                auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object0->attach(slot::_1, menu_block);
                 auto test_stat_area = object0->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
@@ -443,7 +445,7 @@ namespace netxs::app::test
                                                 ->upload(topic)
                                                 ->invoke([&](auto& self)
                                                 {
-                                                    self.SUBMIT(tier::release, e2::postrender, canvas)
+                                                    self.LISTEN(tier::release, e2::postrender, canvas)
                                                     {
                                                         static auto counter = 0; counter++;
                                                         static auto textclr =  ansi::bgc(reddk).fgc(whitelt);
@@ -452,7 +454,7 @@ namespace netxs::app::test
                                                         self.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.full().coor.str() + " ";
                                                     };
                                                     //todo
-                                                    //self.SUBMIT(tier::general, e2::form::canvas, canvas_ptr)
+                                                    //self.LISTEN(tier::general, e2::form::canvas, canvas_ptr)
                                                     //{
                                                     //    self.content(test_topic_vars::dynamix1).lyric = self.content(test_topic_vars::dynamix2).lyric;
                                                     //    self.content(test_topic_vars::dynamix2).lyric = self.content(test_topic_vars::dynamix3).lyric;
@@ -479,7 +481,5 @@ namespace netxs::app::test
         };
     }
 
-    app::shared::initialize builder{ "test", build };
+    app::shared::initialize builder{ app::test::id, build };
 }
-
-#endif // NETXS_APP_TEST_HPP

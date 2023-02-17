@@ -1,8 +1,9 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_APP_CALC_HPP
-#define NETXS_APP_CALC_HPP
+#pragma once
+
+#include "../desktopio/application.hpp"
 
 namespace netxs::events::userland
 {
@@ -26,7 +27,7 @@ namespace netxs::events::userland
     };
 }
 
-namespace netxs::console
+namespace netxs::ui
 {
     // console: Template modules for the base class behavior extension.
     namespace pro
@@ -90,9 +91,10 @@ namespace netxs::console
         public:
             cell_highlight(base&&) = delete;
             cell_highlight(base& boss)
-                : skill{ boss }
+                : skill{ boss },
+                  items{ boss }
             {
-                boss.SUBMIT_T(tier::release, e2::postrender, memo, parent_canvas)
+                boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
                 {
                     auto full = parent_canvas.full();
                     auto view = parent_canvas.view();
@@ -119,7 +121,7 @@ namespace netxs::console
                         }
                     });
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::left, memo, gear)
+                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
@@ -129,7 +131,7 @@ namespace netxs::console
                     }
                     recalc();
                 };
-                boss.SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::left, memo, gear)
+                boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear, memo)
                 {
                     auto& item = items.take(gear);
                     auto area = boss.size();
@@ -139,16 +141,16 @@ namespace netxs::console
                     recalc();
                     gear.dismiss();
                 };
-                boss.SUBMIT_T(tier::general, hids::events::die, memo, gear)
+                boss.LISTEN(tier::general, hids::events::die, gear, memo)
                 {
                     recalc();
                     boss.deface();
                 };
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
+                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
                 {
                     items.add(gear);
                 };
-                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
+                boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
@@ -191,26 +193,26 @@ namespace netxs::console
                 }
                 else data = " =SUM(" + ansi::itc(true).fgc(reddk).add("select cells by dragging").itc(faux).fgc(blacklt).add(")");
                 log("calc: DATA ", data, ansi::nil());
-                boss.SIGNAL(tier::release, e2::data::text, data);
+                boss.SIGNAL(tier::release, e2::data::utf8, data);
             }
             // pro::cell_highlight: Configuring the mouse button to operate.
             template<hids::buttons Button>
             void engage()
             {
                 boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
-                boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
+                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
                     boss.base::deface();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::start::_<Button>, memo, gear)
+                boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
                     if (items.take(gear).grab(gear.coord, gear.meta(hids::anyCtrl)))
                     {
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::pull::_<Button>, memo, gear)
+                boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
                 {
                     if (items.take(gear).drag(gear.coord))
                     {
@@ -218,12 +220,12 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::cancel::_<Button>, memo, gear)
+                boss.LISTEN(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
                 {
                     items.take(gear).drop();
                     recalc();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::drag::stop::_<Button>, memo, gear)
+                boss.LISTEN(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
                 {
                     items.take(gear).drop();
                     recalc();
@@ -233,9 +235,12 @@ namespace netxs::console
     }
 }
 
-// calc: Spreadsheet calculatpor.
+// calc: Spreadsheet calculator.
 namespace netxs::app::calc
 {
+    static constexpr auto id = "calc";
+    static constexpr auto desc = "Desktopio Spreadsheet (DEMO)";
+
     using events = ::netxs::events::userland::calc;
 
     namespace
@@ -312,10 +317,10 @@ namespace netxs::app::calc
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
         };
-        auto build = [](text cwd, text arg, xml::settings& config, text patch)
+        auto build = [](text cwd, text arg, xmls& config, text patch)
         {
-            auto highlight_color = skin::color(tone::highlight);
-            auto label_color     = skin::color(tone::label);
+            auto highlight_color = skin::globals().highlight;
+            auto label_color     = skin::globals().label;
             auto c3 = highlight_color;
             auto x3 = cell{ c3 }.alpha(0x00);
             auto c7 = label_color;
@@ -332,21 +337,21 @@ namespace netxs::app::calc
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
-                      boss.SUBMIT(tier::anycast, e2::form::quit, item)
+                      boss.LISTEN(tier::anycast, e2::form::quit, item)
                       {
-                          boss.base::template riseup<tier::release>(e2::form::quit, item);
+                          boss.RISEUP(tier::release, e2::form::quit, item);
                       };
-                      boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                      boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;
                           auto title = ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods");
-                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                          boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
-            auto fader = skin::timeout(tone::fader);
+            auto fader = skin::globals().fader_time;
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-                auto menu = object->attach(slot::_1, app::shared::main_menu(config));
+                auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
                 auto all_rail = object->attach(slot::_2, ui::rail::ctor());
                 auto all_stat = all_rail->attach(ui::fork::ctor(axis::Y))
                                         ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });
@@ -382,7 +387,7 @@ namespace netxs::app::calc
                                                      .fgc(blacklt).add(")"))
                                                      ->invoke([&](ui::post& boss)
                                                      {
-                                                         grid->SUBMIT(tier::release, e2::data::text, data)
+                                                         grid->LISTEN(tier::release, e2::data::utf8, data)
                                                          {
                                                             boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                          };
@@ -416,7 +421,5 @@ namespace netxs::app::calc
         };
     }
 
-    app::shared::initialize builder{ "calc", build };
+    app::shared::initialize builder{ app::calc::id, build };
 }
-
-#endif // NETXS_APP_CALC_HPP
