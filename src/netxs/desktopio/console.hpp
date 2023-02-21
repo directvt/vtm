@@ -2670,8 +2670,10 @@ namespace netxs::ui
                 image.set(winid, coord, cache, abort, debug.delta);
                 if (debug.delta)
                 {
-                    image.sendby(canal); // Sending, this is the frame synchronization point.
-                }                        // Frames should drop, the rest should wait for the end of sending.
+                    canal.busy = true; // It's okay if someone resets the busy flag before sending.
+                    image.sendby(canal);
+                    canal.busy.wait(true); // Successive frames must be discarded until the current frame is delivered.
+                }
                 debug.watch = datetime::now() - start;
             }
             log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
@@ -3364,10 +3366,7 @@ namespace netxs::ui
         // gate: Main loop.
         void launch()
         {
-            netxs::events::enqueue(This(), [&](auto& boss)
-            {
-                this->SIGNAL(tier::anycast, e2::form::upon::started, This());
-            });
+            SIGNAL(tier::anycast, e2::form::upon::started, This());
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
             SIGNAL(tier::release, e2::conio::quit, "exit from a stream reading loop");
         }

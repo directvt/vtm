@@ -1127,6 +1127,7 @@ namespace netxs::os
 
             virtual bool send(view buff) override
             {
+                busy = faux;
                 return io::send(handle.w, buff);
             }
             virtual qiew recv(char* buff, size_t size) override
@@ -1155,7 +1156,7 @@ namespace netxs::os
         struct xcross
             : public stdcon
         {
-            class fifo
+            struct fifo
             {
                 using lock = std::mutex;
                 using sync = std::condition_variable;
@@ -1165,19 +1166,19 @@ namespace netxs::os
                 lock mutex;
                 sync wsync;
                 sync rsync;
+                std::atomic<bool>& sbusy; // fifo: Server send incomplete.
 
-            public:
-                fifo()
-                    : alive{ true }
+                fifo(std::atomic<bool>& sbusy)
+                    : alive{ true  },
+                      sbusy{ sbusy }
                 { }
 
                 auto send(view block)
                 {
                     auto guard = std::unique_lock{ mutex };
-                    if (store.size() && alive) rsync.wait(guard, [&]{ return store.empty() || !alive; });
                     if (alive)
                     {
-                        store = block;
+                        store += block;
                         wsync.notify_one();
                     }
                     return alive;
@@ -1189,8 +1190,9 @@ namespace netxs::os
                     if (alive)
                     {
                         std::swap(store, yield);
+                        sbusy = faux;
+                        sbusy.notify_all();
                         store.clear();
-                        rsync.notify_one();
                         return qiew{ yield };
                     }
                     else return qiew{};
@@ -1199,20 +1201,26 @@ namespace netxs::os
                 {
                     auto guard = std::lock_guard{ mutex };
                     alive = faux;
+                    sbusy = faux;
+                    sbusy.notify_all();
                     wsync.notify_one();
-                    rsync.notify_one();
                 }
             };
 
             sptr<fifo> server;
             sptr<fifo> client;
 
-            xcross(sptr<fifo> s_queue = std::make_shared<fifo>(),
-                   sptr<fifo> c_queue = std::make_shared<fifo>())
-                : server{ s_queue },
-                  client{ c_queue }
+            xcross()
             {
                 active = true;
+            }
+            xcross(sptr<xcross> endpoint)
+                : client{ std::make_shared<fifo>(busy)           },
+                  server{ std::make_shared<fifo>(endpoint->busy) }
+            {
+                active = true;
+                endpoint->client = server;
+                endpoint->server = client;
             }
 
             qiew recv() override
@@ -1672,7 +1680,7 @@ namespace netxs::os
         auto xlink()
         {
             auto a = std::make_shared<ipc::xcross>();
-            auto b = std::make_shared<ipc::xcross>(a->client, a->server); // Swap queues for xlink.
+            auto b = std::make_shared<ipc::xcross>(a); // Queue entanglement for xlink.
             return std::pair{ a, b };
         }
     }
