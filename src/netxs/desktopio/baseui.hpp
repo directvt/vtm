@@ -1147,11 +1147,9 @@ namespace netxs::ui
         using xipc = std::shared_ptr<pipe>;
 
         bool active; // pipe: Is connected.
-        std::atomic<bool> busy; // pipe: Server send incomplete.
 
         pipe(bool active)
-            : active{ active },
-              busy{ faux }
+            : active{ active }
         { }
         virtual ~pipe()
         { }

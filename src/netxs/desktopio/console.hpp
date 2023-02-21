@@ -2670,9 +2670,7 @@ namespace netxs::ui
                 image.set(winid, coord, cache, abort, debug.delta);
                 if (debug.delta)
                 {
-                    canal.busy = true; // It's okay if someone resets the busy flag before sending.
-                    image.sendby(canal);
-                    canal.busy.wait(true); // Successive frames must be discarded until the current frame is delivered.
+                    image.sendby(canal); // Frame rate sync point.
                 }
                 debug.watch = datetime::now() - start;
             }
