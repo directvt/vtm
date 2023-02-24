@@ -1127,6 +1127,7 @@ namespace netxs::os
 
             virtual bool send(view buff) override
             {
+                busy = faux;
                 return io::send(handle.w, buff);
             }
             virtual qiew recv(char* buff, size_t size) override
@@ -1165,9 +1166,11 @@ namespace netxs::os
                 lock mutex;
                 sync wsync;
                 sync rsync;
+                std::atomic<bool>& sbusy; // fifo: Server send incomplete.
 
-                fifo()
-                    : alive{ true  }
+                fifo(std::atomic<bool>& sbusy)
+                    : alive{ true  },
+                      sbusy{ sbusy }
                 { }
 
                 auto send(view block)
@@ -1187,6 +1190,8 @@ namespace netxs::os
                     if (alive)
                     {
                         std::swap(store, yield);
+                        sbusy = faux;
+                        sbusy.notify_all();
                         store.clear();
                         return qiew{ yield };
                     }
@@ -1196,6 +1201,8 @@ namespace netxs::os
                 {
                     auto guard = std::lock_guard{ mutex };
                     alive = faux;
+                    sbusy = faux;
+                    sbusy.notify_all();
                     wsync.notify_one();
                 }
             };
@@ -1208,8 +1215,8 @@ namespace netxs::os
                 active = true;
             }
             xcross(sptr<xcross> endpoint)
-                : client{ std::make_shared<fifo>() },
-                  server{ std::make_shared<fifo>() }
+                : client{ std::make_shared<fifo>(busy)           },
+                  server{ std::make_shared<fifo>(endpoint->busy) }
             {
                 active = true;
                 endpoint->client = server;
