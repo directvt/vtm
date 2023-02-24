@@ -10,6 +10,7 @@
 #include <cfenv>
 #include <cassert>
 #include <bit>
+#include <atomic>
 
 #ifndef faux
     #define faux (false)
@@ -27,6 +28,7 @@ namespace netxs
     using hint = uint32_t;
     using id_t = uint32_t;
     using sz_t = ui32;
+    using flag = std::atomic<bool>;
 
     static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
 

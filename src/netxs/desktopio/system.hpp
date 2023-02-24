@@ -1121,13 +1121,13 @@ namespace netxs::os
             {
                 handle = std::move(p.handle);
                 buffer = std::move(p.buffer);
-                active = p.active;
-                p.active = faux;
+                pipe::active = p.pipe::active;
+                p.pipe::active = faux;
             }
 
             virtual bool send(view buff) override
             {
-                busy = faux;
+                pipe::isbusy = faux; // io::send blocks until the send is complete.
                 return io::send(handle.w, buff);
             }
             virtual qiew recv(char* buff, size_t size) override
@@ -1140,7 +1140,7 @@ namespace netxs::os
             }
             virtual void shut() override
             {
-                active = faux;
+                pipe::active = faux;
                 handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
             }
             virtual void stop() override
@@ -1161,16 +1161,16 @@ namespace netxs::os
                 using lock = std::mutex;
                 using sync = std::condition_variable;
 
-                bool alive;
-                text store;
-                lock mutex;
-                sync wsync;
-                sync rsync;
-                std::atomic<bool>& sbusy; // fifo: Server send incomplete.
+                bool  alive; // fifo: .
+                text  store; // fifo: .
+                lock  mutex; // fifo: .
+                sync  wsync; // fifo: .
+                sync  rsync; // fifo: .
+                flag& going; // fifo: Sending not completed.
 
-                fifo(std::atomic<bool>& sbusy)
-                    : alive{ true  },
-                      sbusy{ sbusy }
+                fifo(flag& busy)
+                    : alive{ true },
+                      going{ busy }
                 { }
 
                 auto send(view block)
@@ -1190,8 +1190,8 @@ namespace netxs::os
                     if (alive)
                     {
                         std::swap(store, yield);
-                        sbusy = faux;
-                        sbusy.notify_all();
+                        going = faux;
+                        going.notify_all();
                         store.clear();
                         return qiew{ yield };
                     }
@@ -1201,8 +1201,8 @@ namespace netxs::os
                 {
                     auto guard = std::lock_guard{ mutex };
                     alive = faux;
-                    sbusy = faux;
-                    sbusy.notify_all();
+                    going = faux;
+                    going.notify_all();
                     wsync.notify_one();
                 }
             };
@@ -1212,13 +1212,13 @@ namespace netxs::os
 
             xcross()
             {
-                active = true;
+                pipe::active = true;
             }
             xcross(sptr<xcross> endpoint)
-                : client{ std::make_shared<fifo>(busy)           },
-                  server{ std::make_shared<fifo>(endpoint->busy) }
+                : client{ std::make_shared<fifo>(pipe::isbusy)           },
+                  server{ std::make_shared<fifo>(endpoint->pipe::isbusy) }
             {
-                active = true;
+                pipe::active = true;
                 endpoint->client = server;
                 endpoint->server = client;
             }
@@ -1341,7 +1341,7 @@ namespace netxs::os
                             ? true
                             : (::GetLastError() == ERROR_PIPE_CONNECTED);
 
-                        if (active && connected) // Recreate the waiting point for the next client.
+                        if (pipe::active && connected) // Recreate the waiting point for the next client.
                         {
                             next_waiting_point =
                                 ::CreateNamedPipeA(path.c_str(),             // pipe path
@@ -1360,7 +1360,7 @@ namespace netxs::os
                             //       members of the Everyone group and the anonymous account.
                             //       Without write access, the desktop will be inaccessible to non-owners.
                         }
-                        else if (active) os::fail("meet: not active");
+                        else if (pipe::active) os::fail("meet: not active");
 
                         return next_waiting_point;
                     };
@@ -1368,7 +1368,7 @@ namespace netxs::os
                     auto r = next_link(handle.r, to_server, PIPE_ACCESS_INBOUND);
                     if (r == INVALID_FD)
                     {
-                        if (active) os::fail("meet: ::CreateNamedPipe unexpected (read)");
+                        if (pipe::active) os::fail("meet: ::CreateNamedPipe unexpected (read)");
                     }
                     else
                     {
@@ -1376,7 +1376,7 @@ namespace netxs::os
                         if (w == INVALID_FD)
                         {
                             ::CloseHandle(r);
-                            if (active) os::fail("meet: ::CreateNamedPipe unexpected (write)");
+                            if (pipe::active) os::fail("meet: ::CreateNamedPipe unexpected (write)");
                         }
                         else
                         {
@@ -1406,8 +1406,8 @@ namespace netxs::os
             }
             void stop() override
             {
-                if (!active) return;
-                active = faux;
+                if (!pipe::active) return;
+                pipe::active = faux;
                 log("xipc: server shuts down: ", handle);
                 #if defined(_WIN32)
                     auto to_client = WR_PIPE_PATH + scpath;
@@ -1420,8 +1420,8 @@ namespace netxs::os
             }
             void shut() override
             {
-                if (!active) return;
-                active = faux;
+                if (!pipe::active) return;
+                pipe::active = faux;
                 log("xipc: client disconnects: ", handle);
                 #if defined(_WIN32)
                     ::DisconnectNamedPipe(handle.w);
