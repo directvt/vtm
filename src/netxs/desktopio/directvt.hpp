@@ -462,7 +462,7 @@ namespace netxs::directvt
             void send(T&& sender, Args&&... args)
             {
                 auto lock = freeze();
-                if constexpr (!!sizeof...(args))
+                if constexpr (sizeof...(args))
                 {
                     thing.set(std::forward<Args>(args)...);
                 }

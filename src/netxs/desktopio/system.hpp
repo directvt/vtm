@@ -584,15 +584,15 @@ namespace netxs::os
                 }
                 template<std::size_t N, class P, class Index = std::make_index_sequence<N>, class ...Args>
                 constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
-                {   // Clang 11.0.1 don't allow sizeof...(args) as bool
-                    if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, Index{}), std::forward<Args>(args)...);
-                    else                             return _repack(h, a, Index{});
+                {
+                    if constexpr (sizeof...(args)) return _combine(_repack(h, a, Index{}), std::forward<Args>(args)...);
+                    else                           return _repack(h, a, Index{});
                 }
                 template<class P, class ...Args>
                 constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
                 {
-                    if constexpr (!!sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
-                    else                             return std::array{ handle };
+                    if constexpr (sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
+                    else                           return std::array{ handle };
                 }
                 template<class R, class P, class ...Args>
                 constexpr auto _handle(R i, fd_t handle, P&& proc, Args&&... args)
@@ -604,8 +604,8 @@ namespace netxs::os
                     }
                     else
                     {
-                        if constexpr (!!sizeof...(args)) return _handle(--i, std::forward<Args>(args)...);
-                        else                             return faux;
+                        if constexpr (sizeof...(args)) return _handle(--i, std::forward<Args>(args)...);
+                        else                           return faux;
                     }
                 }
 
@@ -615,7 +615,7 @@ namespace netxs::os
                 auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
                 {
                     FD_SET(handle, &socks);
-                    if constexpr (!!sizeof...(args))
+                    if constexpr (sizeof...(args))
                     {
                         return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
                     }
@@ -633,7 +633,7 @@ namespace netxs::os
                     }
                     else
                     {
-                        if constexpr (!!sizeof...(args)) _select(socks, std::forward<Args>(args)...);
+                        if constexpr (sizeof...(args)) _select(socks, std::forward<Args>(args)...);
                     }
                 }
 
