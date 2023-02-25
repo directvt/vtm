@@ -1158,14 +1158,15 @@ namespace netxs::os
                 using sync = std::condition_variable;
 
                 bool  alive; // fifo: .
-                text  store; // fifo: .
                 lock  mutex; // fifo: .
                 sync  wsync; // fifo: .
                 sync  rsync; // fifo: .
+                text& store; // fifo: .
                 flag& going; // fifo: Sending not completed.
 
-                fifo(flag& busy)
+                fifo(flag& busy, text& buff)
                     : alive{ true },
+                      store{ buff },
                       going{ busy }
                 { }
 
@@ -1203,20 +1204,21 @@ namespace netxs::os
                 }
             };
 
-            sptr<fifo> server;
-            sptr<fifo> client;
+            sptr<fifo>   client;
+            sptr<fifo>   server;
+            sptr<xcross> remote;
 
             xcross()
+            { }
+            xcross(sptr<xcross> remote)
+                : client{ std::make_shared<fifo>(isbusy, remote->buffer) },
+                  server{ std::make_shared<fifo>(remote->isbusy, buffer) },
+                  remote{ remote }
             {
-                pipe::active = true;
-            }
-            xcross(sptr<xcross> endpoint)
-                : client{ std::make_shared<fifo>(pipe::isbusy)           },
-                  server{ std::make_shared<fifo>(endpoint->pipe::isbusy) }
-            {
-                pipe::active = true;
-                endpoint->client = server;
-                endpoint->server = client;
+                remote->client = server;
+                remote->server = client;
+                remote->active = true;
+                active = true;
             }
 
             qiew recv() override
