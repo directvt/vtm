@@ -20,10 +20,11 @@ namespace netxs
         {
             return std::weak_ptr<T>{ p };
         }
-        template<class T>
-        auto shared(T&& from)
+        template<class T = noop, class ...Args>
+        auto shared(Args&&... args)
         {
-            return std::make_shared<std::decay_t<T>>(std::forward<T>(from));
+            if constexpr (std::is_same_v<T, noop>) return std::make_shared<std::decay_t<Args>...>(std::forward<Args>(args)...);
+            else                                   return std::make_shared<T>(std::forward<Args>(args)...);
         }
     }
 

@@ -443,7 +443,7 @@ namespace netxs::app::vtm
             auto back()      { return items.back()->object; }
             void append(sptr<base> item)
             {
-                items.push_back(std::make_shared<node>(item));
+                items.push_back(ptr::shared<node>(item));
             }
             //hall::list: Draw backpane for spectators.
             void prerender(face& canvas)

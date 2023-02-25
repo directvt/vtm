@@ -263,7 +263,7 @@ namespace netxs::xml
 
             suit(suit&&) = default;
             suit(view file = {})
-                : data{ std::make_shared<literal>(type::na) },
+                : data{ ptr::shared<literal>(type::na) },
                   fail{ faux },
                   file{ file },
                   back{ data }
@@ -272,7 +272,7 @@ namespace netxs::xml
             template<class ...Args>
             auto append(type kind, Args&&... args)
             {
-                auto item = std::make_shared<literal>(kind, std::forward<Args>(args)...);
+                auto item = ptr::shared<literal>(kind, std::forward<Args>(args)...);
                 item->prev = back;
                 back->next = item;
                 back = item;
@@ -630,7 +630,7 @@ namespace netxs::xml
         document(document&&) = default;
         document(view data, view file = {})
             : page{ file },
-              root{ std::make_shared<elem>()}
+              root{ ptr::shared<elem>()}
         {
             read(data);
             if (page.fail) log(" xml: inconsistent xml data from ", file.empty() ? "memory"sv : file, ":\n", page.show(), "\n");
@@ -921,7 +921,7 @@ namespace netxs::xml
                     {
                         do // Proceed inlined subs.
                         {
-                            auto next = std::make_shared<elem>(item);
+                            auto next = ptr::shared<elem>(item);
                             next->mode = elem::form::attr;
                             open(next);
                             pair(next, data, what, last, type::token);
@@ -979,7 +979,7 @@ namespace netxs::xml
                                 {
                                     trim(data);
                                     data = temp;
-                                    auto next = std::make_shared<elem>(item);
+                                    auto next = ptr::shared<elem>(item);
                                     read(next, data, deep + 1);
                                     push(next);
                                     temp = data;
@@ -1127,7 +1127,7 @@ namespace netxs::xml
         settings() = default;
         settings(settings const&) = default;
         settings(view utf8_xml)
-            : document{ std::make_shared<xml::document>(utf8_xml, "") }
+            : document{ ptr::shared<xml::document>(utf8_xml, "") }
         { }
 
         auto cd(text gotopath, view fallback = {})

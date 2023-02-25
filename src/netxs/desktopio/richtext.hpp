@@ -1015,7 +1015,7 @@ namespace netxs::ui
         si32 caret = 0; // para: Cursor position inside lyric.
         ui32 index = 0;
         writ locus;
-        corx lyric = std::make_shared<rich>();
+        corx lyric = ptr::shared<rich>();
 
         using parser::parser;
         para()                         = default;
@@ -1034,7 +1034,7 @@ namespace netxs::ui
 
         operator writ const& () const { return locus; }
 
-        void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
+        void decouple() { lyric = ptr::shared<rich>(*lyric); } // para: Make canvas isolated copy.
         void  content(rich& r){ *lyric = r; caret = r.length(); } // para: Set paragraph content.
         auto& content() const { return *lyric; } // para: Return paragraph content.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
@@ -1478,7 +1478,7 @@ namespace netxs::ui
 
     public:
         ui32 index = {};              // page: Current paragraph id.
-        list batch = { std::make_shared<para>(index) }; // page: Paragraph list.
+        list batch = { ptr::shared<para>(index) }; // page: Paragraph list.
         iter layer = batch.begin();   // page: Current paragraph.
         pmap parts;                   // page: Paragraph index.
 
@@ -1606,7 +1606,7 @@ namespace netxs::ui
         void fork()
         {
             if constexpr (Flush) parser::flush();
-            layer = batch.insert(std::next(layer), std::make_shared<para>(parser::style));
+            layer = batch.insert(std::next(layer), ptr::shared<para>(parser::style));
             (**layer).id(++index);
             shrink();
         }

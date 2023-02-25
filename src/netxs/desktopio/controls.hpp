@@ -2227,7 +2227,7 @@ namespace netxs::ui
         }
 
         stem_rate_grip(view sfx_string)
-            : sfx_str{ sfx_string }, canvas{*(coreface = std::make_shared<face>())}
+            : sfx_str{ sfx_string }, canvas{*(coreface = ptr::shared<face>())}
         {
             //todo cache specific
             canvas.link(bell::id);
@@ -2372,7 +2372,7 @@ namespace netxs::ui
             : min_val{ min_value },
               max_val{ max_value },
               grip_suffix{ suffix },
-              canvas{*(coreface = std::make_shared<face>())}
+              canvas{*(coreface = ptr::shared<face>())}
         {
             //todo cache specific
             canvas.link(bell::id);

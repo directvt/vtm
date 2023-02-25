@@ -1211,8 +1211,8 @@ namespace netxs::os
             xcross()
             { }
             xcross(sptr<xcross> remote)
-                : client{ std::make_shared<fifo>(isbusy, remote->buffer) },
-                  server{ std::make_shared<fifo>(remote->isbusy, buffer) },
+                : client{ ptr::shared<fifo>(isbusy, remote->buffer) },
+                  server{ ptr::shared<fifo>(remote->isbusy, buffer) },
                   remote{ remote }
             {
                 remote->client = server;
@@ -1378,7 +1378,7 @@ namespace netxs::os
                         }
                         else
                         {
-                            client = std::make_shared<ipc::socket>(handle);
+                            client = ptr::shared<ipc::socket>(handle);
                             handle = { r, w };
                         }
                     }
@@ -1389,7 +1389,7 @@ namespace netxs::os
                     {
                         auto h = ::accept(handle.r, 0, 0);
                         auto s = io::file{ h, h };
-                        if (s) client = std::make_shared<ipc::socket>(s);
+                        if (s) client = ptr::shared<ipc::socket>(s);
                     };
                     auto f_proc = [&]
                     {
@@ -1665,7 +1665,7 @@ namespace netxs::os
                 #endif
                 if (r != INVALID_FD && w != INVALID_FD)
                 {
-                    socket = std::make_shared<ipc::socket>(r, w, path);
+                    socket = ptr::shared<ipc::socket>(r, w, path);
                 }
                 return socket;
             }
@@ -1673,12 +1673,12 @@ namespace netxs::os
 
         auto stdio()
         {
-            return std::make_shared<ipc::stdcon>(STDIN_FD, STDOUT_FD);
+            return ptr::shared<ipc::stdcon>(STDIN_FD, STDOUT_FD);
         }
         auto xlink()
         {
-            auto a = std::make_shared<ipc::xcross>();
-            auto b = std::make_shared<ipc::xcross>(a); // Queue entanglement for xlink.
+            auto a = ptr::shared<ipc::xcross>();
+            auto b = ptr::shared<ipc::xcross>(a); // Queue entanglement for xlink.
             return std::pair{ a, b };
         }
     }

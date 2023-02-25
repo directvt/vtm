@@ -576,7 +576,7 @@ namespace netxs::app::term
         auto defs = menu::item::look{};
         for (auto data_ptr : menudata)
         {
-            auto item_ptr = std::make_shared<menu::item>();
+            auto item_ptr = ptr::shared<menu::item>();
             auto& data = *data_ptr;
             auto& item = *item_ptr;
             auto route = data.take(menu::attr::route, func::Noop,          route_options);

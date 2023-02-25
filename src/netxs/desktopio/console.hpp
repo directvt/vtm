@@ -2129,7 +2129,7 @@ namespace netxs::ui
             cache(base&&) = delete;
             cache(base& boss, bool rendered = true)
                 : skill{ boss },
-                  canvas{*(coreface = std::make_shared<face>())},
+                  canvas{*(coreface = ptr::shared<face>())},
                   lucidity{ 0xFF }
             {
                 canvas.link(boss.bell::id);

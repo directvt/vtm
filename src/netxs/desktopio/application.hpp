@@ -288,11 +288,11 @@ namespace netxs::app::shared
         {
             auto items = list
             {
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }}), [&](auto& boss, auto& item){ } },
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }}), [&](auto& boss, auto& item){ } },
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }}), [&](auto& boss, auto& item){ } },
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }}), [&](auto& boss, auto& item){ } },
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }}), [&](auto& boss, auto& item){ } },
+                { ptr::shared<item>(item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }), [&](auto& boss, auto& item){ } },
+                { ptr::shared<item>(item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }), [&](auto& boss, auto& item){ } },
+                { ptr::shared<item>(item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }), [&](auto& boss, auto& item){ } },
+                { ptr::shared<item>(item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }), [&](auto& boss, auto& item){ } },
+                { ptr::shared<item>(item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }), [&](auto& boss, auto& item){ } },
             };
             config.cd("/config/defapp/");
             auto [menu, cover, menu_data] = create(config, items);
