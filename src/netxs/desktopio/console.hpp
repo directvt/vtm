@@ -2238,7 +2238,7 @@ namespace netxs::ui
         };
 
         // pro: Custom highlighter.
-        //template<auto fuse> //todo apple clang doesn't get it
+        template<auto fx>
         class shade
             : public skill
         {
@@ -2262,8 +2262,7 @@ namespace netxs::ui
                     if (highlighted)
                     {
                         auto area = parent_canvas.full();
-                        //parent_canvas.fill(area, fuse); //todo apple clang doesn't get it
-                        parent_canvas.fill(area, cell::shaders::xlight);
+                        parent_canvas.fill(area, fx);
                     }
                 };
             }

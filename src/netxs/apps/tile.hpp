@@ -336,12 +336,10 @@ namespace netxs::app::tile
                         };
                         boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                         {
-                            boss.RISEUP(tier::release, events::enlist, boss.This()); //todo "template" keyword is required by gcc
+                            boss.RISEUP(tier::release, events::enlist, boss.This());
                         };
                     })
-                    //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
-                    ->branch(slot::_1,
-                        ui::post_fx::ctor()
+                    ->branch(slot::_1, ui::postfx<cell::shaders::contrast>::ctor()
                         ->upload(what.header)
                         ->invoke([&](auto& boss)
                         {
@@ -393,10 +391,9 @@ namespace netxs::app::tile
                 auto grip = node->attach(slot::_I,
                                 ui::mock::ctor()
                                 ->isroot(true)
-                                ->template plugin<pro::mover>()
+                                ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
                                 ->template plugin<pro::focus>()
-                                //->template plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
-                                ->template plugin<pro::shade>()
+                                ->template plugin<pro::shade<cell::shaders::xlight>>()
                                 ->invoke([&](auto& boss)
                                 {
                                     boss.keybd.accept(true);

@@ -3665,7 +3665,8 @@ namespace netxs::ui
                     while (size.y-- > 0)
                     {
                         auto oldsz = batch.size;
-                        auto proto = core::span{ &(*curit), static_cast<size_t>(size.x) }; // Apple Clang doesn't accept an iterator as an arg in the span ctor.
+                        //auto proto = core::span{ curit, static_cast<size_t>(size.x) };
+                        auto proto = core::span{ &(*curit), static_cast<size_t>(size.x) }; //todo Clang 13.0.0 doesn't accept an iterator as an arg in the span ctor.
                         auto curln = line{ curid++, style, proto, width };
                         curln.shrink(block.mark());
                         batch.insert(start, std::move(curln));
