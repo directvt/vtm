@@ -11,9 +11,6 @@
 
 namespace netxs
 {
-    static constexpr auto whitespace = char{ 0x20 };
-    //static constexpr auto whitespace = '.';
-
     enum svga
     {
         truecolor,
@@ -533,8 +530,8 @@ namespace netxs
             {
                 byte jumbo : 1;                  // grapheme cluster length overflow bit
                 //todo unify with CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-                byte width : WCWIDTH_FIELD_SIZE; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
-                byte count : CLUSTER_FIELD_SIZE; // grapheme cluster length (utf-8 encoded) (max GRAPHEME_CLUSTER_LIMIT)
+                byte width : utf::wcwidth_field_size; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
+                byte count : utf::cluster_field_size; // grapheme cluster length (utf-8 encoded) (max grapheme_cluster_limit)
             };
 
             // There is no need to reset/clear/flush the map because
@@ -1137,7 +1134,7 @@ namespace netxs
                     return view{ "^" };
                 }
             }
-            return utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+            return utf::replacement;
         }
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
@@ -1150,7 +1147,7 @@ namespace netxs
                     return shadow.substr(1, 1);
                 }
             }
-            return utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+            return utf::replacement;
         }
         // cell: Convert non-printable chars to escaped.
         template<class C>
@@ -1226,7 +1223,7 @@ namespace netxs
         auto& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
         auto& rst () // cell: Reset view attributes of the cell to zero.
         {
-            static cell empty{ whitespace };
+            static auto empty = cell{ whitespace };
             uv = empty.uv;
             st = empty.st;
             gc = empty.gc;

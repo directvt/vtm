@@ -3,9 +3,6 @@
 
 #pragma once
 
-// Tiling limits.
-#define INHERITANCE_LIMIT 30
-
 namespace netxs::app::tile
 {
     using backups = std::list<sptr<ui::veer>>;
@@ -48,6 +45,7 @@ namespace netxs::app::tile
 {
     static constexpr auto id = "group";
     static constexpr auto desc = "Tiling Window Manager";
+    static constexpr auto inheritance_limit = 30; // Tiling limits.
 
     using events = netxs::events::userland::tile;
 
@@ -121,7 +119,7 @@ namespace netxs::app::tile
                                 if (auto data_ptr = data_shadow.lock())
                                 {
                                     auto deed = boss.bell::template protos<tier::release>(); //todo clang 13.0.0 requires template
-                                    data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc version 10.4.0
+                                    data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc version 11.3.0
                                     gear.dismiss();
                                 }
                             };
@@ -595,7 +593,7 @@ namespace netxs::app::tile
                             auto depth = e2::depth.param();
                             boss.RISEUP(tier::request, e2::depth, depth, true);
                             log("tile: depth=", depth);
-                            if (depth > INHERITANCE_LIMIT) return;
+                            if (depth > inheritance_limit) return;
 
                             auto heading = deed == app::tile::events::ui::split::vt.id;
                             auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);

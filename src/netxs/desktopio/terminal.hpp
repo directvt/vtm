@@ -5455,7 +5455,7 @@ namespace netxs::ui
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(ansi::esc& yield, si32 selmod)
             {
-                //todo Clang don't get it
+                //todo Clang 15 don't get it
                 //auto [i_top, i_end, upcur, dncur] = selection_get_it();
                 auto tempvr = selection_get_it();
                 auto i_top = std::get<0>(tempvr);
@@ -5611,7 +5611,7 @@ namespace netxs::ui
                     auto scrolling_region = rect{ { -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
                     scrolling_region.coor += full.coor;
                     view = view.clip(scrolling_region);
-                    //todo Clang don't get it
+                    //todo Clang 15 don't get it
                     //auto [curtop, curend] = selection_take_grips();
                     auto tempvr = selection_take_grips();
                     auto curtop = tempvr.first;

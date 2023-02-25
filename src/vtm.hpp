@@ -600,7 +600,7 @@ namespace netxs::app::vtm
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
-                ->plugin<pro::title>(what.header, what.footer) //todo "template": gcc complains on ubuntu 18.04
+                ->plugin<pro::title>(what.header, what.footer)
                 ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()

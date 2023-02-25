@@ -16,10 +16,6 @@
 #include <thread>
 #include <functional>
 
-#ifndef faux
-    #define faux (false)
-#endif
-
 namespace netxs::generics
 {
     // generics: .

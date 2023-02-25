@@ -582,7 +582,7 @@ namespace netxs::ui
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, ui::whitespace);
+            //        lyric.emplace_back(cluster, whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -609,7 +609,7 @@ namespace netxs::ui
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    c.txt(utf::replacement);
                     do fuse(*dest++, c);
                     while (--w && dest != tail + 1);
                 }
@@ -620,7 +620,7 @@ namespace netxs::ui
                 auto w = c.wdt();
                      if (w == 1) fuse(*dest, c);
                 else if (w == 2) fuse(*dest, c.wdt(3));
-                else if (w >  2) fuse(*dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
+                else if (w >  2) fuse(*dest, c.txt(utf::replacement));
             }
         }
         template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
@@ -638,7 +638,7 @@ namespace netxs::ui
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, ui::whitespace);
+            //        lyric.emplace_back(cluster, whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -670,7 +670,7 @@ namespace netxs::ui
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //c.txt(utf::replacement);
                     //do set(c);
                     //while (--w && size > 0);
                 }
@@ -691,7 +691,7 @@ namespace netxs::ui
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, ui::whitespace);
+            //        lyric.emplace_back(cluster, whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -718,7 +718,7 @@ namespace netxs::ui
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //c.txt(utf::replacement);
                     //do *--dest = c;
                     //while (--w && dest != tail - 1);
                 }
@@ -729,7 +729,7 @@ namespace netxs::ui
                 auto w = c.wdt();
                      if (w == 1) fuse(*--dest, c);
                 else if (w == 2) fuse(*--dest, c.wdt(3));
-                else if (w >  2) fuse(*--dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
+                else if (w >  2) fuse(*--dest, c.txt(utf::replacement));
             }
         }
         // rich: Splice proto with auto grow.

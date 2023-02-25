@@ -608,8 +608,8 @@ namespace netxs::ui
                         auto& entry = *client.first;
                         if (!found)
                         {
-                            // todo optimize: use the only one axis to hittest
-                            // todo detect client during preview, use wptr
+                            //todo optimize: use the only one axis to hittest
+                            //todo detect client during preview, use wptr
                             auto& anker = entry.base::area();
                             if (anker.hittest(base::anchor))
                             {

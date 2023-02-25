@@ -336,10 +336,6 @@ HEADER_BASE = r'''
 #include <vector>
 #include <iterator>
 
-#ifndef faux
-    #define faux (false)
-#endif
-
 namespace netxs::{module}
 {{
     namespace {wclass}

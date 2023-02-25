@@ -584,7 +584,7 @@ namespace netxs::ansi
         {
             auto badfx = [&]
             {
-                add(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                add(utf::replacement);
                 state.set_gc();
                 state.wdt(1);
             };
@@ -1032,7 +1032,7 @@ namespace netxs::ansi
                                                                       //       Redefine if the id already exists.
     // ansi: Caret forwarding instructions.
     // The order is important (see the richtext::flow::exec constexpr).
-    // todo tie with richtext::flow::exec
+    //todo tie with richtext::flow::exec
     enum fn : si32
     {
         dx, // horizontal delta.
@@ -1209,8 +1209,8 @@ namespace netxs::ansi
         }
     };
 
-    //todo should we parse these controls as a C0-like?
-    //     split paragraphs when flow direction changes, for example.
+    // Parse these controls as a C0-like,
+    // split paragraphs when flow direction changes, for example.
     struct marker
     {
         using changer = std::array<void (*)(cell&), ctrl::COUNT>;

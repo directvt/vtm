@@ -30,9 +30,14 @@ namespace netxs
     using sz_t = ui32;
     using flag = std::atomic<bool>;
 
-    static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
-
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
+    static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
+    static constexpr auto debugmode
+        #if defined(_DEBUG)
+        = true;
+        #else
+        = faux;
+        #endif
 
     struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };
 

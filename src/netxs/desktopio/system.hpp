@@ -83,14 +83,10 @@ namespace netxs::os
 
     static auto is_daemon = faux;
     static constexpr auto pipebuf = si32{ 65536 };
+    static constexpr auto app_wait_timeout = debugmode ? 1000000 : 10000;
 
     #if defined(_WIN32)
 
-        #if defined(_DEBUG)
-            #define APP_WAIT_TIMEOUT 1000000
-        #else
-            #define APP_WAIT_TIMEOUT 10000
-        #endif
         using sigt = DWORD;
         using pidt = DWORD;
         using fd_t = HANDLE;
@@ -2380,7 +2376,7 @@ namespace netxs::os
                     else if (code == STILL_ACTIVE)
                     {
                         log("vtty: child process still running");
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
+                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
                         if (!result || !::GetExitCodeProcess(prochndl, &code))
                         {
                             ::TerminateProcess(prochndl, 0);
@@ -3008,7 +3004,7 @@ namespace netxs::os
                         else if (code == STILL_ACTIVE)
                         {
                             log("dtvt: child process still running");
-                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
+                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
                             if (!result || !::GetExitCodeProcess(prochndl, &code))
                             {
                                 ::TerminateProcess(prochndl, 0);
@@ -3022,7 +3018,7 @@ namespace netxs::os
                     #else
 
                         int status;
-                        //todo wait APP_WAIT_TIMEOUT before kill
+                        //todo wait app_wait_timeout before kill
                         ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
                         ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                         if (WIFEXITED(status))
