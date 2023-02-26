@@ -199,7 +199,7 @@ namespace netxs::app::tile
                                     {
                                         gear.countdown--;
                                         // Removing multifocus - The only one can be maximized if several are selected.
-                                        gear.kb_offer_11(boss);
+                                        gear.kb_offer_6(boss);
                                         boss.RISEUP(tier::release, e2::form::maximize, gear);
                                         //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
                                     }
@@ -320,7 +320,7 @@ namespace netxs::app::tile
                                 // Attach to the world.
                                 world_ptr->SIGNAL(tier::request, vtm::events::handoff, what);
                                 
-                                gear.kb_offer_9(what.applet); // Pass focus.
+                                gear.kb_offer_2(what.applet); // Pass focus.
                                 gear.annul_kb_focus(master_ptr); // Remove focus.
 
                                 // Destroy placeholder.
@@ -368,7 +368,7 @@ namespace netxs::app::tile
                 {
                     if (auto gear_ptr = bell::getref<hids>(gear_id))
                     {
-                        gear_ptr->kb_offer_9(item_ptr);
+                        gear_ptr->kb_offer_2(item_ptr);
                     }
                 }
             }
@@ -540,7 +540,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::anycast, app::tile::events::ui::select, gear)
                     {
                         auto item_ptr = boss.back();
-                        if (item_ptr->base::kind() != 1) gear.kb_offer_9(item_ptr);
+                        if (item_ptr->base::kind() != 1) gear.kb_offer_2(item_ptr);
                         else                             gear.annul_kb_focus(item_ptr); // Exclude grips.
                     };
                     boss.LISTEN(tier::release, e2::form::maximize, gear, -, (oneoff = subs{}))
@@ -563,7 +563,7 @@ namespace netxs::app::tile
                             if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
                             {
                                 // Pass the focus to the maximized window.
-                                gear.kb_offer_15(boss.back());
+                                gear.kb_offer_3(boss.back());
                                 auto fullscreen_item = boss.pop_back();
                                 if (fullscreen_item)
                                 {
@@ -695,7 +695,7 @@ namespace netxs::app::tile
 
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);
                             if (gear.meta(hids::anyCtrl)) gear.kb_offer_4(app);
-                            else                          gear.kb_offer_10(app);
+                            else                          gear.kb_offer_5(app);
                         }
                     };
                     boss.LISTEN(tier::release, events::backup, empty_slot_list)

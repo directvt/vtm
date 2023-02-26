@@ -906,7 +906,7 @@ namespace netxs::app::vtm
                             log("hall: detached: ", insts_count);
                         };
                         gear.clear_kb_focus(); // DirectVT app could have a group of focused.
-                        gear.kb_offer_10(window);
+                        gear.kb_offer_5(window);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     }
                 }

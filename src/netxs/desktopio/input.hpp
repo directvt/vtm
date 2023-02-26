@@ -899,10 +899,12 @@ namespace netxs::input
         }
         auto state()
         {
-            return std::tuple{ force_group_focus,
-                                kb_focus_changed,
-                                   combine_focus,
-                                       countdown };
+            auto s = std::tuple{ force_group_focus,
+                                  kb_focus_changed,
+                                     combine_focus,
+                                         countdown };
+            kb_focus_changed = faux;
+            return s;
         }
         template<class T>
         void state(T const& s)
@@ -959,19 +961,18 @@ namespace netxs::input
         }
         void take(sysfocus& f)
         {
-            kb_focus_changed = faux; //todo unify, see base::upevent handler
+            auto s = state();
             if (f.enabled)
             {
-                auto s = state();
                 force_group_focus = f.force_group_focus;
                 combine_focus     = f.combine_focus    ;
                 owner.SIGNAL(tier::release, events::upevent::kboffer, *this);
-                state(s);
             }
             else
             {
                 owner.SIGNAL(tier::release, events::upevent::kbannul, *this);
             }
+            state(s);
         }
 
         auto& area() const { return idmap.area(); }
@@ -1280,71 +1281,64 @@ namespace netxs::input
             item_ptr->SIGNAL(tier::release, events::upevent::kbannul, *this);
         }
 
-        void kb_offer_2(base& boss)
+        void kb_offer_1(base& item)
         {
             auto s = state();
-            kb_focus_changed = faux;
             force_group_focus = true;
-            combine_focus = faux;
-            boss.SIGNAL(tier::release, events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_9(sptr<base> item_ptr)
-        {
-            auto s = state();
-            kb_focus_changed = faux;
-            force_group_focus = true;
-            combine_focus = true;
-            item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_15(sptr<base> item_ptr)
-        {
-            auto s = state();
-            kb_focus_changed = faux;
-            force_group_focus = faux;
-            combine_focus = true;
-            item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_7(base& item)
-        {
-            auto s = state();
-            kb_focus_changed = faux;
-            force_group_focus = faux;
             combine_focus = faux;
             item.SIGNAL(tier::release, events::upevent::kboffer, *this);
+            state(s);
+        }
+        void kb_offer_2(sptr<base> item_ptr)
+        {
+            auto s = state();
+            force_group_focus = true;
+            combine_focus = true;
+            item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
+            state(s);
+        }
+        void kb_offer_3(sptr<base> item_ptr)
+        {
+            auto s = state();
+            force_group_focus = faux;
+            combine_focus = true;
+            item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
             state(s);
         }
         void kb_offer_4(sptr<base> item_ptr)
         {
             auto s = state();
-            kb_focus_changed = faux;
             force_group_focus = true;
             item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
             state(s);
         }
-        void kb_offer_11(base& boss)
+        void kb_offer_5(sptr<base> item_ptr)
         {
             auto s = state();
-            kb_focus_changed = faux;
-            force_group_focus = faux;
-            boss.SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_10(sptr<base> item_ptr)
-        {
-            auto s = state();
-            kb_focus_changed = faux;
             item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
             state(s);
         }
-        void kb_offer_18(sptr<base> boss_ptr, bool force_group)
+        void kb_offer_6(base& item)
+        {
+            auto s = state();
+            force_group_focus = faux;
+            item.SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
+            state(s);
+        }
+        void kb_offer_7(base& item)
+        {
+            auto s = state();
+            force_group_focus = faux;
+            combine_focus = faux;
+            item.SIGNAL(tier::release, events::upevent::kboffer, *this);
+            state(s);
+        }
+        void kb_offer_8(sptr<base> item_ptr, bool force_group)
         {
             auto s = state();
             force_group_focus = force_group;
             combine_focus = true;  // dtvt app is always a group of focused.
-            set_kb_focus(boss_ptr);
+            set_kb_focus(item_ptr);
             state(s);
         }
 

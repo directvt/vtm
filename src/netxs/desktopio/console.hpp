@@ -1641,13 +1641,13 @@ namespace netxs::ui
                     auto deed = boss.bell::protos<tier::release>();
                     if (deed == hids::events::mouse::button::click::left.id) //todo make it configurable (left click)
                     {
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_2(boss);
-                        else                          gear.kb_offer_10(boss.This());
+                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(boss);
+                        else                          gear.kb_offer_5(boss.This());
                         gear.dismiss();
                     }
                     else if (deed == hids::events::mouse::button::click::right.id) //todo make it configurable (left click)
                     {
-                        gear.kb_offer_2(boss);
+                        gear.kb_offer_1(boss);
                         gear.dismiss();
                     }
                 };
@@ -1699,7 +1699,7 @@ namespace netxs::ui
                     //        if (gear_id == gear.id)
                     //        {
                     //            log(" good ");
-                    //            gear.kb_offer_2(boss);
+                    //            gear.kb_offer_1(boss);
                     //        }
                     //    }
                     //};
@@ -3562,7 +3562,7 @@ namespace netxs::ui
             {
                 auto myid = from_gear.id;
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                if (gear_ptr) gear_ptr->kb_offer_10(applet);
+                if (gear_ptr) gear_ptr->kb_offer_5(applet);
             };
             LISTEN(tier::release, hids::events::clipbrd::set, from_gear, tokens)
             {

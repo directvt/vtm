@@ -329,7 +329,7 @@ namespace netxs::ui
                     owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
                     if (gear_test.second == 0)
                     {
-                        gear.kb_offer_9(owner.This());
+                        gear.kb_offer_2(owner.This());
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }
@@ -341,7 +341,7 @@ namespace netxs::ui
                     owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
                     if (gear_test.second == 0)
                     {
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_2(owner);
+                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(owner);
                         else                          gear.kb_offer_7(owner);
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
@@ -6584,7 +6584,7 @@ namespace netxs::ui
             auto data = gear.get_clip_data();
             if (data.utf8.size())
             {
-                gear.kb_offer_9(this->This());
+                gear.kb_offer_2(this->This());
                 //todo respect bracketed paste mode
                 follow[axis::X] = true;
                 if (data.kind == clip::richtext)
@@ -6611,7 +6611,7 @@ namespace netxs::ui
         {
             auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
                                                            : static_cast<clip::mime>(selmod);
-            gear.kb_offer_9(this->This());
+            gear.kb_offer_2(this->This());
             gear.set_clip_data(clip{ target->panel, data, mimetype });
         }
         auto copy(hids& gear)
@@ -6667,7 +6667,7 @@ namespace netxs::ui
                                                    : text{};
             if (utf8.size())
             {
-                gear.kb_offer_9(this->This());
+                gear.kb_offer_2(this->This());
                 follow[axis::X] = true;
                 data_out(utf8);
                 gear.dismiss();
@@ -7330,7 +7330,7 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = bell::getref<hids>(f.gear_id))
                     {
-                        gear_ptr->kb_offer_18(owner.This(), f.force_group_focus);
+                        gear_ptr->kb_offer_8(owner.This(), f.force_group_focus);
                     }
                 });
             }
