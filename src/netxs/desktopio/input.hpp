@@ -612,6 +612,18 @@ namespace netxs::input
             F10       = 0x79,
             F11       = 0x7A,
             F12       = 0x7B,
+            F13       = 0x7C,
+            F14       = 0x7D,
+            F15       = 0x7E,
+            F16       = 0x7F,
+            F17       = 0x80,
+            F18       = 0x81,
+            F19       = 0x82,
+            F20       = 0x83,
+            F21       = 0x84,
+            F22       = 0x85,
+            F23       = 0x86,
+            F24       = 0x87,
         };
 
         wchr winchar = {}; // MS Windows specific.
@@ -1395,6 +1407,18 @@ namespace netxs::input
                     case key::F10:       ctrl("[21", "[21", "~"); break;
                     case key::F11:       ctrl("[23", "[23", "~"); break;
                     case key::F12:       ctrl("[24", "[24", "~"); break;
+                    case key::F13:       ctrl("[25", "[25", "~"); break;
+                    case key::F14:       ctrl("[26", "[26", "~"); break;
+                    case key::F15:       ctrl("[28", "[28", "~"); break;
+                    case key::F16:       ctrl("[29", "[29", "~"); break;
+                    case key::F17:       ctrl("[31", "[31", "~"); break;
+                    case key::F18:       ctrl("[32", "[32", "~"); break;
+                    case key::F19:       ctrl("[33", "[33", "~"); break;
+                    case key::F20:       ctrl("[34", "[34", "~"); break;
+                    case key::F21:       ctrl("[35", "[35", "~"); break;
+                    case key::F22:       ctrl("[36", "[36", "~"); break;
+                    case key::F23:       ctrl("[37", "[37", "~"); break;
+                    case key::F24:       ctrl("[38", "[38", "~"); break;
                     default:
                         textline = cluster;
                         break;
