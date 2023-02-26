@@ -6110,7 +6110,7 @@ namespace netxs::ui
         hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
-        bool       active; // term: Terminal lifetime.
+        flag       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       onlogs; // term: Developer mode.
@@ -7510,7 +7510,7 @@ namespace netxs::ui
         text        curdir; // dtvt: Current working directory.
         text        cmdarg; // dtvt: Startup command line arguments.
         text        xmlcfg; // dtvt: Startup config.
-        bool        active; // dtvt: Terminal lifetime.
+        flag        active; // dtvt: Terminal lifetime.
         si32        nodata; // dtvt: Show splash "No signal".
         face        splash; // dtvt: "No signal" splash.
         span        maxoff; // dtvt: Max delay before showing "No signal".

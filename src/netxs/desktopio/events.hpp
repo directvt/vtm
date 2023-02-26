@@ -597,7 +597,7 @@ namespace netxs::events
         }
         // bell: Sync with UI thread.
         template<class P>
-        void trysync(bool& active, P proc)
+        void trysync(flag& active, P proc)
         {
             while (active)
             {
