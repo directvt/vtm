@@ -3101,9 +3101,9 @@ namespace netxs::ui
                     boss.base::strike();
                 };
                 boss.SIGNAL(tier::general, e2::config::fps, e2::config::fps.param(-1));
-                boss.LISTEN(tier::release, e2::conio::focus, focusstate, tokens)
+                boss.LISTEN(tier::release, e2::conio::focus, f, tokens)
                 {
-                    update(focusstate.enabled);
+                    update(f.state);
                     boss.base::strike();
                 };
                 boss.LISTEN(tier::release, e2::size::any, newsize, tokens)

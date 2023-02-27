@@ -962,7 +962,7 @@ namespace netxs::input
         void take(sysfocus& f)
         {
             auto s = state();
-            if (f.enabled)
+            if (f.state)
             {
                 force_group_focus = f.force_group_focus;
                 combine_focus     = f.combine_focus    ;
