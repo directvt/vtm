@@ -1281,12 +1281,12 @@ namespace netxs::input
             item_ptr->SIGNAL(tier::release, events::upevent::kbannul, *this);
         }
 
-        void kb_offer_1(base& item)
+        void kb_offer_1(sptr<base> item_ptr)
         {
             auto s = state();
             force_group_focus = true;
             combine_focus = faux;
-            item.SIGNAL(tier::release, events::upevent::kboffer, *this);
+            item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
             state(s);
         }
         void kb_offer_2(sptr<base> item_ptr)
@@ -1318,19 +1318,19 @@ namespace netxs::input
             item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
             state(s);
         }
-        void kb_offer_6(base& item)
+        void kb_offer_6(sptr<base> item_ptr)
         {
             auto s = state();
             force_group_focus = faux;
-            item.SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
+            item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
             state(s);
         }
-        void kb_offer_7(base& item)
+        void kb_offer_7(sptr<base> item_ptr)
         {
             auto s = state();
             force_group_focus = faux;
             combine_focus = faux;
-            item.SIGNAL(tier::release, events::upevent::kboffer, *this);
+            item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
             state(s);
         }
         void kb_offer_8(sptr<base> item_ptr, bool force_group)

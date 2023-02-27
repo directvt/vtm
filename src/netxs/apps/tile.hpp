@@ -199,7 +199,7 @@ namespace netxs::app::tile
                                     {
                                         gear.countdown--;
                                         // Removing multifocus - The only one can be maximized if several are selected.
-                                        gear.kb_offer_6(boss);
+                                        gear.kb_offer_6(boss.This());
                                         boss.RISEUP(tier::release, e2::form::maximize, gear);
                                         //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
                                     }

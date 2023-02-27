@@ -341,8 +341,8 @@ namespace netxs::ui
                     owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
                     if (gear_test.second == 0)
                     {
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(owner);
-                        else                          gear.kb_offer_7(owner);
+                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(owner.This());
+                        else                          gear.kb_offer_7(owner.This());
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }

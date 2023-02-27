@@ -1641,13 +1641,13 @@ namespace netxs::ui
                     auto deed = boss.bell::protos<tier::release>();
                     if (deed == hids::events::mouse::button::click::left.id) //todo make it configurable (left click)
                     {
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(boss);
+                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(boss.This());
                         else                          gear.kb_offer_5(boss.This());
                         gear.dismiss();
                     }
                     else if (deed == hids::events::mouse::button::click::right.id) //todo make it configurable (left click)
                     {
-                        gear.kb_offer_1(boss);
+                        gear.kb_offer_1(boss.This());
                         gear.dismiss();
                     }
                 };
@@ -1699,7 +1699,7 @@ namespace netxs::ui
                     //        if (gear_id == gear.id)
                     //        {
                     //            log(" good ");
-                    //            gear.kb_offer_1(boss);
+                    //            gear.kb_offer_1(boss.This());
                     //        }
                     //    }
                     //};

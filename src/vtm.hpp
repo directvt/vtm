@@ -235,12 +235,11 @@ namespace netxs::app::vtm
 
                     if (item_ptr)
                     {
-                        auto& item = *item_ptr;
-                        auto& area = item.area();
+                        auto& area = item_ptr->area();
                         auto center = area.coor + (area.size / 2);
                         this->SIGNAL(tier::release, e2::form::layout::shift, center);
                         gear.clear_kb_focus();
-                        gear.kb_offer_7(item);
+                        gear.kb_offer_7(item_ptr);
                     }
                     gear.dismiss();
                 }
