@@ -1167,49 +1167,10 @@ namespace netxs::input
                 kb_focus.erase(iter);
             });
         }
-        void add_single_kb_focus(sptr<base> item_ptr)
-        {
-            //todo kb
-            auto keep = true;
-            auto iter = kb_focus.begin();
-            while (iter != kb_focus.end())
-            {
-                if (auto next = iter->lock())
-                {
-                    //todo foci
-                    //next->SIGNAL(tier::preview, events::notify::keybd::lost, *this);
-                    if (item_ptr == next)
-                    {
-                        keep = faux;
-                        iter++;
-                        continue;
-                    }
-                    next->SIGNAL(tier::release, events::notify::keybd::lost, *this);
-                }
-                iter++;
-                kb_focus.erase(std::prev(iter));
-            }
-
-            if (keep) _add_kb_focus(item_ptr);
-            //todo foci
-            //item->SIGNAL(tier::anycast, hids::events::upevent::kbannul, *this); // Drop saved foci (see pro::keybd).
-        }
-        auto add_group_kb_focus_or_release_captured(sptr<base> item_ptr)
-        {
-            //todo kb
-            if (!remove_from_kb_focus(item_ptr))
-            {
-                _add_kb_focus(item_ptr);
-                return true;
-            }
-            else return faux;
-        }
         void set_kb_focus(sptr<base> item_ptr)
         {
-            //todo kb
             kb_focus_changed = true;
             kb_focus_set = true;
-            //todo foci
             //auto kb_focus_size = kb_focus.size();
             if (!simple_instance && (hids::meta(anyCtrl) || force_group_focus))
             {
@@ -1219,15 +1180,34 @@ namespace netxs::input
                 }
                 else
                 {
-                    kb_focus_set = add_group_kb_focus_or_release_captured(item_ptr);
+                    kb_focus_set = !remove_from_kb_focus(item_ptr);
+                    if (kb_focus_set) _add_kb_focus(item_ptr);
                 }
             }
-            else
+            else // Set exclusive focus.
             {
-                add_single_kb_focus(item_ptr);
+                auto keep = true;
+                auto iter = kb_focus.begin();
+                while (iter != kb_focus.end())
+                {
+                    if (auto next = iter->lock())
+                    {
+                        //next->SIGNAL(tier::preview, events::notify::keybd::lost, *this);
+                        if (item_ptr == next)
+                        {
+                            keep = faux;
+                            iter++;
+                            continue;
+                        }
+                        next->SIGNAL(tier::release, events::notify::keybd::lost, *this);
+                    }
+                    iter++;
+                    kb_focus.erase(std::prev(iter));
+                }
+                if (keep) _add_kb_focus(item_ptr);
+                //item->SIGNAL(tier::anycast, hids::events::upevent::kbannul, *this); // Drop saved foci (see pro::keybd).
             }
             if (kb_focus.size()) owner.SIGNAL(tier::preview, events::notify::focus::got, *this);
-            //todo foci
             //else if (kb_focus_size) owner.SIGNAL(tier::preview, events::notify::focus::lost, *this);
         }
         auto get_kb_focus()
@@ -1338,6 +1318,8 @@ namespace netxs::input
             auto s = state();
             force_group_focus = force_group;
             combine_focus = true;  // dtvt app is always a group of focused.
+            //todo
+            //item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
             set_kb_focus(item_ptr);
             state(s);
         }

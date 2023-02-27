@@ -438,6 +438,8 @@ namespace netxs::app::shared
                 ->plugin<pro::focus>()
                 ->invoke([](auto& boss)
                 {
+                    //todo
+                    //boss.keybd.accept(true);
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
                         boss.start();
