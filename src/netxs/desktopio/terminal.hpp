@@ -7323,25 +7323,15 @@ namespace netxs::ui
                     s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
                 });
             }
-            void handle(s11n::xs::set_focus           lock)
+            void handle(s11n::xs::focus               lock)
             {
                 auto& f = lock.thing;
                 owner.trysync(owner.active, [&]
                 {
                     if (auto gear_ptr = bell::getref<hids>(f.gear_id))
                     {
-                        gear_ptr->kb_offer_8(owner.This(), f.force_group_focus);
-                    }
-                });
-            }
-            void handle(s11n::xs::off_focus           lock)
-            {
-                auto& f = lock.thing;
-                owner.trysync(owner.active, [&]
-                {
-                    if (auto gear_ptr = bell::getref<hids>(f.gear_id))
-                    {
-                        gear_ptr->remove_from_kb_focus(owner.This());
+                        if (f.state) gear_ptr->kb_offer_8(owner.This(), f.force_group_focus);
+                        else         gear_ptr->remove_from_kb_focus(owner.This());
                     }
                 });
             }

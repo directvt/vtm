@@ -3643,12 +3643,9 @@ namespace netxs::ui
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
                     if (!gear_ptr) return;
-                    auto deed =this->bell::protos<tier::preview>();
-                    switch (deed)
-                    {
-                        case hids::events::notify::focus::got.id:  conio.set_focus.send(conio, ext_gear_id, from_gear.combine_focus, from_gear.force_group_focus); break;
-                        case hids::events::notify::focus::lost.id: conio.off_focus.send(conio, ext_gear_id); break;
-                    }
+                    auto cause = this->bell::protos<tier::preview>();
+                    auto state = cause == hids::events::notify::focus::got.id;
+                    conio.focus.send(conio, ext_gear_id, state, from_gear.combine_focus, from_gear.force_group_focus);
                 };
                 LISTEN(tier::general, e2::conio::logs, utf8, tokens)
                 {

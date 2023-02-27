@@ -648,8 +648,7 @@ namespace netxs::directvt
         STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
         STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
         STRUCT(request_clipboard, (id_t, gear_id))
-        STRUCT(set_focus,         (id_t, gear_id) (bool, combine_focus) (bool, force_group_focus))
-        STRUCT(off_focus,         (id_t, gear_id))
+        STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, combine_focus) (bool, force_group_focus))
         STRUCT(maximize,          (id_t, gear_id))
         STRUCT(form_header,       (id_t, window_id) (text, new_header))
         STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
@@ -922,8 +921,7 @@ namespace netxs::directvt
             X(jgc_list         ) /* List of jumbo GC.                             */\
             X(set_clipboard    ) /* Set main clipboard using following data.      */\
             X(request_clipboard) /* Request main clipboard data.                  */\
-            X(off_focus        ) /* Request to remove focus.                      */\
-            X(set_focus        ) /* Request to set focus.                         */\
+            X(focus            ) /* Request to set focus.                         */\
             X(maximize         ) /* Request to maximize/restore                   */\
             X(form_header      ) /* Set window title.                             */\
             X(form_footer      ) /* Set window footer.                            */\
