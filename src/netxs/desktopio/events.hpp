@@ -271,7 +271,7 @@ namespace netxs::events
         static wptr<T>                 empty;
         static std::map<id_t, wptr<T>> store;
 
-        // indexer: Return shared_ptr of the object by its id.
+        // indexer: Return sptr of the object by its id.
         template<class TT = T>
         static auto getref(id_t id)
         {
@@ -283,7 +283,7 @@ namespace netxs::events
             }
             return sptr<TT>{};
         }
-        // indexer: Create a new object of the specified subtype and return its shared_ptr.
+        // indexer: Create a new object of the specified subtype and return its sptr.
         template<class TT, class ...Args>
         static auto create(Args&&... args) -> sptr<TT>
         {

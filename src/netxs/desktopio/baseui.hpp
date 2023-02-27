@@ -1144,7 +1144,7 @@ namespace netxs::ui
     struct pipe
     {
         using flux = std::ostream;
-        using xipc = std::shared_ptr<pipe>;
+        using xipc = sptr<pipe>;
 
         bool active; // pipe: Is connected.
         flag isbusy; // pipe: Buffer is still busy.
