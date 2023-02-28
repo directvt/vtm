@@ -788,8 +788,8 @@ namespace netxs::ansi
             }
             return *this;
         }
-        template<class T, class S>
-        auto& mouse_sgr(T const& gear, S const& cached, twod const& coor) // esc: Mouse tracking report (SGR).
+        template<class T>
+        auto& mouse_sgr(T const& gear, twod const& coor) // esc: Mouse tracking report (SGR).
         {
             using hids = T;
             static constexpr auto left     = si32{ 0  };
@@ -806,7 +806,7 @@ namespace netxs::ansi
             if (gear.m.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
 
             auto m_bttn = std::bitset<8>{ gear.m.buttons };
-            auto s_bttn = std::bitset<8>{ cached.buttons };
+            auto s_bttn = std::bitset<8>{ gear.s.buttons };
             auto m_left = m_bttn[hids::left  ];
             auto m_rght = m_bttn[hids::right ];
             auto m_mddl = m_bttn[hids::middle];
@@ -853,8 +853,8 @@ namespace netxs::ansi
                            coor.x + 1, ';',
                            coor.y + 1, pressed ? 'M' : 'm');
         }
-        template<class T, class S>
-        auto& mouse_x11(T const& gear, S const& cached, twod const& coor, bool utf8) // esc: Mouse tracking report (X11).
+        template<class T>
+        auto& mouse_x11(T const& gear, twod const& coor, bool utf8) // esc: Mouse tracking report (X11).
         {
             using hids = T;
             static constexpr auto left     = si32{ 0  };
@@ -871,7 +871,7 @@ namespace netxs::ansi
             if (gear.m.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
 
             auto m_bttn = std::bitset<8>{ gear.m.buttons };
-            auto s_bttn = std::bitset<8>{ cached.buttons };
+            auto s_bttn = std::bitset<8>{ gear.s.buttons };
             auto m_left = m_bttn[hids::left  ];
             auto m_rght = m_bttn[hids::right ];
             auto m_mddl = m_bttn[hids::middle];

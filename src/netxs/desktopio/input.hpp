@@ -235,8 +235,13 @@ namespace netxs::events::userland
             };
             SUBSET_XS( device )
             {
-                EVENT_XS( mouse, input::hids ), // release: Primary mouse event for forwarding purposes.
                 //EVENT_XS( keybd, input::hids ), // release: Primary keybd event for forwarding purposes.
+                GROUP_XS( mouse, input::hids ), // release: Primary mouse event for forwarding purposes.
+
+                SUBSET_XS( mouse )
+                {
+                    EVENT_XS( on, input::hids ),
+                };
             };
         };
     };
@@ -320,6 +325,7 @@ namespace netxs::input
         span delay = {}; // mouse: Double-click threshold.
         knob bttns = {}; // mouse: Extended state of mouse buttons.
         sysmouse m = {}; // mouse: Device state.
+        sysmouse s = {}; // mouse: Previous device state.
 
         // mouse: Forward the extended mouse event.
         virtual void fire(hint cause, si32 index = mouse::noactive) = 0;
@@ -1102,7 +1108,7 @@ namespace netxs::input
                     auto  temp = m.coordxy;
                     m.coordxy += idmap.coor();
                     next.global(m.coordxy);
-                    next.SIGNAL(tier::release, events::device::mouse, *this);
+                    next.SIGNAL(tier::release, events::device::mouse::on, *this);
                     m.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {
@@ -1114,6 +1120,7 @@ namespace netxs::input
                 }
                 else if (mouse::swift == next_id) mouse::setfree();
             }
+            if (s.changed != m.changed) s = m;
             return !alive;
         }
         void fire_keybd()

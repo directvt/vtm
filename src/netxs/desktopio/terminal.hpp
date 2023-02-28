@@ -306,7 +306,6 @@ namespace netxs::ui
             si32        state; // m_tracking: .
             si32        smode; // m_tracking: Selection mode state backup.
             si32        bttns; // m_tracking: Last buttons state.
-            sysmouse    saved; // m_tracking: Last mouse state.
 
             m_tracking(term& owner)
                 : owner{ owner                   },
@@ -321,7 +320,7 @@ namespace netxs::ui
             void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
             {
                 auto m = std::bitset<8>{ gear.m.buttons };
-                auto s = std::bitset<8>{ saved. buttons };
+                auto s = std::bitset<8>{ gear.s.buttons };
                 if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
                     auto gear_test = e2::form::state::keybd::find.param();
@@ -352,7 +351,7 @@ namespace netxs::ui
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
-                    owner.LISTEN(tier::release, hids::events::device::mouse, gear, token)
+                    owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                     {
                         check_focus(gear);
                         if (owner.selmod == clip::disabled)
@@ -367,21 +366,20 @@ namespace netxs::ui
                             c.y -= console.get_basis();
                             auto moved = coord((state & mode::over) ? c
                                                                     : std::clamp(c, dot_00, console.panel - dot_11));
-                            if (saved.changed != gear.m.changed)
+                            if (gear.s.changed != gear.m.changed)
                             {
                                 if (proto == w32) owner.ptycon.mouse(gear, moved, coord);
                                 else
                                 {
                                     if (state & mode::move
-                                    || (state & mode::drag && gear.m.buttons && moved)
-                                    || (state & mode::bttn && (gear.m.buttons != saved.buttons || gear.m.wheeled)))
+                                    || (state & mode::drag && (gear.m.buttons && moved))
+                                    || (state & mode::bttn && (gear.m.buttons != gear.s.buttons || gear.m.wheeled)))
                                     {
-                                             if (proto == sgr) queue.mouse_sgr(gear, saved, coord);
-                                        else if (proto == x11) queue.mouse_x11(gear, saved, coord, state & mode::utf8);
+                                             if (proto == sgr) queue.mouse_sgr(gear, coord);
+                                        else if (proto == x11) queue.mouse_x11(gear, coord, state & mode::utf8);
                                     }
                                 }
                                 owner.answer(queue);
-                                saved = gear.m;
                             }
                             gear.dismiss();
                         }
@@ -7402,7 +7400,7 @@ namespace netxs::ui
                 {
                     s11n::form_footer.send(owner, 0, utf8);
                 };
-                owner.LISTEN(tier::release, hids::events::device::mouse, gear, token)
+                owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                 {
                     if (gear.captured(owner.id))
                     {

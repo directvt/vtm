@@ -1161,12 +1161,11 @@ namespace netxs::os
                 lock  mutex; // fifo: .
                 sync  wsync; // fifo: .
                 sync  rsync; // fifo: .
-                text& store; // fifo: .
+                text  store; // fifo: .
                 flag& going; // fifo: Sending not completed.
 
-                fifo(flag& busy, text& buff)
+                fifo(flag& busy)
                     : alive{ true },
-                      store{ buff },
                       going{ busy }
                 { }
 
@@ -1211,8 +1210,8 @@ namespace netxs::os
             xcross()
             { }
             xcross(sptr<xcross> remote)
-                : client{ ptr::shared<fifo>(isbusy, remote->buffer) },
-                  server{ ptr::shared<fifo>(remote->isbusy, buffer) },
+                : client{ ptr::shared<fifo>(isbusy)         },
+                  server{ ptr::shared<fifo>(remote->isbusy) },
                   remote{ remote }
             {
                 remote->client = server;

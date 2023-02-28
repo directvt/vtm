@@ -238,7 +238,7 @@ namespace netxs::app::vtm
                         auto& area = item_ptr->area();
                         auto center = area.coor + (area.size / 2);
                         this->SIGNAL(tier::release, e2::form::layout::shift, center);
-                        gear.clear_kb_focus();
+                        gear.clear_kb_focus(); // Clear to avoid group focus because the ctrl is pressed.
                         gear.kb_offer_7(item_ptr);
                     }
                     gear.dismiss();

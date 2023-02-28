@@ -679,7 +679,7 @@ namespace netxs::app::tile
                             auto config = vtm::events::newapp.param({ .menuid = current_default });
                             gate.RISEUP(tier::request, vtm::events::newapp, config);
                             auto app = app_window(config);
-                            gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
+                            gear.kb_annul_0(boss.back()); // Take focus from the empty slot.
                             boss.attach(app);
                             if (auto world_ptr = gate.parent())
                             {

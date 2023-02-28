@@ -3502,8 +3502,8 @@ namespace netxs::ui
             LISTEN(tier::release, e2::conio::quit, msg, tokens)
             {
                 log("gate: ", msg);
-                paint.stop();
                 canal.shut();
+                paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                 base::detach();
                 tokens.reset();
