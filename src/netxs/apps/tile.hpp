@@ -321,7 +321,7 @@ namespace netxs::app::tile
                                 world_ptr->SIGNAL(tier::request, vtm::events::handoff, what);
                                 
                                 gear.kb_offer_2(what.applet); // Pass focus.
-                                gear.annul_kb_focus(master_ptr); // Remove focus.
+                                gear.kb_annul_0(master_ptr); // Remove focus.
 
                                 // Destroy placeholder.
                                 master.RISEUP(tier::release, e2::form::quit, master_ptr);
@@ -541,7 +541,7 @@ namespace netxs::app::tile
                     {
                         auto item_ptr = boss.back();
                         if (item_ptr->base::kind() != 1) gear.kb_offer_2(item_ptr);
-                        else                             gear.annul_kb_focus(item_ptr); // Exclude grips.
+                        else                             gear.kb_annul_0(item_ptr); // Exclude grips.
                     };
                     boss.LISTEN(tier::release, e2::form::maximize, gear, -, (oneoff = subs{}))
                     {
@@ -601,7 +601,7 @@ namespace netxs::app::tile
                             auto empty_2 = empty_slot(empty_slot);
                             auto curitem = boss.pop_back(); // In order to preserve all foci.
                             gear.kb_offer_4(empty_2);
-                            gear.annul_kb_focus(curitem);
+                            gear.kb_annul_0(curitem);
                             if (boss.empty())
                             {
                                 boss.attach(empty_pane());

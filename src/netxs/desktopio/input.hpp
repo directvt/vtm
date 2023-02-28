@@ -1242,20 +1242,14 @@ namespace netxs::input
             //todo kb
             return kb_focus_changed;
         }
-        void pass_kb_focus(base& inst)
-        {
-            //todo kb
-            clear_kb_focus();
-            kb_focus_changed = faux;
-            inst.SIGNAL(tier::release, events::upevent::kboffer, *this);
-        }
+
         auto kb_focus_empty()
         {
             //todo kb
             return kb_focus.empty();
         }
 
-        void annul_kb_focus(sptr<base> item_ptr)
+        void kb_annul_0(sptr<base> item_ptr)
         {
             kb_focus_changed = faux;
             item_ptr->SIGNAL(tier::release, events::upevent::kbannul, *this);

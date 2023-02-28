@@ -3558,6 +3558,7 @@ namespace netxs::ui
                 gear.kb_offer_4(applet);
                 if (gear.focus_changed()) gear.dismiss();
             };
+            //todo revise: nobody signal it
             LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
             {
                 auto myid = from_gear.id;

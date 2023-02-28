@@ -825,7 +825,7 @@ namespace netxs::app::vtm
                         if (auto gear_ptr = bell::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
-                            gear.annul_kb_focus(item_ptr);
+                            gear.kb_annul_0(item_ptr);
                             if (gear.kb_focus_empty())
                             {
                                 gear.kb_offer_4(last_ptr);
