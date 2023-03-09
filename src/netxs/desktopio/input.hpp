@@ -112,7 +112,7 @@ namespace netxs::events::userland
                 SUBSET_XS( focus )
                 {
                     //EVENT_XS( tie , proc_fx ),
-                    //EVENT_XS( die , input::hids ),
+                    //EVENT_XS( die , input::foci ),
                     EVENT_XS( set, input::foci ),
                     EVENT_XS( off, input::foci ),
                     GROUP_XS( bus, input::foci ),
@@ -248,8 +248,6 @@ namespace netxs::events::userland
             };
             SUBSET_XS( focus )
             {
-                //EVENT_XS( chain, input::hids ), // release: Focus chain state.
-                //EVENT_XS( got, input::hids ), // release: Set keybd focus.
                 EVENT_XS( set, input::hids ), // release: Set keybd focus.
                 EVENT_XS( off, input::hids ), // release: Off keybd focus.
             };
