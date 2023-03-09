@@ -219,7 +219,7 @@ namespace netxs::app::vtm
             {
                 this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
             };
-            LISTEN(tier::preview, hids::events::keybd::any, gear, tokens)
+            LISTEN(tier::preview, hids::events::keybd::data, gear, tokens)
             {
                 //todo unify
                 auto& keystrokes = gear.keystrokes;
@@ -906,6 +906,7 @@ namespace netxs::app::vtm
                         };
                         gear.clear_kb_focus(); // DirectVT app could have a group of focused.
                         gear.kb_offer_5(window);
+                        pro::focus::set(window, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     }
                 }

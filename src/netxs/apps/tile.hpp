@@ -186,9 +186,9 @@ namespace netxs::app::tile
                             switch (deed)
                             {
                                 case app::tile::events::ui::create.id:
-                                    gear.force_group_focus = true;
+                                    gear.focus_force_group = true;
                                     boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
-                                    gear.force_group_focus = faux;
+                                    gear.focus_force_group = faux;
                                     break;
                                 case app::tile::events::ui::close.id:
                                     boss.RISEUP(tier::preview, e2::form::quit, boss.This());

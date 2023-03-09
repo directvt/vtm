@@ -7,6 +7,8 @@
 
 namespace netxs::events::userland
 {
+    //using proc_fx = std::function<void(ui::base&)>;
+
     struct hids
     {
         EVENTPACK( hids, netxs::events::userland::root::hids )
@@ -58,8 +60,10 @@ namespace netxs::events::userland
             {
                 EVENT_XS( down   , input::hids ),
                 EVENT_XS( up     , input::hids ),
+                EVENT_XS( data   , input::hids ),
                 GROUP_XS( control, input::hids ),
                 GROUP_XS( state  , input::hids ),
+                GROUP_XS( focus  , input::hids ),
 
                 SUBSET_XS( control )
                 {
@@ -103,6 +107,20 @@ namespace netxs::events::userland
                         EVENT_XS( capslock  , input::hids ),
                         EVENT_XS( scrolllock, input::hids ),
                         EVENT_XS( insert    , input::hids ),
+                    };
+                };
+                SUBSET_XS( focus )
+                {
+                    //EVENT_XS( tie , proc_fx ),
+                    //EVENT_XS( die , input::hids ),
+                    EVENT_XS( set, input::foci ),
+                    EVENT_XS( off, input::foci ),
+                    GROUP_XS( bus, input::foci ),
+
+                    SUBSET_XS( bus )
+                    {
+                        EVENT_XS( on , input::foci ),
+                        EVENT_XS( off, input::foci ),
                     };
                 };
             };
@@ -230,6 +248,8 @@ namespace netxs::events::userland
             };
             SUBSET_XS( focus )
             {
+                //EVENT_XS( chain, input::hids ), // release: Focus chain state.
+                //EVENT_XS( got, input::hids ), // release: Set keybd focus.
                 EVENT_XS( set, input::hids ), // release: Set keybd focus.
                 EVENT_XS( off, input::hids ), // release: Off keybd focus.
             };
@@ -253,6 +273,14 @@ namespace netxs::input
     using netxs::ui::base;
     using netxs::ui::face;
     using netxs::ui::page;
+
+    struct foci
+    {
+        bool solo = {};
+        bool flip = {};
+        id_t id = {};
+        sptr<base> item; // foci: Next focused item.
+    };
 
     // console: Mouse tracker.
     struct mouse
@@ -638,7 +666,7 @@ namespace netxs::input
         ui16 imitate = {};
         ui16 virtcod = {};
         ui16 scancod = {};
-        hint cause = netxs::events::userland::hids::keybd::any.id;
+        hint cause = netxs::events::userland::hids::keybd::data.id;
         text keystrokes;
 
         void update(syskeybd& k)
@@ -681,7 +709,6 @@ namespace netxs::input
         bool        tooltip_stop = faux; // hids: Disable tooltip.
         testy<twod> tooltip_coor = {}; // hids: .
 
-    public:
         base& owner;
         ui32 ctlstate = 0;
         ui32 winctrl = {}; // MS Windows specific.
@@ -693,8 +720,8 @@ namespace netxs::input
         //todo unify
         bool disabled = faux;
         bool kb_focus_changed = faux;
-        bool force_group_focus = faux;
-        bool combine_focus = faux;
+        bool focus_force_group = faux;
+        bool focus_combine = faux;
         bool kb_focus_set = faux;
         si32 countdown = 0;
 
@@ -905,9 +932,9 @@ namespace netxs::input
         }
         auto state()
         {
-            auto s = std::tuple{ force_group_focus,
+            auto s = std::tuple{ focus_force_group,
                                   kb_focus_changed,
-                                     combine_focus,
+                                     focus_combine,
                                          countdown };
             kb_focus_changed = faux;
             return s;
@@ -915,9 +942,9 @@ namespace netxs::input
         template<class T>
         void state(T const& s)
         {
-            force_group_focus = std::get<0>(s);
+            focus_force_group = std::get<0>(s);
             kb_focus_changed  = std::get<1>(s);
-            combine_focus     = std::get<2>(s);
+            focus_combine     = std::get<2>(s);
             countdown         = std::get<3>(s);
         }
 
@@ -970,8 +997,8 @@ namespace netxs::input
             auto s = state();
             if (f.state)
             {
-                force_group_focus = f.force_group_focus;
-                combine_focus     = f.combine_focus    ;
+                focus_force_group = f.focus_force_group;
+                focus_combine     = f.focus_combine    ;
                 owner.SIGNAL(tier::release, events::upevent::kboffer, *this);
             }
             else
@@ -1179,9 +1206,9 @@ namespace netxs::input
             kb_focus_changed = true;
             kb_focus_set = true;
             //auto kb_focus_size = kb_focus.size();
-            if (!simple_instance && (hids::meta(anyCtrl) || force_group_focus))
+            if (!simple_instance && (hids::meta(anyCtrl) || focus_force_group))
             {
-                if (combine_focus)
+                if (focus_combine)
                 {
                     if (!_check_kb_focus(item_ptr)) _add_kb_focus(item_ptr);
                 }
@@ -1265,31 +1292,31 @@ namespace netxs::input
         void kb_offer_1(sptr<base> item_ptr)
         {
             auto s = state();
-            force_group_focus = true;
-            combine_focus = faux;
+            focus_force_group = true;
+            focus_combine = faux;
             item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
             state(s);
         }
         void kb_offer_2(sptr<base> item_ptr)
         {
             auto s = state();
-            force_group_focus = true;
-            combine_focus = true;
+            focus_force_group = true;
+            focus_combine = true;
             item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
             state(s);
         }
         void kb_offer_3(sptr<base> item_ptr)
         {
             auto s = state();
-            force_group_focus = faux;
-            combine_focus = true;
+            focus_force_group = faux;
+            focus_combine = true;
             item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
             state(s);
         }
         void kb_offer_4(sptr<base> item_ptr)
         {
             auto s = state();
-            force_group_focus = true;
+            focus_force_group = true;
             item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
             state(s);
         }
@@ -1302,23 +1329,23 @@ namespace netxs::input
         void kb_offer_6(sptr<base> item_ptr)
         {
             auto s = state();
-            force_group_focus = faux;
+            focus_force_group = faux;
             item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
             state(s);
         }
         void kb_offer_7(sptr<base> item_ptr)
         {
             auto s = state();
-            force_group_focus = faux;
-            combine_focus = faux;
+            focus_force_group = faux;
+            focus_combine = faux;
             item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
             state(s);
         }
         void kb_offer_8(sptr<base> item_ptr, bool force_group)
         {
             auto s = state();
-            force_group_focus = force_group;
-            combine_focus = true;  // dtvt app is always a group of focused.
+            focus_force_group = force_group;
+            focus_combine = true;  // dtvt app is always a group of focused.
             //todo
             //item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
             set_kb_focus(item_ptr);

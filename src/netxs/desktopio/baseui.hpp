@@ -12,6 +12,7 @@
 namespace netxs::input
 {
     struct hids;
+    struct foci;
     using sysmouse = directvt::binary::sysmouse_t;
     using syskeybd = directvt::binary::syskeybd_t;
     using sysfocus = directvt::binary::sysfocus_t;

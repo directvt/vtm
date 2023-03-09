@@ -6446,7 +6446,7 @@ namespace netxs::ui
                         .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
                         .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                     ondata(error);
-                    this->LISTEN(tier::release, hids::events::keybd::any, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, hids::events::keybd::data, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.pressed && gear.cluster.size())
                         {
@@ -7039,7 +7039,7 @@ namespace netxs::ui
 
                 new_size.y += console.get_basis();
             };
-            LISTEN(tier::release, hids::events::keybd::any, gear)
+            LISTEN(tier::release, hids::events::keybd::data, gear)
             {
                 this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
@@ -7327,7 +7327,7 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = bell::getref<hids>(f.gear_id))
                     {
-                        if (f.state) gear_ptr->kb_offer_8(owner.This(), f.force_group_focus);
+                        if (f.state) gear_ptr->kb_offer_8(owner.This(), f.focus_force_group);
                         else         gear_ptr->remove_from_kb_focus(owner.This());
                     }
                 });
@@ -7430,7 +7430,7 @@ namespace netxs::ui
                     gear.m.enabled = hids::stat::halt;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.LISTEN(tier::release, hids::events::keybd::any, gear, token)
+                owner.LISTEN(tier::release, hids::events::keybd::data, gear, token)
                 {
                     s11n::syskeybd.send(owner, gear.id,
                                                gear.ctlstate,
@@ -7447,8 +7447,8 @@ namespace netxs::ui
                     auto focus_state = true;
                     s11n::sysfocus.send(owner, gear.id,
                                                focus_state,
-                                               gear.combine_focus,
-                                               gear.force_group_focus);
+                                               gear.focus_combine,
+                                               gear.focus_force_group);
                 };
                 owner.LISTEN(tier::release, hids::events::upevent::kbannul, gear, token)
                 {
@@ -7456,16 +7456,16 @@ namespace netxs::ui
                     auto focus_state = faux;
                     s11n::sysfocus.send(owner, gear.id,
                                                focus_state,
-                                               gear.combine_focus,
-                                               gear.force_group_focus);
+                                               gear.focus_combine,
+                                               gear.focus_force_group);
                 };
                 owner.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, token)
                 {
                     auto focus_state = faux;
                     s11n::sysfocus.send(owner, gear.id,
                                                focus_state,
-                                               gear.combine_focus,
-                                               gear.force_group_focus);
+                                               gear.focus_combine,
+                                               gear.focus_force_group);
                 };
                 owner.LISTEN(tier::general, e2::config::fps, frame_rate, token)
                 {
