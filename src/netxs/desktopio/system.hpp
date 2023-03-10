@@ -1800,9 +1800,9 @@ namespace netxs::os
                 auto guard = std::unique_lock{ mutex };
                 log("pool: session control started");
 
-                while (alive)
+                while (alive || index.size())
                 {
-                    synch.wait(guard);
+                    if (alive) synch.wait(guard);
                     for (auto it = index.begin(); it != index.end();)
                     {
                         auto& [sid, session] = *it;
@@ -1853,8 +1853,8 @@ namespace netxs::os
 
             pool()
                 : count{ 0    },
-                alive{ true },
-                agent{ &pool::worker, this }
+                  alive{ true },
+                  agent{ &pool::worker, this }
             { }
            ~pool()
             {
