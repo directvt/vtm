@@ -738,6 +738,7 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::release::wrapln)
                 ->attach_property(ui::term::events::layout::align,   app::term::events::release::align)
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
+                ->plugin<pro::focus>(faux, pro::focus::mode::focused)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::quit, boss_ptr)

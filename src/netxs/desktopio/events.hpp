@@ -554,11 +554,11 @@ namespace netxs::events
             else            /* Tier == tier::anycast */
             {
                 auto root = gettop();
-                ftor proc = [&](auto boss_ptr) -> bool
+                auto proc = ftor{ [&](auto boss_ptr)
                 {
                     boss_ptr->anycast.notify(event, std::forward<F>(data));
                     return true;
-                };
+                }};
                 return root->release.notify(userland::root::cascade.id, proc);
             }
         }

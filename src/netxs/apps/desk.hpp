@@ -82,6 +82,7 @@ namespace netxs::app::desk
                             auto center = area.coor + (area.size / 2);
                             gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
                             gear.kb_offer_3(data_src);
+                            pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
                     };
@@ -96,6 +97,7 @@ namespace netxs::app::desk
                             auto center = gear.area().coor + viewport.coor + (viewport.size / 2);
                             inst.SIGNAL(tier::preview, e2::form::layout::appear, center); // Pull window.
                             gear.kb_offer_3(data_src);
+                            pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
                     };
@@ -227,6 +229,7 @@ namespace netxs::app::desk
                         //           auto center = area.coor + (area.size / 2);
                         //           gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
                         //           gear.kb_offer_3(app_list.back());//pass_kb_focus(inst);
+                        //           pro::focus::set(app_list.back(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         //           gear.dismiss();
                         //       }
                         //   }

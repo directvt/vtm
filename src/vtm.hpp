@@ -240,6 +240,7 @@ namespace netxs::app::vtm
                         this->SIGNAL(tier::release, e2::form::layout::shift, center);
                         gear.clear_kb_focus(); // Clear to avoid group focus because the ctrl is pressed.
                         gear.kb_offer_7(item_ptr);
+                        pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::on);
                     }
                     gear.dismiss();
                 }
@@ -686,7 +687,7 @@ namespace netxs::app::vtm
 
     protected:
         hall(sptr<pipe> server, xmls& config, text defapp)
-            : host{ server, config }
+            : host{ server, config, pro::focus::mode::focusable }
         {
             auto current_module_file = os::process::binary();
             auto& apps_list = dbase.apps;
@@ -826,9 +827,11 @@ namespace netxs::app::vtm
                         {
                             auto& gear = *gear_ptr;
                             gear.kb_annul_0(item_ptr);
-                            if (gear.kb_focus_empty())
+                            pro::focus::off(item_ptr, gear.id);
+                            if (gear.kb_focus_empty()) //todo pro::focus
                             {
                                 gear.kb_offer_4(last_ptr);
+                                pro::focus::set(last_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::on);
                             }
                         }
                     }
@@ -968,6 +971,7 @@ namespace netxs::app::vtm
                         if (auto window_ptr = bell::getref<base>(id))
                         {
                             gear.kb_offer_4(window_ptr);
+                            pro::focus::set(window_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::on);
                         }
                     }
                     active.clear();

@@ -200,6 +200,7 @@ namespace netxs::app::tile
                                         gear.countdown--;
                                         // Removing multifocus - The only one can be maximized if several are selected.
                                         gear.kb_offer_6(boss.This());
+                                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::on);
                                         boss.RISEUP(tier::release, e2::form::maximize, gear);
                                         //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
                                     }
@@ -321,7 +322,9 @@ namespace netxs::app::tile
                                 world_ptr->SIGNAL(tier::request, vtm::events::handoff, what);
                                 
                                 gear.kb_offer_2(what.applet); // Pass focus.
+                                pro::focus::set(what.applet, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                                 gear.kb_annul_0(master_ptr); // Remove focus.
+                                pro::focus::off(master_ptr, gear.id);
 
                                 // Destroy placeholder.
                                 master.RISEUP(tier::release, e2::form::quit, master_ptr);
@@ -368,7 +371,9 @@ namespace netxs::app::tile
                 {
                     if (auto gear_ptr = bell::getref<hids>(gear_id))
                     {
-                        gear_ptr->kb_offer_2(item_ptr);
+                        auto& gear = *gear_ptr;
+                        gear.kb_offer_2(item_ptr);
+                        pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                     }
                 }
             }
@@ -542,6 +547,8 @@ namespace netxs::app::tile
                         auto item_ptr = boss.back();
                         if (item_ptr->base::kind() != 1) gear.kb_offer_2(item_ptr);
                         else                             gear.kb_annul_0(item_ptr); // Exclude grips.
+                        if (item_ptr->base::kind() != 1) pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                        else                             pro::focus::off(item_ptr, gear.id); // Exclude grips.
                     };
                     boss.LISTEN(tier::release, e2::form::maximize, gear, -, (oneoff = subs{}))
                     {
@@ -564,6 +571,7 @@ namespace netxs::app::tile
                             {
                                 // Pass the focus to the maximized window.
                                 gear.kb_offer_3(boss.back());
+                                pro::focus::set(boss.back(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
                                 auto fullscreen_item = boss.pop_back();
                                 if (fullscreen_item)
                                 {
@@ -601,7 +609,9 @@ namespace netxs::app::tile
                             auto empty_2 = empty_slot(empty_slot);
                             auto curitem = boss.pop_back(); // In order to preserve all foci.
                             gear.kb_offer_4(empty_2);
+                            pro::focus::set(empty_2, gear.id, pro::focus::solo::off, pro::focus::flip::on);
                             gear.kb_annul_0(curitem);
+                            pro::focus::off(curitem, gear.id);
                             if (boss.empty())
                             {
                                 boss.attach(empty_pane());
@@ -680,6 +690,7 @@ namespace netxs::app::tile
                             gate.RISEUP(tier::request, vtm::events::newapp, config);
                             auto app = app_window(config);
                             gear.kb_annul_0(boss.back()); // Take focus from the empty slot.
+                            pro::focus::off(boss.back(), gear.id);
                             boss.attach(app);
                             if (auto world_ptr = gate.parent())
                             {
@@ -696,6 +707,8 @@ namespace netxs::app::tile
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);
                             if (gear.meta(hids::anyCtrl)) gear.kb_offer_4(app);
                             else                          gear.kb_offer_5(app);
+                            pro::focus::set(app, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
+                                                                                   : pro::focus::solo::on, pro::focus::flip::off);
                         }
                     };
                     boss.LISTEN(tier::release, events::backup, empty_slot_list)
