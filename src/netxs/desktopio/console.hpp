@@ -1633,9 +1633,13 @@ namespace netxs::ui
                 template<class P>
                 auto foreach(P proc)
                 {
-                    for (auto& shadow : next)
+                    auto head = next.begin();
+                    auto tail = next.end();
+                    while (head != tail)
                     {
-                        if (auto nexthop = shadow.lock()) proc(nexthop);
+                        auto n = head++;
+                        if (auto nexthop = n->lock()) proc(nexthop);
+                        else                          next.erase(n);
                     }
                 }
             };
@@ -1662,8 +1666,14 @@ namespace netxs::ui
                 item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed);
                 if constexpr (debugmode)
                 {
-                    log("foci: focus set");
-                    item_ptr->SIGNAL(tier::anycast, hids::events::keybd::focus::bus::any, seed);
+                    log("foci: focus set gear.id=", seed.id, " item.id=", item_ptr->id);
+                    auto proc = std::function<void(base&)>{};
+                    proc = [&](base& item)
+                    {
+                        item.toboss(proc);
+                        item.SIGNAL(tier::release, hids::events::keybd::focus::bus::any, seed);
+                    };
+                    proc(*item_ptr);
                 }
             }
             static void off(sptr<base> item_ptr, id_t gear_id)
@@ -1672,8 +1682,14 @@ namespace netxs::ui
                 item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed);
                 if constexpr (debugmode)
                 {
-                    log("foci: focus off");
-                    item_ptr->SIGNAL(tier::anycast, hids::events::keybd::focus::bus::any, seed);
+                    log("foci: focus off gear.id=", seed.id);
+                    auto proc = std::function<void(base&)>{};
+                    proc = [&](base& item)
+                    {
+                        item.toboss(proc);
+                        item.SIGNAL(tier::release, hids::events::keybd::focus::bus::any, seed);
+                    };
+                    proc(*item_ptr);
                 }
             }
             //todo if (gear.kb_focus_empty())
@@ -1705,10 +1721,12 @@ namespace netxs::ui
                     gear.alive = accum;
                 };
                 // Subscribe on focus chain log output.
-                boss.LISTEN(tier::anycast, hids::events::keybd::focus::bus::any, seed, memo)
+                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo)
                 {
-                    //auto& route = state[seed.id];
-                    log("foci: boss.id=", boss.id, " state.size=", state.size(), " focusable=", focusable?"1":"0");
+                    auto& route = state[seed.id];
+                    auto test = text{};
+                    route.foreach([&](auto& next){ test += utf::concat("\n     - next_id=", next->id); });
+                    log("foci: boss.id=", boss.id, " state.size=", state.size(), " focusable=", focusable?"1":"0", " next.size=", route.next.size(), test);
                 };
                 // Subscribe on focus chain events.
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::bus::any, seed, memo)

@@ -650,6 +650,11 @@ namespace netxs::events
             }
         });
     }
+    void dequeue()
+    {
+        auto& agent = _agent<void>();
+        agent.stop();
+    }
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;
 }

@@ -1836,6 +1836,7 @@ namespace netxs::os
             void run(Proc process)
             {
                 auto guard = std::lock_guard{ mutex };
+                if (!alive) return;
                 auto next_id = count++;
                 auto session = std::thread([&, process, next_id]
                 {

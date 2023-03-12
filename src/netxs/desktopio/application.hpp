@@ -534,6 +534,7 @@ namespace netxs::app::shared
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
             domain->invite(uplink, applet, vtmode);
+            netxs::events::dequeue();
             domain->shutdown();
         };
 
