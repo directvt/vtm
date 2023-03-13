@@ -1721,6 +1721,7 @@ namespace netxs::ui
                     gear.alive = accum;
                 };
                 // Subscribe on focus chain log output.
+                if constexpr (debugmode)
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo)
                 {
                     auto& route = state[seed.id];
