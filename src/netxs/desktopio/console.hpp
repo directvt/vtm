@@ -1662,6 +1662,7 @@ namespace netxs::ui
             enum class flip { off = faux, on = true };
             static void set(sptr<base> item_ptr, id_t gear_id, solo s, flip f)
             {
+                return; //todo new focus architecture not completed
                 auto seed = hids::events::keybd::focus::set.param({ .solo = (bool)s, .flip = (bool)f, .id = gear_id });
                 item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed);
                 if constexpr (debugmode)
@@ -1678,6 +1679,7 @@ namespace netxs::ui
             }
             static void off(sptr<base> item_ptr, id_t gear_id)
             {
+                return; //todo new focus architecture not completed
                 auto seed = hids::events::keybd::focus::set.param({ .id = gear_id });
                 item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed);
                 if constexpr (debugmode)
