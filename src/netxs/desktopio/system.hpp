@@ -3568,14 +3568,14 @@ namespace netxs::os
                                 if (strv.at(pos) == 'I')
                                 {
                                     f.gear_id = 0;
-                                    f.enabled = true;
+                                    f.state = true;
                                     wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == 'O')
                                 {
                                     f.gear_id = 0;
-                                    f.enabled = faux;
+                                    f.state = faux;
                                     wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
